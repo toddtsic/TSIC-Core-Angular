@@ -1,0 +1,42 @@
+<div class="app-container">
+  <header>
+    <h1>TSIC Next Generation</h1>
+  </header>
+
+  <main>
+    <div class="test-section">
+      <h2>API Connection Test</h2>
+      
+      @if (loading()) {
+        <div class="status loading">
+          <span class="spinner"></span>
+          Testing API connection...
+        </div>
+      }
+      
+      @if (apiResponse()) {
+        <div class="status success">
+          <strong>? Success!</strong>
+          <p>{{ apiResponse() }}</p>
+        </div>
+      }
+      
+      @if (error()) {
+        <div class="status error">
+          <strong>? Error</strong>
+          <p>{{ error() }}</p>
+          <button (click)="testApi()">Retry</button>
+        </div>
+      }
+      
+      @if (healthData()) {
+        <div class="health-info">
+          <h3>API Health</h3>
+          <pre>{{ healthData() | json }}</pre>
+        </div>
+      }
+    </div>
+
+    <router-outlet />
+  </main>
+</div>
