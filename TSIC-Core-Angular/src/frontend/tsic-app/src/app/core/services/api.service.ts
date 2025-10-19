@@ -11,10 +11,10 @@ export class ApiService {
   private readonly baseUrl = environment.apiUrl;
 
   testConnection(): Observable<string> {
-    return this.http.get(`/api/test`, { responseType: 'text' });
+    return this.http.get(`${this.baseUrl}/api/test`, { responseType: 'text' });
   }
 
   getHealth(): Observable<any> {
-    return this.http.get(`/api/test/health`);
+    return this.http.get(`${this.baseUrl}/api/test/health`);
   }
 }

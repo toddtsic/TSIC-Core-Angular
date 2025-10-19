@@ -28,6 +28,8 @@ export class AppComponent implements OnInit {
     this.apiResponse.set(null);
     this.healthData.set(null);
 
+    console.log('Testing API connection...');
+
     this.apiService.testConnection().subscribe({
       next: (response) => {
         this.apiResponse.set(response);

@@ -1,0 +1,19 @@
+<div class="login-container">
+  <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+    <label for="username">Username</label>
+    <input id="username" formControlName="username" (input)="onCredentialsChange()" />
+
+    <label for="password">Password</label>
+    <input id="password" type="password" formControlName="password" (input)="onCredentialsChange()" />
+
+    <label for="registration">Available Registrations</label>
+    <select id="registration" formControlName="registration" [disabled]="dropdownDisabled" (change)="onRegistrationSelect()">
+      <option value="" disabled selected>Select registration</option>
+      <option *ngFor="let reg of registrations" [value]="reg.regId">
+        {{ reg.displayText }}
+      </option>
+    </select>
+
+    <button type="submit" [disabled]="submitDisabled">Submit</button>
+  </form>
+</div>
