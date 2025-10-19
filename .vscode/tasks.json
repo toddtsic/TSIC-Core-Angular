@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: start (Angular)",
+      "type": "shell",
+      "command": "npm start",
+      "problemMatcher": [],
+      "isBackground": true,
+      "options": { "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app" }
+    },
+    {
+      "label": "dotnet: run (API)",
+      "type": "shell",
+      "command": "dotnet run --project TSIC-Core-Angular/src/backend/TSIC.API/TSIC.API.csproj",
+      "problemMatcher": "$msCompile",
+      "isBackground": true
+    }
+  ]
+}
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "TSIC-Core-Angular.sln"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/TSIC-Core-Angular"
+      },
+      "problemMatcher": "$msCompile"
+    }
+      ,
+      {
+        "label": "npm: start (Angular UI)",
+        "type": "shell",
+        "command": "npm run start",
+        "options": {
+          "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app"
+        },
+        "isBackground": true,
+      "problemMatcher": ["$tsc-watch"]
+      }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Chrome (Angular)",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:4200",
+      "preLaunchTask": "npm: start (Angular)",
+      "webRoot": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app"
+    },
+    {
+      "name": "Launch API (dotnet)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "dotnet: run (API)",
+      "program": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API/bin/Debug/net9.0/TSIC.API.dll",
+      "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API",
+      "stopAtEntry": false
+    }
+  ]
+}
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET API: Launch & Debug",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API/bin/Debug/net9.0/TSIC.API.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    },
+    {
+      "name": "Angular UI: Chrome Debug",
+      "type": "chrome",
+      "request": "launch",
+      "url": "https://localhost:4200",
+      "webRoot": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app/src",
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*",
+        "webpack:///./src/*": "${webRoot}/*",
+        "webpack:///*": "*"
+      }
+        ,
+        "preLaunchTask": "npm: start (Angular UI)"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: API & Angular",
+      "configurations": [".NET API: Launch & Debug", "Angular UI: Chrome Debug"]
+    }
+  ]
+}
