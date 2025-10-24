@@ -1,4 +1,4 @@
-﻿namespace TSIC.Application;
+namespace TSIC.Application;
 
 public class Class1
 {

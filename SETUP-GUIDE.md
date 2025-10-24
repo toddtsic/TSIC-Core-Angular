@@ -26,3 +26,26 @@ Local dev quickstart
   ```
 
 If you want me to scaffold `tasks.json` / `launch.json` for VS Code to start both servers with a single click, tell me and I'll add them.
+
+
+Container/Docker notes (removed from `master`)
+
+Per project policy the repository no longer contains working Docker or Aspire scaffolding in `master`. If you need to run the application in containers later, the sample files are preserved on the `pre-rollback-backup` branch and can be restored selectively.
+
+To restore container samples from the backup branch (PowerShell):
+
+```powershell
+git checkout pre-rollback-backup -- docker-compose.yml
+git checkout pre-rollback-backup -- TSIC-Core-Angular/src/backend/TSIC.API/Dockerfile
+```
+
+If you want a separate branch with container samples (recommended to avoid cluttering `master`), I can create `container-samples` with a working `docker-compose.yml`, Dockerfiles, and a short README.
+
+CI (GitHub Actions)
+
+- A minimal GitHub Actions workflow has been added at `.github/workflows/ci.yml`. It:
+  - runs on push/PR to `master`
+  - builds the .NET solution, runs tests (if any), checks formatting with `dotnet format`, and builds the Angular app
+  - uploads the backend build artifact
+
+ - This project does not use Azure; CI is configured using GitHub Actions and publishing can be added to GHCR / GitHub Releases if desired.

@@ -1,4 +1,4 @@
-﻿namespace TSIC.ApiClient.Tests;
+namespace TSIC.ApiClient.Tests;
 
 public class UnitTest1
 {

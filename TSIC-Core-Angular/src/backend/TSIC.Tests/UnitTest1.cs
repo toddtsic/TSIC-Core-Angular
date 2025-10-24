@@ -1,4 +1,4 @@
-﻿namespace TSIC.Tests;
+namespace TSIC.Tests;
 
 public class UnitTest1
 {

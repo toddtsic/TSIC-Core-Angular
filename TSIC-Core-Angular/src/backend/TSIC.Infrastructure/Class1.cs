@@ -1,4 +1,4 @@
-﻿namespace TSIC.Infrastructure;
+namespace TSIC.Infrastructure;
 
 public class Class1
 {

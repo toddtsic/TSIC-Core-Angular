@@ -46,3 +46,8 @@ src/frontend/tsic-app/yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Aspire generated outputs (keep configs only)
+tools/aspire/generated/
+tools/aspire/.aspire/
+tools/aspire/*.db

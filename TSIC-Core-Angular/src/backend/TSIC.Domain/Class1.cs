@@ -1,4 +1,4 @@
-﻿namespace TSIC.Domain;
+namespace TSIC.Domain;
 
 public class Class1
 {

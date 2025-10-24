@@ -1,4 +1,4 @@
-﻿namespace TSIC.ApiClient;
+namespace TSIC.ApiClient;
 
 public class Class1
 {

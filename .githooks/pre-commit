@@ -1,0 +1,54 @@
+#!/bin/sh
+set -e
+echo "Running pre-commit checks..."
+
+# Determine repository root
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "")"
+if [ -z "$ROOT" ]; then
+  echo "Unable to determine git root; skipping checks." >&2
+  exit 0
+fi
+
+# Locate a solution file. Prefer known paths used by this repo.
+WORKSPACE=""
+if [ -f "$ROOT/TSIC-Core-Angular.sln" ]; then
+  WORKSPACE="$ROOT/TSIC-Core-Angular.sln"
+  cd "$ROOT"
+elif [ -f "$ROOT/TSIC-Core-Angular/TSIC-Core-Angular.sln" ]; then
+  WORKSPACE="$ROOT/TSIC-Core-Angular/TSIC-Core-Angular.sln"
+  cd "$ROOT/TSIC-Core-Angular"
+elif ls "$ROOT"/*.sln >/dev/null 2>&1; then
+  WORKSPACE=$(ls "$ROOT"/*.sln | head -n1)
+  cd "$ROOT"
+else
+  echo "No solution file found in repo; skipping dotnet format check." >&2
+  WORKSPACE=""
+fi
+
+if [ -n "$WORKSPACE" ] && command -v dotnet >/dev/null 2>&1; then
+  echo "1) dotnet format --verify-no-changes on $WORKSPACE"
+  dotnet tool restore || true
+  if ! dotnet format "$WORKSPACE" --verify-no-changes; then
+    echo "dotnet format reported changes. Run 'dotnet format "$WORKSPACE"' to fix or stage formatting changes before committing." >&2
+    exit 1
+  fi
+else
+  echo "Skipping dotnet format: no workspace or dotnet not found." >&2
+fi
+
+# Frontend lint (optional)
+FRONTEND_DIR="$ROOT/TSIC-Core-Angular/src/frontend/tsic-app"
+if [ -d "$FRONTEND_DIR" ] && command -v npm >/dev/null 2>&1; then
+  if [ -f "$FRONTEND_DIR/package.json" ]; then
+    if npm --prefix "$FRONTEND_DIR" run | grep -q lint; then
+      echo "2) Running frontend lint in $FRONTEND_DIR"
+      if ! npm --prefix "$FRONTEND_DIR" run lint --silent; then
+        echo "Frontend lint failed. Fix lint errors or run 'npm --prefix \"$FRONTEND_DIR\" run lint'" >&2
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+echo "Pre-commit checks passed."
+exit 0

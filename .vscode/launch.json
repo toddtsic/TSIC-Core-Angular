@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "Launch Chrome (Angular)",
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
       "url": "http://localhost:4200",
       "preLaunchTask": "npm: start (Angular)",
@@ -17,12 +17,22 @@
       "program": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API/bin/Debug/net9.0/TSIC.API.dll",
       "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API",
       "stopAtEntry": false
-    }
-  ]
-}
-{
-  "version": "0.2.0",
-  "configurations": [
+    },
+    {
+      "name": "Launch API (debug https)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API/bin/Debug/net9.0/TSIC.API.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/backend/TSIC.API",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "https://localhost:7215;http://localhost:5022"
+      }
+    },
     {
       "name": ".NET API: Launch & Debug",
       "type": "coreclr",
@@ -44,15 +54,31 @@
         "webpack:///src/*": "${webRoot}/*",
         "webpack:///./src/*": "${webRoot}/*",
         "webpack:///*": "*"
-      }
-        ,
-        "preLaunchTask": "npm: start (Angular UI)"
+      },
+      "preLaunchTask": "npm: start (Angular UI)"
+    }
+    ,
+    {
+      "name": "Attach to running API",
+      "type": "coreclr",
+      "request": "attach",
+      "processId": "${command:pickProcess}"
     }
   ],
   "compounds": [
     {
       "name": "Full Stack: API & Angular",
-      "configurations": [".NET API: Launch & Debug", "Angular UI: Chrome Debug"]
+      "configurations": ["Launch Chrome (Angular)", "Launch API (dotnet)"]
+    }
+    ,
+    {
+      "name": "Launch API + Frontend (https)",
+      "configurations": ["Launch API (debug https)", "Launch Chrome (Angular)"]
+    }
+    ,
+    {
+      "name": "Attach API + Frontend",
+      "configurations": ["Attach to running API", "Launch Chrome (Angular)"]
     }
   ]
 }

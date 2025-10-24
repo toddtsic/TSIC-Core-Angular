@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  tsic-api:
+    build:
+      context: ../../TSIC-Core-Angular/src/backend/TSIC.API
+      dockerfile: Dockerfile
+    ports:
+      - "7215:7215"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  seq:
+    image: datalust/seq:latest
+    ports:
+      - "5341:5341"
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: "YourStrong!Passw0rd"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+
+# To run: docker compose -f tools/aspire/docker-compose.aspire.yml up

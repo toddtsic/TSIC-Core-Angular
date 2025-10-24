@@ -4,14 +4,9 @@ namespace TSIC.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class TestController : ControllerBase
+public class TestController(ILogger<TestController> logger) : ControllerBase
 {
-    private readonly ILogger<TestController> _logger;
-
-    public TestController(ILogger<TestController> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<TestController> _logger = logger;
 
     [HttpGet]
     public ActionResult<string> Get()

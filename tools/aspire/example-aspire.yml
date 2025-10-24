@@ -1,0 +1,25 @@
+# Example Aspire orchestration config (minimal, documented)
+# This is a small example showing how you might declare services and mapping.
+# Adapt to your Aspire toolchain or replace with the real config you want.
+
+version: "1.0"
+services:
+  api:
+    image: tsic-api:latest
+    ports:
+      - "7215:7215"
+    env:
+      - ASPNETCORE_ENVIRONMENT=Development
+  seq:
+    image: datalust/seq:latest
+    ports:
+      - "5341:5341"
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    env:
+      - SA_PASSWORD=YourStrong!Passw0rd
+      - ACCEPT_EULA=Y
+
+# Notes:
+# - Keep passwords and secrets out of source control; use environment secret injection instead.
+# - Only check in configuration that is required to reproduce the orchestration; ignore generated outputs.
