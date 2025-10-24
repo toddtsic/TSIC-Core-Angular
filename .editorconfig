@@ -5,12 +5,22 @@ indent_style = space
 indent_size = 4
 charset = utf-8
 insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C# specific style rules
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_predefined_type_for_member_access = true:suggestion
 
 [*.{js,ts,html,json,css,scss}]
 indent_style = space
 indent_size = 2
 charset = utf-8
 insert_final_newline = true
+trim_trailing_whitespace = true
 
 [*.md]
 trim_trailing_whitespace = false

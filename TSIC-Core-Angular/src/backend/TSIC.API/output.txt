@@ -1,0 +1,517 @@
+Using launch settings from C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\Properties\launchSettings.json...
+Building...
+C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\Services\RoleLookupService.cs(36,73): warning CS8604: Possible null reference argument for parameter 'DisplayText' in 'RegistrationDto.RegistrationDto(string RegId, string DisplayText, string JobLogo)'. [C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\TSIC.API.csproj]
+C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\Services\RoleLookupService.cs(58,21): warning CS8604: Possible null reference argument for parameter 'DisplayText' in 'RegistrationDto.RegistrationDto(string RegId, string DisplayText, string JobLogo)'. [C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\TSIC.API.csproj]
+C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\Services\RoleLookupService.cs(82,21): warning CS8604: Possible null reference argument for parameter 'DisplayText' in 'RegistrationDto.RegistrationDto(string RegId, string DisplayText, string JobLogo)'. [C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\TSIC.API.csproj]
+C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\Services\RoleLookupService.cs(135,21): warning CS8604: Possible null reference argument for parameter 'DisplayText' in 'RegistrationDto.RegistrationDto(string RegId, string DisplayText, string JobLogo)'. [C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API\TSIC.API.csproj]
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+      User profile is available. Using 'C:\Users\tgree\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: https://localhost:7215
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5022
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\tgree\source\repos\TSIC-Core-Angular\TSIC-Core-Angular\src\backend\TSIC.API
+dbug: Microsoft.Extensions.Hosting.Internal.Host[2]
+      Hosting started
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET https://localhost:7215/api/test/health - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'TSIC.API.Controllers.TestController.GetHealth (TSIC.API)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "GetHealth", controller = "Test"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.ActionResult`1[System.Object] GetHealth() on controller TSIC.API.Controllers.TestController (TSIC.API).
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10401]
+      An 'IServiceProvider' was created for internal use by Entity Framework.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Families' has been configured by convention because there are multiple properties on one entity type - {'FamiliesFamilyUser', 'FamiliesLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'RegistrationsLebUser', 'RegistrationsUser'} that could be matched with the properties on the other entity type - {'LebUser', 'User'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'StoreCart' has been configured by convention because there are multiple properties on one entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'BracketSeeds' to 'Divisions' has been configured by convention because there are multiple properties on one entity type - {'T1SeedDiv', 'T2SeedDiv'} that could be matched with the properties on the other entity type - {'BracketSeedsT1SeedDiv', 'BracketSeedsT2SeedDiv'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'Families' has been configured by convention because there are multiple properties on one entity type - {'FamiliesDadCellphoneProviderNavigation', 'FamiliesMomCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'DadCellphoneProviderNavigation', 'MomCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeCellphoneProviderNavigation', 'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'CeCellphoneProviderNavigation', 'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ContactRelationshipCategories' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeRelationship', 'PersonContactsCpRelationship', 'PersonContactsCsRelationship'} that could be matched with the properties on the other entity type - {'CeRelationship', 'CpRelationship', 'CsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Divisions' to 'BracketSeeds' has been configured by convention because there are multiple properties on one entity type - {'BracketSeedsT1SeedDiv', 'BracketSeedsT2SeedDiv'} that could be matched with the properties on the other entity type - {'T1SeedDiv', 'T2SeedDiv'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Divisions' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleDiv', 'ScheduleDiv2'} that could be matched with the properties on the other entity type - {'Div', 'Div2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Families' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'DadCellphoneProviderNavigation', 'MomCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'FamiliesDadCellphoneProviderNavigation', 'FamiliesMomCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Families' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'FamilyUser', 'LebUser'} that could be matched with the properties on the other entity type - {'FamiliesFamilyUser', 'FamiliesLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Fields' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'} that could be matched with the properties on the other entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PairingsLeagueSeason' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'PairingsLeagueSeasonT1TypeNavigation', 'PairingsLeagueSeasonT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CeCellphoneProviderNavigation', 'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCeCellphoneProviderNavigation', 'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CeRelationship', 'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCeRelationship', 'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PushNotifications' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'AuthorRegistration', 'QpReg'} that could be matched with the properties on the other entity type - {'PushNotificationsAuthorRegistration', 'PushNotificationsQpReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'User'} that could be matched with the properties on the other entity type - {'RegistrationsLebUser', 'RegistrationsUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'PushNotifications' has been configured by convention because there are multiple properties on one entity type - {'PushNotificationsAuthorRegistration', 'PushNotificationsQpReg'} that could be matched with the properties on the other entity type - {'AuthorRegistration', 'QpReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Divisions' has been configured by convention because there are multiple properties on one entity type - {'Div', 'Div2'} that could be matched with the properties on the other entity type - {'ScheduleDiv', 'ScheduleDiv2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'InverseT1GnoRefNavigation'} that could be matched with the properties on the other entity type - {'InverseT2GnoRefNavigation', 'T1GnoRefNavigation', 'T2GnoRefNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'T1', 'T2'} that could be matched with the properties on the other entity type - {'ScheduleT1', 'ScheduleT2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ScheduleTeamTypes' to 'PairingsLeagueSeason' has been configured by convention because there are multiple properties on one entity type - {'PairingsLeagueSeasonT1TypeNavigation', 'PairingsLeagueSeasonT2TypeNavigation'} that could be matched with the properties on the other entity type - {'T1TypeNavigation', 'T2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ScheduleTeamTypes' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'} that could be matched with the properties on the other entity type - {'T1TypeNavigation', 'T2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'StoreCart' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'FamilyUser', 'LebUser'} that could be matched with the properties on the other entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'StoreCartBatchSkuEdits' to 'StoreCartBatchSkus' has been configured by convention because there are multiple properties on one entity type - {'PreviousStoreCartBatchSku', 'StoreCartBatchSku'} that could be matched with the properties on the other entity type - {'StoreCartBatchSkuEditsPreviousStoreCartBatchSku', 'StoreCartBatchSkuEditsStoreCartBatchSku'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'StoreCartBatchSkus' to 'StoreCartBatchSkuEdits' has been configured by convention because there are multiple properties on one entity type - {'StoreCartBatchSkuEditsPreviousStoreCartBatchSku', 'StoreCartBatchSkuEditsStoreCartBatchSku'} that could be matched with the properties on the other entity type - {'PreviousStoreCartBatchSku', 'StoreCartBatchSku'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'TeamAttendanceRecords' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'Player'} that could be matched with the properties on the other entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1', 'ScheduleT2'} that could be matched with the properties on the other entity type - {'T1', 'T2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'TeamTournamentMappings' has been configured by convention because there are multiple properties on one entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'} that could be matched with the properties on the other entity type - {'ClubTeam', 'TournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'TeamTournamentMappings' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'ClubTeam', 'TournamentTeam'} that could be matched with the properties on the other entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'BracketSeeds' to 'Divisions' has been configured by convention because there are multiple properties on one entity type - {'T1SeedDiv', 'T2SeedDiv'} that could be matched with the properties on the other entity type - {'BracketSeedsT1SeedDiv', 'BracketSeedsT2SeedDiv'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Divisions' to 'BracketSeeds' has been configured by convention because there are multiple properties on one entity type - {'BracketSeedsT1SeedDiv', 'BracketSeedsT2SeedDiv'} that could be matched with the properties on the other entity type - {'T1SeedDiv', 'T2SeedDiv'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Divisions' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleDiv', 'ScheduleDiv2'} that could be matched with the properties on the other entity type - {'Div', 'Div2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Divisions' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleDiv', 'ScheduleDiv2'} that could be matched with the properties on the other entity type - {'Div', 'Div2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Families' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'DadCellphoneProviderNavigation', 'MomCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'FamiliesDadCellphoneProviderNavigation', 'FamiliesMomCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Families' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'FamilyUser', 'LebUser'} that could be matched with the properties on the other entity type - {'FamiliesFamilyUser', 'FamiliesLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'Families' has been configured by convention because there are multiple properties on one entity type - {'FamiliesDadCellphoneProviderNavigation', 'FamiliesMomCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'DadCellphoneProviderNavigation', 'MomCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeCellphoneProviderNavigation', 'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'CeCellphoneProviderNavigation', 'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeCellphoneProviderNavigation', 'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'CeCellphoneProviderNavigation', 'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Families' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'FamilyUser', 'LebUser'} that could be matched with the properties on the other entity type - {'FamiliesFamilyUser', 'FamiliesLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Families' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'FamilyUser', 'LebUser'} that could be matched with the properties on the other entity type - {'FamiliesFamilyUser', 'FamiliesLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Families' has been configured by convention because there are multiple properties on one entity type - {'FamiliesFamilyUser', 'FamiliesLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'RegistrationsLebUser', 'RegistrationsUser'} that could be matched with the properties on the other entity type - {'LebUser', 'User'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'StoreCart' has been configured by convention because there are multiple properties on one entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'RegistrationsLebUser', 'RegistrationsUser'} that could be matched with the properties on the other entity type - {'LebUser', 'User'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'StoreCart' has been configured by convention because there are multiple properties on one entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PairingsLeagueSeason' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'PairingsLeagueSeasonT1TypeNavigation', 'PairingsLeagueSeasonT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ScheduleTeamTypes' to 'PairingsLeagueSeason' has been configured by convention because there are multiple properties on one entity type - {'PairingsLeagueSeasonT1TypeNavigation', 'PairingsLeagueSeasonT2TypeNavigation'} that could be matched with the properties on the other entity type - {'T1TypeNavigation', 'T2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ScheduleTeamTypes' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'} that could be matched with the properties on the other entity type - {'T1TypeNavigation', 'T2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ScheduleTeamTypes' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'} that could be matched with the properties on the other entity type - {'T1TypeNavigation', 'T2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CeCellphoneProviderNavigation', 'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCeCellphoneProviderNavigation', 'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CeRelationship', 'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCeRelationship', 'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeCellphoneProviderNavigation', 'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'CeCellphoneProviderNavigation', 'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CeCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCeCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CeRelationship', 'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCeRelationship', 'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CeCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCeCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CeRelationship', 'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCeRelationship', 'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ContactRelationshipCategories' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeRelationship', 'PersonContactsCpRelationship', 'PersonContactsCsRelationship'} that could be matched with the properties on the other entity type - {'CeRelationship', 'CpRelationship', 'CsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ContactRelationshipCategories' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCpRelationship', 'PersonContactsCsRelationship'} that could be matched with the properties on the other entity type - {'CpRelationship', 'CsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CeCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCeCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CeRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCeRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'CellphonecarrierDomains' has been configured by convention because there are multiple properties on one entity type - {'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CeRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCeRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'CeCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'CellphonecarrierDomains' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCpCellphoneProviderNavigation', 'PersonContactsCsCellphoneProviderNavigation'} that could be matched with the properties on the other entity type - {'CpCellphoneProviderNavigation', 'CsCellphoneProviderNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CeRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCeRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PersonContacts' to 'ContactRelationshipCategories' has been configured by convention because there are multiple properties on one entity type - {'CpRelationship', 'CsRelationship'} that could be matched with the properties on the other entity type - {'PersonContactsCpRelationship', 'PersonContactsCsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ContactRelationshipCategories' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCeRelationship'} that could be matched with the properties on the other entity type - {'CeRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ContactRelationshipCategories' to 'PersonContacts' has been configured by convention because there are multiple properties on one entity type - {'PersonContactsCpRelationship', 'PersonContactsCsRelationship'} that could be matched with the properties on the other entity type - {'CpRelationship', 'CsRelationship'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'PushNotifications' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'AuthorRegistration', 'QpReg'} that could be matched with the properties on the other entity type - {'PushNotificationsAuthorRegistration', 'PushNotificationsQpReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'User'} that could be matched with the properties on the other entity type - {'RegistrationsLebUser', 'RegistrationsUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'PushNotifications' has been configured by convention because there are multiple properties on one entity type - {'PushNotificationsAuthorRegistration', 'PushNotificationsQpReg'} that could be matched with the properties on the other entity type - {'AuthorRegistration', 'QpReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'User'} that could be matched with the properties on the other entity type - {'RegistrationsLebUser', 'RegistrationsUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'User'} that could be matched with the properties on the other entity type - {'RegistrationsLebUser', 'RegistrationsUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1', 'ScheduleT2'} that could be matched with the properties on the other entity type - {'T1', 'T2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'TeamTournamentMappings' has been configured by convention because there are multiple properties on one entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'} that could be matched with the properties on the other entity type - {'ClubTeam', 'TournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1', 'ScheduleT2'} that could be matched with the properties on the other entity type - {'T1', 'T2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'TeamTournamentMappings' has been configured by convention because there are multiple properties on one entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'} that could be matched with the properties on the other entity type - {'ClubTeam', 'TournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam'} that could be matched with the properties on the other entity type - {'Registrations'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'User'} that could be matched with the properties on the other entity type - {'RegistrationsLebUser', 'RegistrationsUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam'} that could be matched with the properties on the other entity type - {'Registrations'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'User'} that could be matched with the properties on the other entity type - {'RegistrationsLebUser', 'RegistrationsUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'RegistrationsLebUser', 'RegistrationsUser'} that could be matched with the properties on the other entity type - {'LebUser', 'User'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'StoreCart' has been configured by convention because there are multiple properties on one entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'StoreCart' has been configured by convention because there are multiple properties on one entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam'} that could be matched with the properties on the other entity type - {'Registrations'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Divisions' has been configured by convention because there are multiple properties on one entity type - {'Div', 'Div2'} that could be matched with the properties on the other entity type - {'ScheduleDiv', 'ScheduleDiv2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'InverseT1GnoRefNavigation'} that could be matched with the properties on the other entity type - {'InverseT2GnoRefNavigation', 'T1GnoRefNavigation', 'T2GnoRefNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'T1', 'T2'} that could be matched with the properties on the other entity type - {'ScheduleT1', 'ScheduleT2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Divisions' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleDiv', 'ScheduleDiv2'} that could be matched with the properties on the other entity type - {'Div', 'Div2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'InverseT1GnoRefNavigation'} that could be matched with the properties on the other entity type - {'InverseT2GnoRefNavigation', 'T1GnoRefNavigation', 'T2GnoRefNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'T1', 'T2'} that could be matched with the properties on the other entity type - {'ScheduleT1', 'ScheduleT2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'InverseT1GnoRefNavigation'} that could be matched with the properties on the other entity type - {'InverseT2GnoRefNavigation', 'T1GnoRefNavigation', 'T2GnoRefNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'T1', 'T2'} that could be matched with the properties on the other entity type - {'ScheduleT1', 'ScheduleT2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'T1', 'T2'} that could be matched with the properties on the other entity type - {'ScheduleT1', 'ScheduleT2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'T1', 'T2'} that could be matched with the properties on the other entity type - {'ScheduleT1', 'ScheduleT2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1', 'ScheduleT2'} that could be matched with the properties on the other entity type - {'T1', 'T2'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'TeamTournamentMappings' has been configured by convention because there are multiple properties on one entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'} that could be matched with the properties on the other entity type - {'ClubTeam', 'TournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'TeamTournamentMappings' has been configured by convention because there are multiple properties on one entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'} that could be matched with the properties on the other entity type - {'ClubTeam', 'TournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Schedule' to 'ScheduleTeamTypes' has been configured by convention because there are multiple properties on one entity type - {'T1TypeNavigation', 'T2TypeNavigation'} that could be matched with the properties on the other entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'ScheduleTeamTypes' to 'Schedule' has been configured by convention because there are multiple properties on one entity type - {'ScheduleT1TypeNavigation', 'ScheduleT2TypeNavigation'} that could be matched with the properties on the other entity type - {'T1TypeNavigation', 'T2TypeNavigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'StoreCart' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'FamilyUser', 'LebUser'} that could be matched with the properties on the other entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'StoreCart' has been configured by convention because there are multiple properties on one entity type - {'StoreCartFamilyUser', 'StoreCartLebUser'} that could be matched with the properties on the other entity type - {'FamilyUser', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'StoreCartBatchSkuEdits' to 'StoreCartBatchSkus' has been configured by convention because there are multiple properties on one entity type - {'PreviousStoreCartBatchSku', 'StoreCartBatchSku'} that could be matched with the properties on the other entity type - {'StoreCartBatchSkuEditsPreviousStoreCartBatchSku', 'StoreCartBatchSkuEditsStoreCartBatchSku'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'StoreCartBatchSkus' to 'StoreCartBatchSkuEdits' has been configured by convention because there are multiple properties on one entity type - {'StoreCartBatchSkuEditsPreviousStoreCartBatchSku', 'StoreCartBatchSkuEditsStoreCartBatchSku'} that could be matched with the properties on the other entity type - {'PreviousStoreCartBatchSku', 'StoreCartBatchSku'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'TeamAttendanceRecords' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'LebUser', 'Player'} that could be matched with the properties on the other entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'TeamAttendanceRecords' has been configured by convention because there are multiple properties on one entity type - {'TeamAttendanceRecordsLebUser', 'TeamAttendanceRecordsPlayer'} that could be matched with the properties on the other entity type - {'LebUser', 'Player'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'TeamTournamentMappings' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'ClubTeam', 'TournamentTeam'} that could be matched with the properties on the other entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'TeamTournamentMappings' has been configured by convention because there are multiple properties on one entity type - {'TeamTournamentMappingsClubTeam', 'TeamTournamentMappingsTournamentTeam'} that could be matched with the properties on the other entity type - {'ClubTeam', 'TournamentTeam'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'AspNetUsers' has been configured by convention because there are multiple properties on one entity type - {'Clubrep', 'LebUser'} that could be matched with the properties on the other entity type - {'TeamsClubrep', 'TeamsLebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'AspNetUsers' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrep', 'TeamsLebUser'} that could be matched with the properties on the other entity type - {'Clubrep', 'LebUser'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Registrations' has been configured by convention because there are multiple properties on one entity type - {'ClubrepRegistration', 'Registrations', 'ViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'AssignedTeam', 'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'AssignedTeam'} that could be matched with the properties on the other entity type - {'Registrations'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Registrations' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsClubrepRegistration', 'TeamsViPolicyClubRepReg'} that could be matched with the properties on the other entity type - {'ClubrepRegistration', 'ViPolicyClubRepReg'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Fields' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsFieldId1Navigation', 'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'} that could be matched with the properties on the other entity type - {'FieldId1Navigation', 'FieldId2Navigation', 'FieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Fields' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'} that could be matched with the properties on the other entity type - {'FieldId2Navigation', 'FieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId1Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId1Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Teams' to 'Fields' has been configured by convention because there are multiple properties on one entity type - {'FieldId2Navigation', 'FieldId3Navigation'} that could be matched with the properties on the other entity type - {'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Fields' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsFieldId1Navigation'} that could be matched with the properties on the other entity type - {'FieldId1Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10607]
+      No relationship from 'Fields' to 'Teams' has been configured by convention because there are multiple properties on one entity type - {'TeamsFieldId2Navigation', 'TeamsFieldId3Navigation'} that could be matched with the properties on the other entity type - {'FieldId2Navigation', 'FieldId3Navigation'}. This message can be disregarded if explicit configuration has been specified in 'OnModelCreating'.
+dbug: Microsoft.EntityFrameworkCore.Model[10601]
+      The index {'UserId'} was not created on entity type 'AspNetUserRoles (Dictionary<string, object>)' as the properties are already covered by the index {'UserId', 'RoleId'}.
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 9.0.9 initialized 'SqlDbContext' using provider 'Microsoft.EntityFrameworkCore.SqlServer:9.0.9' with options: EngineType=SqlServer 
+dbug: Microsoft.EntityFrameworkCore.Query[10111]
+      Compiling query expression: 
+      'DbSet<AspNetRoles>()
+          .Select(r => new { 
+              Id = r.Id, 
+              Name = r.Name
+           })'
+dbug: Microsoft.EntityFrameworkCore.Query[10107]
+      Generated query execution expression: 
+      'queryContext => SingleQueryingEnumerable.Create<<>f__AnonymousType1<string, string>>(
+          relationalQueryContext: (RelationalQueryContext)queryContext, 
+          relationalCommandResolver: parameters => [LIFTABLE Constant: RelationalCommandCache.QueryExpression(
+              Projection Mapping:
+                  Id -> 0
+                  Name -> 1
+              SELECT a.Id, a.Name
+              FROM AspNetRoles AS a) | Resolver: c => new RelationalCommandCache(
+              c.Dependencies.MemoryCache, 
+              c.RelationalDependencies.QuerySqlGeneratorFactory, 
+              c.RelationalDependencies.RelationalParameterBasedSqlProcessorFactory, 
+              Projection Mapping:
+                  Id -> 0
+                  Name -> 1
+              SELECT a.Id, a.Name
+              FROM AspNetRoles AS a, 
+              False, 
+              new HashSet<string>(
+                  new string[]{ }, 
+                  StringComparer.Ordinal
+              )
+          )].GetRelationalCommandTemplate(parameters), 
+          readerColumns: null, 
+          shaper: (queryContext, dataReader, resultContext, resultCoordinator) => 
+          {
+              string value1;
+              string value2;
+              value1 = dataReader.GetString(0);
+              value2 = dataReader.IsDBNull(1) ? default(string) : dataReader.GetString(1);
+              return new { 
+                  Id = value1, 
+                  Name = value2
+               };
+          }, 
+          contextType: TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext, 
+          standAloneStateManager: False, 
+          detailedErrorsEnabled: False, 
+          threadSafetyChecksEnabled: True)'
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20005]
+      Creating DbConnection.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20006]
+      Created DbConnection. (9ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20000]
+      Opening connection to database 'TSICV5' on server '.\SS2016'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20001]
+      Opened connection to database 'TSICV5' on server '.\SS2016'.
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20103]
+      Creating DbCommand for 'ExecuteReader'.
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20104]
+      Created DbCommand for 'ExecuteReader' (2ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20106]
+      Initialized DbCommand for 'ExecuteReader' (5ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20100]
+      Executing DbCommand [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [a].[Id], [a].[Name]
+      FROM [AspNetRoles] AS [a]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (20ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT [a].[Id], [a].[Name]
+      FROM [AspNetRoles] AS [a]
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20301]
+      Closing data reader to 'TSICV5' on server '.\SS2016'.
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20300]
+      A data reader for 'TSICV5' on server '.\SS2016' is being disposed after spending 6ms reading results.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20002]
+      Closing connection to database 'TSICV5' on server '.\SS2016'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20003]
+      Closed connection to database 'TSICV5' on server '.\SS2016' (2ms).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType2`5[[System.String, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.DateTime, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Collections.Generic.List`1[[<>f__AnonymousType1`2[[System.String, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], TSIC.API, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]], System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action TSIC.API.Controllers.TestController.GetHealth (TSIC.API) in 2680.5445ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'TSIC.API.Controllers.TestController.GetHealth (TSIC.API)'
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'SqlDbContext' disposed.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20007]
+      Disposing connection to database 'TSICV5' on server '.\SS2016'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20008]
+      Disposed connection to database '' on server '' (0ms).
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET https://localhost:7215/api/test/health - 200 - application/json;+charset=utf-8 2728.9164ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET https://localhost:7215/api/test - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'TSIC.API.Controllers.TestController.Get (TSIC.API)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Get", controller = "Test"}. Executing controller action with signature Microsoft.AspNetCore.Mvc.ActionResult`1[System.String] Get() on controller TSIC.API.Controllers.TestController (TSIC.API).
+info: TSIC.API.Controllers.TestController[0]
+      Test endpoint called successfully
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type 'System.String'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action TSIC.API.Controllers.TestController.Get (TSIC.API) in 2.7397ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'TSIC.API.Controllers.TestController.Get (TSIC.API)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET https://localhost:7215/api/test - 200 - text/plain;+charset=utf-8 8.9358ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET https://localhost:7215/swagger/v1/swagger.json - - -
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET https://localhost:7215/swagger/v1/swagger.json - 200 - application/json;charset=utf-8 82.2962ms
