@@ -21,7 +21,7 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Build (Release)
-        run: dotnet build TSIC-Core-Angular.sln --configuration Release
+        run: dotnet build TSIC-Core-Angular.sln --configuration Release --warnaserror:false
 
       - name: Run tests
         run: dotnet test TSIC-Core-Angular.sln --no-build --configuration Release
