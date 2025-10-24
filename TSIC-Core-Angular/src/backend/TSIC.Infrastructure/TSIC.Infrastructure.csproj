@@ -19,6 +19,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="NetTopologySuite" />
+    <PackageReference Include="SonarAnalyzer.CSharp" />
   </ItemGroup>
 
   <PropertyGroup>

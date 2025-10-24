@@ -38,5 +38,8 @@
     <PackageVersion Include="System.Net.Http.Json" Version="9.0.9" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+
+    <!-- Static Code Analysis -->
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="9.32.0.97167" />
   </ItemGroup>
 </Project>
