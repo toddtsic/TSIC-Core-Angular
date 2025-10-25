@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Domain.Entities;
@@ -7,10 +7,6 @@ namespace TSIC.Infrastructure.Data.SqlDbContext;
 
 public partial class SqlDbContext : DbContext
 {
-    public SqlDbContext()
-    {
-    }
-
     public SqlDbContext(DbContextOptions<SqlDbContext> options)
         : base(options)
     {
@@ -353,12 +349,6 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<VTxs> VTxs { get; set; }
 
     public virtual DbSet<VerticalInsurePayouts> VerticalInsurePayouts { get; set; }
-
-    public virtual DbSet<Yn2023schedule> Yn2023schedule { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=.\\SS2016;Database=TSICV5;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -2204,6 +2194,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.FName).HasColumnName("fName");
             entity.Property(e => e.Latitude).HasComputedColumnSql("([Location].[Lat])", false);
             entity.Property(e => e.LebUserId).HasColumnName("lebUserID");
+            entity.Property(e => e.Location).HasColumnName("location");
             entity.Property(e => e.Longitude).HasComputedColumnSql("([Location].[Long])", false);
             entity.Property(e => e.Modified)
                 .HasDefaultValueSql("(getdate())")
@@ -6909,89 +6900,6 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("Policy Number");
             entity.Property(e => e.PurchaseDate).HasColumnType("datetime");
             entity.Property(e => e.PurchaseDateString).HasMaxLength(255);
-        });
-
-        modelBuilder.Entity<Yn2023schedule>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToTable("YN2023Schedule");
-
-            entity.Property(e => e.AgegroupId).HasColumnName("agegroupID");
-            entity.Property(e => e.AgegroupName).HasColumnName("agegroupName");
-            entity.Property(e => e.Div2Id).HasColumnName("div2ID");
-            entity.Property(e => e.Div2Name).HasColumnName("div2Name");
-            entity.Property(e => e.DivId).HasColumnName("divID");
-            entity.Property(e => e.DivName).HasColumnName("divName");
-            entity.Property(e => e.FName).HasColumnName("fName");
-            entity.Property(e => e.FieldId).HasColumnName("fieldID");
-            entity.Property(e => e.GDate)
-                .HasColumnType("datetime")
-                .HasColumnName("G_Date");
-            entity.Property(e => e.GNo).HasColumnName("G_No");
-            entity.Property(e => e.GStatusCode).HasColumnName("g_statusCode");
-            entity.Property(e => e.Gid)
-                .ValueGeneratedOnAdd()
-                .HasColumnName("GID");
-            entity.Property(e => e.JobId).HasColumnName("jobID");
-            entity.Property(e => e.LeagueId).HasColumnName("leagueID");
-            entity.Property(e => e.LeagueName).HasColumnName("leagueName");
-            entity.Property(e => e.LebUserId)
-                .HasMaxLength(450)
-                .HasColumnName("lebUserId");
-            entity.Property(e => e.Modified)
-                .HasColumnType("datetime")
-                .HasColumnName("modified");
-            entity.Property(e => e.RefCount)
-                .HasColumnType("decimal(2, 1)")
-                .HasColumnName("ref_count");
-            entity.Property(e => e.RescheduleCount).HasColumnName("rescheduleCount");
-            entity.Property(e => e.Rnd).HasColumnName("rnd");
-            entity.Property(e => e.Season)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-            entity.Property(e => e.T1Ann)
-                .HasMaxLength(80)
-                .IsUnicode(false)
-                .HasColumnName("t1_ann");
-            entity.Property(e => e.T1CalcType)
-                .IsUnicode(false)
-                .HasColumnName("T1_CalcType");
-            entity.Property(e => e.T1GnoRef).HasColumnName("T1_GnoRef");
-            entity.Property(e => e.T1Id).HasColumnName("T1_ID");
-            entity.Property(e => e.T1Name)
-                .IsUnicode(false)
-                .HasColumnName("T1_Name");
-            entity.Property(e => e.T1No).HasColumnName("T1_No");
-            entity.Property(e => e.T1Score).HasColumnName("T1_Score");
-            entity.Property(e => e.T1Type)
-                .HasMaxLength(10)
-                .IsUnicode(false)
-                .HasColumnName("T1_Type");
-            entity.Property(e => e.T1penalties).HasColumnName("t1penalties");
-            entity.Property(e => e.T2Ann)
-                .HasMaxLength(80)
-                .IsUnicode(false)
-                .HasColumnName("t2_ann");
-            entity.Property(e => e.T2CalcType)
-                .IsUnicode(false)
-                .HasColumnName("T2_CalcType");
-            entity.Property(e => e.T2GnoRef).HasColumnName("T2_GNoRef");
-            entity.Property(e => e.T2Id).HasColumnName("T2_ID");
-            entity.Property(e => e.T2Name)
-                .IsUnicode(false)
-                .HasColumnName("T2_Name");
-            entity.Property(e => e.T2No).HasColumnName("T2_No");
-            entity.Property(e => e.T2Score).HasColumnName("T2_Score");
-            entity.Property(e => e.T2Type)
-                .HasMaxLength(10)
-                .IsUnicode(false)
-                .HasColumnName("T2_Type");
-            entity.Property(e => e.T2penalties).HasColumnName("t2penalties");
-            entity.Property(e => e.Year)
-                .HasMaxLength(4)
-                .IsUnicode(false)
-                .IsFixedLength();
         });
 
         OnModelCreatingPartial(modelBuilder);

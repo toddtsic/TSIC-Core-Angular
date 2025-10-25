@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace TSIC.Domain.Entities;
 
-public partial class Yn2023schedule
+public partial class Schedule
 {
     public int Gid { get; set; }
 
@@ -84,4 +84,42 @@ public partial class Yn2023schedule
     public string? FName { get; set; }
 
     public Guid JobId { get; set; }
+
+    public virtual Agegroups? Agegroup { get; set; }
+
+    public virtual ICollection<BracketSeeds> BracketSeeds { get; set; } = new List<BracketSeeds>();
+
+    public virtual ICollection<DeviceGids> DeviceGids { get; set; } = new List<DeviceGids>();
+
+    public virtual Divisions? Div { get; set; }
+
+    public virtual Divisions? Div2 { get; set; }
+
+    public virtual Fields? Field { get; set; }
+
+    public virtual GameStatusCodes? GStatusCodeNavigation { get; set; }
+
+    public virtual ICollection<Schedule> InverseT1GnoRefNavigation { get; set; } = new List<Schedule>();
+
+    public virtual ICollection<Schedule> InverseT2GnoRefNavigation { get; set; } = new List<Schedule>();
+
+    public virtual Jobs Job { get; set; } = null!;
+
+    public virtual Leagues League { get; set; } = null!;
+
+    public virtual AspNetUsers LebUser { get; set; } = null!;
+
+    public virtual ICollection<RefGameAssigments> RefGameAssigments { get; set; } = new List<RefGameAssigments>();
+
+    public virtual Teams? T1 { get; set; }
+
+    public virtual Schedule? T1GnoRefNavigation { get; set; }
+
+    public virtual ScheduleTeamTypes? T1TypeNavigation { get; set; }
+
+    public virtual Teams? T2 { get; set; }
+
+    public virtual Schedule? T2GnoRefNavigation { get; set; }
+
+    public virtual ScheduleTeamTypes? T2TypeNavigation { get; set; }
 }
