@@ -3,6 +3,7 @@ bin/
 obj/
 **/[Bb]in/
 **/[Oo]bj/
+publish/
 *.user
 *.suo
 *.userosscache
@@ -28,5 +29,7 @@ src/backend/TSIC.API/logs/
 .DS_Store
 Thumbs.db
 
-# Solution backups
-*.sln.backup
+# Deployment packages
+tsic-deployment*/
+test-deployment/
+tmp_backup_files.txt
