@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using TSIC.Domain.Entities;
 
 namespace TSIC.Infrastructure.Data.SqlDbContext;
 

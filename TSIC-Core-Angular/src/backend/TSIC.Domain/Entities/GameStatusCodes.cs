@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace TSIC.Infrastructure.Data.SqlDbContext;
+namespace TSIC.Domain.Entities;
 
 public partial class GameStatusCodes
 {
