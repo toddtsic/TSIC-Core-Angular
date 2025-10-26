@@ -21,14 +21,13 @@ builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
 builder.Services.AddDbContext<SqlDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        x => x.UseNetTopologySuite()));
 
-// Register IdentityDbContext with separate connection string
-builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+// Use the same database for Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
-    .AddEntityFrameworkStores<TsicIdentityDbContext>();
+    .AddEntityFrameworkStores<SqlDbContext>();
 
 // Add JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -72,6 +71,12 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Add detailed error handling in development
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())

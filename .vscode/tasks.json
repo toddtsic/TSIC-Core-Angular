@@ -15,12 +15,47 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "npm: start (Angular)",
-      "type": "shell",
-      "command": "npm start",
-      "problemMatcher": ["$tsc-watch"],
+      "label": "Start Angular Dev Server",
+      "type": "npm",
+      "script": "start",
       "isBackground": true,
-      "options": { "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app" }
+      "options": { 
+        "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app" 
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Initial Chunk Files",
+          "endsPattern": "Application bundle generation complete|Compiled successfully"
+        }
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "type": "npm",
+      "script": "start",
+      "path": "TSIC-Core-Angular/src/frontend/tsic-app/",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": ".*Compiled successfully.*|.*Application bundle generation complete.*"
+        }
+      }
     },
     {
       "label": "npm: start (Angular UI)",
@@ -30,7 +65,22 @@
         "cwd": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app"
       },
       "isBackground": true,
-      "problemMatcher": ["$tsc-watch"]
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": {
+          "regexp": "^([^\\s].*)\\((\\d+|\\,\\d+|\\d+,\\d+,\\d+,\\d+)\\)\\s*:\\s+(error|warning|info)\\s+(TS\\d+)\\s*:\\s*(.*)$",
+          "file": 1,
+          "location": 2,
+          "severity": 3,
+          "code": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Initial chunk files",
+          "endsPattern": "Local:\\s+https?://localhost"
+        }
+      }
     },
     {
       "label": "dotnet: run (API)",

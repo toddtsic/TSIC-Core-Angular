@@ -1,0 +1,38 @@
+<div class="role-selection-container">
+  <div class="header">
+    <h2>Select Your Role</h2>
+    <button class="logout-btn" (click)="logout()" [disabled]="isLoading">Logout</button>
+  </div>
+
+  <div class="error-message" *ngIf="errorMessage">
+    {{ errorMessage }}
+  </div>
+
+  <div class="roles-list" *ngIf="registrations && registrations.length > 0">
+    <div *ngFor="let roleGroup of registrations" class="role-group">
+      <h3 class="role-name">{{ roleGroup.roleName }}</h3>
+      
+      <div class="registrations-grid">
+        <div 
+          *ngFor="let registration of roleGroup.roleRegistrations" 
+          class="registration-card"
+          [class.disabled]="isLoading"
+          (click)="!isLoading && selectRole(registration)"
+        >
+          <img 
+            *ngIf="registration.jobLogo" 
+            [src]="registration.jobLogo" 
+            [alt]="registration.displayText"
+            class="job-logo"
+          />
+          <div class="registration-text">{{ registration.displayText }}</div>
+          <div class="registration-id">{{ registration.regId }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" *ngIf="isLoading">
+    <div class="spinner">Loading...</div>
+  </div>
+</div>

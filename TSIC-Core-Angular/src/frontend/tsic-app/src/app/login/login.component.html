@@ -1,19 +1,42 @@
 <div class="login-container">
   <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-    <label for="username">Username</label>
-    <input id="username" formControlName="username" (input)="onCredentialsChange()" />
+    <h2>Login</h2>
 
-    <label for="password">Password</label>
-    <input id="password" type="password" formControlName="password" (input)="onCredentialsChange()" />
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input 
+        id="username" 
+        type="text"
+        formControlName="username" 
+        [disabled]="isLoading"
+        placeholder="Enter your username"
+      />
+      <div class="error" *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
+        Username is required
+      </div>
+    </div>
 
-    <label for="registration">Available Registrations</label>
-    <select id="registration" formControlName="registration" [disabled]="dropdownDisabled" (change)="onRegistrationSelect()">
-      <option value="" disabled selected>Select registration</option>
-      <option *ngFor="let reg of registrations" [value]="reg.regId">
-        {{ reg.displayText }}
-      </option>
-    </select>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input 
+        id="password" 
+        type="password" 
+        formControlName="password" 
+        [disabled]="isLoading"
+        placeholder="Enter your password"
+      />
+      <div class="error" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+        Password is required
+      </div>
+    </div>
 
-    <button type="submit" [disabled]="submitDisabled">Submit</button>
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+
+    <button type="submit" [disabled]="loginForm.invalid || isLoading">
+      <span *ngIf="!isLoading">Login</span>
+      <span *ngIf="isLoading">Logging in...</span>
+    </button>
   </form>
 </div>

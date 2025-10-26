@@ -5,9 +5,9 @@
       "name": "Launch Chrome (Angular)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:4200",
-      "preLaunchTask": "npm: start (Angular)",
-      "webRoot": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app"
+      "url": "https://localhost:4200",
+      "webRoot": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app",
+      "preLaunchTask": "npm: start"
     },
     {
       "name": "Launch API (dotnet)",
@@ -68,12 +68,22 @@
   "compounds": [
     {
       "name": "Full Stack: API & Angular",
-      "configurations": ["Launch Chrome (Angular)", "Launch API (dotnet)"]
+      "configurations": ["Launch Chrome (Angular)", "Launch API (dotnet)"],
+      "presentation": {
+        "hidden": false,
+        "group": "",
+        "order": 1
+      }
     }
     ,
     {
       "name": "Launch API + Frontend (https)",
-      "configurations": ["Launch API (debug https)", "Launch Chrome (Angular)"]
+      "configurations": ["Launch API (debug https)", "Launch Chrome (Angular)"],
+      "presentation": {
+        "hidden": false,
+        "group": "",
+        "order": 2
+      }
     }
     ,
     {

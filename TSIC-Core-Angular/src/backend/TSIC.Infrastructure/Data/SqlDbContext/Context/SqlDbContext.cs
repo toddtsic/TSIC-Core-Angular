@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Infrastructure.Data.SqlDbContext;
 
-public partial class SqlDbContext : DbContext
+public partial class SqlDbContext : IdentityDbContext<IdentityUser>
 {
     public SqlDbContext(DbContextOptions<SqlDbContext> options)
         : base(options)
@@ -352,6 +354,8 @@ public partial class SqlDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<AccountingApplyToSummaries>(entity =>
         {
             entity.HasKey(e => e.ApplyToId)

@@ -4,6 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using TSIC.API.Dtos;
+using TSIC.Application.Validators;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Application.Services;
 using FluentValidation;

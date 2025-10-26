@@ -1,80 +1,61 @@
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LoginService } from './login.service';
+import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { AuthService } from '../core/services/auth.service';
+import { LoginRequest } from '../core/models/auth.models';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CommonModule],
   styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent {
   loginForm: FormGroup;
-  registrations: Array<{ regId: string, displayText: string }> = [];
-  dropdownDisabled = true;
-  submitDisabled = true;
+  isLoading = false;
+  errorMessage = '';
 
-  constructor(private fb: FormBuilder, private loginService: LoginService, private router: Router) {
+  constructor(
+    private fb: FormBuilder, 
+    private authService: AuthService, 
+    private router: Router
+  ) {
     this.loginForm = this.fb.group({
       username: ['', Validators.required],
-      password: ['', Validators.required],
-      registration: [{ value: '', disabled: true }, Validators.required]
+      password: ['', Validators.required]
     });
   }
 
-  onCredentialsChange() {
-    const username = this.loginForm.get('username')?.value;
-    const password = this.loginForm.get('password')?.value;
-    if (username && password) {
-      this.loginService.validateCredentials(username, password).subscribe({
-        next: (result) => {
-          if (result && Array.isArray(result.registrations) && result.registrations.length > 0) {
-            // result.registrations is an array of { regId, displayText }
-            this.registrations = result.registrations;
-            this.dropdownDisabled = false;
-            this.loginForm.get('registration')?.enable();
-          } else {
-            this.registrations = [];
-            this.dropdownDisabled = true;
-            this.loginForm.get('registration')?.disable();
-          }
-        },
-        error: () => {
-          this.registrations = [];
-          this.dropdownDisabled = true;
-          this.loginForm.get('registration')?.disable();
-        }
-      });
-    } else {
-      this.registrations = [];
-      this.dropdownDisabled = true;
-      this.loginForm.get('registration')?.disable();
-    }
-    this.submitDisabled = true;
-  }
-
-  onRegistrationSelect() {
-    const regId = this.loginForm.get('registration')?.value;
-    this.submitDisabled = !regId;
-  }
-
   onSubmit() {
-    const username = this.loginForm.get('username')?.value;
-    const regId = this.loginForm.get('registration')?.value;
-    if (username && regId) {
-      this.loginService.getJwtToken(username, regId).subscribe({
-        next: (result) => {
-          if (result && result.token) {
-            localStorage.setItem('jwt', result.token);
-            this.router.navigate(['/job', regId]);
-          }
-        },
-        error: () => {
-          // Handle error (e.g., show message)
-        }
-      });
+    if (this.loginForm.invalid) {
+      return;
     }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    const credentials: LoginRequest = {
+      username: this.loginForm.value.username,
+      password: this.loginForm.value.password
+    };
+
+    this.authService.login(credentials).subscribe({
+      next: (response) => {
+        this.isLoading = false;
+        // Navigate to role selection with userId and available registrations
+        this.router.navigate(['/role-selection'], {
+          state: {
+            userId: this.loginForm.value.username,
+            registrations: response.registrations
+          }
+        });
+      },
+      error: (error) => {
+        this.isLoading = false;
+        this.errorMessage = error.error?.message || 'Login failed. Please check your credentials.';
+      }
+    });
   }
 }
