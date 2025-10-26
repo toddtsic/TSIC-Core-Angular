@@ -57,7 +57,11 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+// Conditionally use HTTPS redirection only when HTTPS is configured
+if (app.Urls.Any(url => url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("AllowAngularApp");
 app.UseAuthorization();
 app.MapControllers();
