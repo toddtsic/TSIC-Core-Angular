@@ -48,7 +48,7 @@ Recycle the app pool after setting them.
 
 Prevents token/cookie issues across restarts and removes ephemeral key warnings.
 
-Code (Program.cs):
+Code (Program.cs) — reference only, no code change required now:
 ```csharp
 using Microsoft.AspNetCore.DataProtection;
 using System.IO;
@@ -60,6 +60,28 @@ builder.Services.AddDataProtection()
 Server steps:
 - Create folder D:\Websites\TSIC-API-CP\keys
 - Grant Modify to the app pool identity (IIS AppPool\TSIC-API-CP, or your service account)
+
+No-code implementation you can do right now (PowerShell):
+
+```powershell
+# 1) Create the keys folder
+New-Item -ItemType Directory -Path 'D:\Websites\TSIC-API-CP\keys' -Force | Out-Null
+
+# 2) Grant Modify to the app pool identity (ApplicationPoolIdentity case)
+$path = 'D:\Websites\TSIC-API-CP\keys'
+$principal = 'IIS AppPool\TSIC-API-CP'
+$acl = Get-Acl $path
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($principal,'Modify','ContainerInherit,ObjectInherit','None','Allow')
+$acl.SetAccessRule($rule)
+Set-Acl -Path $path -AclObject $acl
+
+# If you use a domain/service account instead, replace the principal, for example:
+# $principal = 'YOURDOMAIN\\svc-tsic-api'
+```
+
+Verification (after you eventually add the code snippet later):
+- The folder will populate with XML files named key-<guid>.xml.
+- The Data Protection warnings in API logs will disappear on startup.
 
 ## 4) CORS and preflight
 
@@ -85,6 +107,15 @@ You should see Access-Control-Allow-Origin/Methods/Headers in the response.
 - Request Filtering: allow the OPTIONS verb (default is fine; verify if customized)
 - stdout logs for API: `scripts/web.config.api` enables `stdoutLogEnabled="true"` to `./logs/stdout*` — useful for diagnostics; you can disable later
 - IIS logging: enable W3C logs for both sites for status code tracing
+
+Optional environment variables (no code change) to externalize secrets:
+```powershell
+[System.Environment]::SetEnvironmentVariable('ConnectionStrings__DefaultConnection', 'Server=.\\SS2016;Database=TSICV5;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true', 'Machine')
+[System.Environment]::SetEnvironmentVariable('JwtSettings__SecretKey', '<strong-secret-here>', 'Machine')
+[System.Environment]::SetEnvironmentVariable('JwtSettings__Issuer', 'TSIC.API', 'Machine')
+[System.Environment]::SetEnvironmentVariable('JwtSettings__Audience', 'TSIC.Client', 'Machine')
+# Recycle the API app pool after setting these
+```
 
 ## 6) App Pool settings
 
