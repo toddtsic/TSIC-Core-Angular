@@ -7,7 +7,7 @@
       "request": "launch",
       "url": "https://localhost:4200",
       "webRoot": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app",
-      "preLaunchTask": "npm: start"
+      "preLaunchTask": "npm: start (Angular UI)"
     },
     {
       "name": "Launch API (dotnet)",
