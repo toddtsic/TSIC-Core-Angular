@@ -18,8 +18,8 @@ export class RoleSelectionComponent implements OnInit {
   errorMessage = '';
 
   constructor(
-    private authService: AuthService,
-    private router: Router
+    private readonly authService: AuthService,
+    private readonly router: Router
   ) { }
 
   ngOnInit() {
@@ -29,7 +29,8 @@ export class RoleSelectionComponent implements OnInit {
 
     if (userId && registrationsJson) {
       this.userId = userId;
-      this.registrations = JSON.parse(registrationsJson);
+      const parsed = JSON.parse(registrationsJson);
+      this.registrations = this.normalizeRegistrations(parsed);
 
       // Clear the pending data
       sessionStorage.removeItem('pendingUserId');
@@ -38,7 +39,32 @@ export class RoleSelectionComponent implements OnInit {
       // No data available, redirect to login
       this.router.navigate(['/']);
     }
-  } selectRole(registration: RegistrationDto) {
+  }
+
+  /**
+   * Normalize registrations to grouped form expected by the template.
+   * Accepts either:
+   * - RegistrationRoleDto[] (already grouped)
+   * - RegistrationDto[] (flat list) -> wrapped into a single group
+   */
+  private normalizeRegistrations(input: any): RegistrationRoleDto[] {
+    if (!Array.isArray(input)) {
+      return [];
+    }
+    // Already grouped
+    if (input.length === 0) return [];
+    const first = input[0];
+    if (first && typeof first === 'object' && 'roleRegistrations' in first) {
+      return input as RegistrationRoleDto[];
+    }
+    // Flat list -> wrap
+    return [{
+      roleName: 'Registrations',
+      roleRegistrations: input as RegistrationDto[]
+    }];
+  }
+
+  selectRole(registration: RegistrationDto) {
     this.isLoading = true;
     this.errorMessage = '';
 

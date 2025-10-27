@@ -11,23 +11,14 @@
   <div class="roles-list" *ngIf="registrations && registrations.length > 0">
     <div *ngFor="let roleGroup of registrations" class="role-group">
       <h3 class="role-name">{{ roleGroup.roleName }}</h3>
-      
       <div class="registrations-grid">
-        <div 
-          *ngFor="let registration of roleGroup.roleRegistrations" 
-          class="registration-card"
-          [class.disabled]="isLoading"
-          (click)="!isLoading && selectRole(registration)"
-        >
-          <img 
-            *ngIf="registration.jobLogo" 
-            [src]="registration.jobLogo" 
-            [alt]="registration.displayText"
-            class="job-logo"
-          />
+        <button *ngFor="let registration of roleGroup.roleRegistrations" type="button" class="registration-card"
+          (click)="!isLoading && selectRole(registration)" [class.disabled]="isLoading" [disabled]="isLoading">
+          <img *ngIf="registration.jobLogo" class="job-logo" [src]="registration.jobLogo"
+            [alt]="registration.displayText" />
           <div class="registration-text">{{ registration.displayText }}</div>
-          <div class="registration-id">{{ registration.regId }}</div>
-        </div>
+          <div class="registration-id">ID: {{ registration.regId }}</div>
+        </button>
       </div>
     </div>
   </div>

@@ -4,14 +4,17 @@
   padding: 24px;
   background: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
 label {
   display: block;
   margin-top: 16px;
   font-weight: 600;
 }
-input, select {
+
+input,
+select {
   width: 100%;
   padding: 8px;
   margin-top: 4px;
@@ -23,14 +26,22 @@ input, select {
 .password-wrapper {
   position: relative;
 }
+
 .password-wrapper input {
   padding-right: 40px; // space for the icon button
 }
+
 .password-toggle {
   position: absolute;
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  /* override global button width */
+  height: 2rem;
   border: none;
   background: transparent;
   padding: 4px;
@@ -38,9 +49,11 @@ input, select {
   cursor: pointer;
   color: #666;
 }
+
 .password-toggle:hover {
   color: #333;
 }
+
 button {
   margin-top: 24px;
   width: 100%;
@@ -52,6 +65,7 @@ button {
   font-size: 16px;
   cursor: pointer;
 }
+
 button:disabled {
   background: #ccc;
   cursor: not-allowed;
