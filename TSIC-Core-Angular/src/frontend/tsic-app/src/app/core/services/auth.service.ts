@@ -9,19 +9,20 @@ import {
   AuthTokenResponse,
   AuthenticatedUser
 } from '../models/auth.models';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly apiUrl = 'http://localhost:5022/api/auth';
+  private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'auth_user';
 
   private currentUserSubject = new BehaviorSubject<AuthenticatedUser | null>(this.getUserFromStorage());
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   /**
    * Phase 1: Login with username and password

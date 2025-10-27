@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Infrastructure.Data.SqlDbContext;
 
-public partial class SqlDbContext : IdentityDbContext<IdentityUser>
+public partial class SqlDbContext : DbContext
 {
     public SqlDbContext(DbContextOptions<SqlDbContext> options)
         : base(options)
@@ -354,8 +352,6 @@ public partial class SqlDbContext : IdentityDbContext<IdentityUser>
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder);
-
         modelBuilder.Entity<AccountingApplyToSummaries>(entity =>
         {
             entity.HasKey(e => e.ApplyToId)
@@ -1302,19 +1298,7 @@ public partial class SqlDbContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.TsicwaiverSignedTs).HasColumnName("TSICWaiverSigned_TS");
             entity.Property(e => e.Workphone).HasColumnName("workphone");
 
-            entity.HasMany(d => d.Role).WithMany(p => p.User)
-                .UsingEntity<Dictionary<string, object>>(
-                    "AspNetUserRoles",
-                    r => r.HasOne<AspNetRoles>().WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.ClientSetNull),
-                    l => l.HasOne<AspNetUsers>().WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.ClientSetNull),
-                    j =>
-                    {
-                        j.HasKey("UserId", "RoleId");
-                    });
+            // Many-to-many relationship with AspNetRoles removed - handled by IdentityDbContext
         });
 
         modelBuilder.Entity<BillingTypes>(entity =>

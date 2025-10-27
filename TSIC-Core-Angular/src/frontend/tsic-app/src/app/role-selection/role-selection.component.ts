@@ -20,23 +20,25 @@ export class RoleSelectionComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private router: Router
-  ) {
-    // Get navigation state
-    const navigation = this.router.getCurrentNavigation();
-    if (navigation?.extras.state) {
-      this.userId = navigation.extras.state['userId'];
-      this.registrations = navigation.extras.state['registrations'];
-    }
-  }
+  ) { }
 
   ngOnInit() {
-    // Redirect to login if no state data
-    if (!this.userId || !this.registrations || this.registrations.length === 0) {
-      this.router.navigate(['/login']);
-    }
-  }
+    // Get data from sessionStorage
+    const userId = sessionStorage.getItem('pendingUserId');
+    const registrationsJson = sessionStorage.getItem('pendingRegistrations');
 
-  selectRole(registration: RegistrationDto) {
+    if (userId && registrationsJson) {
+      this.userId = userId;
+      this.registrations = JSON.parse(registrationsJson);
+
+      // Clear the pending data
+      sessionStorage.removeItem('pendingUserId');
+      sessionStorage.removeItem('pendingRegistrations');
+    } else {
+      // No data available, redirect to login
+      this.router.navigate(['/']);
+    }
+  } selectRole(registration: RegistrationDto) {
     this.isLoading = true;
     this.errorMessage = '';
 
@@ -60,6 +62,6 @@ export class RoleSelectionComponent implements OnInit {
 
   logout() {
     this.authService.logout();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/']);
   }
 }

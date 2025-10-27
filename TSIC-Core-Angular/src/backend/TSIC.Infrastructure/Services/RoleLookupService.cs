@@ -19,7 +19,6 @@ namespace TSIC.Infrastructure.Services
 
         public async Task<List<RegistrationRoleDto>> GetRegistrationsForUserAsync(string userId)
         {
-            // Example usage of RoleConstants
             var model = new List<RegistrationRoleDto>();
 
             var lSuperUserRoles = await (
@@ -241,8 +240,6 @@ namespace TSIC.Infrastructure.Services
             {
                 model.Add(new RegistrationRoleDto("Referee", lRefRoles));
             }
-
-
 
             return model;
         }

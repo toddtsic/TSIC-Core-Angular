@@ -15,6 +15,7 @@ export interface RegistrationRoleDto {
 }
 
 export interface LoginResponse {
+    userId: string;
     registrations: RegistrationRoleDto[];
 }
 

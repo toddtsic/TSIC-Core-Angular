@@ -31,7 +31,7 @@ if (!(Test-Path "node_modules")) {
 
 # Build Angular application
 Write-Host "Building Angular application for production..." -ForegroundColor Cyan
-npm run build --prod
+npm run build -- --configuration production
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Angular build failed!"
     exit 1
@@ -42,9 +42,17 @@ if (!(Test-Path $OutputPath)) {
     New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 }
 
+# Clean output directory before building
+Write-Host "Cleaning old build output..." -ForegroundColor Cyan
+Get-ChildItem -Path $OutputPath -Recurse | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+
 # Copy build output to publish directory
 Write-Host "Copying build output..." -ForegroundColor Cyan
 $DistPath = Join-Path $AngularPath "dist\tsic-app"
+# Angular 17+ may place browser assets under a nested 'browser' folder
+if (Test-Path (Join-Path $DistPath "browser")) {
+    $DistPath = Join-Path $DistPath "browser"
+}
 if (!(Test-Path $DistPath)) {
     Write-Error "Build output not found at: $DistPath"
     exit 1
@@ -53,7 +61,7 @@ if (!(Test-Path $DistPath)) {
 # Clean output directory
 Get-ChildItem -Path $OutputPath -Recurse | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
 
-# Copy files
+# Copy files (ensure index.html lands at root of publish\angular for IIS default document)
 Copy-Item "$DistPath\*" $OutputPath -Recurse -Force
 
 Write-Host "Angular build completed successfully!" -ForegroundColor Green
@@ -64,4 +72,22 @@ Write-Host "Published files:" -ForegroundColor Cyan
 Get-ChildItem $OutputPath -Name | Select-Object -First 10 | ForEach-Object { Write-Host "  $_" }
 if ((Get-ChildItem $OutputPath).Count -gt 10) {
     Write-Host "  ... and $((Get-ChildItem $OutputPath).Count - 10) more files" -ForegroundColor Gray
+}
+
+# Place cleaned web.config for Angular in publish output as well (useful for manual deployment)
+try {
+    $scriptsDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $webConfigSrc = Join-Path $scriptsDir 'web.config.angular'
+    if (Test-Path $webConfigSrc) {
+        $dest = Join-Path $OutputPath 'web.config'
+        Copy-Item $webConfigSrc $dest -Force
+        $raw = Get-Content $dest -Raw
+        $m = [regex]::Match($raw, '.*</configuration>', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if ($m.Success -and $m.Value.Length -ne $raw.Length) {
+            Set-Content -Path $dest -Value $m.Value -Encoding UTF8
+        }
+        [void]([xml](Get-Content $dest -Raw))
+    }
+} catch {
+    Write-Warning ("Angular web.config validation note: {0}" -f $_.Exception.Message)
 }

@@ -25,9 +25,13 @@ builder.Services.AddDbContext<SqlDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         x => x.UseNetTopologySuite()));
 
-// Use the same database for Identity
+// Separate DbContext for Identity operations only
+builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configure Identity to use the dedicated TsicIdentityDbContext
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
-    .AddEntityFrameworkStores<SqlDbContext>();
+    .AddEntityFrameworkStores<TsicIdentityDbContext>();
 
 // Add JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -63,7 +67,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularApp", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
+        policy.WithOrigins(
+                  "http://localhost:4200",
+                  "https://localhost:4200",
+                  "http://cp-ng.teamsportsinfo.com",
+                  "https://cp-ng.teamsportsinfo.com")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -93,9 +101,16 @@ if (app.Urls.Any(url => url.StartsWith("https://", StringComparison.OrdinalIgnor
 {
     app.UseHttpsRedirection();
 }
+
+// Ensure proper middleware order for CORS
+app.UseRouting();
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
 app.UseAuthorization();
+// Explicitly handle preflight requests for any route and ensure CORS headers are applied
+app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.Ok())
+    .RequireCors("AllowAngularApp");
+
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();

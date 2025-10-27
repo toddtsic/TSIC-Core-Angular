@@ -38,7 +38,7 @@ Write-Host "=== TSIC Server Deployment ===" -ForegroundColor Green
 Write-Host "Deploying from iDrive restore..." -ForegroundColor Yellow
 Write-Host ""
 
-# Stop IIS sites before deployment
+# Stop IIS sites before deployment (also stop app pools to release file locks)
 Write-Host "Stopping IIS websites..." -ForegroundColor Cyan
 Import-Module WebAdministration -ErrorAction SilentlyContinue
 if (Get-Module WebAdministration) {
@@ -52,20 +52,64 @@ if (Get-Module WebAdministration) {
             Stop-Website -Name "TSIC-Angular-CP"
             Write-Host "Stopped TSIC-Angular-CP website" -ForegroundColor White
         }
+        # Stop app pools as well
+        if (Get-WebAppPoolState -Name "TSIC-API-Pool" -ErrorAction SilentlyContinue) {
+            Stop-WebAppPool -Name "TSIC-API-Pool" -ErrorAction SilentlyContinue
+            Write-Host "Stopped TSIC-API-Pool" -ForegroundColor White
+        }
+        if (Get-WebAppPoolState -Name "TSIC-Angular-Pool" -ErrorAction SilentlyContinue) {
+            Stop-WebAppPool -Name "TSIC-Angular-Pool" -ErrorAction SilentlyContinue
+            Write-Host "Stopped TSIC-Angular-Pool" -ForegroundColor White
+        }
     } catch {
-        Write-Host "Could not stop websites - they might not exist yet" -ForegroundColor Yellow
+        Write-Host "Could not stop websites/app pools - they might not exist yet" -ForegroundColor Yellow
     }
+    Start-Sleep -Seconds 2
 } else {
     Write-Host "WebAdministration module not available - manual IIS stop required" -ForegroundColor Yellow
 }
 
-# Create target directories
-Write-Host "Creating IIS directories..." -ForegroundColor Cyan
+# Create target directories if they don't exist
+Write-Host "Ensuring IIS directories exist..." -ForegroundColor Cyan
 if (!(Test-Path $ApiTarget)) {
     New-Item -ItemType Directory -Path $ApiTarget -Force | Out-Null
 }
 if (!(Test-Path $AngularTarget)) {
     New-Item -ItemType Directory -Path $AngularTarget -Force | Out-Null
+}
+
+# Backup existing deployments
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$BackupRoot = "$DriveLetter" + ":\AngularWebsiteBackups"
+
+if (!(Test-Path $BackupRoot)) {
+    New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
+}
+
+# Backup and clean API directory (with fallback if locked)
+if ((Test-Path $ApiTarget) -and (Get-ChildItem $ApiTarget -ErrorAction SilentlyContinue)) {
+    Write-Host "Backing up existing API deployment..." -ForegroundColor Cyan
+    $ApiBackup = Join-Path $BackupRoot "TSIC-API-CP-$Timestamp"
+    try {
+        Move-Item $ApiTarget $ApiBackup -Force -ErrorAction Stop
+        New-Item -ItemType Directory -Path $ApiTarget -Force | Out-Null
+        Write-Host "  Backed up to: $ApiBackup" -ForegroundColor Green
+    } catch {
+        Write-Host "  Move-Item failed (files may be locked). Falling back to Copy+Clear." -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $ApiBackup -Force | Out-Null
+        Copy-Item "$ApiTarget\*" $ApiBackup -Recurse -Force -ErrorAction SilentlyContinue
+        Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  Backed up (Copy) to: $ApiBackup and cleared target." -ForegroundColor Green
+    }
+}
+
+# Backup and clean Angular directory
+if ((Test-Path $AngularTarget) -and (Get-ChildItem $AngularTarget -ErrorAction SilentlyContinue)) {
+    Write-Host "Backing up existing Angular deployment..." -ForegroundColor Cyan
+    $AngularBackup = Join-Path $BackupRoot "TSIC-Angular-CP-$Timestamp"
+    Move-Item $AngularTarget $AngularBackup -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $AngularTarget -Force | Out-Null
+    Write-Host "  Backed up to: $AngularBackup" -ForegroundColor Green
 }
 
 # Deploy API
@@ -75,6 +119,59 @@ Copy-Item ".\api\*" $ApiTarget -Recurse -Force
 # Deploy Angular
 Write-Host "Deploying Angular frontend..." -ForegroundColor Cyan
 Copy-Item ".\angular\*" $AngularTarget -Recurse -Force
+
+# Ensure Angular index.html is at site root; if packaged under a 'browser' subfolder, flatten it
+$AngularIndex = Join-Path $AngularTarget "index.html"
+$AngularBrowser = Join-Path $AngularTarget "browser"
+if (!(Test-Path $AngularIndex) -and (Test-Path (Join-Path $AngularBrowser "index.html"))) {
+    Write-Host "Flattening Angular 'browser' subfolder into site root..." -ForegroundColor Yellow
+    try {
+        Copy-Item (Join-Path $AngularBrowser "*") $AngularTarget -Recurse -Force
+        Remove-Item $AngularBrowser -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  Angular site root now contains index.html" -ForegroundColor Green
+    } catch {
+        Write-Host "  WARNING: Could not flatten 'browser' folder automatically. Verify index.html is at $AngularTarget" -ForegroundColor Yellow
+    }
+}
+
+# Post-deploy validation: ensure correct SqlClient is deployed and native SNI present
+Write-Host "Validating deployed API dependencies..." -ForegroundColor Cyan
+$SqlClientPath = Join-Path $ApiTarget "Microsoft.Data.SqlClient.dll"
+if (Test-Path $SqlClientPath) {
+    $ver = (Get-Item $SqlClientPath).VersionInfo
+    Write-Host ("  Microsoft.Data.SqlClient.dll FileVersion: {0}  ProductVersion: {1}" -f $ver.FileVersion, $ver.ProductVersion) -ForegroundColor White
+    if ($ver.ProductVersion -notmatch '^5\.2\.2') {
+        Write-Host "  WARNING: Expected Microsoft.Data.SqlClient 5.2.2 to be deployed. Found: $($ver.ProductVersion)" -ForegroundColor Yellow
+        Write-Host "  If this is unexpected, clear $ApiTarget and redeploy the latest package." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  ERROR: Microsoft.Data.SqlClient.dll not found in $ApiTarget" -ForegroundColor Red
+}
+
+$DepsPath = Join-Path $ApiTarget "TSIC.API.deps.json"
+if (Test-Path $DepsPath) {
+    $depsHit = Select-String -Path $DepsPath -Pattern '"Microsoft\.Data\.SqlClient"\s*:\s*"5\.2\.2"' -ErrorAction SilentlyContinue
+    if ($depsHit) {
+        Write-Host "  deps.json references Microsoft.Data.SqlClient 5.2.2" -ForegroundColor Green
+    } else {
+        Write-Host "  WARNING: deps.json does not reference Microsoft.Data.SqlClient 5.2.2" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  WARNING: TSIC.API.deps.json not found in $ApiTarget" -ForegroundColor Yellow
+}
+
+$SniX64 = Join-Path $ApiTarget "runtimes\win-x64\native\Microsoft.Data.SqlClient.SNI.dll"
+$SniX86 = Join-Path $ApiTarget "runtimes\win-x86\native\Microsoft.Data.SqlClient.SNI.dll"
+if (Test-Path $SniX64) {
+    Write-Host "  Found SNI (x64)" -ForegroundColor Green
+} else {
+    Write-Host "  WARNING: Missing SNI (x64) at $SniX64" -ForegroundColor Yellow
+}
+if (Test-Path $SniX86) {
+    Write-Host "  Found SNI (x86)" -ForegroundColor Green
+} else {
+    Write-Host "  NOTE: Missing SNI (x86) at $SniX86 (ok if app pool is not 32-bit)" -ForegroundColor Yellow
+}
 
 # Start IIS sites after deployment
 Write-Host "Starting IIS websites..." -ForegroundColor Cyan
@@ -97,9 +194,41 @@ if (Get-Module WebAdministration) {
 }
 
 Write-Host ""
+
+# Show actual IIS bindings for convenience (respects host headers and https)
+function Get-SiteUrls([string]$siteName) {
+    $site = Get-Website -Name $siteName -ErrorAction SilentlyContinue
+    if (-not $site) { return @() }
+    $urls = @()
+    foreach ($b in $site.Bindings.Collection) {
+        $protocol = $b.protocol
+        $info = $b.bindingInformation  # format: ip:port:host
+        $parts = $info -split ':'
+        $ip = if ($parts.Count -gt 0) { $parts[0] } else { '*' }
+        $port = if ($parts.Count -gt 1) { $parts[1] } else { '' }
+        $hostHeader = if ($parts.Count -gt 2) { $parts[2] } else { '' }
+        $hostOrIp = if ([string]::IsNullOrWhiteSpace($hostHeader)) {
+            if (-not [string]::IsNullOrWhiteSpace($ip) -and $ip -ne '*') { $ip } else { 'localhost' }
+        } else { $hostHeader }
+        $isDefault = (($protocol -eq 'https' -and $port -eq '443') -or ($protocol -eq 'http' -and $port -eq '80'))
+        $url = if ($isDefault) { "${protocol}://${hostOrIp}" } else { "${protocol}://${hostOrIp}:${port}" }
+        $urls += $url
+    }
+    return $urls
+}
+
+$apiUrls = Get-SiteUrls "TSIC-API-CP"
+$angularUrls = Get-SiteUrls "TSIC-Angular-CP"
+
 Write-Host "Deployment completed successfully!" -ForegroundColor Green
-Write-Host "API: http://10.0.0.45:5000" -ForegroundColor Green
-Write-Host "Angular: http://10.0.0.45" -ForegroundColor Green
+if ($apiUrls.Count -gt 0) {
+    Write-Host "API bindings:" -ForegroundColor Green
+    $apiUrls | ForEach-Object { Write-Host "  - $_" -ForegroundColor Green }
+}
+if ($angularUrls.Count -gt 0) {
+    Write-Host "Angular bindings:" -ForegroundColor Green
+    $angularUrls | ForEach-Object { Write-Host "  - $_" -ForegroundColor Green }
+}
 Write-Host ""
 
 # Optional: Restart IIS sites
@@ -107,6 +236,12 @@ Write-Host "Restarting IIS application pools..." -ForegroundColor Cyan
 Import-Module WebAdministration -ErrorAction SilentlyContinue
 if (Get-Module WebAdministration) {
     try {
+        # Show and normalize app pool bitness (recommend 64-bit)
+        $pool = Get-Item "IIS:\AppPools\TSIC-API-Pool" -ErrorAction SilentlyContinue
+        if ($pool) {
+            $is32 = (Get-ItemProperty $pool.PSPath -Name enable32BitAppOnWin64).enable32BitAppOnWin64
+            Write-Host "TSIC-API-Pool enable32BitAppOnWin64: $is32" -ForegroundColor White
+        }
         Restart-WebAppPool -Name "TSIC-API-Pool" -ErrorAction SilentlyContinue
         Restart-WebAppPool -Name "TSIC-Angular-Pool" -ErrorAction SilentlyContinue
         Write-Host "IIS application pools restarted" -ForegroundColor Green

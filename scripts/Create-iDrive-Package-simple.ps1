@@ -27,24 +27,69 @@ if (!(Test-Path $AngularSource)) {
 }
 
 # Create deployment package with fixed name for iDrive backup
-$DeployPackage = Join-Path $ProjectRoot "tsic-deployment-current"
+$DeployPackageRoot = Join-Path $ProjectRoot "tsic-deployment-current"
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$DeployPackage = Join-Path $DeployPackageRoot $Timestamp
 
-Write-Host " Creating deployment package: $DeployPackage" -ForegroundColor Cyan
+Write-Host "Creating deployment package: $DeployPackage" -ForegroundColor Cyan
 
-# Create directory
+# Ensure root directory exists
+if (!(Test-Path $DeployPackageRoot)) {
+    New-Item -ItemType Directory -Path $DeployPackageRoot -Force | Out-Null
+}
+
+# Clean old deployment packages (keep last 3)
+Write-Host "Cleaning old deployment packages (keeping last 3)..." -ForegroundColor Yellow
+Get-ChildItem $DeployPackageRoot -Directory | 
+    Sort-Object Name -Descending |
+    Select-Object -Skip 3 |
+    Remove-Item -Recurse -Force
+
+# Create fresh timestamped directory and subfolders
 New-Item -ItemType Directory -Path $DeployPackage -Force | Out-Null
+$ApiDest = Join-Path $DeployPackage "api"
+$AngularDest = Join-Path $DeployPackage "angular"
+if (!(Test-Path $ApiDest)) { New-Item -ItemType Directory -Path $ApiDest -Force | Out-Null }
+if (!(Test-Path $AngularDest)) { New-Item -ItemType Directory -Path $AngularDest -Force | Out-Null }
 
-# Copy build outputs
+# Copy build outputs (ensure destination directories exist first to avoid Copy-Item container/leaf issues)
 Write-Host "Copying API files..." -ForegroundColor White
-Copy-Item "$ApiSource\*" (Join-Path $DeployPackage "api") -Recurse -Force
+Copy-Item "$ApiSource\*" $ApiDest -Recurse -Force
 
 Write-Host "Copying Angular files..." -ForegroundColor White
-Copy-Item "$AngularSource\*" (Join-Path $DeployPackage "angular") -Recurse -Force
+Copy-Item "$AngularSource\*" $AngularDest -Recurse -Force
 
 # Copy web.config files
 Write-Host "Copying configuration files..." -ForegroundColor White
-Copy-Item (Join-Path $ScriptDir "web.config.api") (Join-Path $DeployPackage "api\web.config") -Force
-Copy-Item (Join-Path $ScriptDir "web.config.angular") (Join-Path $DeployPackage "angular\web.config") -Force
+Copy-Item (Join-Path $ScriptDir "web.config.api") (Join-Path $ApiDest "web.config") -Force
+Copy-Item (Join-Path $ScriptDir "web.config.angular") (Join-Path $AngularDest "web.config") -Force
+
+# Ensure both web.config files are well-formed XML (strip any accidental trailer after </configuration>)
+function Set-WebConfigWellFormed {
+    param([string]$Path)
+    if (!(Test-Path $Path)) { return }
+    try {
+        $raw = Get-Content $Path -Raw -ErrorAction Stop
+        $m = [regex]::Match($raw, '.*</configuration>', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if ($m.Success) {
+            if ($m.Value.Length -ne $raw.Length) {
+                # Trim trailing junk and rewrite
+                Set-Content -Path $Path -Value $m.Value -Encoding UTF8
+            }
+        }
+        # Quick well-formedness check
+        [void]([xml](Get-Content $Path -Raw))
+    } catch {
+        Write-Warning ("web.config at '{0}' was not well-formed before fix: {1}" -f $Path, $_.Exception.Message)
+        # Last attempt: write only up to closing tag if present
+        if ($m -and $m.Success) {
+            Set-Content -Path $Path -Value $m.Value -Encoding UTF8
+        }
+    }
+}
+
+Set-WebConfigWellFormed (Join-Path $ApiDest "web.config")
+Set-WebConfigWellFormed (Join-Path $AngularDest "web.config")
 
 # Copy README and deployment script
 Write-Host "Creating README file..." -ForegroundColor White

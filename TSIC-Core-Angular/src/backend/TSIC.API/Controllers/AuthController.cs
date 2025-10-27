@@ -66,7 +66,7 @@ namespace TSIC.API.Controllers
             // Query available registrations/roles for this user
             var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
 
-            return Ok(new LoginResponseDto(registrations));
+            return Ok(new LoginResponseDto(user.Id, registrations));
         }
 
         /// <summary>

@@ -1,31 +1,21 @@
 <div class="login-container">
-  <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+  <form #loginForm="ngForm" (ngSubmit)="onSubmit($event)" method="post" action="/api/auth/login" autocomplete="on">
     <h2>Login</h2>
 
     <div class="form-group">
       <label for="username">Username</label>
-      <input 
-        id="username" 
-        type="text"
-        formControlName="username" 
-        [disabled]="isLoading"
-        placeholder="Enter your username"
-      />
-      <div class="error" *ngIf="loginForm.get('username')?.invalid && loginForm.get('username')?.touched">
+      <input #usernameInput id="username" name="username" type="text" [(ngModel)]="username" required
+        placeholder="Enter your username" autocomplete="username" />
+      <div class="error" *ngIf="loginForm.submitted && !username">
         Username is required
       </div>
     </div>
 
     <div class="form-group">
       <label for="password">Password</label>
-      <input 
-        id="password" 
-        type="password" 
-        formControlName="password" 
-        [disabled]="isLoading"
-        placeholder="Enter your password"
-      />
-      <div class="error" *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+      <input #passwordInput id="password" name="password" type="password" [(ngModel)]="password" required
+        placeholder="Enter your password" autocomplete="current-password" />
+      <div class="error" *ngIf="loginForm.submitted && !password">
         Password is required
       </div>
     </div>
@@ -34,7 +24,11 @@
       {{ errorMessage }}
     </div>
 
-    <button type="submit" [disabled]="loginForm.invalid || isLoading">
+    <div class="success-message" *ngIf="successMessage" style="color: green; margin-bottom: 1rem;">
+      {{ successMessage }}
+    </div>
+
+    <button type="submit" [disabled]="isLoading">
       <span *ngIf="!isLoading">Login</span>
       <span *ngIf="isLoading">Logging in...</span>
     </button>

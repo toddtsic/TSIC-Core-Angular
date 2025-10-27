@@ -30,5 +30,4 @@ Copy-Item "C:\Path\To\web.config" $destPath -Force
 Start-Website -Name $SiteName
 
 Write-Host "Angular application deployed successfully!"
-Write-Host "Site URL: http://$HostHeader`:$Port"</content>
-<parameter name="filePath">c:\Users\tgree\source\repos\TSIC-Core-Angular\scripts\Deploy-Angular-To-IIS.ps1
+Write-Host "Site URL: http://$HostHeader`:$Port"

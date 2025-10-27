@@ -3,5 +3,5 @@ using TSIC.Application.DTOs;
 
 namespace TSIC.API.Dtos
 {
-    public record LoginResponseDto(List<RegistrationRoleDto> Registrations);
+    public record LoginResponseDto(string UserId, List<RegistrationRoleDto> Registrations);
 }

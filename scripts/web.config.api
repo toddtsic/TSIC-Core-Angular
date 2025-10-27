@@ -1,43 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
-  <system.webServer>
-    <handlers>
-      <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
-    </handlers>
-    <aspNetCore processPath="dotnet" arguments=".\TSIC.API.dll" stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
-
-    <!-- Enable CORS for Angular app -->
-    <cors enabled="true">
-      <add origin="http://10.0.0.45">
-        <allowMethods>
-          <add method="GET" />
-          <add method="POST" />
-          <add method="PUT" />
-          <add method="DELETE" />
-          <add method="OPTIONS" />
-        </allowMethods>
-        <allowHeaders>
-          <add header="*" />
-        </allowHeaders>
-      </add>
-      <!-- Allow localhost for development -->
-      <add origin="http://localhost:4200">
-        <allowMethods>
-          <add method="GET" />
-          <add method="POST" />
-          <add method="PUT" />
-          <add method="DELETE" />
-          <add method="OPTIONS" />
-        </allowMethods>
-        <allowHeaders>
-          <add header="*" />
-        </allowHeaders>
-      </add>
-    </cors>
-  </system.webServer>
-
-  <system.web>
-    <compilation debug="false" />
-  </system.web>
-</configuration></content>
-<parameter name="filePath">c:\Users\tgree\source\repos\TSIC-Core-Angular\scripts\web.config.api
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+      </handlers>
+      <aspNetCore processPath="dotnet" arguments=".\TSIC.API.dll" stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
+    </system.webServer>
+  </location>
+</configuration>
