@@ -11,8 +11,8 @@ This use case covers the complete login flow from the Angular frontend through A
 
 ### Phase 1 (Current Implementation)
 - Basic login endpoint with username/password validation
-- JWT token generation with user claims
-- Role selection endpoint
+- Return userId and available registrations for the user (no token yet)
+- Role selection endpoint for Phase 2
 - Angular login and role selection components
 - Basic validation and error handling
 
@@ -66,17 +66,14 @@ This use case covers the complete login flow from the Angular frontend through A
 ```json
 {
   "userId": "user_id",
-  "username": "jdoe",
-  "firstName": "John",
-  "lastName": "Doe",
-  "availableRoles": [
+  "registrations": [
     {
-      "roleId": "role1",
+      "regId": "registration1",
       "roleName": "Administrator",
       "displayText": "Admin Access"
     },
     {
-      "roleId": "role2",
+      "regId": "registration2",
       "roleName": "User",
       "displayText": "Standard User"
     }
@@ -85,9 +82,9 @@ This use case covers the complete login flow from the Angular frontend through A
 ```
 
 **Angular Frontend:**
-- Store temporary user info (no tokens yet)
+- Store temporary user id and registrations (no tokens yet)
 - Navigate to role selection component
-- Display available roles for user to choose
+- Display available registrations for user to choose
 
 ### 4. User Selects Role (Phase 2)
 **Angular Frontend:**
@@ -96,7 +93,7 @@ This use case covers the complete login flow from the Angular frontend through A
 
 **API Backend:**
 - Receive role selection at `POST /api/auth/select-role`
-- Validate user session and selected role
+- Validate user session and selected registration
 - Generate JWT access token with:
   - User claims (userId, username, name)
   - Role claims
@@ -190,12 +187,9 @@ This use case covers the complete login flow from the Angular frontend through A
 ```json
 {
   "userId": "user_id",
-  "username": "jdoe",
-  "firstName": "John",
-  "lastName": "Doe",
-  "availableRoles": [
+  "registrations": [
     {
-      "roleId": "role1",
+      "regId": "registration1",
       "roleName": "Administrator",
       "displayText": "Admin Access"
     }
@@ -215,7 +209,7 @@ This use case covers the complete login flow from the Angular frontend through A
 ```json
 {
   "userId": "user_id",
-  "roleId": "role1"
+  "regId": "registration1"
 }
 ```
 
@@ -245,14 +239,14 @@ This use case covers the complete login flow from the Angular frontend through A
 ## Angular Components Required
 
 ### LoginComponent
-- Form handling with reactive forms for username/password
+- Form handling with template-driven form for username/password (can migrate to reactive forms later)
 - Validation messages
 - Loading states
 - Error handling
 - Navigation to role selection on success
 
 ### RoleSelectionComponent
-- Display available roles
+- Display available registrations (grouped by role)
 - Role selection UI
 - Loading states during token generation
 - Error handling
@@ -275,21 +269,18 @@ interface LoginRequest {
 
 interface LoginResponse {
   userId: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-  availableRoles: Role[];
+  registrations: Registration[];
 }
 
-interface Role {
-  roleId: string;
+interface Registration {
+  regId: string;
   roleName: string;
   displayText: string;
 }
 
 interface RoleSelectionRequest {
   userId: string;
-  roleId: string;
+  regId: string;
 }
 
 interface AuthTokenResponse {
@@ -318,24 +309,21 @@ public class LoginRequest
 
 public class LoginResponse
 {
-    public string UserId { get; set; }
-    public string Username { get; set; }
-    public string FirstName { get; set; }
-    public string LastName { get; set; }
-    public List<RoleDto> AvailableRoles { get; set; }
+  public string UserId { get; set; }
+  public List<RegistrationDto> Registrations { get; set; }
 }
 
-public class RoleDto
+public class RegistrationDto
 {
-    public string RoleId { get; set; }
-    public string RoleName { get; set; }
-    public string DisplayText { get; set; }
+  public string RegId { get; set; }
+  public string RoleName { get; set; }
+  public string DisplayText { get; set; }
 }
 
 public class RoleSelectionRequest
 {
     public string UserId { get; set; }
-    public string RoleId { get; set; }
+  public string RegId { get; set; }
 }
 
 public class AuthTokenResponse
@@ -361,7 +349,7 @@ public class AuthenticatedUserDto
 ### Phase 1 - Functional
 - [ ] User can submit username and password
 - [ ] API validates credentials against TSIC database
-- [ ] API returns user info and available roles on success
+- [ ] API returns userId and registrations on success (no token yet)
 - [ ] User sees appropriate error message for invalid credentials
 - [ ] User navigates to role selection on successful login
 
@@ -400,8 +388,7 @@ public class AuthenticatedUserDto
 
 ## Implementation Notes
 
-### Angular Implementation
-- Use Angular Reactive Forms for validation
+- Use a template-driven form for login (can migrate to Reactive Forms in Phase 2)
 - Store tokens in sessionStorage (not localStorage for security)
 - Implement route guards in Phase 2
 - Implement HTTP interceptors in Phase 2
