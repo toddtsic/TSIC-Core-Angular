@@ -19,6 +19,28 @@ input, select {
   border-radius: 4px;
   box-sizing: border-box;
 }
+
+.password-wrapper {
+  position: relative;
+}
+.password-wrapper input {
+  padding-right: 40px; // space for the icon button
+}
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  padding: 4px;
+  margin: 0;
+  cursor: pointer;
+  color: #666;
+}
+.password-toggle:hover {
+  color: #333;
+}
 button {
   margin-top: 24px;
   width: 100%;
