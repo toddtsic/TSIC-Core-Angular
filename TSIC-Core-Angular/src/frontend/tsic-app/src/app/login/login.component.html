@@ -4,8 +4,8 @@
 
     <div class="form-group">
       <label for="username">Username</label>
-      <input #usernameInput id="username" type="text" formControlName="username"
-        placeholder="Enter your username" autocomplete="username" />
+      <input #usernameInput id="username" type="text" formControlName="username" placeholder="Enter your username"
+        autocomplete="username" />
       <div class="error" *ngIf="submitted && form.get('username')?.invalid">
         Username is required
       </div>
@@ -13,8 +13,13 @@
 
     <div class="form-group">
       <label for="password">Password</label>
-      <input #passwordInput id="password" type="password" formControlName="password"
-        placeholder="Enter your password" autocomplete="current-password" />
+      <div class="password-wrapper">
+        <input #passwordInput id="password" [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="Enter your password"
+          [attr.autocomplete]="showPassword ? 'off' : 'current-password'" />
+        <button type="button" class="toggle" (click)="toggleShowPassword()" aria-label="Toggle password visibility">
+          {{ showPassword ? 'Hide' : 'Show' }}
+        </button>
+      </div>
       <div class="error" *ngIf="submitted && form.get('password')?.invalid">
         Password is required
       </div>
@@ -24,7 +29,7 @@
       {{ errorMessage }}
     </div>
 
-    <button type="submit" [disabled]="isLoading">
+    <button type="submit" [disabled]="isLoading || form.invalid">
       <span *ngIf="!isLoading">Login</span>
       <span *ngIf="isLoading">Logging in...</span>
     </button>
