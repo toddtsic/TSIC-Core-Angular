@@ -15,7 +15,7 @@ import { Query } from '@syncfusion/ej2-data';
 })
 export class RoleSelectionComponent implements OnInit, AfterViewInit {
   @ViewChild('firstDropdown') firstDropdown!: DropDownListComponent;
-  
+
   registrations: any[] = []; // Change to any[] temporarily
   isLoading = false;
   errorMessage: string | null = null;
@@ -34,7 +34,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
       next: (registrations) => {
         this.registrations = registrations;
         this.isLoading = false;
-        
+
         // Open the first dropdown after data is loaded
         setTimeout(() => {
           if (this.firstDropdown) {

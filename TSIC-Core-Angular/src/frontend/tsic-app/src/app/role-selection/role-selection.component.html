@@ -12,9 +12,8 @@
     <div *ngFor="let roleGroup of registrations; let i = index" class="role-group">
       <h3 class="role-name">{{ roleGroup.roleName }}</h3>
       <div class="dropdown-container">
-        <ejs-dropdownlist #firstDropdown *ngIf="i === 0; else otherDropdown"
-          [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
-          [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
+        <ejs-dropdownlist #firstDropdown *ngIf="i === 0; else otherDropdown" [dataSource]="roleGroup.roleRegistrations"
+          [fields]="fields" [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
           [filterBarPlaceholder]="'Search registrations...'" [enabled]="!isLoading"
           (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
           <ng-template #itemTemplate let-data>
