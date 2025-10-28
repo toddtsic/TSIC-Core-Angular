@@ -1,5 +1,72 @@
 # Angular Coding Standards - TSIC Project
 
+## Template Control Flow (Angular 17+)
+
+**ALWAYS use the new control flow syntax (`@if`, `@for`, `@switch`) instead of structural directives (`*ngIf`, `*ngFor`, `*ngSwitch`).**
+
+### ✅ Preferred Pattern (Angular 17+)
+
+```html
+<!-- Conditional rendering -->
+@if (user) {
+  <p>Welcome, {{ user.name }}!</p>
+} @else if (isLoading) {
+  <p>Loading...</p>
+} @else {
+  <p>Please log in.</p>
+}
+
+<!-- List rendering -->
+@for (item of items; track item.id) {
+  <div class="item">{{ item.name }}</div>
+} @empty {
+  <p>No items found.</p>
+}
+
+<!-- Switch statements -->
+@switch (status) {
+  @case ('active') {
+    <span class="badge-success">Active</span>
+  }
+  @case ('pending') {
+    <span class="badge-warning">Pending</span>
+  }
+  @default {
+    <span class="badge-secondary">Unknown</span>
+  }
+}
+
+<!-- Defer for lazy loading -->
+@defer (on viewport) {
+  <heavy-component />
+} @placeholder {
+  <p>Loading component...</p>
+} @loading {
+  <spinner />
+} @error {
+  <p>Failed to load</p>
+}
+```
+
+### ❌ Avoid (Old Structural Directives)
+
+```html
+<!-- DON'T use these anymore -->
+<div *ngIf="user">Welcome, {{ user.name }}!</div>
+<div *ngFor="let item of items">{{ item.name }}</div>
+<div [ngSwitch]="status">
+  <span *ngSwitchCase="'active'">Active</span>
+</div>
+```
+
+### Benefits of New Control Flow
+
+1. **Better performance** - Built-in optimization and smaller bundle sizes
+2. **Type safety** - Better TypeScript inference in templates
+3. **Cleaner syntax** - More readable and less "magic"
+4. **Track by default** - `@for` requires explicit tracking
+5. **Better error handling** - `@defer` with error states
+
 ## Dependency Injection
 
 **ALWAYS use `inject()` function instead of constructor-based dependency injection.**
