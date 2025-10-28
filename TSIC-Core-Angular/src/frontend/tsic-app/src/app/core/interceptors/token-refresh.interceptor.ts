@@ -17,10 +17,10 @@ export const tokenRefreshInterceptor: HttpInterceptorFn = (req, next) => {
             }
 
             // Don't try to refresh if the request was to login, refresh, or revoke endpoints
-            const isAuthEndpoint = req.url.includes('/auth/login') || 
-                                  req.url.includes('/auth/refresh') ||
-                                  req.url.includes('/auth/revoke');
-            
+            const isAuthEndpoint = req.url.includes('/auth/login') ||
+                req.url.includes('/auth/refresh') ||
+                req.url.includes('/auth/revoke');
+
             if (isAuthEndpoint) {
                 return throwError(() => error);
             }

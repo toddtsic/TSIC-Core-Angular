@@ -82,7 +82,7 @@ export class AuthService {
    */
   logout(): void {
     const refreshToken = this.getRefreshToken();
-    
+
     // Revoke refresh token on server if it exists
     if (refreshToken) {
       this.http.post(`${this.apiUrl}/revoke`, { refreshToken })
@@ -155,7 +155,7 @@ export class AuthService {
    */
   refreshAccessToken(): Observable<AuthTokenResponse> {
     const refreshToken = this.getRefreshToken();
-    
+
     if (!refreshToken) {
       return throwError(() => new Error('No refresh token available'));
     }

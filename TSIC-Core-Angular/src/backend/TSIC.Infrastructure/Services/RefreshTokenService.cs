@@ -79,7 +79,7 @@ namespace TSIC.Infrastructure.Services
         public void RevokeRefreshToken(string refreshToken)
         {
             var cacheKey = CACHE_PREFIX + refreshToken;
-            
+
             // Get user ID before removing
             if (_cache.TryGetValue(cacheKey, out string? userId))
             {
@@ -108,7 +108,7 @@ namespace TSIC.Infrastructure.Services
         public void RevokeAllUserTokens(string userId)
         {
             var userTokensKey = USER_TOKENS_PREFIX + userId;
-            
+
             if (_cache.TryGetValue(userTokensKey, out HashSet<string>? userTokens) && userTokens != null)
             {
                 // Remove each token from cache
