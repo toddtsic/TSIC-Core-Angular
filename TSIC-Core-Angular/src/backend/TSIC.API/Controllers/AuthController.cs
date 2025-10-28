@@ -20,17 +20,20 @@ namespace TSIC.API.Controllers
         private readonly IRoleLookupService _roleLookupService;
         private readonly IValidator<LoginRequest> _loginValidator;
         private readonly IConfiguration _configuration;
+        private readonly IRefreshTokenService _refreshTokenService;
 
         public AuthController(
             UserManager<IdentityUser> userManager,
             IRoleLookupService roleLookupService,
             IValidator<LoginRequest> loginValidator,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IRefreshTokenService refreshTokenService)
         {
             _userManager = userManager;
             _roleLookupService = roleLookupService;
             _loginValidator = loginValidator;
             _configuration = configuration;
+            _refreshTokenService = refreshTokenService;
         }
 
         /// <summary>
@@ -66,10 +69,12 @@ namespace TSIC.API.Controllers
 
             // Generate Phase 1 JWT token with minimal claims (username only)
             var token = GenerateMinimalJwtToken(user);
+            var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
             return Ok(new AuthTokenResponse(
                 AccessToken: token,
+                RefreshToken: refreshToken,
                 ExpiresIn: expirationMinutes * 60 // Convert to seconds
             ));
         }
@@ -156,10 +161,12 @@ namespace TSIC.API.Controllers
 
             // Generate enriched Phase 2 JWT token with regId and jobPath claims
             var token = GenerateEnrichedJwtToken(user, request.RegId, jobPath);
+            var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
             return Ok(new AuthTokenResponse(
                 AccessToken: token,
+                RefreshToken: refreshToken,
                 ExpiresIn: expirationMinutes * 60 // Convert to seconds
             ));
         }
@@ -230,6 +237,66 @@ namespace TSIC.API.Controllers
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        /// <summary>
+        /// Refresh access token using a valid refresh token
+        /// </summary>
+        [HttpPost("refresh")]
+        [ProducesResponseType(typeof(AuthTokenResponse), 200)]
+        [ProducesResponseType(401)]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            {
+                return Unauthorized(new { Error = "Refresh token is required" });
+            }
+
+            // Validate refresh token
+            var userId = _refreshTokenService.ValidateRefreshToken(request.RefreshToken);
+            if (userId == null)
+            {
+                return Unauthorized(new { Error = "Invalid or expired refresh token" });
+            }
+
+            // Get user
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return Unauthorized(new { Error = "User not found" });
+            }
+
+            // Revoke old refresh token
+            _refreshTokenService.RevokeRefreshToken(request.RefreshToken);
+
+            // Generate new access token and refresh token
+            // Note: We generate a minimal token here. Client should call select-registration again if needed
+            var newAccessToken = GenerateMinimalJwtToken(user);
+            var newRefreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
+            var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
+
+            return Ok(new AuthTokenResponse(
+                AccessToken: newAccessToken,
+                RefreshToken: newRefreshToken,
+                ExpiresIn: expirationMinutes * 60
+            ));
+        }
+
+        /// <summary>
+        /// Revoke a refresh token (used for logout)
+        /// </summary>
+        [HttpPost("revoke")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        public IActionResult RevokeToken([FromBody] RefreshTokenRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            {
+                return BadRequest(new { Error = "Refresh token is required" });
+            }
+
+            _refreshTokenService.RevokeRefreshToken(request.RefreshToken);
+            return Ok(new { Message = "Token revoked successfully" });
         }
     }
 }

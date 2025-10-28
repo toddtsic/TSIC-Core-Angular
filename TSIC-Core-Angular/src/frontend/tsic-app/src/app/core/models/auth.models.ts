@@ -31,5 +31,10 @@ export interface AuthenticatedUser {
 
 export interface AuthTokenResponse {
     accessToken: string;
+    refreshToken?: string;
     expiresIn?: number;
+}
+
+export interface RefreshTokenRequest {
+    refreshToken: string;
 }

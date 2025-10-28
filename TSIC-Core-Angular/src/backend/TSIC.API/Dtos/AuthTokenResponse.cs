@@ -5,6 +5,7 @@ namespace TSIC.API.Dtos
     /// </summary>
     public record AuthTokenResponse(
         string AccessToken,
+        string? RefreshToken = null,
         int? ExpiresIn = null
     );
 }

@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { tap, map } from 'rxjs/operators';
+import { Observable, BehaviorSubject, throwError } from 'rxjs';
+import { tap, map, catchError } from 'rxjs/operators';
 import {
   LoginRequest,
   LoginResponse,
@@ -20,6 +20,7 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
+  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
 
   private readonly currentUserSubject = new BehaviorSubject<AuthenticatedUser | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
@@ -37,8 +38,11 @@ export class AuthService {
     return this.http.post<AuthTokenResponse>(`${this.apiUrl}/login`, credentials)
       .pipe(
         tap(response => {
-          // Store initial token (has username claim only)
+          // Store both access token and refresh token
           this.setToken(response.accessToken);
+          if (response.refreshToken) {
+            this.setRefreshToken(response.refreshToken);
+          }
           this.initializeFromToken();
         })
       );
@@ -63,18 +67,33 @@ export class AuthService {
     return this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-registration`, { regId })
       .pipe(
         tap(response => {
-          // Store full token (has username, jobPath, regId claims)
+          // Store both tokens
           this.setToken(response.accessToken);
+          if (response.refreshToken) {
+            this.setRefreshToken(response.refreshToken);
+          }
           this.initializeFromToken();
         })
       );
   }
 
   /**
-   * Logout - clear stored auth data and redirect to login
+   * Logout - revoke refresh token and clear stored auth data
    */
   logout(): void {
+    const refreshToken = this.getRefreshToken();
+    
+    // Revoke refresh token on server if it exists
+    if (refreshToken) {
+      this.http.post(`${this.apiUrl}/revoke`, { refreshToken })
+        .subscribe({
+          error: (err) => console.error('Error revoking token:', err)
+        });
+    }
+
+    // Clear local storage
     localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     this.currentUserSubject.next(null);
     this.router.navigate(['/tsic/login']);
   }
@@ -118,6 +137,44 @@ export class AuthService {
 
   private setToken(token: string): void {
     localStorage.setItem(this.TOKEN_KEY, token);
+  }
+
+  private setRefreshToken(token: string): void {
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
+  }
+
+  /**
+   * Get stored refresh token
+   */
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  /**
+   * Refresh the access token using the refresh token
+   */
+  refreshAccessToken(): Observable<AuthTokenResponse> {
+    const refreshToken = this.getRefreshToken();
+    
+    if (!refreshToken) {
+      return throwError(() => new Error('No refresh token available'));
+    }
+
+    return this.http.post<AuthTokenResponse>(`${this.apiUrl}/refresh`, { refreshToken })
+      .pipe(
+        tap(response => {
+          this.setToken(response.accessToken);
+          if (response.refreshToken) {
+            this.setRefreshToken(response.refreshToken);
+          }
+          this.initializeFromToken();
+        }),
+        catchError(error => {
+          // If refresh fails, logout user
+          this.logout();
+          return throwError(() => error);
+        })
+      );
   }
 
   /**
