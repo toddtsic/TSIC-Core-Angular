@@ -2,8 +2,8 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #6750a4 0%, #4a4459 100%);
+    color: var(--on-primary, #ffffff);
 
     .hero-section {
         flex: 1;
@@ -15,32 +15,31 @@
         padding: 4rem 2rem;
 
         h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            font-weight: 700;
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 400;
+            letter-spacing: -0.5px;
         }
 
         .tagline {
             font-size: 1.5rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
+            margin-bottom: 3rem;
+            opacity: 0.95;
+            font-weight: 300;
         }
 
         .cta-button {
-            background: white;
-            color: #667eea;
-            border: none;
-            padding: 1rem 3rem;
-            font-size: 1.2rem;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: 600;
+            margin-top: 1rem;
+            padding: 0 3rem;
+            height: 56px;
+            font-size: 1.1rem;
+            border-radius: 28px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 
             &:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+                box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
             }
 
             &:active {
@@ -51,33 +50,41 @@
 
     .features {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 2rem;
-        padding: 3rem 2rem;
-        background: rgba(255, 255, 255, 0.1);
+        padding: 4rem 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
+        background: rgba(0, 0, 0, 0.15);
         backdrop-filter: blur(10px);
 
-        .feature {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 2rem;
-            border-radius: 12px;
+        .feature-card {
+            background: var(--surface-container, rgba(28, 27, 31, 0.8));
+            padding: 2.5rem;
+            border-radius: 16px;
             text-align: center;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
 
             &:hover {
-                transform: translateY(-5px);
-                background: rgba(255, 255, 255, 0.2);
+                transform: translateY(-8px);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+                background: var(--surface-container-high, rgba(28, 27, 31, 0.9));
             }
 
             h3 {
-                font-size: 1.5rem;
+                font-size: 1.75rem;
                 margin-bottom: 1rem;
-                font-weight: 600;
+                font-weight: 500;
+                color: var(--primary, #d0bcff);
             }
 
             p {
                 opacity: 0.9;
-                line-height: 1.6;
+                line-height: 1.7;
+                font-size: 1.05rem;
+                color: var(--on-surface, #e6e1e5);
             }
         }
     }
@@ -86,13 +93,20 @@
 @media (max-width: 768px) {
     .landing-page {
         .hero-section {
+            padding: 3rem 1.5rem;
+
             h1 {
-                font-size: 2rem;
+                font-size: 2.5rem;
             }
 
             .tagline {
-                font-size: 1.2rem;
+                font-size: 1.25rem;
             }
+        }
+
+        .features {
+            grid-template-columns: 1fr;
+            padding: 2rem 1rem;
         }
     }
 }

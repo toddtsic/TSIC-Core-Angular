@@ -1,11 +1,13 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
+import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-job-home',
   standalone: true,
-  imports: [],
+  imports: [CommonModule, ButtonModule],
   templateUrl: './job-home.component.html',
   styleUrl: './job-home.component.scss'
 })

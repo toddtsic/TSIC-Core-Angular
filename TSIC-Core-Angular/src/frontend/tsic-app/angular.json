@@ -32,6 +32,13 @@
               }
             ],
             "styles": [
+              "node_modules/@syncfusion/ej2-base/styles/material3.css",
+              "node_modules/@syncfusion/ej2-buttons/styles/material3.css",
+              "node_modules/@syncfusion/ej2-inputs/styles/material3.css",
+              "node_modules/@syncfusion/ej2-dropdowns/styles/material3.css",
+              "node_modules/@syncfusion/ej2-lists/styles/material3.css",
+              "node_modules/@syncfusion/ej2-popups/styles/material3.css",
+              "node_modules/@syncfusion/ej2-navigations/styles/material3.css",
               "src/styles.scss"
             ],
             "scripts": []
@@ -41,13 +48,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "2MB",
-                  "maximumError": "3MB"
+                  "maximumWarning": "3MB",
+                  "maximumError": "4MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "3kB",
-                  "maximumError": "6kB"
+                  "maximumWarning": "5kB",
+                  "maximumError": "10kB"
                 }
               ],
               "outputHashing": "all",
@@ -106,6 +113,13 @@
               }
             ],
             "styles": [
+              "node_modules/@syncfusion/ej2-base/styles/material3.css",
+              "node_modules/@syncfusion/ej2-buttons/styles/material3.css",
+              "node_modules/@syncfusion/ej2-inputs/styles/material3.css",
+              "node_modules/@syncfusion/ej2-dropdowns/styles/material3.css",
+              "node_modules/@syncfusion/ej2-lists/styles/material3.css",
+              "node_modules/@syncfusion/ej2-popups/styles/material3.css",
+              "node_modules/@syncfusion/ej2-navigations/styles/material3.css",
               "src/styles.scss"
             ],
             "scripts": []

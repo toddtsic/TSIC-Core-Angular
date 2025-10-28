@@ -5,12 +5,14 @@ import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { LoginRequest } from '../core/models/auth.models';
 import { AutofillMonitor } from '@angular/cdk/text-field';
+import { TextBoxModule } from '@syncfusion/ej2-angular-inputs';
+import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
+  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule],
   styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent implements AfterViewInit, OnDestroy {

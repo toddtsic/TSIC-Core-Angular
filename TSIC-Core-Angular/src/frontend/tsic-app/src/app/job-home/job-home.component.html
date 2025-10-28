@@ -1,31 +1,45 @@
 <div class="job-home">
     <header class="job-header">
-        <h1>Welcome to {{ jobPath }}</h1>
-        @if (username) {
-        <div class="user-info">
-            <span>Logged in as: {{ username }}</span>
-            <button class="btn-change-role" (click)="changeRole()">Change Role</button>
-            <button class="btn-logout" (click)="logout()">Logout</button>
+        <div class="header-content">
+            <h1>{{ jobPath }}</h1>
+            @if (username) {
+            <div class="user-info">
+                <span class="username">{{ username }}</span>
+                <button ejs-button cssClass="e-outline e-small" (click)="changeRole()">Change Role</button>
+                <button ejs-button cssClass="e-outline e-small" (click)="logout()">Logout</button>
+            </div>
+            }
         </div>
-        }
     </header>
 
     <div class="job-content">
-        <section class="bulletins">
-            <h2>Job Bulletins</h2>
-            <div class="placeholder">
-                <p>Bulletin functionality coming soon...</p>
+        <section class="bulletins-section">
+            <div class="section-card">
+                <h2>Job Bulletins</h2>
+                <div class="placeholder">
+                    <p>Bulletin functionality coming soon...</p>
+                </div>
             </div>
         </section>
 
-        <section class="quick-links">
-            <h3>Quick Links</h3>
-            <ul>
-                <li><a href="#">Teams</a></li>
-                <li><a href="#">Schedule</a></li>
-                <li><a href="#">Reports</a></li>
-                <li><a href="#">Settings</a></li>
-            </ul>
+        <section class="quick-links-section">
+            <div class="section-card">
+                <h3>Quick Links</h3>
+                <div class="links-grid">
+                    <button ejs-button cssClass="e-flat link-button">
+                        <span>Teams</span>
+                    </button>
+                    <button ejs-button cssClass="e-flat link-button">
+                        <span>Schedule</span>
+                    </button>
+                    <button ejs-button cssClass="e-flat link-button">
+                        <span>Reports</span>
+                    </button>
+                    <button ejs-button cssClass="e-flat link-button">
+                        <span>Settings</span>
+                    </button>
+                </div>
+            </div>
         </section>
     </div>
 </div>

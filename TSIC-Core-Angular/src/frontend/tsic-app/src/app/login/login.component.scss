@@ -1,72 +1,62 @@
 .login-container {
-  max-width: 400px;
-  margin: 40px auto;
-  padding: 24px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-label {
-  display: block;
-  margin-top: 16px;
-  font-weight: 600;
-}
-
-input,
-select {
-  width: 100%;
-  padding: 8px;
-  margin-top: 4px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.password-wrapper {
-  position: relative;
-}
-
-.password-wrapper input {
-  padding-right: 40px; // space for the icon button
-}
-
-.password-toggle {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
+  display: flex;
   justify-content: center;
-  width: 2rem;
-  /* override global button width */
-  height: 2rem;
-  border: none;
-  background: transparent;
-  padding: 4px;
-  margin: 0;
-  cursor: pointer;
-  color: #666;
-}
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
 
-.password-toggle:hover {
-  color: #333;
-}
+  form {
+    width: 100%;
+    max-width: 420px;
+    padding: 48px 40px;
+    background: var(--surface-container, #ffffff);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 
-button {
-  margin-top: 24px;
-  width: 100%;
-  padding: 10px;
-  background: #1976d2;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-size: 16px;
-  cursor: pointer;
-}
+    h2 {
+      margin: 0 0 36px 0;
+      font-size: 32px;
+      font-weight: 400;
+      text-align: center;
+      color: var(--on-surface, #1d1b20);
+      border-bottom: none;
+    }
 
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+    .form-group {
+      margin-bottom: 28px;
+      position: relative;
+
+      .password-toggle {
+        position: absolute;
+        right: 4px;
+        top: 12px;
+        z-index: 10;
+        min-width: auto !important;
+        width: auto !important;
+      }
+
+      .error {
+        color: var(--error, #ba1a1a);
+        font-size: 12px;
+        margin-top: 6px;
+        padding-left: 16px;
+      }
+    }
+
+    .error-message {
+      background: var(--error-container, #ffdad6);
+      color: var(--on-error-container, #410002);
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      margin-top: 16px;
+      height: 44px;
+    }
+  }
 }

@@ -2,14 +2,14 @@ import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-// Remove RoleGroup import for now
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
+import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
 import { Query } from '@syncfusion/ej2-data';
 
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [CommonModule, DropDownListModule],
+  imports: [CommonModule, DropDownListModule, ButtonModule],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']
 })
