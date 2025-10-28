@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
@@ -13,7 +13,10 @@ import { Query } from '@syncfusion/ej2-data';
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']
 })
-export class RoleSelectionComponent implements OnInit, AfterViewInit {
+export class RoleSelectionComponent implements OnInit {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
   @ViewChild('firstDropdown') firstDropdown!: DropDownListComponent;
 
   registrations: any[] = []; // Change to any[] temporarily
@@ -22,8 +25,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
 
   // Syncfusion DropdownList field mappings
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
-
-  constructor(private authService: AuthService, private router: Router) { }
 
   ngOnInit(): void {
     this.isLoading = true;
@@ -50,16 +51,11 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     });
   }
 
-  ngAfterViewInit(): void {
-    // ViewChild will be available here, but data might not be loaded yet
-    // Moved the showPopup logic to ngOnInit after data loads
-  }
-
   // Handle typeahead filtering
   public onFiltering(e: FilteringEventArgs, roleGroup: any): void { // Change parameter type to any
     let query = new Query();
     // Filter based on the search text
-    query = (e.text !== '') ? query.where('displayText', 'contains', e.text, true) : query;
+    query = (e.text === '') ? query : query.where('displayText', 'contains', e.text, true);
     // Update the dropdown with filtered data
     e.updateData(roleGroup.roleRegistrations, query);
   }

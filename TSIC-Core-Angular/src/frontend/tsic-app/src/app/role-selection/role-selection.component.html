@@ -4,43 +4,56 @@
     <button class="logout-btn" (click)="logout()" [disabled]="isLoading">Logout</button>
   </div>
 
-  <div class="error-message" *ngIf="errorMessage">
-    {{ errorMessage }}
-  </div>
-
-  <div class="roles-list" *ngIf="registrations && registrations.length > 0">
-    <div *ngFor="let roleGroup of registrations; let i = index" class="role-group">
-      <h3 class="role-name">{{ roleGroup.roleName }}</h3>
-      <div class="dropdown-container">
-        <ejs-dropdownlist #firstDropdown *ngIf="i === 0; else otherDropdown" [dataSource]="roleGroup.roleRegistrations"
-          [fields]="fields" [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
-          [filterBarPlaceholder]="'Search registrations...'" [enabled]="!isLoading"
-          (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
-          <ng-template #itemTemplate let-data>
-            <div class="dropdown-item">
-              <img *ngIf="data.jobLogo" class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
-              <span class="item-text">{{ data.displayText }}</span>
-            </div>
-          </ng-template>
-        </ejs-dropdownlist>
-        <ng-template #otherDropdown>
-          <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
-            [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
-            [filterBarPlaceholder]="'Search registrations...'" [enabled]="!isLoading"
-            (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
-            <ng-template #itemTemplate let-data>
-              <div class="dropdown-item">
-                <img *ngIf="data.jobLogo" class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
-                <span class="item-text">{{ data.displayText }}</span>
-              </div>
-            </ng-template>
-          </ejs-dropdownlist>
-        </ng-template>
-      </div>
+  @if (errorMessage) {
+    <div class="error-message">
+      {{ errorMessage }}
     </div>
-  </div>
+  }
 
-  <div class="loading-overlay" *ngIf="isLoading">
-    <div class="spinner">Loading...</div>
-  </div>
+  @if (registrations && registrations.length > 0) {
+    <div class="roles-list">
+      @for (roleGroup of registrations; track roleGroup.roleName; let i = $index) {
+        <div class="role-group">
+          <h3 class="role-name">{{ roleGroup.roleName }}</h3>
+          <div class="dropdown-container">
+            @if (i === 0) {
+              <ejs-dropdownlist #firstDropdown [dataSource]="roleGroup.roleRegistrations"
+                [fields]="fields" [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
+                [filterBarPlaceholder]="'Search registrations...'" [enabled]="!isLoading"
+                (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
+                <ng-template #itemTemplate let-data>
+                  <div class="dropdown-item">
+                    @if (data.jobLogo) {
+                      <img class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
+                    }
+                    <span class="item-text">{{ data.displayText }}</span>
+                  </div>
+                </ng-template>
+              </ejs-dropdownlist>
+            } @else {
+              <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
+                [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
+                [filterBarPlaceholder]="'Search registrations...'" [enabled]="!isLoading"
+                (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
+                <ng-template #itemTemplate let-data>
+                  <div class="dropdown-item">
+                    @if (data.jobLogo) {
+                      <img class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
+                    }
+                    <span class="item-text">{{ data.displayText }}</span>
+                  </div>
+                </ng-template>
+              </ejs-dropdownlist>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (isLoading) {
+    <div class="loading-overlay">
+      <div class="spinner">Loading...</div>
+    </div>
+  }
 </div>

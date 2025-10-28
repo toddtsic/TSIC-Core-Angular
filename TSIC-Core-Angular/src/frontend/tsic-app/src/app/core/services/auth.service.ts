@@ -1,11 +1,10 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap, map } from 'rxjs/operators';
 import {
   LoginRequest,
   LoginResponse,
-  RoleSelectionRequest,
   AuthTokenResponse,
   AuthenticatedUser,
   RegistrationRoleDto
@@ -16,13 +15,14 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root'
 })
 export class AuthService {
+  private readonly http = inject(HttpClient);
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
 
-  private currentUserSubject = new BehaviorSubject<AuthenticatedUser | null>(null);
+  private readonly currentUserSubject = new BehaviorSubject<AuthenticatedUser | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor() {
     // Initialize current user from token on service creation
     this.initializeFromToken();
   }
@@ -147,15 +147,19 @@ export class AuthService {
   private decodeToken(token: string): any {
     try {
       const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const base64 = base64Url.replaceAll('-', '+').replaceAll('_', '/');
       const jsonPayload = decodeURIComponent(
         atob(base64)
           .split('')
-          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .map(c => {
+            const code = c.codePointAt(0);
+            return '%' + ('00' + (code ? code.toString(16) : '00')).slice(-2);
+          })
           .join('')
       );
       return JSON.parse(jsonPayload);
     } catch (error) {
+      console.error('Token decode error:', error);
       throw new Error('Invalid token format');
     }
   }

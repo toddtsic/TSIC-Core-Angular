@@ -1,10 +1,10 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class LoginService {
-  constructor(private http: HttpClient) {}
+  private readonly http = inject(HttpClient);
 
   validateCredentials(username: string, password: string): Observable<any> {
     // Replace with actual API endpoint

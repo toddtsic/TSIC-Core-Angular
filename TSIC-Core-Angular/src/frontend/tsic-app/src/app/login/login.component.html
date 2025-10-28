@@ -6,9 +6,11 @@
       <label for="username">Username</label>
       <input #usernameInput id="username" type="text" formControlName="username" placeholder="Enter your username"
         autocomplete="username" />
-      <div class="error" *ngIf="submitted && form.get('username')?.invalid">
-        Username is required
-      </div>
+      @if (submitted && form.get('username')?.invalid) {
+        <div class="error">
+          Username is required
+        </div>
+      }
     </div>
 
     <div class="form-group">
@@ -18,32 +20,42 @@
           placeholder="Enter your password" [attr.autocomplete]="showPassword ? 'off' : 'current-password'" />
         <button type="button" class="password-toggle" (click)="toggleShowPassword()"
           [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
-          <svg *ngIf="!showPassword" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"
-            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-            aria-hidden="true">
-            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <svg *ngIf="showPassword" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"
-            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-            aria-hidden="true">
-            <path
-              d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.76 20.76 0 0 1 5.06-6.94m3.1-1.62A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.76 20.76 0 0 1-4.87 6.82M1 1l22 22" />
-          </svg>
+          @if (!showPassword) {
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          } @else {
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path
+                d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.76 20.76 0 0 1 5.06-6.94m3.1-1.62A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.76 20.76 0 0 1-4.87 6.82M1 1l22 22" />
+            </svg>
+          }
         </button>
       </div>
-      <div class="error" *ngIf="submitted && form.get('password')?.invalid">
-        Password is required
-      </div>
+      @if (submitted && form.get('password')?.invalid) {
+        <div class="error">
+          Password is required
+        </div>
+      }
     </div>
 
-    <div class="error-message" *ngIf="errorMessage">
-      {{ errorMessage }}
-    </div>
+    @if (errorMessage) {
+      <div class="error-message">
+        {{ errorMessage }}
+      </div>
+    }
 
     <button type="submit" [disabled]="isLoading || form.invalid">
-      <span *ngIf="!isLoading">Login</span>
-      <span *ngIf="isLoading">Logging in...</span>
+      @if (!isLoading) {
+        <span>Login</span>
+      } @else {
+        <span>Logging in...</span>
+      }
     </button>
   </form>
 </div>
