@@ -7,17 +7,17 @@ Next generation version of TSIC-Unisify built with .NET 9 and Angular 18.
 \\\
 TSIC-Net-Angular/
 +-- src/
-¦   +-- backend/
-¦   ¦   +-- TSIC.API/              # .NET 9 Web API
-¦   ¦   +-- TSIC.Application/      # Business logic
-¦   ¦   +-- TSIC.Domain/           # Domain entities & interfaces
-¦   ¦   +-- TSIC.Infrastructure/   # EF Core, repositories
-¦   ¦   +-- TSIC.Tests/            # Unit & integration tests
-¦   +-- services/
-¦   ¦   +-- TSIC.ApiClient/        # Typed HTTP client library
-¦   ¦   +-- TSIC.ApiClient.Tests/  # Service layer tests
-¦   +-- frontend/
-¦       +-- tsic-app/              # Angular 18 application
+ï¿½   +-- backend/
+ï¿½   ï¿½   +-- TSIC.API/              # .NET 9 Web API
+ï¿½   ï¿½   +-- TSIC.Application/      # Business logic
+ï¿½   ï¿½   +-- TSIC.Domain/           # Domain entities & interfaces
+ï¿½   ï¿½   +-- TSIC.Infrastructure/   # EF Core, repositories
+ï¿½   ï¿½   +-- TSIC.Tests/            # Unit & integration tests
+ï¿½   +-- services/
+ï¿½   ï¿½   +-- TSIC.ApiClient/        # Typed HTTP client library
+ï¿½   ï¿½   +-- TSIC.ApiClient.Tests/  # Service layer tests
+ï¿½   +-- frontend/
+ï¿½       +-- tsic-app/              # Angular 18 application
 +-- TSIC-Net-Angular.sln
 \\\
 
@@ -84,6 +84,14 @@ This project follows **Clean Architecture** principles:
 - **Database**: SQL Server 2016+
 - **Testing**: xUnit, Moq, FluentAssertions
 
+## Development Guidelines
+
+- **Angular Coding Standards**: See [specs/ANGULAR-CODING-STANDARDS.md](../specs/ANGULAR-CODING-STANDARDS.md) for required patterns including:
+  - Use `inject()` function instead of constructor-based dependency injection
+  - Standalone components with explicit imports
+  - Functional guards and interceptors
+  - Modern RxJS patterns
+
 ## Next Steps
 
 1. Scaffold database entities
@@ -93,4 +101,4 @@ This project follows **Clean Architecture** principles:
 
 ## License
 
-Copyright © TSIC
+Copyright ï¿½ TSIC
