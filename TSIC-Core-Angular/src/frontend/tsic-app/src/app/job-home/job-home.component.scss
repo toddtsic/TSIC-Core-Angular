@@ -1,0 +1,122 @@
+.job-home {
+    min-height: 100vh;
+    background: #f5f7fa;
+
+    .job-header {
+        background: white;
+        padding: 2rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: #2c3e50;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+
+            span {
+                font-size: 0.95rem;
+                color: #555;
+            }
+
+            .btn-change-role {
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 0.5rem 1.5rem;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                transition: background 0.3s ease;
+
+                &:hover {
+                    background: #2980b9;
+                }
+            }
+
+            .btn-logout {
+                background: #e74c3c;
+                color: white;
+                border: none;
+                padding: 0.5rem 1.5rem;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                transition: background 0.3s ease;
+
+                &:hover {
+                    background: #c0392b;
+                }
+            }
+        }
+    }
+
+    .job-content {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+
+        .bulletins {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+
+            h2 {
+                margin-top: 0;
+                color: #2c3e50;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 0.5rem;
+            }
+
+            .placeholder {
+                color: #7f8c8d;
+                font-style: italic;
+                padding: 2rem;
+                text-align: center;
+            }
+        }
+
+        .quick-links {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+            h3 {
+                margin-top: 0;
+                color: #2c3e50;
+            }
+
+            ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+
+                li {
+                    margin-bottom: 0.75rem;
+
+                    a {
+                        color: #3498db;
+                        text-decoration: none;
+                        font-size: 1.05rem;
+                        transition: color 0.3s ease;
+
+                        &:hover {
+                            color: #2980b9;
+                            text-decoration: underline;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

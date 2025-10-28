@@ -1,0 +1,31 @@
+<div class="job-home">
+    <header class="job-header">
+        <h1>Welcome to {{ jobPath }}</h1>
+        @if (username) {
+        <div class="user-info">
+            <span>Logged in as: {{ username }}</span>
+            <button class="btn-change-role" (click)="changeRole()">Change Role</button>
+            <button class="btn-logout" (click)="logout()">Logout</button>
+        </div>
+        }
+    </header>
+
+    <div class="job-content">
+        <section class="bulletins">
+            <h2>Job Bulletins</h2>
+            <div class="placeholder">
+                <p>Bulletin functionality coming soon...</p>
+            </div>
+        </section>
+
+        <section class="quick-links">
+            <h3>Quick Links</h3>
+            <ul>
+                <li><a href="#">Teams</a></li>
+                <li><a href="#">Schedule</a></li>
+                <li><a href="#">Reports</a></li>
+                <li><a href="#">Settings</a></li>
+            </ul>
+        </section>
+    </div>
+</div>
