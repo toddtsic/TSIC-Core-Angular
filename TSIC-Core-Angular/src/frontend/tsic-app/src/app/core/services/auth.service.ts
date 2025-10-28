@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap, map } from 'rxjs/operators';
 import {
@@ -16,6 +17,7 @@ import { environment } from '../../../environments/environment';
 })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
 
@@ -69,11 +71,12 @@ export class AuthService {
   }
 
   /**
-   * Logout - clear stored auth data
+   * Logout - clear stored auth data and redirect to login
    */
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     this.currentUserSubject.next(null);
+    this.router.navigate(['/tsic/login']);
   }
 
   /**
