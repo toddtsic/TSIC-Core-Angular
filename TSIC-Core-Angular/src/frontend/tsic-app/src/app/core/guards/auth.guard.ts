@@ -2,6 +2,61 @@
 import { Router, type CanActivateFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
+// Shared helper to centralize redirect decisions and avoid duplication between guards
+function resolveAuthRedirect(
+    context: 'landing' | 'login',
+    router: Router,
+    isAuthenticated: boolean,
+    user: { jobPath?: string } | null
+) {
+    const jobPath = user?.jobPath;
+
+    // If a concrete job is selected that is not the special 'tsic' path, go there
+    if (jobPath && jobPath !== 'tsic') {
+        return router.createUrlTree([`/${jobPath}`]);
+    }
+
+    if (context === 'landing') {
+        // On landing:
+        // - If authenticated with NO job selected -> role selection.
+        // - If authenticated with TSIC job -> allow (parent guard may redirect to /tsic/home when appropriate).
+        if (isAuthenticated && !jobPath) {
+            return router.createUrlTree(['/tsic/role-selection']);
+        }
+        // jobPath === 'tsic' or unauthenticated -> allow landing to render
+        return true;
+    }
+
+    // context === 'login'
+    // On login: any authenticated user should not see login; send to role-selection as safe target
+    if (isAuthenticated) {
+        return router.createUrlTree(['/tsic/role-selection']);
+    }
+    return true;
+}
+
+/**
+ * Guard for the 'tsic' route entry. If the authenticated user has selected the
+ * TSIC job (jobPath === 'tsic'), redirect them to '/tsic/home' which renders
+ * the job home under the TSIC namespace. Otherwise allow the landing/login
+ * children to render.
+ */
+export const tsicEntryGuard: CanActivateFn = (route, state) => {
+    const authService = inject(AuthService);
+    const router = inject(Router);
+
+    const user = authService.getCurrentUser();
+    if (user?.jobPath === 'tsic' && !!user.regId) {
+        // Only redirect from the bare /tsic to avoid loops when already at /tsic/home (or other children)
+        if (state.url === '/tsic' || state.url === '/tsic/') {
+            return router.createUrlTree(['/tsic/home']);
+        }
+        // Already navigating under /tsic/... (e.g., /tsic/home, /tsic/role-selection) -> allow
+        return true;
+    }
+    return true;
+};
+
 /**
  * Guard that checks if user has any valid JWT token (Phase 1 or Phase 2)
  * Redirects to /tsic/login if not authenticated
@@ -10,7 +65,8 @@ export const authGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
     const router = inject(Router);
 
-    if (authService.isAuthenticated()) {
+    const isAuth = authService.isAuthenticated();
+    if (isAuth) {
         return true;
     }
 
@@ -48,15 +104,7 @@ export const landingPageGuard: CanActivateFn = () => {
 
     const user = authService.getCurrentUser();
 
-    if (user?.jobPath) {
-        return router.createUrlTree([`/${user.jobPath}`]);
-    }
-
-    if (authService.isAuthenticated()) {
-        return router.createUrlTree(['/tsic/role-selection']);
-    }
-
-    return true;
+    return resolveAuthRedirect('landing', router, authService.isAuthenticated(), user);
 };
 
 /**
@@ -68,13 +116,5 @@ export const redirectAuthenticatedGuard: CanActivateFn = () => {
 
     const user = authService.getCurrentUser();
 
-    if (user?.jobPath) {
-        return router.createUrlTree([`/${user.jobPath}`]);
-    }
-
-    if (authService.isAuthenticated()) {
-        return router.createUrlTree(['/tsic/role-selection']);
-    }
-
-    return true;
+    return resolveAuthRedirect('login', router, authService.isAuthenticated(), user);
 };
