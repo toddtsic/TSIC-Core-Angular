@@ -129,11 +129,13 @@ export class AuthService {
 
     try {
       const payload = this.decodeToken(token);
+      console.log('Decoded token payload:', payload);
       const user: AuthenticatedUser = {
         username: payload.username || payload.sub,
         regId: payload.regId,
         jobPath: payload.jobPath
       };
+      console.log('Extracted user:', user);
       this.currentUserSubject.next(user);
     } catch (error) {
       console.error('Failed to decode token:', error);

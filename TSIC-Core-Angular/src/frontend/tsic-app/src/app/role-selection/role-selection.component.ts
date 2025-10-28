@@ -83,8 +83,12 @@ export class RoleSelectionComponent implements OnInit {
 
         if (jobPath) {
           // Navigate to the job-specific path
-          this.router.navigate([jobPath]);
+          // Ensure path starts with / for router navigation
+          const routePath = jobPath.startsWith('/') ? jobPath.substring(1) : jobPath;
+          console.log('Navigating to jobPath:', routePath);
+          this.router.navigate([routePath]);
         } else {
+          console.warn('No jobPath found in token, redirecting to root');
           // Fallback to root if no jobPath in token
           this.router.navigate(['/']);
         }

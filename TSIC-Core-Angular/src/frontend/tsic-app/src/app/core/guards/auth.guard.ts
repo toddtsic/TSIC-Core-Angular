@@ -4,7 +4,7 @@ import { AuthService } from '../services/auth.service';
 
 /**
  * Guard that checks if user has any valid JWT token (Phase 1 or Phase 2)
- * Redirects to /login if not authenticated
+ * Redirects to /tsic/login if not authenticated
  */
 export const authGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
@@ -14,13 +14,13 @@ export const authGuard: CanActivateFn = (route, state) => {
         return true;
     }
 
-    return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+    return router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } });
 };
 
 /**
  * Guard that checks if user has Phase 2 authentication (regId + jobPath in token)
- * Redirects to /role-selection if only Phase 1 authenticated
- * Redirects to /login if not authenticated at all
+ * Redirects to /tsic/role-selection if only Phase 1 authenticated
+ * Redirects to /tsic/login if not authenticated at all
  */
 export const roleGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
@@ -33,10 +33,10 @@ export const roleGuard: CanActivateFn = (route, state) => {
     }
 
     if (authService.isAuthenticated()) {
-        return router.createUrlTree(['/role-selection']);
+        return router.createUrlTree(['/tsic/role-selection']);
     }
 
-    return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+    return router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } });
 };
 
 /**
@@ -53,7 +53,7 @@ export const landingPageGuard: CanActivateFn = () => {
     }
 
     if (authService.isAuthenticated()) {
-        return router.createUrlTree(['/role-selection']);
+        return router.createUrlTree(['/tsic/role-selection']);
     }
 
     return true;
@@ -73,7 +73,7 @@ export const redirectAuthenticatedGuard: CanActivateFn = () => {
     }
 
     if (authService.isAuthenticated()) {
-        return router.createUrlTree(['/role-selection']);
+        return router.createUrlTree(['/tsic/role-selection']);
     }
 
     return true;

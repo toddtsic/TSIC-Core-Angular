@@ -95,7 +95,7 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
         this.isLoading = false;
         // Token with username claim is now stored in localStorage
         // Navigate to role selection to choose registration
-        this.router.navigate(['/role-selection']);
+        this.router.navigate(['/tsic/role-selection']);
       },
       error: (error) => {
         this.isLoading = false;

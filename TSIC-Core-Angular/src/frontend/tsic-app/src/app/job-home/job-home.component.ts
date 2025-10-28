@@ -23,7 +23,7 @@ export class JobHomeComponent implements OnInit {
   }
 
   changeRole(): void {
-    this.router.navigate(['/role-selection']);
+    this.router.navigate(['/tsic/role-selection']);
   }
 
   logout(): void {

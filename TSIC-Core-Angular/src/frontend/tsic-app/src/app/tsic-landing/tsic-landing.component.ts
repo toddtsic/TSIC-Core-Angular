@@ -9,9 +9,9 @@ import { Router } from '@angular/router';
   styleUrl: './tsic-landing.component.scss'
 })
 export class TsicLandingComponent {
-  private readonly router = inject(Router);
+    private readonly router = inject(Router);
 
-  navigateToLogin(): void {
-    this.router.navigate(['/login']);
-  }
+    navigateToLogin(): void {
+        this.router.navigate(['/tsic/login']);
+    }
 }
