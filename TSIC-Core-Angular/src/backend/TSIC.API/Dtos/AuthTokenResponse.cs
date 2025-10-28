@@ -1,17 +1,10 @@
 namespace TSIC.API.Dtos
 {
+    /// <summary>
+    /// JWT token response for both Phase 1 (minimal token) and Phase 2 (enriched token)
+    /// </summary>
     public record AuthTokenResponse(
         string AccessToken,
-        int ExpiresIn,
-        AuthenticatedUserDto User
-    );
-
-    public record AuthenticatedUserDto(
-        string UserId,
-        string Username,
-        string FirstName,
-        string LastName,
-        string SelectedRole,
-        string JobPath
+        int? ExpiresIn = null
     );
 }

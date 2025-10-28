@@ -9,16 +9,34 @@
   </div>
 
   <div class="roles-list" *ngIf="registrations && registrations.length > 0">
-    <div *ngFor="let roleGroup of registrations" class="role-group">
+    <div *ngFor="let roleGroup of registrations; let i = index" class="role-group">
       <h3 class="role-name">{{ roleGroup.roleName }}</h3>
-      <div class="registrations-grid">
-        <button *ngFor="let registration of roleGroup.roleRegistrations" type="button" class="registration-card"
-          (click)="!isLoading && selectRole(registration)" [class.disabled]="isLoading" [disabled]="isLoading">
-          <img *ngIf="registration.jobLogo" class="job-logo" [src]="registration.jobLogo"
-            [alt]="registration.displayText" />
-          <div class="registration-text">{{ registration.displayText }}</div>
-          <div class="registration-id">ID: {{ registration.regId }}</div>
-        </button>
+      <div class="dropdown-container">
+        <ejs-dropdownlist #firstDropdown *ngIf="i === 0; else otherDropdown"
+          [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
+          [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
+          [filterBarPlaceholder]="'Search registrations...'" [enabled]="!isLoading"
+          (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
+          <ng-template #itemTemplate let-data>
+            <div class="dropdown-item">
+              <img *ngIf="data.jobLogo" class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
+              <span class="item-text">{{ data.displayText }}</span>
+            </div>
+          </ng-template>
+        </ejs-dropdownlist>
+        <ng-template #otherDropdown>
+          <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
+            [placeholder]="'Select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
+            [filterBarPlaceholder]="'Search registrations...'" [enabled]="!isLoading"
+            (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
+            <ng-template #itemTemplate let-data>
+              <div class="dropdown-item">
+                <img *ngIf="data.jobLogo" class="job-logo" [src]="data.jobLogo" [alt]="data.displayText" />
+                <span class="item-text">{{ data.displayText }}</span>
+              </div>
+            </ng-template>
+          </ejs-dropdownlist>
+        </ng-template>
       </div>
     </div>
   </div>

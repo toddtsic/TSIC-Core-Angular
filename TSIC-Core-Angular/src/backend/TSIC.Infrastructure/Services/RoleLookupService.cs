@@ -33,7 +33,7 @@ namespace TSIC.Infrastructure.Services
                     && DateTime.Now < j.ExpiryAdmin
                     && role.Id == RoleConstants.Superuser
                 orderby j.JobName
-                select new RegistrationDto(r.RegistrationId.ToString(), j.JobName, $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}")
+                select new RegistrationDto(r.RegistrationId.ToString(), j.JobName, $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}", j.JobPath)
             ).AsNoTracking().ToListAsync();
 
             if (lSuperUserRoles.Count > 0)
@@ -56,7 +56,8 @@ namespace TSIC.Infrastructure.Services
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
                     j.JobName,
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 
@@ -80,7 +81,8 @@ namespace TSIC.Infrastructure.Services
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
                     j.JobName,
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 
@@ -108,7 +110,8 @@ namespace TSIC.Infrastructure.Services
 
                     r.RegistrationId.ToString(),
                     $"{j.JobName}:{u.FirstName} {u.LastName}:{ag.AgegroupName}:{t.TeamName}",
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 
@@ -133,7 +136,8 @@ namespace TSIC.Infrastructure.Services
 
                     r.RegistrationId.ToString(),
                     j.JobName,
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 
@@ -159,7 +163,8 @@ namespace TSIC.Infrastructure.Services
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
                     $"{j.JobName}:{ag.AgegroupName}:{t.TeamName}",
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 
@@ -183,7 +188,8 @@ namespace TSIC.Infrastructure.Services
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
                     $"{j.JobName}",
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 
@@ -208,7 +214,8 @@ namespace TSIC.Infrastructure.Services
 
                     r.RegistrationId.ToString(),
                     $"{j.JobName}",
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 
@@ -232,7 +239,8 @@ namespace TSIC.Infrastructure.Services
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
                     $"{j.JobName}",
-                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}"
+                    $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                    j.JobPath
                 )
             ).AsNoTracking().ToListAsync();
 

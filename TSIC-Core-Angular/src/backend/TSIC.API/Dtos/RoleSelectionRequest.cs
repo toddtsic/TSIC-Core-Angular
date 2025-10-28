@@ -1,4 +1,7 @@
 namespace TSIC.API.Dtos
 {
-    public record RoleSelectionRequest(string UserId, string RegId);
+    /// <summary>
+    /// Phase 2: User selects a registration - username comes from JWT token claims
+    /// </summary>
+    public record RoleSelectionRequest(string RegId);
 }

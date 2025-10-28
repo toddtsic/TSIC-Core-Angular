@@ -20,21 +20,16 @@ export interface LoginResponse {
 }
 
 export interface RoleSelectionRequest {
-    userId: string;
     regId: string;
 }
 
 export interface AuthenticatedUser {
-    userId: string;
     username: string;
-    firstName: string;
-    lastName: string;
-    selectedRole: string;
-    jobPath: string;
+    regId?: string;
+    jobPath?: string;
 }
 
 export interface AuthTokenResponse {
     accessToken: string;
-    expiresIn: number;
-    user: AuthenticatedUser;
+    expiresIn?: number;
 }

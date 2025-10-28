@@ -93,12 +93,8 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
     this.authService.login(credentials).subscribe({
       next: (response) => {
         this.isLoading = false;
-
-        // Store registrations and userId in sessionStorage for role selection
-        sessionStorage.setItem('pendingUserId', response.userId);
-        sessionStorage.setItem('pendingRegistrations', JSON.stringify(response.registrations));
-
-        // Navigate immediately to role selection
+        // Token with username claim is now stored in localStorage
+        // Navigate to role selection to choose registration
         this.router.navigate(['/role-selection']);
       },
       error: (error) => {

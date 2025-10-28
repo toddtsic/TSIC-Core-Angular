@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { tap, map } from 'rxjs/operators';
 import {
   LoginRequest,
   LoginResponse,
   RoleSelectionRequest,
   AuthTokenResponse,
-  AuthenticatedUser
+  AuthenticatedUser,
+  RegistrationRoleDto
 } from '../models/auth.models';
 import { environment } from '../../../environments/environment';
 
@@ -17,32 +18,52 @@ import { environment } from '../../../environments/environment';
 export class AuthService {
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
-  private readonly USER_KEY = 'auth_user';
 
-  private currentUserSubject = new BehaviorSubject<AuthenticatedUser | null>(this.getUserFromStorage());
+  private currentUserSubject = new BehaviorSubject<AuthenticatedUser | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) { }
-
-  /**
-   * Phase 1: Login with username and password
-   * Returns available roles for the user
-   */
-  login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, credentials);
+  constructor(private http: HttpClient) {
+    // Initialize current user from token on service creation
+    this.initializeFromToken();
   }
 
   /**
-   * Phase 2: Select a role and receive JWT token
+   * Phase 1: Login with username and password
+   * Returns JWT with minimal claims (username only)
    */
-  selectRole(request: RoleSelectionRequest): Observable<AuthTokenResponse> {
-    return this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-role`, request)
+  login(credentials: LoginRequest): Observable<AuthTokenResponse> {
+    return this.http.post<AuthTokenResponse>(`${this.apiUrl}/login`, credentials)
       .pipe(
         tap(response => {
-          // Store token and user info
+          // Store initial token (has username claim only)
           this.setToken(response.accessToken);
-          this.setUser(response.user);
-          this.currentUserSubject.next(response.user);
+          this.initializeFromToken();
+        })
+      );
+  }
+
+  /**
+   * Phase 2: Get available registrations for the authenticated user
+   * Requires initial auth token with username claim
+   */
+  getAvailableRegistrations(): Observable<RegistrationRoleDto[]> {
+    return this.http.get<LoginResponse>(`${this.apiUrl}/registrations`)
+      .pipe(
+        map(response => response.registrations)
+      );
+  }
+
+  /**
+   * Phase 3: Select a registration and receive full JWT token
+   * Returns new token with jobPath and regId claims
+   */
+  selectRegistration(regId: string): Observable<AuthTokenResponse> {
+    return this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-registration`, { regId })
+      .pipe(
+        tap(response => {
+          // Store full token (has username, jobPath, regId claims)
+          this.setToken(response.accessToken);
+          this.initializeFromToken();
         })
       );
   }
@@ -51,42 +72,91 @@ export class AuthService {
    * Logout - clear stored auth data
    */
   logout(): void {
-    sessionStorage.removeItem(this.TOKEN_KEY);
-    sessionStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem(this.TOKEN_KEY);
     this.currentUserSubject.next(null);
   }
 
   /**
-   * Check if user is authenticated
+   * Check if user is authenticated (has any token)
    */
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
 
   /**
-   * Get stored JWT token
+   * Check if user has selected a role (token has regId claim)
    */
-  getToken(): string | null {
-    return sessionStorage.getItem(this.TOKEN_KEY);
+  hasSelectedRole(): boolean {
+    const user = this.currentUserSubject.value;
+    return !!(user?.regId);
   }
 
   /**
-   * Get current authenticated user
+   * Get stored JWT token
+   */
+  getToken(): string | null {
+    return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  /**
+   * Get current authenticated user (decoded from token)
    */
   getCurrentUser(): AuthenticatedUser | null {
     return this.currentUserSubject.value;
   }
 
+  /**
+   * Get job path from token claims
+   */
+  getJobPath(): string | null {
+    const user = this.currentUserSubject.value;
+    return user?.jobPath || null;
+  }
+
   private setToken(token: string): void {
-    sessionStorage.setItem(this.TOKEN_KEY, token);
+    localStorage.setItem(this.TOKEN_KEY, token);
   }
 
-  private setUser(user: AuthenticatedUser): void {
-    sessionStorage.setItem(this.USER_KEY, JSON.stringify(user));
+  /**
+   * Decode JWT token and extract user info
+   */
+  private initializeFromToken(): void {
+    const token = this.getToken();
+    if (!token) {
+      this.currentUserSubject.next(null);
+      return;
+    }
+
+    try {
+      const payload = this.decodeToken(token);
+      const user: AuthenticatedUser = {
+        username: payload.username || payload.sub,
+        regId: payload.regId,
+        jobPath: payload.jobPath
+      };
+      this.currentUserSubject.next(user);
+    } catch (error) {
+      console.error('Failed to decode token:', error);
+      this.currentUserSubject.next(null);
+    }
   }
 
-  private getUserFromStorage(): AuthenticatedUser | null {
-    const userJson = sessionStorage.getItem(this.USER_KEY);
-    return userJson ? JSON.parse(userJson) : null;
+  /**
+   * Decode JWT token payload
+   */
+  private decodeToken(token: string): any {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      throw new Error('Invalid token format');
+    }
   }
 }
