@@ -1,58 +1,70 @@
 <div class="container d-flex justify-content-center align-items-center py-5">
-  <div class="card shadow-sm p-4" style="max-width: 400px; width: 100%;">
-    <form [formGroup]="form" (ngSubmit)="onSubmit($event)" autocomplete="on" novalidate>
-      <h2 class="mb-4 text-center">Login</h2>
+  <div class="card shadow-lg border-0 card-rounded">
+    <!-- Card Header with Gradient -->
+    <div class="card-header text-center py-4 border-0 gradient-header">
+      <h2 class="mb-0 fw-bold">Welcome Back</h2>
+      <p class="mb-0 mt-2 opacity-75 small">Sign in to continue</p>
+    </div>
 
-      <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
-        <input #usernameInput id="username" type="text" class="form-control" formControlName="username"
-          placeholder="Enter your username" autocomplete="username" aria-label="Username">
-        <div *ngIf="submitted && form.get('username')?.invalid" class="invalid-feedback d-block">
-          Username is required
+    <!-- Card Body -->
+    <div class="card-body p-4">
+      <form [formGroup]="form" (ngSubmit)="onSubmit($event)" autocomplete="on" novalidate>
+
+        <div class="mb-4">
+          <label for="username" class="form-label fw-semibold">Username</label>
+          <input #usernameInput id="username" type="text" class="form-control form-control-lg border-2"
+            formControlName="username" placeholder="Enter your username" autocomplete="username" aria-label="Username"
+            [class.is-invalid]="submitted && form.get('username')?.invalid">
+          <div *ngIf="submitted && form.get('username')?.invalid" class="invalid-feedback">
+            Username is required
+          </div>
         </div>
-      </div>
 
-      <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <div class="position-relative">
-          <input #passwordInput id="password" [type]="showPassword ? 'text' : 'password'" class="form-control pe-5"
-            formControlName="password" placeholder="Enter your password"
-            [attr.autocomplete]="showPassword ? 'off' : 'current-password'" aria-label="Password">
-          <button type="button"
-            class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary p-0"
-            style="width: 40px; height: 40px;" (click)="toggleShowPassword()"
-            [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" tabindex="-1">
-            <ng-container *ngIf="!showPassword; else hideIcon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-                aria-hidden="true">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </ng-container>
-            <ng-template #hideIcon>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-                aria-hidden="true">
-                <path
-                  d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.76 20.76 0 0 1 5.06-6.94m3.1-1.62A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.76 20.76 0 0 1-4.87 6.82M1 1l22 22" />
-              </svg>
-            </ng-template>
-          </button>
+        <div class="mb-4">
+          <label for="password" class="form-label fw-semibold">Password</label>
+          <div class="position-relative">
+            <input #passwordInput id="password" [type]="showPassword ? 'text' : 'password'"
+              class="form-control form-control-lg border-2 pe-5" formControlName="password"
+              placeholder="Enter your password" [attr.autocomplete]="showPassword ? 'off' : 'current-password'"
+              aria-label="Password" [class.is-invalid]="submitted && form.get('password')?.invalid">
+            <button type="button"
+              class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary p-0 border-0"
+              style="width: 40px; height: 40px;" (click)="toggleShowPassword()"
+              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" tabindex="-1">
+              <ng-container *ngIf="!showPassword; else hideIcon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </ng-container>
+              <ng-template #hideIcon>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path
+                    d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.76 20.76 0 0 1 5.06-6.94m3.1-1.62A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.76 20.76 0 0 1-4.87 6.82M1 1l22 22" />
+                </svg>
+              </ng-template>
+            </button>
+          </div>
+          <div *ngIf="submitted && form.get('password')?.invalid" class="invalid-feedback d-block">
+            Password is required
+          </div>
         </div>
-        <div *ngIf="submitted && form.get('password')?.invalid" class="invalid-feedback d-block">
-          Password is required
+
+        <div *ngIf="errorMessage" class="alert alert-danger border-0 shadow-sm mb-4">
+          {{ errorMessage }}
         </div>
-      </div>
 
-      <div *ngIf="errorMessage" class="alert alert-danger py-2 mb-3">
-        {{ errorMessage }}
-      </div>
-
-      <button type="submit" class="btn btn-primary w-100" [disabled]="isLoading || form.invalid">
-        <span *ngIf="!isLoading">Login</span>
-        <span *ngIf="isLoading">Logging in...</span>
-      </button>
-    </form>
+        <button type="submit" class="btn btn-lg w-100 fw-semibold shadow-sm btn-gradient"
+          [disabled]="isLoading || form.invalid">
+          <span *ngIf="!isLoading">Sign In</span>
+          <span *ngIf="isLoading">
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Signing in...
+          </span>
+        </button>
+      </form>
+    </div>
   </div>
 </div>

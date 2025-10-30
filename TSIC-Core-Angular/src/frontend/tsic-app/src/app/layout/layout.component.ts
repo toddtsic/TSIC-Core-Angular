@@ -1,9 +1,10 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
+import { ThemeService } from '../core/services/theme.service';
 
 @Component({
     selector: 'app-layout',
@@ -27,7 +28,7 @@ import { JobService } from '../core/services/job.service';
         <span class="username">{{ username }}</span>
         <button ejs-button cssClass="e-outline" *ngIf="showRoleMenu" (click)="switchRole()">Switch Role</button>
         <button ejs-button cssClass="e-flat e-danger" (click)="logout()">Logout</button>
-        <button ejs-button cssClass="e-flat" (click)="toggleTheme()">{{ theme === 'light' ? 'Dark' : 'Light' }} Mode</button>
+        <button ejs-button cssClass="e-flat" (click)="toggleTheme()">{{ themeService.theme() === 'light' ? 'Dark' : 'Light' }} Mode</button>
       </div>
     </header>
     <main class="layout-content">
@@ -39,14 +40,15 @@ import { JobService } from '../core/services/job.service';
 export class LayoutComponent {
     private readonly auth = inject(AuthService);
     private readonly jobService = inject(JobService);
+    readonly themeService = inject(ThemeService);
+    
     jobLogoPath = '';
     jobBannerPath = '';
     jobName = '';
     username = '';
     showRoleMenu = false;
-    theme: 'light' | 'dark' = 'light';
     roles = ['Parent', 'Director', 'Club Rep'];
-    currentRole = 'Parent'; // TODO: wire to user/role selection
+    currentRole = 'Parent'; // TODO: wire to user/role selection from AuthService
 
     constructor() {
         const user = this.auth.getCurrentUser();
@@ -63,7 +65,6 @@ export class LayoutComponent {
         this.jobLogoPath = job.jobLogoPath;
         this.jobBannerPath = job.jobBannerPath;
         this.jobName = job.jobName;
-        this.applyTheme();
     }
 
     logout() {
@@ -71,27 +72,15 @@ export class LayoutComponent {
     }
 
     switchRole() {
-        // TODO: implement role switch logic
+        // TODO: navigate to role selection page
     }
 
     selectRole(role: string) {
         this.currentRole = role;
-        // TODO: update role in AuthService or context
+        // TODO: update role in AuthService and refresh job menu items
     }
 
     toggleTheme() {
-        this.theme = this.theme === 'light' ? 'dark' : 'light';
-        this.applyTheme();
-    }
-
-    applyTheme() {
-        const body = document.body;
-        if (this.theme === 'dark') {
-            body.classList.add('e-dark');
-            body.classList.remove('e-light');
-        } else {
-            body.classList.add('e-light');
-            body.classList.remove('e-dark');
-        }
+        this.themeService.toggleTheme();
     }
 }
