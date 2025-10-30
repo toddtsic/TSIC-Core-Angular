@@ -25,14 +25,17 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
   submitted = false;
   showPassword = false;
 
+
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
     private readonly fb: FormBuilder,
     private readonly autofill: AutofillMonitor
   ) {
+    // Pre-fill username from localStorage if available
+    const savedUsername = localStorage.getItem('last_username') || '';
     this.form = this.fb.group({
-      username: ['', [Validators.required]],
+      username: [savedUsername, [Validators.required]],
       password: ['', [Validators.required]],
     });
   }
@@ -91,6 +94,9 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
       username: this.form.get('username')?.value ?? '',
       password: this.form.get('password')?.value ?? ''
     };
+
+    // Save username for future logins
+    localStorage.setItem('last_username', credentials.username);
 
     this.authService.login(credentials).subscribe({
       next: (response) => {

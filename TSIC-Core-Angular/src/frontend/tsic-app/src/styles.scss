@@ -1,176 +1,176 @@
-/* Global Styles - Syncfusion Material 3 Light Theme */
+/* Bootstrap and Syncfusion Bootstrap 5 theme are now globally included. Use Bootstrap utility classes and layout patterns for all new UI. Remove custom styles below unless absolutely necessary. */
 
-* {
+/* Clean, single source of truth for role selection layout */
+.role-selection-container {
+    align-items: center;
+    justify-content: center;
+    min-height: 700px;
+    padding: 0;
+    margin: 0;
+}
+
+.role-selection-card {
+    width: 100%;
+    max-width: 480px;
+    min-width: 320px;
+    min-height: 340px;
+    margin: 0 auto var(--spacing-md) auto;
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-body {
-    font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: var(--surface, #fef7ff);
-    color: var(--on-surface, #1d1b20);
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-}
-
-html,
-body {
-    height: 100%;
-}
-
-/* Smooth scrolling */
-html {
-    scroll-behavior: smooth;
-}
-
-/* ========================================
-   Common Material 3 Component Classes
-   ======================================== */
-
-/* Card/Container Surfaces */
-.surface-card {
-    background: var(--surface-container, #f3edf7);
-    border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    padding: 2rem;
-}
-
-.surface-card-elevated {
-    background: var(--surface-container, #f3edf7);
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 2rem;
-}
-
-/* Error Messages */
-.error-message {
-    background: var(--error-container, #ffdad6);
-    color: var(--on-error-container, #410002);
-    padding: 14px 16px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    text-align: center;
-    font-size: 14px;
-}
-
-.error-text {
-    color: var(--error, #ba1a1a);
-    font-size: 12px;
-    margin-top: 6px;
-    padding-left: 16px;
-}
-
-/* Section Headers */
-.section-header {
-    margin: 0 0 1.5rem 0;
-    padding-bottom: 0.75rem;
-    color: var(--on-surface, #1d1b20);
-    font-weight: 500;
-    border-bottom: 2px solid var(--primary, #6750a4);
-}
-
-.section-header-large {
-    font-size: 32px;
-    font-weight: 400;
-}
-
-.section-header-medium {
-    font-size: 24px;
-}
-
-.section-header-small {
-    font-size: 20px;
-}
-
-/* Loading Overlay */
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background: var(--surface-container);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
     display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-
-    .spinner {
-        background: var(--surface-container-high, #ece6f0);
-        color: var(--on-surface, #1d1b20);
-        padding: 2rem 3rem;
-        border-radius: 16px;
-        font-size: 1.2rem;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    }
-}
-
-/* Container Max Widths */
-.container-narrow {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.container-medium {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.container-wide {
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-/* Page Layout */
-.page-container {
-    min-height: 100vh;
-    padding: 2rem;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 3rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--outline-variant, #c4c7c5);
-}
-
-/* Centered Content (for login/auth pages) */
-.centered-content {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    padding: 20px;
-}
-
-/* Form Styling */
-.form-group {
-    margin-bottom: 28px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md) var(--spacing-lg);
+    gap: 1.25rem;
+    overflow: visible;
     position: relative;
 }
 
-/* Placeholder/Empty State */
-.placeholder {
-    color: var(--on-surface-variant, #49454f);
-    font-style: italic;
-    padding: 3rem 2rem;
-    text-align: center;
-    background: var(--surface-container-low, #f7f2fa);
-    border-radius: 12px;
+
+
+.role-group-card {
+    background: linear-gradient(135deg, var(--surface-container-high) 80%, var(--surface-container) 100%);
+    border-radius: calc(var(--border-radius) - 4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 1.25rem 1rem 1.5rem 1rem;
+    margin-bottom: 1.25rem;
+    transition: box-shadow 0.2s;
 }
 
-/* Responsive Utilities */
-@media (max-width: 768px) {
-    .page-container {
-        padding: 1rem;
+.role-selection-card-header {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.role-selection-card-actions {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.dropdown-container {
+    width: 100%;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+
+
+.dropdown-container .e-dropdownbase,
+.dropdown-container .e-dropdownlist,
+.dropdown-container .e-input-group {
+    width: 100% !important;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+
+.form-group .password-toggle {
+    position: absolute;
+    right: 4px;
+
+    .section-header-medium {
+        font-size: 24px;
     }
 
-    .surface-card,
-    .surface-card-elevated {
-        padding: 1.5rem;
+    .section-header-small {
+        font-size: 20px;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+
+        .spinner {
+            background: var(--surface-container-high, #ece6f0);
+            color: var(--on-surface, #1d1b20);
+            padding: 2rem 3rem;
+            border-radius: 16px;
+            font-size: 1.2rem;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+    }
+
+    /* Container Max Widths */
+    .container-narrow {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .container-medium {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .container-wide {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* Page Layout */
+    .page-container {
+        min-height: 100vh;
+        padding: 2rem;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--outline-variant, #c4c7c5);
+    }
+
+    /* Centered Content (for login/auth pages) */
+    .centered-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    /* Form Styling */
+    .form-group {
+        margin-bottom: 28px;
+        position: relative;
+    }
+
+    /* Placeholder/Empty State */
+    .placeholder {
+        color: var(--on-surface-variant, #49454f);
+        font-style: italic;
+        padding: 3rem 2rem;
+        text-align: center;
+        background: var(--surface-container-low, #f7f2fa);
+        border-radius: 12px;
+    }
+
+    /* Responsive Utilities */
+    @media (max-width: 768px) {
+        .page-container {
+            padding: 1rem;
+        }
+
+        .surface-card,
+        .surface-card-elevated {
+            padding: 1.5rem;
+        }
     }
 }

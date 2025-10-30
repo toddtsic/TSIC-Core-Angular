@@ -32,13 +32,8 @@
               }
             ],
             "styles": [
-              "node_modules/@syncfusion/ej2-base/styles/material3.css",
-              "node_modules/@syncfusion/ej2-buttons/styles/material3.css",
-              "node_modules/@syncfusion/ej2-inputs/styles/material3.css",
-              "node_modules/@syncfusion/ej2-dropdowns/styles/material3.css",
-              "node_modules/@syncfusion/ej2-lists/styles/material3.css",
-              "node_modules/@syncfusion/ej2-popups/styles/material3.css",
-              "node_modules/@syncfusion/ej2-navigations/styles/material3.css",
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/@syncfusion/ej2-bootstrap5-theme/styles/bootstrap5.css",
               "src/styles.scss"
             ],
             "scripts": []
@@ -113,13 +108,8 @@
               }
             ],
             "styles": [
-              "node_modules/@syncfusion/ej2-base/styles/material3.css",
-              "node_modules/@syncfusion/ej2-buttons/styles/material3.css",
-              "node_modules/@syncfusion/ej2-inputs/styles/material3.css",
-              "node_modules/@syncfusion/ej2-dropdowns/styles/material3.css",
-              "node_modules/@syncfusion/ej2-lists/styles/material3.css",
-              "node_modules/@syncfusion/ej2-popups/styles/material3.css",
-              "node_modules/@syncfusion/ej2-navigations/styles/material3.css",
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/@syncfusion/ej2-bootstrap5-theme/styles/bootstrap5.css",
               "src/styles.scss"
             ],
             "scripts": []

@@ -27,6 +27,8 @@
     "@syncfusion/ej2-angular-inputs": "^31.2.4",
     "@syncfusion/ej2-angular-layouts": "^31.2.2",
     "@syncfusion/ej2-angular-navigations": "^31.2.3",
+    "@syncfusion/ej2-bootstrap5-theme": "^31.2.4",
+    "bootstrap": "^5.3.8",
     "express": "^4.18.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

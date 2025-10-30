@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, roleGuard, landingPageGuard, redirectAuthenticatedGuard, tsicEntryGuard } from './core/guards/auth.guard';
+import { LayoutComponent } from './layout/layout.component';
 
 export const routes: Routes = [
 	// Default route redirects to TSIC landing page
@@ -16,11 +17,17 @@ export const routes: Routes = [
 				loadComponent: () => import('./tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent),
 				canActivate: [landingPageGuard]
 			},
-			// TSIC job home when user is registered for TSIC
+			// TSIC job home when user is registered for TSIC (wrapped in layout)
 			{
 				path: 'home',
-				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
-				canActivate: [roleGuard]
+				component: LayoutComponent,
+				children: [
+					{
+						path: '',
+						loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
+						canActivate: [roleGuard]
+					}
+				]
 			},
 			// Login page
 			{
@@ -40,7 +47,13 @@ export const routes: Routes = [
 	// Job-specific routes - requires Phase 2 authentication (regId + jobPath in token)
 	{
 		path: ':jobPath',
-		loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
-		canActivate: [roleGuard]
+		component: LayoutComponent,
+		children: [
+			{
+				path: '',
+				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
+				canActivate: [roleGuard]
+			}
+		]
 	}
 ];
