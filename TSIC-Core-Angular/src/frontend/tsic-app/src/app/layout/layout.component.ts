@@ -107,7 +107,7 @@ export class LayoutComponent {
     const user = this.auth.getCurrentUser();
     this.username.set(user?.username || '');
     this.showRoleMenu.set(!!user?.regId);
-    
+
     // Simulate job info (replace with real JobService fetch)
     const job = this.jobService.getCurrentJob() || {
       jobPath: user?.jobPath || '',

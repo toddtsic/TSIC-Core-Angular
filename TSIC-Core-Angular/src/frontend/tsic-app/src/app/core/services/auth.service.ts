@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, BehaviorSubject, throwError } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
 import { tap, map, catchError } from 'rxjs/operators';
 import {
   LoginRequest,
@@ -22,8 +22,8 @@ export class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
 
-  private readonly currentUserSubject = new BehaviorSubject<AuthenticatedUser | null>(null);
-  public currentUser$ = this.currentUserSubject.asObservable();
+  // Signal for reactive state management
+  public readonly currentUser = signal<AuthenticatedUser | null>(null);
 
   constructor() {
     // Initialize current user from token on service creation
@@ -94,7 +94,7 @@ export class AuthService {
     // Clear local storage
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    this.currentUserSubject.next(null);
+    this.currentUser.set(null);
     this.router.navigate(['/tsic/login']);
   }
 
@@ -109,7 +109,7 @@ export class AuthService {
    * Check if user has selected a role (token has regId claim)
    */
   hasSelectedRole(): boolean {
-    const user = this.currentUserSubject.value;
+    const user = this.currentUser();
     return !!(user?.regId);
   }
 
@@ -124,14 +124,14 @@ export class AuthService {
    * Get current authenticated user (decoded from token)
    */
   getCurrentUser(): AuthenticatedUser | null {
-    return this.currentUserSubject.value;
+    return this.currentUser();
   }
 
   /**
    * Get job path from token claims
    */
   getJobPath(): string | null {
-    const user = this.currentUserSubject.value;
+    const user = this.currentUser();
     return user?.jobPath || null;
   }
 
@@ -183,7 +183,7 @@ export class AuthService {
   private initializeFromToken(): void {
     const token = this.getToken();
     if (!token) {
-      this.currentUserSubject.next(null);
+      this.currentUser.set(null);
       return;
     }
 
@@ -194,10 +194,10 @@ export class AuthService {
         regId: payload.regId,
         jobPath: payload.jobPath
       };
-      this.currentUserSubject.next(user);
+      this.currentUser.set(user);
     } catch (error) {
       console.error('Failed to decode token:', error);
-      this.currentUserSubject.next(null);
+      this.currentUser.set(null);
     }
   }
 

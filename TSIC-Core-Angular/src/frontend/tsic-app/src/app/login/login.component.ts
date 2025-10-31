@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy } from '@angular/core';
+import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -20,10 +20,10 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
   @ViewChild('passwordInput', { static: false }) passwordInput!: ElementRef<HTMLInputElement>;
 
   form!: FormGroup;
-  isLoading = false;
-  errorMessage = '';
-  submitted = false;
-  showPassword = false;
+  isLoading = signal(false);
+  errorMessage = signal('');
+  submitted = signal(false);
+  showPassword = signal(false);
 
 
   constructor(
@@ -84,11 +84,11 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
     // Prevent default browser submission
     if (event) event.preventDefault();
 
-    this.submitted = true;
+    this.submitted.set(true);
     if (this.form.invalid) return;
 
-    this.isLoading = true;
-    this.errorMessage = '';
+    this.isLoading.set(true);
+    this.errorMessage.set('');
 
     const credentials: LoginRequest = {
       username: this.form.get('username')?.value ?? '',
@@ -100,20 +100,20 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
 
     this.authService.login(credentials).subscribe({
       next: (response) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         // Token with username claim is now stored in localStorage
         // Navigate to role selection to choose registration
         this.router.navigate(['/tsic/role-selection']);
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Login failed. Please check your credentials.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Login failed. Please check your credentials.');
       }
     });
   }
 
   toggleShowPassword() {
-    this.showPassword = !this.showPassword;
+    this.showPassword.set(!this.showPassword());
   }
 
   ngOnDestroy() {

@@ -1,5 +1,4 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { Injectable, signal } from '@angular/core';
 
 export interface JobBulletin {
     id: string;
@@ -18,13 +17,12 @@ export interface Job {
 
 @Injectable({ providedIn: 'root' })
 export class JobService {
-    private readonly currentJobSubject = new BehaviorSubject<Job | null>(null);
-    public readonly currentJob$: Observable<Job | null> = this.currentJobSubject.asObservable();
-
+    // Signal for reactive state management
+    public readonly currentJob = signal<Job | null>(null);
 
     // Simulate fetching job info (replace with real API call as needed)
     setJob(job: Job) {
-        this.currentJobSubject.next(job);
+        this.currentJob.set(job);
     }
 
     // Example: fetch job details from API (to be implemented)
@@ -33,6 +31,6 @@ export class JobService {
     // }
 
     getCurrentJob(): Job | null {
-        return this.currentJobSubject.value;
+        return this.currentJob();
     }
 }
