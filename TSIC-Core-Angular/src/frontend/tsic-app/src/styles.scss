@@ -88,6 +88,11 @@
     overflow: hidden;
 }
 
+.card-header-subtle {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
 /* ============================================
    Public Layout Styles
    ============================================ */

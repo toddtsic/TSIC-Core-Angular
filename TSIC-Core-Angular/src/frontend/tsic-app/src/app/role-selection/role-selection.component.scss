@@ -1,5 +1,46 @@
 // Syncfusion dropdown customization - building up piece by piece
 
+// Tone down the bright white dropdown in dark mode
+::ng-deep .e-ddl.e-input-group,
+::ng-deep .e-ddl.e-input-group .e-input,
+::ng-deep .e-ddl .e-input-group.e-control-wrapper {
+  background-color: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
+}
+
+::ng-deep .e-ddl .e-input-group input.e-input::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 0.6;
+}
+
+// Dropdown popup styling
+::ng-deep .e-dropdownbase.e-popup {
+  background-color: var(--bg-elevated) !important;
+  border-color: var(--border-color) !important;
+}
+
+::ng-deep .e-dropdownbase .e-content,
+::ng-deep .e-dropdownbase .e-list-parent,
+::ng-deep .e-dropdownbase .e-ul {
+  background-color: var(--bg-elevated) !important;
+}
+
+::ng-deep .e-dropdownbase .e-list-item {
+  color: var(--text-primary) !important;
+  background-color: transparent !important;
+
+  &:hover,
+  &.e-hover {
+    background-color: var(--bg-secondary) !important;
+  }
+
+  &.e-active {
+    background-color: rgba(102, 126, 234, 0.15) !important;
+    color: var(--text-primary) !important;
+  }
+}
+
 ::ng-deep .dropdown-item-custom {
   display: flex;
   align-items: center;

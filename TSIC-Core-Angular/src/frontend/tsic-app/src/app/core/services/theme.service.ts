@@ -42,5 +42,12 @@ export class ThemeService {
 
     private applyTheme(theme: 'light' | 'dark'): void {
         document.documentElement.dataset['bsTheme'] = theme;
+
+        // Apply Syncfusion dark mode class for their components
+        if (theme === 'dark') {
+            document.body.classList.add('e-dark-mode');
+        } else {
+            document.body.classList.remove('e-dark-mode');
+        }
     }
 }
