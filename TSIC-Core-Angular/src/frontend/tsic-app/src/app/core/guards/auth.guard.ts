@@ -118,3 +118,12 @@ export const redirectAuthenticatedGuard: CanActivateFn = () => {
 
     return resolveAuthRedirect('login', router, authService.isAuthenticated(), user);
 };
+
+/**
+ * Guard for anonymous job access - allows both authenticated and unauthenticated users
+ * Used for job pages that support registration flows for new users
+ */
+export const anonymousJobGuard: CanActivateFn = () => {
+    // Always allow access - job-home component will handle logic for authenticated vs anonymous users
+    return true;
+};

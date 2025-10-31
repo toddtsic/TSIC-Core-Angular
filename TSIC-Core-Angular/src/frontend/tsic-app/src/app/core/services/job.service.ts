@@ -1,4 +1,7 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface JobBulletin {
     id: string;
@@ -15,8 +18,23 @@ export interface Job {
     jobBulletins: JobBulletin[];
 }
 
+export interface RegistrationStatusRequest {
+    jobPath: string;
+    registrationTypes: string[];
+}
+
+export interface RegistrationStatusResponse {
+    registrationType: string;
+    isAvailable: boolean;
+    message?: string;
+    registrationUrl?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class JobService {
+    private readonly http = inject(HttpClient);
+    private readonly apiUrl = environment.apiUrl;
+
     // Signal for reactive state management
     public readonly currentJob = signal<Job | null>(null);
 
@@ -32,5 +50,17 @@ export class JobService {
 
     getCurrentJob(): Job | null {
         return this.currentJob();
+    }
+
+    checkRegistrationStatus(jobPath: string, registrationTypes: string[]): Observable<RegistrationStatusResponse[]> {
+        const request: RegistrationStatusRequest = {
+            jobPath,
+            registrationTypes
+        };
+
+        return this.http.post<RegistrationStatusResponse[]>(
+            `${this.apiUrl}/registration/check-status`,
+            request
+        );
     }
 }

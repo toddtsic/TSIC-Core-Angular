@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, roleGuard, landingPageGuard, redirectAuthenticatedGuard, tsicEntryGuard } from './core/guards/auth.guard';
+import { authGuard, roleGuard, landingPageGuard, redirectAuthenticatedGuard, tsicEntryGuard, anonymousJobGuard } from './core/guards/auth.guard';
 import { LayoutComponent } from './layout/layout.component';
 import { PublicLayoutComponent } from './layouts/public-layout/public-layout.component';
 
@@ -46,7 +46,7 @@ export const routes: Routes = [
 		]
 	},
 
-	// Job-specific routes - requires Phase 2 authentication (regId + jobPath in token)
+	// Job-specific routes - allows both authenticated and anonymous users (for registration)
 	{
 		path: ':jobPath',
 		component: LayoutComponent,
@@ -54,7 +54,7 @@ export const routes: Routes = [
 			{
 				path: '',
 				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
-				canActivate: [roleGuard]
+				canActivate: [anonymousJobGuard]
 			}
 		]
 	}

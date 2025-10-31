@@ -1,6 +1,8 @@
 <div class="container-fluid py-4">
     <div class="row g-4">
+        <!-- TODO: Phase 2 - Re-enable for admin functionality -->
         <!-- Bulletins Section -->
+        <!--
         <div class="col-12">
             <div class="card shadow-sm card-rounded">
                 <div class="card-header card-header-subtle border-0 py-3">
@@ -27,8 +29,10 @@
                 </div>
             </div>
         </div>
+        -->
 
         <!-- Quick Links Section -->
+        <!--
         <div class="col-12">
             <div class="card shadow-sm card-rounded">
                 <div class="card-header card-header-subtle border-0 py-3">
@@ -86,6 +90,59 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        -->
+
+        <!-- Phase 1: Registration Options -->
+        <div class="col-12">
+            <div class="card shadow-sm card-rounded">
+                <div class="card-header card-header-subtle border-0 py-3">
+                    <h3 class="h4 mb-0 fw-semibold text-success">Registration</h3>
+                </div>
+                <div class="card-body">
+                    @if (loading()) {
+                    <div class="text-center py-5">
+                        <output class="spinner-border text-success" aria-live="polite">
+                            <span class="visually-hidden">Loading...</span>
+                        </output>
+                        <p class="text-muted mt-3">Loading registration information...</p>
+                    </div>
+                    } @else if (error()) {
+                    <div class="alert alert-danger" role="alert">
+                        <strong>Error:</strong> {{ error() }}
+                    </div>
+                    } @else {
+                    <div class="row g-3">
+                        @for (status of registrationStatuses(); track status.registrationType) {
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 border-2" [class.border-success]="status.isAvailable"
+                                [class.border-secondary]="!status.isAvailable">
+                                <div class="card-body text-center p-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                                        class="mb-3" [class.text-success]="status.isAvailable"
+                                        [class.text-secondary]="!status.isAvailable" viewBox="0 0 16 16">
+                                        <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+                                        <path fill-rule="evenodd"
+                                            d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z" />
+                                    </svg>
+                                    <h5 class="card-title fw-bold mb-3">{{ status.registrationType }} Registration</h5>
+
+                                    @if (status.isAvailable) {
+                                    <p class="text-muted mb-3">Registration is open</p>
+                                    <a [href]="status.registrationUrl" class="btn btn-success w-100">
+                                        Start Registration
+                                    </a>
+                                    } @else {
+                                    <p class="text-muted mb-0">{{ status.message }}</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        }
+                    </div>
+                    }
                 </div>
             </div>
         </div>

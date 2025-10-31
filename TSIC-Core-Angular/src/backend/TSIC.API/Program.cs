@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using TSIC.Application.Services;
 using TSIC.Application.Validators;
 using TSIC.Infrastructure.Services;
+using TSIC.API.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -18,6 +19,7 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache(); // Add memory cache for refresh tokens
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IJobLookupService, JobLookupService>();
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
