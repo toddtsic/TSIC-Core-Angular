@@ -71,6 +71,7 @@ Jobs (Configuration & Metadata)
    - `JobId`: Primary key
    - `CoreRegformPlayer`: Profile configuration string (e.g., "PP47|BYGRADYEAR|ALLOWPIF")
    - `JsonOptions`: Job-specific dropdown options (sizes, positions, grad years)
+   - `PlayerProfileMetadataJson`: Dynamic form metadata (field definitions, validation, order)
    - `USLaxNumberValidThroughDate`: Validation date for USLax numbers
    - `ExpiryUsers`: Registration deadline
 
@@ -81,6 +82,8 @@ Jobs (Configuration & Metadata)
 - ✅ Each child has own AspNetUsers record with demographics
 - ✅ Parent can register multiple children in single transaction
 - ✅ Profile (PP47, CAC12) defines subset of 112 Registrations fields to show
+- ✅ **NEW**: `Jobs.PlayerProfileMetadataJson` stores complete form metadata (separate from dropdown options)
+- ✅ **NEW**: `Jobs.JsonOptions` stores dropdown data only (maintains backward compatibility)
 
 ---
 
@@ -135,6 +138,77 @@ Each Job entity contains a JSON string with dropdown options specific to that jo
 ```
 
 **Key Insight**: Profile defines **which** fields to show; JsonOptions defines **values** for those fields.
+
+### Jobs.PlayerProfileMetadataJson Storage Strategy
+
+**Implemented Solution**: Separate database column for profile metadata
+
+**Schema**:
+- `Jobs.JsonOptions` (existing): Dropdown options only - maintains backward compatibility
+- `Jobs.PlayerProfileMetadataJson` (new): Complete form metadata - independent versioning
+
+**Structure of PlayerProfileMetadataJson**:
+```json
+{
+  "profileName": "PP47",
+  "registrationType": "PP",
+  "teamConstraint": "BYGRADYEAR",
+  "allowPayInFull": true,
+  "fields": [
+    {
+      "name": "jersey_size",
+      "dbColumn": "jersey_size",
+      "displayName": "Jersey Size",
+      "inputType": "select",
+      "dataSource": "ListSizes_Jersey",
+      "required": true,
+      "order": 10,
+      "adminOnly": false,
+      "validation": {
+        "required": true
+      }
+    },
+    {
+      "name": "sportAssnID",
+      "dbColumn": "sportAssnID",
+      "displayName": "US Lacrosse Number",
+      "inputType": "text",
+      "required": true,
+      "order": 5,
+      "adminOnly": false,
+      "validation": {
+        "required": true,
+        "externalApi": {
+          "endpoint": "/api/registration/validate-uslax",
+          "validThroughDateField": "USLaxNumberValidThroughDate"
+        }
+      }
+    }
+  ]
+}
+```
+
+**Benefits**:
+- ✅ Zero breaking changes to existing software
+- ✅ Clear separation of concerns (dropdown data vs form structure)
+- ✅ Can populate PlayerProfileMetadataJson gradually per job
+- ✅ Independent versioning of profile metadata
+- ✅ Nullable column - old jobs work fine without it
+
+**API Response** (GET /api/jobs/{jobPath}):
+```json
+{
+  "jobId": "guid",
+  "jobName": "Summer League 2025",
+  "jsonOptions": "{\"ListSizes_Jersey\":[...]}",
+  "playerProfileMetadataJson": "{\"profileName\":\"PP47\",\"fields\":[...]}"
+}
+```
+
+Angular receives both and can:
+1. Parse `playerProfileMetadataJson` for form structure
+2. Parse `jsonOptions` for dropdown values
+3. Match field `dataSource` property to `jsonOptions` keys
 
 ### Profile Inheritance
 
