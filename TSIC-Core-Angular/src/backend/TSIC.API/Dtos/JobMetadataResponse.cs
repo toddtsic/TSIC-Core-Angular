@@ -10,4 +10,6 @@ public class JobMetadataResponse
     public bool? CoreRegformPlayer { get; set; }
     public DateTime? USLaxNumberValidThroughDate { get; set; }
     public DateTime? ExpiryUsers { get; set; }
+    public string? PlayerProfileMetadataJson { get; set; }
+    public string? JsonOptions { get; set; }
 }

@@ -350,6 +350,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<VerticalInsurePayouts> VerticalInsurePayouts { get; set; }
 
+    public virtual DbSet<Yn2023schedule> Yn2023schedule { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AccountingApplyToSummaries>(entity =>
@@ -1298,7 +1300,19 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.TsicwaiverSignedTs).HasColumnName("TSICWaiverSigned_TS");
             entity.Property(e => e.Workphone).HasColumnName("workphone");
 
-            // Many-to-many relationship with AspNetRoles removed - handled by IdentityDbContext
+            entity.HasMany(d => d.Role).WithMany(p => p.User)
+                .UsingEntity<Dictionary<string, object>>(
+                    "AspNetUserRoles",
+                    r => r.HasOne<AspNetRoles>().WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.ClientSetNull),
+                    l => l.HasOne<AspNetUsers>().WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.ClientSetNull),
+                    j =>
+                    {
+                        j.HasKey("UserId", "RoleId");
+                    });
         });
 
         modelBuilder.Entity<BillingTypes>(entity =>
@@ -6888,6 +6902,89 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("Policy Number");
             entity.Property(e => e.PurchaseDate).HasColumnType("datetime");
             entity.Property(e => e.PurchaseDateString).HasMaxLength(255);
+        });
+
+        modelBuilder.Entity<Yn2023schedule>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToTable("YN2023Schedule");
+
+            entity.Property(e => e.AgegroupId).HasColumnName("agegroupID");
+            entity.Property(e => e.AgegroupName).HasColumnName("agegroupName");
+            entity.Property(e => e.Div2Id).HasColumnName("div2ID");
+            entity.Property(e => e.Div2Name).HasColumnName("div2Name");
+            entity.Property(e => e.DivId).HasColumnName("divID");
+            entity.Property(e => e.DivName).HasColumnName("divName");
+            entity.Property(e => e.FName).HasColumnName("fName");
+            entity.Property(e => e.FieldId).HasColumnName("fieldID");
+            entity.Property(e => e.GDate)
+                .HasColumnType("datetime")
+                .HasColumnName("G_Date");
+            entity.Property(e => e.GNo).HasColumnName("G_No");
+            entity.Property(e => e.GStatusCode).HasColumnName("g_statusCode");
+            entity.Property(e => e.Gid)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("GID");
+            entity.Property(e => e.JobId).HasColumnName("jobID");
+            entity.Property(e => e.LeagueId).HasColumnName("leagueID");
+            entity.Property(e => e.LeagueName).HasColumnName("leagueName");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserId");
+            entity.Property(e => e.Modified)
+                .HasColumnType("datetime")
+                .HasColumnName("modified");
+            entity.Property(e => e.RefCount)
+                .HasColumnType("decimal(2, 1)")
+                .HasColumnName("ref_count");
+            entity.Property(e => e.RescheduleCount).HasColumnName("rescheduleCount");
+            entity.Property(e => e.Rnd).HasColumnName("rnd");
+            entity.Property(e => e.Season)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.T1Ann)
+                .HasMaxLength(80)
+                .IsUnicode(false)
+                .HasColumnName("t1_ann");
+            entity.Property(e => e.T1CalcType)
+                .IsUnicode(false)
+                .HasColumnName("T1_CalcType");
+            entity.Property(e => e.T1GnoRef).HasColumnName("T1_GnoRef");
+            entity.Property(e => e.T1Id).HasColumnName("T1_ID");
+            entity.Property(e => e.T1Name)
+                .IsUnicode(false)
+                .HasColumnName("T1_Name");
+            entity.Property(e => e.T1No).HasColumnName("T1_No");
+            entity.Property(e => e.T1Score).HasColumnName("T1_Score");
+            entity.Property(e => e.T1Type)
+                .HasMaxLength(10)
+                .IsUnicode(false)
+                .HasColumnName("T1_Type");
+            entity.Property(e => e.T1penalties).HasColumnName("t1penalties");
+            entity.Property(e => e.T2Ann)
+                .HasMaxLength(80)
+                .IsUnicode(false)
+                .HasColumnName("t2_ann");
+            entity.Property(e => e.T2CalcType)
+                .IsUnicode(false)
+                .HasColumnName("T2_CalcType");
+            entity.Property(e => e.T2GnoRef).HasColumnName("T2_GNoRef");
+            entity.Property(e => e.T2Id).HasColumnName("T2_ID");
+            entity.Property(e => e.T2Name)
+                .IsUnicode(false)
+                .HasColumnName("T2_Name");
+            entity.Property(e => e.T2No).HasColumnName("T2_No");
+            entity.Property(e => e.T2Score).HasColumnName("T2_Score");
+            entity.Property(e => e.T2Type)
+                .HasMaxLength(10)
+                .IsUnicode(false)
+                .HasColumnName("T2_Type");
+            entity.Property(e => e.T2penalties).HasColumnName("t2penalties");
+            entity.Property(e => e.Year)
+                .HasMaxLength(4)
+                .IsUnicode(false)
+                .IsFixedLength();
         });
 
         OnModelCreatingPartial(modelBuilder);

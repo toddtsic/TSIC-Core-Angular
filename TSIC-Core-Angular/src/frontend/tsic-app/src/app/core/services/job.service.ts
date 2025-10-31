@@ -19,6 +19,8 @@ export interface Job {
     coreRegformPlayer?: boolean;
     usLaxNumberValidThroughDate?: string;
     expiryUsers?: string;
+    playerProfileMetadataJson?: string;
+    jsonOptions?: string;
     jobBulletins: JobBulletin[];
 }
 

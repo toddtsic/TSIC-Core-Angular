@@ -217,6 +217,8 @@ public partial class Jobs
 
     public bool? BEnableMobileTeamChat { get; set; }
 
+    public string? PlayerProfileMetadataJson { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();

@@ -20,6 +20,8 @@ public class JobMetadataDto
     public bool? CoreRegformPlayer { get; set; }
     public DateTime? USLaxNumberValidThroughDate { get; set; }
     public DateTime? ExpiryUsers { get; set; }
+    public string? PlayerProfileMetadataJson { get; set; }
+    public string? JsonOptions { get; set; }
 }
 
 public class JobLookupService : IJobLookupService
@@ -66,7 +68,9 @@ public class JobLookupService : IJobLookupService
                 JobBannerPath = j.BannerFile,
                 CoreRegformPlayer = j.CoreRegformPlayer == "1",
                 USLaxNumberValidThroughDate = j.UslaxNumberValidThroughDate,
-                ExpiryUsers = j.ExpiryUsers
+                ExpiryUsers = j.ExpiryUsers,
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
+                JsonOptions = j.JsonOptions
             })
             .SingleOrDefaultAsync();
 

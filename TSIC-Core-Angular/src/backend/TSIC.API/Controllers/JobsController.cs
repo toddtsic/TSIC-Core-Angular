@@ -43,7 +43,9 @@ public class JobsController : ControllerBase
             JobBannerPath = jobMetadata.JobBannerPath,
             CoreRegformPlayer = jobMetadata.CoreRegformPlayer,
             USLaxNumberValidThroughDate = jobMetadata.USLaxNumberValidThroughDate,
-            ExpiryUsers = jobMetadata.ExpiryUsers
+            ExpiryUsers = jobMetadata.ExpiryUsers,
+            PlayerProfileMetadataJson = jobMetadata.PlayerProfileMetadataJson,
+            JsonOptions = jobMetadata.JsonOptions
         };
 
         return Ok(response);
