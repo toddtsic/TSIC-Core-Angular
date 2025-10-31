@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
@@ -18,9 +18,10 @@ export class RoleSelectionComponent implements OnInit {
 
   @ViewChild('firstDropdown') firstDropdown!: DropDownListComponent;
 
-  registrations: any[] = [];
-  isLoading = false;
-  errorMessage: string | null = null;
+  // Signals instead of observables
+  registrations = signal<any[]>([]);
+  isLoading = signal(false);
+  errorMessage = signal<string | null>(null);
 
   // Syncfusion DropdownList field mappings
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
@@ -30,17 +31,17 @@ export class RoleSelectionComponent implements OnInit {
   }
 
   private loadRegistrations(): void {
-    this.isLoading = true;
-    this.errorMessage = null;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
 
     this.authService.getAvailableRegistrations().subscribe({
       next: (registrations) => {
-        this.registrations = registrations;
-        this.isLoading = false;
+        this.registrations.set(registrations);
+        this.isLoading.set(false);
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Failed to load registrations. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Failed to load registrations. Please try again.');
         console.error('Error loading registrations:', error);
       }
     });
@@ -61,12 +62,12 @@ export class RoleSelectionComponent implements OnInit {
   }
 
   selectRole(registration: any): void {
-    if (this.isLoading) {
+    if (this.isLoading()) {
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = null;
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
 
     this.authService.selectRegistration(registration.regId).subscribe({
       next: (response) => {
@@ -81,11 +82,11 @@ export class RoleSelectionComponent implements OnInit {
           this.router.navigate(['/']);
         }
 
-        this.isLoading = false;
+        this.isLoading.set(false);
       },
       error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Role selection failed. Please try again.';
+        this.isLoading.set(false);
+        this.errorMessage.set(error.error?.message || 'Role selection failed. Please try again.');
         console.error('Role selection error:', error);
       }
     });

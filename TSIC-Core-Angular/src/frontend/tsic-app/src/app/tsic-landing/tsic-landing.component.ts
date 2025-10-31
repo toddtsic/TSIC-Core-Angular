@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-tsic-landing',
   standalone: true,
-  imports: [ButtonModule],
+  imports: [CommonModule],
   templateUrl: './tsic-landing.component.html',
   styleUrl: './tsic-landing.component.scss'
 })
