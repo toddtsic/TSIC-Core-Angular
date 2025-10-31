@@ -7,10 +7,10 @@ import { JobService } from '../core/services/job.service';
 import { ThemeService } from '../core/services/theme.service';
 
 @Component({
-    selector: 'app-layout',
-    standalone: true,
-    imports: [CommonModule, RouterOutlet, ButtonModule],
-    template: `
+  selector: 'app-layout',
+  standalone: true,
+  imports: [CommonModule, RouterOutlet, ButtonModule],
+  template: `
     <header class="layout-header">
       <div class="branding">
         <img *ngIf="jobLogoPath" [src]="jobLogoPath" alt="Job Logo" class="job-logo-img" />
@@ -35,52 +35,52 @@ import { ThemeService } from '../core/services/theme.service';
       <router-outlet></router-outlet>
     </main>
   `,
-    styleUrls: ['./layout.component.scss']
+  styleUrls: ['./layout.component.scss']
 })
 export class LayoutComponent {
-    private readonly auth = inject(AuthService);
-    private readonly jobService = inject(JobService);
-    readonly themeService = inject(ThemeService);
-    
-    jobLogoPath = '';
-    jobBannerPath = '';
-    jobName = '';
-    username = '';
-    showRoleMenu = false;
-    roles = ['Parent', 'Director', 'Club Rep'];
-    currentRole = 'Parent'; // TODO: wire to user/role selection from AuthService
+  private readonly auth = inject(AuthService);
+  private readonly jobService = inject(JobService);
+  readonly themeService = inject(ThemeService);
 
-    constructor() {
-        const user = this.auth.getCurrentUser();
-        this.username = user?.username || '';
-        this.showRoleMenu = !!user?.regId;
-        // Simulate job info (replace with real JobService fetch)
-        const job = this.jobService.getCurrentJob() || {
-            jobPath: user?.jobPath || '',
-            jobName: (user?.jobPath || 'TSIC').toUpperCase(),
-            jobLogoPath: '/assets/branding/default-logo.svg',
-            jobBannerPath: '/assets/branding/default-banner.svg',
-            jobBulletins: []
-        };
-        this.jobLogoPath = job.jobLogoPath;
-        this.jobBannerPath = job.jobBannerPath;
-        this.jobName = job.jobName;
-    }
+  jobLogoPath = '';
+  jobBannerPath = '';
+  jobName = '';
+  username = '';
+  showRoleMenu = false;
+  roles = ['Parent', 'Director', 'Club Rep'];
+  currentRole = 'Parent'; // TODO: wire to user/role selection from AuthService
 
-    logout() {
-        this.auth.logout();
-    }
+  constructor() {
+    const user = this.auth.getCurrentUser();
+    this.username = user?.username || '';
+    this.showRoleMenu = !!user?.regId;
+    // Simulate job info (replace with real JobService fetch)
+    const job = this.jobService.getCurrentJob() || {
+      jobPath: user?.jobPath || '',
+      jobName: (user?.jobPath || 'TSIC').toUpperCase(),
+      jobLogoPath: '/assets/branding/default-logo.svg',
+      jobBannerPath: '/assets/branding/default-banner.svg',
+      jobBulletins: []
+    };
+    this.jobLogoPath = job.jobLogoPath;
+    this.jobBannerPath = job.jobBannerPath;
+    this.jobName = job.jobName;
+  }
 
-    switchRole() {
-        // TODO: navigate to role selection page
-    }
+  logout() {
+    this.auth.logout();
+  }
 
-    selectRole(role: string) {
-        this.currentRole = role;
-        // TODO: update role in AuthService and refresh job menu items
-    }
+  switchRole() {
+    // TODO: navigate to role selection page
+  }
 
-    toggleTheme() {
-        this.themeService.toggleTheme();
-    }
+  selectRole(role: string) {
+    this.currentRole = role;
+    // TODO: update role in AuthService and refresh job menu items
+  }
+
+  toggleTheme() {
+    this.themeService.toggleTheme();
+  }
 }

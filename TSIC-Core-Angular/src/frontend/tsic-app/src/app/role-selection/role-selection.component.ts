@@ -3,13 +3,12 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
-import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
 import { Query } from '@syncfusion/ej2-data';
 
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [CommonModule, DropDownListModule, ButtonModule],
+  imports: [CommonModule, DropDownListModule],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']
 })
@@ -19,7 +18,7 @@ export class RoleSelectionComponent implements OnInit {
 
   @ViewChild('firstDropdown') firstDropdown!: DropDownListComponent;
 
-  registrations: any[] = []; // Change to any[] temporarily
+  registrations: any[] = [];
   isLoading = false;
   errorMessage: string | null = null;
 
@@ -27,21 +26,17 @@ export class RoleSelectionComponent implements OnInit {
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
   ngOnInit(): void {
+    this.loadRegistrations();
+  }
+
+  private loadRegistrations(): void {
     this.isLoading = true;
     this.errorMessage = null;
 
-    // Call API to get available registrations for the authenticated user
     this.authService.getAvailableRegistrations().subscribe({
       next: (registrations) => {
         this.registrations = registrations;
         this.isLoading = false;
-
-        // Open the first dropdown after data is loaded
-        setTimeout(() => {
-          if (this.firstDropdown) {
-            this.firstDropdown.showPopup();
-          }
-        }, 300);
       },
       error: (error) => {
         this.isLoading = false;
@@ -52,11 +47,9 @@ export class RoleSelectionComponent implements OnInit {
   }
 
   // Handle typeahead filtering
-  public onFiltering(e: FilteringEventArgs, roleGroup: any): void { // Change parameter type to any
+  public onFiltering(e: FilteringEventArgs, roleGroup: any): void {
     let query = new Query();
-    // Filter based on the search text
     query = (e.text === '') ? query : query.where('displayText', 'contains', e.text, true);
-    // Update the dropdown with filtered data
     e.updateData(roleGroup.roleRegistrations, query);
   }
 
@@ -75,21 +68,16 @@ export class RoleSelectionComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = null;
 
-    // Call API to select registration and get full JWT token
     this.authService.selectRegistration(registration.regId).subscribe({
       next: (response) => {
-        // Token with regId and jobPath claims is now stored
         const jobPath = this.authService.getJobPath();
 
         if (jobPath) {
-          // Navigate to the job-specific path
-          // Ensure path starts with / for router navigation
           const routePath = jobPath.startsWith('/') ? jobPath.substring(1) : jobPath;
           console.log('Navigating to jobPath:', routePath);
           this.router.navigate([routePath]);
         } else {
           console.warn('No jobPath found in token, redirecting to root');
-          // Fallback to root if no jobPath in token
           this.router.navigate(['/']);
         }
 
@@ -105,6 +93,5 @@ export class RoleSelectionComponent implements OnInit {
 
   logout(): void {
     this.authService.logout();
-    this.router.navigate(['/']);
   }
 }

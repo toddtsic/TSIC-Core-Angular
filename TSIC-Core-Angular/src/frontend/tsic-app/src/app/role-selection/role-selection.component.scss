@@ -1,31 +1,14 @@
-// Only component-specific tweaks and ::ng-deep Syncfusion overrides below
+// Syncfusion dropdown customization - building up piece by piece
 
-// Syncfusion dropdown item template styles
-::ng-deep .e-dropdownbase .e-list-item {
-  display: flex !important;
-  align-items: center !important;
-  padding: 8px 12px !important;
-  min-height: 40px !important;
-}
+::ng-deep .dropdown-item-custom {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
 
-::ng-deep .e-dropdownbase .dropdown-item {
-  display: flex !important;
-  align-items: center !important;
-  width: 100% !important;
-  gap: 12px !important;
-}
-
-::ng-deep .e-dropdownbase .job-logo {
-  width: 28px !important;
-  height: 28px !important;
-  object-fit: contain !important;
-  flex-shrink: 0 !important;
-  vertical-align: middle !important;
-}
-
-::ng-deep .e-dropdownbase .item-text {
-  flex: 1 !important;
-  font-size: 14px !important;
-  line-height: 24px !important;
-  vertical-align: middle !important;
+  .job-logo {
+    height: 2.5em; // 1.5x the line height
+    width: auto;
+    margin-right: 0.5rem;
+    object-fit: contain;
+  }
 }

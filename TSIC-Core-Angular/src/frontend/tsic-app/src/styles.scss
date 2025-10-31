@@ -4,57 +4,57 @@
    CSS Custom Properties - Theme Variables
    ============================================ */
 :root {
-  --gradient-primary-start: #667eea;
-  --gradient-primary-end: #764ba2;
-  
-  // Light theme colors
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-elevated: #ffffff;
-  --text-primary: #212529;
-  --text-secondary: #6c757d;
-  --border-color: #dee2e6;
-  --input-bg: #ffffff;
-  --input-border: #ced4da;
+    --gradient-primary-start: #667eea;
+    --gradient-primary-end: #764ba2;
+
+    // Light theme colors
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-elevated: #ffffff;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
 }
 
 [data-bs-theme='dark'] {
-  // Dark theme colors - improved contrast and depth
-  --bg-primary: #1a1d23;
-  --bg-secondary: #0d1117;
-  --bg-elevated: #2d333b;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --border-color: #444c56;
-  --input-bg: #22272e;
-  --input-border: #444c56;
-  
-  /* Card and form styling for better visibility in dark mode */
-  .card {
-    background-color: var(--bg-elevated);
-    border-color: var(--border-color);
-  }
-  
-  .form-control {
-    background-color: var(--input-bg);
-    border-color: var(--input-border);
-    color: var(--text-primary);
-    
-    &:focus {
-      background-color: var(--input-bg);
-      border-color: var(--gradient-primary-start);
-      color: var(--text-primary);
+    // Dark theme colors - improved contrast and depth
+    --bg-primary: #1a1d23;
+    --bg-secondary: #0d1117;
+    --bg-elevated: #2d333b;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --border-color: #444c56;
+    --input-bg: #22272e;
+    --input-border: #444c56;
+
+    /* Card and form styling for better visibility in dark mode */
+    .card {
+        background-color: var(--bg-elevated);
+        border-color: var(--border-color);
     }
-    
-    &::placeholder {
-      color: var(--text-secondary);
-      opacity: 0.6;
+
+    .form-control {
+        background-color: var(--input-bg);
+        border-color: var(--input-border);
+        color: var(--text-primary);
+
+        &:focus {
+            background-color: var(--input-bg);
+            border-color: var(--gradient-primary-start);
+            color: var(--text-primary);
+        }
+
+        &::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
     }
-  }
-  
-  .form-label {
-    color: var(--text-primary);
-  }
+
+    .form-label {
+        color: var(--text-primary);
+    }
 }
 
 /* ============================================
@@ -62,30 +62,30 @@
    ============================================ */
 
 .gradient-header {
-  background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%) !important;
-  color: white !important;
+    background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%) !important;
+    color: white !important;
 }
 
 .btn-gradient {
-  background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%);
-  border: none;
-  color: white;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%);
+    border: none;
+    color: white;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-gradient:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3) !important;
-  color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3) !important;
+    color: white;
 }
 
 .btn-gradient:active:not(:disabled) {
-  transform: translateY(0);
+    transform: translateY(0);
 }
 
 .card-rounded {
-  border-radius: 16px;
-  overflow: hidden;
+    border-radius: 16px;
+    overflow: hidden;
 }
 
 /* ============================================
@@ -93,82 +93,82 @@
    ============================================ */
 
 .public-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 .public-header {
-  background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%);
-  color: white;
-  padding: 1rem 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%);
+    color: white;
+    padding: 1rem 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
-  .header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .branding {
-    display: flex;
-    align-items: center;
-  }
-
-  .logo-container {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .brand-icon {
-    width: 32px;
-    height: 32px;
-  }
-
-  .brand-text {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .brand-name {
-    font-size: 1.25rem;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  .brand-tagline {
-    font-size: 0.75rem;
-    opacity: 0.9;
-    line-height: 1.2;
-  }
-
-  .theme-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-      transform: scale(1.05);
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-  }
+
+    .branding {
+        display: flex;
+        align-items: center;
+    }
+
+    .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .brand-icon {
+        width: 32px;
+        height: 32px;
+    }
+
+    .brand-text {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .brand-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .brand-tagline {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        line-height: 1.2;
+    }
+
+    .theme-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+    }
 }
 
 .public-content {
-  flex: 1;
-  padding: 2rem 0;
-  background-color: var(--bg-secondary);
+    flex: 1;
+    padding: 2rem 0;
+    background-color: var(--bg-secondary);
 }
 
 .public-footer {
-  background-color: var(--bg-primary);
-  border-top: 1px solid var(--border-color);
-  padding: 1.5rem 0;
-  margin-top: auto;
+    background-color: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    padding: 1.5rem 0;
+    margin-top: auto;
 }

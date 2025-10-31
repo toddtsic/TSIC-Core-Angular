@@ -19,17 +19,17 @@ import { ThemeService } from '../../core/services/theme.service';
  * - Centered content area for forms and information
  */
 @Component({
-  selector: 'app-public-layout',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet],
-  templateUrl: './public-layout.component.html',
-  styleUrls: ['./public-layout.component.scss']
+    selector: 'app-public-layout',
+    standalone: true,
+    imports: [CommonModule, RouterOutlet],
+    templateUrl: './public-layout.component.html',
+    styleUrls: ['./public-layout.component.scss']
 })
 export class PublicLayoutComponent {
-  readonly themeService = inject(ThemeService);
-  readonly currentYear = new Date().getFullYear();
+    readonly themeService = inject(ThemeService);
+    readonly currentYear = new Date().getFullYear();
 
-  toggleTheme(): void {
-    this.themeService.toggleTheme();
-  }
+    toggleTheme(): void {
+        this.themeService.toggleTheme();
+    }
 }
