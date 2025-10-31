@@ -16,9 +16,9 @@
             formControlName="username" placeholder="Enter your username" autocomplete="username" aria-label="Username"
             [class.is-invalid]="submitted() && form.get('username')?.invalid">
           @if (submitted() && form.get('username')?.invalid) {
-            <div class="invalid-feedback">
-              Username is required
-            </div>
+          <div class="invalid-feedback">
+            Username is required
+          </div>
           }
         </div>
 
@@ -34,42 +34,42 @@
               style="width: 40px; height: 40px;" (click)="toggleShowPassword()"
               [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
               @if (!showPassword()) {
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
               } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path
-                    d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.76 20.76 0 0 1 5.06-6.94m3.1-1.62A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.76 20.76 0 0 1-4.87 6.82M1 1l22 22" />
-                </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.76 20.76 0 0 1 5.06-6.94m3.1-1.62A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.76 20.76 0 0 1-4.87 6.82M1 1l22 22" />
+              </svg>
               }
             </button>
           </div>
           @if (submitted() && form.get('password')?.invalid) {
-            <div class="invalid-feedback d-block">
-              Password is required
-            </div>
+          <div class="invalid-feedback d-block">
+            Password is required
+          </div>
           }
         </div>
 
         @if (errorMessage()) {
-          <div class="alert alert-danger border-0 shadow-sm mb-4">
-            {{ errorMessage() }}
-          </div>
+        <div class="alert alert-danger border-0 shadow-sm mb-4">
+          {{ errorMessage() }}
+        </div>
         }
 
         <button type="submit" class="btn btn-lg w-100 fw-semibold shadow-sm btn-gradient"
           [disabled]="isLoading() || form.invalid">
           @if (!isLoading()) {
-            <span>Sign In</span>
+          <span>Sign In</span>
           } @else {
-            <span>
-              <span class="spinner-border spinner-border-sm me-2"></span>
-              Signing in...
-            </span>
+          <span>
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Signing in...
+          </span>
           }
         </button>
       </form>

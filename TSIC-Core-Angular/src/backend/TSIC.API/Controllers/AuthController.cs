@@ -158,9 +158,10 @@ namespace TSIC.API.Controllers
 
             var roleName = registrationRole?.RoleName ?? "User";
             var jobPath = selectedReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
+            var jobLogo = selectedReg.JobLogo; // Get the job logo from selected registration
 
-            // Generate enriched Phase 2 JWT token with regId and jobPath claims
-            var token = GenerateEnrichedJwtToken(user, request.RegId, jobPath);
+            // Generate enriched Phase 2 JWT token with regId, jobPath, and jobLogo claims
+            var token = GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo);
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
@@ -205,9 +206,9 @@ namespace TSIC.API.Controllers
         }
 
         /// <summary>
-        /// Generate Phase 2 JWT token with enriched claims (username, regId, jobPath)
+        /// Generate Phase 2 JWT token with enriched claims (username, regId, jobPath, jobLogo)
         /// </summary>
-        private string GenerateEnrichedJwtToken(IdentityUser user, string regId, string jobPath)
+        private string GenerateEnrichedJwtToken(IdentityUser user, string regId, string jobPath, string? jobLogo)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
@@ -215,7 +216,7 @@ namespace TSIC.API.Controllers
             var audience = jwtSettings["Audience"] ?? "TSIC.Client";
             var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"] ?? "60");
 
-            var claims = new[]
+            var claimsList = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                 new Claim("username", user.UserName ?? ""),
@@ -225,13 +226,19 @@ namespace TSIC.API.Controllers
                 new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
             };
 
+            // Add jobLogo claim if available
+            if (!string.IsNullOrWhiteSpace(jobLogo))
+            {
+                claimsList.Add(new Claim("jobLogo", jobLogo));
+            }
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: issuer,
                 audience: audience,
-                claims: claims,
+                claims: claimsList,
                 expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
                 signingCredentials: credentials
             );

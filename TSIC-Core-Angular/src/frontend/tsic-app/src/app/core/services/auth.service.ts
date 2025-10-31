@@ -192,7 +192,8 @@ export class AuthService {
       const user: AuthenticatedUser = {
         username: payload.username || payload.sub,
         regId: payload.regId,
-        jobPath: payload.jobPath
+        jobPath: payload.jobPath,
+        jobLogo: payload.jobLogo
       };
       this.currentUser.set(user);
     } catch (error) {

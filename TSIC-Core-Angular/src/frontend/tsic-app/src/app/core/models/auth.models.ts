@@ -27,6 +27,7 @@ export interface AuthenticatedUser {
     username: string;
     regId?: string;
     jobPath?: string;
+    jobLogo?: string;  // URL to job logo from registration
 }
 
 export interface AuthTokenResponse {

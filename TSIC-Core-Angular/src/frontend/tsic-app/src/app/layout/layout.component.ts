@@ -18,7 +18,7 @@ import { ThemeService } from '../core/services/theme.service';
           <div class="col-md-3">
             <div class="d-flex align-items-center gap-2">
               @if (jobLogoPath()) {
-                <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo" style="height: 40px; width: auto;" />
+                <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo" />
               }
               <div>
                 <h1 class="h5 mb-0 fw-semibold">{{ jobName() }}</h1>
@@ -84,6 +84,8 @@ import { ThemeService } from '../core/services/theme.service';
   `,
   styles: [`
     .job-logo {
+      height: calc(100% - 1rem);
+      width: auto;
       object-fit: contain;
     }
   `]
@@ -93,6 +95,8 @@ export class LayoutComponent {
   private readonly jobService = inject(JobService);
   private readonly router = inject(Router);
   readonly themeService = inject(ThemeService);
+
+  private readonly STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
 
   // Signals
   jobLogoPath = signal('');
@@ -105,18 +109,32 @@ export class LayoutComponent {
 
   constructor() {
     const user = this.auth.getCurrentUser();
+
     this.username.set(user?.username || '');
     this.showRoleMenu.set(!!user?.regId);
+
+    // Get job logo from user token if available
+    if (user?.jobLogo) {
+      const logoUrl = user.jobLogo.startsWith('http')
+        ? user.jobLogo
+        : `${this.STATIC_BASE_URL}/${user.jobLogo}`;
+      this.jobLogoPath.set(logoUrl);
+    }
 
     // Simulate job info (replace with real JobService fetch)
     const job = this.jobService.getCurrentJob() || {
       jobPath: user?.jobPath || '',
       jobName: (user?.jobPath || 'TSIC').toUpperCase(),
-      jobLogoPath: '/assets/branding/default-logo.svg',
-      jobBannerPath: '/assets/branding/default-banner.svg',
+      jobLogoPath: this.jobLogoPath(),
+      jobBannerPath: '',
       jobBulletins: []
     };
-    this.jobLogoPath.set(job.jobLogoPath);
+
+    // Only set jobLogoPath if not already set from user
+    if (!this.jobLogoPath()) {
+      // Leave empty if no logo available - template will hide with @if
+      this.jobLogoPath.set('');
+    }
     this.jobBannerPath.set(job.jobBannerPath);
     this.jobName.set(job.jobName);
   }
