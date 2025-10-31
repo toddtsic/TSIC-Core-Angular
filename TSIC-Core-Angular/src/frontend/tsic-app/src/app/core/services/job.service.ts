@@ -11,10 +11,14 @@ export interface JobBulletin {
 }
 
 export interface Job {
+    jobId: string;
     jobPath: string;
     jobName: string;
-    jobLogoPath: string; // URL or relative path
-    jobBannerPath: string; // URL or relative path
+    jobLogoPath?: string;
+    jobBannerPath?: string;
+    coreRegformPlayer?: boolean;
+    usLaxNumberValidThroughDate?: string;
+    expiryUsers?: string;
     jobBulletins: JobBulletin[];
 }
 
@@ -50,6 +54,10 @@ export class JobService {
 
     getCurrentJob(): Job | null {
         return this.currentJob();
+    }
+
+    fetchJobMetadata(jobPath: string): Observable<Job> {
+        return this.http.get<Job>(`${this.apiUrl}/jobs/${jobPath}`);
     }
 
     checkRegistrationStatus(jobPath: string, registrationTypes: string[]): Observable<RegistrationStatusResponse[]> {

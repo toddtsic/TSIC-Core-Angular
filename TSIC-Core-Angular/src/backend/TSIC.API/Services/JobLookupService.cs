@@ -7,6 +7,19 @@ public interface IJobLookupService
 {
     Task<Guid?> GetJobIdByPathAsync(string jobPath);
     Task<bool> IsPlayerRegistrationActiveAsync(Guid jobId);
+    Task<JobMetadataDto?> GetJobMetadataAsync(string jobPath);
+}
+
+public class JobMetadataDto
+{
+    public Guid JobId { get; set; }
+    public string JobName { get; set; } = string.Empty;
+    public string JobPath { get; set; } = string.Empty;
+    public string? JobLogoPath { get; set; }
+    public string? JobBannerPath { get; set; }
+    public bool? CoreRegformPlayer { get; set; }
+    public DateTime? USLaxNumberValidThroughDate { get; set; }
+    public DateTime? ExpiryUsers { get; set; }
 }
 
 public class JobLookupService : IJobLookupService
@@ -34,9 +47,29 @@ public class JobLookupService : IJobLookupService
     {
         var job = await _context.Jobs
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.BRegistrationAllowPlayer })
+            .Select(j => new { j.BRegistrationAllowPlayer, j.ExpiryUsers })
             .SingleOrDefaultAsync();
 
-        return job?.BRegistrationAllowPlayer ?? false;
+        return (job?.BRegistrationAllowPlayer ?? false) && (job.ExpiryUsers > DateTime.Now);
+    }
+
+    public async Task<JobMetadataDto?> GetJobMetadataAsync(string jobPath)
+    {
+        var job = await _context.Jobs
+            .Where(j => j.JobPath == jobPath)
+            .Select(j => new JobMetadataDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? string.Empty,
+                JobPath = j.JobPath ?? string.Empty,
+                JobLogoPath = j.BannerFile, // Using BannerFile for logo/banner
+                JobBannerPath = j.BannerFile,
+                CoreRegformPlayer = j.CoreRegformPlayer == "1",
+                USLaxNumberValidThroughDate = j.UslaxNumberValidThroughDate,
+                ExpiryUsers = j.ExpiryUsers
+            })
+            .SingleOrDefaultAsync();
+
+        return job;
     }
 }

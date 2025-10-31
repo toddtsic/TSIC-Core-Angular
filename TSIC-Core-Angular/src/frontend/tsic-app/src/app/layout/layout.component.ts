@@ -43,13 +43,10 @@ import { ThemeService } from '../core/services/theme.service';
                 @if (jobLogoPath()) {
                   <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo" />
                 }
-                <!-- Text labels only on medium+ screens -->
-                <div class="job-info">
-                  <div class="tsic-label text-uppercase fw-bold text-success small">TSIC</div>
-                  @if (jobName()) {
-                    <div class="job-name small text-muted">{{ jobName() }}</div>
-                  }
-                </div>
+                <!-- Job name on desktop -->
+                @if (jobName()) {
+                  <div class="job-name small text-muted">{{ jobName() }}</div>
+                }
               </div>
             </div>
           </div>
@@ -97,16 +94,29 @@ import { ThemeService } from '../core/services/theme.service';
                     </svg>
                   }
                 </button>
-                <button 
-                  type="button" 
-                  class="btn btn-sm btn-outline-danger" 
-                  (click)="logout()"
-                  title="Logout">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
-                    <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
-                  </svg>
-                </button>
+                @if (isAuthenticated()) {
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-danger" 
+                    (click)="logout()"
+                    title="Logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                      <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                    </svg>
+                  </button>
+                } @else {
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-success" 
+                    (click)="login()"
+                    title="Login">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path fill-rule="evenodd" d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0v-2z"/>
+                      <path fill-rule="evenodd" d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                    </svg>
+                  </button>
+                }
               </div>
               
               <!-- Separate buttons on desktop -->
@@ -137,16 +147,29 @@ import { ThemeService } from '../core/services/theme.service';
                   </svg>
                 }
               </button>
-              <button 
-                type="button" 
-                class="btn btn-sm btn-outline-danger d-none d-md-inline-flex" 
-                (click)="logout()"
-                title="Logout">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
-                  <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
-                </svg>
-              </button>
+              @if (isAuthenticated()) {
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-danger d-none d-md-inline-flex" 
+                  (click)="logout()"
+                  title="Logout">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                    <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                  </svg>
+                </button>
+              } @else {
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-success d-none d-md-inline-flex" 
+                  (click)="login()"
+                  title="Login">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0v-2z"/>
+                    <path fill-rule="evenodd" d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                  </svg>
+                </button>
+              }
             </div>
           </div>
         </div>
@@ -356,43 +379,67 @@ export class LayoutComponent {
   jobName = signal('');
   username = signal('');
   showRoleMenu = signal(false);
+  isAuthenticated = signal(false);
   roles = signal(['Parent', 'Director', 'Club Rep']);
   currentRole = signal('Parent'); // TODO: wire to user/role selection from AuthService
 
   constructor() {
     const user = this.auth.getCurrentUser();
+    const authenticated = this.auth.isAuthenticated();
 
+    this.isAuthenticated.set(authenticated);
     this.username.set(user?.username || '');
     this.showRoleMenu.set(!!user?.regId);
 
-    // Get job logo from user token if available
-    if (user?.jobLogo) {
+    // Subscribe to job changes from JobService
+    this.updateJobInfo();
+
+    // Watch for job changes and update header
+    setInterval(() => {
+      const currentJob = this.jobService.getCurrentJob();
+      if (currentJob && currentJob.jobName !== this.jobName()) {
+        this.updateJobInfo();
+      }
+    }, 100); // Check every 100ms for job updates
+  }
+
+  private updateJobInfo() {
+    const user = this.auth.getCurrentUser();
+    const job = this.jobService.getCurrentJob();
+
+    // Priority: JobService currentJob (from API) > user token
+    if (job) {
+      this.jobName.set(job.jobName);
+
+      if (job.jobLogoPath) {
+        const logoUrl = job.jobLogoPath.startsWith('http')
+          ? job.jobLogoPath
+          : `${this.STATIC_BASE_URL}/${job.jobLogoPath}`;
+        this.jobLogoPath.set(logoUrl);
+      }
+
+      if (job.jobBannerPath) {
+        const bannerUrl = job.jobBannerPath.startsWith('http')
+          ? job.jobBannerPath
+          : `${this.STATIC_BASE_URL}/${job.jobBannerPath}`;
+        this.jobBannerPath.set(bannerUrl);
+      }
+    } else if (user?.jobLogo) {
+      // Fallback to user token if JobService hasn't loaded yet
       const logoUrl = user.jobLogo.startsWith('http')
         ? user.jobLogo
         : `${this.STATIC_BASE_URL}/${user.jobLogo}`;
       this.jobLogoPath.set(logoUrl);
+      this.jobName.set((user.jobPath || 'TSIC').toUpperCase());
     }
-
-    // Simulate job info (replace with real JobService fetch)
-    const job = this.jobService.getCurrentJob() || {
-      jobPath: user?.jobPath || '',
-      jobName: (user?.jobPath || 'TSIC').toUpperCase(),
-      jobLogoPath: this.jobLogoPath(),
-      jobBannerPath: '',
-      jobBulletins: []
-    };
-
-    // Only set jobLogoPath if not already set from user
-    if (!this.jobLogoPath()) {
-      // Leave empty if no logo available - template will hide with @if
-      this.jobLogoPath.set('');
-    }
-    this.jobBannerPath.set(job.jobBannerPath);
-    this.jobName.set(job.jobName);
   }
 
   logout() {
     this.auth.logout();
+  }
+
+  login() {
+    this.router.navigate(['/tsic/login']);
   }
 
   switchRole() {

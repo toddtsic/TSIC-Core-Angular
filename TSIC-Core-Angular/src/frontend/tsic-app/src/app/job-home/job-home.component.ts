@@ -30,8 +30,23 @@ export class JobHomeComponent implements OnInit {
     // Check if user is authenticated
     this.isAuthenticated.set(this.authService.isAuthenticated());
 
+    // Fetch job metadata (for both authenticated and anonymous users)
+    this.loadJobMetadata();
+
     // Load registration status (for both authenticated and anonymous users)
     this.loadRegistrationStatus();
+  }
+
+  private loadJobMetadata() {
+    this.jobService.fetchJobMetadata(this.jobPath()).subscribe({
+      next: (job) => {
+        this.jobService.setJob(job);
+      },
+      error: (err) => {
+        console.error('Error loading job metadata:', err);
+        // Don't show error to user - registration status is more critical
+      }
+    });
   }
 
   private loadRegistrationStatus() {
