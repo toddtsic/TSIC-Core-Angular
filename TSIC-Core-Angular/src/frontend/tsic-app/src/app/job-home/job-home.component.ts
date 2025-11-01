@@ -1,20 +1,20 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { JobService, RegistrationStatusResponse } from '../core/services/job.service';
 import { AuthService } from '../core/services/auth.service';
 
 @Component({
   selector: 'app-job-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './job-home.component.html',
   styleUrl: './job-home.component.scss'
 })
 export class JobHomeComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly jobService = inject(JobService);
-  private readonly authService = inject(AuthService);
+  protected readonly authService = inject(AuthService);
 
   jobPath = signal('');
   registrationStatuses = signal<RegistrationStatusResponse[]>([]);

@@ -28,6 +28,7 @@ export interface AuthenticatedUser {
     regId?: string;
     jobPath?: string;
     jobLogo?: string;  // URL to job logo from registration
+    role?: string;     // User role (e.g., 'superuser', 'parent', 'player')
 }
 
 export interface AuthTokenResponse {

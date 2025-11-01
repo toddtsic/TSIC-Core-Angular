@@ -840,6 +840,121 @@ public class TeamRegistration
 }
 ```
 
+#### Backend Processing: Metadata-Driven Mapping
+
+**Challenge**: How does the server map dynamic `Dictionary<string, object>` to strongly-typed `Registration` entity?
+
+**Solution**: Use metadata's `dbColumn` property to map field names to database columns.
+
+**RegistrationMapper Service**:
+
+```csharp
+public class RegistrationMapper
+{
+    private readonly IProfileMetadataService _metadataService;
+    
+    public async Task<Registration> MapToRegistration(
+        Guid jobId, 
+        Dictionary<string, object> formData)
+    {
+        // Load metadata for this job (EF Core likely caches the query)
+        var metadata = await _metadataService.GetProfileMetadataAsync(jobId);
+        
+        var registration = new Registration 
+        { 
+            JobId = jobId,
+            // ... other fixed fields set by caller
+        };
+        
+        // Map each dynamic field using metadata
+        foreach (var field in metadata.Fields)
+        {
+            if (formData.TryGetValue(field.Name, out var value))
+            {
+                SetProperty(registration, field.DbColumn, value);
+            }
+        }
+        
+        return registration;
+    }
+    
+    private void SetProperty(Registration registration, string propertyName, object value)
+    {
+        var property = typeof(Registration).GetProperty(
+            propertyName, 
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase
+        );
+        
+        if (property != null && property.CanWrite)
+        {
+            var convertedValue = ConvertValue(value, property.PropertyType);
+            property.SetValue(registration, convertedValue);
+        }
+    }
+    
+    private object ConvertValue(object value, Type targetType)
+    {
+        if (value == null) return null;
+        
+        // Handle JSON deserialization type conversions
+        if (targetType == typeof(int) || targetType == typeof(int?))
+            return Convert.ToInt32(value);
+        
+        if (targetType == typeof(decimal) || targetType == typeof(decimal?))
+            return Convert.ToDecimal(value);
+        
+        if (targetType == typeof(bool) || targetType == typeof(bool?))
+            return Convert.ToBoolean(value);
+        
+        if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
+            return DateTime.Parse(value.ToString());
+        
+        // String or already correct type
+        return value;
+    }
+}
+```
+
+**Registration Controller Usage**:
+
+```csharp
+[HttpPost("submit")]
+public async Task<IActionResult> SubmitRegistration(
+    [FromBody] FamilyRegistrationRequest request)
+{
+    foreach (var player in request.Players)
+    {
+        // Map dynamic fields to Registration entity
+        var registration = await _mapper.MapToRegistration(
+            request.JobId, 
+            player.ProfileFields
+        );
+        
+        // Set fixed fields
+        registration.UserId = player.PlayerId.Value;
+        registration.Family_UserId = request.ParentUserId;
+        registration.TeamId = player.Teams.First().TeamId;
+        
+        // Save to database
+        await _registrationRepository.AddAsync(registration);
+    }
+    
+    await _unitOfWork.SaveChangesAsync();
+    
+    return Ok(new { success = true });
+}
+```
+
+**Why No Caching?**
+
+For the primary use case (individual users submitting registrations one at a time):
+- Performance difference is negligible: ~10-50ms per request
+- Metadata queries are likely cached by EF Core anyway
+- Simpler code: No cache invalidation complexity
+- Always uses fresh metadata if admin updates it
+
+**Note**: If you later build bulk import features or high-traffic APIs, consider adding `IMemoryCache` with sliding expiration keyed by `JobId`.
+
 ---
 
 ## Migration Path

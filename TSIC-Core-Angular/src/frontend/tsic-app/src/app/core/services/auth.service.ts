@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, throwError } from 'rxjs';
@@ -24,6 +24,18 @@ export class AuthService {
 
   // Signal for reactive state management
   public readonly currentUser = signal<AuthenticatedUser | null>(null);
+
+  // Computed signals for derived state
+  public readonly isSuperuser = computed(() => {
+    const user = this.currentUser();
+    return user?.role?.toLowerCase() === 'superuser';
+  });
+
+  public readonly isAdmin = computed(() => {
+    const user = this.currentUser();
+    const role = user?.role?.toLowerCase();
+    return role === 'superuser' || role === 'admin';
+  });
 
   constructor() {
     // Initialize current user from token on service creation
@@ -193,7 +205,8 @@ export class AuthService {
         username: payload.username || payload.sub,
         regId: payload.regId,
         jobPath: payload.jobPath,
-        jobLogo: payload.jobLogo
+        jobLogo: payload.jobLogo,
+        role: payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
       };
       this.currentUser.set(user);
     } catch (error) {
