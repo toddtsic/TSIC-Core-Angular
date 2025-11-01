@@ -47,7 +47,7 @@ public class MigrateAllRequest
     /// If true, only preview changes without committing to database
     /// </summary>
     public bool DryRun { get; set; }
-    
+
     /// <summary>
     /// Optional: filter to specific profile types (e.g., ["PP10", "PP17"])
     /// </summary>

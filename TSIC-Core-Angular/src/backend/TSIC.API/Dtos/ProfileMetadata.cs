@@ -6,7 +6,7 @@ namespace TSIC.API.Dtos;
 public class ProfileMetadata
 {
     public List<ProfileMetadataField> Fields { get; set; } = new();
-    
+
     /// <summary>
     /// Source information for tracking migration
     /// </summary>
@@ -22,47 +22,47 @@ public class ProfileMetadataField
     /// Property name in camelCase (e.g., "firstName")
     /// </summary>
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Database column name in original case (e.g., "FirstName")
     /// </summary>
     public string DbColumn { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Display label for the field
     /// </summary>
     public string DisplayName { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Input type: TEXT, EMAIL, DATE, NUMBER, SELECT, CHECKBOX, FILE, HIDDEN, etc.
     /// </summary>
     public string InputType { get; set; } = "TEXT";
-    
+
     /// <summary>
     /// For SELECT inputs: teams, positions, gradYears, genders, etc.
     /// </summary>
     public string? DataSource { get; set; }
-    
+
     /// <summary>
     /// Validation rules
     /// </summary>
     public FieldValidation? Validation { get; set; }
-    
+
     /// <summary>
     /// Display order (1-based)
     /// </summary>
     public int Order { get; set; }
-    
+
     /// <summary>
     /// If true, only admin can see/edit this field
     /// </summary>
     public bool AdminOnly { get; set; }
-    
+
     /// <summary>
     /// If true, field is computed and not editable
     /// </summary>
     public bool Computed { get; set; }
-    
+
     /// <summary>
     /// Conditional display rules
     /// </summary>

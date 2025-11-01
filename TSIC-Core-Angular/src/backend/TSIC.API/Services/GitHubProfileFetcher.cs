@@ -27,10 +27,10 @@ public class GitHubProfileFetcher
     private readonly IMemoryCache _cache;
     private readonly ILogger<GitHubProfileFetcher> _logger;
     private readonly IConfiguration _configuration;
-    
+
     private const string BaseClassFileName = "BaseRegForm_ViewModels.cs";
     private const string CacheKeyPrefix = "GitHub_";
-    
+
     public GitHubProfileFetcher(
         HttpClient httpClient,
         IMemoryCache cache,
@@ -41,20 +41,20 @@ public class GitHubProfileFetcher
         _cache = cache;
         _logger = logger;
         _configuration = configuration;
-        
+
         // GitHub API requires User-Agent header
         _httpClient.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue("TSIC-ProfileMigration", "1.0"));
-        
+
         // Add auth token if configured
         var githubToken = _configuration["GitHub:Token"];
         if (!string.IsNullOrEmpty(githubToken))
         {
-            _httpClient.DefaultRequestHeaders.Authorization = 
+            _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", githubToken);
         }
     }
-    
+
     /// <summary>
     /// Fetch profile POCO source code from GitHub
     /// </summary>
@@ -65,19 +65,19 @@ public class GitHubProfileFetcher
         {
             var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
             var repoName = _configuration["GitHub:RepoName"] ?? "TSIC-Unify-2024";
-            
+
             // Determine path based on profile type
-            var folder = profileType.StartsWith("CAC") 
-                ? "RegPlayersMulti_ViewModels" 
+            var folder = profileType.StartsWith("CAC")
+                ? "RegPlayersMulti_ViewModels"
                 : "RegPlayersSingle_ViewModels";
-            
+
             var fileName = $"{profileType}ViewModel.cs";
             var path = $"TSIC-Unify-Models/ViewModels/{folder}/{fileName}";
-            
+
             _logger.LogInformation("Fetching {ProfileType} from GitHub: {Path}", profileType, path);
-            
+
             var content = await FetchFileContentAsync(repoOwner, repoName, path);
-            
+
             return (DecodeBase64Content(content.content), content.sha);
         }
         catch (Exception ex)
@@ -86,34 +86,34 @@ public class GitHubProfileFetcher
             throw new InvalidOperationException($"Could not fetch {profileType} from GitHub: {ex.Message}", ex);
         }
     }
-    
+
     /// <summary>
     /// Fetch base demographics class (cached)
     /// </summary>
     public async Task<(string sourceCode, string commitSha)> FetchBaseClassSourceAsync()
     {
         var cacheKey = CacheKeyPrefix + BaseClassFileName;
-        
+
         if (_cache.TryGetValue<(string, string)>(cacheKey, out var cached))
         {
             _logger.LogDebug("Using cached base class source");
             return cached;
         }
-        
+
         try
         {
             var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
             var repoName = _configuration["GitHub:RepoName"] ?? "TSIC-Unify-2024";
             var path = $"TSIC-Unify-Models/ViewModels/RegForm_ViewModels/{BaseClassFileName}";
-            
+
             _logger.LogInformation("Fetching base class from GitHub: {Path}", path);
-            
+
             var content = await FetchFileContentAsync(repoOwner, repoName, path);
             var result = (DecodeBase64Content(content.content), content.sha);
-            
+
             // Cache for 1 hour (base class rarely changes)
             _cache.Set(cacheKey, result, TimeSpan.FromHours(1));
-            
+
             return result;
         }
         catch (Exception ex)
@@ -122,32 +122,32 @@ public class GitHubProfileFetcher
             throw new InvalidOperationException($"Could not fetch base class from GitHub: {ex.Message}", ex);
         }
     }
-    
+
     private async Task<GitHubFileContent> FetchFileContentAsync(string owner, string repo, string path)
     {
         var url = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
-        
+
         var response = await _httpClient.GetAsync(url);
-        
+
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync();
             throw new HttpRequestException(
                 $"GitHub API returned {response.StatusCode}: {error}");
         }
-        
+
         var json = await response.Content.ReadAsStringAsync();
-        var content = JsonSerializer.Deserialize<GitHubFileContent>(json, 
+        var content = JsonSerializer.Deserialize<GitHubFileContent>(json,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        
+
         if (content == null)
         {
             throw new InvalidOperationException("Failed to deserialize GitHub response");
         }
-        
+
         return content;
     }
-    
+
     private static string DecodeBase64Content(string base64Content)
     {
         // GitHub returns content with newlines in the base64 string
