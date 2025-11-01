@@ -13,6 +13,68 @@ Content-Type: application/json
 
 ###
 
+# ============================================================================
+# PROFILE-CENTRIC ENDPOINTS (Recommended - More Efficient)
+# ============================================================================
+
+### Get all profile summaries (shows which profiles are used and migration status)
+GET https://localhost:5001/api/admin/profile-migration/profiles
+Authorization: Bearer {{token}}
+
+###
+
+### Preview migration for a single profile (dry run - no database changes)
+GET https://localhost:5001/api/admin/profile-migration/preview-profile/PP10
+Authorization: Bearer {{token}}
+
+###
+
+### Migrate a single profile type (applies to ALL jobs using that profile)
+POST https://localhost:5001/api/admin/profile-migration/migrate-profile/PP10
+Authorization: Bearer {{token}}
+
+###
+
+### Migrate all profiles (dry run)
+POST https://localhost:5001/api/admin/profile-migration/migrate-all-profiles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dryRun": true,
+  "profileTypes": null
+}
+
+###
+
+### Migrate all profiles (commit to database)
+POST https://localhost:5001/api/admin/profile-migration/migrate-all-profiles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dryRun": false,
+  "profileTypes": null
+}
+
+###
+
+### Migrate only specific profile types
+POST https://localhost:5001/api/admin/profile-migration/migrate-all-profiles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dryRun": false,
+  "profileTypes": ["PP10", "PP17", "CAC05"]
+}
+
+###
+
+# ============================================================================
+# LEGACY JOB-CENTRIC ENDPOINTS (Kept for Backward Compatibility)
+# ============================================================================
+
 ### Preview migration for a specific job (replace with actual JobId)
 GET https://localhost:5001/api/admin/profile-migration/preview/YOUR-JOB-GUID-HERE
 Authorization: Bearer {{token}}

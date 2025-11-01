@@ -91,17 +91,63 @@ public class ProfileMigrationController : ControllerBase
         {
             _logger.LogInformation("Migrating job {JobId}", jobId);
 
-            // Create a one-job report and extract the single result
-            var report = await _migrationService.MigrateAllJobsAsync(
-                dryRun: false,
-                profileTypeFilter: null);
+            // Directly migrate the single job (not using MigrateAllJobsAsync to avoid migrating all jobs)
+            var result = await _migrationService.MigrateSingleJobAsync(jobId, dryRun: false);
 
-            var result = report.Results.FirstOrDefault();
-
-            if (result == null)
+            if (!result.Success)
             {
-                return NotFound(new { error = "Job not found or has no profile" });
+                if (result.ErrorMessage?.Contains("not found") ?? false)
+                {
+                    return NotFound(result);
+                }
+                return BadRequest(result);
             }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to migrate job {JobId}", jobId);
+            return StatusCode(500, new { error = "Migration failed", details = ex.Message });
+        }
+    }
+
+    // ============================================================================
+    // PROFILE-CENTRIC ENDPOINTS (Recommended - more efficient)
+    // ============================================================================
+
+    /// <summary>
+    /// Get summary of all profile types and their usage across jobs
+    /// </summary>
+    /// <returns>List of profile summaries showing job counts and migration status</returns>
+    [HttpGet("profiles")]
+    public async Task<ActionResult<List<ProfileSummary>>> GetProfileSummaries()
+    {
+        try
+        {
+            _logger.LogInformation("Getting profile summaries");
+            var summaries = await _migrationService.GetProfileSummariesAsync();
+            return Ok(summaries);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get profile summaries");
+            return StatusCode(500, new { error = "Failed to get profile summaries", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Preview migration for a single profile type (dry run - does not commit)
+    /// </summary>
+    /// <param name="profileType">Profile type (e.g., PP10, CAC05)</param>
+    /// <returns>Preview of what would be migrated</returns>
+    [HttpGet("preview-profile/{profileType}")]
+    public async Task<ActionResult<ProfileMigrationResult>> PreviewProfileMigration(string profileType)
+    {
+        try
+        {
+            _logger.LogInformation("Previewing migration for profile {ProfileType}", profileType);
+            var result = await _migrationService.PreviewProfileMigrationAsync(profileType);
 
             if (!result.Success)
             {
@@ -112,7 +158,62 @@ public class ProfileMigrationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to migrate job {JobId}", jobId);
+            _logger.LogError(ex, "Failed to preview profile migration for {ProfileType}", profileType);
+            return StatusCode(500, new { error = "Preview failed", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Migrate a single profile type across all jobs using it
+    /// </summary>
+    /// <param name="profileType">Profile type (e.g., PP10, CAC05)</param>
+    /// <returns>Migration result with affected jobs</returns>
+    [HttpPost("migrate-profile/{profileType}")]
+    public async Task<ActionResult<ProfileMigrationResult>> MigrateProfile(string profileType)
+    {
+        try
+        {
+            _logger.LogInformation("Migrating profile {ProfileType}", profileType);
+            var result = await _migrationService.MigrateProfileAsync(profileType, dryRun: false);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to migrate profile {ProfileType}", profileType);
+            return StatusCode(500, new { error = "Migration failed", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Migrate multiple profiles (or all if no filter specified)
+    /// </summary>
+    /// <param name="request">Migration options with optional profile type filter</param>
+    /// <returns>Batch migration report</returns>
+    [HttpPost("migrate-all-profiles")]
+    public async Task<ActionResult<ProfileBatchMigrationReport>> MigrateAllProfiles([FromBody] MigrateProfilesRequest request)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Starting batch profile migration (DryRun: {DryRun}, Filter: {Filter})",
+                request.DryRun,
+                request.ProfileTypes != null ? string.Join(", ", request.ProfileTypes) : "all");
+
+            var report = await _migrationService.MigrateMultipleProfilesAsync(
+                request.DryRun,
+                request.ProfileTypes);
+
+            return Ok(report);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch profile migration failed");
             return StatusCode(500, new { error = "Migration failed", details = ex.Message });
         }
     }

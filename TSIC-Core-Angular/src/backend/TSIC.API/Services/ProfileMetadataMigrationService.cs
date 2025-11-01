@@ -39,6 +39,15 @@ public class ProfileMetadataMigrationService
     }
 
     /// <summary>
+    /// Migrate a single job (commits to database)
+    /// </summary>
+    public async Task<MigrationResult> MigrateSingleJobAsync(Guid jobId, bool dryRun = false)
+    {
+        var result = await MigrateJobAsync(jobId, dryRun);
+        return result;
+    }
+
+    /// <summary>
     /// Migrate all jobs with valid CoreRegformPlayer profiles
     /// </summary>
     public async Task<MigrationReport> MigrateAllJobsAsync(bool dryRun = false, List<string>? profileTypeFilter = null)
@@ -210,7 +219,7 @@ public class ProfileMetadataMigrationService
             result.Success = true;
 
             // Add warnings if any
-            if (metadata.Fields.Any(f => string.IsNullOrEmpty(f.DataSource) && f.InputType == "SELECT"))
+            if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && f.InputType == "SELECT"))
             {
                 result.Warnings.Add("Some SELECT fields are missing dataSource mapping");
             }
@@ -251,4 +260,211 @@ public class ProfileMetadataMigrationService
 
         return profileType;
     }
+
+    // ============================================================================
+    // PROFILE-CENTRIC MIGRATION METHODS
+    // ============================================================================
+
+    /// <summary>
+    /// Get summary of all unique profile types and their usage
+    /// </summary>
+    public async Task<List<ProfileSummary>> GetProfileSummariesAsync()
+    {
+        var jobs = await _context.Jobs
+            .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer))
+            .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer, j.PlayerProfileMetadataJson })
+            .ToListAsync();
+
+        var profileGroups = jobs
+            .Select(j => new
+            {
+                j.JobId,
+                j.JobName,
+                ProfileType = ExtractProfileType(j.CoreRegformPlayer),
+                HasMetadata = !string.IsNullOrEmpty(j.PlayerProfileMetadataJson)
+            })
+            .Where(j => !string.IsNullOrEmpty(j.ProfileType))
+            .GroupBy(j => j.ProfileType!)
+            .Select(g => new ProfileSummary
+            {
+                ProfileType = g.Key,
+                JobCount = g.Count(),
+                MigratedJobCount = g.Count(j => j.HasMetadata),
+                AllJobsMigrated = g.All(j => j.HasMetadata),
+                SampleJobNames = g.Take(5).Select(j => j.JobName ?? "Unnamed Job").ToList()
+            })
+            .OrderBy(p => p.ProfileType)
+            .ToList();
+
+        return profileGroups;
+    }
+
+    /// <summary>
+    /// Preview migration for a single profile type (dry run)
+    /// </summary>
+    public async Task<ProfileMigrationResult> PreviewProfileMigrationAsync(string profileType)
+    {
+        return await MigrateProfileAsync(profileType, dryRun: true);
+    }
+
+    /// <summary>
+    /// Migrate a single profile type across all jobs using it
+    /// </summary>
+    public async Task<ProfileMigrationResult> MigrateProfileAsync(string profileType, bool dryRun = false)
+    {
+        var result = new ProfileMigrationResult
+        {
+            ProfileType = profileType,
+            Success = false
+        };
+
+        try
+        {
+            _logger.LogInformation("Migrating profile {ProfileType} (DryRun: {DryRun})", profileType, dryRun);
+
+            // 1. Fetch from GitHub ONCE
+            var (profileSource, profileSha) = await _githubFetcher.FetchProfileSourceAsync(profileType);
+            var (baseSource, _) = await _githubFetcher.FetchBaseClassSourceAsync();
+
+            // 2. Parse ONCE
+            var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha);
+            result.FieldCount = metadata.Fields.Count;
+            result.GeneratedMetadata = metadata;
+
+            // 3. Find ALL jobs using this profile
+            var jobs = await _context.Jobs
+                .Where(j => j.CoreRegformPlayer != null &&
+                           (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
+                            j.CoreRegformPlayer == profileType))
+                .ToListAsync();
+
+            result.JobsAffected = jobs.Count;
+            result.AffectedJobIds = jobs.Select(j => j.JobId).ToList();
+            result.AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList();
+
+            if (jobs.Count == 0)
+            {
+                result.Success = true;
+                result.Warnings.Add($"No jobs found using profile type {profileType}");
+                return result;
+            }
+
+            // 4. Serialize metadata JSON ONCE
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
+
+            // 5. Apply to ALL jobs (if not dry run)
+            if (!dryRun)
+            {
+                foreach (var job in jobs)
+                {
+                    job.PlayerProfileMetadataJson = metadataJson;
+                }
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Applied {ProfileType} metadata ({FieldCount} fields) to {JobCount} jobs",
+                    profileType, metadata.Fields.Count, jobs.Count);
+            }
+
+            result.Success = true;
+
+            // Add warnings if any
+            if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && f.InputType == "SELECT"))
+            {
+                result.Warnings.Add("Some SELECT fields are missing dataSource mapping");
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to migrate profile {ProfileType}", profileType);
+            result.Success = false;
+            result.ErrorMessage = ex.Message;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Migrate multiple profiles (or all profiles if filter is null/empty)
+    /// </summary>
+    public async Task<ProfileBatchMigrationReport> MigrateMultipleProfilesAsync(
+        bool dryRun = false,
+        List<string>? profileTypeFilter = null)
+    {
+        var report = new ProfileBatchMigrationReport
+        {
+            StartedAt = DateTime.UtcNow
+        };
+
+        try
+        {
+            // Get all unique profile types
+            var summaries = await GetProfileSummariesAsync();
+
+            // Apply filter if specified
+            var profilesToMigrate = summaries
+                .Where(s => profileTypeFilter == null || profileTypeFilter.Count == 0 || profileTypeFilter.Contains(s.ProfileType))
+                .Select(s => s.ProfileType)
+                .ToList();
+
+            report.TotalProfiles = profilesToMigrate.Count;
+
+            _logger.LogInformation(
+                "Starting batch profile migration: {Count} profiles (DryRun: {DryRun})",
+                profilesToMigrate.Count, dryRun);
+
+            // Migrate each profile
+            foreach (var profileType in profilesToMigrate)
+            {
+                try
+                {
+                    var result = await MigrateProfileAsync(profileType, dryRun);
+                    report.Results.Add(result);
+
+                    if (result.Success)
+                    {
+                        report.SuccessCount++;
+                        report.TotalJobsAffected += result.JobsAffected;
+                    }
+                    else
+                    {
+                        report.FailureCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error migrating profile {ProfileType}", profileType);
+                    report.Results.Add(new ProfileMigrationResult
+                    {
+                        ProfileType = profileType,
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    });
+                    report.FailureCount++;
+                }
+            }
+
+            report.CompletedAt = DateTime.UtcNow;
+
+            _logger.LogInformation(
+                "Batch profile migration completed: {Success} succeeded, {Failed} failed, {TotalJobs} total jobs affected",
+                report.SuccessCount, report.FailureCount, report.TotalJobsAffected);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch profile migration failed");
+            report.CompletedAt = DateTime.UtcNow;
+            report.GlobalWarnings.Add($"Migration failed: {ex.Message}");
+        }
+
+        return report;
+    }
 }
+

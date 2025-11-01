@@ -281,32 +281,44 @@ foreach (var property in playerClass.Members.OfType<PropertyDeclarationSyntax>()
 }
 ```
 
-## Migration Service Flow
+## Migration Strategy (Profile-Centric Approach)
+
+### Concept
+
+Instead of migrating job-by-job (which would fetch the same POCO from GitHub hundreds of times), we migrate **profile-by-profile** and apply the generated metadata to all jobs using that profile.
+
+### Flow
 
 ```
-1. ProfileMetadataMigrationService.MigrateJobsAsync()
+1. ProfileMetadataMigrationService.MigrateProfileAsync("PP10")
    ↓
-2. Get all active Jobs from database
+2. Fetch PP10ViewModel.cs from GitHub ONCE
    ↓
-3. For each Job:
-   a. Identify ProfileType (PP10, PP17, CAC05, etc.)
-   b. GitHubProfileFetcher.FetchProfileAsync(profileType)
-      - Fetch PP{XX}ViewModel.cs from GitHub
-      - Fetch BaseRegForm_ViewModels.cs (for BasePP_Player_ViewModel)
-   c. CSharpToMetadataParser.ParseProfileAsync(sourceCode)
-      - Parse base demographics
-      - Parse profile-specific fields
-      - Merge into single metadata array
-      - Apply inference rules
-   d. Update Job.PlayerProfileMetadataJson
-   e. Save to database
+3. Fetch BaseRegForm_ViewModels.cs from GitHub ONCE (cached)
    ↓
-4. Return MigrationReport
-   - SuccessCount
-   - FailureCount
-   - Warnings (e.g., "Could not infer dataSource for field X")
-   - Details per job
+4. Parse into metadata ONCE
+   ↓
+5. Find ALL jobs where CoreRegformPlayer starts with "PP10"
+   ↓
+6. Apply same metadata JSON to ALL matching jobs
+   ↓
+7. Save all updates in one transaction
+   ↓
+8. Return ProfileMigrationResult
+   - ProfileType: "PP10"
+   - JobsAffected: 45
+   - FieldCount: 24
+   - AffectedJobIds: [guid1, guid2, ...]
 ```
+
+### Benefits
+
+✅ **Efficiency**: GitHub fetch happens once per profile, not per job  
+✅ **Speed**: Migrate 100 jobs in seconds instead of minutes  
+✅ **Consistency**: All jobs using PP10 get identical metadata  
+✅ **Simplicity**: User sees "6 profiles" not "156 jobs"  
+✅ **Re-migration**: Easy to refresh a profile if GitHub POCO is updated  
+✅ **Check for Updates**: Can compare current metadata SHA with GitHub to detect changes
 
 ## Example Output
 
@@ -415,31 +427,105 @@ foreach (var property in playerClass.Members.OfType<PropertyDeclarationSyntax>()
 
 ## Next Steps
 
-1. **Implement GitHubProfileFetcher**
-   - Use HttpClient to fetch from GitHub Contents API
-   - Handle base64 decoding
-   - Cache BaseRegForm_ViewModels.cs (same for all PP profiles)
+✅ **COMPLETED** - Profile-centric migration system:
 
-2. **Implement CSharpToMetadataParser**
-   - Add Microsoft.CodeAnalysis.CSharp NuGet package
-   - Implement Roslyn traversal
-   - Build inference engine for inputType, dataSource, validation
+### Backend Implementation ✅
 
-3. **Implement ProfileMetadataMigrationService**
-   - Orchestrate fetch + parse + update
-   - Transaction handling (rollback on error)
-   - Generate detailed migration report
+1. **New DTOs** (`ProfileMigrationDtos.cs`)
+   - `ProfileSummary` - Shows profile types and their job counts
+   - `ProfileMigrationResult` - Result of migrating one profile across all jobs
+   - `ProfileBatchMigrationReport` - Report for batch profile migrations
+   - `MigrateProfilesRequest` - Request for batch operations
 
-4. **Create ProfileMigrationController**
-   - `GET /api/admin/profile-migration/preview/{jobId}` - Preview single job
-   - `POST /api/admin/profile-migration/migrate-all` - Run full migration
-   - `GET /api/admin/profile-migration/report` - Get last migration report
+2. **ProfileMetadataMigrationService** - New Methods
+   - `GetProfileSummariesAsync()` - List all unique profiles with job counts
+   - `PreviewProfileMigrationAsync(profileType)` - Dry run for single profile
+   - `MigrateProfileAsync(profileType, dryRun)` - Migrate one profile → all jobs
+   - `MigrateMultipleProfilesAsync(dryRun, filter)` - Batch migrate profiles
+   - Legacy methods kept for backward compatibility
+
+3. **ProfileMigrationController** - New Endpoints
+   - `GET /api/admin/profile-migration/profiles` - Get profile summaries
+   - `GET /api/admin/profile-migration/preview-profile/{type}` - Preview single profile
+   - `POST /api/admin/profile-migration/migrate-profile/{type}` - Migrate single profile
+   - `POST /api/admin/profile-migration/migrate-all-profiles` - Batch migrate
+   - Legacy endpoints kept for backward compatibility
+
+### API Usage Examples
+
+**Get Profile Summary:**
+```http
+GET /api/admin/profile-migration/profiles
+```
+Returns:
+```json
+[
+  {
+    "profileType": "PP10",
+    "jobCount": 45,
+    "migratedJobCount": 45,
+    "allJobsMigrated": true,
+    "sampleJobNames": ["Summer Camp 2025", "Fall League", ...]
+  },
+  {
+    "profileType": "PP17",
+    "jobCount": 32,
+    "migratedJobCount": 0,
+    "allJobsMigrated": false,
+    "sampleJobNames": ["Winter Clinic", ...]
+  }
+]
+```
+
+**Preview Profile Migration (Dry Run):**
+```http
+GET /api/admin/profile-migration/preview-profile/PP10
+```
+Returns metadata + list of affected jobs without committing.
+
+**Migrate Single Profile:**
+```http
+POST /api/admin/profile-migration/migrate-profile/PP10
+```
+Fetches PP10 from GitHub, parses it, applies to all 45 jobs using PP10.
+
+**Batch Migrate All Pending Profiles:**
+```http
+POST /api/admin/profile-migration/migrate-all-profiles
+{
+  "dryRun": false,
+  "profileTypes": null  // null = all profiles
+}
+```
+
+### Configuration
+
+GitHub token in `appsettings.json` (optional but recommended):
+```json
+{
+  "GitHub": {
+    "RepoOwner": "toddtsic",
+    "RepoName": "TSIC-Unify-2024",
+    "Token": "github_pat_YOUR_TOKEN_HERE"
+  }
+}
+```
+
+### Design Decisions ✅
+
+1. **No Migration Tracking**: Don't persist migration status in database - infer from `PlayerProfileMetadataJson` presence
+2. **Re-migration Allowed**: Can re-run migration anytime to refresh metadata
+3. **Check for Updates**: Compare `metadata.source.commitSha` with current GitHub SHA to detect POCO changes
+4. **No Job Overrides**: Jobs never override profile metadata - always profile → jobs (one-way)
+
+### Next Steps (Pending)
 
 5. **Build Angular Migration UI**
-   - Component with "Preview" and "Migrate All" buttons
-   - Progress indicator during migration
-   - Report display with success/failure/warning counts
-   - Detailed log view
+   - Profile-based dashboard (not job-based)
+   - Shows: Profile Type | Jobs Using | Status | Actions
+   - Preview modal shows affected jobs + generated metadata
+   - Batch migration with progress indicator
+   - "Check for Updates" button to compare SHA with GitHub
 
 ## Open Questions
 
