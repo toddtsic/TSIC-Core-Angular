@@ -86,18 +86,19 @@ export class ProfileEditorComponent implements OnInit {
         this.successMessage.set(null);
         this.selectedProfileType.set(profileType);
 
-        this.migrationService.getProfileMetadata(profileType).subscribe({
-            next: (metadata) => {
+        this.migrationService.getProfileMetadata(
+            profileType,
+            (metadata) => {
                 this.currentMetadata.set(metadata);
                 this.isLoading.set(false);
             },
-            error: (error) => {
+            (error) => {
                 console.error('Error loading profile metadata:', error);
-                this.errorMessage.set(`Failed to load profile: ${error.message || 'Unknown error'}`);
+                this.errorMessage.set(`Failed to load profile: ${error || 'Unknown error'}`);
                 this.isLoading.set(false);
                 this.currentMetadata.set(null);
             }
-        });
+        );
     }
 
     // ============================================================================
@@ -159,8 +160,9 @@ export class ProfileEditorComponent implements OnInit {
         this.isCloning.set(true);
         this.errorMessage.set(null);
 
-        this.migrationService.cloneProfile(sourceProfile).subscribe({
-            next: (result) => {
+        this.migrationService.cloneProfile(
+            sourceProfile,
+            (result) => {
                 if (result.success) {
                     this.successMessage.set(`Successfully created new profile: ${result.newProfileType}`);
 
@@ -179,12 +181,12 @@ export class ProfileEditorComponent implements OnInit {
                 }
                 this.isCloning.set(false);
             },
-            error: (error) => {
+            (error) => {
                 console.error('Error cloning profile:', error);
-                this.errorMessage.set(`Failed to create profile: ${error.message || 'Unknown error'}`);
+                this.errorMessage.set(`Failed to create profile: ${error || 'Unknown error'}`);
                 this.isCloning.set(false);
             }
-        });
+        );
     }
 
     // ============================================================================
@@ -274,18 +276,20 @@ export class ProfileEditorComponent implements OnInit {
         this.errorMessage.set(null);
         this.successMessage.set(null);
 
-        this.migrationService.updateProfileMetadata(profileType, metadata).subscribe({
-            next: (result) => {
+        this.migrationService.updateProfileMetadata(
+            profileType,
+            metadata,
+            (result) => {
                 this.currentMetadata.set(metadata);
                 this.successMessage.set(`Profile updated successfully. ${result.jobsAffected} job(s) affected.`);
                 this.isSaving.set(false);
             },
-            error: (error) => {
+            (error) => {
                 console.error('Error saving profile metadata:', error);
-                this.errorMessage.set(`Failed to save profile: ${error.message || 'Unknown error'}`);
+                this.errorMessage.set(`Failed to save profile: ${error || 'Unknown error'}`);
                 this.isSaving.set(false);
             }
-        });
+        );
     }
 
     openTestModal(fieldName: string) {
@@ -315,23 +319,25 @@ export class ProfileEditorComponent implements OnInit {
         this.isTesting.set(true);
         this.testResult.set(null);
 
-        this.migrationService.testValidation(field, testValue).subscribe({
-            next: (result) => {
+        this.migrationService.testValidation(
+            field,
+            testValue,
+            (result) => {
                 this.testResult.set(result);
                 this.isTesting.set(false);
             },
-            error: (error) => {
+            (error) => {
                 console.error('Error testing validation:', error);
                 const errorResult: ValidationTestResult = {
                     isValid: false,
-                    messages: [`Test failed: ${error.message || 'Unknown error'}`],
+                    messages: [`Test failed: ${error || 'Unknown error'}`],
                     testValue: testValue,
                     fieldName: fieldName
                 };
                 this.testResult.set(errorResult);
                 this.isTesting.set(false);
             }
-        });
+        );
     }
 
     // Helper for template
