@@ -246,6 +246,52 @@ public class TeamsController : ControllerBase
 3. **Simplified Client Code**: Frontend doesn't need to track and pass IDs everywhere
 4. **Reduced Attack Surface**: Fewer parameters = fewer validation points = fewer bugs
 
+## CRITICAL: Role Claim in JWT Token
+
+**Issue (Fixed November 2025):**
+The `AuthController.SelectRegistration` endpoint was extracting the role name from the database but NOT including it in the JWT token. This caused role-based authorization checks (like `authService.isSuperuser()`) to fail even though the user had the correct role.
+
+**Fix Applied:**
+```csharp
+// AuthController.cs - SelectRegistration method
+var roleName = registrationRole?.RoleName ?? "User";
+var token = GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo, roleName);
+
+// AuthController.cs - GenerateEnrichedJwtToken method
+private string GenerateEnrichedJwtToken(
+    IdentityUser user, 
+    string regId, 
+    string jobPath, 
+    string? jobLogo, 
+    string roleName)  // ⬅️ New parameter
+{
+    var claimsList = new List<Claim>
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+        new Claim("username", user.UserName ?? ""),
+        new Claim("regId", regId),
+        new Claim("jobPath", jobPath),
+        new Claim(ClaimTypes.Role, roleName), // ⬅️ CRITICAL: Role claim added
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
+    };
+    // ... rest of token generation
+}
+```
+
+**Impact:**
+- Authorization policies now work correctly (SuperUserOnly, AdminOnly, etc.)
+- Angular `authService.isSuperuser()` returns true for Superuser role
+- Admin UI cards display correctly based on role
+- Guards properly protect routes based on role claims
+
+**Testing:**
+After this fix, you must:
+1. Restart the API
+2. Log out and log back in to get a new token
+3. Select your role (e.g., Superuser)
+4. Verify role claim exists in token (use JWT debugger or browser dev tools)
+
 ## Migration Checklist
 
 When adding authorization to existing endpoints:

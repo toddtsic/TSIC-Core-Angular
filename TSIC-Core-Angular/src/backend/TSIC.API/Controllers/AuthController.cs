@@ -160,8 +160,8 @@ namespace TSIC.API.Controllers
             var jobPath = selectedReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
             var jobLogo = selectedReg.JobLogo; // Get the job logo from selected registration
 
-            // Generate enriched Phase 2 JWT token with regId, jobPath, and jobLogo claims
-            var token = GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo);
+            // Generate enriched Phase 2 JWT token with regId, jobPath, jobLogo, and role claims
+            var token = GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo, roleName);
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
@@ -206,9 +206,9 @@ namespace TSIC.API.Controllers
         }
 
         /// <summary>
-        /// Generate Phase 2 JWT token with enriched claims (username, regId, jobPath, jobLogo)
+        /// Generate Phase 2 JWT token with enriched claims (username, regId, jobPath, jobLogo, role)
         /// </summary>
-        private string GenerateEnrichedJwtToken(IdentityUser user, string regId, string jobPath, string? jobLogo)
+        private string GenerateEnrichedJwtToken(IdentityUser user, string regId, string jobPath, string? jobLogo, string roleName)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
@@ -222,6 +222,7 @@ namespace TSIC.API.Controllers
                 new Claim("username", user.UserName ?? ""),
                 new Claim("regId", regId),
                 new Claim("jobPath", jobPath),
+                new Claim(ClaimTypes.Role, roleName), // Add role claim
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
             };
