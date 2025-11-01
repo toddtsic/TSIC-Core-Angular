@@ -350,26 +350,33 @@ public class ProfileMetadataMigrationService
                 return result;
             }
 
-            // 4. Serialize metadata JSON ONCE
-            var jsonOptions = new JsonSerializerOptions
+            // 4. Serialize metadata JSON options
+            var serializerOptions = new JsonSerializerOptions
             {
                 WriteIndented = true,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
-            var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
 
-            // 5. Apply to ALL jobs (if not dry run)
+            // 5. Apply to ALL jobs with JOB-SPECIFIC dropdown options (if not dry run)
             if (!dryRun)
             {
                 foreach (var job in jobs)
                 {
+                    // Clone the base metadata for this specific job
+                    var jobSpecificMetadata = CloneMetadata(metadata);
+
+                    // Inject this job's dropdown options into SELECT fields
+                    InjectJobOptionsIntoMetadata(jobSpecificMetadata, job.JsonOptions);
+
+                    // Serialize job-specific metadata
+                    var metadataJson = JsonSerializer.Serialize(jobSpecificMetadata, serializerOptions);
                     job.PlayerProfileMetadataJson = metadataJson;
                 }
 
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation(
-                    "Applied {ProfileType} metadata ({FieldCount} fields) to {JobCount} jobs",
+                    "Applied {ProfileType} metadata ({FieldCount} fields) to {JobCount} jobs with job-specific dropdown options",
                     profileType, metadata.Fields.Count, jobs.Count);
             }
 
@@ -495,6 +502,61 @@ public class ProfileMetadataMigrationService
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         return metadata;
+    }
+
+    /// <summary>
+    /// Get metadata for a profile type enriched with a specific job's JsonOptions
+    /// This allows previewing how the form will appear for a particular job
+    /// </summary>
+    public async Task<ProfileMetadataWithOptions?> GetProfileMetadataWithJobOptionsAsync(
+        string profileType,
+        Guid jobId)
+    {
+        _logger.LogInformation("Getting metadata for {ProfileType} with options from job {JobId}",
+            profileType, jobId);
+
+        // Get the metadata for this profile type
+        var metadata = await GetProfileMetadataAsync(profileType);
+        if (metadata == null)
+        {
+            _logger.LogWarning("No metadata found for profile type {ProfileType}", profileType);
+            return null;
+        }
+
+        // Get the specific job's JsonOptions
+        var job = await _context.Jobs
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobName, j.JsonOptions })
+            .FirstOrDefaultAsync();
+
+        if (job == null)
+        {
+            _logger.LogWarning("Job {JobId} not found", jobId);
+            return null;
+        }
+
+        // Parse JsonOptions if available
+        Dictionary<string, object>? jsonOptions = null;
+        if (!string.IsNullOrEmpty(job.JsonOptions))
+        {
+            try
+            {
+                jsonOptions = JsonSerializer.Deserialize<Dictionary<string, object>>(job.JsonOptions,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse JsonOptions for job {JobId}", jobId);
+            }
+        }
+
+        return new ProfileMetadataWithOptions
+        {
+            JobId = job.JobId,
+            JobName = job.JobName ?? "Unknown Job",
+            Metadata = metadata,
+            JsonOptions = jsonOptions
+        };
     }
 
     /// <summary>
@@ -763,6 +825,162 @@ public class ProfileMetadataMigrationService
         var json = JsonSerializer.Serialize(source);
         return JsonSerializer.Deserialize<ProfileMetadata>(json)
             ?? new ProfileMetadata { Fields = new List<ProfileMetadataField>() };
+    }
+
+    /// <summary>
+    /// Inject job-specific dropdown options into SELECT fields in the metadata
+    /// Maps Job.JsonOptions into ProfileMetadataField.Options for each SELECT field
+    /// </summary>
+    /// <param name="metadata">The metadata to modify</param>
+    /// <param name="jsonOptionsString">The job's JsonOptions property (JSON string)</param>
+    private void InjectJobOptionsIntoMetadata(ProfileMetadata metadata, string? jsonOptionsString)
+    {
+        if (string.IsNullOrWhiteSpace(jsonOptionsString))
+        {
+            _logger.LogDebug("No JsonOptions available for this job");
+            return;
+        }
+
+        try
+        {
+            // Parse the JsonOptions string
+            var jsonOptions = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonOptionsString,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (jsonOptions == null)
+            {
+                _logger.LogWarning("Failed to deserialize JsonOptions");
+                return;
+            }
+
+            // Find all SELECT fields and inject their options
+            foreach (var field in metadata.Fields.Where(f => f.InputType == "SELECT"))
+            {
+                if (string.IsNullOrEmpty(field.DataSource))
+                {
+                    _logger.LogDebug("SELECT field {FieldName} has no DataSource, skipping", field.Name);
+                    continue;
+                }
+
+                // Try to find matching key in JsonOptions
+                // DataSource might be "positions", JsonOptions key might be "List_Positions"
+                var optionsKey = FindJsonOptionsKey(jsonOptions, field.DataSource);
+
+                if (optionsKey == null)
+                {
+                    _logger.LogDebug("No JsonOptions key found for DataSource '{DataSource}'", field.DataSource);
+                    continue;
+                }
+
+                var jsonElement = jsonOptions[optionsKey];
+
+                // Parse the array of options
+                if (jsonElement.ValueKind == JsonValueKind.Array)
+                {
+                    var options = ParseJsonOptionsArray(jsonElement);
+                    if (options.Count > 0)
+                    {
+                        field.Options = options;
+                        _logger.LogDebug("Injected {Count} options into field {FieldName} from key {Key}",
+                            options.Count, field.Name, optionsKey);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("JsonOptions key {Key} is not an array", optionsKey);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error injecting job options into metadata");
+        }
+    }
+
+    /// <summary>
+    /// Find the JsonOptions key that matches the field's DataSource
+    /// Examples: "positions" -> "List_Positions", "jerseySize" -> "ListSizes_Jersey"
+    /// </summary>
+    private static string? FindJsonOptionsKey(Dictionary<string, JsonElement> jsonOptions, string dataSource)
+    {
+        // Try exact match first (case-insensitive)
+        var exactMatch = jsonOptions.Keys.FirstOrDefault(k =>
+            k.Equals(dataSource, StringComparison.OrdinalIgnoreCase));
+
+        if (exactMatch != null)
+            return exactMatch;
+
+        // Try with "List_" prefix
+        var listMatch = jsonOptions.Keys.FirstOrDefault(k =>
+            k.Equals($"List_{dataSource}", StringComparison.OrdinalIgnoreCase));
+
+        if (listMatch != null)
+            return listMatch;
+
+        // Try partial match (key contains dataSource)
+        var partialMatch = jsonOptions.Keys.FirstOrDefault(k =>
+            k.Contains(dataSource, StringComparison.OrdinalIgnoreCase));
+
+        return partialMatch;
+    }
+
+    /// <summary>
+    /// Parse JsonOptions array format into ProfileFieldOption list
+    /// Input format: [{"Text":"Attack","Value":"attack"}, ...]
+    /// Output format: List<ProfileFieldOption>
+    /// </summary>
+    private static List<ProfileFieldOption> ParseJsonOptionsArray(JsonElement jsonElement)
+    {
+        var options = new List<ProfileFieldOption>();
+
+        try
+        {
+            foreach (var item in jsonElement.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Object)
+                {
+                    // Try to extract Text and Value properties
+                    var text = GetPropertyString(item, "Text") ?? GetPropertyString(item, "text");
+                    var value = GetPropertyString(item, "Value") ?? GetPropertyString(item, "value");
+
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        options.Add(new ProfileFieldOption
+                        {
+                            Value = value,
+                            Label = text ?? value
+                        });
+                    }
+                }
+                else if (item.ValueKind == JsonValueKind.String)
+                {
+                    // Simple string array
+                    var stringValue = item.GetString();
+                    if (!string.IsNullOrEmpty(stringValue))
+                    {
+                        options.Add(new ProfileFieldOption
+                        {
+                            Value = stringValue,
+                            Label = stringValue
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Return empty list on parse error
+        }
+
+        return options;
+    }
+
+    /// <summary>
+    /// Helper to extract string property from JsonElement
+    /// </summary>
+    private static string? GetPropertyString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) ? prop.GetString() : null;
     }
 }
 

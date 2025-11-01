@@ -44,6 +44,7 @@ export interface ProfileMetadataField {
     displayName: string;
     inputType: string;
     dataSource?: string;
+    options?: ProfileFieldOption[];
     validation?: FieldValidation;
     order: number;
     adminOnly: boolean;
@@ -51,6 +52,11 @@ export interface ProfileMetadataField {
     helpText?: string;
     placeholder?: string;
     condition?: FieldCondition;
+}
+
+export interface ProfileFieldOption {
+    value: string;
+    label: string;
 }
 
 export interface FieldValidation {
@@ -78,6 +84,13 @@ export interface ProfileMetadataSource {
     commitSha: string;
     migratedAt: Date;
     migratedBy: string;
+}
+
+export interface ProfileMetadataWithOptions {
+    jobId: string;
+    jobName: string;
+    metadata: ProfileMetadata;
+    jsonOptions?: Record<string, any>;
 }
 
 export interface ValidationTestResult {
@@ -229,7 +242,34 @@ export class ProfileMigrationService {
         });
     }
 
-    updateProfileMetadata(profileType: string, metadata: ProfileMetadata, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
+    /**
+     * Get metadata for a profile enriched with a specific job's JsonOptions
+     * This allows previewing how the form will appear for that job
+     */
+    getProfileMetadataWithJobOptions(
+        profileType: string,
+        jobId: string,
+        onSuccess: (result: ProfileMetadataWithOptions) => void,
+        onError?: (error: any) => void
+    ): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<ProfileMetadataWithOptions>(`${this.apiUrl}/profiles/${profileType}/preview/${jobId}`).subscribe({
+            next: (result) => {
+                this._isLoading.set(false);
+                onSuccess(result);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to load metadata with job options';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
+    } updateProfileMetadata(profileType: string, metadata: ProfileMetadata, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
         this._isLoading.set(true);
         this._errorMessage.set(null);
 

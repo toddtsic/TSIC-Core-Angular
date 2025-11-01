@@ -83,3 +83,15 @@ public class CloneProfileResult
     public int FieldCount { get; set; }
     public string? ErrorMessage { get; set; }
 }
+
+/// <summary>
+/// Profile metadata enriched with job-specific JsonOptions
+/// Used for previewing how a form will appear for a specific job
+/// </summary>
+public class ProfileMetadataWithOptions
+{
+    public Guid JobId { get; set; }
+    public string JobName { get; set; } = string.Empty;
+    public ProfileMetadata Metadata { get; set; } = new();
+    public Dictionary<string, object>? JsonOptions { get; set; }
+}

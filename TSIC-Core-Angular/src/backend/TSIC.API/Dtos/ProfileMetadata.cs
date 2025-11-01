@@ -44,6 +44,11 @@ public class ProfileMetadataField
     public string? DataSource { get; set; }
 
     /// <summary>
+    /// Available options for SELECT/RADIO inputs (populated from Job.JsonOptions during migration)
+    /// </summary>
+    public List<ProfileFieldOption>? Options { get; set; }
+
+    /// <summary>
     /// Validation rules
     /// </summary>
     public FieldValidation? Validation { get; set; }
@@ -94,6 +99,15 @@ public class FieldCondition
     public string Field { get; set; } = string.Empty;
     public object? Value { get; set; }
     public string Operator { get; set; } = "equals"; // equals, notEquals, greaterThan, etc.
+}
+
+/// <summary>
+/// Dropdown/radio option for SELECT fields
+/// </summary>
+public class ProfileFieldOption
+{
+    public string Value { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
 }
 
 /// <summary>

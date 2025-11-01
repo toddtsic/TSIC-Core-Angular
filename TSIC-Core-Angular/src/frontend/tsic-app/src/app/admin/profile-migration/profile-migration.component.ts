@@ -42,11 +42,21 @@ export class ProfileMigrationComponent implements OnInit {
     // Preview toggle
     showJsonView = signal(false);
 
+    // Job-specific preview
+    selectedJobId = signal<string | null>(null);
+    jobSpecificOptions = signal<Record<string, any> | null>(null);
+
     // Computed sorted job names for dropdown
     sortedAffectedJobs = computed(() => {
         const jobs = this.previewResult()?.affectedJobNames || [];
         return [...jobs].sort((a, b) => a.localeCompare(b));
     });
+
+    // Computed: Get job ID from job name (using affectedJobIds array)
+    getJobIdFromIndex(index: number): string | null {
+        const jobIds = this.previewResult()?.affectedJobIds;
+        return jobIds?.[index] ?? null;
+    }
 
     // Computed
     get totalJobs(): number {
@@ -183,6 +193,51 @@ export class ProfileMigrationComponent implements OnInit {
     closePreview(): void {
         this.previewResult.set(null);
         this.selectedProfile.set(null);
+        this.selectedJobId.set(null);
+        this.jobSpecificOptions.set(null);
+    }
+
+    /**
+     * Handle job selection change in preview modal
+     * Fetches job-specific JsonOptions and enriches the metadata
+     */
+    onJobSelected(event: Event): void {
+        const select = event.target as HTMLSelectElement;
+        const selectedIndex = select.selectedIndex;
+
+        if (selectedIndex === 0) {
+            // "Select a job..." option selected - clear job-specific data
+            this.selectedJobId.set(null);
+            this.jobSpecificOptions.set(null);
+            return;
+        }
+
+        // Get job ID from the selected index (subtract 1 for placeholder option)
+        const jobId = this.getJobIdFromIndex(selectedIndex - 1);
+        if (!jobId) {
+            console.warn('No job ID found for index', selectedIndex - 1);
+            return;
+        }
+
+        this.selectedJobId.set(jobId);
+
+        const profile = this.selectedProfile();
+        if (!profile) return;
+
+        // Fetch metadata with job-specific options
+        this.migrationService.getProfileMetadataWithJobOptions(
+            profile.profileType,
+            jobId,
+            (result) => {
+                // Update the preview with job-specific options
+                this.jobSpecificOptions.set(result.jsonOptions ?? null);
+                console.log('Job-specific options loaded:', result.jsonOptions);
+            },
+            (error) => {
+                console.error('Failed to load job-specific options:', error);
+                this.errorMessage.set('Failed to load job-specific options');
+            }
+        );
     }
 
     confirmAction(): void {

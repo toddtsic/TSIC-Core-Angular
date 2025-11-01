@@ -414,6 +414,159 @@ The backend `CSharpToMetadataParser` infers input types from C# properties:
 - **GitHub Token:** Stored in `appsettings.Development.json` (excluded from git)
 - **Security:** Token is local-only, not committed to repository
 
+**November 1, 2025 - CRITICAL: Job-Specific Dropdown Options Architecture:**
+
+### The Problem
+When migrating profile metadata to `PlayerProfileMetadataJson`, the original implementation:
+1. Fetched profile metadata from GitHub **once**
+2. Serialized it to JSON **once**
+3. Applied the **same JSON to all jobs** using that profile
+
+This created a critical flaw: all jobs would show identical dropdown options, but each job's `Job.JsonOptions` contains **unique, job-specific values** (specific team names, jersey sizes, position options, etc.).
+
+### The Solution: Job-Specific Metadata Injection
+
+**Backend Architecture Changes:**
+
+1. **Added `ProfileFieldOption` class** (`ProfileMetadata.cs`)
+   ```csharp
+   public class ProfileFieldOption {
+       public string Value { get; set; } = string.Empty;
+       public string Label { get; set; } = string.Empty;
+   }
+   ```
+
+2. **Added `Options` property to `ProfileMetadataField`**
+   - Stores job-specific dropdown options populated from `Job.JsonOptions`
+   - Embeds dropdown data directly into the metadata for each job
+
+3. **Modified `MigrateProfileAsync` method** (`ProfileMetadataMigrationService.cs`)
+   ```csharp
+   // OLD: Same metadata for all jobs
+   var metadataJson = JsonSerializer.Serialize(metadata, options);
+   foreach (var job in jobs) {
+       job.PlayerProfileMetadataJson = metadataJson;
+   }
+   
+   // NEW: Job-specific metadata for each job
+   foreach (var job in jobs) {
+       var jobSpecificMetadata = CloneMetadata(metadata);
+       InjectJobOptionsIntoMetadata(jobSpecificMetadata, job.JsonOptions);
+       var metadataJson = JsonSerializer.Serialize(jobSpecificMetadata, options);
+       job.PlayerProfileMetadataJson = metadataJson;
+   }
+   ```
+
+4. **Created helper methods for JsonOptions parsing:**
+   - `InjectJobOptionsIntoMetadata(metadata, jsonOptionsString)` - Main injection orchestrator
+     - Parses `Job.JsonOptions` JSON string
+     - Iterates SELECT fields in metadata
+     - Maps field `dataSource` to JsonOptions keys
+     - Injects parsed options into `field.Options`
+   
+   - `FindJsonOptionsKey(jsonOptions, dataSource)` - Smart key matching
+     - Maps `"positions"` → `"List_Positions"`
+     - Maps `"jerseySize"` → `"ListSizes_Jersey"`
+     - Handles exact match, prefix match, and partial match
+   
+   - `ParseJsonOptionsArray(jsonElement)` - Array parser
+     - Converts: `[{"Text":"Attack","Value":"attack"}]`
+     - To: `List<ProfileFieldOption>`
+     - Handles both object and string array formats
+   
+   - `GetPropertyString(element, propertyName)` - Safe property extraction
+
+**Frontend Architecture Changes:**
+
+1. **Added `ProfileFieldOption` interface** (`profile-migration.service.ts`)
+   ```typescript
+   export interface ProfileFieldOption {
+       value: string;
+       label: string;
+   }
+   ```
+
+2. **Updated `ProfileMetadataField` interface**
+   ```typescript
+   export interface ProfileMetadataField {
+       // ... existing properties
+       options?: ProfileFieldOption[];  // NEW: Job-specific options
+   }
+   ```
+
+3. **Updated `getDropdownOptions` priority** (`ProfileFormPreviewComponent`)
+   ```typescript
+   // PRIORITY 1: Use field.options (populated during migration)
+   if (field.options && field.options.length > 0) {
+       return field.options;
+   }
+   
+   // PRIORITY 2: Use jobOptions (from job selector in preview)
+   const jobOptions = this._jobOptions();
+   if (jobOptions) {
+       // ... parse and return
+   }
+   
+   // PRIORITY 3: Fallback to mock data (unmigrated profiles)
+   return this.fieldDataService.getOptionsForDataSource(field.dataSource);
+   ```
+
+### Impact & Benefits
+
+✅ **Each job gets unique `PlayerProfileMetadataJson`** with job-specific dropdown options embedded  
+✅ **Forms automatically display correct options** for each job without runtime lookups  
+✅ **No additional API calls needed** - options are pre-embedded in metadata  
+✅ **Preview functionality enhanced** - job selector still works for pre-migration testing  
+✅ **Three-tier fallback system** ensures options always available:
+   1. Migrated data (job-specific, accurate)
+   2. Preview mode (dynamic, for testing)
+   3. Mock data (development, fallback)
+
+### Data Flow Example
+
+**Job 1 (CAC04 - Attack/Defense positions):**
+```json
+{
+  "name": "position",
+  "inputType": "SELECT",
+  "dataSource": "positions",
+  "options": [
+    {"value": "attack", "label": "Attack"},
+    {"value": "defense", "label": "Defense"},
+    {"value": "midfield", "label": "Midfield"}
+  ]
+}
+```
+
+**Job 2 (PP10 - Forward/Goalie positions):**
+```json
+{
+  "name": "position",
+  "inputType": "SELECT",
+  "dataSource": "positions",
+  "options": [
+    {"value": "forward", "label": "Forward"},
+    {"value": "goalie", "label": "Goalie"},
+    {"value": "defense", "label": "Defense"}
+  ]
+}
+```
+
+### Migration Workflow
+
+1. **Fetch profile structure from GitHub** (once per profile type)
+2. **Parse into base metadata** (field structure without options)
+3. **For each job using this profile:**
+   - Clone base metadata
+   - Parse job's `JsonOptions` string
+   - Find SELECT fields
+   - Map `dataSource` to JsonOptions keys
+   - Inject options into metadata
+   - Serialize job-specific metadata
+   - Save to `Job.PlayerProfileMetadataJson`
+
+**Result:** Each of 28 CAC04 jobs now has identical field structure but unique dropdown options matching their specific `JsonOptions` data.
+
 **Implementation Time:** ~8 hours total  
 **Status:** ✅ Complete, form preview ready (requires dev server restart)
 

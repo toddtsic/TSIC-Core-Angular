@@ -251,6 +251,40 @@ public class ProfileMigrationController : ControllerBase
     }
 
     /// <summary>
+    /// Get metadata for a specific profile type enriched with a specific job's JsonOptions
+    /// This allows previewing how the form will appear for a particular job
+    /// </summary>
+    /// <param name="profileType">Profile type (e.g., PP10, CAC05)</param>
+    /// <param name="jobId">Job ID to get JsonOptions from</param>
+    /// <returns>Metadata enriched with job-specific dropdown options</returns>
+    [HttpGet("profiles/{profileType}/preview/{jobId:guid}")]
+    public async Task<ActionResult<ProfileMetadataWithOptions>> GetProfileMetadataWithJobOptions(
+        string profileType,
+        Guid jobId)
+    {
+        try
+        {
+            _logger.LogInformation("Getting metadata for profile {ProfileType} with options from job {JobId}",
+                profileType, jobId);
+
+            var result = await _migrationService.GetProfileMetadataWithJobOptionsAsync(profileType, jobId);
+
+            if (result == null)
+            {
+                return NotFound(new { error = $"No metadata found for profile {profileType} or job {jobId} not found." });
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get metadata for profile {ProfileType} with job {JobId} options",
+                profileType, jobId);
+            return StatusCode(500, new { error = "Failed to get metadata with job options", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Update metadata for a profile type (applies to ALL jobs using it)
     /// </summary>
     /// <param name="profileType">Profile type (e.g., PP10, CAC05)</param>

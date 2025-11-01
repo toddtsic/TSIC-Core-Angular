@@ -275,7 +275,8 @@
                         } @else {
                         <!-- Form Preview -->
                         <app-profile-form-preview [metadata]="previewResult()?.generatedMetadata ?? null"
-                            [showFieldNumbers]="true" [showValidationHints]="true" [readonly]="true">
+                            [jobOptions]="jobSpecificOptions()" [showFieldNumbers]="true" [showValidationHints]="true"
+                            [readonly]="true">
                         </app-profile-form-preview>
                         }
                     </div>
@@ -283,8 +284,30 @@
                 }
 
                 <div class="mb-3">
+                    <label for="jobSelectorDropdown" class="form-label">
+                        <strong>Preview for Specific Job:</strong>
+                    </label>
+                    <select id="jobSelectorDropdown" class="form-select mb-2" (change)="onJobSelected($event)">
+                        <option value="">Select a job to see its specific dropdown options...</option>
+                        @for (jobName of sortedAffectedJobs(); track jobName) {
+                        <option>{{ jobName }}</option>
+                        }
+                    </select>
+                    @if (selectedJobId()) {
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        Showing form preview with dropdown options from: <strong>{{ sortedAffectedJobs()[0] }}</strong>
+                    </div>
+                    } @else {
+                    <small class="text-muted">
+                        Select a job above to preview with that job's specific dropdown values (from JsonOptions).
+                    </small>
+                    }
+                </div>
+
+                <div class="mb-3">
                     <label for="affectedJobsDropdown" class="form-label">
-                        <strong>Affected Jobs ({{ sortedAffectedJobs().length }}):</strong>
+                        <strong>All Affected Jobs ({{ sortedAffectedJobs().length }}):</strong>
                     </label>
                     <select id="affectedJobsDropdown" class="form-select">
                         @for (jobName of sortedAffectedJobs(); track jobName) {
