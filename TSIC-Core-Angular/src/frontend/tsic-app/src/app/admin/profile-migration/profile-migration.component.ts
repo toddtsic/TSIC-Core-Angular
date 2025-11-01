@@ -1,16 +1,22 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ProfileMigrationService, ProfileSummary, ProfileMigrationResult, ProfileBatchMigrationReport } from '../../core/services/profile-migration.service';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
     selector: 'app-profile-migration',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, RouterLink],
     templateUrl: './profile-migration.component.html',
     styleUrls: ['./profile-migration.component.scss']
 })
 export class ProfileMigrationComponent implements OnInit {
     private readonly migrationService = inject(ProfileMigrationService);
+    private readonly authService = inject(AuthService);
+
+    // Navigation
+    jobPath = computed(() => this.authService.currentUser()?.jobPath || 'tsic');
 
     // UI State
     isLoading = signal(false);

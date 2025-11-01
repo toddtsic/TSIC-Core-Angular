@@ -23,9 +23,12 @@ export class JobHomeComponent implements OnInit {
   isAuthenticated = signal(false);
 
   ngOnInit() {
-    // Get jobPath from route
-    const path = this.route.snapshot.paramMap.get('jobPath') || '';
-    this.jobPath.set(path);
+    // Get jobPath from route - check parent if on /home child route
+    let jobPathParam = this.route.snapshot.paramMap.get('jobPath');
+    if (!jobPathParam && this.route.parent) {
+      jobPathParam = this.route.parent.snapshot.paramMap.get('jobPath');
+    }
+    this.jobPath.set(jobPathParam || '');
 
     // Check if user is authenticated
     this.isAuthenticated.set(this.authService.isAuthenticated());

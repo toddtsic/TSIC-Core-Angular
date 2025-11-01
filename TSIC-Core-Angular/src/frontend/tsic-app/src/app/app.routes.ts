@@ -56,6 +56,11 @@ export const routes: Routes = [
 				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
 				canActivate: [anonymousJobGuard]
 			},
+			{
+				path: 'home',
+				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
+				canActivate: [anonymousJobGuard]
+			},
 			// Admin-only routes for ANY job (SuperUser required)
 			{
 				path: 'admin',

@@ -110,7 +110,7 @@ export interface CloneProfileResult {
 })
 export class ProfileMigrationService {
     private readonly http = inject(HttpClient);
-    private readonly apiUrl = `${environment.apiUrl}/api/admin/profile-migration`;
+    private readonly apiUrl = `${environment.apiUrl}/admin/profile-migration`;
 
     // ============================================================================
     // MIGRATION DASHBOARD APIs

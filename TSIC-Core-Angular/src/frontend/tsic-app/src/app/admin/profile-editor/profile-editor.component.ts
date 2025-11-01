@@ -1,19 +1,25 @@
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ProfileMigrationService, ProfileMetadata, ProfileMetadataField, ValidationTestResult } from '../../core/services/profile-migration.service';
+import { AuthService } from '../../core/services/auth.service';
 
 type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO';
 
 @Component({
     selector: 'app-profile-editor',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, RouterLink],
     templateUrl: './profile-editor.component.html',
     styleUrl: './profile-editor.component.scss'
 })
 export class ProfileEditorComponent implements OnInit {
     private readonly migrationService = inject(ProfileMigrationService);
+    private readonly authService = inject(AuthService);
+
+    // Navigation
+    jobPath = computed(() => this.authService.currentUser()?.jobPath || 'tsic');
 
     // State signals
     isLoading = signal(false);
