@@ -28,10 +28,10 @@ export class ProfileFormPreviewComponent {
 
     @Input() showFieldNumbers = true;
     @Input() showValidationHints = true;
-    @Input() readonly = true;
+    @Input() readonly = false; // Allow interaction to test dropdowns
 
     private readonly _metadata = signal<ProfileMetadata | null>(null);
-    private readonly _jobOptions = signal<Record<string, unknown> | null>(null);
+    readonly _jobOptions = signal<Record<string, unknown> | null>(null);
     formGroup = signal<FormGroup | null>(null);
 
     // Computed sorted fields
@@ -40,6 +40,51 @@ export class ProfileFormPreviewComponent {
         if (!meta) return [];
         return [...meta.fields].sort((a, b) => a.order - b.order);
     });
+
+    getDropdownOptions(field: ProfileMetadataField): Array<{ value: string; label: string }> {
+        // Call _jobOptions() to establish reactive dependency
+        const jobOptions = this._jobOptions();
+        return this.computeDropdownOptions(field, jobOptions);
+    }
+
+    private computeDropdownOptions(
+        field: ProfileMetadataField, 
+        jobOptions: Record<string, unknown> | null
+    ): Array<{ value: string; label: string }> {
+        // PRIORITY 1: Use options from field metadata (populated during migration)
+        if (field.options && field.options.length > 0) {
+            return field.options;
+        }
+
+        if (!field.dataSource) return [];
+
+        // PRIORITY 2: Try job-specific JsonOptions
+        if (jobOptions) {
+            const dataSourceLower = field.dataSource.toLowerCase();
+            
+            // Try multiple matching strategies for JsonOptions keys
+            // Examples: "positions" -> "List_Positions", "jerseySize" -> "ListSizes_Jersey"
+            const optionsKey = Object.keys(jobOptions).find(key => {
+                const keyLower = key.toLowerCase();
+                return keyLower.includes(dataSourceLower) || 
+                       keyLower.includes(`list_${dataSourceLower}`) ||
+                       keyLower.includes(`list${dataSourceLower}`);
+            });
+
+            if (optionsKey) {
+                const optionsArray = jobOptions[optionsKey];
+                if (Array.isArray(optionsArray)) {
+                    return optionsArray.map((opt: any) => ({
+                        value: opt.Value || opt.value || '',
+                        label: opt.Text || opt.text || opt.label || ''
+                    }));
+                }
+            }
+        }
+
+        // PRIORITY 3: Mock data fallback
+        return this.fieldDataService.getOptionsForDataSource(field.dataSource);
+    }
 
     private buildForm(): void {
         const meta = this._metadata();
@@ -66,40 +111,6 @@ export class ProfileFormPreviewComponent {
             default:
                 return '';
         }
-    }
-
-    getDropdownOptions(field: ProfileMetadataField): Array<{ value: string; label: string }> {
-        // PRIORITY 1: Use options from field metadata (populated during migration with job-specific data)
-        if (field.options && field.options.length > 0) {
-            return field.options;
-        }
-
-        // Return empty array if no dataSource specified
-        if (!field.dataSource) return [];
-
-        // PRIORITY 2: Try to get options from job-specific JsonOptions (for preview with job selector)
-        const jobOptions = this._jobOptions();
-        if (jobOptions) {
-            // Try to find matching key in JsonOptions
-            // JsonOptions keys might be like "List_Positions", "ListSizes_Jersey", etc.
-            const optionsKey = Object.keys(jobOptions).find(key =>
-                key.toLowerCase().includes(field.dataSource!.toLowerCase())
-            );
-
-            if (optionsKey) {
-                const rawOptions = jobOptions[optionsKey];
-                if (Array.isArray(rawOptions)) {
-                    // Convert JsonOptions format to our format
-                    return rawOptions.map((opt: any) => ({
-                        value: opt.Value || opt.value || opt,
-                        label: opt.Text || opt.text || opt.Value || opt.value || opt
-                    }));
-                }
-            }
-        }
-
-        // PRIORITY 3: Fallback to mock data service (for unmigrated profiles or preview without job selection)
-        return this.fieldDataService.getOptionsForDataSource(field.dataSource!);
     }
 
     getValidationHint(field: ProfileMetadataField): string {

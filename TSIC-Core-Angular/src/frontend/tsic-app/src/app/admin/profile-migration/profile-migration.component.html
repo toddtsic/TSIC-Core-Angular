@@ -298,8 +298,7 @@
                         } @else {
                         <!-- Form Preview -->
                         <app-profile-form-preview [metadata]="previewResult()?.generatedMetadata ?? null"
-                            [jobOptions]="jobSpecificOptions()" [showFieldNumbers]="true" [showValidationHints]="true"
-                            [readonly]="true">
+                            [jobOptions]="jobSpecificOptions()" [showFieldNumbers]="true" [showValidationHints]="true">
                         </app-profile-form-preview>
                         }
                     </div>
@@ -308,7 +307,7 @@
 
                 <div class="mb-3">
                     <label for="affectedJobsDropdown" class="form-label">
-                        <strong>All Affected Jobs ({{ allAffectedJobs().length }}):</strong>
+                        <strong>All Affected Jobs (Current Year ± 1): {{ allAffectedJobs().length }}</strong>
                     </label>
                     <select id="affectedJobsDropdown" class="form-select">
                         @for (jobName of allAffectedJobs(); track jobName) {

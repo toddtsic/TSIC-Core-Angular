@@ -23,6 +23,8 @@
         .form-control,
         .form-select {
             background-color: white;
+            position: relative; // Ensure proper stacking context
+            z-index: 1; // Above siblings but below modal backdrop
         }
 
         small {

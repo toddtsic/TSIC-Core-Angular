@@ -495,21 +495,61 @@ This created a critical flaw: all jobs would show identical dropdown options, bu
    ```
 
 3. **Updated `getDropdownOptions` priority** (`ProfileFormPreviewComponent`)
+   
+   **Reactive Signals Approach:**
+   The component uses Angular Signals for proper reactivity when job-specific options change.
+   
    ```typescript
-   // PRIORITY 1: Use field.options (populated during migration)
-   if (field.options && field.options.length > 0) {
-       return field.options;
+   getDropdownOptions(field: ProfileMetadataField): Array<{ value: string; label: string }> {
+       // Call _jobOptions() to establish reactive dependency
+       // When _jobOptions signal changes, template automatically re-renders
+       const jobOptions = this._jobOptions();
+       return this.computeDropdownOptions(field, jobOptions);
    }
    
-   // PRIORITY 2: Use jobOptions (from job selector in preview)
-   const jobOptions = this._jobOptions();
-   if (jobOptions) {
-       // ... parse and return
+   private computeDropdownOptions(
+       field: ProfileMetadataField, 
+       jobOptions: Record<string, unknown> | null
+   ): Array<{ value: string; label: string }> {
+       // PRIORITY 1: Use field.options (populated during migration)
+       if (field.options && field.options.length > 0) {
+           return field.options;
+       }
+       
+       // PRIORITY 2: Use jobOptions (from job selector in preview)
+       if (jobOptions) {
+           // Find matching key: "positions" -> "List_Positions"
+           const dataSourceLower = field.dataSource.toLowerCase();
+           const optionsKey = Object.keys(jobOptions).find(key => {
+               const keyLower = key.toLowerCase();
+               return keyLower.includes(dataSourceLower);
+           });
+           
+           if (optionsKey && Array.isArray(jobOptions[optionsKey])) {
+               return jobOptions[optionsKey].map((opt: any) => ({
+                   value: opt.Value || opt.value || '',
+                   label: opt.Text || opt.text || opt.label || ''
+               }));
+           }
+       }
+       
+       // PRIORITY 3: Fallback to mock data (unmigrated profiles)
+       return this.fieldDataService.getOptionsForDataSource(field.dataSource);
    }
-   
-   // PRIORITY 3: Fallback to mock data (unmigrated profiles)
-   return this.fieldDataService.getOptionsForDataSource(field.dataSource);
    ```
+   
+   **Why This Works (Angular Signals Reactivity):**
+   - When job is selected, `jobSpecificOptions.set(newOptions)` updates the signal
+   - Signal is passed to child component via `[jobOptions]="jobSpecificOptions()"`
+   - Child component stores it in `_jobOptions` signal
+   - Template calls `getDropdownOptions(field)` in `@for` loop
+   - `getDropdownOptions` calls `this._jobOptions()` - establishing reactive dependency
+   - Angular detects signal change and automatically re-runs the `@for` loop
+   - Dropdowns populate with new job-specific options
+   
+   **Key Insight:** Calling `_jobOptions()` inside the method (not just reading a property) 
+   is what establishes the reactive dependency. When the signal changes, Angular knows 
+   this method depends on it and triggers re-evaluation.
 
 ### Impact & Benefits
 
