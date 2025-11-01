@@ -21,6 +21,11 @@ builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJobLookupService, JobLookupService>();
 
+// Profile Migration Services
+builder.Services.AddHttpClient<GitHubProfileFetcher>();
+builder.Services.AddScoped<CSharpToMetadataParser>();
+builder.Services.AddScoped<ProfileMetadataMigrationService>();
+
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
