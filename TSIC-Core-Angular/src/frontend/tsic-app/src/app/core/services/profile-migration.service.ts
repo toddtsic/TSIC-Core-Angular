@@ -1,6 +1,5 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface ProfileSummary {
@@ -112,40 +111,157 @@ export class ProfileMigrationService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environment.apiUrl}/admin/profile-migration`;
 
+    // Signals for state management
+    private readonly _profileSummaries = signal<ProfileSummary[]>([]);
+    private readonly _isLoading = signal(false);
+    private readonly _errorMessage = signal<string | null>(null);
+
+    // Public read-only signals
+    readonly profileSummaries = this._profileSummaries.asReadonly();
+    readonly isLoading = this._isLoading.asReadonly();
+    readonly errorMessage = this._errorMessage.asReadonly();
+
     // ============================================================================
     // MIGRATION DASHBOARD APIs
     // ============================================================================
 
-    getProfileSummaries(): Observable<ProfileSummary[]> {
-        return this.http.get<ProfileSummary[]>(`${this.apiUrl}/profiles`);
+    loadProfileSummaries(): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<ProfileSummary[]>(`${this.apiUrl}/profiles`).subscribe({
+            next: (profiles) => {
+                this._profileSummaries.set(profiles);
+                this._isLoading.set(false);
+            },
+            error: (error) => {
+                this._errorMessage.set(error.error?.message || 'Failed to load profile summaries');
+                this._isLoading.set(false);
+            }
+        });
     }
 
-    previewProfileMigration(profileType: string): Observable<ProfileMigrationResult> {
-        return this.http.get<ProfileMigrationResult>(`${this.apiUrl}/preview-profile/${profileType}`);
+    previewProfileMigration(profileType: string, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<ProfileMigrationResult>(`${this.apiUrl}/preview-profile/${profileType}`).subscribe({
+            next: (result) => {
+                this._isLoading.set(false);
+                onSuccess(result);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Preview failed';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
     }
 
-    migrateProfile(profileType: string): Observable<ProfileMigrationResult> {
-        return this.http.post<ProfileMigrationResult>(`${this.apiUrl}/migrate-profile/${profileType}`, {});
+    migrateProfile(profileType: string, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.post<ProfileMigrationResult>(`${this.apiUrl}/migrate-profile/${profileType}`, {}).subscribe({
+            next: (result) => {
+                this._isLoading.set(false);
+                // Reload summaries to reflect changes
+                this.loadProfileSummaries();
+                onSuccess(result);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Migration failed';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
     }
 
-    migrateAllProfiles(request: MigrateProfilesRequest): Observable<ProfileBatchMigrationReport> {
-        return this.http.post<ProfileBatchMigrationReport>(`${this.apiUrl}/migrate-all-profiles`, request);
+    migrateAllProfiles(request: MigrateProfilesRequest, onSuccess: (report: ProfileBatchMigrationReport) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.post<ProfileBatchMigrationReport>(`${this.apiUrl}/migrate-all-profiles`, request).subscribe({
+            next: (report) => {
+                this._isLoading.set(false);
+                // Reload summaries to reflect changes
+                this.loadProfileSummaries();
+                onSuccess(report);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Batch migration failed';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
     }
 
     // ============================================================================
     // PROFILE EDITOR APIs
     // ============================================================================
 
-    getProfileMetadata(profileType: string): Observable<ProfileMetadata> {
-        return this.http.get<ProfileMetadata>(`${this.apiUrl}/profiles/${profileType}/metadata`);
+    getProfileMetadata(profileType: string, onSuccess: (metadata: ProfileMetadata) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<ProfileMetadata>(`${this.apiUrl}/profiles/${profileType}/metadata`).subscribe({
+            next: (metadata) => {
+                this._isLoading.set(false);
+                onSuccess(metadata);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to load metadata';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
     }
 
-    updateProfileMetadata(profileType: string, metadata: ProfileMetadata): Observable<ProfileMigrationResult> {
-        return this.http.put<ProfileMigrationResult>(`${this.apiUrl}/profiles/${profileType}/metadata`, metadata);
+    updateProfileMetadata(profileType: string, metadata: ProfileMetadata, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.put<ProfileMigrationResult>(`${this.apiUrl}/profiles/${profileType}/metadata`, metadata).subscribe({
+            next: (result) => {
+                this._isLoading.set(false);
+                // Reload summaries to reflect changes
+                this.loadProfileSummaries();
+                onSuccess(result);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to update metadata';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
     }
 
-    testValidation(field: ProfileMetadataField, testValue: string): Observable<ValidationTestResult> {
-        return this.http.post<ValidationTestResult>(`${this.apiUrl}/test-validation`, { field, testValue });
+    testValidation(field: ProfileMetadataField, testValue: string, onSuccess: (result: ValidationTestResult) => void, onError?: (error: any) => void): void {
+        this.http.post<ValidationTestResult>(`${this.apiUrl}/test-validation`, { field, testValue }).subscribe({
+            next: (result) => {
+                onSuccess(result);
+            },
+            error: (error) => {
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
     }
 
     // ============================================================================
@@ -156,9 +272,25 @@ export class ProfileMigrationService {
      * Clone an existing profile with auto-incremented name
      * Creates a new profile for the current user's job (determined from JWT token)
      */
-    cloneProfile(sourceProfileType: string): Observable<CloneProfileResult> {
-        return this.http.post<CloneProfileResult>(`${this.apiUrl}/clone-profile`, {
-            sourceProfileType
+    cloneProfile(sourceProfileType: string, onSuccess: (result: CloneProfileResult) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.post<CloneProfileResult>(`${this.apiUrl}/clone-profile`, { sourceProfileType }).subscribe({
+            next: (result) => {
+                this._isLoading.set(false);
+                // Reload summaries to include new profile
+                this.loadProfileSummaries();
+                onSuccess(result);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to clone profile';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
         });
     }
 }

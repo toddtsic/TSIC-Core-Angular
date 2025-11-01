@@ -1,0 +1,117 @@
+<div class="profile-form-preview">
+    @if (formGroup()) {
+    <form [formGroup]="formGroup()!">
+        <div class="row">
+            @for (field of sortedFields(); track field.name) {
+            <!-- Skip HIDDEN fields in preview -->
+            @if (!isHiddenField(field)) {
+            <div class="col-md-6 mb-3">
+                <div class="form-field-preview">
+                    <!-- Field Label with Order Number -->
+                    <label [for]="field.name" class="form-label">
+                        @if (showFieldNumbers) {
+                        <span class="badge bg-secondary me-2">{{ field.order }}</span>
+                        }
+                        <i class="bi {{ getFieldIcon(field) }} me-1"></i>
+                        {{ field.displayName }}
+                        @if (field.validation?.required) {
+                        <span class="text-danger">*</span>
+                        }
+                        @if (field.adminOnly) {
+                        <span class="badge bg-warning text-dark ms-2">Admin Only</span>
+                        }
+                        @if (field.computed) {
+                        <span class="badge bg-info ms-2">Computed</span>
+                        }
+                    </label>
+
+                    <!-- TEXT Input -->
+                    @if (field.inputType === 'TEXT' || field.inputType === 'EMAIL' || field.inputType === 'TEL') {
+                    <input [type]="field.inputType === 'EMAIL' ? 'email' : field.inputType === 'TEL' ? 'tel' : 'text'"
+                        class="form-control" [id]="field.name" [formControlName]="field.name"
+                        [placeholder]="'Enter ' + field.displayName" [readonly]="readonly">
+                    }
+
+                    <!-- NUMBER Input -->
+                    @else if (field.inputType === 'NUMBER') {
+                    <input type="number" class="form-control" [id]="field.name" [formControlName]="field.name"
+                        [placeholder]="'Enter ' + field.displayName" [min]="field.validation?.min ?? null"
+                        [max]="field.validation?.max ?? null" [readonly]="readonly">
+                    }
+
+                    <!-- DATE Input -->
+                    @else if (field.inputType === 'DATE') {
+                    <input type="date" class="form-control" [id]="field.name" [formControlName]="field.name"
+                        [readonly]="readonly">
+                    }
+
+                    <!-- SELECT Input -->
+                    @else if (field.inputType === 'SELECT') {
+                    <select class="form-select" [id]="field.name" [formControlName]="field.name" [disabled]="readonly">
+                        <option value="">-- Select {{ field.displayName }} --</option>
+                        @for (option of getDropdownOptions(field); track option.value) {
+                        <option [value]="option.value">{{ option.label }}</option>
+                        }
+                        @if (getDropdownOptions(field).length === 0) {
+                        <option disabled>No options available</option>
+                        }
+                    </select>
+                    @if (field.dataSource) {
+                    <small class="text-muted">Data Source: <code>{{ field.dataSource }}</code></small>
+                    }
+                    }
+
+                    <!-- CHECKBOX Input -->
+                    @else if (field.inputType === 'CHECKBOX') {
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" [id]="field.name" [formControlName]="field.name"
+                            [disabled]="readonly">
+                        <label class="form-check-label" [for]="field.name">
+                            {{ field.displayName }}
+                        </label>
+                    </div>
+                    }
+
+                    <!-- FILE Input -->
+                    @else if (field.inputType === 'FILE') {
+                    <input type="file" class="form-control" [id]="field.name" [disabled]="readonly">
+                    <small class="text-muted">File upload field (preview only)</small>
+                    }
+
+                    <!-- Unknown Type -->
+                    @else {
+                    <input type="text" class="form-control" [id]="field.name" [formControlName]="field.name"
+                        [placeholder]="'Unknown type: ' + field.inputType" [readonly]="readonly">
+                    }
+
+                    <!-- Validation Hints -->
+                    @if (showValidationHints && getValidationHint(field)) {
+                    <small class="text-muted d-block mt-1">
+                        <i class="bi bi-info-circle"></i> {{ getValidationHint(field) }}
+                    </small>
+                    }
+
+                    <!-- Custom Validation Message -->
+                    @if (field.validation?.message) {
+                    <small class="text-info d-block mt-1">
+                        <i class="bi bi-chat-square-text"></i> {{ field.validation?.message }}
+                    </small>
+                    }
+
+                    <!-- DB Column Info -->
+                    <small class="text-muted d-block mt-1">
+                        DB: <code>{{ field.dbColumn }}</code> | JSON: <code>{{ field.name }}</code>
+                    </small>
+                </div>
+            </div>
+            }
+            }
+        </div>
+    </form>
+    } @else {
+    <div class="text-center py-4 text-muted">
+        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+        <p class="mt-2">No metadata to preview</p>
+    </div>
+    }
+</div>

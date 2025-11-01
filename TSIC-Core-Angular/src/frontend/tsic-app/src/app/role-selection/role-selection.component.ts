@@ -38,6 +38,13 @@ export class RoleSelectionComponent implements OnInit {
       next: (registrations) => {
         this.registrations.set(registrations);
         this.isLoading.set(false);
+
+        // Autofocus the first dropdown and show popup after registrations load
+        setTimeout(() => {
+          if (this.firstDropdown) {
+            this.firstDropdown.showPopup();
+          }
+        }, 100);
       },
       error: (error) => {
         this.isLoading.set(false);

@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProfileMigrationService, ProfileSummary, ProfileMigrationResult, ProfileBatchMigrationReport } from '../../core/services/profile-migration.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ProfileFormPreviewComponent } from '../../shared/components/profile-form-preview/profile-form-preview.component';
 
 @Component({
     selector: 'app-profile-migration',
     standalone: true,
-    imports: [CommonModule, RouterLink],
+    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent],
     templateUrl: './profile-migration.component.html',
     styleUrls: ['./profile-migration.component.scss']
 })
@@ -18,14 +19,16 @@ export class ProfileMigrationComponent implements OnInit {
     // Navigation
     jobPath = computed(() => this.authService.currentUser()?.jobPath || 'tsic');
 
-    // UI State
-    isLoading = signal(false);
+    // Use service signals
+    profiles = this.migrationService.profileSummaries;
+    isLoading = this.migrationService.isLoading;
+
+    // Component-specific UI State
     isMigrating = signal(false);
     errorMessage = signal<string | null>(null);
     successMessage = signal<string | null>(null);
 
     // Data
-    profiles = signal<ProfileSummary[]>([]);
     migrationReport = signal<ProfileBatchMigrationReport | null>(null);
     selectedProfile = signal<ProfileSummary | null>(null);
     previewResult = signal<ProfileMigrationResult | null>(null);
@@ -35,6 +38,15 @@ export class ProfileMigrationComponent implements OnInit {
     confirmModalTitle = signal('');
     confirmModalMessage = signal('');
     confirmModalAction = signal<(() => void) | null>(null);
+
+    // Preview toggle
+    showJsonView = signal(false);
+
+    // Computed sorted job names for dropdown
+    sortedAffectedJobs = computed(() => {
+        const jobs = this.previewResult()?.affectedJobNames || [];
+        return [...jobs].sort((a, b) => a.localeCompare(b));
+    });
 
     // Computed
     get totalJobs(): number {
@@ -58,19 +70,8 @@ export class ProfileMigrationComponent implements OnInit {
     }
 
     loadProfiles(): void {
-        this.isLoading.set(true);
         this.errorMessage.set(null);
-
-        this.migrationService.getProfileSummaries().subscribe({
-            next: (profiles) => {
-                this.profiles.set(profiles);
-                this.isLoading.set(false);
-            },
-            error: (error) => {
-                this.errorMessage.set(error.error?.message || 'Failed to load profiles');
-                this.isLoading.set(false);
-            }
-        });
+        this.migrationService.loadProfileSummaries();
     }
 
     migrateAllPending(): void {
@@ -99,20 +100,20 @@ export class ProfileMigrationComponent implements OnInit {
             profileTypes: pending.map((p: ProfileSummary) => p.profileType)
         };
 
-        this.migrationService.migrateAllProfiles(request).subscribe({
-            next: (report) => {
+        this.migrationService.migrateAllProfiles(
+            request,
+            (report) => {
                 this.migrationReport.set(report);
                 this.isMigrating.set(false);
                 this.successMessage.set(
                     `Migration complete! ${report.successCount} succeeded, ${report.failureCount} failed, ${report.totalJobsAffected} jobs affected`
                 );
-                this.loadProfiles(); // Refresh status
             },
-            error: (error) => {
+            (error) => {
                 this.errorMessage.set(error.error?.message || 'Migration failed');
                 this.isMigrating.set(false);
             }
-        });
+        );
     }
 
     migrateSingle(profile: ProfileSummary): void {
@@ -129,23 +130,23 @@ export class ProfileMigrationComponent implements OnInit {
         this.isMigrating.set(true);
         this.errorMessage.set(null);
 
-        this.migrationService.migrateProfile(profile.profileType).subscribe({
-            next: (result) => {
+        this.migrationService.migrateProfile(
+            profile.profileType,
+            (result) => {
                 this.isMigrating.set(false);
                 if (result.success) {
                     this.successMessage.set(
                         `${profile.profileType} migrated successfully! ${result.jobsAffected} jobs updated with ${result.fieldCount} fields`
                     );
-                    this.loadProfiles(); // Refresh status
                 } else {
                     this.errorMessage.set(result.errorMessage || 'Migration failed');
                 }
             },
-            error: (error) => {
+            (error) => {
                 this.errorMessage.set(error.error?.message || 'Migration failed');
                 this.isMigrating.set(false);
             }
-        });
+        );
     }
 
     previewSingle(profile: ProfileSummary): void {
@@ -154,11 +155,12 @@ export class ProfileMigrationComponent implements OnInit {
             return;
         }
 
-        this.isLoading.set(true);
         this.selectedProfile.set(profile);
+        this.showJsonView.set(false); // Default to form view
 
-        this.migrationService.getProfileMetadata(profile.profileType).subscribe({
-            next: (metadata) => {
+        this.migrationService.getProfileMetadata(
+            profile.profileType,
+            (metadata) => {
                 // Create a result object that shows current metadata
                 const result: ProfileMigrationResult = {
                     profileType: profile.profileType,
@@ -171,13 +173,11 @@ export class ProfileMigrationComponent implements OnInit {
                     warnings: []
                 };
                 this.previewResult.set(result);
-                this.isLoading.set(false);
             },
-            error: (error) => {
+            (error) => {
                 this.errorMessage.set(error.error?.message || 'Failed to load current metadata');
-                this.isLoading.set(false);
             }
-        });
+        );
     }
 
     closePreview(): void {
@@ -198,6 +198,10 @@ export class ProfileMigrationComponent implements OnInit {
         this.confirmModalTitle.set('');
         this.confirmModalMessage.set('');
         this.confirmModalAction.set(null);
+    }
+
+    toggleJsonView(): void {
+        this.showJsonView.update(current => !current);
     }
 
     clearMessages(): void {

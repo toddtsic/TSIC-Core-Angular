@@ -111,10 +111,30 @@ export class AuthService {
   }
 
   /**
-   * Check if user is authenticated (has any token)
-   */
+ * Check if user has valid token
+ * Returns true if token exists and is not expired
+ */
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    if (!token) {
+      return false;
+    }
+
+    try {
+      const payload = this.decodeToken(token);
+      if (payload.exp) {
+        const expirationDate = new Date(payload.exp * 1000);
+        const now = new Date();
+        // Return false if token is expired
+        // The refresh will happen in initializeFromToken, but guards need to know current state
+        return expirationDate > now;
+      }
+      // If no exp claim, assume valid (shouldn't happen with JWT)
+      return true;
+    } catch (error) {
+      console.error('Failed to check token expiration:', error);
+      return false;
+    }
   }
 
   /**
@@ -201,6 +221,29 @@ export class AuthService {
 
     try {
       const payload = this.decodeToken(token);
+
+      // Check if token is expired
+      if (payload.exp) {
+        const expirationDate = new Date(payload.exp * 1000);
+        const now = new Date();
+
+        if (expirationDate <= now) {
+          console.warn('Access token expired, attempting refresh...');
+          // Token is expired - try to refresh it proactively
+          this.refreshAccessToken().subscribe({
+            next: () => {
+              console.log('Token refreshed successfully on app init');
+            },
+            error: (err) => {
+              console.error('Failed to refresh token on app init:', err);
+              // Clear invalid tokens and set user to null
+              this.currentUser.set(null);
+            }
+          });
+          return;
+        }
+      }
+
       const user: AuthenticatedUser = {
         username: payload.username || payload.sub,
         regId: payload.regId,

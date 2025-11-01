@@ -1,5 +1,7 @@
 # Angular Coding Standards - TSIC Project
 
+> **📋 Enforcement:** See [CODING-STANDARDS-ENFORCEMENT.md](../docs/CODING-STANDARDS-ENFORCEMENT.md) for automated validation, pre-commit hooks, and CI/CD integration.
+
 ## Template Control Flow (Angular 17+)
 
 **ALWAYS use the new control flow syntax (`@if`, `@for`, `@switch`) instead of structural directives (`*ngIf`, `*ngFor`, `*ngSwitch`).**

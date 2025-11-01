@@ -86,11 +86,37 @@ This project follows **Clean Architecture** principles:
 
 ## Development Guidelines
 
-- **Angular Coding Standards**: See [specs/ANGULAR-CODING-STANDARDS.md](../specs/ANGULAR-CODING-STANDARDS.md) for required patterns including:
-  - Use `inject()` function instead of constructor-based dependency injection
-  - Standalone components with explicit imports
-  - Functional guards and interceptors
-  - Modern RxJS patterns
+- **Angular Coding Standards**: See [specs/ANGULAR-CODING-STANDARDS.md](../specs/ANGULAR-CODING-STANDARDS.md) for required patterns
+- **Clean Architecture**: See [docs/clean-architecture-implementation.md](../docs/clean-architecture-implementation.md)
+- **Development Workflow**: See [docs/development-workflow.md](../docs/development-workflow.md)
+
+## Documentation
+
+### Architecture & Design
+- [Clean Architecture Implementation](../docs/clean-architecture-implementation.md)
+- [Layout Architecture](../docs/layout-architecture.md)
+- [Player Registration Architecture](../docs/player-registration-architecture.md)
+- [Authorization Policies](../docs/authorization-policies.md)
+
+### Admin Features
+- [Profile Migration Implementation](../docs/profile-migration-angular-implementation.md)
+- [Profile Form Preview Component](../docs/profile-form-preview-component.md)
+- [Profile Metadata Editor Design](../docs/profile-metadata-editor-design.md)
+
+### Development Setup
+- [Setup Guide](../docs/SETUP-GUIDE.md)
+- [GitHub Authentication Setup](../docs/github-authentication-setup.md)
+- [Development Workflow](../docs/development-workflow.md)
+
+### Deployment
+- [Complete Deployment Methodology](../docs/Complete-Deployment-Methodology.md)
+- [IIS Setup Guide](../docs/IIS-Setup-Guide.md)
+- [Angular IIS Deployment Guide](../docs/Angular-IIS-Deployment-Guide.md)
+
+### Reference
+- [Angular Signal Patterns](../docs/angular-signal-patterns.md)
+- [Validation Migration Guide](../docs/dataannotations-to-fluentvalidation-migration.md)
+- [POCO Class Structure Analysis](../docs/poco-class-structure-analysis.md)
 
 ## Next Steps
 

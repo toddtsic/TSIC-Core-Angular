@@ -250,33 +250,51 @@
                     }
                 </div>
 
-                <!-- Metadata JSON Display -->
+                <!-- Form Preview -->
                 @if (previewResult()?.generatedMetadata) {
                 <div class="card mb-3">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">
-                            <i class="bi bi-code-square"></i> Profile Metadata JSON
+                            <i class="bi bi-ui-checks"></i> Form Preview
                         </h6>
-                        <small class="text-muted">{{ previewResult()!.fieldCount }} fields</small>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" (click)="toggleJsonView()">
+                                @if (showJsonView()) {
+                                <i class="bi bi-ui-checks"></i> Show Form
+                                } @else {
+                                <i class="bi bi-code-square"></i> Show JSON
+                                }
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
+                        @if (showJsonView()) {
+                        <!-- JSON View -->
                         <pre class="bg-light p-3 rounded"
-                            style="max-height: 400px; overflow-y: auto;"><code>{{ previewResult()!.generatedMetadata | json }}</code></pre>
+                            style="max-height: 500px; overflow-y: auto;"><code>{{ previewResult()!.generatedMetadata | json }}</code></pre>
+                        } @else {
+                        <!-- Form Preview -->
+                        <app-profile-form-preview [metadata]="previewResult()?.generatedMetadata ?? null"
+                            [showFieldNumbers]="true" [showValidationHints]="true" [readonly]="true">
+                        </app-profile-form-preview>
+                        }
                     </div>
                 </div>
                 }
 
-                <h6>Affected Jobs:</h6>
-                <ul class="list-group mb-3">
-                    @for (jobName of previewResult()?.affectedJobNames?.slice(0, 10); track jobName) {
-                    <li class="list-group-item">{{ jobName }}</li>
+                <div class="mb-3">
+                    <label for="affectedJobsDropdown" class="form-label">
+                        <strong>Affected Jobs ({{ sortedAffectedJobs().length }}):</strong>
+                    </label>
+                    <select id="affectedJobsDropdown" class="form-select">
+                        @for (jobName of sortedAffectedJobs(); track jobName) {
+                        <option>{{ jobName }}</option>
+                        }
+                    </select>
+                    @if (sortedAffectedJobs().length === 0) {
+                    <small class="text-muted">No jobs currently use this profile type.</small>
                     }
-                    @if (previewResult()!.affectedJobNames!.length > 10) {
-                    <li class="list-group-item text-muted">
-                        ... and {{ previewResult()!.affectedJobNames!.length - 10 }} more
-                    </li>
-                    }
-                </ul>
+                </div>
 
                 @if (previewResult()?.warnings && previewResult()!.warnings.length > 0) {
                 <div class="alert alert-warning">

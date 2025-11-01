@@ -393,7 +393,33 @@ The backend `CSharpToMetadataParser` infers input types from C# properties:
 
 ---
 
-**Implementation Date:** 2024  
+## Session Notes
+
+**October 26, 2025 - Initial Implementation:**
+- Created migration architecture
+- Implemented ProfileMigrationService with HTTP calls
+- Created ProfileMigrationComponent with full UI
+- Integrated with admin routing
+- Added error handling and batch migration support
+
+**November 1, 2025 - GitHub Authentication & Form Preview:**
+- Fixed GitHub API 404 errors by adding Bearer token authentication
+- Implemented field deduplication in CSharpToMetadataParser (derived class overrides base)
+- Successfully migrated CAC04 profile (28 jobs, 22 fields after deduplication)
+- Created ProfileFormPreviewComponent with dynamic form rendering
+- Created FormFieldDataService with comprehensive dropdown data
+- Integrated form preview into migration modal with toggle (form/JSON views)
+- Fixed TypeScript strict null checking errors for HTML attribute bindings
+- Replaced browser confirm() with Bootstrap modals throughout application
+- **GitHub Token:** Stored in `appsettings.Development.json` (excluded from git)
+- **Security:** Token is local-only, not committed to repository
+
+**Implementation Time:** ~8 hours total  
+**Status:** ✅ Complete, form preview ready (requires dev server restart)
+
+---
+
+**Implementation Date:** 2024-2025  
 **Angular Version:** 18+  
 **Bootstrap Version:** 5  
 **Backend:** ASP.NET Core with Entity Framework Core
