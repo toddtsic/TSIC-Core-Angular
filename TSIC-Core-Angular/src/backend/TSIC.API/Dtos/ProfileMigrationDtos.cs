@@ -64,7 +64,8 @@ public class ValidationTestResult
 }
 
 /// <summary>
-/// Request to clone an existing profile
+/// Request to clone an existing profile for the current job
+/// JobId is determined from regId claim in JWT token
 /// </summary>
 public class CloneProfileRequest
 {

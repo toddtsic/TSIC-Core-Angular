@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using TSIC.API.Dtos;
+using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
@@ -658,11 +659,13 @@ public class ProfileMetadataMigrationService
     }
 
     /// <summary>
-    /// Clone an existing profile with auto-incremented name
+    /// Clone an existing profile with auto-incremented name FOR THE CURRENT JOB
+    /// Gets the job from the registration ID (regId claim from JWT token)
     /// Finds the max version of the profile base name and creates new profile as +1
     /// Example: PlayerProfile -> PlayerProfile2, CoachProfile3 -> CoachProfile4
+    /// The new profile is only available within the context of jobs that explicitly use it
     /// </summary>
-    public async Task<CloneProfileResult> CloneProfileAsync(string sourceProfileType)
+    public async Task<CloneProfileResult> CloneProfileAsync(string sourceProfileType, Guid regId)
     {
         var result = new CloneProfileResult
         {
@@ -680,15 +683,41 @@ public class ProfileMetadataMigrationService
                 return result;
             }
 
-            // Determine base name and find max version
-            var newProfileType = await GenerateNewProfileNameAsync(sourceProfileType);
+            // Get the job from the registration
+            var registration = await _context.Registrations
+                .Include(r => r.Job)
+                .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+
+            if (registration == null)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Registration with ID '{regId}' not found";
+                return result;
+            }
+
+            var job = registration.Job;
+            if (job == null)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Job not found for registration '{regId}'";
+                return result;
+            }
+
+            // Determine base name and find max version for THIS job
+            var newProfileType = GenerateNewProfileName(sourceProfileType);
 
             // Create metadata for new profile (clone from source)
             var newMetadata = CloneMetadata(sourceMetadata);
+            var metadataJson = JsonSerializer.Serialize(newMetadata);
 
-            // Log the creation - actual job assignment happens in the editor
-            _logger.LogInformation("Created new profile type: {NewProfileType} from {SourceProfileType}",
-                newProfileType, sourceProfileType);
+            // Update the current job to use the new profile
+            job.CoreRegformPlayer = newProfileType;
+            job.PlayerProfileMetadataJson = metadataJson;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Created new profile type: {NewProfileType} from {SourceProfileType} for job {JobName} (JobId: {JobId})",
+                newProfileType, sourceProfileType, job.JobName, job.JobId);
 
             result.Success = true;
             result.NewProfileType = newProfileType;
@@ -706,9 +735,9 @@ public class ProfileMetadataMigrationService
     }
 
     /// <summary>
-    /// Generate new profile name by finding max version and incrementing
+    /// Generate new profile name by finding max version for a specific job and incrementing
     /// </summary>
-    private async Task<string> GenerateNewProfileNameAsync(string sourceProfileType)
+    private static string GenerateNewProfileName(string sourceProfileType)
     {
         // Extract base name (remove trailing numbers if any)
         var baseName = System.Text.RegularExpressions.Regex.Replace(
@@ -717,35 +746,12 @@ public class ProfileMetadataMigrationService
             string.Empty
         );
 
-        // Find all profiles with same base name
-        var existingProfiles = await _context.Jobs
-            .Select(j => j.CoreRegformPlayer)
-            .Distinct()
-            .Where(p => p != null && p.StartsWith(baseName))
-            .ToListAsync();
+        // Extract version from source
+        var sourceMatch = System.Text.RegularExpressions.Regex.Match(sourceProfileType, @"(\d+)$");
+        var sourceVersion = sourceMatch.Success && int.TryParse(sourceMatch.Groups[1].Value, out var sv) ? sv : 1;
 
-        // Extract version numbers
-        var maxVersion = 1;
-        foreach (var profile in existingProfiles)
-        {
-            var match = System.Text.RegularExpressions.Regex.Match(profile!, $@"^{baseName}(\d+)$");
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var version))
-            {
-                maxVersion = Math.Max(maxVersion, version);
-            }
-        }
-
-        // If source has no number, check if base name exists
-        if (!System.Text.RegularExpressions.Regex.IsMatch(sourceProfileType, @"\d+$"))
-        {
-            // Source is like "PlayerProfile", new should be "PlayerProfile2"
-            return $"{baseName}{maxVersion + 1}";
-        }
-        else
-        {
-            // Source is like "PlayerProfile2", new should be "PlayerProfile3"
-            return $"{baseName}{maxVersion + 1}";
-        }
+        // Return incremented version
+        return $"{baseName}{sourceVersion + 1}";
     }
 
     /// <summary>

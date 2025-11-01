@@ -129,8 +129,8 @@ export const anonymousJobGuard: CanActivateFn = () => {
 };
 
 /**
- * Guard that checks if user is a SuperUser with jobPath === 'tsic'
- * Redirects to /tsic/home if not authorized
+ * Guard that checks if user is a SuperUser
+ * Redirects to job home if not authorized
  * Used for admin-only features like profile migration and metadata editing
  */
 export const superUserGuard: CanActivateFn = (route, state) => {
@@ -139,11 +139,15 @@ export const superUserGuard: CanActivateFn = (route, state) => {
 
     const user = authService.getCurrentUser();
 
-    // Check if user is SuperUser and has selected the TSIC job
-    if (authService.isSuperuser() && user?.jobPath === 'tsic') {
+    // Check if user is SuperUser and has selected a job
+    if (authService.isSuperuser() && user?.jobPath) {
         return true;
     }
 
-    // Not authorized - redirect to home
-    return router.createUrlTree(['/tsic/home']);
+    // Not authorized - redirect to job home or role selection
+    if (user?.jobPath) {
+        return router.createUrlTree([`/${user.jobPath}/home`]);
+    }
+
+    return router.createUrlTree(['/tsic/role-selection']);
 };

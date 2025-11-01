@@ -7,8 +7,9 @@ namespace TSIC.API.Controllers;
 
 /// <summary>
 /// Admin endpoints for migrating player profile metadata from GitHub POCOs
+/// Restricted to Superuser role only
 /// </summary>
-[Authorize]
+[Authorize(Policy = "SuperUserOnly")]
 [ApiController]
 [Route("api/admin/profile-migration")]
 public class ProfileMigrationController : ControllerBase
@@ -303,8 +304,9 @@ public class ProfileMigrationController : ControllerBase
 
     /// <summary>
     /// Create a new profile by cloning an existing one with auto-incremented name
+    /// The new profile is specific to the current user's job (from regId claim)
     /// </summary>
-    /// <param name="request">Clone profile request</param>
+    /// <param name="request">Clone profile request with source profile type</param>
     /// <returns>Result with new profile name</returns>
     [HttpPost("clone-profile")]
     public async Task<ActionResult<CloneProfileResult>> CloneProfile(
@@ -312,8 +314,17 @@ public class ProfileMigrationController : ControllerBase
     {
         try
         {
-            _logger.LogInformation("Cloning profile from {SourceProfile}", request.SourceProfileType);
-            var result = await _migrationService.CloneProfileAsync(request.SourceProfileType);
+            // Get regId from JWT claims
+            var regIdClaim = User.FindFirst("regId")?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = "Invalid or missing regId claim" });
+            }
+
+            _logger.LogInformation("Cloning profile from {SourceProfile} for regId {RegId}",
+                request.SourceProfileType, regId);
+
+            var result = await _migrationService.CloneProfileAsync(request.SourceProfileType, regId);
 
             if (!result.Success)
             {
@@ -324,7 +335,8 @@ public class ProfileMigrationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to clone profile from {SourceProfile}", request.SourceProfileType);
+            _logger.LogError(ex, "Failed to clone profile from {SourceProfile}",
+                request.SourceProfileType);
             return StatusCode(500, new { error = "Failed to clone profile", details = ex.Message });
         }
     }

@@ -152,7 +152,13 @@ export class ProfileMigrationService {
     // PROFILE CREATION APIs
     // ============================================================================
 
+    /**
+     * Clone an existing profile with auto-incremented name
+     * Creates a new profile for the current user's job (determined from JWT token)
+     */
     cloneProfile(sourceProfileType: string): Observable<CloneProfileResult> {
-        return this.http.post<CloneProfileResult>(`${this.apiUrl}/clone-profile`, { sourceProfileType });
+        return this.http.post<CloneProfileResult>(`${this.apiUrl}/clone-profile`, {
+            sourceProfileType
+        });
     }
 }

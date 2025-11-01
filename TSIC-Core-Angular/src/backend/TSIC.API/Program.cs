@@ -1,5 +1,6 @@
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.Domain.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Application.Services;
@@ -10,7 +11,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +63,58 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
+});
+
+// Add Authorization Policies
+// ARCHITECTURAL PRINCIPLE: APIs under [Authorize(Policy=xx)] should NOT require 
+// parameters that can be derived from JWT token claims
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("SuperUserOnly", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role, RoleConstants.Names.SuperuserName));
+
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.SuperDirectorName));
+
+    options.AddPolicy("RefAdmin", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.RefAssignorName));
+
+    options.AddPolicy("StoreAdmin", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.StoreAdminName));
+
+    options.AddPolicy("CanCrossCustomerJobs", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.SuperDirectorName));
+
+    options.AddPolicy("TeamMembersOnly", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.StaffName,
+            RoleConstants.Names.FamilyName,
+            RoleConstants.Names.PlayerName));
+
+    options.AddPolicy("TeamMembersAndHigher", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.StaffName,
+            RoleConstants.Names.FamilyName,
+            RoleConstants.Names.PlayerName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.SuperDirectorName,
+            RoleConstants.Names.SuperuserName));
+
+    options.AddPolicy("StaffOnly", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.UnassignedAdultName,
+            RoleConstants.Names.StaffName));
 });
 
 builder.Services.AddEndpointsApiExplorer();

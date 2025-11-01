@@ -42,22 +42,6 @@ export const routes: Routes = [
 						canActivate: [roleGuard]
 					}
 				]
-			},
-			// Admin-only routes (SuperUser + jobPath=tsic required)
-			{
-				path: 'admin',
-				component: LayoutComponent,
-				canActivate: [superUserGuard],
-				children: [
-					{
-						path: 'profile-migration',
-						loadComponent: () => import('./admin/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
-					},
-					{
-						path: 'profile-editor',
-						loadComponent: () => import('./admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
-					}
-				]
 			}
 		]
 	},
@@ -71,6 +55,21 @@ export const routes: Routes = [
 				path: '',
 				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
 				canActivate: [anonymousJobGuard]
+			},
+			// Admin-only routes for ANY job (SuperUser required)
+			{
+				path: 'admin',
+				canActivate: [superUserGuard],
+				children: [
+					{
+						path: 'profile-migration',
+						loadComponent: () => import('./admin/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
+					},
+					{
+						path: 'profile-editor',
+						loadComponent: () => import('./admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
+					}
+				]
 			}
 		]
 	}

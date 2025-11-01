@@ -1,22 +1,32 @@
 # Profile Metadata Editor - Design Document
 
-**Date**: October 31, 2025  
-**Status**: Design Phase  
-**Related**: `player-registration-architecture.md`
+**Date**: November 1, 2025  
+**Status**: Implementation in Progress  
+**Related**: `player-registration-architecture.md`, `authorization-policies.md`
 
 ---
 
 ## Executive Summary
 
-The Profile Metadata Editor is an Angular-based admin tool that allows superusers to create and edit `PlayerProfileMetadataJson` for job registrations. This editor eliminates the need for manual JSON editing and provides a visual interface for configuring registration form fields.
+The Profile Metadata Editor is an Angular-based admin tool that allows **superusers to create and edit `PlayerProfileMetadataJson` for ANY job** with SuperUser role access. This editor eliminates the need for manual JSON editing and provides a visual interface for configuring registration form fields.
+
+### Recent Updates (November 2025)
+
+- **Universal Access**: Profile editor now available for ANY job accessed through SuperUser role (not restricted to 'tsic' job)
+- **Create New Strategy**: Added "CREATE NEW" option that clones existing profiles with auto-incremented naming
+- **Job-Specific Cloning**: Profile cloning creates new profiles FOR THE CURRENT JOB ONLY (not global templates)
+- **Token-Based Security**: Uses regId from JWT token to determine current job context
+- **Authorization Policies**: Implements `SuperUserOnly` policy following architectural principle of deriving context from tokens
 
 ### Key Features
 
-1. **Hybrid Import System**: Manual C# paste (Phase 1) → GitHub API automation (Phase 2)
-2. **Visual Form Builder**: Drag-and-drop field ordering, property panel editing
-3. **Live Preview**: Real-time form rendering as fields are configured
-4. **JSON Export**: Generate and save `PlayerProfileMetadataJson` to database
-5. **Validation**: Ensure metadata structure is correct before saving
+1. **Universal Job Support**: Works with any job when accessed as SuperUser
+2. **Profile Cloning**: "CREATE NEW" clones existing profiles with auto-naming (PlayerProfile → PlayerProfile2)
+3. **Hybrid Import System**: Manual C# paste (Phase 1) → GitHub API automation (Phase 2)
+4. **Visual Form Builder**: Drag-and-drop field ordering, property panel editing
+5. **Live Preview**: Real-time form rendering as fields are configured
+6. **JSON Export**: Generate and save `PlayerProfileMetadataJson` to database
+7. **Validation**: Ensure metadata structure is correct before saving
 
 ---
 
@@ -24,27 +34,78 @@ The Profile Metadata Editor is an Angular-based admin tool that allows superuser
 
 ### Superuser Workflow
 
-1. **Navigate to Editor**: Click "Profile Metadata Editor" card on job home page
-2. **Load Existing or Start New**:
-   - If job has `PlayerProfileMetadataJson` → Load and edit
-   - If empty → Start from scratch or import from C# class
-3. **Import Options** (Phase 1):
+1. **Navigate to Editor**: 
+   - From ANY job home page (when logged in as SuperUser)
+   - Click "Profile Metadata Editor" card
+   - Route: `/:jobPath/admin/profile-editor`
+   
+2. **Select Profile to Edit**:
+   - **Option A - "CREATE NEW"**: Clone existing profile with auto-incremented name
+     - Dropdown shows all available profile types (PP10, CAC05, PlayerProfile, etc.)
+     - Select source profile to clone
+     - System generates new name (e.g., PlayerProfile → PlayerProfile2)
+     - New profile is specific to CURRENT JOB only
+   - **Option B - Edit Existing**: Select from existing profiles for current job
+   - **Option C - Import from C# Class**: Paste C# class code and parse
+   
+3. **Create New Profile Workflow** (NEW):
+   - Select "CREATE NEW" from profile dropdown
+   - Modal shows list of available profiles to clone from
+   - User selects source profile (e.g., "PlayerProfile")
+   - Backend:
+     - Extracts regId from JWT token
+     - Finds job from Registrations table
+     - Clones metadata from source profile
+     - Generates incremented name (PlayerProfile2, PlayerProfile3, etc.)
+     - Updates current job's CoreRegformPlayer and PlayerProfileMetadataJson
+   - Editor loads with cloned metadata ready for customization
+   
+4. **Import from C# Class** (Phase 1):
    - Click "Import from C# Class" button
    - Paste C# class code into textarea
    - Backend parses using Roslyn
    - Editor populates with extracted metadata
-4. **Edit Fields**:
+   
+5. **Edit Fields**:
    - Add/remove fields
    - Configure properties (name, type, validation, order)
    - Drag to reorder
    - Toggle admin-only visibility
-5. **Preview Form**: See live rendering of registration form
-6. **Save**: Update `Job.PlayerProfileMetadataJson` in database
-7. **Test**: Navigate to registration flow and verify form
+   
+6. **Preview Form**: See live rendering of registration form
+
+7. **Save**: 
+   - Updates `Job.CoreRegformPlayer` with new profile name
+   - Updates `Job.PlayerProfileMetadataJson` with metadata
+   - Changes apply to current job only
+   
+8. **Test**: Navigate to registration flow and verify form
 
 ---
 
 ## Architecture
+
+### Routing
+
+**Route Pattern**: `/:jobPath/admin/profile-editor`
+- Works for ANY job (not restricted to 'tsic')
+- Protected by `superUserGuard` (checks SuperUser role + valid jobPath)
+- Example: `/summer-league-2025/admin/profile-editor`
+
+### Authorization
+
+**Policy**: `SuperUserOnly` (defined in `Program.cs`)
+```csharp
+[Authorize(Policy = "SuperUserOnly")]
+[Route("api/admin/profile-migration")]
+public class ProfileMigrationController : ControllerBase
+```
+
+**Security Pattern**: Parameters derived from JWT token claims
+- API extracts `regId` from token
+- Looks up `JobId` from `Registrations` table
+- All operations scoped to user's current job
+- Frontend does NOT pass jobId/jobPath in requests
 
 ### Component Structure
 
@@ -212,6 +273,222 @@ export interface SaveMetadataResponse {
 - ☰ = Drag handle
 - 🔒 = Admin-only field (shown with lock icon)
 - * = Required field
+
+---
+
+## CREATE NEW Feature (Profile Cloning)
+
+### Overview
+
+The "CREATE NEW" feature allows superusers to clone existing profiles with auto-incremented naming. This is faster than importing from C# for creating variations of existing profiles.
+
+### Cloning Strategy
+
+**Key Principle**: Cloning creates a new profile FOR THE CURRENT JOB ONLY
+
+- **Not Global**: New profiles don't become templates across all jobs
+- **Job-Specific**: Updates only the current job's CoreRegformPlayer and PlayerProfileMetadataJson
+- **Simple Naming**: Increments from source (PlayerProfile → PlayerProfile2)
+- **Metadata Copy**: Deep clones all fields, validation rules, and settings
+
+### API Implementation
+
+#### Backend Endpoint
+
+```csharp
+[Authorize(Policy = "SuperUserOnly")]
+[HttpPost("clone-profile")]
+public async Task<ActionResult<CloneProfileResult>> CloneProfile(
+    [FromBody] CloneProfileRequest request)
+{
+    // ✅ Extract regId from JWT token claims
+    var regIdClaim = User.FindFirst("regId")?.Value;
+    if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+    {
+        return BadRequest(new { error = "Invalid or missing regId claim" });
+    }
+
+    _logger.LogInformation("Cloning profile from {SourceProfile} for regId {RegId}", 
+        request.SourceProfileType, regId);
+    
+    // ✅ Service derives job context from regId
+    var result = await _migrationService.CloneProfileAsync(
+        request.SourceProfileType, 
+        regId);
+
+    if (!result.Success)
+    {
+        return BadRequest(result);
+    }
+
+    return Ok(result);
+}
+```
+
+#### Service Method
+
+```csharp
+public async Task<CloneProfileResult> CloneProfileAsync(
+    string sourceProfileType, 
+    Guid regId)
+{
+    // Get source profile metadata
+    var sourceMetadata = await GetProfileMetadataAsync(sourceProfileType);
+    
+    // ✅ Get job from registration (not from parameter!)
+    var registration = await _context.Registrations
+        .Include(r => r.Job)
+        .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+        
+    if (registration?.Job == null)
+    {
+        return new CloneProfileResult 
+        { 
+            Success = false, 
+            ErrorMessage = "Job not found for registration" 
+        };
+    }
+    
+    var job = registration.Job;
+    
+    // Generate new profile name (simple increment)
+    var newProfileType = GenerateNewProfileName(sourceProfileType);
+    
+    // Clone metadata via JSON serialization
+    var newMetadata = CloneMetadata(sourceMetadata);
+    var metadataJson = JsonSerializer.Serialize(newMetadata);
+    
+    // ✅ Update CURRENT JOB only
+    job.CoreRegformPlayer = newProfileType;
+    job.PlayerProfileMetadataJson = metadataJson;
+    await _context.SaveChangesAsync();
+    
+    return new CloneProfileResult
+    {
+        Success = true,
+        NewProfileType = newProfileType,
+        SourceProfileType = sourceProfileType,
+        FieldCount = newMetadata.Fields.Count
+    };
+}
+
+private static string GenerateNewProfileName(string sourceProfileType)
+{
+    // Extract base name (remove trailing numbers)
+    var baseName = Regex.Replace(sourceProfileType, @"\d+$", string.Empty);
+    
+    // Extract version from source
+    var sourceMatch = Regex.Match(sourceProfileType, @"(\d+)$");
+    var sourceVersion = sourceMatch.Success && 
+        int.TryParse(sourceMatch.Groups[1].Value, out var sv) ? sv : 1;
+    
+    // Return incremented version
+    return $"{baseName}{sourceVersion + 1}";
+}
+```
+
+### Frontend Implementation
+
+#### Component Logic
+
+```typescript
+// profile-editor.component.ts
+
+showCreateNewModal = signal(false);
+availableProfiles = signal<string[]>([]);
+
+async ngOnInit() {
+  // Load available profiles from backend
+  this.migrationService.getProfileSummaries().subscribe(summaries => {
+    this.availableProfiles.set(summaries.map(s => s.profileType));
+  });
+}
+
+openCreateNewModal() {
+  this.showCreateNewModal.set(true);
+}
+
+createNewProfile(sourceProfile: string) {
+  this.loading.set(true);
+  
+  // ✅ No jobPath or jobId parameter needed!
+  this.migrationService.cloneProfile(sourceProfile).subscribe({
+    next: (result) => {
+      this.loading.set(false);
+      this.showCreateNewModal.set(false);
+      
+      // Load the newly cloned profile
+      this.loadProfile(result.newProfileType);
+      
+      this.toastr.success(
+        `Created ${result.newProfileType} with ${result.fieldCount} fields`,
+        'Profile Cloned'
+      );
+    },
+    error: (error) => {
+      this.loading.set(false);
+      this.toastr.error(error.error?.error || 'Failed to clone profile');
+    }
+  });
+}
+```
+
+#### Service
+
+```typescript
+// profile-migration.service.ts
+
+/**
+ * Clone an existing profile with auto-incremented name
+ * Creates a new profile for the current user's job (determined from JWT token)
+ */
+cloneProfile(sourceProfileType: string): Observable<CloneProfileResult> {
+  // ✅ Only sourceProfileType in body - no jobPath/jobId!
+  return this.http.post<CloneProfileResult>(
+    `${this.apiUrl}/clone-profile`, 
+    { sourceProfileType }
+  );
+}
+```
+
+### Naming Examples
+
+| Source Profile | New Profile Name |
+|---------------|------------------|
+| PlayerProfile | PlayerProfile2 |
+| PlayerProfile2 | PlayerProfile3 |
+| CoachProfile | CoachProfile2 |
+| PP47 | PP48 |
+| CAC05 | CAC06 |
+
+### UI Flow
+
+1. User clicks "CREATE NEW" in profile dropdown
+2. Modal appears with list of available profiles:
+   ```
+   ┌─────────────────────────────────────┐
+   │ Create New Profile                  │
+   ├─────────────────────────────────────┤
+   │ Clone from existing profile:        │
+   │                                     │
+   │ ○ PlayerProfile (Standard)          │
+   │ ○ CoachProfile (Coaching Staff)     │
+   │ ○ PP47 (Summer League 2025)         │
+   │ ○ CAC05 (Skills Camp)               │
+   │                                     │
+   │         [Cancel]  [Clone Profile]   │
+   └─────────────────────────────────────┘
+   ```
+3. User selects source and clicks "Clone Profile"
+4. Backend generates new name and updates current job
+5. Editor loads with cloned metadata
+6. User can immediately edit/save
+
+### Security Benefits
+
+- **No Parameter Tampering**: User can't specify jobId to clone profiles to other jobs
+- **Automatic Scoping**: regId claim ensures cloning only affects user's current job
+- **Audit Trail**: All clones logged with regId and job context
 
 ---
 

@@ -1,10 +1,13 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace TSIC.API.Controllers;
 
 /// <summary>
 /// Remote validation endpoints for form fields
+/// Public endpoints for registration form validation
 /// </summary>
+[AllowAnonymous]
 [ApiController]
 [Route("api/[controller]")]
 public class ValidationController : ControllerBase
