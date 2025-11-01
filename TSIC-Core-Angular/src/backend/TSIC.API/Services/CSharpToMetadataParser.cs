@@ -198,6 +198,9 @@ public class CSharpToMetadataParser
         // Build validation
         field.Validation = BuildValidation(attributes);
 
+        // Add special validation rules based on field name
+        ApplySpecialValidationRules(propertyName, field);
+
         // Check for HiddenInput attribute
         var hiddenAttr = attributes.Find(a => a.Name.ToString() == "HiddenInput");
         if (hiddenAttr != null)
@@ -252,18 +255,33 @@ public class CSharpToMetadataParser
         // Infer from property name
         if (propertyName.StartsWith('B') && char.IsUpper(propertyName[1]))
         {
-            // Boolean prefix convention (e.g., BWaiverSigned1)
+            // Boolean prefix convention (e.g., BWaiverSigned1, BUploadedMedForm)
+            return "CHECKBOX";
+        }
+
+        if (propertyName.StartsWith("Is") || propertyName.StartsWith("Has"))
+        {
+            // Boolean prefix patterns (e.g., IsActive, HasPermission)
             return "CHECKBOX";
         }
 
         if (propertyName.EndsWith("Email"))
             return "EMAIL";
 
+        if (propertyName.EndsWith("Phone") || propertyName.Contains("Phone"))
+            return "TEL";
+
+        if (propertyName.Equals("Height", StringComparison.OrdinalIgnoreCase))
+            return "NUMBER";
+
+        if (propertyName.Equals("Weight", StringComparison.OrdinalIgnoreCase))
+            return "NUMBER";
+
         if (propertyName.EndsWith("Id") || propertyName == "TeamId" ||
             propertyName == "AgegroupId" || propertyName == "Gender" ||
             propertyName == "Position" || propertyName.EndsWith("Size") ||
             propertyName == "GradYear" || propertyName == "SchoolGrade" ||
-            propertyName == "SkillLevel")
+            propertyName == "SkillLevel" || propertyName == "State")
         {
             return "SELECT";
         }
@@ -283,6 +301,7 @@ public class CSharpToMetadataParser
             "GradYear" => "gradYears",
             "SchoolGrade" => "schoolGrades",
             "SkillLevel" => "skillLevels",
+            "State" => "states",
             "JerseySize" => "jerseySizes",
             "ShortsSize" => "shortsSizes",
             "TShirt" => "shirtSizes",
@@ -301,6 +320,56 @@ public class CSharpToMetadataParser
         }
 
         return dataSource;
+    }
+
+    private static void ApplySpecialValidationRules(string propertyName, ProfileMetadataField field)
+    {
+        // Ensure validation object exists
+        field.Validation ??= new FieldValidation();
+
+        // Height: NUMBER input with min=36 (3 feet in inches), max=84 (7 feet in inches)
+        if (propertyName.Equals("Height", StringComparison.OrdinalIgnoreCase))
+        {
+            field.Validation.Min = 36;  // 3 feet
+            field.Validation.Max = 84;  // 7 feet
+            if (string.IsNullOrEmpty(field.Validation.Message))
+            {
+                field.Validation.Message = "Height must be between 36 inches (3 ft) and 84 inches (7 ft)";
+            }
+        }
+
+        // Weight: NUMBER input with min=30, max=250 (pounds)
+        if (propertyName.Equals("Weight", StringComparison.OrdinalIgnoreCase))
+        {
+            field.Validation.Min = 30;   // minimum weight
+            field.Validation.Max = 250;  // maximum weight
+            if (string.IsNullOrEmpty(field.Validation.Message))
+            {
+                field.Validation.Message = "Weight must be between 30 and 250 pounds";
+            }
+        }
+
+        // Phone: TEL input with digits-only pattern
+        if (propertyName.EndsWith("Phone") || propertyName.Contains("Phone"))
+        {
+            field.Validation.Pattern = @"^\d{10}$";  // 10 digits only
+            if (string.IsNullOrEmpty(field.Validation.Message))
+            {
+                field.Validation.Message = "Phone number must be 10 digits (numbers only)";
+            }
+        }
+
+        // SportAssnID: Remote validation with USA Lacrosse API
+        if (propertyName.Equals("SportAssnID", StringComparison.OrdinalIgnoreCase) ||
+            propertyName.Equals("USALacrosseID", StringComparison.OrdinalIgnoreCase))
+        {
+            // Placeholder for remote validation endpoint
+            field.Validation.Remote = "/api/Validation/ValidateUSALacrosseID";
+            if (string.IsNullOrEmpty(field.Validation.Message))
+            {
+                field.Validation.Message = "USA Lacrosse membership number will be validated";
+            }
+        }
     }
 
     private static FieldValidation? BuildValidation(List<AttributeSyntax> attributes)

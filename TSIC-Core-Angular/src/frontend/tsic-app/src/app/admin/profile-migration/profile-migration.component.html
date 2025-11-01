@@ -1,0 +1,248 @@
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="bi bi-database-gear"></i> Player Profile Migration</h2>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" (click)="loadProfiles()" [disabled]="isLoading()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <a routerLink="/tsic/admin/profile-editor" class="btn btn-primary">
+                        <i class="bi bi-pencil-square"></i> Profile Editor
+                    </a>
+                </div>
+            </div>
+
+            <!-- Alert Messages -->
+            @if (errorMessage()) {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> {{ errorMessage() }}
+                <button type="button" class="btn-close" (click)="clearMessages()"></button>
+            </div>
+            }
+
+            @if (successMessage()) {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill"></i> {{ successMessage() }}
+                <button type="button" class="btn-close" (click)="clearMessages()"></button>
+            </div>
+            }
+
+            <!-- Info Card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-info-circle"></i> About Migration</h5>
+                    <p class="card-text">
+                        This tool converts player profile class definitions from GitHub (POCO files) into JSON metadata
+                        stored in the database.
+                        Each profile type (PP10, PP17, CAC05, etc.) is migrated once and applied to all jobs using that
+                        profile.
+                    </p>
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-circle"></i>
+                        <strong>Note:</strong> Migration fetches from GitHub and may take a few moments. After
+                        migration, use the Profile Editor to make changes.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Migration Actions -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">Quick Actions</h5>
+                            <small class="text-muted">
+                                {{ pendingProfiles.length }} pending profiles affecting {{ totalJobs - migratedJobs }}
+                                jobs
+                            </small>
+                        </div>
+                        <button class="btn btn-success" (click)="migrateAllPending()"
+                            [disabled]="isLoading() || isMigrating() || pendingProfiles.length === 0">
+                            @if (isMigrating()) {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            Migrating...
+                            } @else {
+                            <i class="bi bi-play-fill"></i> Migrate All Pending
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile List -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-list-ul"></i> Profile Types</h5>
+                </div>
+                <div class="card-body">
+                    @if (isLoading()) {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3">Loading profiles...</p>
+                    </div>
+                    } @else if (profiles().length === 0) {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-3">No profiles found in database</p>
+                    </div>
+                    } @else {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Profile Type</th>
+                                    <th>Jobs Using</th>
+                                    <th>Migration Status</th>
+                                    <th>Sample Jobs</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (profile of profiles(); track profile.profileType) {
+                                <tr>
+                                    <td>
+                                        <strong>{{ profile.profileType }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ profile.jobCount }} jobs</span>
+                                    </td>
+                                    <td>
+                                        @if (profile.allJobsMigrated) {
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Migrated
+                                        </span>
+                                        <small class="text-muted d-block">
+                                            {{ profile.migratedJobCount }}/{{ profile.jobCount }} jobs
+                                        </small>
+                                        } @else {
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-clock"></i> Pending
+                                        </span>
+                                        <small class="text-muted d-block">
+                                            {{ profile.migratedJobCount }}/{{ profile.jobCount }} jobs
+                                        </small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ profile.sampleJobNames.slice(0, 3).join(', ') }}
+                                            @if (profile.sampleJobNames.length > 3) {
+                                            <span>...</span>
+                                            }
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button class="btn btn-outline-primary" (click)="previewSingle(profile)"
+                                                [disabled]="isMigrating()">
+                                                <i class="bi bi-eye"></i> Preview
+                                            </button>
+                                            <button class="btn btn-outline-success" (click)="migrateSingle(profile)"
+                                                [disabled]="isMigrating()">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                                {{ profile.allJobsMigrated ? 'Re-migrate' : 'Migrate' }}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Summary Card -->
+            @if (profiles().length > 0) {
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-bar-chart"></i> Summary</h5>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h3>{{ profiles().length }}</h3>
+                            <small class="text-muted">Total Profiles</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-success">{{ migratedProfiles.length }}</h3>
+                            <small class="text-muted">Migrated</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-warning">{{ pendingProfiles.length }}</h3>
+                            <small class="text-muted">Pending</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h3>{{ totalJobs }}</h3>
+                            <small class="text-muted">Total Jobs</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+@if (previewResult()) {
+<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-eye"></i> Preview: {{ selectedProfile()?.profileType }}
+                </h5>
+                <button type="button" class="btn-close" (click)="closePreview()"></button>
+            </div>
+            <div class="modal-body">
+                @if (previewResult()?.success) {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    This migration will affect <strong>{{ previewResult()?.jobsAffected }}</strong> jobs
+                    with <strong>{{ previewResult()?.fieldCount }}</strong> fields.
+                </div>
+
+                <h6>Affected Jobs:</h6>
+                <ul class="list-group mb-3">
+                    @for (jobName of previewResult()?.affectedJobNames?.slice(0, 10); track jobName) {
+                    <li class="list-group-item">{{ jobName }}</li>
+                    }
+                    @if (previewResult()!.affectedJobNames!.length > 10) {
+                    <li class="list-group-item text-muted">
+                        ... and {{ previewResult()!.affectedJobNames!.length - 10 }} more
+                    </li>
+                    }
+                </ul>
+
+                @if (previewResult()?.warnings && previewResult()!.warnings.length > 0) {
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Warnings:</h6>
+                    <ul class="mb-0">
+                        @for (warning of previewResult()?.warnings; track warning) {
+                        <li>{{ warning }}</li>
+                        }
+                    </ul>
+                </div>
+                }
+                } @else {
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> {{ previewResult()?.errorMessage }}
+                </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closePreview()">Close</button>
+                @if (previewResult()?.success && selectedProfile()) {
+                <button type="button" class="btn btn-success"
+                    (click)="migrateSingle(selectedProfile()!); closePreview()">
+                    <i class="bi bi-check-circle"></i> Migrate Now
+                </button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+}

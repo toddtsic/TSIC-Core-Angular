@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, roleGuard, landingPageGuard, redirectAuthenticatedGuard, tsicEntryGuard, anonymousJobGuard } from './core/guards/auth.guard';
+import { authGuard, roleGuard, landingPageGuard, redirectAuthenticatedGuard, tsicEntryGuard, anonymousJobGuard, superUserGuard } from './core/guards/auth.guard';
 import { LayoutComponent } from './layout/layout.component';
 import { PublicLayoutComponent } from './layouts/public-layout/public-layout.component';
 
@@ -40,6 +40,22 @@ export const routes: Routes = [
 						path: '',
 						loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
 						canActivate: [roleGuard]
+					}
+				]
+			},
+			// Admin-only routes (SuperUser + jobPath=tsic required)
+			{
+				path: 'admin',
+				component: LayoutComponent,
+				canActivate: [superUserGuard],
+				children: [
+					{
+						path: 'profile-migration',
+						loadComponent: () => import('./admin/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
+					},
+					{
+						path: 'profile-editor',
+						loadComponent: () => import('./admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
 					}
 				]
 			}

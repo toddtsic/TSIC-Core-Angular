@@ -217,4 +217,124 @@ public class ProfileMigrationController : ControllerBase
             return StatusCode(500, new { error = "Migration failed", details = ex.Message });
         }
     }
+
+    // ============================================================================
+    // PROFILE EDITOR ENDPOINTS (for ongoing metadata management)
+    // ============================================================================
+
+    /// <summary>
+    /// Get current metadata for a specific profile type
+    /// </summary>
+    /// <param name="profileType">Profile type (e.g., PP10, CAC05)</param>
+    /// <returns>Current metadata for the profile</returns>
+    [HttpGet("profiles/{profileType}/metadata")]
+    public async Task<ActionResult<ProfileMetadata>> GetProfileMetadata(string profileType)
+    {
+        try
+        {
+            _logger.LogInformation("Getting metadata for profile {ProfileType}", profileType);
+            var metadata = await _migrationService.GetProfileMetadataAsync(profileType);
+
+            if (metadata == null)
+            {
+                return NotFound(new { error = $"No metadata found for profile {profileType}. Run migration first." });
+            }
+
+            return Ok(metadata);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get metadata for profile {ProfileType}", profileType);
+            return StatusCode(500, new { error = "Failed to get metadata", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update metadata for a profile type (applies to ALL jobs using it)
+    /// </summary>
+    /// <param name="profileType">Profile type (e.g., PP10, CAC05)</param>
+    /// <param name="metadata">Updated metadata</param>
+    /// <returns>Result showing affected jobs</returns>
+    [HttpPut("profiles/{profileType}/metadata")]
+    public async Task<ActionResult<ProfileMigrationResult>> UpdateProfileMetadata(
+        string profileType,
+        [FromBody] ProfileMetadata metadata)
+    {
+        try
+        {
+            _logger.LogInformation("Updating metadata for profile {ProfileType}", profileType);
+            var result = await _migrationService.UpdateProfileMetadataAsync(profileType, metadata);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update metadata for profile {ProfileType}", profileType);
+            return StatusCode(500, new { error = "Failed to update metadata", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Test field validation rules
+    /// </summary>
+    /// <param name="field">Field metadata with validation rules</param>
+    /// <param name="testValue">Value to test</param>
+    /// <returns>Validation test result</returns>
+    [HttpPost("test-validation")]
+    public ActionResult<ValidationTestResult> TestValidation(
+        [FromBody] TestValidationRequest request)
+    {
+        try
+        {
+            var result = _migrationService.TestFieldValidation(request.Field, request.TestValue);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to test validation");
+            return StatusCode(500, new { error = "Validation test failed", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Create a new profile by cloning an existing one with auto-incremented name
+    /// </summary>
+    /// <param name="request">Clone profile request</param>
+    /// <returns>Result with new profile name</returns>
+    [HttpPost("clone-profile")]
+    public async Task<ActionResult<CloneProfileResult>> CloneProfile(
+        [FromBody] CloneProfileRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("Cloning profile from {SourceProfile}", request.SourceProfileType);
+            var result = await _migrationService.CloneProfileAsync(request.SourceProfileType);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clone profile from {SourceProfile}", request.SourceProfileType);
+            return StatusCode(500, new { error = "Failed to clone profile", details = ex.Message });
+        }
+    }
+}
+
+/// <summary>
+/// Request model for testing field validation
+/// </summary>
+public class TestValidationRequest
+{
+    public ProfileMetadataField Field { get; set; } = new();
+    public string TestValue { get; set; } = string.Empty;
 }

@@ -182,16 +182,33 @@ Note: CAC profiles simpler - coaches rostering multiple players at once.
 ### By Naming Conventions
 | Property Pattern | Inference |
 |------------------|-----------|
-| `*Email` | `EMAIL` if not annotated |
+| `B*` (bool prefix) | `CHECKBOX` (e.g., `BWaiverSigned1`) |
+| `Is*` | `CHECKBOX` (e.g., `IsActive`, `IsVerified`) |
+| `Has*` | `CHECKBOX` (e.g., `HasPermission`, `HasWaiver`) |
+| `*Email` | `EMAIL` |
+| `*Phone` or `*contains Phone*` | `TEL` with digits-only validation |
+| `Height` | `NUMBER` with min=36 (3ft), max=84 (7ft) in inches |
+| `Weight` | `NUMBER` with min=30, max=250 pounds |
 | `TeamId` | `SELECT`, dataSource: "teams" |
+| `State` | `SELECT`, dataSource: "states" |
 | `SchoolGrade` | `SELECT`, dataSource: "grades" |
 | `Position` | `SELECT`, dataSource: "positions" |
 | `GradYear` | `SELECT`, dataSource: "gradYears" |
 | `JerseySize` | `SELECT`, dataSource: "jerseySizes" |
 | `ShortsSize` | `SELECT`, dataSource: "shortsSizes" |
 | `TShirt*` | `SELECT`, dataSource: "shirtSizes" |
+| `*Size` | `SELECT`, dataSource: "sizes" (generic) |
 | `SchoolName` | `TEXT` (but could be `AUTOCOMPLETE` later) |
 | `Gender` | `SELECT`, dataSource: "genders" |
+
+### Special Validation Rules
+
+| Field Type | Validation Applied |
+|------------|-------------------|
+| `Height` | min: 36 inches (3 ft), max: 84 inches (7 ft), message: "Height must be between 36 inches (3 ft) and 84 inches (7 ft)" |
+| `Weight` | min: 30 lbs, max: 250 lbs, message: "Weight must be between 30 and 250 pounds" |
+| `*Phone` | pattern: `^\d{10}$` (10 digits only), message: "Phone number must be 10 digits (numbers only)" |
+| `SportAssnID` or `USALacrosseID` | remote: "/api/Validation/ValidateUSALacrosseID", message: "USA Lacrosse membership number will be validated" |
 
 ## Parser Requirements
 

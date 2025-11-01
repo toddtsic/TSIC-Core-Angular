@@ -51,3 +51,34 @@ public class MigrateProfilesRequest
     public bool DryRun { get; set; } = true;
     public List<string>? ProfileTypes { get; set; }
 }
+
+/// <summary>
+/// Result of testing field validation
+/// </summary>
+public class ValidationTestResult
+{
+    public string FieldName { get; set; } = string.Empty;
+    public string TestValue { get; set; } = string.Empty;
+    public bool IsValid { get; set; }
+    public List<string> Messages { get; set; } = new();
+}
+
+/// <summary>
+/// Request to clone an existing profile
+/// </summary>
+public class CloneProfileRequest
+{
+    public string SourceProfileType { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Result of cloning a profile
+/// </summary>
+public class CloneProfileResult
+{
+    public bool Success { get; set; }
+    public string NewProfileType { get; set; } = string.Empty;
+    public string SourceProfileType { get; set; } = string.Empty;
+    public int FieldCount { get; set; }
+    public string? ErrorMessage { get; set; }
+}

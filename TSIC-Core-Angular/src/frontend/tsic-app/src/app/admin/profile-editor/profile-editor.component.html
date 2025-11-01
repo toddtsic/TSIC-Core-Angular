@@ -1,0 +1,390 @@
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">Profile Metadata Editor</h2>
+            <p class="text-muted">Edit profile field metadata. Changes affect all jobs using the selected profile type.
+            </p>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    @if (errorMessage()) {
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+        <button type="button" class="btn-close" (click)="errorMessage.set(null)"></button>
+    </div>
+    }
+
+    @if (successMessage()) {
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        {{ successMessage() }}
+        <button type="button" class="btn-close" (click)="successMessage.set(null)"></button>
+    </div>
+    }
+
+    <!-- Profile Selector -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Select Profile Type</h5>
+                    <select class="form-select" [(ngModel)]="selectedProfileType" (ngModelChange)="loadProfile($event)"
+                        [disabled]="isLoading() || isSaving()">
+                        <option [ngValue]="null">-- Choose a profile --</option>
+                        <option value="CREATE_NEW" class="text-success fw-bold">➕ CREATE NEW</option>
+                        @for (profile of availableProfiles(); track profile.type) {
+                        <option [ngValue]="profile.type">{{ profile.display }}</option>
+                        }
+                    </select>
+                    @if (selectedProfileType() && currentMetadata()) {
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Fields:</strong> {{ fieldCount() }}
+                            @if (currentMetadata()?.source) {
+                            <br><strong>Source:</strong> {{ currentMetadata()?.source?.sourceFile }}
+                            }
+                        </small>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    @if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading profile metadata...</p>
+    </div>
+    }
+
+    <!-- Field Editor -->
+    @if (currentMetadata() && !isLoading()) {
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Profile Fields</h5>
+                    <button class="btn btn-success btn-sm" (click)="addNewField()" [disabled]="isSaving()">
+                        <i class="bi bi-plus-circle me-1"></i> Add Field
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Field Name</th>
+                                    <th>Display Name</th>
+                                    <th>Input Type</th>
+                                    <th>Required</th>
+                                    <th>Admin Only</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (field of currentMetadata()!.fields; track trackByIndex($index)) {
+                                <tr>
+                                    <td>{{ field.order }}</td>
+                                    <td><code>{{ field.name }}</code></td>
+                                    <td>{{ field.displayName }}</td>
+                                    <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                                    <td>
+                                        @if (field.validation?.required) {
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                        } @else {
+                                        <i class="bi bi-dash-circle text-muted"></i>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (field.adminOnly) {
+                                        <i class="bi bi-lock-fill text-warning"></i>
+                                        } @else {
+                                        <i class="bi bi-unlock text-muted"></i>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary"
+                                                (click)="openEditModal(field, $index)" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info" (click)="openTestModal(field.name)"
+                                                title="Test Validation">
+                                                <i class="bi bi-clipboard-check"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" (click)="removeField($index)"
+                                                title="Remove">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                }
+                                @if (currentMetadata()!.fields.length === 0) {
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        No fields defined. Click "Add Field" to create one.
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    }
+</div>
+
+<!-- Edit Field Modal -->
+@if (isEditModalOpen()) {
+<div class="modal d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Field: {{ editingField()?.name }}</h5>
+                <button type="button" class="btn-close" (click)="closeEditModal()"></button>
+            </div>
+            <div class="modal-body">
+                @if (editingField(); as field) {
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Field Name</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.name">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">DB Column</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.dbColumn">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Display Name</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.displayName">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Input Type</label>
+                        <select class="form-select" [(ngModel)]="field.inputType">
+                            @for (type of fieldTypeOptions; track type) {
+                            <option [value]="type">{{ type }}</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Order</label>
+                        <input type="number" class="form-control" [(ngModel)]="field.order">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.adminOnly"
+                                id="adminOnly">
+                            <label class="form-check-label" for="adminOnly">Admin Only</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.computed" id="computed">
+                            <label class="form-check-label" for="computed">Computed</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Data Source</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.dataSource"
+                            placeholder="e.g., states, countries">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Placeholder</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.placeholder">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Help Text</label>
+                        <textarea class="form-control" [(ngModel)]="field.helpText" rows="2"></textarea>
+                    </div>
+
+                    <div class="col-12">
+                        <hr>
+                        <h6>Validation Rules</h6>
+                    </div>
+
+                    @if (!field.validation) {
+                    <div class="col-12">
+                        <button class="btn btn-sm btn-outline-secondary" (click)="field.validation = {}">
+                            <i class="bi bi-plus-circle me-1"></i> Add Validation
+                        </button>
+                    </div>
+                    }
+
+                    @if (field.validation) {
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.required"
+                                id="required">
+                            <label class="form-check-label" for="required">Required</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.email"
+                                id="email">
+                            <label class="form-check-label" for="email">Email Format</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Min Length</label>
+                        <input type="number" class="form-control" [(ngModel)]="field.validation.minLength">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Max Length</label>
+                        <input type="number" class="form-control" [(ngModel)]="field.validation.maxLength">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Min Value</label>
+                        <input type="number" class="form-control" [(ngModel)]="field.validation.min">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Max Value</label>
+                        <input type="number" class="form-control" [(ngModel)]="field.validation.max">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Pattern (Regex)</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.validation.pattern"
+                            placeholder="^\d{10}$">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Remote Validation URL</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.validation.remote"
+                            placeholder="/api/Validation/ValidateUSALacrosseID">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Custom Error Message</label>
+                        <input type="text" class="form-control" [(ngModel)]="field.validation.message">
+                    </div>
+                    }
+                </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" (click)="saveFieldEdit()" [disabled]="isSaving()">
+                    @if (isSaving()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}
+
+<!-- Create New Profile Modal -->
+@if (isCreateModalOpen()) {
+<div class="modal d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Profile</h5>
+                <button type="button" class="btn-close" (click)="closeCreateModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Clone From:</label>
+                    <select class="form-select" [(ngModel)]="selectedCloneSource"
+                        (ngModelChange)="onCloneSourceSelected($event)" [disabled]="isCloning()">
+                        <option [ngValue]="null">-- Select a profile to clone --</option>
+                        @for (profile of availableProfiles(); track profile.type) {
+                        <option [ngValue]="profile.type">{{ profile.display }}</option>
+                        }
+                    </select>
+                    <small class="text-muted">Select an existing profile to use as a template</small>
+                </div>
+
+                @if (selectedCloneSource() && newProfileName()) {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Will prepare:</strong> <code>{{ newProfileName() }}</code>
+                    <br>
+                    <small>This will create a new profile based on <strong>{{ selectedCloneSource() }}</strong> with an
+                        auto-incremented name.</small>
+                </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeCreateModal()"
+                    [disabled]="isCloning()">Cancel</button>
+                <button type="button" class="btn btn-success" (click)="createNewProfile()"
+                    [disabled]="!selectedCloneSource() || isCloning()">
+                    @if (isCloning()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    Creating...
+                    } @else {
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Create Profile
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}
+
+<!-- Test Validation Modal -->
+@if (isTestModalOpen()) {
+<div class="modal d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Test Validation: {{ testFieldName() }}</h5>
+                <button type="button" class="btn-close" (click)="closeTestModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Test Value</label>
+                    <input type="text" class="form-control" [(ngModel)]="testValue" placeholder="Enter a value to test">
+                </div>
+
+                <button class="btn btn-primary w-100 mb-3" (click)="runValidationTest()"
+                    [disabled]="isTesting() || !testValue()">
+                    @if (isTesting()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    Testing...
+                    } @else {
+                    <i class="bi bi-play-circle me-1"></i> Run Test
+                    }
+                </button>
+
+                @if (testResult()) {
+                <div class="alert" [ngClass]="testResult()!.isValid ? 'alert-success' : 'alert-danger'">
+                    <h6>
+                        @if (testResult()!.isValid) {
+                        <i class="bi bi-check-circle-fill me-1"></i> Valid
+                        } @else {
+                        <i class="bi bi-x-circle-fill me-1"></i> Invalid
+                        }
+                    </h6>
+                    @if (testResult()!.messages && testResult()!.messages.length > 0) {
+                    <ul class="mb-0 mt-2">
+                        @for (msg of testResult()!.messages; track msg) {
+                        <li>{{ msg }}</li>
+                        }
+                    </ul>
+                    }
+                </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeTestModal()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}

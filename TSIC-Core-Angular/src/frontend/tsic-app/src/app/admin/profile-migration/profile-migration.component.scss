@@ -1,0 +1,50 @@
+// Profile Migration Component Styles
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+}
+
+.table {
+    th {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    tbody tr {
+        transition: background-color 0.15s ease-in-out;
+
+        &:hover {
+            background-color: #f8f9fa;
+        }
+    }
+}
+
+.modal.show {
+    display: block;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.2em;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+// Summary stats
+.row.text-center h3 {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}

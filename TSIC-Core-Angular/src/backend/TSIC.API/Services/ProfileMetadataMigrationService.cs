@@ -466,5 +466,298 @@ public class ProfileMetadataMigrationService
 
         return report;
     }
+
+    // ============================================================================
+    // PROFILE EDITOR METHODS (for ongoing metadata management)
+    // ============================================================================
+
+    /// <summary>
+    /// Get current metadata for a specific profile type
+    /// </summary>
+    public async Task<ProfileMetadata?> GetProfileMetadataAsync(string profileType)
+    {
+        // Get any job using this profile (they all have the same metadata)
+        var job = await _context.Jobs
+            .Where(j => j.CoreRegformPlayer != null &&
+                       (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
+                        j.CoreRegformPlayer == profileType) &&
+                       !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
+            .Select(j => j.PlayerProfileMetadataJson)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrEmpty(job))
+        {
+            return null;
+        }
+
+        var metadata = JsonSerializer.Deserialize<ProfileMetadata>(job,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        return metadata;
+    }
+
+    /// <summary>
+    /// Update metadata for a profile type (applies to ALL jobs using it)
+    /// </summary>
+    public async Task<ProfileMigrationResult> UpdateProfileMetadataAsync(string profileType, ProfileMetadata metadata)
+    {
+        var result = new ProfileMigrationResult
+        {
+            ProfileType = profileType,
+            Success = false
+        };
+
+        try
+        {
+            _logger.LogInformation("Updating metadata for profile {ProfileType}", profileType);
+
+            // Find ALL jobs using this profile
+            var jobs = await _context.Jobs
+                .Where(j => j.CoreRegformPlayer != null &&
+                           (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
+                            j.CoreRegformPlayer == profileType))
+                .ToListAsync();
+
+            if (jobs.Count == 0)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"No jobs found using profile type {profileType}";
+                return result;
+            }
+
+            result.JobsAffected = jobs.Count;
+            result.AffectedJobIds = jobs.Select(j => j.JobId).ToList();
+            result.AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList();
+            result.FieldCount = metadata.Fields.Count;
+
+            // Update source tracking
+            metadata.Source ??= new ProfileMetadataSource();
+            metadata.Source.MigratedAt = DateTime.UtcNow;
+            metadata.Source.MigratedBy = "ProfileEditor";
+
+            // Serialize metadata
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
+
+            // Apply to ALL jobs
+            foreach (var job in jobs)
+            {
+                job.PlayerProfileMetadataJson = metadataJson;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Updated metadata for {ProfileType}: {FieldCount} fields applied to {JobCount} jobs",
+                profileType, metadata.Fields.Count, jobs.Count);
+
+            result.Success = true;
+            result.GeneratedMetadata = metadata;
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update metadata for profile {ProfileType}", profileType);
+            result.Success = false;
+            result.ErrorMessage = ex.Message;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Test field validation rules without saving
+    /// </summary>
+    public ValidationTestResult TestFieldValidation(ProfileMetadataField field, string testValue)
+    {
+        var result = new ValidationTestResult
+        {
+            FieldName = field.Name,
+            TestValue = testValue,
+            IsValid = true,
+            Messages = new List<string>()
+        };
+
+        if (field.Validation == null)
+        {
+            result.Messages.Add("No validation rules defined");
+            return result;
+        }
+
+        // Test required
+        if (field.Validation.Required && string.IsNullOrWhiteSpace(testValue))
+        {
+            result.IsValid = false;
+            result.Messages.Add("Field is required");
+        }
+
+        if (!string.IsNullOrWhiteSpace(testValue))
+        {
+            // Test min/max length
+            if (field.Validation.MinLength.HasValue && testValue.Length < field.Validation.MinLength.Value)
+            {
+                result.IsValid = false;
+                result.Messages.Add($"Value too short (min: {field.Validation.MinLength})");
+            }
+
+            if (field.Validation.MaxLength.HasValue && testValue.Length > field.Validation.MaxLength.Value)
+            {
+                result.IsValid = false;
+                result.Messages.Add($"Value too long (max: {field.Validation.MaxLength})");
+            }
+
+            // Test numeric range
+            if (field.InputType == "NUMBER" && double.TryParse(testValue, out var numValue))
+            {
+                if (field.Validation.Min.HasValue && numValue < field.Validation.Min.Value)
+                {
+                    result.IsValid = false;
+                    result.Messages.Add($"Value too small (min: {field.Validation.Min})");
+                }
+
+                if (field.Validation.Max.HasValue && numValue > field.Validation.Max.Value)
+                {
+                    result.IsValid = false;
+                    result.Messages.Add($"Value too large (max: {field.Validation.Max})");
+                }
+            }
+
+            // Test pattern
+            if (!string.IsNullOrEmpty(field.Validation.Pattern))
+            {
+                var regex = new System.Text.RegularExpressions.Regex(field.Validation.Pattern);
+                if (!regex.IsMatch(testValue))
+                {
+                    result.IsValid = false;
+                    result.Messages.Add($"Value does not match required pattern: {field.Validation.Pattern}");
+                }
+            }
+
+            // Test email
+            if (field.Validation.Email && field.InputType == "EMAIL")
+            {
+                var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+                if (!emailRegex.IsMatch(testValue))
+                {
+                    result.IsValid = false;
+                    result.Messages.Add("Invalid email format");
+                }
+            }
+        }
+
+        if (result.IsValid && result.Messages.Count == 0)
+        {
+            result.Messages.Add("✓ Validation passed");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Clone an existing profile with auto-incremented name
+    /// Finds the max version of the profile base name and creates new profile as +1
+    /// Example: PlayerProfile -> PlayerProfile2, CoachProfile3 -> CoachProfile4
+    /// </summary>
+    public async Task<CloneProfileResult> CloneProfileAsync(string sourceProfileType)
+    {
+        var result = new CloneProfileResult
+        {
+            SourceProfileType = sourceProfileType
+        };
+
+        try
+        {
+            // Get the source profile metadata
+            var sourceMetadata = await GetProfileMetadataAsync(sourceProfileType);
+            if (sourceMetadata == null)
+            {
+                result.Success = false;
+                result.ErrorMessage = $"Source profile '{sourceProfileType}' not found";
+                return result;
+            }
+
+            // Determine base name and find max version
+            var newProfileType = await GenerateNewProfileNameAsync(sourceProfileType);
+
+            // Create metadata for new profile (clone from source)
+            var newMetadata = CloneMetadata(sourceMetadata);
+
+            // Log the creation - actual job assignment happens in the editor
+            _logger.LogInformation("Created new profile type: {NewProfileType} from {SourceProfileType}",
+                newProfileType, sourceProfileType);
+
+            result.Success = true;
+            result.NewProfileType = newProfileType;
+            result.FieldCount = newMetadata.Fields.Count;
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cloning profile {SourceProfileType}", sourceProfileType);
+            result.Success = false;
+            result.ErrorMessage = ex.Message;
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Generate new profile name by finding max version and incrementing
+    /// </summary>
+    private async Task<string> GenerateNewProfileNameAsync(string sourceProfileType)
+    {
+        // Extract base name (remove trailing numbers if any)
+        var baseName = System.Text.RegularExpressions.Regex.Replace(
+            sourceProfileType,
+            @"\d+$",
+            string.Empty
+        );
+
+        // Find all profiles with same base name
+        var existingProfiles = await _context.Jobs
+            .Select(j => j.CoreRegformPlayer)
+            .Distinct()
+            .Where(p => p != null && p.StartsWith(baseName))
+            .ToListAsync();
+
+        // Extract version numbers
+        var maxVersion = 1;
+        foreach (var profile in existingProfiles)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(profile!, $@"^{baseName}(\d+)$");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var version))
+            {
+                maxVersion = Math.Max(maxVersion, version);
+            }
+        }
+
+        // If source has no number, check if base name exists
+        if (!System.Text.RegularExpressions.Regex.IsMatch(sourceProfileType, @"\d+$"))
+        {
+            // Source is like "PlayerProfile", new should be "PlayerProfile2"
+            return $"{baseName}{maxVersion + 1}";
+        }
+        else
+        {
+            // Source is like "PlayerProfile2", new should be "PlayerProfile3"
+            return $"{baseName}{maxVersion + 1}";
+        }
+    }
+
+    /// <summary>
+    /// Clone metadata structure (deep copy)
+    /// </summary>
+    private ProfileMetadata CloneMetadata(ProfileMetadata source)
+    {
+        // Deep clone via JSON serialization
+        var json = JsonSerializer.Serialize(source);
+        return JsonSerializer.Deserialize<ProfileMetadata>(json)
+            ?? new ProfileMetadata { Fields = new List<ProfileMetadataField>() };
+    }
 }
+
 

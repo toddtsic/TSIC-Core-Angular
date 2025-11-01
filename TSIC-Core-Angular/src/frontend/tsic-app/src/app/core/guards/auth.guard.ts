@@ -127,3 +127,23 @@ export const anonymousJobGuard: CanActivateFn = () => {
     // Always allow access - job-home component will handle logic for authenticated vs anonymous users
     return true;
 };
+
+/**
+ * Guard that checks if user is a SuperUser with jobPath === 'tsic'
+ * Redirects to /tsic/home if not authorized
+ * Used for admin-only features like profile migration and metadata editing
+ */
+export const superUserGuard: CanActivateFn = (route, state) => {
+    const authService = inject(AuthService);
+    const router = inject(Router);
+
+    const user = authService.getCurrentUser();
+
+    // Check if user is SuperUser and has selected the TSIC job
+    if (authService.isSuperuser() && user?.jobPath === 'tsic') {
+        return true;
+    }
+
+    // Not authorized - redirect to home
+    return router.createUrlTree(['/tsic/home']);
+};
