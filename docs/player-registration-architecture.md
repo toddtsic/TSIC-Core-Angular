@@ -687,40 +687,60 @@ public class USLaxValidationResult
 
 #### Multi-Step Registration Wizard
 
-**Steps**:
+The registration process uses a multi-step wizard pattern with dynamic steps based on job configuration. This approach provides clear user guidance while maintaining flexibility for different registration types (PP vs CAC).
 
-1. **Family Selection** (if not already authenticated)
-   - Display family members from user account
+**Enhanced Flow (6-7 Steps)**:
+
+1. **Select Players**
+   - Display family members from authenticated user account
    - Allow selection of which children to register
-   - For CAC: Show camp selection matrix
+   - Option to add new player (creates AspNetUsers + Family_Members record)
+   - Multi-select for batch registration
 
-2. **Constraint Selection** (if applicable)
-   - Show dropdown for grad year, age group, etc.
-   - Based on `CoreRegformPlayer` part 2
-   - Skip if constraint type is empty
+2. **Select Constraint** (Conditional - only if job has `teamConstraint`)
+   - Show constraint selection per player (grad year, age group, etc.)
+   - Based on `CoreRegformPlayer` part 2 (BYGRADYEAR, BYAGEGROUP, etc.)
+   - Skip this step if constraint type is empty
+   - Used to filter available teams in next step
 
-3. **Team Selection**
-   - Display filtered teams based on constraint
-   - Show team details (name, description, fee, deposit option)
-   - For PP: Select one team per player
-   - For CAC: Already selected via camp matrix
+3. **Select Teams/Camps**
+   - **PP Type**: Display filtered teams based on constraint
+     - One team per player
+     - Show team cards with name, description, fee, deposit option
+   - **CAC Type**: Grid of camps × players with checkboxes
+     - Multiple camps per player
+     - Show camp dates, descriptions, fees
+     - Visual total calculation
 
-4. **Camp Selection** (CAC only)
-   - Grid: Camps (rows) × Players (columns)
-   - Checkboxes for which children attend which camps
-   - Display camp descriptions, dates, fees
+4. **Player Forms** (Dynamic from Metadata)
+   - One form per selected player
+   - Form fields generated from `PlayerProfileMetadataJson`
+   - Navigation between players:
+     - **Option A**: Tabs for quick switching
+     - **Option B**: Sequential with Next/Previous
+     - **Option C**: Accordion (expand/collapse)
+   - Real-time validation from metadata
+   - External validation (e.g., USLax number)
+   - Visual indicators for completion status
 
-5. **Per-Player Forms**
-   - Dynamic form per child
-   - Fields from profile metadata
-   - Base fields + profile-specific fields
-   - Validation from metadata
-
-6. **Review & Submit**
-   - Summary of all registrations
+5. **Review**
+   - Summary of all registrations before payment
+   - Show player name, team, key details, fee
+   - Edit links to go back and modify
    - Total cost calculation
-   - Payment option selection (deposit vs PIF)
-   - Final submit button
+   - Critical for multi-player registrations to catch errors
+
+6. **Payment**
+   - Select payment option (Pay in Full vs Deposit)
+   - Only show deposit option if `allowPayInFull` is true
+   - Payment processing integration
+   - Secure card entry
+
+7. **Confirmation**
+   - Success message with confirmation number
+   - Summary of what was registered
+   - Receipt download/email options
+   - Navigation to dashboard or home
 
 **Progress Indicator**:
 ```html
@@ -731,10 +751,72 @@ public class USLaxValidationResult
 </div>
 ```
 
-**Navigation**:
-- Previous/Next buttons
-- Disable Next until current step valid
-- Allow Previous to go back and edit
+**Wizard State Management**:
+```typescript
+export class RegistrationWizardComponent {
+  // Wizard state
+  currentStep = signal(1);
+  totalSteps = computed(() => {
+    // Dynamic step count based on job configuration
+    let steps = 5; // Base: Players, Teams, Forms, Payment, Confirmation
+    if (this.hasConstraint()) steps++; // Add constraint step
+    return steps;
+  });
+  
+  // Registration data (accumulates across steps)
+  selectedPlayers = signal<Player[]>([]);
+  playerConstraints = signal<Map<string, string>>(new Map()); // playerId -> gradYear
+  playerTeams = signal<Map<string, Team[]>>(new Map()); // playerId -> teams
+  playerForms = signal<Map<string, FormData>>(new Map()); // playerId -> form data
+  paymentOption = signal<'PIF' | 'Deposit'>('PIF');
+  
+  // Navigation
+  canGoNext = computed(() => {
+    switch (this.currentStep()) {
+      case 1: return this.selectedPlayers().length > 0;
+      case 2: return this.allPlayersHaveConstraints();
+      case 3: return this.allPlayersHaveTeams();
+      case 4: return this.allFormsValid();
+      case 5: return true; // Review always allows next
+      default: return false;
+    }
+  });
+  
+  next() {
+    if (this.canGoNext()) {
+      this.currentStep.update(step => step + 1);
+    }
+  }
+  
+  back() {
+    this.currentStep.update(step => Math.max(1, step - 1));
+  }
+}
+```
+
+**Component Structure**:
+```
+registration-wizard/
+├── registration-wizard.component.ts        # Main wizard container
+├── registration-wizard.component.html      
+├── steps/
+│   ├── player-selection.component.ts      # Step 1
+│   ├── constraint-selection.component.ts  # Step 2 (conditional)
+│   ├── team-selection.component.ts        # Step 3
+│   ├── player-forms.component.ts          # Step 4 (uses metadata)
+│   ├── review.component.ts                # Step 5
+│   ├── payment.component.ts               # Step 6
+│   └── confirmation.component.ts          # Step 7
+└── services/
+    └── registration-wizard.service.ts     # Shared state
+```
+
+**Navigation Rules**:
+- Previous button enabled on all steps except first
+- Next button enabled when current step is valid
+- Can go back to edit previous steps
+- Data persists when navigating back/forward
+- Confirmation step is final (no back button)
 
 ---
 
