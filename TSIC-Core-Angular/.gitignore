@@ -41,7 +41,8 @@ src/frontend/tsic-app/yarn-error.log*
 # Environment files (keep templates)
 **/appsettings.*.json
 !**/appsettings.json
-!**/appsettings.Development.json
+# appsettings.Development.json contains sensitive tokens - keep local only
+**/appsettings.Development.json
 
 # OS files
 .DS_Store

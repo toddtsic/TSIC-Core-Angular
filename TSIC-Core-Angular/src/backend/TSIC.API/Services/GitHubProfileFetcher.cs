@@ -52,6 +52,11 @@ public class GitHubProfileFetcher
         {
             _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", githubToken);
+            _logger.LogInformation("GitHub authentication configured");
+        }
+        else
+        {
+            _logger.LogWarning("GitHub Token not configured - can only access public repositories");
         }
     }
 
@@ -67,11 +72,22 @@ public class GitHubProfileFetcher
             var repoName = _configuration["GitHub:RepoName"] ?? "TSIC-Unify-2024";
 
             // Determine path based on profile type
-            var folder = profileType.StartsWith("CAC")
-                ? "RegPlayersMulti_ViewModels"
-                : "RegPlayersSingle_ViewModels";
+            string folder;
+            string fileName;
 
-            var fileName = $"{profileType}ViewModel.cs";
+            if (profileType.StartsWith("CAC"))
+            {
+                folder = "RegPlayersMulti_ViewModels";
+                // CAC files are named like "CAC04ViewModels.cs" (plural)
+                fileName = $"{profileType}ViewModels.cs";
+            }
+            else // PP profiles
+            {
+                folder = "RegPlayersSingle_ViewModels";
+                // PP files are named like "PP10ViewModel.cs"
+                fileName = $"{profileType}ViewModel.cs";
+            }
+
             var path = $"TSIC-Unify-Models/ViewModels/{folder}/{fileName}";
 
             _logger.LogInformation("Fetching {ProfileType} from GitHub: {Path}", profileType, path);
@@ -127,11 +143,16 @@ public class GitHubProfileFetcher
     {
         var url = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
 
+        _logger.LogInformation("Requesting GitHub URL: {Url}", url);
+        _logger.LogInformation("Path components - Owner: {Owner}, Repo: {Repo}, Path: {Path}", owner, repo, path);
+
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync();
+            _logger.LogError("GitHub API request failed. URL: {Url}, Status: {Status}, Response: {Response}",
+                url, response.StatusCode, error);
             throw new HttpRequestException(
                 $"GitHub API returned {response.StatusCode}: {error}");
         }

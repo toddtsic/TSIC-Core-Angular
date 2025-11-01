@@ -64,11 +64,33 @@ public class CSharpToMetadataParser
 
         // First, parse base demographics fields
         var baseFields = await ParseBaseClassFieldsAsync(baseClassSourceCode, warnings);
-        metadata.Fields.AddRange(baseFields);
 
         // Then, parse profile-specific fields
         var profileFields = await ParseProfileClassFieldsAsync(profileSourceCode, profileType, warnings);
-        metadata.Fields.AddRange(profileFields);
+
+        // Deduplicate: profile fields override base fields with same name
+        // Use a dictionary to track fields by name, profile fields overwrite base fields
+        var fieldsByName = new Dictionary<string, ProfileMetadataField>(StringComparer.OrdinalIgnoreCase);
+
+        // Add base fields first
+        foreach (var field in baseFields)
+        {
+            fieldsByName[field.Name] = field;
+        }
+
+        // Profile fields override base fields
+        foreach (var field in profileFields)
+        {
+            if (fieldsByName.ContainsKey(field.Name))
+            {
+                _logger.LogDebug("Property '{PropertyName}' redeclared in {ProfileType}, using derived version",
+                    field.Name, profileType);
+            }
+            fieldsByName[field.Name] = field;
+        }
+
+        // Convert back to list
+        metadata.Fields.AddRange(fieldsByName.Values);
 
         // Set order after combining all fields
         for (int i = 0; i < metadata.Fields.Count; i++)

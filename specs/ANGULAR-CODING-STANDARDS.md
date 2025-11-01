@@ -282,6 +282,150 @@ export class MyComponent {
 }
 ```
 
+## User Interactions & Modals
+
+### Confirmation Dialogs
+
+**ALWAYS use Bootstrap modals instead of browser `confirm()`, `alert()`, or `prompt()` dialogs.**
+
+### ✅ Preferred Pattern (Bootstrap Modal)
+
+```typescript
+// Component state
+showConfirmModal = signal(false);
+confirmModalTitle = signal('');
+confirmModalMessage = signal('');
+confirmModalAction = signal<(() => void) | null>(null);
+
+// Show confirmation
+deleteItem(item: Item): void {
+  this.confirmModalTitle.set('Delete Item');
+  this.confirmModalMessage.set(`Are you sure you want to delete "${item.name}"?`);
+  this.confirmModalAction.set(() => this.executeDelete(item));
+  this.showConfirmModal.set(true);
+}
+
+// Execute action
+confirmAction(): void {
+  const action = this.confirmModalAction();
+  if (action) {
+    action();
+  }
+  this.closeConfirmModal();
+}
+
+// Close modal
+closeConfirmModal(): void {
+  this.showConfirmModal.set(false);
+  this.confirmModalTitle.set('');
+  this.confirmModalMessage.set('');
+  this.confirmModalAction.set(null);
+}
+
+private executeDelete(item: Item): void {
+  // Actual delete logic here
+}
+```
+
+**Template:**
+
+```html
+<!-- Confirmation Modal -->
+@if (showConfirmModal()) {
+<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-exclamation-triangle text-warning"></i> {{ confirmModalTitle() }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeConfirmModal()"></button>
+      </div>
+      <div class="modal-body">
+        <p>{{ confirmModalMessage() }}</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="confirmAction()">
+          <i class="bi bi-check-circle"></i> OK
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+}
+```
+
+### ❌ Avoid (Browser Dialogs)
+
+```typescript
+// DON'T use these
+if (confirm('Are you sure?')) {
+  this.deleteItem();
+}
+
+alert('Item deleted successfully!');
+
+const name = prompt('Enter your name:');
+```
+
+### Benefits of Bootstrap Modals
+
+1. **Consistent Design** - Matches your application's look and feel
+2. **Better UX** - Professional appearance with animations and styling
+3. **More Control** - Can add icons, multiple buttons, complex layouts
+4. **Accessible** - Proper ARIA roles and keyboard navigation
+5. **Testable** - Easier to test than browser dialogs
+6. **Non-blocking** - Works better with Angular's change detection
+7. **Customizable** - Add warnings, detailed messages, or action buttons
+
+### Success/Error Messages
+
+Use dismissible Bootstrap alerts instead of `alert()`:
+
+```html
+@if (successMessage()) {
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+  <i class="bi bi-check-circle-fill"></i> {{ successMessage() }}
+  <button type="button" class="btn-close" (click)="clearMessages()"></button>
+</div>
+}
+
+@if (errorMessage()) {
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+  <i class="bi bi-exclamation-triangle-fill"></i> {{ errorMessage() }}
+  <button type="button" class="btn-close" (click)="clearMessages()"></button>
+</div>
+}
+```
+
+### Input Prompts
+
+For user input, use inline forms or modals with form controls:
+
+```html
+<!-- Input Modal -->
+@if (showInputModal()) {
+<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Enter Name</h5>
+        <button type="button" class="btn-close" (click)="closeInputModal()"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" class="form-control" [(ngModel)]="inputValue()" placeholder="Enter name">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeInputModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="submitInput()">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+}
+```
+
 ## Naming Conventions
 
 - **Components**: PascalCase with `.component` suffix - `UserProfileComponent`
@@ -351,5 +495,5 @@ private decodeToken(token: string): any {
 
 ---
 
-**Last Updated**: October 28, 2025  
+**Last Updated**: November 1, 2025  
 **Maintainer**: Development Team

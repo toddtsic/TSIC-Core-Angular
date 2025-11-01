@@ -30,6 +30,12 @@ export class ProfileMigrationComponent implements OnInit {
     selectedProfile = signal<ProfileSummary | null>(null);
     previewResult = signal<ProfileMigrationResult | null>(null);
 
+    // Confirmation modal
+    showConfirmModal = signal(false);
+    confirmModalTitle = signal('');
+    confirmModalMessage = signal('');
+    confirmModalAction = signal<(() => void) | null>(null);
+
     // Computed
     get totalJobs(): number {
         return this.profiles().reduce((sum, p) => sum + p.jobCount, 0);
@@ -74,10 +80,17 @@ export class ProfileMigrationComponent implements OnInit {
             return;
         }
 
-        if (!confirm(`Migrate ${pending.length} pending profiles affecting ${this.totalJobs - this.migratedJobs} jobs?`)) {
-            return;
-        }
+        // Show confirmation modal
+        this.confirmModalTitle.set('Migrate All Pending Profiles');
+        this.confirmModalMessage.set(
+            `Are you sure you want to migrate ${pending.length} pending profile${pending.length > 1 ? 's' : ''} affecting ${this.totalJobs - this.migratedJobs} job${(this.totalJobs - this.migratedJobs) > 1 ? 's' : ''}?`
+        );
+        this.confirmModalAction.set(() => this.executeMigrateAllPending());
+        this.showConfirmModal.set(true);
+    }
 
+    private executeMigrateAllPending(): void {
+        const pending = this.pendingProfiles;
         this.isMigrating.set(true);
         this.errorMessage.set(null);
 
@@ -103,10 +116,16 @@ export class ProfileMigrationComponent implements OnInit {
     }
 
     migrateSingle(profile: ProfileSummary): void {
-        if (!confirm(`Migrate ${profile.profileType} affecting ${profile.jobCount} jobs?`)) {
-            return;
-        }
+        // Show confirmation modal
+        this.confirmModalTitle.set('Migrate Profile');
+        this.confirmModalMessage.set(
+            `Are you sure you want to migrate ${profile.profileType} affecting ${profile.jobCount} job${profile.jobCount > 1 ? 's' : ''}?`
+        );
+        this.confirmModalAction.set(() => this.executeMigrateSingle(profile));
+        this.showConfirmModal.set(true);
+    }
 
+    private executeMigrateSingle(profile: ProfileSummary): void {
         this.isMigrating.set(true);
         this.errorMessage.set(null);
 
@@ -130,16 +149,32 @@ export class ProfileMigrationComponent implements OnInit {
     }
 
     previewSingle(profile: ProfileSummary): void {
+        // Only allow preview for migrated profiles
+        if (!profile.allJobsMigrated) {
+            return;
+        }
+
         this.isLoading.set(true);
         this.selectedProfile.set(profile);
 
-        this.migrationService.previewProfileMigration(profile.profileType).subscribe({
-            next: (result) => {
+        this.migrationService.getProfileMetadata(profile.profileType).subscribe({
+            next: (metadata) => {
+                // Create a result object that shows current metadata
+                const result: ProfileMigrationResult = {
+                    profileType: profile.profileType,
+                    success: true,
+                    fieldCount: metadata.fields.length,
+                    jobsAffected: profile.jobCount,
+                    affectedJobIds: [],
+                    affectedJobNames: profile.sampleJobNames,
+                    generatedMetadata: metadata,
+                    warnings: []
+                };
                 this.previewResult.set(result);
                 this.isLoading.set(false);
             },
             error: (error) => {
-                this.errorMessage.set(error.error?.message || 'Preview failed');
+                this.errorMessage.set(error.error?.message || 'Failed to load current metadata');
                 this.isLoading.set(false);
             }
         });
@@ -148,6 +183,21 @@ export class ProfileMigrationComponent implements OnInit {
     closePreview(): void {
         this.previewResult.set(null);
         this.selectedProfile.set(null);
+    }
+
+    confirmAction(): void {
+        const action = this.confirmModalAction();
+        if (action) {
+            action();
+        }
+        this.closeConfirmModal();
+    }
+
+    closeConfirmModal(): void {
+        this.showConfirmModal.set(false);
+        this.confirmModalTitle.set('');
+        this.confirmModalMessage.set('');
+        this.confirmModalAction.set(null);
     }
 
     clearMessages(): void {
