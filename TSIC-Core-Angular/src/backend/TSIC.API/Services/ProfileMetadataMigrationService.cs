@@ -342,6 +342,7 @@ public class ProfileMetadataMigrationService
             result.JobsAffected = jobs.Count;
             result.AffectedJobIds = jobs.Select(j => j.JobId).ToList();
             result.AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList();
+            result.AffectedJobYears = jobs.Select(j => j.Year ?? "").ToList();
 
             if (jobs.Count == 0)
             {

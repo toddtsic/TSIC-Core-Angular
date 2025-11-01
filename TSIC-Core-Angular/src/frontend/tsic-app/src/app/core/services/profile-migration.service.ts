@@ -17,6 +17,7 @@ export interface ProfileMigrationResult {
     jobsAffected: number;
     affectedJobIds: string[];
     affectedJobNames: string[];
+    affectedJobYears: string[];
     generatedMetadata?: ProfileMetadata;
     warnings: string[];
     errorMessage?: string;

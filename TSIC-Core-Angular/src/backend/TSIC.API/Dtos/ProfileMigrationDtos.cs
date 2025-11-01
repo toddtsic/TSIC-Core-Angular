@@ -23,6 +23,7 @@ public class ProfileMigrationResult
     public int JobsAffected { get; set; }
     public List<Guid> AffectedJobIds { get; set; } = new();
     public List<string> AffectedJobNames { get; set; } = new();
+    public List<string> AffectedJobYears { get; set; } = new();
     public ProfileMetadata? GeneratedMetadata { get; set; }
     public List<string> Warnings { get; set; } = new();
     public string? ErrorMessage { get; set; }

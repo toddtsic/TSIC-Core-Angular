@@ -567,6 +567,50 @@ This created a critical flaw: all jobs would show identical dropdown options, bu
 
 **Result:** Each of 28 CAC04 jobs now has identical field structure but unique dropdown options matching their specific `JsonOptions` data.
 
+### Year Filtering for Preview Dropdown (Current Year ± 1)
+
+**Challenge:** Job names always include a year, and the dropdown could contain jobs from many years, making it unwieldy for preview purposes.
+
+**Solution:** Filter preview dropdown to show only jobs from current year ± 1, while migration still affects all jobs.
+
+**Implementation:**
+
+1. **Backend Enhancement:**
+   - Added `AffectedJobYears` property to `ProfileMigrationResult` DTO
+   - Service populates years alongside job names: `result.AffectedJobYears = jobs.Select(j => j.Year ?? "").ToList()`
+   - Uses `Job.Year` property directly (no string parsing needed)
+
+2. **Frontend Filtering:**
+   - Added `affectedJobYears: string[]` to TypeScript interface
+   - Created `sortedAffectedJobs` computed signal with year filtering:
+     ```typescript
+     const currentYear = new Date().getFullYear();
+     const minYear = currentYear - 1;
+     const maxYear = currentYear + 1;
+     
+     const filteredJobsWithIndex = jobs
+         .map((name, index) => ({ name, year: years[index], index }))
+         .filter(item => {
+             if (!item.year) return true;
+             const year = Number.parseInt(item.year, 10);
+             return year >= minYear && year <= maxYear;
+         });
+     ```
+   - Returns objects with `{ name, originalIndex }` for proper ID lookup
+   - Created `getJobIdFromFilteredIndex` method to map filtered index to original job ID
+   - Created `allAffectedJobs` computed signal for unfiltered full list
+
+3. **UI Updates:**
+   - Job selector label: "Preview with Job-Specific Options (Current Year ± 1):"
+   - Shows only jobs from 2024, 2025, 2026 (when current year is 2025)
+   - "All Affected Jobs" dropdown shows complete unfiltered list for reference
+
+**Benefits:**
+- ✅ Migration affects **all jobs** regardless of year
+- ✅ Preview dropdown is **manageable** (shows ~3-10 jobs instead of 50+)
+- ✅ Clean implementation using `Job.Year` property
+- ✅ Full job list still available in separate dropdown for reference
+
 **Implementation Time:** ~8 hours total  
 **Status:** ✅ Complete, form preview ready (requires dev server restart)
 

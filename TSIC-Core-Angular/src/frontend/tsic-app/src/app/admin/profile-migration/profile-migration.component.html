@@ -268,6 +268,29 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        <!-- Job Selector for Dynamic Preview -->
+                        <div class="mb-3 border-bottom pb-3">
+                            <label for="jobSelectorDropdown" class="form-label">
+                                <strong>Preview with Job-Specific Options (Current Year ± 1):</strong>
+                            </label>
+                            <select id="jobSelectorDropdown" class="form-select" (change)="onJobSelected($event)">
+                                <option value="">Select a job to see its specific dropdown options...</option>
+                                @for (job of sortedAffectedJobs(); track job.name) {
+                                <option>{{ job.name }}</option>
+                                }
+                            </select>
+                            @if (selectedJobId()) {
+                            <div class="alert alert-info small mb-0 mt-2">
+                                <i class="bi bi-info-circle"></i>
+                                Showing dropdown options for selected job
+                            </div>
+                            } @else {
+                            <small class="text-muted d-block mt-1">
+                                Select a job to preview with that job's specific dropdown values (from JsonOptions).
+                            </small>
+                            }
+                        </div>
+
                         @if (showJsonView()) {
                         <!-- JSON View -->
                         <pre class="bg-light p-3 rounded"
@@ -284,37 +307,15 @@
                 }
 
                 <div class="mb-3">
-                    <label for="jobSelectorDropdown" class="form-label">
-                        <strong>Preview for Specific Job:</strong>
-                    </label>
-                    <select id="jobSelectorDropdown" class="form-select mb-2" (change)="onJobSelected($event)">
-                        <option value="">Select a job to see its specific dropdown options...</option>
-                        @for (jobName of sortedAffectedJobs(); track jobName) {
-                        <option>{{ jobName }}</option>
-                        }
-                    </select>
-                    @if (selectedJobId()) {
-                    <div class="alert alert-info small mb-0">
-                        <i class="bi bi-info-circle"></i>
-                        Showing form preview with dropdown options from: <strong>{{ sortedAffectedJobs()[0] }}</strong>
-                    </div>
-                    } @else {
-                    <small class="text-muted">
-                        Select a job above to preview with that job's specific dropdown values (from JsonOptions).
-                    </small>
-                    }
-                </div>
-
-                <div class="mb-3">
                     <label for="affectedJobsDropdown" class="form-label">
-                        <strong>All Affected Jobs ({{ sortedAffectedJobs().length }}):</strong>
+                        <strong>All Affected Jobs ({{ allAffectedJobs().length }}):</strong>
                     </label>
                     <select id="affectedJobsDropdown" class="form-select">
-                        @for (jobName of sortedAffectedJobs(); track jobName) {
+                        @for (jobName of allAffectedJobs(); track jobName) {
                         <option>{{ jobName }}</option>
                         }
                     </select>
-                    @if (sortedAffectedJobs().length === 0) {
+                    @if (allAffectedJobs().length === 0) {
                     <small class="text-muted">No jobs currently use this profile type.</small>
                     }
                 </div>

@@ -46,17 +46,47 @@ export class ProfileMigrationComponent implements OnInit {
     selectedJobId = signal<string | null>(null);
     jobSpecificOptions = signal<Record<string, any> | null>(null);
 
-    // Computed sorted job names for dropdown
+    // Computed sorted job names for dropdown (filtered to current year ± 1)
     sortedAffectedJobs = computed(() => {
+        const result = this.previewResult();
+        if (!result) return [];
+
+        const currentYear = new Date().getFullYear();
+        const minYear = currentYear - 1;
+        const maxYear = currentYear + 1;
+
+        const jobs = result.affectedJobNames || [];
+        const years = result.affectedJobYears || [];
+
+        // Filter jobs by year range and create tuples
+        const filteredJobsWithIndex = jobs
+            .map((name, index) => ({ name, year: years[index], index }))
+            .filter(item => {
+                if (!item.year) return true; // Include jobs with no year
+                const year = Number.parseInt(item.year, 10);
+                return year >= minYear && year <= maxYear;
+            });
+
+        // Sort by name and return
+        const sorted = [...filteredJobsWithIndex].sort((a, b) => a.name.localeCompare(b.name));
+        return sorted.map(item => ({ name: item.name, originalIndex: item.index }));
+    });
+
+    // Computed: Get job ID from filtered job (using original index)
+    getJobIdFromFilteredIndex(filteredIndex: number): string | null {
+        const filtered = this.sortedAffectedJobs();
+        if (filteredIndex < 0 || filteredIndex >= filtered.length) return null;
+
+        const originalIndex = filtered[filteredIndex].originalIndex;
+        const jobIds = this.previewResult()?.affectedJobIds;
+        return jobIds?.[originalIndex] ?? null;
+    }
+
+    // Computed: All affected jobs (full list, not filtered)
+    allAffectedJobs = computed(() => {
         const jobs = this.previewResult()?.affectedJobNames || [];
         return [...jobs].sort((a, b) => a.localeCompare(b));
     });
-
-    // Computed: Get job ID from job name (using affectedJobIds array)
-    getJobIdFromIndex(index: number): string | null {
-        const jobIds = this.previewResult()?.affectedJobIds;
-        return jobIds?.[index] ?? null;
-    }
 
     // Computed
     get totalJobs(): number {
@@ -168,24 +198,14 @@ export class ProfileMigrationComponent implements OnInit {
         this.selectedProfile.set(profile);
         this.showJsonView.set(false); // Default to form view
 
-        this.migrationService.getProfileMetadata(
+        // Use the preview endpoint to get full job list and metadata
+        this.migrationService.previewProfileMigration(
             profile.profileType,
-            (metadata) => {
-                // Create a result object that shows current metadata
-                const result: ProfileMigrationResult = {
-                    profileType: profile.profileType,
-                    success: true,
-                    fieldCount: metadata.fields.length,
-                    jobsAffected: profile.jobCount,
-                    affectedJobIds: [],
-                    affectedJobNames: profile.sampleJobNames,
-                    generatedMetadata: metadata,
-                    warnings: []
-                };
+            (result) => {
                 this.previewResult.set(result);
             },
             (error) => {
-                this.errorMessage.set(error.error?.message || 'Failed to load current metadata');
+                this.errorMessage.set(error || 'Failed to load profile metadata');
             }
         );
     }
@@ -212,10 +232,10 @@ export class ProfileMigrationComponent implements OnInit {
             return;
         }
 
-        // Get job ID from the selected index (subtract 1 for placeholder option)
-        const jobId = this.getJobIdFromIndex(selectedIndex - 1);
+        // Get job ID from the filtered job list (subtract 1 for placeholder option)
+        const jobId = this.getJobIdFromFilteredIndex(selectedIndex - 1);
         if (!jobId) {
-            console.warn('No job ID found for index', selectedIndex - 1);
+            console.warn('No job ID found for filtered index', selectedIndex - 1);
             return;
         }
 
