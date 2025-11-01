@@ -1,0 +1,76 @@
+### Profile Migration API Tests
+### First, authenticate to get a token
+POST https://localhost:5001/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "your-admin-username",
+  "password": "your-password"
+}
+
+### Save the token from the response, then use it in subsequent requests
+@token = YOUR_JWT_TOKEN_HERE
+
+###
+
+### Preview migration for a specific job (replace with actual JobId)
+GET https://localhost:5001/api/admin/profile-migration/preview/YOUR-JOB-GUID-HERE
+Authorization: Bearer {{token}}
+
+###
+
+### Migrate all jobs (dry run - doesn't save to database)
+POST https://localhost:5001/api/admin/profile-migration/migrate-all
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dryRun": true,
+  "profileTypes": null
+}
+
+###
+
+### Migrate all jobs (actually saves to database)
+POST https://localhost:5001/api/admin/profile-migration/migrate-all
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dryRun": false,
+  "profileTypes": null
+}
+
+###
+
+### Migrate only specific profile types (dry run)
+POST https://localhost:5001/api/admin/profile-migration/migrate-all
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dryRun": true,
+  "profileTypes": ["PP10", "PP17"]
+}
+
+###
+
+### Migrate a single job (replace with actual JobId)
+POST https://localhost:5001/api/admin/profile-migration/migrate/YOUR-JOB-GUID-HERE
+Authorization: Bearer {{token}}
+
+###
+
+### Example: Find jobs in database to test with
+### Run this SQL query in SSMS to find a job with CoreRegformPlayer:
+###
+### SELECT TOP 10 
+###     JobId, 
+###     JobName, 
+###     CoreRegformPlayer,
+###     PlayerProfileMetadataJson
+### FROM Jobs
+### WHERE CoreRegformPlayer IS NOT NULL 
+###     AND CoreRegformPlayer != '0' 
+###     AND CoreRegformPlayer != '1'
+### ORDER BY Modified DESC
