@@ -80,6 +80,12 @@
                     <small class="text-muted">File upload field (preview only)</small>
                     }
 
+                    <!-- HIDDEN Input -->
+                    @else if (field.inputType === 'HIDDEN') {
+                    <input type="hidden" [id]="field.name" [formControlName]="field.name">
+                    <small class="text-muted">Hidden field (not visible to users)</small>
+                    }
+
                     <!-- Unknown Type -->
                     @else {
                     <input type="text" class="form-control" [id]="field.name" [formControlName]="field.name"

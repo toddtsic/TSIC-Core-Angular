@@ -75,6 +75,33 @@
                 </div>
             </div>
 
+            <!-- Summary Card -->
+            @if (profiles().length > 0) {
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-bar-chart"></i> Summary</h5>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h3>{{ profiles().length }}</h3>
+                            <small class="text-muted">Total Profiles</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-success">{{ migratedProfiles.length }}</h3>
+                            <small class="text-muted">Migrated</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-warning">{{ pendingProfiles.length }}</h3>
+                            <small class="text-muted">Pending</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h3>{{ totalJobs }}</h3>
+                            <small class="text-muted">Total Jobs (All Years)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            }
+
             <!-- Profile List -->
             <div class="card">
                 <div class="card-header">
@@ -161,33 +188,6 @@
                     }
                 </div>
             </div>
-
-            <!-- Summary Card -->
-            @if (profiles().length > 0) {
-            <div class="card mt-4">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-bar-chart"></i> Summary</h5>
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <h3>{{ profiles().length }}</h3>
-                            <small class="text-muted">Total Profiles</small>
-                        </div>
-                        <div class="col-md-3">
-                            <h3 class="text-success">{{ migratedProfiles.length }}</h3>
-                            <small class="text-muted">Migrated</small>
-                        </div>
-                        <div class="col-md-3">
-                            <h3 class="text-warning">{{ pendingProfiles.length }}</h3>
-                            <small class="text-muted">Pending</small>
-                        </div>
-                        <div class="col-md-3">
-                            <h3>{{ totalJobs }}</h3>
-                            <small class="text-muted">Total Jobs</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            }
         </div>
     </div>
 </div>
@@ -307,15 +307,15 @@
 
                 <div class="mb-3">
                     <label for="affectedJobsDropdown" class="form-label">
-                        <strong>All Affected Jobs (Current Year ± 1): {{ allAffectedJobs().length }}</strong>
+                        <strong>All Affected Jobs: {{ sortedAffectedJobs().length }} (Current Year ± 1)</strong>
                     </label>
                     <select id="affectedJobsDropdown" class="form-select">
-                        @for (jobName of allAffectedJobs(); track jobName) {
-                        <option>{{ jobName }}</option>
+                        @for (job of sortedAffectedJobs(); track job.name) {
+                        <option>{{ job.name }}</option>
                         }
                     </select>
-                    @if (allAffectedJobs().length === 0) {
-                    <small class="text-muted">No jobs currently use this profile type.</small>
+                    @if (sortedAffectedJobs().length === 0) {
+                    <small class="text-muted">No jobs from current year ± 1 use this profile type.</small>
                     }
                 </div>
 

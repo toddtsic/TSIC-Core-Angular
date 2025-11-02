@@ -194,6 +194,12 @@ public class ProfileMetadataMigrationService
             // Parse into metadata
             var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
 
+            // Ensure order numbers are consecutive starting from 1 (in case of any gaps from skipped fields)
+            for (int i = 0; i < metadata.Fields.Count; i++)
+            {
+                metadata.Fields[i].Order = i + 1;
+            }
+
             result.FieldCount = metadata.Fields.Count;
             result.GeneratedMetadata = metadata;
 
@@ -335,6 +341,13 @@ public class ProfileMetadataMigrationService
 
             // 2. Parse ONCE
             var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
+
+            // Ensure order numbers are consecutive starting from 1 (in case of any gaps from skipped fields)
+            for (int i = 0; i < metadata.Fields.Count; i++)
+            {
+                metadata.Fields[i].Order = i + 1;
+            }
+
             result.FieldCount = metadata.Fields.Count;
             result.GeneratedMetadata = metadata;
 
