@@ -18,15 +18,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         req.url.includes('/auth/registrations') ||
         req.url.includes('/auth/select-registration');
 
-    if (isAuthEndpoint || !token) {
-        // Clone the request and add Authorization header if token exists
-        if (token) {
-            req = req.clone({
-                setHeaders: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-        }
+    if (isAuthEndpoint) {
+        // Don't add any auth header to auth endpoints (they handle their own auth via request body)
+        return next(req);
+    }
+
+    if (!token) {
         return next(req);
     }
 
