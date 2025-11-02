@@ -1,3 +1,4 @@
+import { FormsModule } from '@angular/forms';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -8,11 +9,23 @@ import { ProfileFormPreviewComponent } from '../../shared/components/profile-for
 @Component({
     selector: 'app-profile-migration',
     standalone: true,
-    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent],
+    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule],
     templateUrl: './profile-migration.component.html',
     styleUrls: ['./profile-migration.component.scss']
 })
 export class ProfileMigrationComponent implements OnInit {
+    // For dropdown filtering (signal-based)
+    selectedProfileType = signal<string | null>(null);
+    filteredProfiles = computed(() => {
+        const all = this.profiles();
+        const selected = this.selectedProfileType();
+        if (!selected) return all;
+        return all.filter((p: any) => p.profileType === selected);
+    });
+    onProfileTypeChange(event: Event) {
+        const value = (event.target as HTMLSelectElement).value;
+        this.selectedProfileType.set(value || null);
+    }
     private readonly migrationService = inject(ProfileMigrationService);
     private readonly authService = inject(AuthService);
 
