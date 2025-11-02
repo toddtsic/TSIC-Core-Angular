@@ -277,9 +277,30 @@ namespace TSIC.API.Controllers
             // Revoke old refresh token
             _refreshTokenService.RevokeRefreshToken(request.RefreshToken);
 
-            // Generate new access token and refresh token
-            // Note: We generate a minimal token here. Client should call select-registration again if needed
-            var newAccessToken = GenerateMinimalJwtToken(user);
+            // Try to get user's registrations to regenerate enriched token
+            var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
+            var mostRecentReg = registrations
+                .SelectMany(r => r.RoleRegistrations)
+                .OrderByDescending(reg => reg.RegId) // Most recent registration
+                .FirstOrDefault();
+
+            string newAccessToken;
+            if (mostRecentReg != null && !string.IsNullOrEmpty(mostRecentReg.JobPath))
+            {
+                // User has a registration - regenerate enriched token with role/regId/jobPath
+                // Get the correct role name from the parent registration (same logic as select-registration)
+                var registrationRole = registrations
+                    .FirstOrDefault(r => r.RoleRegistrations.Any(reg => reg.RegId == mostRecentReg.RegId));
+                var roleName = registrationRole?.RoleName ?? "User";
+
+                newAccessToken = GenerateEnrichedJwtToken(user, mostRecentReg.RegId, mostRecentReg.JobPath, mostRecentReg.JobLogo, roleName);
+            }
+            else
+            {
+                // No registration found - fall back to minimal token
+                newAccessToken = GenerateMinimalJwtToken(user);
+            }
+
             var newRefreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
