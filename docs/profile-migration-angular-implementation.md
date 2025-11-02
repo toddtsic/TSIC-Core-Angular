@@ -758,8 +758,8 @@ This created a critical flaw: all jobs would show identical dropdown options, bu
 
 1. **GitHubProfileFetcher Enhancement**
    - Added `FetchViewFileAsync(profileType)` method
-   - Fetches corresponding .cshtml file: `Views/PlayerRegistrationForms/PlayerSingle/{profileType}.cshtml` (PP profiles)
-   - Fetches corresponding .cshtml file: `Views/PlayerRegistrationForms/PlayerMulti/{profileType}.cshtml` (CAC profiles)
+   - Fetches corresponding .cshtml file: `TSIC-Unify/Views/PlayerRegistrationForms/PlayerSingle/{profileType}.cshtml` (PP profiles)
+   - Fetches corresponding .cshtml file: `TSIC-Unify/Views/PlayerRegistrationForms/PlayerMulti/{profileType}.cshtml` (CAC profiles)
    - Returns null if view file doesn't exist (graceful fallback)
 
 2. **CSharpToMetadataParser Enhancement**
@@ -1130,6 +1130,49 @@ private initializeFromToken(): void {
 5. If refresh succeeds → allow navigation
 6. If refresh fails → redirect to login
 7. No premature redirects or race conditions
+
+---
+
+## November 2, 2025 - View-First Algorithm Path Fix
+
+**Issue:** `CSharpToMetadataParser` was returning empty metadata (0 fields) because `viewContent` was null.
+
+**Root Cause:** GitHub API 404 error when fetching .cshtml view files. The path was missing the `TSIC-Unify/` prefix.
+
+**Incorrect Path:**
+```csharp
+var path = $"Views/PlayerRegistrationForms/{folder}/{profileType}.cshtml";
+// Tried: Views/PlayerRegistrationForms/PlayerMulti/CAC04.cshtml
+// Result: 404 Not Found
+```
+
+**Correct Path:**
+```csharp
+var path = $"TSIC-Unify/Views/PlayerRegistrationForms/{folder}/{profileType}.cshtml";
+// Tries: TSIC-Unify/Views/PlayerRegistrationForms/PlayerMulti/CAC04.cshtml
+// Result: Success!
+```
+
+**Files Updated:**
+- `GitHubProfileFetcher.cs` - Fixed path in `FetchViewFileAsync()` method (line 155)
+- `profile-migration-angular-implementation.md` - Updated documentation with correct paths
+
+**Debugging Process:**
+1. Set breakpoint in `CSharpToMetadataParser.ParseProfileAsync()`
+2. Found `viewContent` was null/empty
+3. Set breakpoint in `GitHubProfileFetcher.FetchViewFileAsync()`
+4. Stepped into `FetchFileContentAsync()` which threw HttpRequestException
+5. GitHub API returned 404 with message: "Not Found"
+6. Checked GitHub repo structure - file exists at `TSIC-Unify/Views/...`
+7. Added missing `TSIC-Unify/` prefix to path
+8. Retested - view file fetched successfully, parser now returns 20 fields for CAC04
+
+**Results:**
+- ✅ CAC04 migration now shows 20 fields (was 0)
+- ✅ Hidden fields correctly detected from view markup
+- ✅ Public fields correctly identified
+- ✅ Field ordering follows view file top-to-bottom layout
+- ✅ "VIEW-FIRST ALGORITHM v1.0" fully operational
 
 ---
 

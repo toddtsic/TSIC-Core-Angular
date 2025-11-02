@@ -152,7 +152,7 @@ public class GitHubProfileFetcher
 
             // Determine path based on profile type
             string folder = profileType.StartsWith("CAC") ? "PlayerMulti" : "PlayerSingle";
-            var path = $"Views/PlayerRegistrationForms/{folder}/{profileType}.cshtml";
+            var path = $"TSIC-Unify/Views/PlayerRegistrationForms/{folder}/{profileType}.cshtml";
 
             _logger.LogInformation("Fetching view file for {ProfileType} from GitHub: {Path}", profileType, path);
 
