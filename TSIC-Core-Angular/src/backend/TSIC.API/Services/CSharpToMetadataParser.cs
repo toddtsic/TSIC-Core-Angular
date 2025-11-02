@@ -425,7 +425,7 @@ public class CSharpToMetadataParser
         if (propertyName.EndsWith("Phone", StringComparison.OrdinalIgnoreCase) || propertyName.Contains("Phone"))
             return "TEL";
 
-        if (propertyName.EndsWith("Id") || propertyName == "Gender" || propertyName == "Position" || propertyName.EndsWith("Size") || propertyName == "State")
+        if (propertyName.EndsWith("Id") || propertyName == "Gender" || propertyName == "Position" || propertyName == "GradYear" || propertyName.EndsWith("Size") || propertyName == "State")
             return "SELECT";
 
         return null; // Use default from view
@@ -438,6 +438,14 @@ public class CSharpToMetadataParser
             "State" => "states",
             "Gender" => "genders",
             "Position" => "positions",
+            "GradYear" => "gradYears",
+            "RecruitingGradYear" => "recruitingGradYears",
+            "SchoolGrade" => "schoolGrades",
+            "SkillLevel" => "skillLevels",
+            "SportYearsExp" => "yearsExperience",
+            "StrongHand" => "strongHand",
+            "WhoReferred" => "whoReferred",
+            "HeightInches" => "heightInches",
             var name when name.EndsWith("Size") => "sizes",
             _ => null
         };
