@@ -4,7 +4,12 @@
         <div class="row">
             @for (field of sortedFields(); track field.name) {
             <div class="col-md-6 mb-3">
-                <div class="form-field-preview">
+                <div class="form-field-preview" [class.bg-light]="isHiddenField(field)"
+                    [class.border-secondary]="isHiddenField(field)" [class.border-2]="isHiddenField(field)"
+                    [class.bg-warning]="field.visibility === 'adminOnly'"
+                    [class.bg-opacity-25]="field.visibility === 'adminOnly'"
+                    [class.border-warning]="field.visibility === 'adminOnly'"
+                    [class.border-2]="field.visibility === 'adminOnly'">
                     <!-- Field Label with Order Number -->
                     <label [for]="field.name" class="form-label">
                         @if (showFieldNumbers) {
@@ -20,7 +25,8 @@
                         }
                     </label>
 
-                    <!-- Validation Rules Summary -->
+                    <!-- Validation Rules Summary - skip for hidden fields -->
+                    @if (!isHiddenField(field)) {
                     <div class="mb-2">
                         <small class="text-muted">
                             <i class="bi bi-shield-check"></i> <strong>Validators:</strong>
@@ -31,9 +37,15 @@
                             }
                         </small>
                     </div>
+                    }
+
+                    <!-- Input controls - skip for hidden fields, just render hidden input -->
+                    @if (isHiddenField(field)) {
+                    <input type="hidden" [id]="field.name" [formControlName]="field.name">
+                    }
 
                     <!-- TEXT Input -->
-                    @if (field.inputType === 'TEXT' || field.inputType === 'EMAIL' || field.inputType === 'TEL') {
+                    @else if (field.inputType === 'TEXT' || field.inputType === 'EMAIL' || field.inputType === 'TEL') {
                     <input [type]="field.inputType === 'EMAIL' ? 'email' : field.inputType === 'TEL' ? 'tel' : 'text'"
                         class="form-control" [id]="field.name" [formControlName]="field.name"
                         [placeholder]="'Enter ' + field.displayName" [readonly]="readonly">
@@ -80,11 +92,6 @@
                     @else if (field.inputType === 'FILE') {
                     <input type="file" class="form-control" [id]="field.name" [disabled]="readonly">
                     <small class="text-muted">File upload field (preview only)</small>
-                    }
-
-                    <!-- HIDDEN Input -->
-                    @else if (field.inputType === 'HIDDEN') {
-                    <input type="hidden" [id]="field.name" [formControlName]="field.name">
                     }
 
                     <!-- Unknown Type -->
