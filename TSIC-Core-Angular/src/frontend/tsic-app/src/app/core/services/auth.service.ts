@@ -211,6 +211,8 @@ export class AuthService {
 
   /**
    * Decode JWT token and extract user info
+   * For expired tokens, still populate user from token payload to avoid logout,
+   * but let the interceptor handle refresh on next API call
    */
   private initializeFromToken(): void {
     const token = this.getToken();
@@ -222,19 +224,7 @@ export class AuthService {
     try {
       const payload = this.decodeToken(token);
 
-      // Check if token is expired
-      if (payload.exp) {
-        const expirationDate = new Date(payload.exp * 1000);
-        const now = new Date();
-
-        if (expirationDate <= now) {
-          console.warn('Access token expired. Guards will handle refresh on next navigation.');
-          // Don't set user to null yet - let the guard attempt refresh
-          // This prevents race conditions during app initialization
-          return;
-        }
-      }
-
+      // Extract user info from token payload regardless of expiration
       const user: AuthenticatedUser = {
         username: payload.username || payload.sub,
         regId: payload.regId,
@@ -243,6 +233,18 @@ export class AuthService {
         role: payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
       };
       this.currentUser.set(user);
+
+      // Check if token is expired
+      if (payload.exp) {
+        const expirationDate = new Date(payload.exp * 1000);
+        const now = new Date();
+
+        if (expirationDate <= now) {
+          console.warn('Access token expired. Will refresh on next API call via interceptor.');
+          // Don't proactively refresh here - let the token interceptor handle it
+          // This avoids race conditions with route guards
+        }
+      }
     } catch (error) {
       console.error('Failed to decode token:', error);
       this.currentUser.set(null);

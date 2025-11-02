@@ -1,22 +1,104 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
+import { switchMap, catchError } from 'rxjs';
 
 /**
  * HTTP Interceptor that adds JWT token to all outgoing requests
+ * Proactively refreshes expired tokens before making requests
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const authService = inject(AuthService);
     const token = authService.getToken();
 
-    // Clone the request and add Authorization header if token exists
-    if (token) {
-        req = req.clone({
-            setHeaders: {
-                Authorization: `Bearer ${token}`
-            }
-        });
+    // Skip auth for auth endpoints
+    const isAuthEndpoint = req.url.includes('/auth/login') ||
+        req.url.includes('/auth/refresh') ||
+        req.url.includes('/auth/revoke') ||
+        req.url.includes('/auth/registrations') ||
+        req.url.includes('/auth/select-registration');
+
+    if (isAuthEndpoint || !token) {
+        // Clone the request and add Authorization header if token exists
+        if (token) {
+            req = req.clone({
+                setHeaders: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+        }
+        return next(req);
     }
+
+    // Check if token is expired
+    const isExpired = isTokenExpired(token);
+
+    if (isExpired) {
+        console.log('Token expired, refreshing before request...');
+        // Refresh token first, then make the request with new token
+        return authService.refreshAccessToken().pipe(
+            switchMap(() => {
+                const newToken = authService.getToken();
+                if (newToken) {
+                    req = req.clone({
+                        setHeaders: {
+                            Authorization: `Bearer ${newToken}`
+                        }
+                    });
+                }
+                return next(req);
+            }),
+            catchError((error) => {
+                // If refresh fails, proceed with original request
+                // (will likely fail with 401, triggering logout)
+                if (token) {
+                    req = req.clone({
+                        setHeaders: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
+                }
+                return next(req);
+            })
+        );
+    }
+
+    // Token is valid, add it to request
+    req = req.clone({
+        setHeaders: {
+            Authorization: `Bearer ${token}`
+        }
+    });
 
     return next(req);
 };
+
+/**
+ * Check if a JWT token is expired
+ */
+function isTokenExpired(token: string): boolean {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replaceAll('-', '+').replaceAll('_', '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(c => {
+                    const code = c.codePointAt(0);
+                    return '%' + ('00' + (code ? code.toString(16) : '00')).slice(-2);
+                })
+                .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+
+        if (payload.exp) {
+            const expirationDate = new Date(payload.exp * 1000);
+            const now = new Date();
+            return expirationDate <= now;
+        }
+        return false;
+    } catch (error) {
+        console.error('Failed to check token expiration:', error);
+        return false;
+    }
+}

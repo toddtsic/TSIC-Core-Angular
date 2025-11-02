@@ -21,14 +21,16 @@
                     </label>
 
                     <!-- Validation Rules Summary -->
-                    @if (field.validation && getValidationHint(field)) {
                     <div class="mb-2">
                         <small class="text-muted">
-                            <i class="bi bi-shield-check"></i> <strong>Validators:</strong> {{ getValidationHint(field)
-                            }}
+                            <i class="bi bi-shield-check"></i> <strong>Validators:</strong>
+                            @if (field.validation && getValidationHint(field)) {
+                            {{ getValidationHint(field) }}
+                            } @else {
+                            <span class="text-muted fst-italic">None</span>
+                            }
                         </small>
                     </div>
-                    }
 
                     <!-- TEXT Input -->
                     @if (field.inputType === 'TEXT' || field.inputType === 'EMAIL' || field.inputType === 'TEL') {
@@ -83,7 +85,6 @@
                     <!-- HIDDEN Input -->
                     @else if (field.inputType === 'HIDDEN') {
                     <input type="hidden" [id]="field.name" [formControlName]="field.name">
-                    <small class="text-muted">Hidden field (not visible to users)</small>
                     }
 
                     <!-- Unknown Type -->

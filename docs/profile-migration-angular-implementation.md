@@ -912,6 +912,106 @@ else
 **Result:** All three naming conventions properly captured and available in metadata.
 
 ---
+
+## November 2, 2025 - POCO Dual-Class Parsing Fix (Display Names)
+
+**Issue:** Display names showing admin version ("Waiver") instead of registrant version ("I agree with the Waiver Terms and Conditions").
+
+**Root Cause:** POCO files contain THREE classes in this structure:
+1. `CAC04_ViewModel` - Container class (list of players)
+2. `CAC04_Player_ViewModel` - **REGISTRANT** class (player-facing with long display names)
+3. `CAC04_PlayerSearch_ViewModel` - **ADMIN** class (admin search with short display names)
+
+**Previous Logic:**
+```csharp
+// Found ALL public classes using generic regex
+var classMatches = Regex.Matches(sourceCode, @"^\s*public\s+class\s+(\w+)");
+// classMatches[0] = CAC04_ViewModel (container)
+// classMatches[1] = CAC04_Player_ViewModel (registrant) ✅
+// classMatches[2] = CAC04_PlayerSearch_ViewModel (admin) ❌
+
+// Incorrectly treated [0] as registrant, [1] as admin
+// Result: Admin properties overwrote registrant properties
+```
+
+**New Logic:**
+```csharp
+// Find SPECIFIC class patterns by name
+var registrantMatch = Regex.Match(sourceCode, @"^\s*public\s+class\s+(\w+_Player_ViewModel)\s");
+var adminMatch = Regex.Match(sourceCode, @"^\s*public\s+class\s+(\w+_PlayerSearch_ViewModel)\s");
+
+// Extract registrant class code (from registrant match to admin match)
+var registrantCode = sourceCode.Substring(registrantStart, registrantEnd - registrantStart);
+
+// Extract admin class code (from admin match to end of file)
+var adminCode = sourceCode.Substring(adminStart);
+
+// Parse separately into two dictionaries
+var registrantMetadata = ParseSingleClassProperties(registrantCode);
+var adminMetadata = ParseSingleClassProperties(adminCode);
+
+// Merge with REGISTRANT PRIORITY
+foreach (var kvp in registrantMetadata) {
+    metadata[kvp.Key] = kvp.Value;  // Registrant first
+}
+foreach (var kvp in adminMetadata) {
+    if (!metadata.ContainsKey(kvp.Key)) {
+        metadata[kvp.Key] = kvp.Value;  // Admin only if not in registrant
+    }
+}
+```
+
+**Class Naming Patterns:**
+- Registrant: `{ProfileType}_Player_ViewModel` (e.g., `CAC04_Player_ViewModel`)
+- Admin/Search: `{ProfileType}_PlayerSearch_ViewModel` (e.g., `CAC04_PlayerSearch_ViewModel`)
+
+**Example Property Difference:**
+
+**Registrant Class (CAC04_Player_ViewModel):**
+```csharp
+[Display(Name = "I agree with the Waiver Terms and Conditions")]
+[Required]
+[Compare("IsTrue", ErrorMessage = "the WAIVER MUST BE SIGNED")]
+public bool BWaiverSigned1 { get; set; }
+```
+
+**Admin Class (CAC04_PlayerSearch_ViewModel):**
+```csharp
+[Display(Name = "Waiver")]
+[Required]
+[Compare("IsTrue", ErrorMessage = "the WAIVER MUST BE SIGNED")]
+public bool BWaiverSigned1 { get; set; }
+```
+
+**Migration Priority:**
+1. Parse registrant class → get "I agree with the Waiver Terms and Conditions"
+2. Parse admin class → skip `BWaiverSigned1` (already exists from registrant)
+3. Add admin-only fields (like `RegistrationId`) that don't exist in registrant
+
+**Debugging Logs Added:**
+```csharp
+_logger.LogInformation("Found registrant class '{Registrant}' and admin class '{Admin}'", 
+    registrantMatch.Groups[1].Value, adminMatch.Groups[1].Value);
+_logger.LogInformation("Parsed {Count} properties from registrant class", registrantMetadata.Count);
+_logger.LogInformation("Parsed {Count} properties from admin class", adminMetadata.Count);
+_logger.LogDebug("Adding registrant property: {Name} with Display='{Display}'", kvp.Key, kvp.Value.DisplayName);
+_logger.LogDebug("Skipping admin property {Name} (exists in registrant with Display='{Display}')", kvp.Key, metadata[kvp.Key].DisplayName);
+```
+
+**Results:**
+- ✅ BWaiverSigned1 now shows: "I agree with the Waiver Terms and Conditions" (registrant version)
+- ✅ BWaiverSigned3 now shows: "I agree with the Refund Terms and Conditions" (registrant version)
+- ✅ Admin-only fields like `RegistrationId` still included from admin class
+- ✅ Parser correctly identifies and prioritizes player-facing metadata
+
+**Files Updated:**
+- `CSharpToMetadataParser.cs` - Complete rewrite of `ParseClassProperties()` method (lines 218-262)
+- Added logging to track which properties come from which class
+- Created separate `ParseSingleClassProperties()` helper method
+
+**Key Lesson:** When debugging parser issues, always examine the **actual source POCO structure** first instead of making assumptions about class ordering. The user repeatedly told us "registrant on top, admin on bottom" but we kept looking at ALL classes instead of the SPECIFIC class name patterns.
+
+---
 - ✅ Preview dropdown is **manageable** (shows ~3-10 jobs instead of 50+)
 - ✅ Clean implementation using `Job.Year` property
 - ✅ Full job list still available in separate dropdown for reference

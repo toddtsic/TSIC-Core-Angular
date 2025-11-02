@@ -190,7 +190,7 @@ export class ProfileFormPreviewComponent {
     getVisibilityBadge(field: ProfileMetadataField): { class: string; label: string } | null {
         switch (field.visibility) {
             case 'hidden':
-                return { class: 'bg-secondary', label: 'Hidden' };
+                return { class: 'bg-dark', label: 'Hidden' };
             case 'adminOnly':
                 return { class: 'bg-warning text-dark', label: 'Admin Only' };
             default:
