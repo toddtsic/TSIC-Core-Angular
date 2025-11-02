@@ -59,8 +59,15 @@ public class ProfileMetadataField
     public int Order { get; set; }
 
     /// <summary>
-    /// If true, only admin can see/edit this field
+    /// Field visibility: 'public' (default, visible to registrants and admins), 
+    /// 'adminOnly' (only admins can see/edit), or 'hidden' (technical fields, never displayed)
     /// </summary>
+    public string Visibility { get; set; } = "public";
+
+    /// <summary>
+    /// If true, only admin can see/edit this field (DEPRECATED - use Visibility instead)
+    /// </summary>
+    [Obsolete("Use Visibility property instead")]
     public bool AdminOnly { get; set; }
 
     /// <summary>
@@ -81,6 +88,13 @@ public class FieldValidation
 {
     public bool Required { get; set; }
     public bool Email { get; set; }
+
+    /// <summary>
+    /// For checkboxes: requires the checkbox to be checked (true value), not just present
+    /// Maps to Angular's Validators.requiredTrue
+    /// </summary>
+    public bool RequiredTrue { get; set; }
+
     public int? MinLength { get; set; }
     public int? MaxLength { get; set; }
     public string? Pattern { get; set; }

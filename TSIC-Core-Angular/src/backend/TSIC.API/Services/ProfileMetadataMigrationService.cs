@@ -188,8 +188,11 @@ public class ProfileMetadataMigrationService
             var (profileSource, profileSha) = await _githubFetcher.FetchProfileSourceAsync(profileType);
             var (baseSource, _) = await _githubFetcher.FetchBaseClassSourceAsync();
 
+            // Fetch corresponding .cshtml view file for hidden field detection
+            var viewContent = await _githubFetcher.FetchViewFileAsync(profileType);
+
             // Parse into metadata
-            var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha);
+            var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
 
             result.FieldCount = metadata.Fields.Count;
             result.GeneratedMetadata = metadata;
@@ -327,8 +330,11 @@ public class ProfileMetadataMigrationService
             var (profileSource, profileSha) = await _githubFetcher.FetchProfileSourceAsync(profileType);
             var (baseSource, _) = await _githubFetcher.FetchBaseClassSourceAsync();
 
+            // Fetch corresponding .cshtml view file for hidden field detection
+            var viewContent = await _githubFetcher.FetchViewFileAsync(profileType);
+
             // 2. Parse ONCE
-            var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha);
+            var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
             result.FieldCount = metadata.Fields.Count;
             result.GeneratedMetadata = metadata;
 
@@ -657,6 +663,16 @@ public class ProfileMetadataMigrationService
         {
             result.IsValid = false;
             result.Messages.Add("Field is required");
+        }
+
+        // Test requiredTrue (for checkboxes)
+        if (field.Validation.RequiredTrue)
+        {
+            if (!bool.TryParse(testValue, out var boolValue) || !boolValue)
+            {
+                result.IsValid = false;
+                result.Messages.Add("Checkbox must be checked (value must be true)");
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(testValue))

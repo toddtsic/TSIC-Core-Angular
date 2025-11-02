@@ -48,7 +48,8 @@ export interface ProfileMetadataField {
     options?: ProfileFieldOption[];
     validation?: FieldValidation;
     order: number;
-    adminOnly: boolean;
+    visibility: 'public' | 'adminOnly' | 'hidden';
+    adminOnly: boolean; // Deprecated, use visibility instead
     computed: boolean;
     helpText?: string;
     placeholder?: string;
@@ -63,6 +64,7 @@ export interface ProfileFieldOption {
 export interface FieldValidation {
     required?: boolean;
     email?: boolean;
+    requiredTrue?: boolean;  // For checkboxes: must be checked (true), not just present
     minLength?: number;
     maxLength?: number;
     pattern?: string;

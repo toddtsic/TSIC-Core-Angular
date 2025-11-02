@@ -21,10 +21,16 @@ public class CSharpToMetadataParser
         "__RequestVerificationToken"
     };
 
-    // Admin-only fields
+    // Hidden fields (technical, never displayed)
+    private static readonly HashSet<string> HiddenFields = new()
+    {
+        "RegistrationId"
+    };
+
+    // Admin-only fields (visible only to admins)
     private static readonly HashSet<string> AdminOnlyFields = new()
     {
-        "RegistrationId", "PlayerUserId", "AmtPaidToDate"
+        "PlayerUserId", "AmtPaidToDate"
     };
 
     // Computed fields
@@ -33,9 +39,74 @@ public class CSharpToMetadataParser
         "Agerange"
     };
 
+    // Hidden fields detected from .cshtml view file (set dynamically per profile)
+    private HashSet<string> _hiddenFieldsFromView = new();
+
     public CSharpToMetadataParser(ILogger<CSharpToMetadataParser> logger)
     {
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Parse hidden field names from .cshtml view file
+    /// </summary>
+    /// <param name="viewContent">Raw .cshtml file content</param>
+    /// <returns>Set of field names marked as hidden in the view</returns>
+    public HashSet<string> ParseHiddenFieldsFromView(string? viewContent)
+    {
+        var hiddenFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(viewContent))
+        {
+            return hiddenFields;
+        }
+
+        // Regex to find: <input type="hidden" asp-for="FieldName" />
+        // Handles variations like asp-for='...' and type='hidden'
+        var regex = new Regex(
+            @"<input[^>]*type\s*=\s*[""']hidden[""'][^>]*asp-for\s*=\s*[""']([^""']+)[""']|" +
+            @"<input[^>]*asp-for\s*=\s*[""']([^""']+)[""'][^>]*type\s*=\s*[""']hidden[""']",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+        foreach (Match match in regex.Matches(viewContent))
+        {
+            // Extract asp-for value (from either capture group)
+            var aspForValue = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+
+            if (string.IsNullOrWhiteSpace(aspForValue))
+                continue;
+
+            // Extract the base field name, handling nested paths
+            // Examples:
+            //   "FamilyPlayers[i].BasePP_Player_ViewModel.RegistrationId" -> "RegistrationId"
+            //   "RegistrationId" -> "RegistrationId"
+            //   "FamilyPlayers[i].IsTrue" -> "IsTrue"
+            var fieldName = ExtractBaseFieldName(aspForValue);
+
+            if (!string.IsNullOrWhiteSpace(fieldName))
+            {
+                hiddenFields.Add(fieldName);
+                _logger.LogDebug("Found hidden field in view: {FieldName} (from asp-for=\"{AspFor}\")",
+                    fieldName, aspForValue);
+            }
+        }
+
+        _logger.LogInformation("Parsed {Count} hidden fields from view file", hiddenFields.Count);
+
+        return hiddenFields;
+    }
+
+    /// <summary>
+    /// Extract base field name from asp-for path
+    /// </summary>
+    private static string ExtractBaseFieldName(string aspForPath)
+    {
+        // Remove array indices: "FamilyPlayers[i].FieldName" -> "FamilyPlayers.FieldName"
+        var withoutIndices = Regex.Replace(aspForPath, @"\[\w+\]", "");
+
+        // Get the last segment after splitting by '.'
+        var segments = withoutIndices.Split('.');
+        return segments[^1]; // Return last segment
     }
 
     /// <summary>
@@ -45,8 +116,12 @@ public class CSharpToMetadataParser
         string profileSourceCode,
         string baseClassSourceCode,
         string profileType,
-        string commitSha)
+        string commitSha,
+        string? viewContent = null)
     {
+        // Parse hidden fields from view file first (if provided)
+        _hiddenFieldsFromView = ParseHiddenFieldsFromView(viewContent);
+
         var metadata = new ProfileMetadata
         {
             Fields = new List<ProfileMetadataField>(),
@@ -188,8 +263,12 @@ public class CSharpToMetadataParser
             DbColumn = propertyName,
             DisplayName = propertyName, // Will be overridden by [Display] if present
             Order = order++,
-            AdminOnly = AdminOnlyFields.Contains(propertyName),
-            Computed = ComputedFields.Contains(propertyName)
+            Computed = ComputedFields.Contains(propertyName),
+            // Set visibility based on field classification
+            Visibility = DetermineVisibility(propertyName),
+#pragma warning disable CS0618 // Type or member is obsolete
+            AdminOnly = AdminOnlyFields.Contains(propertyName) // Keep for backward compatibility
+#pragma warning restore CS0618
         };
 
         // Extract attributes
@@ -218,7 +297,7 @@ public class CSharpToMetadataParser
         }
 
         // Build validation
-        field.Validation = BuildValidation(attributes);
+        field.Validation = BuildValidation(attributes, propertyType);
 
         // Add special validation rules based on field name
         ApplySpecialValidationRules(propertyName, field);
@@ -394,7 +473,7 @@ public class CSharpToMetadataParser
         }
     }
 
-    private static FieldValidation? BuildValidation(List<AttributeSyntax> attributes)
+    private static FieldValidation? BuildValidation(List<AttributeSyntax> attributes, string propertyType)
     {
         var validation = new FieldValidation();
         var hasValidation = false;
@@ -427,8 +506,19 @@ public class CSharpToMetadataParser
 
                 case "Range":
                     var (min, max) = ExtractRangeValues(attr);
-                    validation.Min = min;
-                    validation.Max = max;
+
+                    // Check if this is a checkbox RequiredTrue pattern: [Range(typeof(bool), "true", "true")]
+                    if (propertyType == "bool" && min.HasValue && max.HasValue &&
+                        Math.Abs(min.Value - 1) < 0.001 && Math.Abs(max.Value - 1) < 0.001)
+                    {
+                        validation.RequiredTrue = true;
+                    }
+                    else
+                    {
+                        validation.Min = min;
+                        validation.Max = max;
+                    }
+
                     validation.Message = ExtractErrorMessage(attr);
                     hasValidation = true;
                     break;
@@ -586,6 +676,25 @@ public class CSharpToMetadataParser
     {
         // Remove quotes and @ symbol
         return value?.Trim('"', '@');
+    }
+
+    /// <summary>
+    /// Determine field visibility based on field name classification
+    /// </summary>
+    private string DetermineVisibility(string propertyName)
+    {
+        // Check view-based hidden fields first (source of truth from .cshtml)
+        if (_hiddenFieldsFromView.Contains(propertyName))
+            return "hidden";
+
+        // Fall back to hardcoded hidden fields
+        if (HiddenFields.Contains(propertyName))
+            return "hidden";
+
+        if (AdminOnlyFields.Contains(propertyName))
+            return "adminOnly";
+
+        return "public";
     }
 
     private static string ToCamelCase(string pascalCase)

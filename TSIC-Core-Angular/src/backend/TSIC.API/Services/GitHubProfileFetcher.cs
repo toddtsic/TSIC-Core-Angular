@@ -139,6 +139,34 @@ public class GitHubProfileFetcher
         }
     }
 
+    /// <summary>
+    /// Fetch .cshtml view file for a profile to extract hidden fields
+    /// </summary>
+    /// <param name="profileType">e.g., "PP10", "PP17", "CAC05"</param>
+    public async Task<string?> FetchViewFileAsync(string profileType)
+    {
+        try
+        {
+            var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
+            var repoName = _configuration["GitHub:RepoName"] ?? "TSIC-Unify-2024";
+
+            // Determine path based on profile type
+            string folder = profileType.StartsWith("CAC") ? "PlayerMulti" : "PlayerSingle";
+            var path = $"Views/PlayerRegistrationForms/{folder}/{profileType}.cshtml";
+
+            _logger.LogInformation("Fetching view file for {ProfileType} from GitHub: {Path}", profileType, path);
+
+            var content = await FetchFileContentAsync(repoOwner, repoName, path);
+            return DecodeBase64Content(content.content);
+        }
+        catch (Exception ex)
+        {
+            // View file is optional - if it doesn't exist, we'll use default behavior
+            _logger.LogWarning(ex, "Could not fetch view file for {ProfileType} - will use default hidden field detection", profileType);
+            return null;
+        }
+    }
+
     private async Task<GitHubFileContent> FetchFileContentAsync(string owner, string repo, string path)
     {
         var url = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";

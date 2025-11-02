@@ -235,6 +235,7 @@ export class ProfileEditorComponent implements OnInit {
             displayName: 'New Field',
             inputType: 'TEXT',
             order: metadata.fields.length,
+            visibility: 'public',
             adminOnly: false,
             computed: false
         };

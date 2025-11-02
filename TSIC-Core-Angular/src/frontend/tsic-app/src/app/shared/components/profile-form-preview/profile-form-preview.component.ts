@@ -48,7 +48,7 @@ export class ProfileFormPreviewComponent {
     }
 
     private computeDropdownOptions(
-        field: ProfileMetadataField, 
+        field: ProfileMetadataField,
         jobOptions: Record<string, unknown> | null
     ): Array<{ value: string; label: string }> {
         // PRIORITY 1: Use options from field metadata (populated during migration)
@@ -61,14 +61,14 @@ export class ProfileFormPreviewComponent {
         // PRIORITY 2: Try job-specific JsonOptions
         if (jobOptions) {
             const dataSourceLower = field.dataSource.toLowerCase();
-            
+
             // Try multiple matching strategies for JsonOptions keys
             // Examples: "positions" -> "List_Positions", "jerseySize" -> "ListSizes_Jersey"
             const optionsKey = Object.keys(jobOptions).find(key => {
                 const keyLower = key.toLowerCase();
-                return keyLower.includes(dataSourceLower) || 
-                       keyLower.includes(`list_${dataSourceLower}`) ||
-                       keyLower.includes(`list${dataSourceLower}`);
+                return keyLower.includes(dataSourceLower) ||
+                    keyLower.includes(`list_${dataSourceLower}`) ||
+                    keyLower.includes(`list${dataSourceLower}`);
             });
 
             if (optionsKey) {
@@ -120,6 +120,10 @@ export class ProfileFormPreviewComponent {
 
         if (field.validation.required) {
             hints.push('Required');
+        }
+
+        if (field.validation.requiredTrue) {
+            hints.push('Must be checked');
         }
 
         if (field.validation.minLength) {
@@ -179,6 +183,18 @@ export class ProfileFormPreviewComponent {
     }
 
     isHiddenField(field: ProfileMetadataField): boolean {
-        return field.inputType === 'HIDDEN';
+        // Check visibility property first, fallback to inputType for backward compatibility
+        return field.visibility === 'hidden' || field.inputType === 'HIDDEN';
+    }
+
+    getVisibilityBadge(field: ProfileMetadataField): { class: string; label: string } | null {
+        switch (field.visibility) {
+            case 'hidden':
+                return { class: 'bg-secondary', label: 'Hidden' };
+            case 'adminOnly':
+                return { class: 'bg-warning text-dark', label: 'Admin Only' };
+            default:
+                return null; // No badge for public fields
+        }
     }
 }
