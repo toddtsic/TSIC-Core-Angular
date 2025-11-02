@@ -86,6 +86,38 @@ Uses Angular 18+ signals for reactive state:
 - TEXT, TEXTAREA, EMAIL, NUMBER, TEL
 - DATE, DATETIME, CHECKBOX, SELECT, RADIO
 
+**Field Visibility System:**
+Each field has a `visibility` property that controls how it appears in forms:
+
+- **`public`** (default): Visible to both registrants and admins
+  - Displayed with a green "Public" badge
+  - Rendered in registration forms for end users
+  - Editable by both registrants and admins
+
+- **`adminOnly`**: Visible only to administrators
+  - Displayed with a yellow "Admin Only" badge
+  - Fields like `AmtPaidToDate`, `PlayerUserId`
+  - Useful for internal tracking without exposing to registrants
+  - Editable only by admins in admin dashboard
+
+- **`hidden`**: Technical fields never displayed in UI
+  - Displayed with a gray "Hidden" badge
+  - Auto-detected from .cshtml view files via `<input type="hidden" />`
+  - Fields like `RegistrationId`, `IsTrue`, `Dob`, `Gender`, `Agerange`
+  - Used for form state, computed values, or system-managed data
+  - Not editable in forms but may be populated by backend logic
+  - **Note on `IsTrue`**: Legacy DataAnnotations workaround for checkbox validation - stays hidden, but checkboxes now get clean `requiredTrue` validation metadata instead
+
+**Visibility Detection:**
+The migration system automatically determines field visibility:
+1. **Primary source**: Parses corresponding .cshtml view file from GitHub
+   - Looks for `<input type="hidden" asp-for="FieldName" />`
+   - Marks those fields as `visibility="hidden"`
+2. **Fallback**: Hardcoded classification in `CSharpToMetadataParser`
+   - `AdminOnlyFields` HashSet → `visibility="adminOnly"`
+   - `HiddenFields` HashSet → `visibility="hidden"`
+3. **Default**: All other fields → `visibility="public"`
+
 **Validation Testing Feature:**
 Per user request: "if you could do this it would be wonderful"
 - Tests validation rules against sample values
@@ -330,6 +362,57 @@ The backend `CSharpToMetadataParser` infers input types from C# properties:
 - **SportAssnID** → Remote validation: `/api/Validation/ValidateUSALacrosseID`
 - **Email** → EMAIL type with email validation
 - **DateTime** → DATETIME type
+
+### Validation Rule Detection
+
+The parser automatically detects and converts DataAnnotations validation attributes:
+
+**Standard Validations:**
+- `[Required]` → `validation.required = true`
+- `[EmailAddress]` → `validation.email = true`
+- `[StringLength(max, MinimumLength = min)]` → `validation.minLength`, `validation.maxLength`
+- `[Range(min, max)]` → `validation.min`, `validation.max`
+- `[RegularExpression("pattern")]` → `validation.pattern`
+- `[Compare("OtherField")]` → `validation.compare`
+- `[Remote("action", "controller")]` → `validation.remote`
+
+**Checkbox Required Pattern (RequiredTrue):**
+- Detects: `[Range(typeof(bool), "true", "true")]` on `bool` properties
+- Converts to: `validation.requiredTrue = true`
+- This is the DataAnnotations workaround for "checkbox must be checked"
+- Maps to Angular's `Validators.requiredTrue` for dynamic forms
+- **Note:** The `IsTrue` hidden field pattern is legacy - it stays hidden but `requiredTrue` is the clean metadata property
+
+**Example Conversion:**
+```csharp
+// C# POCO with DataAnnotations hack
+[Required]
+[Range(typeof(bool), "true", "true", ErrorMessage = "You must agree to terms")]
+public bool AgreeToTerms { get; set; }
+
+public bool IsTrue => true;  // Hidden field hack
+```
+
+Becomes:
+```json
+{
+  "name": "agreeToTerms",
+  "inputType": "CHECKBOX",
+  "validation": {
+    "requiredTrue": true
+  }
+},
+{
+  "name": "isTrue",
+  "inputType": "CHECKBOX",
+  "visibility": "hidden"  // Stays hidden - legacy implementation detail
+}
+```
+
+**Frontend Display:**
+- Preview shows: **Validators:** Must be checked
+- Editor allows toggling the "Required True (Checkbox Must Be Checked)" option
+- Validation testing supports checkbox true/false values
 
 ## Future Enhancements
 
@@ -647,6 +730,188 @@ This created a critical flaw: all jobs would show identical dropdown options, bu
 
 **Benefits:**
 - ✅ Migration affects **all jobs** regardless of year
+- ✅ Preview dropdown only shows **recent/relevant jobs** (current year ± 1)
+- ✅ Admin can still see all affected jobs in expanded list
+- ✅ No performance impact (filtering done client-side on already-loaded data)
+
+---
+
+## Field Visibility System & .cshtml Parsing (November 2025)
+
+### Challenge: Reliably Detecting Hidden Fields
+
+**Problem:** Need to distinguish between:
+- **Public fields** - visible to registrants and admins
+- **Admin-only fields** - visible only to admins (e.g., `AmtPaidToDate`, `PlayerUserId`)
+- **Hidden fields** - technical fields never shown in UI (e.g., `RegistrationId`, `IsTrue`, `Dob`)
+
+**Previous Approach:** Hardcoded HashSets in `CSharpToMetadataParser`
+- ❌ Error-prone (easy to miss fields)
+- ❌ Requires manual maintenance
+- ❌ No source of truth linkage
+
+**New Approach:** Parse .cshtml view files from GitHub to extract definitive hidden field list
+
+### Solution: .cshtml Parsing for Hidden Field Detection
+
+**Architecture:**
+
+1. **GitHubProfileFetcher Enhancement**
+   - Added `FetchViewFileAsync(profileType)` method
+   - Fetches corresponding .cshtml file: `Views/PlayerRegistrationForms/PlayerSingle/{profileType}.cshtml` (PP profiles)
+   - Fetches corresponding .cshtml file: `Views/PlayerRegistrationForms/PlayerMulti/{profileType}.cshtml` (CAC profiles)
+   - Returns null if view file doesn't exist (graceful fallback)
+
+2. **CSharpToMetadataParser Enhancement**
+   - Added `ParseHiddenFieldsFromView(viewContent)` method
+   - Uses regex to find: `<input type="hidden" asp-for="FieldName" />`
+   - Regex pattern handles both attribute orders:
+     ```csharp
+     @"<input[^>]*type\s*=\s*[""']hidden[""'][^>]*asp-for\s*=\s*[""']([^""']+)[""']|" +
+     @"<input[^>]*asp-for\s*=\s*[""']([^""']+)[""'][^>]*type\s*=\s*[""']hidden[""']"
+     ```
+   - Extracts field names from `asp-for` attribute values
+   - Handles nested paths: `"FamilyPlayers[i].BasePP_Player_ViewModel.RegistrationId"` → `"RegistrationId"`
+   - Returns `HashSet<string>` of hidden field names
+
+3. **Field Name Extraction**
+   - `ExtractBaseFieldName(aspForPath)` method processes asp-for values:
+     - Removes array indices: `"FamilyPlayers[i].FieldName"` → `"FamilyPlayers.FieldName"`
+     - Splits by `.` and takes last segment: `"FieldName"`
+   - Handles complex nested ViewModels correctly
+
+4. **Visibility Determination**
+   - Updated `ParseProfileAsync` to accept optional `viewContent` parameter
+   - Calls `ParseHiddenFieldsFromView` first if view content provided
+   - `DetermineVisibility(propertyName)` checks in priority order:
+     1. View-based hidden fields (source of truth from .cshtml)
+     2. Hardcoded HiddenFields HashSet (fallback)
+     3. AdminOnlyFields HashSet → `"adminOnly"`
+     4. Default → `"public"`
+
+5. **ProfileMetadataField DTO**
+   - Added `Visibility` property: `string` with values `"public"` | `"adminOnly"` | `"hidden"`
+   - Deprecated `AdminOnly` boolean (kept for backward compatibility with `[Obsolete]` attribute)
+   - Default value: `"public"`
+
+**Migration Flow:**
+
+```csharp
+// ProfileMetadataMigrationService.cs
+var (profileSource, profileSha) = await _githubFetcher.FetchProfileSourceAsync(profileType);
+var (baseSource, _) = await _githubFetcher.FetchBaseClassSourceAsync();
+var viewContent = await _githubFetcher.FetchViewFileAsync(profileType); // NEW
+
+var metadata = await _parser.ParseProfileAsync(
+    profileSource, 
+    baseSource, 
+    profileType, 
+    profileSha, 
+    viewContent  // NEW parameter
+);
+```
+
+**Example: PP10.cshtml Hidden Fields**
+
+View file contains:
+```html
+<input type="hidden" asp-for="FamilyPlayers[i].IsTrue" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.AmtPaidToDate" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.PlayerUserId" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.FirstName" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.LastName" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.Dob" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.Gender" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.RegistrationId" />
+<input type="hidden" asp-for="FamilyPlayers[i].BasePP_Player_ViewModel.Agerange" />
+```
+
+Parser extracts: `IsTrue`, `AmtPaidToDate`, `PlayerUserId`, `FirstName`, `LastName`, `Dob`, `Gender`, `RegistrationId`, `Agerange`
+
+All marked with `visibility="hidden"` in metadata.
+
+### Frontend Visibility Badge Display
+
+**Profile Form Preview Component:**
+- Added `getVisibilityBadge(field)` method
+- Returns badge configuration based on visibility:
+  ```typescript
+  if (field.visibility === 'hidden') 
+      return { class: 'bg-secondary', text: 'Hidden' };
+  if (field.visibility === 'adminOnly') 
+      return { class: 'bg-warning text-dark', text: 'Admin Only' };
+  return { class: 'bg-success', text: 'Public' };
+  ```
+- Template displays badges alongside field labels
+- Hidden fields still shown in preview but clearly marked
+
+**Profile Editor Component:**
+- Updated table header: "Admin Only" → "Visibility"
+- Changed table cell to show visibility badge instead of lock icon
+- Added visibility dropdown in edit modal:
+  ```html
+  <select class="form-select" [(ngModel)]="field.visibility">
+      <option value="public">Public</option>
+      <option value="adminOnly">Admin Only</option>
+      <option value="hidden">Hidden</option>
+  </select>
+  ```
+- Updated `addNewField()` to initialize `visibility: 'public'` for new fields
+
+### Benefits
+
+✅ **Source of truth:** .cshtml files are definitive (they define actual UI rendering)  
+✅ **Automatic detection:** No manual HashSet maintenance required  
+✅ **Accurate:** Catches all hidden fields, including computed/technical fields  
+✅ **Graceful fallback:** If .cshtml not found, uses hardcoded classification  
+✅ **Clear UI indication:** Badges show field visibility at a glance  
+✅ **Editor support:** Admins can manually adjust visibility if needed  
+✅ **Three visibility levels:** Public, Admin Only, Hidden (comprehensive categorization)
+
+### Field Name vs Display Name Handling
+
+**Three distinct properties:**
+
+1. **`name`** (camelCase): JSON property name for frontend
+   - Set by: `ToCamelCase(propertyName)`
+   - Example: `"firstName"`
+   - Used in: TypeScript interfaces, Angular forms, API requests
+
+2. **`dbColumn`** (PascalCase): Database column name / C# property name
+   - Set by: `propertyName` (original from POCO)
+   - Example: `"FirstName"`
+   - Used in: Database queries, C# backend code
+
+3. **`displayName`** (Title Case): Human-readable label
+   - Set by: `[Display(Name = "...")]` attribute or `PascalCaseToTitleCase(propertyName)`
+   - Example: `"First Name"` or custom like `"Parent/Guardian First Name"`
+   - Used in: Form labels, column headers, user-facing UI
+
+**Extraction logic:**
+```csharp
+var field = new ProfileMetadataField
+{
+    Name = ToCamelCase(propertyName),           // firstName
+    DbColumn = propertyName,                    // FirstName
+    DisplayName = propertyName,                 // Temporary, overridden below
+    // ...
+};
+
+// Extract [Display(Name = "...")] attribute
+var displayAttr = attributes.Find(a => a.Name.ToString() == "Display");
+if (displayAttr != null)
+{
+    field.DisplayName = ExtractDisplayName(displayAttr) ?? PascalCaseToTitleCase(propertyName);
+}
+else
+{
+    field.DisplayName = PascalCaseToTitleCase(propertyName);  // FirstName → First Name
+}
+```
+
+**Result:** All three naming conventions properly captured and available in metadata.
+
+---
 - ✅ Preview dropdown is **manageable** (shows ~3-10 jobs instead of 50+)
 - ✅ Clean implementation using `Job.Year` property
 - ✅ Full job list still available in separate dropdown for reference
