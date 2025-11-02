@@ -3,8 +3,6 @@
     <form [formGroup]="formGroup()!">
         <div class="row">
             @for (field of sortedFields(); track field.name) {
-            <!-- Skip HIDDEN fields in preview -->
-            @if (!isHiddenField(field)) {
             <div class="col-md-6 mb-3">
                 <div class="form-field-preview">
                     <!-- Field Label with Order Number -->
@@ -89,7 +87,6 @@
                     }
                 </div>
             </div>
-            }
             }
         </div>
     </form>

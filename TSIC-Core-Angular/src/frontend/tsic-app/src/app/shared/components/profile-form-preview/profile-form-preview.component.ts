@@ -34,7 +34,7 @@ export class ProfileFormPreviewComponent {
     readonly _jobOptions = signal<Record<string, unknown> | null>(null);
     formGroup = signal<FormGroup | null>(null);
 
-    // Computed sorted fields
+    // Computed sorted fields by order (sorting is done during migration)
     sortedFields = computed(() => {
         const meta = this._metadata();
         if (!meta) return [];

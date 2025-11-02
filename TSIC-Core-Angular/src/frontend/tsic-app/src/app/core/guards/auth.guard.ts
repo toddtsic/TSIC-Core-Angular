@@ -1,5 +1,6 @@
 ﻿import { inject } from '@angular/core';
 import { Router, type CanActivateFn } from '@angular/router';
+import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 
 // Shared helper to centralize redirect decisions and avoid duplication between guards
@@ -60,6 +61,7 @@ export const tsicEntryGuard: CanActivateFn = (route, state) => {
 /**
  * Guard that checks if user has any valid JWT token (Phase 1 or Phase 2)
  * Redirects to /tsic/login if not authenticated
+ * Attempts to refresh token if expired
  */
 export const authGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
@@ -70,6 +72,18 @@ export const authGuard: CanActivateFn = (route, state) => {
         return true;
     }
 
+    // If not authenticated but we have a refresh token, try refreshing
+    const refreshToken = authService.getRefreshToken();
+    if (refreshToken) {
+        return authService.refreshAccessToken().pipe(
+            map(() => true),
+            catchError(() => {
+                // Refresh failed, redirect to login
+                return [router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } })];
+            })
+        );
+    }
+
     return router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } });
 };
 
@@ -77,6 +91,7 @@ export const authGuard: CanActivateFn = (route, state) => {
  * Guard that checks if user has Phase 2 authentication (regId + jobPath in token)
  * Redirects to /tsic/role-selection if only Phase 1 authenticated
  * Redirects to /tsic/login if not authenticated at all
+ * Attempts to refresh token if expired
  */
 export const roleGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
@@ -88,7 +103,24 @@ export const roleGuard: CanActivateFn = (route, state) => {
         return true;
     }
 
-    if (authService.isAuthenticated()) {
+    // Try to refresh token if not authenticated but refresh token exists
+    const isAuth = authService.isAuthenticated();
+    if (!isAuth && authService.getRefreshToken()) {
+        return authService.refreshAccessToken().pipe(
+            map(() => {
+                const refreshedUser = authService.getCurrentUser();
+                if (refreshedUser?.regId && refreshedUser?.jobPath) {
+                    return true;
+                }
+                return router.createUrlTree(['/tsic/role-selection']);
+            }),
+            catchError(() => {
+                return [router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } })];
+            })
+        );
+    }
+
+    if (isAuth) {
         return router.createUrlTree(['/tsic/role-selection']);
     }
 

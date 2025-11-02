@@ -228,18 +228,9 @@ export class AuthService {
         const now = new Date();
 
         if (expirationDate <= now) {
-          console.warn('Access token expired, attempting refresh...');
-          // Token is expired - try to refresh it proactively
-          this.refreshAccessToken().subscribe({
-            next: () => {
-              console.log('Token refreshed successfully on app init');
-            },
-            error: (err) => {
-              console.error('Failed to refresh token on app init:', err);
-              // Clear invalid tokens and set user to null
-              this.currentUser.set(null);
-            }
-          });
+          console.warn('Access token expired. Guards will handle refresh on next navigation.');
+          // Don't set user to null yet - let the guard attempt refresh
+          // This prevents race conditions during app initialization
           return;
         }
       }

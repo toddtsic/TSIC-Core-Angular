@@ -167,7 +167,18 @@ public class CSharpToMetadataParser
         // Convert back to list
         metadata.Fields.AddRange(fieldsByName.Values);
 
-        // Set order after combining all fields
+        // Sort fields by visibility: hidden first, then public, then adminOnly
+        var hiddenFields = metadata.Fields.Where(f => f.Visibility == "hidden" || f.InputType == "HIDDEN").ToList();
+        var publicFields = metadata.Fields.Where(f => f.Visibility != "hidden" && f.InputType != "HIDDEN" && f.Visibility != "adminOnly").ToList();
+        var adminOnlyFields = metadata.Fields.Where(f => f.Visibility == "adminOnly").ToList();
+
+        // Clear and rebuild the fields list in the correct order
+        metadata.Fields.Clear();
+        metadata.Fields.AddRange(hiddenFields);
+        metadata.Fields.AddRange(publicFields);
+        metadata.Fields.AddRange(adminOnlyFields);
+
+        // Set order after combining and sorting all fields
         for (int i = 0; i < metadata.Fields.Count; i++)
         {
             metadata.Fields[i].Order = i + 1;

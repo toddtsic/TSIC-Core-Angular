@@ -921,7 +921,220 @@ else
 
 ---
 
+## Recent Updates (November 1, 2025)
+
+### Field Ordering by Visibility During Migration
+
+**Change:** Field sorting now happens during migration in the backend, not during display in the frontend.
+
+**Backend Implementation (`CSharpToMetadataParser.cs`):**
+```csharp
+// After combining base and profile fields, sort by visibility
+var hiddenFields = metadata.Fields.Where(f => f.Visibility == "hidden" || f.InputType == "HIDDEN").ToList();
+var publicFields = metadata.Fields.Where(f => f.Visibility != "hidden" && f.InputType != "HIDDEN" && f.Visibility != "adminOnly").ToList();
+var adminOnlyFields = metadata.Fields.Where(f => f.Visibility == "adminOnly").ToList();
+
+// Rebuild fields list in visibility order
+metadata.Fields.Clear();
+metadata.Fields.AddRange(hiddenFields);
+metadata.Fields.AddRange(publicFields);
+metadata.Fields.AddRange(adminOnlyFields);
+
+// Assign order numbers to sorted list
+for (int i = 0; i < metadata.Fields.Count; i++)
+{
+    metadata.Fields[i].Order = i + 1;
+}
+```
+
+**Frontend Simplification (`ProfileFormPreviewComponent`):**
+```typescript
+// Simply sort by order (sorting already done during migration)
+sortedFields = computed(() => {
+    const meta = this._metadata();
+    if (!meta) return [];
+    return [...meta.fields].sort((a, b) => a.order - b.order);
+});
+```
+
+**Display Order:**
+1. **Hidden fields** (at top) - Technical fields like `RegistrationId`, `PlayerUserId`
+2. **Public fields** (in middle) - User-visible fields like `FirstName`, `Email`
+3. **Admin-only fields** (at bottom) - Admin fields like `AmtPaidToDate`
+
+**Benefits:**
+- ✅ Sorting persisted in database (consistent across all views)
+- ✅ No client-side computation needed (better performance)
+- ✅ Single source of truth for field order
+- ✅ Easier to debug and maintain
+
+**Note:** Existing migrated profiles need to be **re-migrated** to apply the new field ordering.
+
+### Hidden Fields Display in Preview
+
+**Change:** Profile preview now shows **all** fields including hidden ones, with visibility badges.
+
+**Previous Behavior:**
+- Hidden fields were filtered out: `@if (!isHiddenField(field))`
+- Users couldn't see what fields existed in the metadata
+
+**New Behavior:**
+- All fields displayed with visibility badges
+- Hidden fields show gray "Hidden" badge
+- Admin-only fields show yellow "Admin Only" badge
+- Public fields show no badge (default)
+
+**Template Change:**
+```html
+<!-- OLD: Skip hidden fields -->
+@if (!isHiddenField(field)) {
+    <div class="form-field-preview">...</div>
+}
+
+<!-- NEW: Show all fields with badges -->
+<div class="form-field-preview">
+    <label>
+        {{ field.displayName }}
+        @if (getVisibilityBadge(field); as badge) {
+        <span class="badge" [ngClass]="badge.class">{{ badge.label }}</span>
+        }
+    </label>
+</div>
+```
+
+**Benefits:**
+- ✅ Complete visibility into profile structure
+- ✅ Clear indication of field visibility levels
+- ✅ Helpful for debugging and validation
+- ✅ Admin can see technical fields without accessing database
+
+### Refresh Token Fix for Page Reload
+
+**Problem:** Pressing Ctrl+Shift+R (hard refresh) would redirect users to login page even though they had a valid refresh token.
+
+**Root Cause:**
+- Auth guard checked `isAuthenticated()` synchronously
+- If access token was expired, guard returned `false` immediately
+- Redirect happened before refresh token could be used
+- Background refresh attempt in `initializeFromToken()` created race condition
+
+**Solution:**
+
+1. **Updated `authGuard` to wait for refresh:**
+```typescript
+export const authGuard: CanActivateFn = (route, state) => {
+    const authService = inject(AuthService);
+    const router = inject(Router);
+
+    const isAuth = authService.isAuthenticated();
+    if (isAuth) {
+        return true;
+    }
+
+    // Try to refresh if we have a refresh token
+    const refreshToken = authService.getRefreshToken();
+    if (refreshToken) {
+        return authService.refreshAccessToken().pipe(
+            map(() => true),
+            catchError(() => {
+                return [router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } })];
+            })
+        );
+    }
+
+    return router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } });
+};
+```
+
+2. **Updated `roleGuard` similarly:**
+```typescript
+export const roleGuard: CanActivateFn = (route, state) => {
+    const authService = inject(AuthService);
+    const router = inject(Router);
+
+    const user = authService.getCurrentUser();
+    if (user?.regId && user?.jobPath) {
+        return true;
+    }
+
+    // Try refresh if not authenticated but have refresh token
+    const isAuth = authService.isAuthenticated();
+    if (!isAuth && authService.getRefreshToken()) {
+        return authService.refreshAccessToken().pipe(
+            map(() => {
+                const refreshedUser = authService.getCurrentUser();
+                if (refreshedUser?.regId && refreshedUser?.jobPath) {
+                    return true;
+                }
+                return router.createUrlTree(['/tsic/role-selection']);
+            }),
+            catchError(() => {
+                return [router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } })];
+            })
+        );
+    }
+
+    if (isAuth) {
+        return router.createUrlTree(['/tsic/role-selection']);
+    }
+
+    return router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } });
+};
+```
+
+3. **Simplified `initializeFromToken`:**
+```typescript
+private initializeFromToken(): void {
+    const token = this.getToken();
+    if (!token) {
+        this.currentUser.set(null);
+        return;
+    }
+
+    try {
+        const payload = this.decodeToken(token);
+
+        // Check if token is expired
+        if (payload.exp) {
+            const expirationDate = new Date(payload.exp * 1000);
+            const now = new Date();
+
+            if (expirationDate <= now) {
+                console.warn('Access token expired. Guards will handle refresh on next navigation.');
+                // Don't set user to null - let guards attempt refresh
+                return;
+            }
+        }
+
+        const user: AuthenticatedUser = { /* ... */ };
+        this.currentUser.set(user);
+    } catch (error) {
+        console.error('Failed to decode token:', error);
+        this.currentUser.set(null);
+    }
+}
+```
+
+**Benefits:**
+- ✅ Page refresh (Ctrl+R, Ctrl+Shift+R, F5) no longer logs users out
+- ✅ Guards wait for token refresh to complete before making routing decisions
+- ✅ No race conditions between initialization and guard checks
+- ✅ Clean separation: guards handle refresh, service handles token decoding
+- ✅ Better user experience (stays logged in across refreshes)
+
+**Flow:**
+1. User refreshes page
+2. App initializes, token is expired
+3. Guard detects expired token but sees refresh token exists
+4. Guard calls `refreshAccessToken()` and waits for result
+5. If refresh succeeds → allow navigation
+6. If refresh fails → redirect to login
+7. No premature redirects or race conditions
+
+---
+
 **Implementation Date:** 2024-2025  
 **Angular Version:** 18+  
 **Bootstrap Version:** 5  
 **Backend:** ASP.NET Core with Entity Framework Core
+
