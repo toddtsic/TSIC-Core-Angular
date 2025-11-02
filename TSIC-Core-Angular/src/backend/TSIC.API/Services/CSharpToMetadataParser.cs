@@ -435,18 +435,26 @@ public class CSharpToMetadataParser
     {
         return propertyName switch
         {
-            "State" => "states",
-            "Gender" => "genders",
-            "Position" => "positions",
-            "GradYear" => "gradYears",
-            "RecruitingGradYear" => "recruitingGradYears",
-            "SchoolGrade" => "schoolGrades",
-            "SkillLevel" => "skillLevels",
-            "SportYearsExp" => "yearsExperience",
-            "StrongHand" => "strongHand",
-            "WhoReferred" => "whoReferred",
-            "HeightInches" => "heightInches",
-            var name when name.EndsWith("Size") => "sizes",
+            "State" => "List_States",
+            "Gender" => "List_Genders",
+            "Position" => "List_Positions",
+            "GradYear" => "List_GradYears",
+            "RecruitingGradYear" => "List_RecruitingGradYears",
+            "SchoolGrade" => "List_SchoolGrades",
+            "SkillLevel" => "List_SkillLevels",
+            "SportYearsExp" => "List_YearsExperience",
+            "StrongHand" => "List_StrongHand",
+            "WhoReferred" => "List_WhoReferred",
+            "HeightInches" => "List_HeightInches",
+            "GlovesSize" => "ListSizes_Gloves",
+            "JerseySize" => "ListSizes_Jersey",
+            "KiltSize" => "ListSizes_Kilt",
+            "ReversibleSize" => "ListSizes_Reversible",
+            "ShoesSize" => "ListSizes_Shoes",
+            "ShortsSize" => "ListSizes_Shorts",
+            "SweatshirtSize" => "ListSizes_Sweatshirt",
+            "TshirtSize" => "ListSizes_Tshirt",
+            var name when name.EndsWith("Size") => $"ListSizes_{name.Replace("Size", "")}",
             _ => null
         };
     }
