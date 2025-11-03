@@ -60,15 +60,43 @@ export class ProfileFormPreviewComponent {
 
         // PRIORITY 2: Try job-specific JsonOptions
         if (jobOptions) {
-            const dataSourceLower = field.dataSource.toLowerCase();
+            const normalize = (s: string) => (s.toLowerCase().match(/[a-z0-9]/g) || []).join('');
 
-            // Try multiple matching strategies for JsonOptions keys
-            // Examples: "positions" -> "List_Positions", "jerseySize" -> "ListSizes_Jersey"
-            const optionsKey = Object.keys(jobOptions).find(key => {
-                const keyLower = key.toLowerCase();
-                return keyLower.includes(dataSourceLower) ||
-                    keyLower.includes(`list_${dataSourceLower}`) ||
-                    keyLower.includes(`list${dataSourceLower}`);
+            const dsNorm = normalize(field.dataSource);
+            const candidates = new Set<string>();
+            candidates.add(dsNorm);
+
+            const stripPrefix = (s: string, prefix: string) => s.startsWith(prefix) ? s.substring(prefix.length) : s;
+            const noList = stripPrefix(dsNorm, 'list');
+            const noListSizes = stripPrefix(dsNorm, 'listsizes');
+            candidates.add(noList);
+            candidates.add(noListSizes);
+            candidates.add('list' + noList);
+            candidates.add('listsizes' + noList);
+
+            const idx = dsNorm.indexOf('sizes');
+            if (idx >= 0) {
+                let before = dsNorm.substring(0, idx);
+                let after = dsNorm.substring(idx + 'sizes'.length);
+                before = normalize(before);
+                after = normalize(after);
+                if (after) {
+                    candidates.add(before + after + 'sizes');
+                    candidates.add('list' + after + 'sizes');
+                    candidates.add(after + 'sizes');
+                }
+            }
+
+            const keys = Object.keys(jobOptions);
+            const optionsKey = keys.find(key => {
+                const nk = normalize(key);
+                for (const cand of candidates) {
+                    if (!cand) continue;
+                    if (nk.includes(cand) || cand.includes(nk)) {
+                        return true;
+                    }
+                }
+                return false;
             });
 
             if (optionsKey) {

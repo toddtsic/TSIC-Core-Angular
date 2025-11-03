@@ -950,25 +950,79 @@ public class ProfileMetadataMigrationService
     /// </summary>
     private static string? FindJsonOptionsKey(Dictionary<string, JsonElement> jsonOptions, string dataSource)
     {
-        // Try exact match first (case-insensitive)
-        var exactMatch = jsonOptions.Keys.FirstOrDefault(k =>
-            k.Equals(dataSource, StringComparison.OrdinalIgnoreCase));
+        // Normalize helper: lowercase and remove non-alphanumerics for flexible matching
+        static string Normalize(string s)
+            => new string(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
-        if (exactMatch != null)
-            return exactMatch;
+        // Generate candidate variants from the dataSource
+        // Examples:
+        // - positions -> [positions, listpositions]
+        // - List_Positions -> [listpositions, positions]
+        // - ListSizes_Jersey -> [listsizesjersey, listjerseysizes, jerseysizes, sizesjersey, jersey]
+        var candidates = new HashSet<string>();
 
-        // Try with "List_" prefix
-        var listMatch = jsonOptions.Keys.FirstOrDefault(k =>
-            k.Equals($"List_{dataSource}", StringComparison.OrdinalIgnoreCase));
+        var ds = dataSource ?? string.Empty;
+        var dsNorm = Normalize(ds);
+        candidates.Add(dsNorm);
 
-        if (listMatch != null)
-            return listMatch;
+        // Strip common prefixes
+        string StripPrefix(string s, string prefixNorm)
+            => s.StartsWith(prefixNorm) ? s.Substring(prefixNorm.Length) : s;
 
-        // Try partial match (key contains dataSource)
-        var partialMatch = jsonOptions.Keys.FirstOrDefault(k =>
-            k.Contains(dataSource, StringComparison.OrdinalIgnoreCase));
+        var dsNoList = StripPrefix(dsNorm, "list");
+        candidates.Add(dsNoList);
 
-        return partialMatch;
+        var dsNoListSizes = StripPrefix(dsNorm, "listsizes");
+        candidates.Add(dsNoListSizes);
+
+        // Add prefixed forms
+        candidates.Add("list" + dsNoList);
+        candidates.Add("listsizes" + dsNoList);
+
+        // Handle Sizes_ reordering: ListSizes_Jersey <-> List_JerseySizes
+        // Try to split on "sizes" token and swap
+        int sizesIdx = dsNorm.IndexOf("sizes", StringComparison.Ordinal);
+        if (sizesIdx >= 0)
+        {
+            var before = dsNorm.Substring(0, sizesIdx); // may include 'list'
+            var after = dsNorm.Substring(sizesIdx + "sizes".Length); // e.g., _jersey (without underscore after normalize)
+            // Normalize again in case we cut mid-token
+            before = Normalize(before);
+            after = Normalize(after);
+
+            if (!string.IsNullOrEmpty(after))
+            {
+                candidates.Add(before + after + "sizes"); // listjerseysizes
+                candidates.Add("list" + after + "sizes");
+                candidates.Add(after + "sizes");
+            }
+        }
+
+        // Direct exact, prefix, and contains search using original strings first
+        var exact = jsonOptions.Keys.FirstOrDefault(k => k.Equals(ds, StringComparison.OrdinalIgnoreCase));
+        if (exact != null) return exact;
+
+        var withList = jsonOptions.Keys.FirstOrDefault(k => k.Equals($"List_{ds}", StringComparison.OrdinalIgnoreCase));
+        if (withList != null) return withList;
+
+        var contains = jsonOptions.Keys.FirstOrDefault(k => k.Contains(ds, StringComparison.OrdinalIgnoreCase));
+        if (contains != null) return contains;
+
+        // Fallback: normalized fuzzy matching (both directions)
+        foreach (var key in jsonOptions.Keys)
+        {
+            var nk = Normalize(key);
+            foreach (var cand in candidates)
+            {
+                if (string.IsNullOrEmpty(cand)) continue;
+                if (nk.Contains(cand) || cand.Contains(nk))
+                {
+                    return key;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
