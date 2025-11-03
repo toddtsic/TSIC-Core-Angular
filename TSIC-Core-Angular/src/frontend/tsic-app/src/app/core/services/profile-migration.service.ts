@@ -120,6 +120,11 @@ export interface CloneProfileResult {
     errorMessage?: string;
 }
 
+export interface CurrentJobProfileResponse {
+    profileType: string;
+    metadata: ProfileMetadata;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -272,7 +277,9 @@ export class ProfileMigrationService {
                 }
             }
         });
-    } updateProfileMetadata(profileType: string, metadata: ProfileMetadata, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
+    }
+
+    updateProfileMetadata(profileType: string, metadata: ProfileMetadata, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
         this._isLoading.set(true);
         this._errorMessage.set(null);
 
@@ -286,6 +293,29 @@ export class ProfileMigrationService {
             error: (error) => {
                 this._isLoading.set(false);
                 const message = error.error?.message || 'Failed to update metadata';
+                this._errorMessage.set(message);
+                if (onError) {
+                    onError(error);
+                }
+            }
+        });
+    }
+
+    /**
+     * Get the current job's profile type and metadata (based on regId claim)
+     */
+    getCurrentJobProfileMetadata(onSuccess: (resp: CurrentJobProfileResponse) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<CurrentJobProfileResponse>(`${this.apiUrl}/profiles/current/metadata`).subscribe({
+            next: (result) => {
+                this._isLoading.set(false);
+                onSuccess(result);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to load current job metadata';
                 this._errorMessage.set(message);
                 if (onError) {
                     onError(error);

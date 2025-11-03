@@ -27,12 +27,8 @@ export class ProfileEditorComponent implements OnInit {
     errorMessage = signal<string | null>(null);
     successMessage = signal<string | null>(null);
 
-    // Available profile types
-    availableProfiles = signal<Array<{ type: string; display: string }>>([
-        { type: 'PlayerProfile', display: 'Player Profile' },
-        { type: 'ParentProfile', display: 'Parent Profile' },
-        { type: 'CoachProfile', display: 'Coach Profile' }
-    ]);
+    // Available profile types (seeded dynamically)
+    availableProfiles = signal<Array<{ type: string; display: string }>>([]);
 
     selectedProfileType = signal<string | null>(null);
     currentMetadata = signal<ProfileMetadata | null>(null);
@@ -67,11 +63,24 @@ export class ProfileEditorComponent implements OnInit {
     fieldCount = computed(() => this.currentMetadata()?.fields?.length ?? 0);
 
     ngOnInit() {
-        // Auto-select first profile if only one available (unlikely in practice)
-        const profiles = this.availableProfiles();
-        if (profiles.length === 1) {
-            this.loadProfile(profiles[0].type);
-        }
+        // Attempt to auto-load the current job's employed profile for editing
+        this.migrationService.getCurrentJobProfileMetadata(
+            (resp) => {
+                const displayName = resp.profileType.replace(/([A-Z])/g, ' $1').trim();
+                // Ensure list contains the current profile
+                this.availableProfiles.update(list => {
+                    const exists = list.some(p => p.type === resp.profileType);
+                    return exists ? list : [{ type: resp.profileType, display: displayName }, ...list];
+                });
+
+                // Select and set metadata
+                this.selectedProfileType.set(resp.profileType);
+                this.currentMetadata.set(resp.metadata);
+            },
+            (_err) => {
+                // If not available, leave selector and allow manual choice
+            }
+        );
     }
 
     loadProfile(profileType: string) {

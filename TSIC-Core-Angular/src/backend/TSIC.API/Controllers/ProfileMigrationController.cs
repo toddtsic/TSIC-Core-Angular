@@ -315,6 +315,36 @@ public class ProfileMigrationController : ControllerBase
     }
 
     /// <summary>
+    /// Get the current job's profile metadata using the regId from JWT claims
+    /// Returns both the resolved profileType and the metadata
+    /// </summary>
+    [HttpGet("profiles/current/metadata")]
+    public async Task<ActionResult<object>> GetCurrentJobProfileMetadata()
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst("regId")?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = "Invalid or missing regId claim" });
+            }
+
+            var (profileType, metadata) = await _migrationService.GetCurrentJobProfileMetadataAsync(regId);
+            if (string.IsNullOrEmpty(profileType) || metadata == null)
+            {
+                return NotFound(new { error = "Current job or profile metadata not found" });
+            }
+
+            return Ok(new { profileType, metadata });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get current job profile metadata");
+            return StatusCode(500, new { error = "Failed to get current job metadata", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Test field validation rules
     /// </summary>
     /// <param name="field">Field metadata with validation rules</param>

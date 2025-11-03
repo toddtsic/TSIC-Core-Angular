@@ -597,6 +597,32 @@ public class ProfileMetadataMigrationService
     }
 
     /// <summary>
+    /// Get the current job's profile metadata using the registration id (regId claim)
+    /// Returns both the resolved profileType (e.g., PP10, CAC05) and the metadata
+    /// </summary>
+    public async Task<(string? ProfileType, ProfileMetadata? Metadata)> GetCurrentJobProfileMetadataAsync(Guid regId)
+    {
+        // Load the registration and its job
+        var registration = await _context.Registrations
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+
+        if (registration?.Job == null)
+        {
+            return (null, null);
+        }
+
+        var profileType = ExtractProfileType(registration.Job.CoreRegformPlayer);
+        if (string.IsNullOrEmpty(profileType))
+        {
+            return (null, null);
+        }
+
+        var metadata = await GetProfileMetadataAsync(profileType);
+        return (profileType, metadata);
+    }
+
+    /// <summary>
     /// Update metadata for a profile type (applies to ALL jobs using it)
     /// </summary>
     public async Task<ProfileMigrationResult> UpdateProfileMetadataAsync(string profileType, ProfileMetadata metadata)
