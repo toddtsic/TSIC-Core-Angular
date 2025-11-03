@@ -1,3 +1,124 @@
+# Profile Metadata Editor — Design and Implementation Plan
+
+This document outlines the end-to-end design for the Profile Metadata Editor with a dual-focus UI: editing a profile’s global field schema and curating per-job SELECT options used by that profile when rendered for the current job.
+
+## Goals
+
+- Edit profile metadata (global) for a profile type; changes apply to ALL jobs using that profile.
+- Manage job-specific SELECT options for the CURRENT job only without affecting other jobs.
+- Provide a safe, discoverable flow for binding SELECT fields to option sets.
+
+## Information Architecture
+
+- Header: shows current job and current profile type (auto-loaded from regId claim).
+- Tabs:
+  - Profile Fields (global)
+  - Job Options (current job only)
+
+### Profile Fields (Global)
+
+- Table like: order, name, display name, type, required, visibility, actions.
+- Add field / edit field dialogs support:
+  - Input Type, Visibility, Validation, Help/Placeholder.
+  - If Input Type = SELECT, show a “Bind Options” panel:
+    - Choose from existing option sets (current job)
+    - Discover sources from Job_Registrations (read-only or copy-to-override)
+    - Create a new option set
+  - Set `field.dataSource` to the selected options key (e.g., `List_Positions`).
+- Save updates metadata globally via `PUT /api/admin/profile-migration/profiles/{profileType}/metadata`.
+- Preview uses the current job’s options to render realistic dropdowns.
+
+### Job Options (Current Job Only)
+
+- List of option sets (key → values) with provider badges:
+  - `Jobs.JsonOptions` (editable)
+  - `Job_Registrations` (read-only by default; can “Copy to JsonOptions” to override)
+- Editor for selected set:
+  - Add/remove/reorder values; import/export CSV/JSON; de-duplicate.
+  - Create new set; rename existing; delete.
+  - Save updates ONLY the current job’s options via `Jobs.JsonOptions`.
+- Show usage: which fields in current metadata bind to the selected key.
+
+## Contracts
+
+OptionSet (server + client)
+
+- key: string
+- provider: `"Jobs.JsonOptions" | "Job_Registrations" | "Static" | "External"` (future)
+- readOnly: boolean
+- values: `Array<{ value: string; label: string }>`
+
+Field binding
+
+- `field.dataSource` holds the option set key.
+- Runtime resolution (already implemented and hardened):
+  1) Use `field.options` when present
+  2) Match `dataSource` to a current job option set (robust key matching)
+  3) Fallback/mocks
+
+## Backend Endpoints
+
+Added:
+
+- GET `/api/admin/profile-migration/profiles/current/metadata`
+  - Returns `{ profileType, metadata }` (wired; used by editor init).
+
+Planned/being added:
+
+- GET `/api/admin/profile-migration/profiles/current/options`
+  - Returns `OptionSet[]` from `Jobs.JsonOptions` (Phase 1). Future: include `Job_Registrations`-derived sets as readOnly.
+- GET `/api/admin/profile-migration/profiles/current/options/sources`
+  - Discovery catalog from `Job_Registrations` (Phase 2).
+- POST `/api/admin/profile-migration/profiles/current/options`
+  - Create a new set in `Jobs.JsonOptions`.
+- PUT `/api/admin/profile-migration/profiles/current/options/{key}`
+  - Update values of an existing set in `Jobs.JsonOptions`.
+- DELETE `/api/admin/profile-migration/profiles/current/options/{key}`
+  - Remove set from `Jobs.JsonOptions`.
+- POST `/api/admin/profile-migration/profiles/current/options/{oldKey}/rename`
+  - Rename set key; returns `referencingFields` so UI can optionally update bindings.
+
+## Implementation Notes
+
+- Current job resolution uses `regId` claim to load `Registration` and its `Job`.
+- Option set storage uses `Jobs.JsonOptions` (JSON object). Mutations leverage `System.Text.Json.Nodes` for safe edits.
+- Robust matching between metadata `dataSource` and option keys already implemented both backend and frontend.
+- For `Job_Registrations` sources: create an adapter that maps specific properties to option sets (JSON arrays; CSV; or reference tables). Mark readOnly unless explicitly supported for writes.
+
+## UI Behaviors
+
+- Add Field → if SELECT, the “Bind Options” panel:
+  - Choose from existing sets, source candidates, or create new
+  - Show live preview of options
+  - Sets `field.dataSource` to the key
+- Job Options → Editor supports create/update/delete/rename and import/export; copy read-only source to override.
+- Warnings for SELECT with no bound options.
+
+## Edge Cases
+
+- Missing options: show warning tag on field and in Job Options tab.
+- Renames: don’t auto-update global metadata; prompt with `referencingFields` list.
+- Concurrency: add ETag or optimistic concurrency later; for now last-write-wins.
+
+## rollout plan
+
+1) Auto-load current job profile (done)
+2) Expose current job option sets (`Jobs.JsonOptions`) + CRUD endpoints
+3) UI: Add Job Options tab (list + basic editor)
+4) Bind Options panel in field add/edit
+5) Option set rename flow with referencing-fields guidance
+6) Add discovery from `Job_Registrations` as readOnly sources + copy-to-override CTA
+
+## Testing
+
+- Unit tests for JsonOptions parsing/upsert/delete/rename
+- Adapter tests for `Job_Registrations` (Phase 2)
+- UI e2e: add field bound to new set; edit options and validate Preview renders
+
+---
+
+Status: Step 1 complete; steps 2–3 being implemented now.
+
 # Profile Metadata Editor - Design Document
 
 **Date**: November 1, 2025  

@@ -120,9 +120,31 @@ export interface CloneProfileResult {
     errorMessage?: string;
 }
 
+export interface NextProfileTypeResult {
+    newProfileType: string;
+}
+
 export interface CurrentJobProfileResponse {
     profileType: string;
     metadata: ProfileMetadata;
+}
+
+// ============================================================================
+// Current Job Option Sets (Jobs.JsonOptions)
+// ============================================================================
+export interface OptionSet {
+    key: string;
+    values: ProfileFieldOption[];
+    provider?: string;      // e.g., Jobs.JsonOptions or Registrations
+    readOnly?: boolean;     // true for Registrations sources
+}
+
+export interface OptionSetUpdateRequest {
+    values: ProfileFieldOption[];
+}
+
+export interface RenameOptionSetRequest {
+    newKey: string;
 }
 
 @Injectable({
@@ -363,6 +385,151 @@ export class ProfileMigrationService {
                 if (onError) {
                     onError(error);
                 }
+            }
+        });
+    }
+
+    getNextProfileType(sourceProfileType: string, onSuccess: (result: NextProfileTypeResult) => void, onError?: (error: any) => void): void {
+        this.http.get<NextProfileTypeResult>(`${this.apiUrl}/next-profile-type/${encodeURIComponent(sourceProfileType)}`).subscribe({
+            next: (result) => onSuccess(result),
+            error: (error) => {
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    // ============================================================================
+    // CURRENT JOB OPTION SET APIs (Jobs.JsonOptions)
+    // ============================================================================
+
+    getCurrentJobOptionSets(onSuccess: (sets: OptionSet[]) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<OptionSet[]>(`${this.apiUrl}/profiles/current/options`).subscribe({
+            next: (sets) => {
+                this._isLoading.set(false);
+                onSuccess(sets);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to load option sets';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    createCurrentJobOptionSet(request: OptionSet, onSuccess: (created: OptionSet) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.post<OptionSet>(`${this.apiUrl}/profiles/current/options`, request).subscribe({
+            next: (created) => {
+                this._isLoading.set(false);
+                onSuccess(created);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to create option set';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    updateCurrentJobOptionSet(key: string, values: ProfileFieldOption[], onSuccess: (updated: OptionSet) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        const body: OptionSetUpdateRequest = { values };
+        this.http.put<OptionSet>(`${this.apiUrl}/profiles/current/options/${encodeURIComponent(key)}`, body).subscribe({
+            next: (updated) => {
+                this._isLoading.set(false);
+                onSuccess(updated);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to update option set';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    deleteCurrentJobOptionSet(key: string, onSuccess: () => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.delete(`${this.apiUrl}/profiles/current/options/${encodeURIComponent(key)}`).subscribe({
+            next: () => {
+                this._isLoading.set(false);
+                onSuccess();
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to delete option set';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    renameCurrentJobOptionSet(oldKey: string, newKey: string, onSuccess: (resp: { updatedKey: string; referencingFields: string[] }) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        const body: RenameOptionSetRequest = { newKey };
+        this.http.post<{ updatedKey: string; referencingFields: string[] }>(`${this.apiUrl}/profiles/current/options/${encodeURIComponent(oldKey)}/rename`, body).subscribe({
+            next: (resp) => {
+                this._isLoading.set(false);
+                onSuccess(resp);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to rename option set';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    // ============================================================================
+    // CURRENT JOB OPTION SOURCES (Registrations)
+    // ============================================================================
+
+    getCurrentJobOptionSources(onSuccess: (sets: OptionSet[]) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<OptionSet[]>(`${this.apiUrl}/profiles/current/options/sources`).subscribe({
+            next: (sets) => {
+                this._isLoading.set(false);
+                onSuccess(sets);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to load option sources';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    copyOptionSourceToOverride(key: string, onSuccess: (updated: OptionSet) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.post<OptionSet>(`${this.apiUrl}/profiles/current/options/copy-from-source`, { key }).subscribe({
+            next: (updated) => {
+                this._isLoading.set(false);
+                onSuccess(updated);
+            },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to copy option source';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
             }
         });
     }

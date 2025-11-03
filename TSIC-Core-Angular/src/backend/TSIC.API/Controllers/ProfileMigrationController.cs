@@ -16,6 +16,9 @@ public class ProfileMigrationController : ControllerBase
 {
     private readonly ProfileMetadataMigrationService _migrationService;
     private readonly ILogger<ProfileMigrationController> _logger;
+    private const string RegIdClaim = "regId";
+    private const string MissingRegIdMsg = "Invalid or missing regId claim";
+    private const string MigrationFailedMsg = "Migration failed";
 
     public ProfileMigrationController(
         ProfileMetadataMigrationService migrationService,
@@ -23,6 +26,24 @@ public class ProfileMigrationController : ControllerBase
     {
         _migrationService = migrationService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Get the next profile type name for a given source profile family (PP/CAC), without creating it
+    /// </summary>
+    [HttpGet("next-profile-type/{sourceProfileType}")]
+    public async Task<ActionResult<NextProfileTypeResult>> GetNextProfileType(string sourceProfileType)
+    {
+        try
+        {
+            var next = await _migrationService.GetNextProfileTypeAsync(sourceProfileType);
+            return Ok(new NextProfileTypeResult { NewProfileType = next });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to compute next profile type for {SourceProfile}", sourceProfileType);
+            return StatusCode(500, new { error = "Failed to compute next profile type", details = ex.Message });
+        }
     }
 
     /// <summary>
@@ -75,8 +96,8 @@ public class ProfileMigrationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Migration failed");
-            return StatusCode(500, new { error = "Migration failed", details = ex.Message });
+            _logger.LogError(ex, MigrationFailedMsg);
+            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
         }
     }
 
@@ -109,7 +130,7 @@ public class ProfileMigrationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to migrate job {JobId}", jobId);
-            return StatusCode(500, new { error = "Migration failed", details = ex.Message });
+            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
         }
     }
 
@@ -187,7 +208,7 @@ public class ProfileMigrationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to migrate profile {ProfileType}", profileType);
-            return StatusCode(500, new { error = "Migration failed", details = ex.Message });
+            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
         }
     }
 
@@ -215,13 +236,33 @@ public class ProfileMigrationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Batch profile migration failed");
-            return StatusCode(500, new { error = "Migration failed", details = ex.Message });
+            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
         }
     }
 
     // ============================================================================
     // PROFILE EDITOR ENDPOINTS (for ongoing metadata management)
     // ============================================================================
+
+    /// <summary>
+    /// Build and return a distinct domain of allowed fields observed across all Jobs.PlayerProfileMetadataJson
+    /// Intended for one-time export to seed the UI's static allowed-fields list.
+    /// </summary>
+    [HttpGet("allowed-field-domain")]
+    public async Task<ActionResult<List<AllowedFieldDomainItem>>> GetAllowedFieldDomain()
+    {
+        try
+        {
+            _logger.LogInformation("Building allowed field domain from PlayerProfileMetadataJson");
+            var list = await _migrationService.BuildAllowedFieldDomainAsync();
+            return Ok(list);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to build allowed field domain");
+            return StatusCode(500, new { error = "Failed to build allowed field domain", details = ex.Message });
+        }
+    }
 
     /// <summary>
     /// Get current metadata for a specific profile type
@@ -314,6 +355,159 @@ public class ProfileMigrationController : ControllerBase
         }
     }
 
+    // ============================================================================
+    // CURRENT JOB OPTION SETS (Jobs.JsonOptions) — Phase 1
+    // ============================================================================
+
+    /// <summary>
+    /// Get current job option sets from Jobs.JsonOptions
+    /// </summary>
+    [HttpGet("profiles/current/options")]
+    public async Task<ActionResult<List<OptionSet>>> GetCurrentJobOptionSets()
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            var optionSets = await _migrationService.GetCurrentJobOptionSetsAsync(regId);
+            // No schema change—client can correlate; we just return the sets
+            return Ok(optionSets);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get current job option sets");
+            return StatusCode(500, new { error = "Failed to get option sets", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Create a new current job option set in Jobs.JsonOptions
+    /// </summary>
+    [HttpPost("profiles/current/options")]
+    public async Task<ActionResult<OptionSet>> CreateCurrentJobOptionSet([FromBody] OptionSet request)
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Key))
+            {
+                return BadRequest(new { error = "Option set key is required" });
+            }
+
+            var updated = await _migrationService.UpsertCurrentJobOptionSetAsync(regId, request.Key, request.Values);
+            if (updated == null)
+            {
+                return StatusCode(500, new { error = "Failed to create option set" });
+            }
+            return Ok(updated);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create option set");
+            return StatusCode(500, new { error = "Failed to create option set", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update values of an existing option set
+    /// </summary>
+    [HttpPut("profiles/current/options/{key}")]
+    public async Task<ActionResult<OptionSet>> UpdateCurrentJobOptionSet(string key, [FromBody] OptionSetUpdateRequest request)
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            var updated = await _migrationService.UpsertCurrentJobOptionSetAsync(regId, key, request.Values);
+            if (updated == null)
+            {
+                return NotFound(new { error = $"Option set '{key}' not found" });
+            }
+            return Ok(updated);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update option set {Key}", key);
+            return StatusCode(500, new { error = "Failed to update option set", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete an option set
+    /// </summary>
+    [HttpDelete("profiles/current/options/{key}")]
+    public async Task<ActionResult> DeleteCurrentJobOptionSet(string key)
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            var ok = await _migrationService.DeleteCurrentJobOptionSetAsync(regId, key);
+            if (!ok)
+            {
+                return NotFound(new { error = $"Option set '{key}' not found" });
+            }
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete option set {Key}", key);
+            return StatusCode(500, new { error = "Failed to delete option set", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Rename an option set key and return referencing fields for guidance
+    /// </summary>
+    [HttpPost("profiles/current/options/{oldKey}/rename")]
+    public async Task<ActionResult<object>> RenameCurrentJobOptionSet(string oldKey, [FromBody] RenameOptionSetRequest request)
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            // Compute referencing fields BEFORE rename
+            var (_, metadata) = await _migrationService.GetCurrentJobProfileMetadataAsync(regId);
+            var referencing = metadata?.Fields
+                .Where(f => !string.IsNullOrEmpty(f.DataSource) && f.DataSource!.Equals(oldKey, StringComparison.OrdinalIgnoreCase))
+                .Select(f => f.Name)
+                .ToList() ?? new List<string>();
+
+            var ok = await _migrationService.RenameCurrentJobOptionSetAsync(regId, oldKey, request.NewKey);
+            if (!ok)
+            {
+                return NotFound(new { error = $"Option set '{oldKey}' not found" });
+            }
+
+            return Ok(new { updatedKey = request.NewKey, referencingFields = referencing });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to rename option set {OldKey}", oldKey);
+            return StatusCode(500, new { error = "Failed to rename option set", details = ex.Message });
+        }
+    }
     /// <summary>
     /// Get the current job's profile metadata using the regId from JWT claims
     /// Returns both the resolved profileType and the metadata
@@ -323,10 +517,10 @@ public class ProfileMigrationController : ControllerBase
     {
         try
         {
-            var regIdClaim = User.FindFirst("regId")?.Value;
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
             if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
             {
-                return BadRequest(new { error = "Invalid or missing regId claim" });
+                return BadRequest(new { error = MissingRegIdMsg });
             }
 
             var (profileType, metadata) = await _migrationService.GetCurrentJobProfileMetadataAsync(regId);
@@ -341,6 +535,78 @@ public class ProfileMigrationController : ControllerBase
         {
             _logger.LogError(ex, "Failed to get current job profile metadata");
             return StatusCode(500, new { error = "Failed to get current job metadata", details = ex.Message });
+        }
+    }
+
+    // ============================================================================
+    // CURRENT JOB OPTION SOURCES (Registrations) — read-only + copy helper
+    // ============================================================================
+
+    /// <summary>
+    /// List read-only sources from Job_Registrations derived columns for the current job.
+    /// Keys align with metadata dataSource when available.
+    /// </summary>
+    [HttpGet("profiles/current/options/sources")]
+    public async Task<ActionResult<List<OptionSet>>> GetCurrentJobOptionSources()
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            var sources = await _migrationService.GetCurrentJobOptionSourcesAsync(regId);
+            return Ok(sources);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get option sources");
+            return StatusCode(500, new { error = "Failed to get option sources", details = ex.Message });
+        }
+    }
+
+    public sealed class CopyOptionSourceRequest { public string Key { get; set; } = string.Empty; }
+
+    /// <summary>
+    /// Copy a read-only source set (from Registrations) into Jobs.JsonOptions overrides for the current job.
+    /// </summary>
+    [HttpPost("profiles/current/options/copy-from-source")]
+    public async Task<ActionResult<OptionSet>> CopyOptionSourceToOverride([FromBody] CopyOptionSourceRequest request)
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Key))
+            {
+                return BadRequest(new { error = "Key is required" });
+            }
+
+            var sources = await _migrationService.GetCurrentJobOptionSourcesAsync(regId);
+            var source = sources.Find(s => s.Key.Equals(request.Key, StringComparison.OrdinalIgnoreCase));
+            if (source == null)
+            {
+                return NotFound(new { error = $"Source '{request.Key}' not found" });
+            }
+
+            var updated = await _migrationService.UpsertCurrentJobOptionSetAsync(regId, source.Key, source.Values);
+            if (updated == null)
+            {
+                return StatusCode(500, new { error = "Failed to copy option source" });
+            }
+
+            return Ok(updated);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy option source {Key}", request.Key);
+            return StatusCode(500, new { error = "Failed to copy option source", details = ex.Message });
         }
     }
 
@@ -379,10 +645,10 @@ public class ProfileMigrationController : ControllerBase
         try
         {
             // Get regId from JWT claims
-            var regIdClaim = User.FindFirst("regId")?.Value;
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
             if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
             {
-                return BadRequest(new { error = "Invalid or missing regId claim" });
+                return BadRequest(new { error = MissingRegIdMsg });
             }
 
             _logger.LogInformation("Cloning profile from {SourceProfile} for regId {RegId}",

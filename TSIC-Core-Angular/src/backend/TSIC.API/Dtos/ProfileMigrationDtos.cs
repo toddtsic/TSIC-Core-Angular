@@ -86,6 +86,14 @@ public class CloneProfileResult
 }
 
 /// <summary>
+/// Result when asking server for the next profile type name for a given family
+/// </summary>
+public class NextProfileTypeResult
+{
+    public string NewProfileType { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Profile metadata enriched with job-specific JsonOptions
 /// Used for previewing how a form will appear for a specific job
 /// </summary>
@@ -95,4 +103,17 @@ public class ProfileMetadataWithOptions
     public string JobName { get; set; } = string.Empty;
     public ProfileMetadata Metadata { get; set; } = new();
     public Dictionary<string, object>? JsonOptions { get; set; }
+}
+
+/// <summary>
+/// Aggregated domain entry for all known profile fields across profiles/jobs
+/// Useful for generating a static allowed field list for the editor
+/// </summary>
+public class AllowedFieldDomainItem
+{
+    public string Name { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string DefaultInputType { get; set; } = string.Empty; // e.g., TEXT, SELECT, CHECKBOX, HIDDEN
+    public string DefaultVisibility { get; set; } = "public";   // public | adminOnly | hidden
+    public int SeenInProfiles { get; set; }
 }

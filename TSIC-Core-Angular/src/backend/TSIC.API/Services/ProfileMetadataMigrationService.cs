@@ -12,6 +12,9 @@ namespace TSIC.API.Services;
 public class ProfileMetadataMigrationService
 {
     private const string UnknownValue = "Unknown";
+    private const string TokenList = "list";
+    private const string TokenListSizes = "listsizes";
+    private const string TokenSizes = "sizes";
 
     private readonly SqlDbContext _context;
     private readonly GitHubProfileFetcher _githubFetcher;
@@ -51,6 +54,12 @@ public class ProfileMetadataMigrationService
         _parser = parser;
         _logger = logger;
     }
+
+    /// <summary>
+    /// Public facade to compute the next profile type name for a given source family (PP/CAC)
+    /// </summary>
+    public async Task<string> GetNextProfileTypeAsync(string sourceProfileType)
+        => await ComputeNextProfileTypeAsync(sourceProfileType);
 
     /// <summary>
     /// Preview migration for a single job without committing changes
@@ -214,11 +223,29 @@ public class ProfileMetadataMigrationService
             // Parse into metadata
             var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
 
-            // Ensure order numbers are consecutive starting from 1 (in case of any gaps from skipped fields)
-            for (int i = 0; i < metadata.Fields.Count; i++)
-            {
-                metadata.Fields[i].Order = i + 1;
-            }
+            // Normalize: any hidden field must use inputType = HIDDEN
+            metadata.Fields
+                .Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                .ToList()
+                .ForEach(f => f.InputType = "HIDDEN");
+
+            // Renumber and reorder by visibility groups to match UI grouping (Hidden -> Public -> Admin Only)
+            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, "public", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, "adminOnly", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+
+            var counter = 1;
+            foreach (var f in hiddens) f.Order = counter++;
+            foreach (var f in publics) f.Order = counter++;
+            foreach (var f in admins) f.Order = counter++;
+
+            metadata.Fields = hiddens.Concat(publics).Concat(admins).ToList();
 
             result.FieldCount = metadata.Fields.Count;
             result.GeneratedMetadata = metadata;
@@ -358,11 +385,29 @@ public class ProfileMetadataMigrationService
             // 2. Parse ONCE
             var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
 
-            // Ensure order numbers are consecutive starting from 1 (in case of any gaps from skipped fields)
-            for (int i = 0; i < metadata.Fields.Count; i++)
-            {
-                metadata.Fields[i].Order = i + 1;
-            }
+            // Normalize: any hidden field must use inputType = HIDDEN
+            metadata.Fields
+                .Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                .ToList()
+                .ForEach(f => f.InputType = "HIDDEN");
+
+            // Renumber and reorder by visibility groups to match UI grouping (Hidden -> Public -> Admin Only)
+            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, "public", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, "adminOnly", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+
+            var counter = 1;
+            foreach (var f in hiddens) f.Order = counter++;
+            foreach (var f in publics) f.Order = counter++;
+            foreach (var f in admins) f.Order = counter++;
+
+            metadata.Fields = hiddens.Concat(publics).Concat(admins).ToList();
 
             result.FieldCount = metadata.Fields.Count;
             result.GeneratedMetadata = metadata;
@@ -622,6 +667,321 @@ public class ProfileMetadataMigrationService
         return (profileType, metadata);
     }
 
+    // ============================================================================
+    // CURRENT JOB OPTION SETS (Jobs.JsonOptions) — helpers
+    // ============================================================================
+
+    public async Task<List<OptionSet>> GetCurrentJobOptionSetsAsync(Guid regId)
+    {
+        var registration = await _context.Registrations
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+
+        var optionSets = new List<OptionSet>();
+        if (registration?.Job == null || string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        {
+            return optionSets; // empty
+        }
+
+        try
+        {
+            var json = registration.Job.JsonOptions!;
+            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json, s_CaseInsensitive);
+            if (dict == null) return optionSets;
+
+            foreach (var kvp in dict)
+            {
+                if (kvp.Value.ValueKind == JsonValueKind.Array)
+                {
+                    var values = ParseJsonOptionsArray(kvp.Value);
+                    optionSets.Add(new OptionSet
+                    {
+                        Key = kvp.Key,
+                        Provider = "Jobs.JsonOptions",
+                        ReadOnly = false,
+                        Values = values
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log and return empty on parse errors; not fatal for listing option sets
+            _logger.LogDebug(ex, "Failed to parse Jobs.JsonOptions for regId {RegId}", regId);
+        }
+
+        return optionSets;
+    }
+
+    public async Task<OptionSet?> UpsertCurrentJobOptionSetAsync(Guid regId, string key, List<ProfileFieldOption> values)
+    {
+        var registration = await _context.Registrations
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+
+        if (registration?.Job == null)
+            return null;
+
+        Dictionary<string, JsonElement>? dict = null;
+        if (!string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        {
+            try
+            {
+                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(registration.Job.JsonOptions, s_CaseInsensitive);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to parse existing Jobs.JsonOptions for upsert (regId {RegId})", regId);
+            }
+        }
+        dict ??= new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+
+        // Convert values to JsonElement array
+        var json = JsonSerializer.Serialize(values, s_IndentedCamelCase);
+        using var doc = JsonDocument.Parse(json);
+        dict[key] = doc.RootElement.Clone();
+
+        registration.Job.JsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
+        await _context.SaveChangesAsync();
+
+        return new OptionSet
+        {
+            Key = key,
+            Provider = "Jobs.JsonOptions",
+            ReadOnly = false,
+            Values = values
+        };
+    }
+
+    /// <summary>
+    /// Build a distinct domain list of all profile fields found across Jobs.PlayerProfileMetadataJson.
+    /// For each field name, selects the most frequently observed input type and visibility, and a representative display name.
+    /// Intended as a one-time or occasional generator to seed a static allowed-fields list in the UI.
+    /// </summary>
+    public async Task<List<AllowedFieldDomainItem>> BuildAllowedFieldDomainAsync()
+    {
+        var results = new Dictionary<string, (Dictionary<string, int> inputTypes, Dictionary<string, int> visibilities, Dictionary<string, int> displayNames, int total)>(StringComparer.OrdinalIgnoreCase);
+
+        // Load all metadata jsons present
+        var jsonList = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
+            .Select(j => j.PlayerProfileMetadataJson!)
+            .ToListAsync();
+
+        foreach (var json in jsonList)
+        {
+            try
+            {
+                var metadata = JsonSerializer.Deserialize<ProfileMetadata>(json, s_CaseInsensitive);
+                if (metadata?.Fields == null) continue;
+
+                foreach (var f in metadata.Fields)
+                {
+                    if (string.IsNullOrWhiteSpace(f.Name)) continue;
+
+                    if (!results.TryGetValue(f.Name, out var agg))
+                    {
+                        agg = (new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                               new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                               new Dictionary<string, int>(StringComparer.Ordinal),
+                               0);
+                        results[f.Name] = agg;
+                    }
+
+                    void Inc(Dictionary<string, int> d, string key)
+                    {
+                        if (string.IsNullOrWhiteSpace(key)) return;
+                        d[key] = d.TryGetValue(key, out var n) ? n + 1 : 1;
+                    }
+
+                    Inc(agg.inputTypes, f.InputType ?? string.Empty);
+                    Inc(agg.visibilities, f.Visibility ?? string.Empty);
+                    Inc(agg.displayNames, f.DisplayName ?? string.Empty);
+
+                    // bump total sightings for this field name
+                    var tmp = results[f.Name];
+                    tmp.total++;
+                    results[f.Name] = tmp;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to parse PlayerProfileMetadataJson while building field domain");
+            }
+        }
+
+        static string MostFrequent(Dictionary<string, int> d, string fallback)
+        {
+            if (d.Count == 0) return fallback;
+            return d.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key).First().Key;
+        }
+
+        var list = new List<AllowedFieldDomainItem>();
+        foreach (var (name, agg) in results)
+        {
+            var item = new AllowedFieldDomainItem
+            {
+                Name = name,
+                DisplayName = MostFrequent(agg.displayNames, name),
+                DefaultInputType = MostFrequent(agg.inputTypes, "TEXT"),
+                DefaultVisibility = MostFrequent(agg.visibilities, "public"),
+                SeenInProfiles = agg.total
+            };
+            list.Add(item);
+        }
+
+        // Order by visibility then name for readability
+        list = list
+            .OrderBy(i => i.DefaultVisibility.Equals("hidden", StringComparison.OrdinalIgnoreCase) ? 0 : i.DefaultVisibility.Equals("public", StringComparison.OrdinalIgnoreCase) ? 1 : 2)
+            .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return list;
+    }
+
+    public async Task<bool> DeleteCurrentJobOptionSetAsync(Guid regId, string key)
+    {
+        var registration = await _context.Registrations
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+
+        if (registration?.Job == null)
+            return false;
+
+        Dictionary<string, JsonElement>? dict = null;
+        if (!string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        {
+            try
+            {
+                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(registration.Job.JsonOptions, s_CaseInsensitive);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to parse Jobs.JsonOptions for delete (regId {RegId})", regId);
+            }
+        }
+
+        if (dict == null || !dict.Remove(key))
+            return false;
+
+        registration.Job.JsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> RenameCurrentJobOptionSetAsync(Guid regId, string oldKey, string newKey)
+    {
+        var registration = await _context.Registrations
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+
+        if (registration?.Job == null)
+            return false;
+
+        Dictionary<string, JsonElement>? dict = null;
+        if (!string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        {
+            try
+            {
+                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(registration.Job.JsonOptions, s_CaseInsensitive);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to parse Jobs.JsonOptions for rename (regId {RegId})", regId);
+            }
+        }
+        if (dict == null || !dict.ContainsKey(oldKey))
+            return false;
+
+        var element = dict[oldKey];
+        dict.Remove(oldKey);
+        dict[newKey] = element;
+
+        registration.Job.JsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Read-only sources for option values derived from Registrations columns for the current job.
+    /// Keys are aligned to metadata field.DataSource when available; otherwise fallback to List_{FieldName}.
+    /// </summary>
+    public async Task<List<OptionSet>> GetCurrentJobOptionSourcesAsync(Guid regId)
+    {
+        var (profileType, metadata) = await GetCurrentJobProfileMetadataAsync(regId);
+        var results = new List<OptionSet>();
+        if (string.IsNullOrEmpty(profileType) || metadata == null)
+        {
+            return results;
+        }
+
+        // Get the jobId from registration
+        var registration = await _context.Registrations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+        if (registration == null)
+        {
+            return results;
+        }
+
+        var jobId = registration.JobId;
+
+        // Gather candidate fields: SELECT types with a dbColumn to map to Registrations
+        var selectFields = metadata.Fields
+            .Where(f => !string.IsNullOrWhiteSpace(f.DbColumn)
+                        && !string.IsNullOrWhiteSpace(f.Name)
+                        && string.Equals(f.InputType, "SELECT", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var field in selectFields)
+        {
+            var key = !string.IsNullOrWhiteSpace(field.DataSource) ? field.DataSource! : ($"List_{field.Name}");
+            if (!seen.Add(key))
+                continue; // avoid duplicate keys
+
+            var column = field.DbColumn!;
+            try
+            {
+                // Dynamically select the registration property using EF.Property
+                var values = await _context.Registrations
+                    .Where(r => r.JobId == jobId)
+                    .Select(r => EF.Property<string>(r, column))
+                    .Distinct()
+                    .ToListAsync();
+
+                var options = values
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Select(v => v!.Trim())
+                    .Where(v => v.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(v => v)
+                    .Select(v => new ProfileFieldOption { Value = v, Label = v })
+                    .ToList();
+
+                // Only include if we have some options
+                if (options.Count > 0)
+                {
+                    results.Add(new OptionSet
+                    {
+                        Key = key,
+                        Provider = "Registrations",
+                        ReadOnly = true,
+                        Values = options
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to read option source from Registrations column {Column} for job {JobId}", column, jobId);
+            }
+        }
+
+        return results;
+    }
+
     /// <summary>
     /// Update metadata for a profile type (applies to ALL jobs using it)
     /// </summary>
@@ -655,6 +1015,30 @@ public class ProfileMetadataMigrationService
             result.AffectedJobIds = jobs.Select(j => j.JobId).ToList();
             result.AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList();
             result.FieldCount = metadata.Fields.Count;
+
+            // Normalize: ensure hidden fields use inputType = HIDDEN
+            metadata.Fields
+                .Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                .ToList()
+                .ForEach(f => f.InputType = "HIDDEN");
+
+            // Renumber orders consistently by visibility groups: Public -> AdminOnly -> Hidden
+            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, "public", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, "adminOnly", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                                         .OrderBy(f => f.Order)
+                                         .ToList();
+
+            var counter = 1;
+            foreach (var f in hiddens) f.Order = counter++;
+            foreach (var f in publics) f.Order = counter++;
+            foreach (var f in admins) f.Order = counter++;
+
+            metadata.Fields = hiddens.Concat(publics).Concat(admins).ToList();
 
             // Update source tracking
             metadata.Source ??= new ProfileMetadataSource();
@@ -838,15 +1222,15 @@ public class ProfileMetadataMigrationService
                 return result;
             }
 
-            // Determine base name and find max version for THIS job
-            var newProfileType = GenerateNewProfileName(sourceProfileType);
+            // Determine the next profile id for the family (PP or CAC) based on global max across Jobs
+            var newProfileType = await ComputeNextProfileTypeAsync(sourceProfileType);
 
             // Create metadata for new profile (clone from source)
             var newMetadata = CloneMetadata(sourceMetadata);
             var metadataJson = JsonSerializer.Serialize(newMetadata);
 
-            // Update the current job to use the new profile
-            job.CoreRegformPlayer = newProfileType;
+            // Update the current job's CoreRegformPlayer preserving pipe-delimited structure
+            job.CoreRegformPlayer = UpdateCoreRegformPlayer(job.CoreRegformPlayer, newProfileType);
             job.PlayerProfileMetadataJson = metadataJson;
             await _context.SaveChangesAsync();
 
@@ -870,23 +1254,86 @@ public class ProfileMetadataMigrationService
     }
 
     /// <summary>
-    /// Generate new profile name by finding max version for a specific job and incrementing
+    /// Compute next profile type for the family prefix (PP or CAC) using the current max across Jobs.CoreRegformPlayer.
+    /// Falls back to source+1 if none found.
     /// </summary>
-    private static string GenerateNewProfileName(string sourceProfileType)
+    private async Task<string> ComputeNextProfileTypeAsync(string sourceProfileType)
     {
-        // Extract base name (remove trailing numbers if any)
-        var baseName = System.Text.RegularExpressions.Regex.Replace(
-            sourceProfileType,
-            @"\d+$",
-            string.Empty
-        );
+        var prefix = GetProfilePrefix(sourceProfileType);
+        var sourceNum = ExtractTrailingNumber(sourceProfileType) ?? 0;
 
-        // Extract version from source
-        var sourceMatch = System.Text.RegularExpressions.Regex.Match(sourceProfileType, @"(\d+)$");
-        var sourceVersion = sourceMatch.Success && int.TryParse(sourceMatch.Groups[1].Value, out var sv) ? sv : 1;
+        // Gather all CoreRegformPlayer values (ignore null/0/1 sentinel values)
+        var all = await _context.Jobs
+            .Where(j => j.CoreRegformPlayer != null && j.CoreRegformPlayer != "0" && j.CoreRegformPlayer != "1")
+            .Select(j => j.CoreRegformPlayer!)
+            .ToListAsync();
 
-        // Return incremented version
-        return $"{baseName}{sourceVersion + 1}";
+        int maxNum = 0;
+        foreach (var val in all)
+        {
+            foreach (var part in SplitCoreRegform(val))
+            {
+                if (part.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    var n = ExtractTrailingNumber(part);
+                    if (n.HasValue && n.Value > maxNum)
+                        maxNum = n.Value;
+                }
+            }
+        }
+
+        var next = (maxNum > 0 ? maxNum : sourceNum) + 1;
+        return $"{prefix}{next}";
+    }
+
+    private static string GetProfilePrefix(string profileType)
+        => profileType.StartsWith("CAC", StringComparison.OrdinalIgnoreCase) ? "CAC" : "PP";
+
+    private static int? ExtractTrailingNumber(string value)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(value ?? string.Empty, @"(\d+)$");
+        return m.Success && int.TryParse(m.Groups[1].Value, out var n) ? n : (int?)null;
+    }
+
+    private static IEnumerable<string> SplitCoreRegform(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) yield break;
+        foreach (var part in value.Split('|'))
+        {
+            var p = part?.Trim();
+            if (!string.IsNullOrEmpty(p)) yield return p;
+        }
+    }
+
+    /// <summary>
+    /// Update CoreRegformPlayer string preserving other parts; replace the PP/CAC segment with the provided new type.
+    /// If no PP/CAC segment exists, replace the whole value with new type.
+    /// </summary>
+    private static string UpdateCoreRegformPlayer(string? existing, string newProfileType)
+    {
+        var prefix = GetProfilePrefix(newProfileType);
+        if (string.IsNullOrWhiteSpace(existing) || existing == "0" || existing == "1")
+            return newProfileType;
+
+        var parts = existing.Split('|');
+        bool replaced = false;
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var p = parts[i]?.Trim() ?? string.Empty;
+            if (p.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                parts[i] = newProfileType;
+                replaced = true;
+            }
+        }
+        if (!replaced)
+        {
+            // No matching segment found. If it's a single-part value, replace; otherwise append as best-effort.
+            if (parts.Length <= 1)
+                return newProfileType;
+            return string.Join('|', parts.Append(newProfileType));
+        }
+        return string.Join('|', parts);
     }
 
     /// <summary>
@@ -995,32 +1442,32 @@ public class ProfileMetadataMigrationService
         string StripPrefix(string s, string prefixNorm)
             => s.StartsWith(prefixNorm) ? s.Substring(prefixNorm.Length) : s;
 
-        var dsNoList = StripPrefix(dsNorm, "list");
+        var dsNoList = StripPrefix(dsNorm, TokenList);
         candidates.Add(dsNoList);
 
-        var dsNoListSizes = StripPrefix(dsNorm, "listsizes");
+        var dsNoListSizes = StripPrefix(dsNorm, TokenListSizes);
         candidates.Add(dsNoListSizes);
 
         // Add prefixed forms
-        candidates.Add("list" + dsNoList);
-        candidates.Add("listsizes" + dsNoList);
+        candidates.Add(TokenList + dsNoList);
+        candidates.Add(TokenListSizes + dsNoList);
 
         // Handle Sizes_ reordering: ListSizes_Jersey <-> List_JerseySizes
         // Try to split on "sizes" token and swap
-        int sizesIdx = dsNorm.IndexOf("sizes", StringComparison.Ordinal);
+        int sizesIdx = dsNorm.IndexOf(TokenSizes, StringComparison.Ordinal);
         if (sizesIdx >= 0)
         {
             var before = dsNorm.Substring(0, sizesIdx); // may include 'list'
-            var after = dsNorm.Substring(sizesIdx + "sizes".Length); // e.g., _jersey (without underscore after normalize)
+            var after = dsNorm.Substring(sizesIdx + TokenSizes.Length); // e.g., _jersey (without underscore after normalize)
             // Normalize again in case we cut mid-token
             before = Normalize(before);
             after = Normalize(after);
 
             if (!string.IsNullOrEmpty(after))
             {
-                candidates.Add(before + after + "sizes"); // listjerseysizes
-                candidates.Add("list" + after + "sizes");
-                candidates.Add(after + "sizes");
+                candidates.Add(before + after + TokenSizes); // listjerseysizes
+                candidates.Add(TokenList + after + TokenSizes);
+                candidates.Add(after + TokenSizes);
             }
         }
 

@@ -52,9 +52,6 @@
                     <div class="mt-3">
                         <small class="text-muted">
                             <strong>Fields:</strong> {{ fieldCount() }}
-                            @if (currentMetadata()?.source) {
-                            <br><strong>Source:</strong> {{ currentMetadata()?.source?.sourceFile }}
-                            }
                         </small>
                     </div>
                     }
@@ -66,20 +63,42 @@
     <!-- Loading Spinner -->
     @if (isLoading()) {
     <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
+        <div class="spinner-border text-primary">
             <span class="visually-hidden">Loading...</span>
         </div>
         <p class="mt-2">Loading profile metadata...</p>
     </div>
     }
 
-    <!-- Field Editor -->
+    <!-- Fields + Job Options Tabs -->
     @if (currentMetadata() && !isLoading()) {
     <div class="row">
         <div class="col-12">
+            <ul class="nav nav-tabs mb-3">
+                <li class="nav-item">
+                    <button class="nav-link" [class.active]="activeTab() === 'fields'"
+                        (click)="activeTab.set('fields')">
+                        <i class="bi bi-list-columns me-1"></i> Fields
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" [class.active]="activeTab() === 'options'"
+                        (click)="activeTab.set('options')">
+                        <i class="bi bi-ui-checks-grid me-1"></i> Job Options
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Fields Tab -->
+            @if (activeTab() === 'fields') {
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Profile Fields</h5>
+                    <h5 class="mb-0 d-flex align-items-center">
+                        <span>Profile Fields</span>
+                        @if (selectedProfileType()) {
+                        <span class="badge bg-warning text-dark ms-2">{{ selectedProfileDisplay() }}</span>
+                        }
+                    </h5>
                     <button class="btn btn-success btn-sm" (click)="addNewField()" [disabled]="isSaving()">
                         <i class="bi bi-plus-circle me-1"></i> Add Field
                     </button>
@@ -93,56 +112,134 @@
                                     <th>Field Name</th>
                                     <th>Display Name</th>
                                     <th>Input Type</th>
-                                    <th>Required</th>
-                                    <th>Visibility</th>
+                                    <th>Validation</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
+                            <!-- Group header and rows: Hidden (first) -->
                             <tbody>
-                                @for (field of currentMetadata()!.fields; track trackByIndex($index)) {
+                                <tr class="table-secondary">
+                                    <td colspan="6" class="fw-semibold text-uppercase small">Hidden</td>
+                                </tr>
+                                @for (field of hiddenFields(); track field.name) {
                                 <tr>
                                     <td>{{ field.order }}</td>
                                     <td><code>{{ field.name }}</code></td>
                                     <td>{{ field.displayName }}</td>
                                     <td><span class="badge bg-info">{{ field.inputType }}</span></td>
                                     <td>
-                                        @if (field.validation?.required) {
-                                        <i class="bi bi-check-circle-fill text-success"></i>
-                                        } @else {
-                                        <i class="bi bi-dash-circle text-muted"></i>
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (field.visibility === 'hidden') {
-                                        <span class="badge bg-secondary">Hidden</span>
-                                        } @else if (field.visibility === 'adminOnly') {
-                                        <span class="badge bg-warning text-dark">Admin Only</span>
-                                        } @else {
-                                        <span class="badge bg-success">Public</span>
+                                        @if (getValidationBadges(field).length === 0) { <span
+                                            class="text-muted">—</span> } @else {
+                                        @for (badge of getValidationBadges(field); track badge) { <span
+                                            class="badge bg-secondary me-1">{{ badge }}</span> }
                                         }
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary"
-                                                (click)="openEditModal(field, $index)" title="Edit">
+                                            <button class="btn btn-outline-primary" title="Edit" disabled><i
+                                                    class="bi bi-pencil"></i></button>
+                                            <button class="btn btn-outline-info" title="Test Validation" disabled><i
+                                                    class="bi bi-clipboard-check"></i></button>
+                                            <button class="btn btn-outline-danger" title="Remove" disabled><i
+                                                    class="bi bi-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+
+                            <!-- Group header: Public (second) -->
+                            <tbody>
+                                <tr class="table-light">
+                                    <td colspan="6" class="fw-semibold text-uppercase small">Public</td>
+                                </tr>
+                            </tbody>
+                            <tbody cdkDropList class="registrant-drop-list"
+                                (cdkDropListDropped)="onRegistrantDrop($event)">
+                                <!-- Registrant-visible (draggable) -->
+                                @for (field of registrantFields(); track field.name) {
+                                <tr cdkDrag>
+                                    <td>
+                                        <span class="drag-grip me-2" cdkDragHandle title="Drag to reorder"
+                                            aria-label="Drag to reorder"></span>
+                                        <span class="align-middle">{{ field.order }}</span>
+                                    </td>
+                                    <td><code>{{ field.name }}</code></td>
+                                    <td>{{ field.displayName }}</td>
+                                    <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                                    <td>
+                                        @if (getValidationBadges(field).length === 0) {
+                                        <span class="text-muted">—</span>
+                                        } @else {
+                                        @for (badge of getValidationBadges(field); track badge) {
+                                        <span class="badge bg-secondary me-1">{{ badge }}</span>
+                                        }
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" (click)="openEditByField(field)"
+                                                title="Edit" [disabled]="isSaving()">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <button class="btn btn-outline-info" (click)="openTestModal(field.name)"
                                                 title="Test Validation">
                                                 <i class="bi bi-clipboard-check"></i>
                                             </button>
-                                            <button class="btn btn-outline-danger" (click)="removeField($index)"
-                                                title="Remove">
+                                            <button class="btn btn-outline-danger"
+                                                (click)="removeFieldByName(field.name)" title="Remove"
+                                                [disabled]="isSaving()">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
                                     </td>
+                                    <!-- Single-row preview to avoid any chance of multi-row visual dragging -->
+                                    <ng-template cdkDragPreview>
+                                        <div class="drag-preview-row">
+                                            <span class="me-2">#{{ field.order }}</span>
+                                            <code class="me-2">{{ field.name }}</code>
+                                            <span class="badge bg-info">{{ field.inputType }}</span>
+                                        </div>
+                                    </ng-template>
                                 </tr>
                                 }
-                                @if (currentMetadata()!.fields.length === 0) {
+                                @if (registrantFields().length === 0) {
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">
+                                    <td colspan="6" class="text-center text-muted py-4">
                                         No fields defined. Click "Add Field" to create one.
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+
+                            <!-- Group header and rows: Admin Only (third) -->
+                            <tbody>
+                                <tr class="table-warning">
+                                    <td colspan="6" class="fw-semibold text-uppercase small">Admin Only</td>
+                                </tr>
+                                @for (field of adminOnlyFields(); track field.name) {
+                                <tr>
+                                    <td>{{ field.order }}</td>
+                                    <td><code>{{ field.name }}</code></td>
+                                    <td>{{ field.displayName }}</td>
+                                    <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                                    <td>
+                                        @if (getValidationBadges(field).length === 0) { <span
+                                            class="text-muted">—</span> } @else {
+                                        @for (badge of getValidationBadges(field); track badge) { <span
+                                            class="badge bg-secondary me-1">{{ badge }}</span> }
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" (click)="openEditByField(field)"
+                                                title="Edit"><i class="bi bi-pencil"></i></button>
+                                            <button class="btn btn-outline-info" (click)="openTestModal(field.name)"
+                                                title="Test Validation"><i class="bi bi-clipboard-check"></i></button>
+                                            <button class="btn btn-outline-danger"
+                                                (click)="removeFieldByName(field.name)" title="Remove"><i
+                                                    class="bi bi-trash"></i></button>
+                                        </div>
                                     </td>
                                 </tr>
                                 }
@@ -151,10 +248,298 @@
                     </div>
                 </div>
             </div>
+            }
+
+            <!-- Job Options Tab -->
+            @if (activeTab() === 'options') {
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Job Options (Overrides)</h5>
+                    <button class="btn btn-outline-success btn-sm" (click)="openCreateOptionSet()">
+                        <i class="bi bi-plus-circle me-1"></i> New Option Set
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (optionsError()) {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ optionsError() }}
+                        <button type="button" class="btn-close" (click)="optionsError.set(null)"></button>
+                    </div>
+                    }
+
+                    @if (optionsLoading()) {
+                    <div class="text-center py-4">
+                        <div class="spinner-border"></div>
+                        <div class="mt-2">Loading option sets...</div>
+                    </div>
+                    } @else {
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <div class="list-group">
+                                @for (set of optionSets(); track trackByKey($index, set)) {
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-semibold">{{ set.key }}</div>
+                                        <small class="text-muted">{{ set.values.length || 0 }} options</small>
+                                    </div>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" (click)="editOptionSet(set)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" (click)="deleteOptionSet(set.key)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                }
+                                @if (optionSets().length === 0) {
+                                <div class="list-group-item text-muted">No option sets yet.</div>
+                                }
+                            </div>
+
+                            <div class="mt-3">
+                                <h6 class="mb-2">Available Sources</h6>
+                                @if (sourcesError()) {
+                                <div class="alert alert-danger py-1">{{ sourcesError() }}</div>
+                                }
+                                @if (sourcesLoading()) {
+                                <div class="text-muted small">Loading sources…</div>
+                                } @else {
+                                <div class="list-group">
+                                    @for (src of optionSources(); track trackByKey($index, src)) {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-semibold">{{ src.key }}</div>
+                                            <small class="text-muted">{{ src.values.length || 0 }} options •
+                                                Read-only</small>
+                                        </div>
+                                        <button class="btn btn-outline-success btn-sm" (click)="copySource(src.key)">
+                                            Copy
+                                        </button>
+                                    </div>
+                                    }
+                                    @if (optionSources().length === 0) {
+                                    <div class="list-group-item text-muted">No sources detected.</div>
+                                    }
+                                </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-md-7">
+                            @if (editingOptionKey()) {
+                            <div class="card border-primary">
+                                <div class="card-header d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center w-100 gap-2">
+                                        <span class="badge bg-primary">Editing</span>
+                                        <input class="form-control form-control-sm" [disabled]="isRenaming()"
+                                            [(ngModel)]="renameValue" />
+                                        <button class="btn btn-outline-secondary btn-sm" [disabled]="isRenaming()"
+                                            (click)="renameOptionSet(editingOptionKey()!)">Rename</button>
+                                    </div>
+                                    <div class="ms-2">
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                            (click)="cancelEditOptionSet()">Close</button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:45%">Label</th>
+                                                    <th style="width:45%">Value</th>
+                                                    <th style="width:10%"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (opt of editingOptionValues(); track trackByIndex($index)) {
+                                                <tr>
+                                                    <td><input type="text" class="form-control form-control-sm"
+                                                            [(ngModel)]="opt.label" /></td>
+                                                    <td><input type="text" class="form-control form-control-sm"
+                                                            [(ngModel)]="opt.value" /></td>
+                                                    <td>
+                                                        <button class="btn btn-outline-danger btn-sm"
+                                                            (click)="removeOptionRow($index)"><i
+                                                                class="bi bi-x"></i></button>
+                                                    </td>
+                                                </tr>
+                                                }
+                                                <tr>
+                                                    <td colspan="3">
+                                                        <button class="btn btn-outline-success btn-sm"
+                                                            (click)="addNewOptionRow()">
+                                                            <i class="bi bi-plus-circle me-1"></i> Add Option
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="card-footer text-end">
+                                    <button class="btn btn-success btn-sm" [disabled]="isSavingOption()"
+                                        (click)="saveEditedOptionSet()">
+                                        @if (isSavingOption()) {<span
+                                            class="spinner-border spinner-border-sm me-1"></span>}Save
+                                    </button>
+                                </div>
+                            </div>
+                            } @else {
+                            <div class="text-muted">Select an option set to edit.</div>
+                            }
+                        </div>
+                    </div>
+                    }
+
+                    <!-- Create New Option Set Modal-like section -->
+                    @if (isCreateOptionOpen()) {
+                    <div class="mt-4 card border-success">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Create New Option Set</h6>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                (click)="closeCreateOptionSet()">Close</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="new-option-key">Key</label>
+                                    <input id="new-option-key" class="form-control" [(ngModel)]="newOptionKey">
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-label fw-semibold">Options</div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:45%">Label</th>
+                                                    <th style="width:45%">Value</th>
+                                                    <th style="width:10%"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (opt of newOptionValues(); track trackByIndex($index)) {
+                                                <tr>
+                                                    <td><input type="text" class="form-control form-control-sm"
+                                                            [(ngModel)]="opt.label" /></td>
+                                                    <td><input type="text" class="form-control form-control-sm"
+                                                            [(ngModel)]="opt.value" /></td>
+                                                    <td>
+                                                        <button class="btn btn-outline-danger btn-sm"
+                                                            (click)="removeOptionRow($index, true)"><i
+                                                                class="bi bi-x"></i></button>
+                                                    </td>
+                                                </tr>
+                                                }
+                                                <tr>
+                                                    <td colspan="3">
+                                                        <button class="btn btn-outline-success btn-sm"
+                                                            (click)="addNewOptionRow(true)">
+                                                            <i class="bi bi-plus-circle me-1"></i> Add Option
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer text-end">
+                            <button class="btn btn-success btn-sm" [disabled]="isCreatingOption()"
+                                (click)="createOptionSet()">
+                                @if (isCreatingOption()) {<span
+                                    class="spinner-border spinner-border-sm me-1"></span>}Create
+                            </button>
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+            }
         </div>
     </div>
     }
 </div>
+
+<!-- Confirm Modal -->
+@if (showConfirmModal()) {
+<div class="modal d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>{{
+                    confirmModalTitle() }}</h5>
+                <button type="button" class="btn-close" (click)="closeConfirm()"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">{{ confirmModalMessage() }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeConfirm()">Cancel</button>
+                <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}
+
+<!-- Add Field Modal -->
+@if (isAddFieldModalOpen()) {
+<div class="modal d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Field</h5>
+                <button type="button" class="btn-close" (click)="closeAddFieldModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="new-field-select">Choose a field</label>
+                    <select id="new-field-select" class="form-select" [(ngModel)]="selectedNewFieldName">
+                        <option [ngValue]="null">-- Select a field --</option>
+                        @for (opt of availableNewFields(); track opt.name) {
+                        <option [ngValue]="opt.name">{{ opt.name }} ({{ opt.displayName }})</option>
+                        }
+                    </select>
+                    @if (availableNewFields().length === 0) {
+                    <div class="text-muted small mt-2">All allowed fields are already in use.</div>
+                    }
+                </div>
+                @if (selectedNewField()) {
+                <div class="alert alert-secondary py-2">
+                    <div class="mb-2"><strong>Default Type:</strong> {{ addFieldPlacement() === 'hidden' ? 'HIDDEN' :
+                        selectedNewField()!.inputType }}</div>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-auto"><strong>Place in:</strong></div>
+                        <div class="col">
+                            <select class="form-select" [(ngModel)]="addFieldPlacement">
+                                <option value="public">Public</option>
+                                <option value="adminOnly">Admin Only</option>
+                                <option value="hidden">Hidden</option>
+                            </select>
+                        </div>
+                    </div>
+                    @if (addFieldPlacement() === 'hidden') {
+                    <div class="text-muted small mt-2">Hidden fields are always type HIDDEN.</div>
+                    }
+                </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="closeAddFieldModal()">Cancel</button>
+                <button type="button" class="btn btn-success" (click)="confirmAddSelectedField()"
+                    [disabled]="!selectedNewFieldName()">
+                    Add
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}
 
 <!-- Edit Field Modal -->
 @if (isEditModalOpen()) {
@@ -169,32 +554,46 @@
                 @if (editingField(); as field) {
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label">Field Name</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.name">
+                        <label class="form-label" for="edit-field-name">Field Name</label>
+                        <input id="edit-field-name" type="text" class="form-control" [(ngModel)]="field.name" disabled>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">DB Column</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.dbColumn">
+                        <label class="form-label" for="edit-db-column">DB Column</label>
+                        <input id="edit-db-column" type="text" class="form-control" [(ngModel)]="field.dbColumn">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Display Name</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.displayName">
+                        <label class="form-label" for="edit-display-name">Display Name</label>
+                        <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Input Type</label>
-                        <select class="form-select" [(ngModel)]="field.inputType">
+                        <label class="form-label" for="edit-input-type">Input Type</label>
+                        <select id="edit-input-type" class="form-select" [(ngModel)]="field.inputType"
+                            [disabled]="field.visibility === 'hidden'">
+                            @if (field.visibility === 'hidden') {
+                            <option value="HIDDEN">HIDDEN</option>
+                            } @else {
                             @for (type of fieldTypeOptions; track type) {
                             <option [value]="type">{{ type }}</option>
+                            }
                             }
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Order</label>
-                        <input type="number" class="form-control" [(ngModel)]="field.order">
+                        <label class="form-label" for="edit-order">Order</label>
+                        <select id="edit-order" class="form-select" [(ngModel)]="selectedOrderIndex"
+                            [disabled]="field.visibility !== 'public'">
+                            @for (idx of orderOptions(); track idx) {
+                            <option [ngValue]="idx">{{ idx + 1 }}</option>
+                            }
+                        </select>
+                        @if (field.visibility !== 'public') {
+                        <small class="text-muted">Reordering is available for registrant-visible fields only.</small>
+                        }
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Visibility</label>
-                        <select class="form-select" [(ngModel)]="field.visibility">
+                        <label class="form-label" for="edit-visibility">Visibility</label>
+                        <select id="edit-visibility" class="form-select" [(ngModel)]="field.visibility"
+                            (ngModelChange)="onVisibilityChange(field)">
                             <option value="public">Public</option>
                             <option value="adminOnly">Admin Only</option>
                             <option value="hidden">Hidden</option>
@@ -207,17 +606,18 @@
                         </div>
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Data Source</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.dataSource"
+                        <label class="form-label" for="edit-data-source">Data Source</label>
+                        <input id="edit-data-source" type="text" class="form-control" [(ngModel)]="field.dataSource"
                             placeholder="e.g., states, countries">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Placeholder</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.placeholder">
+                        <label class="form-label" for="edit-placeholder">Placeholder</label>
+                        <input id="edit-placeholder" type="text" class="form-control" [(ngModel)]="field.placeholder">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Help Text</label>
-                        <textarea class="form-control" [(ngModel)]="field.helpText" rows="2"></textarea>
+                        <label class="form-label" for="edit-help-text">Help Text</label>
+                        <textarea id="edit-help-text" class="form-control" [(ngModel)]="field.helpText"
+                            rows="2"></textarea>
                     </div>
 
                     <div class="col-12">
@@ -258,34 +658,36 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Min Length</label>
-                        <input type="number" class="form-control" [(ngModel)]="field.validation.minLength">
+                        <label class="form-label" for="val-min-length">Min Length</label>
+                        <input id="val-min-length" type="number" class="form-control"
+                            [(ngModel)]="field.validation.minLength">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Max Length</label>
-                        <input type="number" class="form-control" [(ngModel)]="field.validation.maxLength">
+                        <label class="form-label" for="val-max-length">Max Length</label>
+                        <input id="val-max-length" type="number" class="form-control"
+                            [(ngModel)]="field.validation.maxLength">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Min Value</label>
-                        <input type="number" class="form-control" [(ngModel)]="field.validation.min">
+                        <label class="form-label" for="val-min">Min Value</label>
+                        <input id="val-min" type="number" class="form-control" [(ngModel)]="field.validation.min">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Max Value</label>
-                        <input type="number" class="form-control" [(ngModel)]="field.validation.max">
+                        <label class="form-label" for="val-max">Max Value</label>
+                        <input id="val-max" type="number" class="form-control" [(ngModel)]="field.validation.max">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Pattern (Regex)</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.validation.pattern"
+                        <label class="form-label" for="val-pattern">Pattern (Regex)</label>
+                        <input id="val-pattern" type="text" class="form-control" [(ngModel)]="field.validation.pattern"
                             placeholder="^\d{10}$">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Remote Validation URL</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.validation.remote"
+                        <label class="form-label" for="val-remote">Remote Validation URL</label>
+                        <input id="val-remote" type="text" class="form-control" [(ngModel)]="field.validation.remote"
                             placeholder="/api/Validation/ValidateUSALacrosseID">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Custom Error Message</label>
-                        <input type="text" class="form-control" [(ngModel)]="field.validation.message">
+                        <label class="form-label" for="val-message">Custom Error Message</label>
+                        <input id="val-message" type="text" class="form-control" [(ngModel)]="field.validation.message">
                     </div>
                     }
                 </div>
@@ -317,8 +719,8 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Clone From:</label>
-                    <select class="form-select" [(ngModel)]="selectedCloneSource"
+                    <label class="form-label fw-bold" for="clone-from">Clone From:</label>
+                    <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource"
                         (ngModelChange)="onCloneSourceSelected($event)" [disabled]="isCloning()">
                         <option [ngValue]="null">-- Select a profile to clone --</option>
                         @for (profile of availableProfiles(); track profile.type) {
@@ -369,8 +771,9 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Test Value</label>
-                    <input type="text" class="form-control" [(ngModel)]="testValue" placeholder="Enter a value to test">
+                    <label class="form-label" for="test-value">Test Value</label>
+                    <input id="test-value" type="text" class="form-control" [(ngModel)]="testValue"
+                        placeholder="Enter a value to test">
                 </div>
 
                 <button class="btn btn-primary w-100 mb-3" (click)="runValidationTest()"

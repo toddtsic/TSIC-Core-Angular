@@ -41,3 +41,54 @@ code {
 .badge {
     font-weight: 500;
 }
+
+/* Drag & drop handle: icon-only grip (avoid checkbox/button look) */
+.drag-grip {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    color: var(--bs-secondary);
+    cursor: grab;
+    user-select: none;
+    border-radius: 2px;
+    opacity: 0.9;
+    /* dotted grip made with a radial gradient so it doesn't look like a checkbox */
+    background-image: radial-gradient(currentColor 1px, transparent 1px);
+    background-size: 4px 4px;
+    background-position: 0 0;
+}
+
+.drag-grip:hover {
+    color: var(--bs-dark);
+    opacity: 1;
+}
+
+.drag-grip:active {
+    cursor: grabbing;
+}
+
+/* Improve preview while dragging */
+.cdk-drag-preview {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.cdk-drag-placeholder {
+    opacity: 0;
+}
+
+/* Prevent multi-selection text drag across rows inside the draggable list */
+.registrant-drop-list {
+    user-select: none;
+}
+
+/* Compact, single-row preview to reinforce that only one row moves */
+.drag-preview-row {
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--bs-body-bg);
+    border: 1px solid rgba(0, 0, 0, .1);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
