@@ -19,9 +19,25 @@ public class ProfileMetadataMigrationService
     private readonly ILogger<ProfileMetadataMigrationService> _logger;
 
     // Profiles to be hidden from summaries and batch operations derived from summaries
-    private static readonly HashSet<string> ExcludedProfileTypes = new(StringComparer.Ordinal)
+    // Case-insensitive to avoid casing mismatches from upstream data
+    private static readonly HashSet<string> ExcludedProfileTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "PP1_Player_Regform"
+    };
+
+    // Special legacy CoreRegformPlayer marker to exclude at query-time
+    private const string CoreRegformExcludeMarker = "PP1_Player_RegForm";
+
+    // Shared JSON serializer options
+    private static readonly JsonSerializerOptions s_IndentedCamelCase = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    private static readonly JsonSerializerOptions s_CaseInsensitive = new()
+    {
+        PropertyNameCaseInsensitive = true
     };
 
     public ProfileMetadataMigrationService(
@@ -41,8 +57,7 @@ public class ProfileMetadataMigrationService
     /// </summary>
     public async Task<MigrationResult> PreviewMigrationAsync(Guid jobId)
     {
-        var result = await MigrateJobAsync(jobId, dryRun: true);
-        return result;
+        return await MigrateJobAsync(jobId, dryRun: true);
     }
 
     /// <summary>
@@ -68,11 +83,10 @@ public class ProfileMetadataMigrationService
         {
             // Get all jobs with a CoreRegformPlayer setting
             var jobs = await _context.Jobs
-                .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains("PP1_Player_RegForm")))
+                .AsNoTracking()
+                .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains(CoreRegformExcludeMarker)))
                 .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer })
                 .ToListAsync();
-
-            _logger.LogInformation("Found {Count} jobs with CoreRegformPlayer settings", jobs.Count);
 
             foreach (var job in jobs)
             {
@@ -210,15 +224,8 @@ public class ProfileMetadataMigrationService
             result.GeneratedMetadata = metadata;
 
             // Serialize to JSON
-            var jsonOptions = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
+            var metadataJson = JsonSerializer.Serialize(metadata, s_IndentedCamelCase);
 
-            // Update database (unless dry run)
-            if (!dryRun)
             {
                 var jobEntity = await _context.Jobs.FindAsync(jobId);
                 if (jobEntity != null)
@@ -287,7 +294,8 @@ public class ProfileMetadataMigrationService
     public async Task<List<ProfileSummary>> GetProfileSummariesAsync()
     {
         var jobs = await _context.Jobs
-            .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains("PP1_Player_RegForm")))
+            .AsNoTracking()
+            .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains(CoreRegformExcludeMarker)))
             .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer, j.PlayerProfileMetadataJson })
             .ToListAsync();
 
@@ -514,8 +522,9 @@ public class ProfileMetadataMigrationService
     {
         // Get any job using this profile (they all have the same metadata)
         var job = await _context.Jobs
+            .AsNoTracking()
             .Where(j => j.CoreRegformPlayer != null &&
-                        (!j.CoreRegformPlayer.Contains("PP1_Player_RegForm")) &&
+                        (!j.CoreRegformPlayer.Contains(CoreRegformExcludeMarker)) &&
                        (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
                         j.CoreRegformPlayer == profileType) &&
                        !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
@@ -527,8 +536,7 @@ public class ProfileMetadataMigrationService
             return null;
         }
 
-        var metadata = JsonSerializer.Deserialize<ProfileMetadata>(job,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var metadata = JsonSerializer.Deserialize<ProfileMetadata>(job, s_CaseInsensitive);
 
         return metadata;
     }
@@ -554,6 +562,7 @@ public class ProfileMetadataMigrationService
 
         // Get the specific job's JsonOptions
         var job = await _context.Jobs
+            .AsNoTracking()
             .Where(j => j.JobId == jobId)
             .Select(j => new { j.JobId, j.JobName, j.JsonOptions })
             .FirstOrDefaultAsync();
@@ -570,8 +579,7 @@ public class ProfileMetadataMigrationService
         {
             try
             {
-                jsonOptions = JsonSerializer.Deserialize<Dictionary<string, object>>(job.JsonOptions,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                jsonOptions = JsonSerializer.Deserialize<Dictionary<string, object>>(job.JsonOptions, s_CaseInsensitive);
             }
             catch (Exception ex)
             {

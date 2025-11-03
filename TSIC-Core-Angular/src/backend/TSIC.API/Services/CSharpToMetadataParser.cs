@@ -38,16 +38,16 @@ public class CSharpToMetadataParser
             return metadata;
         }
 
-    // Preprocess: remove comments from sources to avoid parsing commented-out fields
-    var cleanProfileSource = StripCSharpComments(profileSourceCode);
-    var cleanBaseClassSource = StripCSharpComments(baseClassSourceCode);
-    var cleanViewContent = StripViewComments(viewContent);
+        // Preprocess: remove comments from sources to avoid parsing commented-out fields
+        var cleanProfileSource = StripCSharpComments(profileSourceCode);
+        var cleanBaseClassSource = StripCSharpComments(baseClassSourceCode);
+        var cleanViewContent = StripViewComments(viewContent);
 
-    // Step 1: Parse .cshtml view file to extract fields in display order
-    var viewFields = ParseViewFile(cleanViewContent);
+        // Step 1: Parse .cshtml view file to extract fields in display order
+        var viewFields = ParseViewFile(cleanViewContent);
 
-    // Step 2: Parse C# source code to extract property metadata (validation, display names, etc.)
-    var propertyMetadata = ParseCSharpProperties(cleanProfileSource, cleanBaseClassSource);
+        // Step 2: Parse C# source code to extract property metadata (validation, display names, etc.)
+        var propertyMetadata = ParseCSharpProperties(cleanProfileSource, cleanBaseClassSource);
 
         // Step 3: Build metadata from view fields, enriched with C# metadata
         int order = 1;
