@@ -248,7 +248,7 @@ export class ProfileMigrationComponent implements OnInit {
         // Get job ID from the filtered job list (subtract 1 for placeholder option)
         const jobId = this.getJobIdFromFilteredIndex(selectedIndex - 1);
         if (!jobId) {
-            console.warn('No job ID found for filtered index', selectedIndex - 1);
+            // Silently ignore if mapping fails (dropdown may be stale after reload)
             return;
         }
 
@@ -264,10 +264,8 @@ export class ProfileMigrationComponent implements OnInit {
             (result) => {
                 // Update the preview with job-specific options
                 this.jobSpecificOptions.set(result.jsonOptions ?? null);
-                console.log('Job-specific options loaded:', result.jsonOptions);
             },
             (error) => {
-                console.error('Failed to load job-specific options:', error);
                 this.errorMessage.set('Failed to load job-specific options');
             }
         );

@@ -182,8 +182,8 @@ public class GitHubProfileFetcher
             ? $"{baseUrl}?ref={Uri.EscapeDataString(_repoBranch)}"
             : baseUrl;
 
-        _logger.LogInformation("Requesting GitHub URL: {Url}", url);
-        _logger.LogInformation("Path components - Owner: {Owner}, Repo: {Repo}, Path: {Path}, Branch: {Branch}", owner, repo, path, string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase) ? _repoBranch : "(default)");
+        _logger.LogDebug("Requesting GitHub URL: {Url}", url);
+        _logger.LogDebug("Path components - Owner: {Owner}, Repo: {Repo}, Path: {Path}, Branch: {Branch}", owner, repo, path, string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase) ? _repoBranch : "(default)");
 
         var response = await _httpClient.GetAsync(url);
 
