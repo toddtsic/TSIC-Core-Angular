@@ -169,6 +169,48 @@ export class ProfileMigrationComponent implements OnInit {
         );
     }
 
+    reMigrateAll(): void {
+        // Always allow forcing a full re-migration of all profiles
+        const totalProfiles = this.profiles().length;
+        if (totalProfiles === 0) {
+            this.successMessage.set('No profiles available to migrate.');
+            return;
+        }
+
+        const totalJobs = this.totalJobs;
+        this.confirmModalTitle.set('Re-Migrate ALL Profiles');
+        this.confirmModalMessage.set(
+            `This will re-fetch GitHub POCOs and re-apply metadata for all ${totalProfiles} profile${totalProfiles > 1 ? 's' : ''} across ${totalJobs} job${totalJobs > 1 ? 's' : ''}. Continue?`
+        );
+        this.confirmModalAction.set(() => this.executeReMigrateAll());
+        this.showConfirmModal.set(true);
+    }
+
+    private executeReMigrateAll(): void {
+        this.isMigrating.set(true);
+        this.errorMessage.set(null);
+
+        const request = {
+            dryRun: false
+            // profileTypes omitted intentionally to migrate ALL profiles
+        };
+
+        this.migrationService.migrateAllProfiles(
+            request,
+            (report) => {
+                this.migrationReport.set(report);
+                this.isMigrating.set(false);
+                this.successMessage.set(
+                    `Re-migration complete! ${report.successCount} succeeded, ${report.failureCount} failed, ${report.totalJobsAffected} jobs affected`
+                );
+            },
+            (error) => {
+                this.errorMessage.set(error.error?.message || 'Re-migration failed');
+                this.isMigrating.set(false);
+            }
+        );
+    }
+
     migrateSingle(profile: ProfileSummary): void {
         // Show confirmation modal
         this.confirmModalTitle.set('Migrate Profile');

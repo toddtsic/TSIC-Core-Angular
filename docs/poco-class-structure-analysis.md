@@ -313,7 +313,7 @@ Instead of migrating job-by-job (which would fetch the same POCO from GitHub hun
    ↓
 3. Fetch BaseRegForm_ViewModels.cs from GitHub ONCE (cached)
    ↓
-4. Parse into metadata ONCE
+4. Parse into metadata ONCE (with comment stripping and admin-only append)
    ↓
 5. Find ALL jobs where CoreRegformPlayer starts with "PP10"
    ↓
@@ -533,6 +533,9 @@ GitHub token in `appsettings.json` (optional but recommended):
 1. **No Migration Tracking**: Don't persist migration status in database - infer from `PlayerProfileMetadataJson` presence
 2. **Re-migration Allowed**: Can re-run migration anytime to refresh metadata
 3. **Check for Updates**: Compare `metadata.source.commitSha` with current GitHub SHA to detect POCO changes
+4. **Commented Code Ignored**: C# block/line comments and Razor/HTML comments in views are stripped before parsing. Commented-out properties and markup do not generate fields.
+5. **View-to-C# Consistency**: Fields referenced in the view are included only if a corresponding C# property exists (after comment stripping).
+6. **Admin-only Append**: Properties that exist in the `{Profile}_PlayerSearch_ViewModel` but not in `{Profile}_Player_ViewModel` are appended to metadata with `visibility="adminOnly"` after view-derived fields.
 4. **No Job Overrides**: Jobs never override profile metadata - always profile → jobs (one-way)
 
 ### Next Steps (Pending)

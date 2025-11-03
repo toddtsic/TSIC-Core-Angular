@@ -6,6 +6,28 @@
         border: 1px solid #dee2e6;
         transition: all 0.2s ease;
 
+        &.admin-only {
+            position: relative;
+            border-left: 6px solid #ffc107;
+            /* Strong left accent */
+            /* Subtle diagonal stripe background to differentiate */
+            background-image: repeating-linear-gradient(45deg,
+                    rgba(255, 193, 7, 0.12),
+                    rgba(255, 193, 7, 0.12) 10px,
+                    rgba(255, 193, 7, 0.06) 10px,
+                    rgba(255, 193, 7, 0.06) 20px);
+        }
+
+    &.hidden-field {
+        position: relative;
+        border-left: 6px solid #0dcaf0; /* Info accent */
+        background-image: repeating-linear-gradient(45deg,
+            rgba(13, 202, 240, 0.12),
+            rgba(13, 202, 240, 0.12) 10px,
+            rgba(13, 202, 240, 0.06) 10px,
+            rgba(13, 202, 240, 0.06) 20px);
+    }
+
         &:hover {
             border-color: #0d6efd;
             box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);

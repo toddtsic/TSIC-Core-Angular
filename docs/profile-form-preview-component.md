@@ -171,7 +171,13 @@ The component is integrated into the Profile Migration modal with a toggle:
 ```
 
 ### HIDDEN
-Hidden fields are excluded from the preview display.
+Hidden fields are rendered for visibility review with a distinct visual style and an actual hidden input element:
+
+- Cyan left accent bar with subtle diagonal stripes
+- "Hidden" badge
+- A `<input type="hidden">` control bound to the field (not user-editable)
+
+This makes hidden/system fields easy to spot in the preview without exposing them as editable inputs.
 
 ## Validation Hints
 
@@ -216,7 +222,7 @@ Each field shows:
 
 ## Styling
 
-### Field Hover Effect
+### Visual Styling
 
 ```scss
 .form-field-preview {
@@ -230,10 +236,36 @@ Each field shows:
         border-color: #0d6efd;
         box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
     }
+
+    /* Admin-only fields: yellow accent and subtle stripes */
+    &.admin-only {
+        position: relative;
+        border-left: 6px solid #ffc107; /* warning */
+        background-image: repeating-linear-gradient(
+            45deg,
+            rgba(255, 193, 7, 0.12),
+            rgba(255, 193, 7, 0.12) 10px,
+            rgba(255, 193, 7, 0.06) 10px,
+            rgba(255, 193, 7, 0.06) 20px
+        );
+    }
+
+    /* Hidden fields: cyan accent and subtle stripes */
+    &.hidden-field {
+        position: relative;
+        border-left: 6px solid #0dcaf0; /* info */
+        background-image: repeating-linear-gradient(
+            45deg,
+            rgba(13, 202, 240, 0.12),
+            rgba(13, 202, 240, 0.12) 10px,
+            rgba(13, 202, 240, 0.06) 10px,
+            rgba(13, 202, 240, 0.06) 20px
+        );
+    }
 }
 ```
 
-Fields highlight on hover to improve visual feedback during review.
+This styling clearly separates Public, Admin-only, and Hidden fields at a glance. Fields also highlight on hover to improve visual feedback during review.
 
 ### Responsive Grid
 

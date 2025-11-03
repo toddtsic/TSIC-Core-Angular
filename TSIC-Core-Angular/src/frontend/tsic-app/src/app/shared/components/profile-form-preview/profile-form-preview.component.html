@@ -4,12 +4,13 @@
         <div class="row">
             @for (field of sortedFields(); track field.name) {
             <div class="col-md-6 mb-3">
-                <div class="form-field-preview" [class.bg-light]="isHiddenField(field)"
-                    [class.border-secondary]="isHiddenField(field)" [class.border-2]="isHiddenField(field)"
+                <div class="form-field-preview"
                     [class.bg-warning]="field.visibility === 'adminOnly'"
                     [class.bg-opacity-25]="field.visibility === 'adminOnly'"
                     [class.border-warning]="field.visibility === 'adminOnly'"
-                    [class.border-2]="field.visibility === 'adminOnly'">
+                    [class.border-2]="field.visibility === 'adminOnly'"
+                    [class.admin-only]="field.visibility === 'adminOnly'"
+                    [class.hidden-field]="isHiddenField(field)">
                     <!-- Field Label with Order Number -->
                     <label [for]="field.name" class="form-label">
                         @if (showFieldNumbers) {

@@ -62,15 +62,22 @@
                                 jobs
                             </small>
                         </div>
-                        <button class="btn btn-success" (click)="migrateAllPending()"
-                            [disabled]="isLoading() || isMigrating() || pendingProfiles.length === 0">
-                            @if (isMigrating()) {
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                            Migrating...
-                            } @else {
-                            <i class="bi bi-play-fill"></i> Migrate All Pending
-                            }
-                        </button>
+                        <div class="btn-group">
+                            <button class="btn btn-success" (click)="migrateAllPending()"
+                                [disabled]="isLoading() || isMigrating() || pendingProfiles.length === 0">
+                                @if (isMigrating()) {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Migrating...
+                                } @else {
+                                <i class="bi bi-play-fill"></i> Migrate All Pending
+                                }
+                            </button>
+                            <button class="btn btn-outline-warning" (click)="reMigrateAll()"
+                                [disabled]="isLoading() || isMigrating() || profiles().length === 0"
+                                title="Force re-migration of all profiles, even if already migrated">
+                                <i class="bi bi-arrow-repeat"></i> Re-Migrate All
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

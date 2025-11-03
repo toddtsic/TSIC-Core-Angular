@@ -22,6 +22,7 @@ This document describes the Angular front-end implementation for the Profile Met
   - Shows migrated vs pending count
   - Color-coded badges (success/warning/info)
 - **Batch Migration:** "Migrate All Pending" button to migrate multiple profiles
+- **Forced Re-Migration:** "Re-Migrate All" button to re-run migration for all profiles regardless of status
 - **Individual Actions:**
   - Preview: Shows generated metadata without saving
   - Migrate: Performs actual migration and updates database
@@ -96,12 +97,14 @@ Each field has a `visibility` property that controls how it appears in forms:
 
 - **`adminOnly`**: Visible only to administrators
   - Displayed with a yellow "Admin Only" badge
+  - Preview styling: yellow left accent and subtle diagonal stripes for quick identification
   - Fields like `AmtPaidToDate`, `PlayerUserId`
   - Useful for internal tracking without exposing to registrants
   - Editable only by admins in admin dashboard
 
 - **`hidden`**: Technical fields never displayed in UI
-  - Displayed with a gray "Hidden" badge
+  - Displayed with a cyan "Hidden" badge
+  - Preview styling: cyan left accent and subtle diagonal stripes (rendered as `<input type="hidden">`)
   - Auto-detected from .cshtml view files via `<input type="hidden" />`
   - Fields like `RegistrationId`, `IsTrue`, `Dob`, `Gender`, `Agerange`
   - Used for form state, computed values, or system-managed data
@@ -114,9 +117,13 @@ The migration system automatically determines field visibility:
    - Looks for `<input type="hidden" asp-for="FieldName" />`
    - Marks those fields as `visibility="hidden"`
 2. **Fallback**: Hardcoded classification in `CSharpToMetadataParser`
-   - `AdminOnlyFields` HashSet → `visibility="adminOnly"`
-   - `HiddenFields` HashSet → `visibility="hidden"`
+  - Admin-only properties that exist only in `PlayerSearch` ViewModel (not in `Player` ViewModel) → appended as fields with `visibility="adminOnly"`
+  - Additional field name heuristics for hidden/admin classification
 3. **Default**: All other fields → `visibility="public"`
+
+Additional safeguards:
+- Commented-out properties in C# and commented markup in views are ignored during parsing
+- View-referenced fields that don’t exist in the (non-commented) C# class are skipped
 
 **Validation Testing Feature:**
 Per user request: "if you could do this it would be wonderful"

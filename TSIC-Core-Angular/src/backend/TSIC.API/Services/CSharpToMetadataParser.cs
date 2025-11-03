@@ -38,48 +38,120 @@ public class CSharpToMetadataParser
             return metadata;
         }
 
-        // Step 1: Parse .cshtml view file to extract fields in display order
-        var viewFields = ParseViewFile(viewContent);
+    // Preprocess: remove comments from sources to avoid parsing commented-out fields
+    var cleanProfileSource = StripCSharpComments(profileSourceCode);
+    var cleanBaseClassSource = StripCSharpComments(baseClassSourceCode);
+    var cleanViewContent = StripViewComments(viewContent);
 
-        // Step 2: Parse C# source code to extract property metadata (validation, display names, etc.)
-        var propertyMetadata = ParseCSharpProperties(profileSourceCode, baseClassSourceCode);
+    // Step 1: Parse .cshtml view file to extract fields in display order
+    var viewFields = ParseViewFile(cleanViewContent);
+
+    // Step 2: Parse C# source code to extract property metadata (validation, display names, etc.)
+    var propertyMetadata = ParseCSharpProperties(cleanProfileSource, cleanBaseClassSource);
 
         // Step 3: Build metadata from view fields, enriched with C# metadata
         int order = 1;
         foreach (var fieldInfo in viewFields)
         {
+            // Skip fields that are not present in C# properties (treat as removed/commented out)
+            if (!propertyMetadata.TryGetValue(fieldInfo.Name, out var propMeta))
+            {
+                _logger.LogDebug("Skipping view field '{Field}' because it's not defined in C# source (likely removed or commented)", fieldInfo.Name);
+                continue;
+            }
+
             var field = new ProfileMetadataField
             {
                 Name = ToCamelCase(fieldInfo.Name),
                 DbColumn = fieldInfo.Name,
-                DisplayName = SplitPascalCase(fieldInfo.Name), // Default, will be overridden below
+                DisplayName = propMeta.DisplayName ?? SplitPascalCase(fieldInfo.Name),
                 Order = order++,
                 Visibility = fieldInfo.Visibility,
-                InputType = fieldInfo.InputType,
-                Computed = false
+                InputType = string.IsNullOrEmpty(propMeta.InputType) ? fieldInfo.InputType : propMeta.InputType,
+                Computed = false,
+                DataSource = propMeta.DataSource,
+                Validation = propMeta.Validation
             };
 
-            // Enrich with C# property metadata if available
-            if (propertyMetadata.TryGetValue(fieldInfo.Name, out var propMeta))
-            {
-                field.DisplayName = propMeta.DisplayName ?? field.DisplayName;
-                field.Validation = propMeta.Validation;
+            metadata.Fields.Add(field);
+        }
 
-                // Refine input type if C# provides more specific information
-                if (!string.IsNullOrEmpty(propMeta.InputType))
-                {
-                    field.InputType = propMeta.InputType;
-                }
-                if (!string.IsNullOrEmpty(propMeta.DataSource))
-                {
-                    field.DataSource = propMeta.DataSource;
-                }
-            }
+        // Step 4: Append admin-only fields that exist in PlayerSearch VM but not in Player VM
+        // Build a set of fields already present (use Db column names from view parsing)
+        var presentDbColumns = new HashSet<string>(
+            metadata.Fields.Select(f => f.DbColumn),
+            StringComparer.OrdinalIgnoreCase);
+
+        var adminOnlyProps = propertyMetadata
+            .Where(kvp => kvp.Value.IsAdminOnly)
+            .Select(kvp => new { Name = kvp.Key, Meta = kvp.Value })
+            .ToList();
+
+        foreach (var prop in adminOnlyProps)
+        {
+            if (presentDbColumns.Contains(prop.Name))
+                continue; // already included via view
+
+            var field = new ProfileMetadataField
+            {
+                Name = ToCamelCase(prop.Name),
+                DbColumn = prop.Name,
+                DisplayName = prop.Meta.DisplayName ?? SplitPascalCase(prop.Name),
+                Order = order++,
+                Visibility = "adminOnly",
+                InputType = string.IsNullOrEmpty(prop.Meta.InputType) ? "TEXT" : prop.Meta.InputType,
+                DataSource = prop.Meta.DataSource,
+                Validation = prop.Meta.Validation,
+                Computed = false
+            };
 
             metadata.Fields.Add(field);
         }
 
         return await Task.FromResult(metadata);
+    }
+
+    private static string StripCSharpComments(string source)
+    {
+        if (string.IsNullOrEmpty(source)) return source;
+
+        // Remove block comments /* ... */
+        var noBlock = System.Text.RegularExpressions.Regex.Replace(
+            source,
+            @"/\*.*?\*/",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // Remove line comments // ... (till end of line)
+        var noLine = System.Text.RegularExpressions.Regex.Replace(
+            noBlock,
+            @"//.*$",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        return noLine;
+    }
+
+    private static string StripViewComments(string? view)
+    {
+        if (string.IsNullOrEmpty(view)) return view ?? string.Empty;
+
+        var text = view;
+        // Remove Razor comments @* ... *@
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"@\*.*?\*@",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // Remove HTML comments <!-- ... -->
+        text = System.Text.RegularExpressions.Regex.Replace(
+            text,
+            @"<!--.*?-->",
+            string.Empty,
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        return text;
     }
 
     /// <summary>
@@ -256,6 +328,7 @@ public class CSharpToMetadataParser
                 if (!metadata.ContainsKey(kvp.Key))
                 {
                     _logger.LogDebug("Adding admin-only property: {Name} with Display='{Display}'", kvp.Key, kvp.Value.DisplayName);
+                    kvp.Value.IsAdminOnly = true;
                     metadata[kvp.Key] = kvp.Value;
                 }
                 else
@@ -525,5 +598,6 @@ public class CSharpToMetadataParser
         public FieldValidation? Validation { get; set; }
         public string? InputType { get; set; }
         public string? DataSource { get; set; }
+        public bool IsAdminOnly { get; set; }
     }
 }

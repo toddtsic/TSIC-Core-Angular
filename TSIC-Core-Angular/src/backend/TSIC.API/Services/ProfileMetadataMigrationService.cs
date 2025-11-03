@@ -18,6 +18,12 @@ public class ProfileMetadataMigrationService
     private readonly CSharpToMetadataParser _parser;
     private readonly ILogger<ProfileMetadataMigrationService> _logger;
 
+    // Profiles to be hidden from summaries and batch operations derived from summaries
+    private static readonly HashSet<string> ExcludedProfileTypes = new(StringComparer.Ordinal)
+    {
+        "PP1_Player_Regform"
+    };
+
     public ProfileMetadataMigrationService(
         SqlDbContext context,
         GitHubProfileFetcher githubFetcher,
@@ -294,6 +300,8 @@ public class ProfileMetadataMigrationService
                 HasMetadata = !string.IsNullOrEmpty(j.PlayerProfileMetadataJson)
             })
             .Where(j => !string.IsNullOrEmpty(j.ProfileType))
+            // Exclude any profile types explicitly configured to be hidden
+            .Where(j => j.ProfileType != null && !ExcludedProfileTypes.Contains(j.ProfileType))
             .GroupBy(j => j.ProfileType!)
             .Select(g => new ProfileSummary
             {
