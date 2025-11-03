@@ -62,7 +62,7 @@ public class ProfileMetadataMigrationService
         {
             // Get all jobs with a CoreRegformPlayer setting
             var jobs = await _context.Jobs
-                .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer))
+                .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains("PP1_Player_RegForm")))
                 .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer })
                 .ToListAsync();
 
@@ -281,7 +281,7 @@ public class ProfileMetadataMigrationService
     public async Task<List<ProfileSummary>> GetProfileSummariesAsync()
     {
         var jobs = await _context.Jobs
-            .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer))
+            .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains("PP1_Player_RegForm")))
             .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer, j.PlayerProfileMetadataJson })
             .ToListAsync();
 
@@ -507,6 +507,7 @@ public class ProfileMetadataMigrationService
         // Get any job using this profile (they all have the same metadata)
         var job = await _context.Jobs
             .Where(j => j.CoreRegformPlayer != null &&
+                        (!j.CoreRegformPlayer.Contains("PP1_Player_RegForm")) &&
                        (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
                         j.CoreRegformPlayer == profileType) &&
                        !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))

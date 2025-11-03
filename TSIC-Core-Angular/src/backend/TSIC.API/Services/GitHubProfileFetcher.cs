@@ -27,9 +27,11 @@ public class GitHubProfileFetcher
     private readonly IMemoryCache _cache;
     private readonly ILogger<GitHubProfileFetcher> _logger;
     private readonly IConfiguration _configuration;
+    private readonly string _repoBranch;
 
     private const string BaseClassFileName = "BaseRegForm_ViewModels.cs";
     private const string CacheKeyPrefix = "GitHub_";
+    private const string TargetRepoName = "TSIC-Unify-2024";
 
     public GitHubProfileFetcher(
         HttpClient httpClient,
@@ -41,6 +43,10 @@ public class GitHubProfileFetcher
         _cache = cache;
         _logger = logger;
         _configuration = configuration;
+
+        // Branch used when querying TSIC-Unify-2024 (configurable)
+        _repoBranch = _configuration["GitHub:RepoBranch"] ?? "master2025";
+        _logger.LogInformation("Using GitHub repo branch: {Branch}", _repoBranch);
 
         // GitHub API requires User-Agent header
         _httpClient.DefaultRequestHeaders.UserAgent.Add(
@@ -69,7 +75,7 @@ public class GitHubProfileFetcher
         try
         {
             var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
-            var repoName = _configuration["GitHub:RepoName"] ?? "TSIC-Unify-2024";
+            var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
 
             // Determine path based on profile type
             string folder;
@@ -108,7 +114,8 @@ public class GitHubProfileFetcher
     /// </summary>
     public async Task<(string sourceCode, string commitSha)> FetchBaseClassSourceAsync()
     {
-        var cacheKey = CacheKeyPrefix + BaseClassFileName;
+        // Include branch in cache key to avoid cross-branch pollution
+        var cacheKey = $"{CacheKeyPrefix}{_repoBranch}_{BaseClassFileName}";
 
         if (_cache.TryGetValue<(string, string)>(cacheKey, out var cached))
         {
@@ -119,7 +126,7 @@ public class GitHubProfileFetcher
         try
         {
             var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
-            var repoName = _configuration["GitHub:RepoName"] ?? "TSIC-Unify-2024";
+            var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
             var path = $"TSIC-Unify-Models/ViewModels/RegForm_ViewModels/{BaseClassFileName}";
 
             _logger.LogInformation("Fetching base class from GitHub: {Path}", path);
@@ -148,7 +155,7 @@ public class GitHubProfileFetcher
         try
         {
             var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
-            var repoName = _configuration["GitHub:RepoName"] ?? "TSIC-Unify-2024";
+            var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
 
             // Determine path based on profile type
             string folder = profileType.StartsWith("CAC") ? "PlayerMulti" : "PlayerSingle";
@@ -169,10 +176,14 @@ public class GitHubProfileFetcher
 
     private async Task<GitHubFileContent> FetchFileContentAsync(string owner, string repo, string path)
     {
-        var url = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
+        var baseUrl = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
+        // Only enforce branch for TSIC-Unify-2024 repository
+        var url = string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase)
+            ? $"{baseUrl}?ref={Uri.EscapeDataString(_repoBranch)}"
+            : baseUrl;
 
         _logger.LogInformation("Requesting GitHub URL: {Url}", url);
-        _logger.LogInformation("Path components - Owner: {Owner}, Repo: {Repo}, Path: {Path}", owner, repo, path);
+        _logger.LogInformation("Path components - Owner: {Owner}, Repo: {Repo}, Path: {Path}, Branch: {Branch}", owner, repo, path, string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase) ? _repoBranch : "(default)");
 
         var response = await _httpClient.GetAsync(url);
 
