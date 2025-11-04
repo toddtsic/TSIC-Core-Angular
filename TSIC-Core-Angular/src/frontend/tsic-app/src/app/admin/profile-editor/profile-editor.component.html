@@ -8,8 +8,8 @@
                 <h2 class="mb-0 text-center text-md-start">Profile Metadata Editor</h2>
                 <div class="d-flex justify-content-center justify-content-md-end">
                     <div class="btn-group btn-group-sm" aria-label="Page actions">
-                        <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary" title="Go to job home"
-                            aria-label="Go to job home">
+                        <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary"
+                            title="Go to job home" aria-label="Go to job home">
                             <i class="bi bi-house-door me-1"></i>
                             <span class="d-none d-sm-inline">Home</span>
                             <span class="d-inline d-sm-none">Home</span>
@@ -28,7 +28,7 @@
                     </div>
                 </div>
             </div>
-            
+
         </div>
     </div>
 
@@ -169,7 +169,8 @@
                             <span class="badge bg-warning text-dark ms-2">{{ selectedProfileDisplay() }}</span>
                             }
                         </h5>
-                        <small class="text-muted ms-3 d-none d-xl-inline">Edits here affect all jobs using the selected profile type. For this job only overrides, use Job Options.</small>
+                        <small class="text-muted ms-3 d-none d-xl-inline">Edits here affect all jobs using the selected
+                            profile type. For this job only overrides, use Job Options.</small>
                     </div>
                     <button class="btn btn-success btn-sm" (click)="addNewField()" [disabled]="isSaving()">
                         <i class="bi bi-plus-circle me-1"></i> Add Field
@@ -177,7 +178,8 @@
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info py-2 px-3 small d-xl-none" role="note">
-                        Edits here affect all jobs using the selected profile type. For job-specific dropdown values, use <strong>Job Options</strong>.
+                        Edits here affect all jobs using the selected profile type. For job-specific dropdown values,
+                        use <strong>Job Options</strong>.
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover">
