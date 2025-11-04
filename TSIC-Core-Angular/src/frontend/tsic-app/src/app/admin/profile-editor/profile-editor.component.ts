@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, OnInit, effect } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -157,6 +157,25 @@ export class ProfileEditorComponent implements OnInit {
         { value: 'BYAGERANGE', label: 'By Age Range' },
         { value: 'BYCLUBNAME', label: 'By Club Name' }
     ];
+    // Raw CoreRegform string (e.g., PP53|PerGradYear)
+    jobCoreRegformRaw = signal<string>('');
+
+    // Track last-applied job config to detect unsaved changes
+    private readonly lastAppliedTeamConstraint = signal<string>('');
+    private readonly lastAppliedAllowPayInFull = signal<boolean>(false);
+    private readonly lastSelectedProfileType = signal<string | null>(null);
+
+    jobConfigDirty = computed(() => {
+        const appliedType = (this.activeJobProfileType() || '').trim();
+        const uiType = (this.jobProfileType() || '').trim();
+        const appliedTeam = (this.lastAppliedTeamConstraint() || '').trim();
+        const uiTeam = (this.jobTeamConstraint() || '').trim();
+        const appliedAllow = !!this.lastAppliedAllowPayInFull();
+        const uiAllow = !!this.jobAllowPayInFull();
+        return (appliedType.toLowerCase() !== uiType.toLowerCase())
+            || (appliedTeam.toLowerCase() !== uiTeam.toLowerCase())
+            || (appliedAllow !== uiAllow);
+    });
 
     // Confirm modal state (Bootstrap-styled, not browser confirm)
     showConfirmModal = signal(false);
@@ -213,6 +232,9 @@ export class ProfileEditorComponent implements OnInit {
 
                 // Load current job option sets in background
                 this.loadOptionSets();
+
+                // Initialize last-selected tracker for the profile selector
+                this.lastSelectedProfileType.set(resp.profileType);
             },
             (_err) => {
                 // If not available, leave selector and allow manual choice
@@ -225,6 +247,9 @@ export class ProfileEditorComponent implements OnInit {
                 this.jobProfileType.set(resp.profileType || '');
                 this.jobTeamConstraint.set(resp.teamConstraint || '');
                 this.jobAllowPayInFull.set(!!resp.allowPayInFull);
+                this.jobCoreRegformRaw.set(resp.coreRegform || '');
+                this.lastAppliedTeamConstraint.set(resp.teamConstraint || '');
+                this.lastAppliedAllowPayInFull.set(!!resp.allowPayInFull);
                 // Also ensure active job type is synced
                 if (resp.profileType) {
                     this.activeJobProfileType.set(resp.profileType);
@@ -232,6 +257,15 @@ export class ProfileEditorComponent implements OnInit {
             },
             () => { /* silent; panel will still render with defaults */ }
         );
+    }
+
+    // Warn on browser/tab close if there are unapplied changes
+    @HostListener('window:beforeunload', ['$event'])
+    onBeforeUnload(event: BeforeUnloadEvent) {
+        if (this.jobConfigDirty()) {
+            event.preventDefault();
+            event.returnValue = '';
+        }
     }
 
     // Fallback: keep availableProfiles in sync with profile summaries when used
@@ -873,6 +907,11 @@ export class ProfileEditorComponent implements OnInit {
                 if (resp.metadata) {
                     this.currentMetadata.set(resp.metadata);
                 }
+                this.jobCoreRegformRaw.set(resp.coreRegform || '');
+                // Commit last-applied values so dirty state clears
+                this.lastAppliedTeamConstraint.set(team);
+                this.lastAppliedAllowPayInFull.set(allow);
+                this.lastSelectedProfileType.set(resp.profileType);
                 // Refresh options for the active job
                 this.loadOptionSets();
                 // Positive feedback
@@ -885,6 +924,33 @@ export class ProfileEditorComponent implements OnInit {
                 this.errorMessage.set(err?.error?.message || 'Failed to update job profile configuration');
             }
         );
+    }
+
+    onResetJobProfileConfig() {
+        // Revert UI values back to last-applied
+        this.jobProfileType.set(this.activeJobProfileType() || '');
+        this.jobTeamConstraint.set(this.lastAppliedTeamConstraint() || '');
+        this.jobAllowPayInFull.set(!!this.lastAppliedAllowPayInFull());
+    }
+
+    onSelectedProfileTypeChange(nextType: string | null) {
+        // If there are unapplied changes to job config, confirm before switching profile
+        if (this.jobConfigDirty()) {
+            const previous = this.lastSelectedProfileType();
+            this.openConfirm(
+                'Discard Unapplied Changes?',
+                'You have changes to Team Constraint or Allow Pay In Full that are not applied. Switch profile and discard these changes?',
+                () => {
+                    this.loadProfile(nextType || '');
+                    this.lastSelectedProfileType.set(nextType || null);
+                }
+            );
+            // Revert the selector immediately; if user confirms we'll set it again in action
+            this.selectedProfileType.set(previous || null);
+            return;
+        }
+        this.loadProfile(nextType || '');
+        this.lastSelectedProfileType.set(nextType || null);
     }
 
     // ============================================================================

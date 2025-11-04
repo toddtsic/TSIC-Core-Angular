@@ -1384,7 +1384,11 @@ public class ProfileMetadataMigrationService
 
     private static string BuildCoreRegform(string profileType, string teamConstraint, bool allowPayInFull)
     {
-        var list = new List<string> { profileType, teamConstraint };
+        var list = new List<string> { profileType };
+        if (!string.IsNullOrWhiteSpace(teamConstraint))
+        {
+            list.Add(teamConstraint);
+        }
         if (allowPayInFull) list.Add("ALLOWPIF");
         return string.Join('|', list);
     }

@@ -606,13 +606,14 @@ public class ProfileMigrationController : ControllerBase
                 return BadRequest(new { error = MissingRegIdMsg });
             }
 
-            if (string.IsNullOrWhiteSpace(request.ProfileType) || string.IsNullOrWhiteSpace(request.TeamConstraint))
+            if (string.IsNullOrWhiteSpace(request.ProfileType))
             {
-                return BadRequest(new { error = "profileType and teamConstraint are required" });
+                return BadRequest(new { error = "profileType is required" });
             }
 
+            var team = request.TeamConstraint ?? string.Empty;
             var (profileType, teamConstraint, allowPayInFull, raw, metadata) =
-                await _migrationService.UpdateCurrentJobProfileConfigAsync(regId, request.ProfileType, request.TeamConstraint, request.AllowPayInFull);
+                await _migrationService.UpdateCurrentJobProfileConfigAsync(regId, request.ProfileType, team, request.AllowPayInFull);
 
             return Ok(new { profileType, teamConstraint, allowPayInFull, coreRegform = raw, metadata });
         }

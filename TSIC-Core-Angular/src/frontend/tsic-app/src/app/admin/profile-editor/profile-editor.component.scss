@@ -42,6 +42,30 @@ code {
     font-weight: 500;
 }
 
+/* Apply button visual states */
+.apply-button:disabled {
+    opacity: 0.4;
+    filter: grayscale(15%);
+}
+
+.apply-pulse {
+    animation: applyPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes applyPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.45);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    }
+}
+
 /* Drag & drop handle: icon-only grip (avoid checkbox/button look) */
 .drag-grip {
     display: inline-block;

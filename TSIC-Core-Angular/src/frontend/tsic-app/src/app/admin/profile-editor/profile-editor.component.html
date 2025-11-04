@@ -52,7 +52,12 @@
             <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">This Job's Player Profile</h5>
+                        <h5 class="card-title mb-0 d-flex align-items-center gap-2">
+                            <span>This Job's Player Profile</span>
+                            @if (jobCoreRegformRaw()) {
+                            <span class="badge bg-warning text-dark">{{ jobCoreRegformRaw() }}</span>
+                            }
+                        </h5>
                     </div>
                     <div class="mt-2">
                         <label class="form-label" for="job-profile-type">Profile Type</label>
@@ -75,14 +80,21 @@
                         <input class="form-check-input" id="allowPif" type="checkbox" [(ngModel)]="jobAllowPayInFull">
                         <label class="form-check-label" for="allowPif">Allow Pay In Full</label>
                     </div>
-                    <div class="d-flex justify-content-end mt-3">
-                        <button class="btn btn-primary" (click)="applyJobProfileConfig()"
-                            [disabled]="isSaving() || !jobProfileType()">
-                            @if (isSaving()) {<span class="spinner-border spinner-border-sm me-1"></span>}Apply
-                        </button>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            @if (jobConfigDirty()) { <span class="badge bg-warning text-dark">Unsaved changes</span> }
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary" (click)="onResetJobProfileConfig()"
+                                [disabled]="!jobConfigDirty()">Reset</button>
+                            <button class="btn apply-button"
+                                [ngClass]="{ 'btn-primary apply-pulse': jobConfigDirty() && !isSaving(), 'btn-secondary': !jobConfigDirty() || isSaving() }"
+                                (click)="applyJobProfileConfig()"
+                                [disabled]="isSaving() || !jobProfileType() || !jobConfigDirty()">
+                                @if (isSaving()) {<span class="spinner-border spinner-border-sm me-1"></span>}Apply
+                            </button>
+                        </div>
                     </div>
-                    <div class="text-muted small mt-2">Updates this job's CoreRegformPlayer and refreshes metadata and
-                        Job Options.</div>
                 </div>
             </div>
         </div>
@@ -93,7 +105,7 @@
                         <h5 class="card-title mb-0">Select Profile Type</h5>
                     </div>
                     <select class="form-select mt-2" [(ngModel)]="selectedProfileType"
-                        (ngModelChange)="loadProfile($event)" [disabled]="isLoading() || isSaving()">
+                        (ngModelChange)="onSelectedProfileTypeChange($event)" [disabled]="isLoading() || isSaving()">
                         <option [ngValue]="null">-- Choose a profile --</option>
                         <option value="CREATE_NEW" class="text-success fw-bold">➕ CREATE NEW</option>
                         @for (profile of availableProfiles(); track profile.type) {
