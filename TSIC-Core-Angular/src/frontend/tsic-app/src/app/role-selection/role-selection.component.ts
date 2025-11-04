@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
@@ -12,7 +12,7 @@ import { Query } from '@syncfusion/ej2-data';
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']
 })
-export class RoleSelectionComponent implements OnInit {
+export class RoleSelectionComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
@@ -27,31 +27,32 @@ export class RoleSelectionComponent implements OnInit {
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
   ngOnInit(): void {
-    this.loadRegistrations();
+    // Trigger fetch
+    this.authService.loadAvailableRegistrations();
+
+    // Reflect service signals into local state used by the template
+    effect(() => {
+      this.registrations.set(this.authService.registrations());
+      this.isLoading.set(this.authService.registrationsLoading());
+      this.errorMessage.set(this.authService.registrationsError());
+    });
   }
 
-  private loadRegistrations(): void {
-    this.isLoading.set(true);
-    this.errorMessage.set(null);
-
-    this.authService.getAvailableRegistrations().subscribe({
-      next: (registrations) => {
-        this.registrations.set(registrations);
-        this.isLoading.set(false);
-
-        // Autofocus the first dropdown and show popup after registrations load
-        setTimeout(() => {
-          if (this.firstDropdown) {
-            this.firstDropdown.showPopup();
-          }
-        }, 100);
-      },
-      error: (error) => {
-        this.isLoading.set(false);
-        this.errorMessage.set(error.error?.message || 'Failed to load registrations. Please try again.');
-        console.error('Error loading registrations:', error);
+  // Keep autofocus behavior once registrations load
+  // (This uses a timeout intentionally for visual polish on first render)
+  // No subscription to HTTP here; we rely on signals above
+  // and only react to the local state
+  // eslint-disable-next-line @typescript-eslint/member-ordering
+  private _autofocusTimer: any;
+  ngAfterViewInit(): void {
+    this._autofocusTimer = setTimeout(() => {
+      if (this.firstDropdown && (this.registrations().length > 0)) {
+        this.firstDropdown.showPopup();
       }
-    });
+    }, 150);
+  }
+  ngOnDestroy(): void {
+    if (this._autofocusTimer) clearTimeout(this._autofocusTimer);
   }
 
   // Handle typeahead filtering
@@ -73,30 +74,15 @@ export class RoleSelectionComponent implements OnInit {
       return;
     }
 
-    this.isLoading.set(true);
     this.errorMessage.set(null);
+    this.authService.selectRegistrationCommand(registration.regId);
 
-    this.authService.selectRegistration(registration.regId).subscribe({
-      next: (response) => {
-        const jobPath = this.authService.getJobPath();
-
-        if (jobPath) {
-          const routePath = jobPath.startsWith('/') ? jobPath.substring(1) : jobPath;
-          console.log('Navigating to jobPath:', routePath);
-          this.router.navigate([routePath]);
-        } else {
-          console.warn('No jobPath found in token, redirecting to root');
-          this.router.navigate(['/']);
-        }
-
-        this.isLoading.set(false);
-      },
-      error: (error) => {
-        this.isLoading.set(false);
-        this.errorMessage.set(error.error?.message || 'Role selection failed. Please try again.');
-        console.error('Role selection error:', error);
-      }
-    });
+    // Navigate when jobPath is available (token updated)
+    const jobPath = this.authService.getJobPath();
+    if (jobPath) {
+      const routePath = jobPath.startsWith('/') ? jobPath.substring(1) : jobPath;
+      this.router.navigate([routePath]);
+    }
   }
 
   logout(): void {

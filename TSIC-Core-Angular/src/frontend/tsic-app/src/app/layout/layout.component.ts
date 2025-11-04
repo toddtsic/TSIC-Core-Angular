@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
+import type { Job } from '../core/services/job.service';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
@@ -381,7 +382,7 @@ export class LayoutComponent {
   showRoleMenu = signal(false);
   isAuthenticated = signal(false);
   roles = signal(['Parent', 'Director', 'Club Rep']);
-  currentRole = signal('Parent'); // TODO: wire to user/role selection from AuthService
+  currentRole = signal('Parent'); // NOTE: wire to user/role selection from AuthService when implemented
 
   constructor() {
     const user = this.auth.getCurrentUser();
@@ -391,47 +392,33 @@ export class LayoutComponent {
     this.username.set(user?.username || '');
     this.showRoleMenu.set(!!user?.regId);
 
-    // Subscribe to job changes from JobService
-    this.updateJobInfo();
-
-    // Watch for job changes and update header
-    setInterval(() => {
-      const currentJob = this.jobService.getCurrentJob();
-      if (currentJob && currentJob.jobName !== this.jobName()) {
-        this.updateJobInfo();
-      }
-    }, 100); // Check every 100ms for job updates
+    // Reactively update header whenever the current job changes
+    effect(() => {
+      const job = this.jobService.currentJob();
+      this.applyJobInfo(job);
+    });
   }
 
-  private updateJobInfo() {
+  private applyJobInfo(job: Job | null) {
     const user = this.auth.getCurrentUser();
-    const job = this.jobService.getCurrentJob();
-
     // Priority: JobService currentJob (from API) > user token
     if (job) {
       this.jobName.set(job.jobName);
+      this.jobLogoPath.set(this.buildAssetUrl(job.jobLogoPath));
+      this.jobBannerPath.set(this.buildAssetUrl(job.jobBannerPath));
+      return;
+    }
 
-      if (job.jobLogoPath) {
-        const logoUrl = job.jobLogoPath.startsWith('http')
-          ? job.jobLogoPath
-          : `${this.STATIC_BASE_URL}/${job.jobLogoPath}`;
-        this.jobLogoPath.set(logoUrl);
-      }
-
-      if (job.jobBannerPath) {
-        const bannerUrl = job.jobBannerPath.startsWith('http')
-          ? job.jobBannerPath
-          : `${this.STATIC_BASE_URL}/${job.jobBannerPath}`;
-        this.jobBannerPath.set(bannerUrl);
-      }
-    } else if (user?.jobLogo) {
-      // Fallback to user token if JobService hasn't loaded yet
-      const logoUrl = user.jobLogo.startsWith('http')
-        ? user.jobLogo
-        : `${this.STATIC_BASE_URL}/${user.jobLogo}`;
-      this.jobLogoPath.set(logoUrl);
+    // Fallback to user token if JobService hasn't loaded yet
+    if (user?.jobLogo) {
+      this.jobLogoPath.set(this.buildAssetUrl(user.jobLogo));
       this.jobName.set((user.jobPath || 'TSIC').toUpperCase());
     }
+  }
+
+  private buildAssetUrl(path?: string): string {
+    if (!path) return '';
+    return path.startsWith('http') ? path : `${this.STATIC_BASE_URL}/${path}`;
   }
 
   logout() {
@@ -448,7 +435,7 @@ export class LayoutComponent {
 
   selectRole(role: string) {
     this.currentRole.set(role);
-    // TODO: update role in AuthService and refresh job menu items
+    // NOTE: update role in AuthService and refresh job menu items when role feature is wired
   }
 
   toggleTheme() {

@@ -168,11 +168,31 @@ export class ProfileMigrationService {
     private readonly _profileSummaries = signal<ProfileSummary[]>([]);
     private readonly _isLoading = signal(false);
     private readonly _errorMessage = signal<string | null>(null);
+    private readonly _currentJobProfileConfig = signal<CurrentJobProfileConfigResponse | null>(null);
+    private readonly _currentJobProfile = signal<CurrentJobProfileResponse | null>(null);
+    private readonly _currentOptionSets = signal<OptionSet[]>([]);
+    private readonly _currentMetadata = signal<ProfileMetadata | null>(null);
+    private readonly _optionsLoading = signal(false);
+    private readonly _optionsError = signal<string | null>(null);
+    private readonly _singleMigrationResult = signal<ProfileMigrationResult | null>(null);
+    private readonly _batchMigrationReport = signal<ProfileBatchMigrationReport | null>(null);
+    private readonly _previewResult = signal<ProfileMigrationResult | null>(null);
+    private readonly _isMigrating = signal(false);
 
     // Public read-only signals
     readonly profileSummaries = this._profileSummaries.asReadonly();
     readonly isLoading = this._isLoading.asReadonly();
     readonly errorMessage = this._errorMessage.asReadonly();
+    readonly currentJobProfileConfig = this._currentJobProfileConfig.asReadonly();
+    readonly currentJobProfile = this._currentJobProfile.asReadonly();
+    readonly currentOptionSets = this._currentOptionSets.asReadonly();
+    readonly currentMetadata = this._currentMetadata.asReadonly();
+    readonly optionsLoading = this._optionsLoading.asReadonly();
+    readonly optionsError = this._optionsError.asReadonly();
+    readonly singleMigrationResult = this._singleMigrationResult.asReadonly();
+    readonly batchMigrationReport = this._batchMigrationReport.asReadonly();
+    readonly previewResult = this._previewResult.asReadonly();
+    readonly isMigrating = this._isMigrating.asReadonly();
 
     // ============================================================================
     // MIGRATION DASHBOARD APIs
@@ -201,6 +221,7 @@ export class ProfileMigrationService {
         this.http.get<ProfileMigrationResult>(`${this.apiUrl}/preview-profile/${profileType}`).subscribe({
             next: (result) => {
                 this._isLoading.set(false);
+                this._previewResult.set(result);
                 onSuccess(result);
             },
             error: (error) => {
@@ -215,18 +236,19 @@ export class ProfileMigrationService {
     }
 
     migrateProfile(profileType: string, onSuccess: (result: ProfileMigrationResult) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
+        this._isMigrating.set(true);
         this._errorMessage.set(null);
 
         this.http.post<ProfileMigrationResult>(`${this.apiUrl}/migrate-profile/${profileType}`, {}).subscribe({
             next: (result) => {
-                this._isLoading.set(false);
+                this._isMigrating.set(false);
                 // Reload summaries to reflect changes
                 this.loadProfileSummaries();
+                this._singleMigrationResult.set(result);
                 onSuccess(result);
             },
             error: (error) => {
-                this._isLoading.set(false);
+                this._isMigrating.set(false);
                 const message = error.error?.message || 'Migration failed';
                 this._errorMessage.set(message);
                 if (onError) {
@@ -237,18 +259,19 @@ export class ProfileMigrationService {
     }
 
     migrateAllProfiles(request: MigrateProfilesRequest, onSuccess: (report: ProfileBatchMigrationReport) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
+        this._isMigrating.set(true);
         this._errorMessage.set(null);
 
         this.http.post<ProfileBatchMigrationReport>(`${this.apiUrl}/migrate-all-profiles`, request).subscribe({
             next: (report) => {
-                this._isLoading.set(false);
+                this._isMigrating.set(false);
                 // Reload summaries to reflect changes
                 this.loadProfileSummaries();
+                this._batchMigrationReport.set(report);
                 onSuccess(report);
             },
             error: (error) => {
-                this._isLoading.set(false);
+                this._isMigrating.set(false);
                 const message = error.error?.message || 'Batch migration failed';
                 this._errorMessage.set(message);
                 if (onError) {
@@ -269,6 +292,7 @@ export class ProfileMigrationService {
         this.http.get<ProfileMetadata>(`${this.apiUrl}/profiles/${profileType}/metadata`).subscribe({
             next: (metadata) => {
                 this._isLoading.set(false);
+                this._currentMetadata.set(metadata);
                 onSuccess(metadata);
             },
             error: (error) => {
@@ -343,6 +367,7 @@ export class ProfileMigrationService {
         this.http.get<CurrentJobProfileResponse>(`${this.apiUrl}/profiles/current/metadata`).subscribe({
             next: (result) => {
                 this._isLoading.set(false);
+                this._currentJobProfile.set(result);
                 onSuccess(result);
             },
             error: (error) => {
@@ -423,7 +448,7 @@ export class ProfileMigrationService {
         this._errorMessage.set(null);
 
         this.http.get<CurrentJobProfileConfigResponse>(`${this.apiUrl}/profiles/current/config`).subscribe({
-            next: (resp) => { this._isLoading.set(false); onSuccess(resp); },
+            next: (resp) => { this._isLoading.set(false); this._currentJobProfileConfig.set(resp); onSuccess(resp); },
             error: (error) => {
                 this._isLoading.set(false);
                 const message = error.error?.message || 'Failed to load current job profile config';
@@ -446,7 +471,7 @@ export class ProfileMigrationService {
         this.http.put<CurrentJobProfileConfigResponse>(`${this.apiUrl}/profiles/current/config`, {
             profileType, teamConstraint, allowPayInFull
         }).subscribe({
-            next: (resp) => { this._isLoading.set(false); onSuccess(resp); },
+            next: (resp) => { this._isLoading.set(false); this._currentJobProfileConfig.set(resp); if (resp.metadata) { this._currentMetadata.set(resp.metadata); } onSuccess(resp); },
             error: (error) => {
                 this._isLoading.set(false);
                 const message = error.error?.message || 'Failed to update current job profile config';
@@ -461,92 +486,105 @@ export class ProfileMigrationService {
     // ============================================================================
 
     getCurrentJobOptionSets(onSuccess: (sets: OptionSet[]) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
-        this._errorMessage.set(null);
+        this._optionsLoading.set(true);
+        this._optionsError.set(null);
 
         this.http.get<OptionSet[]>(`${this.apiUrl}/profiles/current/options`).subscribe({
             next: (sets) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
+                this._currentOptionSets.set(sets);
                 onSuccess(sets);
             },
             error: (error) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
                 const message = error.error?.message || 'Failed to load option sets';
                 this._errorMessage.set(message);
+                this._optionsError.set(message);
                 if (onError) onError(error);
             }
         });
     }
 
     createCurrentJobOptionSet(request: OptionSet, onSuccess: (created: OptionSet) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
-        this._errorMessage.set(null);
+        this._optionsLoading.set(true);
+        this._optionsError.set(null);
 
         this.http.post<OptionSet>(`${this.apiUrl}/profiles/current/options`, request).subscribe({
             next: (created) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
+                this._currentOptionSets.update(list => {
+                    const exists = list.some(s => s.key.toLowerCase() === created.key.toLowerCase());
+                    return exists ? list.map(s => s.key.toLowerCase() === created.key.toLowerCase() ? created : s) : [created, ...list];
+                });
                 onSuccess(created);
             },
             error: (error) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
                 const message = error.error?.message || 'Failed to create option set';
                 this._errorMessage.set(message);
+                this._optionsError.set(message);
                 if (onError) onError(error);
             }
         });
     }
 
     updateCurrentJobOptionSet(key: string, values: ProfileFieldOption[], onSuccess: (updated: OptionSet) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
-        this._errorMessage.set(null);
+        this._optionsLoading.set(true);
+        this._optionsError.set(null);
 
         const body: OptionSetUpdateRequest = { values };
         this.http.put<OptionSet>(`${this.apiUrl}/profiles/current/options/${encodeURIComponent(key)}`, body).subscribe({
             next: (updated) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
+                this._currentOptionSets.update(list => list.map(s => s.key.toLowerCase() === updated.key.toLowerCase() ? updated : s));
                 onSuccess(updated);
             },
             error: (error) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
                 const message = error.error?.message || 'Failed to update option set';
                 this._errorMessage.set(message);
+                this._optionsError.set(message);
                 if (onError) onError(error);
             }
         });
     }
 
     deleteCurrentJobOptionSet(key: string, onSuccess: () => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
-        this._errorMessage.set(null);
+        this._optionsLoading.set(true);
+        this._optionsError.set(null);
 
         this.http.delete(`${this.apiUrl}/profiles/current/options/${encodeURIComponent(key)}`).subscribe({
             next: () => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
+                this._currentOptionSets.update(list => list.filter(s => s.key.toLowerCase() !== key.toLowerCase()));
                 onSuccess();
             },
             error: (error) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
                 const message = error.error?.message || 'Failed to delete option set';
                 this._errorMessage.set(message);
+                this._optionsError.set(message);
                 if (onError) onError(error);
             }
         });
     }
 
     renameCurrentJobOptionSet(oldKey: string, newKey: string, onSuccess: (resp: { updatedKey: string; referencingFields: string[] }) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
-        this._errorMessage.set(null);
+        this._optionsLoading.set(true);
+        this._optionsError.set(null);
 
         const body: RenameOptionSetRequest = { newKey };
         this.http.post<{ updatedKey: string; referencingFields: string[] }>(`${this.apiUrl}/profiles/current/options/${encodeURIComponent(oldKey)}/rename`, body).subscribe({
             next: (resp) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
+                this._currentOptionSets.update(list => list.map(s => s.key.toLowerCase() === oldKey.toLowerCase() ? { ...s, key: newKey } : s));
                 onSuccess(resp);
             },
             error: (error) => {
-                this._isLoading.set(false);
+                this._optionsLoading.set(false);
                 const message = error.error?.message || 'Failed to rename option set';
                 this._errorMessage.set(message);
+                this._optionsError.set(message);
                 if (onError) onError(error);
             }
         });

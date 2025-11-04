@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ProfileMigrationService, ProfileMetadata, ProfileMetadataField, ValidationTestResult, OptionSet, ProfileFieldOption, CurrentJobProfileConfigResponse } from '../../core/services/profile-migration.service';
+import { ProfileMigrationService, ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '../../core/services/profile-migration.service';
 import { ToastService } from '../../shared/toast.service';
+import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-dialog.component';
+import { OptionsPanelComponent } from './options-panel/options-panel.component';
 import { ALLOWED_PROFILE_FIELDS, AllowedField } from './allowed-fields';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -13,11 +15,14 @@ type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DA
 @Component({
     selector: 'app-profile-editor',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, DragDropModule],
+    imports: [CommonModule, FormsModule, RouterLink, DragDropModule, TsicDialogComponent, OptionsPanelComponent],
     templateUrl: './profile-editor.component.html',
     styleUrl: './profile-editor.component.scss'
 })
 export class ProfileEditorComponent implements OnInit {
+    // Reference to satisfy strict template analyzer that TsicDialogComponent is intended for this template
+    // and to keep the symbol "used" at TS level.
+    private readonly __tsicDialogComponentRef = TsicDialogComponent;
     private readonly migrationService = inject(ProfileMigrationService);
     private readonly authService = inject(AuthService);
     private readonly toast = inject(ToastService);
@@ -111,42 +116,7 @@ export class ProfileEditorComponent implements OnInit {
         if (!selected || !active) return false;
         return selected.toLowerCase() === active.toLowerCase();
     });
-    optionSets = signal<OptionSet[]>([]);
-    optionsLoading = signal(false);
-    optionsError = signal<string | null>(null);
-
     // Sources (removed UI) – formerly read-only from Registrations
-
-    // Create Option Set state
-    isCreateOptionOpen = signal(false);
-    newOptionKey = signal('');
-    newOptionValues = signal<ProfileFieldOption[]>([]);
-    isCreatingOption = signal(false);
-
-    // Edit Option Set state
-    editingOptionKey = signal<string | null>(null);
-    editingOptionValues = signal<ProfileFieldOption[]>([]);
-    isSavingOption = signal(false);
-    isRenaming = signal(false);
-    renameValue = signal('');
-
-    // Filter: show only option sets referenced by fields
-    showUsedOptionsOnly = signal(true);
-    usedOptionKeys = computed(() => {
-        const keys = new Set<string>();
-        const fields = this.currentMetadata()?.fields ?? [];
-        for (const f of fields) {
-            const k = (f.dataSource || '').trim();
-            if (k) keys.add(k.toLowerCase());
-        }
-        return keys;
-    });
-    visibleOptionSets = computed(() => {
-        const sets = this.optionSets();
-        if (!this.showUsedOptionsOnly()) return sets;
-        const used = this.usedOptionKeys();
-        return sets.filter(s => used.has(s.key.toLowerCase()));
-    });
 
     // ========= This Job's Player Profile (CoreRegformPlayer parts) =========
     jobProfileType = signal<string>('');
@@ -232,8 +202,11 @@ export class ProfileEditorComponent implements OnInit {
                 this.activeJobProfileType.set(resp.profileType);
                 this.currentMetadata.set(resp.metadata);
 
-                // Load current job option sets in background
-                this.loadOptionSets();
+                // Load current job option sets in background (service mirrors via signals)
+                this.migrationService.getCurrentJobOptionSets(
+                    _ => { },
+                    _ => { }
+                );
 
                 // Initialize last-selected tracker for the profile selector
                 this.lastSelectedProfileType.set(resp.profileType);
@@ -266,7 +239,8 @@ export class ProfileEditorComponent implements OnInit {
     onBeforeUnload(event: BeforeUnloadEvent) {
         if (this.jobConfigDirty()) {
             event.preventDefault();
-            event.returnValue = '';
+            // Use any-cast to avoid TS deprecation diagnostic while preserving cross-browser behavior
+            (event as any).returnValue = '';
         }
     }
 
@@ -302,197 +276,6 @@ export class ProfileEditorComponent implements OnInit {
             this.activeTab.set('fields');
         }
     }, { allowSignalWrites: true });
-
-    // ============================================================================
-    // Job Options helpers
-    // ============================================================================
-
-    loadOptionSets() {
-        this.optionsLoading.set(true);
-        this.optionsError.set(null);
-        this.migrationService.getCurrentJobOptionSets(
-            (sets) => {
-                this.optionSets.set(sets);
-                this.optionsLoading.set(false);
-            },
-            (err) => {
-                this.optionsLoading.set(false);
-                this.optionsError.set(err?.error?.message || 'Failed to load option sets');
-            }
-        );
-    }
-
-    // loadOptionSources removed – dead UI eliminated
-
-    openCreateOptionSet() {
-        this.isCreateOptionOpen.set(true);
-        this.newOptionKey.set('');
-        this.newOptionValues.set([]);
-    }
-
-    closeCreateOptionSet() {
-        this.isCreateOptionOpen.set(false);
-        this.newOptionKey.set('');
-        this.newOptionValues.set([]);
-    }
-
-    addNewOptionRow(isForCreate = false) {
-        const target = isForCreate ? this.newOptionValues : this.editingOptionValues;
-        const current = [...target()];
-        current.push({ value: '', label: '' });
-        target.set(current);
-    }
-
-    removeOptionRow(index: number, isForCreate = false) {
-        const target = isForCreate ? this.newOptionValues : this.editingOptionValues;
-        const current = target().filter((_, i) => i !== index);
-        target.set(current);
-    }
-
-    // Contextual create helper removed (no longer used)
-
-    // Drag & drop reordering for option rows (edit/create)
-    onEditOptionDrop(event: CdkDragDrop<ProfileFieldOption[]>) {
-        const arr = this.editingOptionValues().slice();
-        moveItemInArray(arr, event.previousIndex, event.currentIndex);
-        this.editingOptionValues.set(arr);
-
-        // Persist new order immediately for the active job's JsonOptions
-        const key = this.editingOptionKey();
-        if (!key) return;
-        this.isSavingOption.set(true);
-        this.migrationService.updateCurrentJobOptionSet(
-            key,
-            arr,
-            (updated) => {
-                // sync left list
-                this.optionSets.update(list => list.map(s => s.key.toLowerCase() === updated.key.toLowerCase() ? updated : s));
-                this.isSavingOption.set(false);
-                this.toast.show('Option order saved', 'success', 1500);
-            },
-            (err) => {
-                this.isSavingOption.set(false);
-                this.optionsError.set(err?.error?.message || 'Failed to save option order');
-                this.toast.show('Failed to save option order', 'danger', 2500);
-            }
-        );
-    }
-
-    onCreateOptionDrop(event: CdkDragDrop<ProfileFieldOption[]>) {
-        const arr = this.newOptionValues().slice();
-        moveItemInArray(arr, event.previousIndex, event.currentIndex);
-        this.newOptionValues.set(arr);
-    }
-
-    createOptionSet() {
-        const key = this.newOptionKey().trim();
-        const values = this.newOptionValues().filter(v => v.value.trim().length > 0);
-        if (!key) {
-            this.optionsError.set('Option set key is required');
-            return;
-        }
-        this.isCreatingOption.set(true);
-        this.optionsError.set(null);
-        this.migrationService.createCurrentJobOptionSet(
-            { key, values },
-            (created) => {
-                this.optionSets.update(list => {
-                    const exists = list.some(s => s.key.toLowerCase() === created.key.toLowerCase());
-                    return exists ? list.map(s => s.key.toLowerCase() === created.key.toLowerCase() ? created : s) : [created, ...list];
-                });
-                this.isCreatingOption.set(false);
-                this.closeCreateOptionSet();
-            },
-            (err) => {
-                this.isCreatingOption.set(false);
-                this.optionsError.set(err?.error?.message || 'Failed to create option set');
-            }
-        );
-    }
-
-    editOptionSet(set: OptionSet) {
-        this.editingOptionKey.set(set.key);
-        // Deep copy values for editing buffer
-        this.editingOptionValues.set(set.values.map(v => ({ ...v })));
-        this.renameValue.set(set.key);
-    }
-
-    cancelEditOptionSet() {
-        this.editingOptionKey.set(null);
-        this.editingOptionValues.set([]);
-        this.renameValue.set('');
-        this.isSavingOption.set(false);
-        this.isRenaming.set(false);
-    }
-
-    saveEditedOptionSet() {
-        const key = this.editingOptionKey();
-        if (!key) return;
-        const values = this.editingOptionValues().filter(v => v.value.trim().length > 0);
-        this.isSavingOption.set(true);
-        this.migrationService.updateCurrentJobOptionSet(
-            key,
-            values,
-            (updated) => {
-                this.optionSets.update(list => list.map(s => s.key.toLowerCase() === updated.key.toLowerCase() ? updated : s));
-                this.isSavingOption.set(false);
-                this.cancelEditOptionSet();
-            },
-            (err) => {
-                this.isSavingOption.set(false);
-                this.optionsError.set(err?.error?.message || 'Failed to save option set');
-            }
-        );
-    }
-
-    deleteOptionSet(key: string) {
-        this.openConfirm(
-            'Delete Option Set',
-            `Are you sure you want to delete the option set "${key}"? This cannot be undone.`,
-            () => this.executeDeleteOptionSet(key)
-        );
-    }
-
-    private executeDeleteOptionSet(key: string) {
-        this.migrationService.deleteCurrentJobOptionSet(
-            key,
-            () => {
-                this.optionSets.update(list => list.filter(s => s.key.toLowerCase() !== key.toLowerCase()));
-                if (this.editingOptionKey()?.toLowerCase() === key.toLowerCase()) {
-                    this.cancelEditOptionSet();
-                }
-            },
-            (err) => {
-                this.optionsError.set(err?.error?.message || 'Failed to delete option set');
-            }
-        );
-    }
-
-    renameOptionSet(oldKey: string) {
-        const newKey = this.renameValue().trim();
-        if (!newKey || newKey.toLowerCase() === oldKey.toLowerCase()) {
-            this.isRenaming.set(false);
-            return;
-        }
-        this.isRenaming.set(true);
-        this.migrationService.renameCurrentJobOptionSet(
-            oldKey,
-            newKey,
-            () => {
-                // Update local list
-                this.optionSets.update(list => list.map(s => s.key.toLowerCase() === oldKey.toLowerCase() ? { ...s, key: newKey } : s));
-                // If currently editing, update key and buffer
-                if (this.editingOptionKey()?.toLowerCase() === oldKey.toLowerCase()) {
-                    this.editingOptionKey.set(newKey);
-                }
-                this.isRenaming.set(false);
-            },
-            (err) => {
-                this.isRenaming.set(false);
-                this.optionsError.set(err?.error?.message || 'Failed to rename option set');
-            }
-        );
-    }
 
     // copySource removed – Available Sources UI removed
 
@@ -863,7 +646,6 @@ export class ProfileEditorComponent implements OnInit {
         return index;
     }
 
-    trackByKey(_index: number, item: OptionSet) { return item.key; }
     trackByName(_index: number, item: ProfileMetadataField) { return item.name; }
 
     // When visibility changes, enforce inputType HIDDEN for hidden fields
@@ -919,8 +701,11 @@ export class ProfileEditorComponent implements OnInit {
                 this.lastAppliedTeamConstraint.set(team);
                 this.lastAppliedAllowPayInFull.set(allow);
                 this.lastSelectedProfileType.set(resp.profileType);
-                // Refresh options for the active job
-                this.loadOptionSets();
+                // Refresh options for the active job via service (mirrored by OptionsPanel)
+                this.migrationService.getCurrentJobOptionSets(
+                    _ => { },
+                    _ => { }
+                );
                 // Positive feedback
                 this.successMessage.set('Job profile configuration updated.');
                 setTimeout(() => this.successMessage.set(null), 3000);
@@ -984,4 +769,5 @@ export class ProfileEditorComponent implements OnInit {
         this.confirmModalMessage.set('');
         this.confirmModalAction.set(null);
     }
+
 }

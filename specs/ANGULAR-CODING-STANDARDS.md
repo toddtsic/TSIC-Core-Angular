@@ -288,9 +288,9 @@ export class MyComponent {
 
 ### Confirmation Dialogs
 
-**ALWAYS use Bootstrap modals instead of browser `confirm()`, `alert()`, or `prompt()` dialogs.**
+Prefer native HTML `<dialog>` with Bootstrap-like styling over browser dialogs. Avoid `confirm()`, `alert()`, or `prompt()`.
 
-### ✅ Preferred Pattern (Bootstrap Modal)
+### ✅ Preferred Pattern (Native `<dialog>`)
 
 ```typescript
 // Component state
@@ -299,62 +299,51 @@ confirmModalTitle = signal('');
 confirmModalMessage = signal('');
 confirmModalAction = signal<(() => void) | null>(null);
 
-// Show confirmation
-deleteItem(item: Item): void {
-  this.confirmModalTitle.set('Delete Item');
-  this.confirmModalMessage.set(`Are you sure you want to delete "${item.name}"?`);
-  this.confirmModalAction.set(() => this.executeDelete(item));
+openConfirm(title: string, message: string, action: () => void) {
+  this.confirmModalTitle.set(title);
+  this.confirmModalMessage.set(message);
+  this.confirmModalAction.set(action);
   this.showConfirmModal.set(true);
 }
 
-// Execute action
 confirmAction(): void {
   const action = this.confirmModalAction();
-  if (action) {
-    action();
-  }
+  if (action) action();
   this.closeConfirmModal();
 }
 
-// Close modal
 closeConfirmModal(): void {
   this.showConfirmModal.set(false);
   this.confirmModalTitle.set('');
   this.confirmModalMessage.set('');
   this.confirmModalAction.set(null);
 }
-
-private executeDelete(item: Item): void {
-  // Actual delete logic here
-}
 ```
 
 **Template:**
 
 ```html
-<!-- Confirmation Modal -->
+<!-- Confirmation Dialog -->
 @if (showConfirmModal()) {
-<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-  <div class="modal-dialog">
+  <dialog class="tsic-dialog" open (keydown.escape)="closeConfirmModal()">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="bi bi-exclamation-triangle text-warning"></i> {{ confirmModalTitle() }}
         </h5>
-        <button type="button" class="btn-close" (click)="closeConfirmModal()"></button>
+        <button type="button" class="btn-close" (click)="closeConfirmModal()" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <p>{{ confirmModalMessage() }}</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-secondary" (click)="closeConfirmModal()" autofocus>Cancel</button>
         <button type="button" class="btn btn-primary" (click)="confirmAction()">
           <i class="bi bi-check-circle"></i> OK
         </button>
       </div>
     </div>
-  </div>
-</div>
+  </dialog>
 }
 ```
 
@@ -383,7 +372,7 @@ const name = prompt('Enter your name:');
 
 ### Success/Error Messages
 
-Use dismissible Bootstrap alerts instead of `alert()`:
+Prefer small toast notifications for transient feedback; use dismissible alerts for inline page context. Never use `alert()`:
 
 ```html
 @if (successMessage()) {
@@ -497,5 +486,5 @@ private decodeToken(token: string): any {
 
 ---
 
-**Last Updated**: November 1, 2025  
+**Last Updated**: November 4, 2025  
 **Maintainer**: Development Team

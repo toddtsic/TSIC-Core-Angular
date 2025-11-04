@@ -25,6 +25,15 @@ export class AuthService {
   // Signal for reactive state management
   public readonly currentUser = signal<AuthenticatedUser | null>(null);
 
+  // Signals for UI flows
+  public readonly loginLoading = signal(false);
+  public readonly loginError = signal<string | null>(null);
+  public readonly registrations = signal<RegistrationRoleDto[]>([]);
+  public readonly registrationsLoading = signal(false);
+  public readonly registrationsError = signal<string | null>(null);
+  public readonly selectLoading = signal(false);
+  public readonly selectError = signal<string | null>(null);
+
   // Computed signals for derived state
   public readonly isSuperuser = computed(() => {
     const user = this.currentUser();
@@ -61,6 +70,26 @@ export class AuthService {
   }
 
   /**
+   * Command-style login that updates signals instead of returning an Observable
+   */
+  loginCommand(credentials: LoginRequest): void {
+    this.loginLoading.set(true);
+    this.loginError.set(null);
+    this.http.post<AuthTokenResponse>(`${this.apiUrl}/login`, credentials).subscribe({
+      next: (response) => {
+        this.setToken(response.accessToken);
+        if (response.refreshToken) this.setRefreshToken(response.refreshToken);
+        this.initializeFromToken();
+        this.loginLoading.set(false);
+      },
+      error: (error) => {
+        this.loginLoading.set(false);
+        this.loginError.set(error?.error?.message || 'Login failed. Please check your credentials.');
+      }
+    });
+  }
+
+  /**
    * Phase 2: Get available registrations for the authenticated user
    * Requires initial auth token with username claim
    */
@@ -69,6 +98,24 @@ export class AuthService {
       .pipe(
         map(response => response.registrations)
       );
+  }
+
+  /**
+   * Command-style fetch for available registrations using signals
+   */
+  loadAvailableRegistrations(): void {
+    this.registrationsLoading.set(true);
+    this.registrationsError.set(null);
+    this.http.get<LoginResponse>(`${this.apiUrl}/registrations`).subscribe({
+      next: (resp) => {
+        this.registrations.set(resp.registrations ?? []);
+        this.registrationsLoading.set(false);
+      },
+      error: (error) => {
+        this.registrationsLoading.set(false);
+        this.registrationsError.set(error?.error?.message || 'Failed to load registrations. Please try again.');
+      }
+    });
   }
 
   /**
@@ -87,6 +134,27 @@ export class AuthService {
           this.initializeFromToken();
         })
       );
+  }
+
+  /**
+   * Command-style registration selection via signals
+   */
+  selectRegistrationCommand(regId: string): void {
+    if (!regId) return;
+    this.selectLoading.set(true);
+    this.selectError.set(null);
+    this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-registration`, { regId }).subscribe({
+      next: (response) => {
+        this.setToken(response.accessToken);
+        if (response.refreshToken) this.setRefreshToken(response.refreshToken);
+        this.initializeFromToken();
+        this.selectLoading.set(false);
+      },
+      error: (error) => {
+        this.selectLoading.set(false);
+        this.selectError.set(error?.error?.message || 'Role selection failed. Please try again.');
+      }
+    });
   }
 
   /**

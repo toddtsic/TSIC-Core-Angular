@@ -219,7 +219,7 @@
 
 <!-- Confirmation Dialog -->
 @if (showConfirmModal()) {
-<dialog class="tsic-dialog" open (keydown.escape)="closeConfirmModal()">
+<tsic-dialog [open]="true" (requestClose)="closeConfirmModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">
@@ -237,12 +237,12 @@
             </button>
         </div>
     </div>
-</dialog>
+</tsic-dialog>
 }
 
 <!-- Preview Dialog -->
 @if (previewResult()) {
-<dialog class="tsic-dialog tsic-dialog-lg" open (keydown.escape)="closePreview()">
+<tsic-dialog [open]="true" size="lg" (requestClose)="closePreview()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">
@@ -366,5 +366,5 @@
             }
         </div>
     </div>
-</dialog>
+</tsic-dialog>
 }

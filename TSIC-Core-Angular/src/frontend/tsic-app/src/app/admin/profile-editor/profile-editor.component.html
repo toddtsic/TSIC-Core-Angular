@@ -1,4 +1,6 @@
 <div class="container-fluid py-4">
+    <!-- ensure analyzer sees TsicDialogComponent import; hidden and not open -->
+    <tsic-dialog [open]="false"></tsic-dialog>
     <div class="row mb-4">
         <div class="col-12">
             <!-- Centered page title on its own row -->
@@ -318,195 +320,7 @@
 
             <!-- Job Options Tab -->
             @if (activeTab() === 'options' && showJobOptionsTab()) {
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Job Options (This Job Only)</h5>
-                </div>
-                <div class="card-body">
-                    @if (optionsError()) {
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        {{ optionsError() }}
-                        <button type="button" class="btn-close" (click)="optionsError.set(null)"></button>
-                    </div>
-                    }
-
-                    @if (optionsLoading()) {
-                    <div class="text-center py-4">
-                        <div class="spinner-border"></div>
-                        <div class="mt-2">Loading option sets...</div>
-                    </div>
-                    } @else {
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <h6 class="mb-0">Overrides</h6>
-                            </div>
-                            <div class="text-muted small mb-2">Changes here affect only the active job. Other jobs using
-                                the same profile are not affected.</div>
-                            <div class="list-group">
-                                @for (set of visibleOptionSets(); track trackByKey($index, set)) {
-                                <div class="list-group-item d-flex justify-content-between align-items-center"
-                                    [class.active]="editingOptionKey() === set.key" aria-current="page">
-                                    <div>
-                                        <div class="fw-semibold">{{ set.key }}</div>
-                                        <small class="text-muted">{{ set.values.length || 0 }} options</small>
-                                    </div>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" (click)="editOptionSet(set)">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger" (click)="deleteOptionSet(set.key)">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                }
-                                @if (visibleOptionSets().length === 0) {
-                                <div class="list-group-item text-muted">No option sets to show.</div>
-                                }
-                            </div>
-
-
-                        </div>
-
-                        <div class="col-md-7">
-                            @if (editingOptionKey()) {
-                            <div class="card border-primary">
-                                <div class="card-header d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center w-100 gap-2">
-                                        <span class="badge bg-primary">Editing</span>
-                                        <span class="fw-semibold text-monospace">{{ editingOptionKey() }}</span>
-                                    </div>
-                                    <div class="ms-2">
-                                        <button class="btn btn-sm btn-outline-secondary"
-                                            (click)="cancelEditOptionSet()">Close</button>
-                                    </div>
-                                </div>
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm align-middle">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width:5%"></th>
-                                                    <th style="width:45%">Label</th>
-                                                    <th style="width:45%">Value</th>
-                                                    <th style="width:5%"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody cdkDropList (cdkDropListDropped)="onEditOptionDrop($event)"
-                                                class="registrant-drop-list">
-                                                @for (opt of editingOptionValues(); track trackByIndex($index)) {
-                                                <tr cdkDrag>
-                                                    <td>
-                                                        <span class="drag-grip" cdkDragHandle title="Drag to reorder"
-                                                            aria-label="Drag to reorder"></span>
-                                                    </td>
-                                                    <td><input type="text" class="form-control form-control-sm"
-                                                            [(ngModel)]="opt.label" /></td>
-                                                    <td><input type="text" class="form-control form-control-sm"
-                                                            [(ngModel)]="opt.value" /></td>
-                                                    <td>
-                                                        <button class="btn btn-outline-danger btn-sm"
-                                                            (click)="removeOptionRow($index)"><i
-                                                                class="bi bi-x"></i></button>
-                                                    </td>
-                                                </tr>
-                                                }
-                                                <tr>
-                                                    <td colspan="4">
-                                                        <button class="btn btn-outline-success btn-sm"
-                                                            (click)="addNewOptionRow()">
-                                                            <i class="bi bi-plus-circle me-1"></i> Add Option
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                <div class="card-footer text-end">
-                                    <button class="btn btn-success btn-sm" [disabled]="isSavingOption()"
-                                        (click)="saveEditedOptionSet()">
-                                        @if (isSavingOption()) {<span
-                                            class="spinner-border spinner-border-sm me-1"></span>}Save
-                                    </button>
-                                </div>
-                            </div>
-                            }
-                        </div>
-                    </div>
-                    }
-
-                    <!-- Create New Option Set Modal-like section -->
-                    @if (isCreateOptionOpen()) {
-                    <div class="mt-4 card border-success">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">Create New Option Set</h6>
-                            <button class="btn btn-sm btn-outline-secondary"
-                                (click)="closeCreateOptionSet()">Close</button>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-6">
-                                    <label class="form-label" for="new-option-key">Key</label>
-                                    <input id="new-option-key" class="form-control" [(ngModel)]="newOptionKey">
-                                </div>
-                                <div class="col-12">
-                                    <div class="form-label fw-semibold">Options</div>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm align-middle">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width:5%"></th>
-                                                    <th style="width:45%">Label</th>
-                                                    <th style="width:45%">Value</th>
-                                                    <th style="width:5%"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody cdkDropList (cdkDropListDropped)="onCreateOptionDrop($event)"
-                                                class="registrant-drop-list">
-                                                @for (opt of newOptionValues(); track trackByIndex($index)) {
-                                                <tr cdkDrag>
-                                                    <td>
-                                                        <span class="drag-grip" cdkDragHandle title="Drag to reorder"
-                                                            aria-label="Drag to reorder"></span>
-                                                    </td>
-                                                    <td><input type="text" class="form-control form-control-sm"
-                                                            [(ngModel)]="opt.label" /></td>
-                                                    <td><input type="text" class="form-control form-control-sm"
-                                                            [(ngModel)]="opt.value" /></td>
-                                                    <td>
-                                                        <button class="btn btn-outline-danger btn-sm"
-                                                            (click)="removeOptionRow($index, true)"><i
-                                                                class="bi bi-x"></i></button>
-                                                    </td>
-                                                </tr>
-                                                }
-                                                <tr>
-                                                    <td colspan="4">
-                                                        <button class="btn btn-outline-success btn-sm"
-                                                            (click)="addNewOptionRow(true)">
-                                                            <i class="bi bi-plus-circle me-1"></i> Add Option
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer text-end">
-                            <button class="btn btn-success btn-sm" [disabled]="isCreatingOption()"
-                                (click)="createOptionSet()">
-                                @if (isCreatingOption()) {<span
-                                    class="spinner-border spinner-border-sm me-1"></span>}Create
-                            </button>
-                        </div>
-                    </div>
-                    }
-                </div>
-            </div>
+            <app-options-panel [metadata]="currentMetadata()"></app-options-panel>
             }
         </div>
     </div>
@@ -515,7 +329,7 @@
 
 <!-- Confirm Dialog -->
 @if (showConfirmModal()) {
-<dialog class="tsic-dialog" open (keydown.escape)="closeConfirm()">
+<tsic-dialog [open]="true" (requestClose)="closeConfirm()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>{{ confirmModalTitle()
@@ -530,12 +344,12 @@
             <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
         </div>
     </div>
-</dialog>
+</tsic-dialog>
 }
 
 <!-- Add Field Dialog -->
 @if (isAddFieldModalOpen()) {
-<dialog class="tsic-dialog" open (keydown.escape)="closeAddFieldModal()">
+<tsic-dialog [open]="true" (requestClose)="closeAddFieldModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Add Field</h5>
@@ -582,12 +396,12 @@
             </button>
         </div>
     </div>
-</dialog>
+</tsic-dialog>
 }
 
 <!-- Edit Field Dialog -->
 @if (isEditModalOpen()) {
-<dialog class="tsic-dialog tsic-dialog-lg" open (keydown.escape)="closeEditModal()">
+<tsic-dialog [open]="true" size="lg" (requestClose)="closeEditModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Edit Field: {{ editingField()?.name }}</h5>
@@ -745,12 +559,12 @@
             </button>
         </div>
     </div>
-</dialog>
+</tsic-dialog>
 }
 
 <!-- Create New Profile Dialog -->
 @if (isCreateModalOpen()) {
-<dialog class="tsic-dialog" open (keydown.escape)="closeCreateModal()">
+<tsic-dialog [open]="true" (requestClose)="closeCreateModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Create New Profile</h5>
@@ -794,12 +608,12 @@
             </button>
         </div>
     </div>
-</dialog>
+</tsic-dialog>
 }
 
 <!-- Test Validation Dialog -->
 @if (isTestModalOpen()) {
-<dialog class="tsic-dialog" open (keydown.escape)="closeTestModal()">
+<tsic-dialog [open]="true" (requestClose)="closeTestModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Test Validation: {{ testFieldName() }}</h5>
@@ -845,5 +659,5 @@
             <button type="button" class="btn btn-secondary" (click)="closeTestModal()">Close</button>
         </div>
     </div>
-</dialog>
+</tsic-dialog>
 }

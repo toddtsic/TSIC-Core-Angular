@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal } from '@angular/core';
+import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, effect } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -98,18 +98,8 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
     // Save username for future logins
     localStorage.setItem('last_username', credentials.username);
 
-    this.authService.login(credentials).subscribe({
-      next: (response) => {
-        this.isLoading.set(false);
-        // Token with username claim is now stored in localStorage
-        // Navigate to role selection to choose registration
-        this.router.navigate(['/tsic/role-selection']);
-      },
-      error: (error) => {
-        this.isLoading.set(false);
-        this.errorMessage.set(error.error?.message || 'Login failed. Please check your credentials.');
-      }
-    });
+    // Signals-driven login; navigation handled via effect below
+    this.authService.loginCommand(credentials);
   }
 
   toggleShowPassword() {
@@ -121,4 +111,15 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
     if (this.usernameInput) this.autofill.stopMonitoring(this.usernameInput);
     if (this.passwordInput) this.autofill.stopMonitoring(this.passwordInput);
   }
+
+  // Navigate to role selection after a successful login
+  // We watch for currentUser to be set and loginLoading to be false
+  // to avoid navigating on initial token presence without user action
+  private readonly _navEffect = effect(() => {
+    const loading = this.authService.loginLoading();
+    const user = this.authService.getCurrentUser();
+    if (!loading && user) {
+      this.router.navigate(['/tsic/role-selection']);
+    }
+  });
 }

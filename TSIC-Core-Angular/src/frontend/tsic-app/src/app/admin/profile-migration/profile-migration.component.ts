@@ -2,18 +2,21 @@ import { FormsModule } from '@angular/forms';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ProfileMigrationService, ProfileSummary, ProfileMigrationResult, ProfileBatchMigrationReport } from '../../core/services/profile-migration.service';
+import { ProfileMigrationService, ProfileSummary } from '../../core/services/profile-migration.service';
+import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-dialog.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ProfileFormPreviewComponent } from '../../shared/components/profile-form-preview/profile-form-preview.component';
 
 @Component({
     selector: 'app-profile-migration',
     standalone: true,
-    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule],
+    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent],
     templateUrl: './profile-migration.component.html',
     styleUrls: ['./profile-migration.component.scss']
 })
 export class ProfileMigrationComponent implements OnInit {
+    // Reference to satisfy strict template analyzer for standalone component usage.
+    private readonly __tsicDialogComponentRef = TsicDialogComponent;
     // For dropdown filtering (signal-based)
     selectedProfileType = signal<string | null>(null);
     filteredProfiles = computed(() => {
@@ -35,16 +38,16 @@ export class ProfileMigrationComponent implements OnInit {
     // Use service signals
     profiles = this.migrationService.profileSummaries;
     isLoading = this.migrationService.isLoading;
+    isMigrating = this.migrationService.isMigrating;
 
     // Component-specific UI State
-    isMigrating = signal(false);
     errorMessage = signal<string | null>(null);
     successMessage = signal<string | null>(null);
 
     // Data
-    migrationReport = signal<ProfileBatchMigrationReport | null>(null);
+    migrationReport = this.migrationService.batchMigrationReport;
     selectedProfile = signal<ProfileSummary | null>(null);
-    previewResult = signal<ProfileMigrationResult | null>(null);
+    previewResult = this.migrationService.previewResult;
 
     // Confirmation modal
     showConfirmModal = signal(false);
@@ -145,7 +148,6 @@ export class ProfileMigrationComponent implements OnInit {
 
     private executeMigrateAllPending(): void {
         const pending = this.pendingProfiles;
-        this.isMigrating.set(true);
         this.errorMessage.set(null);
 
         const request = {
@@ -156,15 +158,12 @@ export class ProfileMigrationComponent implements OnInit {
         this.migrationService.migrateAllProfiles(
             request,
             (report) => {
-                this.migrationReport.set(report);
-                this.isMigrating.set(false);
                 this.successMessage.set(
                     `Migration complete! ${report.successCount} succeeded, ${report.failureCount} failed, ${report.totalJobsAffected} jobs affected`
                 );
             },
             (error) => {
                 this.errorMessage.set(error.error?.message || 'Migration failed');
-                this.isMigrating.set(false);
             }
         );
     }
@@ -187,7 +186,6 @@ export class ProfileMigrationComponent implements OnInit {
     }
 
     private executeReMigrateAll(): void {
-        this.isMigrating.set(true);
         this.errorMessage.set(null);
 
         const request = {
@@ -198,15 +196,12 @@ export class ProfileMigrationComponent implements OnInit {
         this.migrationService.migrateAllProfiles(
             request,
             (report) => {
-                this.migrationReport.set(report);
-                this.isMigrating.set(false);
                 this.successMessage.set(
                     `Re-migration complete! ${report.successCount} succeeded, ${report.failureCount} failed, ${report.totalJobsAffected} jobs affected`
                 );
             },
             (error) => {
                 this.errorMessage.set(error.error?.message || 'Re-migration failed');
-                this.isMigrating.set(false);
             }
         );
     }
@@ -222,13 +217,11 @@ export class ProfileMigrationComponent implements OnInit {
     }
 
     private executeMigrateSingle(profile: ProfileSummary): void {
-        this.isMigrating.set(true);
         this.errorMessage.set(null);
 
         this.migrationService.migrateProfile(
             profile.profileType,
             (result) => {
-                this.isMigrating.set(false);
                 if (result.success) {
                     this.successMessage.set(
                         `${profile.profileType} migrated successfully! ${result.jobsAffected} jobs updated with ${result.fieldCount} fields`
@@ -239,7 +232,6 @@ export class ProfileMigrationComponent implements OnInit {
             },
             (error) => {
                 this.errorMessage.set(error.error?.message || 'Migration failed');
-                this.isMigrating.set(false);
             }
         );
     }
@@ -256,9 +248,7 @@ export class ProfileMigrationComponent implements OnInit {
         // Use the preview endpoint to get full job list and metadata
         this.migrationService.previewProfileMigration(
             profile.profileType,
-            (result) => {
-                this.previewResult.set(result);
-            },
+            (_result) => { },
             (error) => {
                 this.errorMessage.set(error || 'Failed to load profile metadata');
             }
@@ -266,7 +256,6 @@ export class ProfileMigrationComponent implements OnInit {
     }
 
     closePreview(): void {
-        this.previewResult.set(null);
         this.selectedProfile.set(null);
         this.selectedJobId.set(null);
         this.jobSpecificOptions.set(null);

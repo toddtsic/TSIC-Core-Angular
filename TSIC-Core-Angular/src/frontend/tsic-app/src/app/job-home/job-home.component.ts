@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { JobService, RegistrationStatusResponse } from '../core/services/job.service';
@@ -34,41 +34,21 @@ export class JobHomeComponent implements OnInit {
     this.isAuthenticated.set(this.authService.isAuthenticated());
 
     // Fetch job metadata (for both authenticated and anonymous users)
-    this.loadJobMetadata();
+    this.jobService.loadJobMetadata(this.jobPath());
 
     // Load registration status (for both authenticated and anonymous users)
-    this.loadRegistrationStatus();
-  }
-
-  private loadJobMetadata() {
-    this.jobService.fetchJobMetadata(this.jobPath()).subscribe({
-      next: (job) => {
-        this.jobService.setJob(job);
-      },
-      error: (err) => {
-        console.error('Error loading job metadata:', err);
-        // Don't show error to user - registration status is more critical
-      }
-    });
-  }
-
-  private loadRegistrationStatus() {
     this.loading.set(true);
     this.error.set(null);
+    this.jobService.loadRegistrationStatus(this.jobPath(), ['Player']);
 
-    // For Phase 1, only check Player registration
-    const registrationTypes = ['Player'];
-
-    this.jobService.checkRegistrationStatus(this.jobPath(), registrationTypes).subscribe({
-      next: (statuses) => {
-        this.registrationStatuses.set(statuses);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        console.error('Error loading registration status:', err);
-        this.error.set('Unable to load registration information. Please try again later.');
-        this.loading.set(false);
-      }
+    // Reflect service signals into local signals used by the template
+    effect(() => {
+      const statuses = this.jobService.registrationStatuses();
+      const isLoading = this.jobService.registrationLoading();
+      const err = this.jobService.registrationError();
+      this.registrationStatuses.set(statuses);
+      this.loading.set(isLoading);
+      this.error.set(err);
     });
   }
 }
