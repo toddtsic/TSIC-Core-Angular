@@ -231,7 +231,7 @@
             <p>{{ confirmModalMessage() }}</p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn btn-secondary" (click)="closeConfirmModal()" autofocus>Cancel</button>
             <button type="button" class="btn btn-primary" (click)="confirmAction()">
                 <i class="bi bi-check-circle"></i> OK
             </button>
@@ -358,7 +358,7 @@
             }
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closePreview()">Close</button>
+            <button type="button" class="btn btn-secondary" (click)="closePreview()" autofocus>Close</button>
             @if (previewResult()?.success && selectedProfile() && !selectedProfile()?.allJobsMigrated) {
             <button type="button" class="btn btn-success" (click)="migrateSingle(selectedProfile()!); closePreview()">
                 <i class="bi bi-check-circle"></i> Migrate Now

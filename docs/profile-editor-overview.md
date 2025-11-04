@@ -1,6 +1,18 @@
-# Profile Metadata Editor – v1.1 Overview (November 4, 2025)
+# Profile Metadata Editor – v1.2 Overview (November 4, 2025)
 
 This document summarizes the current state of the Profile Metadata Editor and related migration behavior. It complements the original design docs and the Angular coding standards.
+
+## What’s new in v1.2
+
+- Accessibility and modal cleanup
+  - Converted all editor and migration modals to native HTML <dialog> for better a11y; ESC-to-close supported and autofocus added to primary controls.
+  - Removed legacy Bootstrap modal markup/styles; SCSS now targets `.tsic-dialog` with a Bootstrap-like look and backdrop.
+- Subtle feedback
+  - Added a small global toast system; drag-and-drop option reorders now auto-save and show success/failure toasts.
+- Endpoint pruning and UI alignment
+  - Deprecated "sources" endpoints removed from the controller; corresponding UI concepts fully eliminated.
+- Code hygiene
+  - Trimmed stray console noise in editor paths; removed stray role attributes (e.g., `role="group"`) that triggered a11y lint in layout.
 
 ## What’s new in v1.1
 
@@ -87,10 +99,8 @@ This document summarizes the current state of the Profile Metadata Editor and re
 ## Open follow-ups
 
 - Live preview panel (deferred).
-- Modal a11y refinements (convert to native <dialog> with focus helpers; remove role-based warnings).
-- Extract complex client methods to helpers to reduce cognitive complexity warnings.
-- Add a toast/snackbar after drag-and-drop auto-saves in Options.
-- Prune unused backend "sources" endpoints if not referenced elsewhere.
+- Dialog focus trap utility (beyond autofocus) for full keyboard loop containment.
+- Extract complex client methods further to reduce cognitive complexity in a few remaining areas.
 
 ## Files of interest
 

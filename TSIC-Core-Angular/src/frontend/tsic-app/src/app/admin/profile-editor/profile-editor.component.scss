@@ -15,19 +15,6 @@
     background-color: rgba(0, 123, 255, 0.05);
 }
 
-.modal.d-block {
-    background-color: rgba(0, 0, 0, 0.5);
-    overflow-y: auto;
-}
-
-.modal-backdrop {
-    z-index: 1040;
-}
-
-.modal {
-    z-index: 1050;
-}
-
 /* Native dialog styling for accessibility-friendly modals */
 .tsic-dialog {
     border: none;

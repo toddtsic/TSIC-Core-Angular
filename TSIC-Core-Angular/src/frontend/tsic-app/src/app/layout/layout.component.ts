@@ -17,7 +17,7 @@ import { ThemeService } from '../core/services/theme.service';
           <!-- Left: TSIC + Job Logos (auto-width) -->
           <div class="col-auto">
             <!-- Button group on mobile -->
-            <div class="btn-group d-md-none" role="group">
+            <div class="btn-group d-md-none">
               <button type="button" class="btn btn-sm btn-outline-secondary p-2" style="border-color: rgba(0,0,0,0.175);">
                 <img src="images/tsic-notext-logo.png" alt="TSIC" style="height: 24px; display: block;" />
               </button>
@@ -66,7 +66,7 @@ import { ThemeService } from '../core/services/theme.service';
               <span class="text-secondary small d-none d-md-inline fw-medium">{{ username() }}</span>
               
               <!-- Button group on mobile, separate buttons on desktop -->
-              <div class="btn-group d-md-none" role="group">
+              <div class="btn-group d-md-none">
                 @if (showRoleMenu()) {
                   <button 
                     type="button" 

@@ -526,7 +526,7 @@
             <p class="mb-0">{{ confirmModalMessage() }}</p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeConfirm()">Cancel</button>
+            <button type="button" class="btn btn-secondary" (click)="closeConfirm()" autofocus>Cancel</button>
             <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
         </div>
     </div>
@@ -544,7 +544,7 @@
         <div class="modal-body">
             <div class="mb-3">
                 <label class="form-label" for="new-field-select">Choose a field</label>
-                <select id="new-field-select" class="form-select" [(ngModel)]="selectedNewFieldName">
+                <select id="new-field-select" class="form-select" [(ngModel)]="selectedNewFieldName" autofocus>
                     <option [ngValue]="null">-- Select a field --</option>
                     @for (opt of availableNewFields(); track opt.name) {
                     <option [ngValue]="opt.name">{{ opt.name }} ({{ opt.displayName }})</option>
@@ -606,7 +606,8 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="edit-display-name">Display Name</label>
-                    <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName">
+                    <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName"
+                        autofocus>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="edit-input-type">Input Type</label>
@@ -758,7 +759,7 @@
         <div class="modal-body">
             <div class="mb-3">
                 <label class="form-label fw-bold" for="clone-from">Clone From:</label>
-                <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource"
+                <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource" autofocus
                     (ngModelChange)="onCloneSourceSelected($event)" [disabled]="isCloning()">
                     <option [ngValue]="null">-- Select a profile to clone --</option>
                     @for (profile of availableProfiles(); track profile.type) {
@@ -807,7 +808,7 @@
         <div class="modal-body">
             <div class="mb-3">
                 <label class="form-label" for="test-value">Test Value</label>
-                <input id="test-value" type="text" class="form-control" [(ngModel)]="testValue"
+                <input id="test-value" type="text" class="form-control" [(ngModel)]="testValue" autofocus
                     placeholder="Enter a value to test">
             </div>
 

@@ -449,19 +449,21 @@ export class ProfileEditorComponent implements OnInit {
         this.openConfirm(
             'Delete Option Set',
             `Are you sure you want to delete the option set "${key}"? This cannot be undone.`,
+            () => this.executeDeleteOptionSet(key)
+        );
+    }
+
+    private executeDeleteOptionSet(key: string) {
+        this.migrationService.deleteCurrentJobOptionSet(
+            key,
             () => {
-                this.migrationService.deleteCurrentJobOptionSet(
-                    key,
-                    () => {
-                        this.optionSets.update(list => list.filter(s => s.key.toLowerCase() !== key.toLowerCase()));
-                        if (this.editingOptionKey()?.toLowerCase() === key.toLowerCase()) {
-                            this.cancelEditOptionSet();
-                        }
-                    },
-                    (err) => {
-                        this.optionsError.set(err?.error?.message || 'Failed to delete option set');
-                    }
-                );
+                this.optionSets.update(list => list.filter(s => s.key.toLowerCase() !== key.toLowerCase()));
+                if (this.editingOptionKey()?.toLowerCase() === key.toLowerCase()) {
+                    this.cancelEditOptionSet();
+                }
+            },
+            (err) => {
+                this.optionsError.set(err?.error?.message || 'Failed to delete option set');
             }
         );
     }
@@ -513,7 +515,6 @@ export class ProfileEditorComponent implements OnInit {
                 this.isLoading.set(false);
             },
             (error) => {
-                console.error('Error loading profile metadata:', error);
                 this.errorMessage.set(`Failed to load profile: ${error || 'Unknown error'}`);
                 this.isLoading.set(false);
                 this.currentMetadata.set(null);
@@ -588,7 +589,6 @@ export class ProfileEditorComponent implements OnInit {
                 this.isCloning.set(false);
             },
             (error) => {
-                console.error('Error cloning profile:', error);
                 this.errorMessage.set(`Failed to create profile: ${error || 'Unknown error'}`);
                 this.isCloning.set(false);
             }
@@ -672,35 +672,7 @@ export class ProfileEditorComponent implements OnInit {
 
         // Reorder within registrant-visible (public) region only if applicable
         if (field.visibility === 'public' && this.selectedOrderIndex() >= 0) {
-            // Build registrant slice and compute target position
-            const registrant = updatedFields
-                .filter(f => f.visibility === 'public')
-                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-            const currentIdxInRegistrant = registrant.findIndex(f => f.name === field.name);
-            const targetIdx = this.selectedOrderIndex();
-
-            if (currentIdxInRegistrant >= 0 && targetIdx >= 0 && targetIdx < registrant.length) {
-                // Remove and insert to new position
-                const [moved] = registrant.splice(currentIdxInRegistrant, 1);
-                registrant.splice(targetIdx, 0, moved);
-
-                // Compute the original min/max order span for registrant to keep them within region
-                const orders = updatedFields.filter(f => f.visibility === 'public').map(f => f.order ?? 0);
-                const minOrder = Math.min(...orders);
-                const maxOrder = Math.max(...orders);
-
-                // Assign new consecutive orders within [minOrder..maxOrder]
-                const step = registrant.length > 1 ? Math.max(1, Math.floor((maxOrder - minOrder) / (registrant.length - 1))) : 1;
-                let i = 0;
-                for (const f of registrant) {
-                    const idx = updatedFields.findIndex(x => x.name === f.name);
-                    if (idx >= 0) {
-                        updatedFields[idx] = { ...updatedFields[idx], order: minOrder + i * step };
-                    }
-                    i++;
-                }
-            }
+            this.reorderRegistrantForEdit(updatedFields, field.name, this.selectedOrderIndex());
         }
 
         // Apply other edited field properties back to the array entry
@@ -710,6 +682,39 @@ export class ProfileEditorComponent implements OnInit {
 
         this.saveMetadata(updatedMetadata);
         this.closeEditModal();
+    }
+
+    // Extracted helper: reorder registrant-visible fields for saveFieldEdit
+    private reorderRegistrantForEdit(updatedFields: ProfileMetadataField[], fieldName: string, targetIdx: number) {
+        // Build registrant slice and compute target position
+        const registrant = updatedFields
+            .filter(f => f.visibility === 'public')
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+        const currentIdxInRegistrant = registrant.findIndex(f => f.name === fieldName);
+        if (currentIdxInRegistrant < 0 || targetIdx < 0 || targetIdx >= registrant.length) {
+            return;
+        }
+
+        // Remove and insert to new position
+        const [moved] = registrant.splice(currentIdxInRegistrant, 1);
+        registrant.splice(targetIdx, 0, moved);
+
+        // Compute the original min/max order span for registrant to keep them within region
+        const orders = updatedFields.filter(f => f.visibility === 'public').map(f => f.order ?? 0);
+        const minOrder = Math.min(...orders);
+        const maxOrder = Math.max(...orders);
+
+        // Assign new consecutive orders within [minOrder..maxOrder]
+        const step = registrant.length > 1 ? Math.max(1, Math.floor((maxOrder - minOrder) / (registrant.length - 1))) : 1;
+        let i = 0;
+        for (const f of registrant) {
+            const idx = updatedFields.findIndex(x => x.name === f.name);
+            if (idx >= 0) {
+                updatedFields[idx] = { ...updatedFields[idx], order: minOrder + i * step };
+            }
+            i++;
+        }
     }
 
     addNewField() {
@@ -800,7 +805,6 @@ export class ProfileEditorComponent implements OnInit {
                 this.isSaving.set(false);
             },
             (error) => {
-                console.error('Error saving profile metadata:', error);
                 this.errorMessage.set(`Failed to save profile: ${error || 'Unknown error'}`);
                 this.isSaving.set(false);
             }
@@ -842,7 +846,6 @@ export class ProfileEditorComponent implements OnInit {
                 this.isTesting.set(false);
             },
             (error) => {
-                console.error('Error testing validation:', error);
                 const errorResult: ValidationTestResult = {
                     isValid: false,
                     messages: [`Test failed: ${error || 'Unknown error'}`],
