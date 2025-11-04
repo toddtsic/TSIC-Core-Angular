@@ -13,8 +13,6 @@ import { TsicDialogComponent } from '../../../shared/components/tsic-dialog/tsic
     templateUrl: './options-panel.component.html'
 })
 export class OptionsPanelComponent {
-    // Reference to satisfy strict template analyzer that TsicDialogComponent is intended for this template
-    private readonly __tsicDialogComponentRef = TsicDialogComponent;
     private readonly migrationService = inject(ProfileMigrationService);
     private readonly toast = inject(ToastService);
 

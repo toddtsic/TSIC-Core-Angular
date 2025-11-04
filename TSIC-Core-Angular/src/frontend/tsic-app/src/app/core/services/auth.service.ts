@@ -167,7 +167,7 @@ export class AuthService {
     if (refreshToken) {
       this.http.post(`${this.apiUrl}/revoke`, { refreshToken })
         .subscribe({
-          error: (err) => console.error('Error revoking token:', err)
+          error: (err) => { if (!environment.production) console.error('Error revoking token:', err); }
         });
     }
 
@@ -200,7 +200,7 @@ export class AuthService {
       // If no exp claim, assume valid (shouldn't happen with JWT)
       return true;
     } catch (error) {
-      console.error('Failed to check token expiration:', error);
+      if (!environment.production) console.error('Failed to check token expiration:', error);
       return false;
     }
   }
@@ -308,13 +308,13 @@ export class AuthService {
         const now = new Date();
 
         if (expirationDate <= now) {
-          console.warn('Access token expired. Will refresh on next API call via interceptor.');
+          if (!environment.production) console.warn('Access token expired. Will refresh on next API call via interceptor.');
           // Don't proactively refresh here - let the token interceptor handle it
           // This avoids race conditions with route guards
         }
       }
     } catch (error) {
-      console.error('Failed to decode token:', error);
+      if (!environment.production) console.error('Failed to decode token:', error);
       this.currentUser.set(null);
     }
   }
@@ -337,7 +337,7 @@ export class AuthService {
       );
       return JSON.parse(jsonPayload);
     } catch (error) {
-      console.error('Token decode error:', error);
+      if (!environment.production) console.error('Token decode error:', error);
       throw new Error('Invalid token format');
     }
   }

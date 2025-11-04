@@ -1,6 +1,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
+import { environment } from '../../../environments/environment';
 import { switchMap, catchError } from 'rxjs';
 
 /**
@@ -31,7 +32,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const isExpired = isTokenExpired(token);
 
     if (isExpired) {
-        console.log('Token expired, refreshing before request...');
+        if (!environment.production) {
+            console.log('Token expired, refreshing before request...');
+        }
         // Refresh token first, then make the request with new token
         return authService.refreshAccessToken().pipe(
             switchMap(() => {
@@ -95,7 +98,9 @@ function isTokenExpired(token: string): boolean {
         }
         return false;
     } catch (error) {
-        console.error('Failed to check token expiration:', error);
+        if (!environment.production) {
+            console.error('Failed to check token expiration:', error);
+        }
         return false;
     }
 }

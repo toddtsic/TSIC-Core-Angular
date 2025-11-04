@@ -20,9 +20,6 @@ type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DA
     styleUrl: './profile-editor.component.scss'
 })
 export class ProfileEditorComponent implements OnInit {
-    // Reference to satisfy strict template analyzer that TsicDialogComponent is intended for this template
-    // and to keep the symbol "used" at TS level.
-    private readonly __tsicDialogComponentRef = TsicDialogComponent;
     private readonly migrationService = inject(ProfileMigrationService);
     private readonly authService = inject(AuthService);
     private readonly toast = inject(ToastService);
