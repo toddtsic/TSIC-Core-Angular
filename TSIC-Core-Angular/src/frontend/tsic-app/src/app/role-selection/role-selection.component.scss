@@ -44,7 +44,7 @@
 ::ng-deep .dropdown-item-custom {
   display: flex;
   align-items: center;
-  padding: 0.5rem 0;
+  padding: 0.5rem 0.5rem; // add a bit of space on the left/right
 
   .job-logo {
     height: 2.5em; // 1.5x the line height

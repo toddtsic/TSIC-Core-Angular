@@ -1,8 +1,8 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, inject, signal, effect } from '@angular/core';
+import { Component, OnInit, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
+import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 
 @Component({
@@ -12,11 +12,10 @@ import { Query } from '@syncfusion/ej2-data';
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']
 })
-export class RoleSelectionComponent implements OnInit, AfterViewInit, OnDestroy {
+export class RoleSelectionComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  @ViewChild('firstDropdown') firstDropdown!: DropDownListComponent;
 
   // Signals instead of observables
   registrations = signal<any[]>([]);
@@ -26,33 +25,35 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit, OnDestroy 
   // Syncfusion DropdownList field mappings
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
+  // Reflect service signals into local state used by the template
+  // Define as a field initializer so it runs within the component's injection context
+  private readonly _mirrorServiceState = effect(() => {
+    this.registrations.set(this.authService.registrations());
+    this.isLoading.set(this.authService.registrationsLoading());
+    this.errorMessage.set(this.authService.registrationsError());
+  }, { allowSignalWrites: true });
+
   ngOnInit(): void {
     // Trigger fetch
     this.authService.loadAvailableRegistrations();
-
-    // Reflect service signals into local state used by the template
-    effect(() => {
-      this.registrations.set(this.authService.registrations());
-      this.isLoading.set(this.authService.registrationsLoading());
-      this.errorMessage.set(this.authService.registrationsError());
-    });
   }
 
-  // Keep autofocus behavior once registrations load
-  // (This uses a timeout intentionally for visual polish on first render)
-  // No subscription to HTTP here; we rely on signals above
-  // and only react to the local state
-  // eslint-disable-next-line @typescript-eslint/member-ordering
-  private _autofocusTimer: any;
-  ngAfterViewInit(): void {
-    this._autofocusTimer = setTimeout(() => {
-      if (this.firstDropdown && (this.registrations().length > 0)) {
-        this.firstDropdown.showPopup();
-      }
-    }, 150);
+  // No extra lifecycle hooks needed; popup opens from (created)/(dataBound) in the template
+  // Auto-open support for the first dropdown: call showPopup once it is created/bound.
+  // We defensively queue the call to ensure the popup can calculate sizes.
+  public onFirstDropdownCreated(dd: any): void {
+    try {
+      // Microtask first
+      queueMicrotask(() => dd?.showPopup?.());
+      // Fallback in case microtask runs too early
+      setTimeout(() => dd?.showPopup?.(), 0);
+    } catch { /* no-op */ }
   }
-  ngOnDestroy(): void {
-    if (this._autofocusTimer) clearTimeout(this._autofocusTimer);
+
+  public onFirstDropdownDataBound(dd: any): void {
+    try {
+      dd?.showPopup?.();
+    } catch { /* no-op */ }
   }
 
   // Handle typeahead filtering
@@ -76,14 +77,28 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit, OnDestroy 
 
     this.errorMessage.set(null);
     this.authService.selectRegistrationCommand(registration.regId);
+  }
 
-    // Navigate when jobPath is available (token updated)
-    const jobPath = this.authService.getJobPath();
-    if (jobPath) {
-      const routePath = jobPath.startsWith('/') ? jobPath.substring(1) : jobPath;
+  // Navigate to job path only after a selection action completes
+  // Track a local flag to ensure we only navigate on a true selection lifecycle
+  private _wasSelecting = false;
+  private readonly _navEffect = effect(() => {
+    const loading = this.authService.selectLoading();
+    const user = this.authService.getCurrentUser();
+
+    // Mark when a selection is in-flight
+    if (loading) {
+      this._wasSelecting = true;
+      return;
+    }
+
+    // Only navigate when a selection just finished successfully
+    if (!loading && this._wasSelecting && user?.jobPath) {
+      const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
+      this._wasSelecting = false;
       this.router.navigate([routePath]);
     }
-  }
+  });
 
   logout(): void {
     this.authService.logout();

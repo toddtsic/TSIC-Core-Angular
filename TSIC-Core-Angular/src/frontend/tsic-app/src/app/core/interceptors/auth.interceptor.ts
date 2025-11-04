@@ -12,12 +12,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const authService = inject(AuthService);
     const token = authService.getToken();
 
-    // Skip auth for auth endpoints
+    // Skip auth header only for endpoints that must not include it
+    // - login: authenticates with credentials
+    // - refresh: uses refresh token body
+    // All other endpoints (including registrations/select-registration) should include Authorization
     const isAuthEndpoint = req.url.includes('/auth/login') ||
-        req.url.includes('/auth/refresh') ||
-        req.url.includes('/auth/revoke') ||
-        req.url.includes('/auth/registrations') ||
-        req.url.includes('/auth/select-registration');
+        req.url.includes('/auth/refresh');
 
     if (isAuthEndpoint) {
         // Don't add any auth header to auth endpoints (they handle their own auth via request body)

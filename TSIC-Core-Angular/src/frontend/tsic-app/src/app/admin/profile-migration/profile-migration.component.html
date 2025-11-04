@@ -219,7 +219,7 @@
 
 <!-- Confirmation Dialog -->
 @if (showConfirmModal()) {
-<tsic-dialog [open]="true" (requestClose)="closeConfirmModal()">
+<tsic-dialog [open]="true" [closeOnBackdrop]="true" (requestClose)="closeConfirmModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">
@@ -242,7 +242,7 @@
 
 <!-- Preview Dialog -->
 @if (previewResult()) {
-<tsic-dialog [open]="true" size="lg" (requestClose)="closePreview()">
+<tsic-dialog [open]="true" size="lg" [closeOnBackdrop]="true" (requestClose)="closePreview()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">

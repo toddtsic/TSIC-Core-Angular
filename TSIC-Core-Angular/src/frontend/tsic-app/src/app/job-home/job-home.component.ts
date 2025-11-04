@@ -22,6 +22,17 @@ export class JobHomeComponent implements OnInit {
   error = signal<string | null>(null);
   isAuthenticated = signal(false);
 
+  // Reflect service signals into local signals used by the template
+  // Define as a field initializer so it runs within the component's injection context
+  private readonly _mirrorServiceState = effect(() => {
+    const statuses = this.jobService.registrationStatuses();
+    const isLoading = this.jobService.registrationLoading();
+    const err = this.jobService.registrationError();
+    this.registrationStatuses.set(statuses);
+    this.loading.set(isLoading);
+    this.error.set(err);
+  }, { allowSignalWrites: true });
+
   ngOnInit() {
     // Get jobPath from route - check parent if on /home child route
     let jobPathParam = this.route.snapshot.paramMap.get('jobPath');
@@ -41,14 +52,5 @@ export class JobHomeComponent implements OnInit {
     this.error.set(null);
     this.jobService.loadRegistrationStatus(this.jobPath(), ['Player']);
 
-    // Reflect service signals into local signals used by the template
-    effect(() => {
-      const statuses = this.jobService.registrationStatuses();
-      const isLoading = this.jobService.registrationLoading();
-      const err = this.jobService.registrationError();
-      this.registrationStatuses.set(statuses);
-      this.loading.set(isLoading);
-      this.error.set(err);
-    });
   }
 }

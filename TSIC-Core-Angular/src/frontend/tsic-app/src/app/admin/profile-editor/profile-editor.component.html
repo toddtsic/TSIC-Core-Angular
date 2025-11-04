@@ -3,31 +3,32 @@
     <tsic-dialog [open]="false"></tsic-dialog>
     <div class="row mb-4">
         <div class="col-12">
-            <!-- Centered page title on its own row -->
-            <div class="mb-2 text-center">
-                <h2 class="mb-0">Profile Metadata Editor</h2>
-            </div>
-            <!-- Action buttons: centered on mobile, right-aligned on md+ -->
-            <div class="w-100 d-flex justify-content-center justify-content-md-end mb-3">
-                <div class="btn-group btn-group-sm" aria-label="Page actions">
-                    <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary">
-                        <i class="bi bi-house-door me-1"></i>
-                        <span class="d-none d-sm-inline">Home</span>
-                        <span class="d-inline d-sm-none">Home</span>
-                    </a>
-                    <button class="btn btn-success" (click)="openCreateModal()">
-                        <i class="bi bi-plus-lg me-1"></i>
-                        <span>New Profile</span>
-                    </button>
-                    <a [routerLink]="['/', jobPath(), 'admin', 'profile-migration']" class="btn btn-primary">
-                        <i class="bi bi-database-gear me-1"></i>
-                        <span class="d-none d-sm-inline">Migration Dashboard</span>
-                        <span class="d-inline d-sm-none">Migrate</span>
-                    </a>
+            <!-- Title + actions on one line for md+; stacked/centered on mobile -->
+            <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 mb-2">
+                <h2 class="mb-0 text-center text-md-start">Profile Metadata Editor</h2>
+                <div class="d-flex justify-content-center justify-content-md-end">
+                    <div class="btn-group btn-group-sm" aria-label="Page actions">
+                        <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary" title="Go to job home"
+                            aria-label="Go to job home">
+                            <i class="bi bi-house-door me-1"></i>
+                            <span class="d-none d-sm-inline">Home</span>
+                            <span class="d-inline d-sm-none">Home</span>
+                        </a>
+                        <button class="btn btn-success" type="button" title="Create new profile"
+                            aria-label="Create new profile" (click)="openCreateModal()">
+                            <i class="bi bi-plus-lg me-1"></i>
+                            <span>New Profile</span>
+                        </button>
+                        <a [routerLink]="['/', jobPath(), 'admin', 'profile-migration']" class="btn btn-primary"
+                            title="Open migration dashboard" aria-label="Open migration dashboard">
+                            <i class="bi bi-database-gear me-1"></i>
+                            <span class="d-none d-sm-inline">Migration Dashboard</span>
+                            <span class="d-inline d-sm-none">Migrate</span>
+                        </a>
+                    </div>
                 </div>
             </div>
-            <p class="text-muted">Edit profile field metadata. Changes affect all jobs using the selected profile type.
-            </p>
+            
         </div>
     </div>
 
@@ -161,17 +162,23 @@
             @if (activeTab() === 'fields') {
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 d-flex align-items-center">
-                        <span>Profile Fields</span>
-                        @if (selectedProfileType()) {
-                        <span class="badge bg-warning text-dark ms-2">{{ selectedProfileDisplay() }}</span>
-                        }
-                    </h5>
+                    <div class="d-flex align-items-center flex-wrap">
+                        <h5 class="mb-0 d-flex align-items-center">
+                            <span>Profile Fields</span>
+                            @if (selectedProfileType()) {
+                            <span class="badge bg-warning text-dark ms-2">{{ selectedProfileDisplay() }}</span>
+                            }
+                        </h5>
+                        <small class="text-muted ms-3 d-none d-xl-inline">Edits here affect all jobs using the selected profile type. For this job only overrides, use Job Options.</small>
+                    </div>
                     <button class="btn btn-success btn-sm" (click)="addNewField()" [disabled]="isSaving()">
                         <i class="bi bi-plus-circle me-1"></i> Add Field
                     </button>
                 </div>
                 <div class="card-body">
+                    <div class="alert alert-info py-2 px-3 small d-xl-none" role="note">
+                        Edits here affect all jobs using the selected profile type. For job-specific dropdown values, use <strong>Job Options</strong>.
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -246,18 +253,21 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" (click)="openEditByField(field)"
-                                                title="Edit" [disabled]="isSaving()">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-outline-info" (click)="openTestModal(field.name)"
-                                                title="Test Validation">
-                                                <i class="bi bi-clipboard-check"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger"
-                                                (click)="removeFieldByName(field.name)" title="Remove"
+                                            <button class="btn btn-outline-primary" type="button"
+                                                (click)="openEditByField(field)" title="Edit" aria-label="Edit"
                                                 [disabled]="isSaving()">
-                                                <i class="bi bi-trash"></i>
+                                                <i class="bi bi-pencil" title="Edit" aria-hidden="true"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info" type="button"
+                                                (click)="openTestModal(field.name)" title="Test Validation"
+                                                aria-label="Test Validation">
+                                                <i class="bi bi-clipboard-check" title="Test Validation"
+                                                    aria-hidden="true"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" type="button"
+                                                (click)="removeFieldByName(field.name)" title="Remove"
+                                                aria-label="Remove" [disabled]="isSaving()">
+                                                <i class="bi bi-trash" title="Remove" aria-hidden="true"></i>
                                             </button>
                                         </div>
                                     </td>
@@ -300,13 +310,17 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" (click)="openEditByField(field)"
-                                                title="Edit"><i class="bi bi-pencil"></i></button>
-                                            <button class="btn btn-outline-info" (click)="openTestModal(field.name)"
-                                                title="Test Validation"><i class="bi bi-clipboard-check"></i></button>
-                                            <button class="btn btn-outline-danger"
-                                                (click)="removeFieldByName(field.name)" title="Remove"><i
-                                                    class="bi bi-trash"></i></button>
+                                            <button class="btn btn-outline-primary" type="button"
+                                                (click)="openEditByField(field)" title="Edit" aria-label="Edit"><i
+                                                    class="bi bi-pencil" title="Edit" aria-hidden="true"></i></button>
+                                            <button class="btn btn-outline-info" type="button"
+                                                (click)="openTestModal(field.name)" title="Test Validation"
+                                                aria-label="Test Validation"><i class="bi bi-clipboard-check"
+                                                    title="Test Validation" aria-hidden="true"></i></button>
+                                            <button class="btn btn-outline-danger" type="button"
+                                                (click)="removeFieldByName(field.name)" title="Remove"
+                                                aria-label="Remove"><i class="bi bi-trash" title="Remove"
+                                                    aria-hidden="true"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -329,7 +343,7 @@
 
 <!-- Confirm Dialog -->
 @if (showConfirmModal()) {
-<tsic-dialog [open]="true" (requestClose)="closeConfirm()">
+<tsic-dialog [open]="true" [closeOnBackdrop]="true" (requestClose)="closeConfirm()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>{{ confirmModalTitle()
@@ -340,7 +354,7 @@
             <p class="mb-0">{{ confirmModalMessage() }}</p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeConfirm()" autofocus>Cancel</button>
+            <button type="button" class="btn btn-secondary" (click)="closeConfirm()">Cancel</button>
             <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
         </div>
     </div>
@@ -349,7 +363,7 @@
 
 <!-- Add Field Dialog -->
 @if (isAddFieldModalOpen()) {
-<tsic-dialog [open]="true" (requestClose)="closeAddFieldModal()">
+<tsic-dialog [open]="true" [closeOnBackdrop]="true" (requestClose)="closeAddFieldModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Add Field</h5>
@@ -358,7 +372,7 @@
         <div class="modal-body">
             <div class="mb-3">
                 <label class="form-label" for="new-field-select">Choose a field</label>
-                <select id="new-field-select" class="form-select" [(ngModel)]="selectedNewFieldName" autofocus>
+                <select id="new-field-select" class="form-select" [(ngModel)]="selectedNewFieldName">
                     <option [ngValue]="null">-- Select a field --</option>
                     @for (opt of availableNewFields(); track opt.name) {
                     <option [ngValue]="opt.name">{{ opt.name }} ({{ opt.displayName }})</option>
@@ -401,7 +415,7 @@
 
 <!-- Edit Field Dialog -->
 @if (isEditModalOpen()) {
-<tsic-dialog [open]="true" size="lg" (requestClose)="closeEditModal()">
+<tsic-dialog [open]="true" size="lg" [closeOnBackdrop]="true" (requestClose)="closeEditModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Edit Field: {{ editingField()?.name }}</h5>
@@ -420,8 +434,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="edit-display-name">Display Name</label>
-                    <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName"
-                        autofocus>
+                    <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="edit-input-type">Input Type</label>
@@ -564,7 +577,7 @@
 
 <!-- Create New Profile Dialog -->
 @if (isCreateModalOpen()) {
-<tsic-dialog [open]="true" (requestClose)="closeCreateModal()">
+<tsic-dialog [open]="true" [closeOnBackdrop]="true" (requestClose)="closeCreateModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Create New Profile</h5>
@@ -573,7 +586,7 @@
         <div class="modal-body">
             <div class="mb-3">
                 <label class="form-label fw-bold" for="clone-from">Clone From:</label>
-                <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource" autofocus
+                <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource"
                     (ngModelChange)="onCloneSourceSelected($event)" [disabled]="isCloning()">
                     <option [ngValue]="null">-- Select a profile to clone --</option>
                     @for (profile of availableProfiles(); track profile.type) {
@@ -613,7 +626,7 @@
 
 <!-- Test Validation Dialog -->
 @if (isTestModalOpen()) {
-<tsic-dialog [open]="true" (requestClose)="closeTestModal()">
+<tsic-dialog [open]="true" [closeOnBackdrop]="true" (requestClose)="closeTestModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Test Validation: {{ testFieldName() }}</h5>
@@ -622,7 +635,7 @@
         <div class="modal-body">
             <div class="mb-3">
                 <label class="form-label" for="test-value">Test Value</label>
-                <input id="test-value" type="text" class="form-control" [(ngModel)]="testValue" autofocus
+                <input id="test-value" type="text" class="form-control" [(ngModel)]="testValue"
                     placeholder="Enter a value to test">
             </div>
 

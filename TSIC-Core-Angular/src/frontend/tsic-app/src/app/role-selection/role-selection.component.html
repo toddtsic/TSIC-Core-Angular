@@ -53,7 +53,9 @@
             <ejs-dropdownlist #firstDropdown [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
               [placeholder]="'Search and select ' + roleGroup.roleName + ' registration...'" [allowFiltering]="true"
               [filterBarPlaceholder]="'Type to search...'" [enabled]="!isLoading()" [popupHeight]="'350px'"
-              [popupWidth]="'100%'" (filtering)="onFiltering($event, roleGroup)" (change)="onDropdownChange($event)">
+              [popupWidth]="'100%'" (created)="onFirstDropdownCreated(firstDropdown)"
+              (dataBound)="onFirstDropdownDataBound(firstDropdown)" (filtering)="onFiltering($event, roleGroup)"
+              (change)="onDropdownChange($event)">
               <ng-template #itemTemplate let-data>
                 <div class="dropdown-item-custom">
                   @if (data.jobLogo) {

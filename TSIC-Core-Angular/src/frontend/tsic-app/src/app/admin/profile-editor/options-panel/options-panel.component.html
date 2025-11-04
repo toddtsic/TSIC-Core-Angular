@@ -4,17 +4,19 @@
     </div>
     <div class="card-body">
         <!-- Confirm Delete Dialog -->
-        <tsic-dialog [open]="showConfirm()" size="sm" (requestClose)="closeConfirm()">
-            <div class="modal-header">
-                <h6 class="modal-title">{{ confirmTitle() }}</h6>
-                <button type="button" class="btn-close" aria-label="Close" (click)="closeConfirm()"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">{{ confirmMessage() }}</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary btn-sm" (click)="closeConfirm()">Cancel</button>
-                <button class="btn btn-danger btn-sm" (click)="confirmDelete()">Delete</button>
+        <tsic-dialog [open]="showConfirm()" size="sm" [closeOnBackdrop]="true" (requestClose)="closeConfirm()">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">{{ confirmTitle() }}</h6>
+                    <button type="button" class="btn-close" aria-label="Close" (click)="closeConfirm()"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">{{ confirmMessage() }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary btn-sm" (click)="closeConfirm()">Cancel</button>
+                    <button class="btn btn-danger btn-sm" (click)="confirmDelete()">Delete</button>
+                </div>
             </div>
         </tsic-dialog>
 
@@ -31,8 +33,8 @@
             <div class="mt-2">Loading option sets...</div>
         </div>
         } @else {
-        <div class="row g-3">
-            <div class="col-md-6">
+        <div class="row g-3 align-items-start">
+            <div class="col-12 col-lg-3">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <h6 class="mb-0">Overrides</h6>
                 </div>
@@ -60,7 +62,7 @@
                 </div>
             </div>
 
-            <div class="col-md-7">
+            <div class="col-12 col-lg-9">
                 @if (editingOptionKey()) {
                 <div class="card border-primary">
                     <div class="card-header d-flex align-items-center justify-content-between">

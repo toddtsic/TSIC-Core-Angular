@@ -1,7 +1,7 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import type { Job } from '../core/services/job.service';
 import { CommonModule } from '@angular/common';
-import { Router, RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet, RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
 import { ThemeService } from '../core/services/theme.service';
@@ -9,7 +9,7 @@ import { ThemeService } from '../core/services/theme.service';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet],
+  imports: [CommonModule, RouterOutlet, RouterLink],
   template: `
     <!-- Header -->
     <header class="tsic-header">
@@ -69,16 +69,17 @@ import { ThemeService } from '../core/services/theme.service';
               <!-- Button group on mobile, separate buttons on desktop -->
               <div class="btn-group d-md-none">
                 @if (showRoleMenu()) {
-                  <button 
-                    type="button" 
+                  <a 
+                    role="button"
                     class="btn btn-sm btn-outline-success" 
-                    (click)="switchRole()"
+                    [routerLink]="['/tsic/role-selection']"
+                    (click)="onSwitchRole($event)"
                     title="Switch Role">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
                       <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z"/>
                     </svg>
-                  </button>
+                  </a>
                 }
                 <button 
                   type="button" 
@@ -122,16 +123,17 @@ import { ThemeService } from '../core/services/theme.service';
               
               <!-- Separate buttons on desktop -->
               @if (showRoleMenu()) {
-                <button 
-                  type="button" 
+                <a 
+                  role="button"
                   class="btn btn-sm btn-outline-success d-none d-md-inline-flex" 
-                  (click)="switchRole()"
+                  [routerLink]="['/tsic/role-selection']"
+                  (click)="onSwitchRole($event)"
                   title="Switch Role">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
                     <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z"/>
                   </svg>
-                </button>
+                </a>
               }
               <button 
                 type="button" 
@@ -299,10 +301,11 @@ import { ThemeService } from '../core/services/theme.service';
     .job-name {
       font-size: 0.875rem;
       font-weight: 500;
+      /* Let the job label grow with its text; don't truncate */
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 200px;
+      overflow: visible;
+      text-overflow: clip;
+      max-width: none;
     }
 
     .vr {
@@ -392,11 +395,19 @@ export class LayoutComponent {
     this.username.set(user?.username || '');
     this.showRoleMenu.set(!!user?.regId);
 
+    // Mirror AuthService state reactively into header UI
+    effect(() => {
+      const u = this.auth.currentUser();
+      this.username.set(u?.username || '');
+      this.showRoleMenu.set(!!u?.regId);
+      this.isAuthenticated.set(!!u);
+    }, { allowSignalWrites: true });
+
     // Reactively update header whenever the current job changes
     effect(() => {
       const job = this.jobService.currentJob();
       this.applyJobInfo(job);
-    });
+    }, { allowSignalWrites: true });
   }
 
   private applyJobInfo(job: Job | null) {
@@ -430,6 +441,14 @@ export class LayoutComponent {
   }
 
   switchRole() {
+    this.router.navigate(['/tsic/role-selection']);
+  }
+
+  onSwitchRole(event: Event) {
+    // Prevent any default anchor behavior and force SPA navigation
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    // Optional polish: clear current job header to avoid spinner flash
+    try { this.jobService.currentJob.set(null); } catch { /* ignore */ }
     this.router.navigate(['/tsic/role-selection']);
   }
 
