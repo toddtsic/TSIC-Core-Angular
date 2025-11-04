@@ -10,18 +10,18 @@ import { PaymentComponent } from './steps/payment.component';
 import { RegistrationWizardService } from './registration-wizard.service';
 import { StartChoiceComponent, StartChoice } from './steps/start-choice.component';
 import { EditLookupComponent } from './steps/edit-lookup.component';
-import { AuthService } from '../core/services/auth.service';
+import { AuthService } from '../../core/services/auth.service';
 
 export type StepId = 'start' | 'edit-lookup' | 'players' | 'constraint' | 'teams' | 'forms' | 'review' | 'payment';
 
 @Component({
-    selector: 'app-registration-wizard',
+    selector: 'app-player-registration-wizard',
     standalone: true,
     imports: [CommonModule, RouterModule, StartChoiceComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, ConstraintSelectionComponent, PlayerFormsComponent, PaymentComponent],
-    templateUrl: './registration-wizard.component.html',
-    styleUrls: ['./registration-wizard.component.scss']
+    templateUrl: './player-registration-wizard.component.html',
+    styleUrls: ['./player-registration-wizard.component.scss']
 })
-export class RegistrationWizardComponent implements OnInit {
+export class PlayerRegistrationWizardComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     readonly state = inject(RegistrationWizardService);

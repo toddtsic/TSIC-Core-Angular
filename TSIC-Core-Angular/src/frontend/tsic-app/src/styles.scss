@@ -96,6 +96,108 @@
 }
 
 /* ============================================
+   Wizard UI (Global, reusable across wizards)
+   ============================================ */
+
+/* Step chips with horizontal scroll */
+.rw-steps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    overflow-x: auto;
+    /* Extra space so chip content doesn’t touch the scroll bar */
+    padding-bottom: .50rem;
+}
+
+.rw-step {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    padding: .25rem .75rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+    font-size: .875rem;
+}
+
+.rw-step-index {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--bs-border-color);
+    font-weight: 600;
+    font-size: .8rem;
+}
+
+.rw-step.completed {
+    border-color: var(--bs-success-border-subtle);
+    color: var(--bs-success);
+}
+
+.rw-step.completed .rw-step-index {
+    background: var(--bs-success-bg-subtle);
+    border-color: var(--bs-success-border-subtle);
+}
+
+.rw-step.active {
+    background: var(--bs-primary-bg-subtle);
+    border-color: var(--bs-primary);
+    color: var(--bs-primary);
+}
+
+.rw-step.active .rw-step-index {
+    background: var(--bs-primary);
+    color: #fff;
+    border-color: var(--bs-primary);
+}
+
+/* Choice tile pattern for start screens and similar */
+.selectable {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    transition: background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    cursor: pointer;
+}
+
+.selectable:hover {
+    background-color: var(--bs-secondary-bg);
+    border-color: var(--bs-primary-border-subtle, var(--bs-primary));
+}
+
+.selectable:has(.form-check-input:focus-visible) {
+    box-shadow: 0 0 0 .25rem rgba(var(--bs-primary-rgb), .15);
+    border-color: var(--bs-primary);
+}
+
+.selectable .form-check-input {
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid var(--bs-primary);
+    box-shadow: 0 0 0 .1rem rgba(var(--bs-primary-rgb), .15);
+}
+
+.selectable .form-check-input:checked {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.selectable .form-check-input:focus {
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .25);
+}
+
+/* Reduce default list-group flush divider weight so our border reads stronger */
+.list-group-flush>.list-group-item {
+    border-width: 0;
+}
+
+/* ============================================
    Public Layout Styles
    ============================================ */
 

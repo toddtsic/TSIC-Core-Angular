@@ -1,0 +1,38 @@
+/* Make the radio options stand out and feel clickable */
+.selectable {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    transition: background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    cursor: pointer;
+}
+
+.selectable:hover {
+    background-color: var(--bs-secondary-bg);
+    border-color: var(--bs-primary-border-subtle, var(--bs-primary));
+}
+
+.selectable:has(.form-check-input:focus-visible) {
+    box-shadow: 0 0 0 .25rem rgba(var(--bs-primary-rgb), .15);
+    border-color: var(--bs-primary);
+}
+
+.selectable .form-check-input {
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid var(--bs-primary);
+    box-shadow: 0 0 0 .1rem rgba(var(--bs-primary-rgb), .15);
+}
+
+.selectable .form-check-input:checked {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.selectable .form-check-input:focus {
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .25);
+}
+
+/* Reduce default list-group flush divider weight so our border reads stronger */
+.list-group-flush>.list-group-item {
+    border-width: 0;
+}

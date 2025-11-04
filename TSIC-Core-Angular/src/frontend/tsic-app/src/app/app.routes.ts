@@ -34,7 +34,7 @@ export const routes: Routes = [
 			// Family Account wizard (create/manage family + children)
 			{
 				path: 'family-account',
-				loadComponent: () => import('./family-account-wizard/family-account-wizard.component').then(m => m.FamilyAccountWizardComponent)
+				loadComponent: () => import('./registration-wizards/family-account-wizard/family-account-wizard.component').then(m => m.FamilyAccountWizardComponent)
 			},
 			// TSIC job home when user is registered for TSIC (wrapped in job-specific layout)
 			{
@@ -64,7 +64,7 @@ export const routes: Routes = [
 			// Registration wizard route (player-specific)
 			{
 				path: 'register-player',
-				loadComponent: () => import('./registration-wizard/registration-wizard.component').then(m => m.RegistrationWizardComponent),
+				loadComponent: () => import('./registration-wizards/player-registration-wizard/player-registration-wizard.component').then(m => m.PlayerRegistrationWizardComponent),
 				canActivate: [anonymousJobGuard]
 			},
 			{

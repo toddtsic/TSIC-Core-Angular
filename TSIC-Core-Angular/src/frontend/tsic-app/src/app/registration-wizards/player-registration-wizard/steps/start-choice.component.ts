@@ -4,11 +4,11 @@ import { CommonModule } from '@angular/common';
 export type StartChoice = 'new' | 'edit' | 'parent';
 
 @Component({
-  selector: 'app-rw-start-choice',
-  standalone: true,
-  imports: [CommonModule],
-  styleUrls: ['./start-choice.component.scss'],
-  template: `
+    selector: 'app-rw-start-choice',
+    standalone: true,
+    imports: [CommonModule],
+    styleUrls: ['./start-choice.component.scss'],
+    template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header gradient-header border-0 py-4 text-center text-white">
         <h5 class="mb-1 fw-semibold">Get started with Player registration</h5>
@@ -41,6 +41,6 @@ export type StartChoice = 'new' | 'edit' | 'parent';
     `
 })
 export class StartChoiceComponent {
-  @Output() selected = new EventEmitter<StartChoice>();
-  choose(val: StartChoice): void { this.selected.emit(val); }
+    @Output() selected = new EventEmitter<StartChoice>();
+    choose(val: StartChoice): void { this.selected.emit(val); }
 }
