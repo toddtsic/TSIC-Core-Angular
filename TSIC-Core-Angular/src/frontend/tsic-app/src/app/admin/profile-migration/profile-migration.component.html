@@ -1,20 +1,26 @@
 <div class="container-fluid mt-4">
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
                 <div>
-                    <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary me-2 mb-2 mb-md-0">
-                        <i class="bi bi-arrow-left"></i> Back to Home
-                    </a>
-                    <h2 class="d-inline-block mb-0"><i class="bi bi-database-gear"></i> Player Profile Migration</h2>
+                    <h2 class="d-inline-block mb-0 text-nowrap"><i class="bi bi-database-gear me-2"></i> Player Profile
+                        Migration</h2>
                 </div>
-                <div>
-                    <button class="btn btn-outline-secondary me-2" (click)="loadProfiles()" [disabled]="isLoading()">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh
-                    </button>
-                    <a [routerLink]="['/', jobPath(), 'admin', 'profile-editor']" class="btn btn-primary">
-                        <i class="bi bi-pencil-square"></i> Profile Editor
-                    </a>
+                <div class="w-100 w-md-auto d-flex justify-content-center justify-content-md-end">
+                    <div class="btn-group btn-group-sm">
+                        <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary">
+                            <i class="bi bi-house-door me-1"></i> <span class="d-none d-sm-inline">Home</span><span
+                                class="d-inline d-sm-none">Home</span>
+                        </a>
+                        <button class="btn btn-outline-secondary" (click)="loadProfiles()" [disabled]="isLoading()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> <span
+                                class="d-none d-sm-inline">Refresh</span><span class="d-inline d-sm-none">Ref</span>
+                        </button>
+                        <a [routerLink]="['/', jobPath(), 'admin', 'profile-editor']" class="btn btn-primary">
+                            <i class="bi bi-pencil-square me-1"></i> <span class="d-none d-sm-inline">Profile
+                                Editor</span><span class="d-inline d-sm-none">Editor</span>
+                        </a>
+                    </div>
                 </div>
             </div>
 

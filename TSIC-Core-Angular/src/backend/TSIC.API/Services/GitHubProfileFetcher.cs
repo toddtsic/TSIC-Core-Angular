@@ -19,6 +19,17 @@ public class GitHubFileContent
 }
 
 /// <summary>
+/// GitHub API item for directory listings
+/// </summary>
+public class GitHubContentItem
+{
+    public string name { get; set; } = string.Empty;
+    public string path { get; set; } = string.Empty;
+    public string sha { get; set; } = string.Empty;
+    public string type { get; set; } = string.Empty; // "file" | "dir"
+}
+
+/// <summary>
 /// Fetches POCO class source files from GitHub repository
 /// </summary>
 public class GitHubProfileFetcher
@@ -146,6 +157,66 @@ public class GitHubProfileFetcher
         }
     }
 
+    /// <summary>
+    /// List all profile types (PP## and CAC##) by enumerating the repository directories
+    /// </summary>
+    public async Task<List<string>> ListAllProfileTypesAsync()
+    {
+        var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
+        var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
+
+        var ppPath = "TSIC-Unify-Models/ViewModels/RegPlayersSingle_ViewModels";
+        var cacPath = "TSIC-Unify-Models/ViewModels/RegPlayersMulti_ViewModels";
+
+        var ppItems = await FetchDirectoryListingAsync(repoOwner, repoName, ppPath);
+        var cacItems = await FetchDirectoryListingAsync(repoOwner, repoName, cacPath);
+
+        var result = new List<string>();
+
+        // PP files are like PP10ViewModel.cs
+        foreach (var item in ppItems.Where(i => string.Equals(i.type, "file", StringComparison.OrdinalIgnoreCase)))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(item.name, @"^(PP\d+)ViewModel\.cs$");
+            if (m.Success) result.Add(m.Groups[1].Value);
+        }
+
+        // CAC files are like CAC04ViewModels.cs
+        foreach (var item in cacItems.Where(i => string.Equals(i.type, "file", StringComparison.OrdinalIgnoreCase)))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(item.name, @"^(CAC\d+)ViewModels\.cs$");
+            if (m.Success) result.Add(m.Groups[1].Value);
+        }
+
+        return result.Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(x => x)
+                     .ToList();
+    }
+
+    private async Task<List<GitHubContentItem>> FetchDirectoryListingAsync(string owner, string repo, string path)
+    {
+        var baseUrl = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
+        // Only enforce branch for TSIC-Unify-2024 repository
+        var url = string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase)
+            ? $"{baseUrl}?ref={Uri.EscapeDataString(_repoBranch)}"
+            : baseUrl;
+
+        _logger.LogDebug("Requesting GitHub directory URL: {Url}", url);
+
+        var response = await _httpClient.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            _logger.LogError("GitHub directory request failed. URL: {Url}, Status: {Status}, Response: {Response}",
+                url, response.StatusCode, error);
+            throw new HttpRequestException($"GitHub API returned {response.StatusCode}: {error}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync();
+        var items = JsonSerializer.Deserialize<List<GitHubContentItem>>(json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<GitHubContentItem>();
+
+        return items;
+    }
     /// <summary>
     /// Fetch .cshtml view file for a profile to extract hidden fields
     /// </summary>

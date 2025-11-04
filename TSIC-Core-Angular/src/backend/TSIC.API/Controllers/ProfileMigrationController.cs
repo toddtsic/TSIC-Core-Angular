@@ -159,6 +159,24 @@ public class ProfileMigrationController : ControllerBase
     }
 
     /// <summary>
+    /// Get all known profile types based on Jobs.PlayerProfileMetadataJson presence (no GitHub dependency)
+    /// </summary>
+    [HttpGet("known-profile-types")]
+    public async Task<ActionResult<List<string>>> GetKnownProfileTypes()
+    {
+        try
+        {
+            var types = await _migrationService.GetKnownProfileTypesAsync();
+            return Ok(types);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get known profile types");
+            return StatusCode(500, new { error = "Failed to get known profile types", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Preview migration for a single profile type (dry run - does not commit)
     /// </summary>
     /// <param name="profileType">Profile type (e.g., PP10, CAC05)</param>
@@ -535,6 +553,73 @@ public class ProfileMigrationController : ControllerBase
         {
             _logger.LogError(ex, "Failed to get current job profile metadata");
             return StatusCode(500, new { error = "Failed to get current job metadata", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get the current job's player profile configuration (CoreRegformPlayer parts)
+    /// </summary>
+    [HttpGet("profiles/current/config")]
+    public async Task<ActionResult<object>> GetCurrentJobProfileConfig()
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            var (profileType, teamConstraint, allowPayInFull, raw, metadata) = await _migrationService.GetCurrentJobProfileConfigAsync(regId);
+            if (string.IsNullOrEmpty(profileType))
+            {
+                return NotFound(new { error = "Current job profile configuration not found" });
+            }
+
+            return Ok(new { profileType, teamConstraint, allowPayInFull, coreRegform = raw, metadata });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get current job profile config");
+            return StatusCode(500, new { error = "Failed to get current job profile config", details = ex.Message });
+        }
+    }
+
+    public sealed class UpdateCurrentJobProfileConfigRequest
+    {
+        public string ProfileType { get; set; } = string.Empty;
+        public string TeamConstraint { get; set; } = string.Empty;
+        public bool AllowPayInFull { get; set; }
+    }
+
+    /// <summary>
+    /// Update the current job's player profile configuration (CoreRegformPlayer) and refresh metadata.
+    /// </summary>
+    [HttpPut("profiles/current/config")]
+    public async Task<ActionResult<object>> UpdateCurrentJobProfileConfig([FromBody] UpdateCurrentJobProfileConfigRequest request)
+    {
+        try
+        {
+            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+            {
+                return BadRequest(new { error = MissingRegIdMsg });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ProfileType) || string.IsNullOrWhiteSpace(request.TeamConstraint))
+            {
+                return BadRequest(new { error = "profileType and teamConstraint are required" });
+            }
+
+            var (profileType, teamConstraint, allowPayInFull, raw, metadata) =
+                await _migrationService.UpdateCurrentJobProfileConfigAsync(regId, request.ProfileType, request.TeamConstraint, request.AllowPayInFull);
+
+            return Ok(new { profileType, teamConstraint, allowPayInFull, coreRegform = raw, metadata });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update current job profile config");
+            return StatusCode(500, new { error = "Failed to update current job profile config", details = ex.Message });
         }
     }
 

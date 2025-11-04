@@ -1,9 +1,9 @@
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ProfileMigrationService, ProfileMetadata, ProfileMetadataField, ValidationTestResult, OptionSet, ProfileFieldOption } from '../../core/services/profile-migration.service';
+import { ProfileMigrationService, ProfileMetadata, ProfileMetadataField, ValidationTestResult, OptionSet, ProfileFieldOption, CurrentJobProfileConfigResponse } from '../../core/services/profile-migration.service';
 import { ALLOWED_PROFILE_FIELDS, AllowedField } from './allowed-fields';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -33,6 +33,8 @@ export class ProfileEditorComponent implements OnInit {
     availableProfiles = signal<Array<{ type: string; display: string }>>([]);
 
     selectedProfileType = signal<string | null>(null);
+    // The profile type currently employed by the active job (authoritative from server)
+    activeJobProfileType = signal<string | null>(null);
     currentMetadata = signal<ProfileMetadata | null>(null);
 
     // Display label for the currently selected profile
@@ -100,14 +102,18 @@ export class ProfileEditorComponent implements OnInit {
 
     // Job Options (Jobs.JsonOptions)
     activeTab = signal<'fields' | 'options'>('fields');
+    // Show Job Options only when editing the active job's profile
+    showJobOptionsTab = computed(() => {
+        const selected = this.selectedProfileType();
+        const active = this.activeJobProfileType();
+        if (!selected || !active) return false;
+        return selected.toLowerCase() === active.toLowerCase();
+    });
     optionSets = signal<OptionSet[]>([]);
     optionsLoading = signal(false);
     optionsError = signal<string | null>(null);
 
-    // Sources (read-only from Registrations)
-    optionSources = signal<OptionSet[]>([]);
-    sourcesLoading = signal(false);
-    sourcesError = signal<string | null>(null);
+    // Sources (removed UI) – formerly read-only from Registrations
 
     // Create Option Set state
     isCreateOptionOpen = signal(false);
@@ -121,6 +127,36 @@ export class ProfileEditorComponent implements OnInit {
     isSavingOption = signal(false);
     isRenaming = signal(false);
     renameValue = signal('');
+
+    // Filter: show only option sets referenced by fields
+    showUsedOptionsOnly = signal(true);
+    usedOptionKeys = computed(() => {
+        const keys = new Set<string>();
+        const fields = this.currentMetadata()?.fields ?? [];
+        for (const f of fields) {
+            const k = (f.dataSource || '').trim();
+            if (k) keys.add(k.toLowerCase());
+        }
+        return keys;
+    });
+    visibleOptionSets = computed(() => {
+        const sets = this.optionSets();
+        if (!this.showUsedOptionsOnly()) return sets;
+        const used = this.usedOptionKeys();
+        return sets.filter(s => used.has(s.key.toLowerCase()));
+    });
+
+    // ========= This Job's Player Profile (CoreRegformPlayer parts) =========
+    jobProfileType = signal<string>('');
+    jobTeamConstraint = signal<string>(''); // '', 'BYGRADYEAR', 'BYAGEGROUP', 'BYAGERANGE', 'BYCLUBNAME'
+    jobAllowPayInFull = signal<boolean>(false);
+    readonly teamConstraintOptions = [
+        { value: '', label: 'None' },
+        { value: 'BYGRADYEAR', label: 'By Graduation Year' },
+        { value: 'BYAGEGROUP', label: 'By Age Group' },
+        { value: 'BYAGERANGE', label: 'By Age Range' },
+        { value: 'BYCLUBNAME', label: 'By Club Name' }
+    ];
 
     // Confirm modal state (Bootstrap-styled, not browser confirm)
     showConfirmModal = signal(false);
@@ -143,6 +179,23 @@ export class ProfileEditorComponent implements OnInit {
     });
 
     ngOnInit() {
+        // Prefer server-known types based on Jobs.PlayerProfileMetadataJson (prod-safe)
+        this.migrationService.getKnownProfileTypes((types) => {
+            const mapped = types
+                .filter(t => t && (t.startsWith('PP') || t.startsWith('CAC')))
+                .sort((a, b) => a.localeCompare(b))
+                .map(t => ({ type: t, display: this.formatProfileDisplayType(t) }));
+            if (mapped.length > 0) {
+                this.availableProfiles.set(mapped);
+            } else {
+                // Fallback to summaries if none are known yet
+                this.migrationService.loadProfileSummaries();
+            }
+        }, () => {
+            // On error, fallback to summaries
+            this.migrationService.loadProfileSummaries();
+        });
+
         // Attempt to auto-load the current job's employed profile for editing
         this.migrationService.getCurrentJobProfileMetadata(
             (resp) => {
@@ -155,17 +208,46 @@ export class ProfileEditorComponent implements OnInit {
 
                 // Select and set metadata
                 this.selectedProfileType.set(resp.profileType);
+                this.activeJobProfileType.set(resp.profileType);
                 this.currentMetadata.set(resp.metadata);
 
                 // Load current job option sets in background
                 this.loadOptionSets();
-                this.loadOptionSources();
             },
             (_err) => {
                 // If not available, leave selector and allow manual choice
             }
         );
+
+        // Load the current job's CoreRegformPlayer parts for the left panel
+        this.migrationService.getCurrentJobProfileConfig(
+            (resp: CurrentJobProfileConfigResponse) => {
+                this.jobProfileType.set(resp.profileType || '');
+                this.jobTeamConstraint.set(resp.teamConstraint || '');
+                this.jobAllowPayInFull.set(!!resp.allowPayInFull);
+                // Also ensure active job type is synced
+                if (resp.profileType) {
+                    this.activeJobProfileType.set(resp.profileType);
+                }
+            },
+            () => { /* silent; panel will still render with defaults */ }
+        );
     }
+
+    // Fallback: keep availableProfiles in sync with profile summaries when used
+    private readonly summariesSync = effect(() => {
+        const summaries = this.migrationService.profileSummaries();
+        if (!summaries || summaries.length === 0) return;
+        const all = summaries
+            .map(s => s.profileType)
+            .filter(t => t && (t.startsWith('PP') || t.startsWith('CAC')))
+            .sort((a, b) => a.localeCompare(b));
+        const mapped = all.map(t => ({ type: t, display: this.formatProfileDisplayType(t) }));
+        // Only set if we don't already have a known list (prefer known types endpoint)
+        if (this.availableProfiles().length === 0) {
+            this.availableProfiles.set(mapped);
+        }
+    }, { allowSignalWrites: true });
 
     private formatProfileDisplayType(type: string): string {
         return type
@@ -177,6 +259,13 @@ export class ProfileEditorComponent implements OnInit {
             .replaceAll(/\s+/g, ' ')
             .trim();
     }
+
+    // Ensure we never remain on the Job Options tab when it's not applicable
+    private readonly guardOptionsTab = effect(() => {
+        if (this.activeTab() === 'options' && !this.showJobOptionsTab()) {
+            this.activeTab.set('fields');
+        }
+    }, { allowSignalWrites: true });
 
     // ============================================================================
     // Job Options helpers
@@ -197,20 +286,7 @@ export class ProfileEditorComponent implements OnInit {
         );
     }
 
-    loadOptionSources() {
-        this.sourcesLoading.set(true);
-        this.sourcesError.set(null);
-        this.migrationService.getCurrentJobOptionSources(
-            (sets) => {
-                this.optionSources.set(sets);
-                this.sourcesLoading.set(false);
-            },
-            (err) => {
-                this.sourcesLoading.set(false);
-                this.sourcesError.set(err?.error?.message || 'Failed to load option sources');
-            }
-        );
-    }
+    // loadOptionSources removed – dead UI eliminated
 
     openCreateOptionSet() {
         this.isCreateOptionOpen.set(true);
@@ -235,6 +311,39 @@ export class ProfileEditorComponent implements OnInit {
         const target = isForCreate ? this.newOptionValues : this.editingOptionValues;
         const current = target().filter((_, i) => i !== index);
         target.set(current);
+    }
+
+    // Contextual create helper removed (no longer used)
+
+    // Drag & drop reordering for option rows (edit/create)
+    onEditOptionDrop(event: CdkDragDrop<ProfileFieldOption[]>) {
+        const arr = this.editingOptionValues().slice();
+        moveItemInArray(arr, event.previousIndex, event.currentIndex);
+        this.editingOptionValues.set(arr);
+
+        // Persist new order immediately for the active job's JsonOptions
+        const key = this.editingOptionKey();
+        if (!key) return;
+        this.isSavingOption.set(true);
+        this.migrationService.updateCurrentJobOptionSet(
+            key,
+            arr,
+            (updated) => {
+                // sync left list
+                this.optionSets.update(list => list.map(s => s.key.toLowerCase() === updated.key.toLowerCase() ? updated : s));
+                this.isSavingOption.set(false);
+            },
+            (err) => {
+                this.isSavingOption.set(false);
+                this.optionsError.set(err?.error?.message || 'Failed to save option order');
+            }
+        );
+    }
+
+    onCreateOptionDrop(event: CdkDragDrop<ProfileFieldOption[]>) {
+        const arr = this.newOptionValues().slice();
+        moveItemInArray(arr, event.previousIndex, event.currentIndex);
+        this.newOptionValues.set(arr);
     }
 
     createOptionSet() {
@@ -345,25 +454,7 @@ export class ProfileEditorComponent implements OnInit {
         );
     }
 
-    copySource(key: string) {
-        this.migrationService.copyOptionSourceToOverride(
-            key,
-            (updated) => {
-                // Ensure it appears/updates in overrides list
-                this.optionSets.update(list => {
-                    const exists = list.some(s => s.key.toLowerCase() === updated.key.toLowerCase());
-                    return exists ? list.map(s => s.key.toLowerCase() === updated.key.toLowerCase() ? updated : s) : [updated, ...list];
-                });
-                // If the editing key matches the copied key, refresh editing buffer
-                if (this.editingOptionKey()?.toLowerCase() === updated.key.toLowerCase()) {
-                    this.editingOptionValues.set(updated.values.map(v => ({ ...v })));
-                }
-            },
-            (err) => {
-                this.optionsError.set(err?.error?.message || 'Failed to copy option source');
-            }
-        );
-    }
+    // copySource removed – Available Sources UI removed
 
     loadProfile(profileType: string) {
         // Handle CREATE NEW special case
@@ -759,6 +850,41 @@ export class ProfileEditorComponent implements OnInit {
         if (v.pattern) badges.push('pattern');
         if (v.remote) badges.push('remote');
         return badges;
+    }
+
+    applyJobProfileConfig() {
+        const newType = (this.jobProfileType() || '').trim();
+        const team = (this.jobTeamConstraint() || '').trim();
+        const allow = !!this.jobAllowPayInFull();
+        if (!newType) return;
+
+        this.isSaving.set(true);
+        this.errorMessage.set(null);
+        this.successMessage.set(null);
+
+        this.migrationService.updateCurrentJobProfileConfig(
+            newType,
+            team,
+            allow,
+            (resp) => {
+                // Update active job profile type and selected profile to stay in sync
+                this.activeJobProfileType.set(resp.profileType);
+                this.selectedProfileType.set(resp.profileType);
+                if (resp.metadata) {
+                    this.currentMetadata.set(resp.metadata);
+                }
+                // Refresh options for the active job
+                this.loadOptionSets();
+                // Positive feedback
+                this.successMessage.set('Job profile configuration updated.');
+                setTimeout(() => this.successMessage.set(null), 3000);
+                this.isSaving.set(false);
+            },
+            (err) => {
+                this.isSaving.set(false);
+                this.errorMessage.set(err?.error?.message || 'Failed to update job profile configuration');
+            }
+        );
     }
 
     // ============================================================================

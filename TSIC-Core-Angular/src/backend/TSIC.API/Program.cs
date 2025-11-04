@@ -73,6 +73,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("SuperUserOnly", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role, RoleConstants.Names.SuperuserName));
 
+
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
             RoleConstants.Names.SuperuserName,

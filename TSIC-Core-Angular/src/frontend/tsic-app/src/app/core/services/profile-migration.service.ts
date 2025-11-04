@@ -129,6 +129,16 @@ export interface CurrentJobProfileResponse {
     metadata: ProfileMetadata;
 }
 
+export interface CurrentJobProfileConfigResponse {
+    profileType: string;
+    teamConstraint: string | null;
+    allowPayInFull: boolean;
+    coreRegform: string;
+    metadata: ProfileMetadata | null;
+}
+
+
+
 // ============================================================================
 // Current Job Option Sets (Jobs.JsonOptions)
 // ============================================================================
@@ -397,6 +407,54 @@ export class ProfileMigrationService {
             }
         });
     }
+    getKnownProfileTypes(onSuccess: (types: string[]) => void, onError?: (error: any) => void): void {
+        this.http.get<string[]>(`${this.apiUrl}/known-profile-types`).subscribe({
+            next: (types) => onSuccess(types),
+            error: (error) => { if (onError) onError(error); }
+        });
+    }
+
+    // ============================================================================
+    // CURRENT JOB PROFILE CONFIG (CoreRegformPlayer parts)
+    // ============================================================================
+
+    getCurrentJobProfileConfig(onSuccess: (resp: CurrentJobProfileConfigResponse) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.get<CurrentJobProfileConfigResponse>(`${this.apiUrl}/profiles/current/config`).subscribe({
+            next: (resp) => { this._isLoading.set(false); onSuccess(resp); },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to load current job profile config';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
+
+    updateCurrentJobProfileConfig(
+        profileType: string,
+        teamConstraint: string,
+        allowPayInFull: boolean,
+        onSuccess: (resp: CurrentJobProfileConfigResponse) => void,
+        onError?: (error: any) => void
+    ): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.put<CurrentJobProfileConfigResponse>(`${this.apiUrl}/profiles/current/config`, {
+            profileType, teamConstraint, allowPayInFull
+        }).subscribe({
+            next: (resp) => { this._isLoading.set(false); onSuccess(resp); },
+            error: (error) => {
+                this._isLoading.set(false);
+                const message = error.error?.message || 'Failed to update current job profile config';
+                this._errorMessage.set(message);
+                if (onError) onError(error);
+            }
+        });
+    }
 
     // ============================================================================
     // CURRENT JOB OPTION SET APIs (Jobs.JsonOptions)
@@ -494,43 +552,5 @@ export class ProfileMigrationService {
         });
     }
 
-    // ============================================================================
-    // CURRENT JOB OPTION SOURCES (Registrations)
-    // ============================================================================
-
-    getCurrentJobOptionSources(onSuccess: (sets: OptionSet[]) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
-        this._errorMessage.set(null);
-
-        this.http.get<OptionSet[]>(`${this.apiUrl}/profiles/current/options/sources`).subscribe({
-            next: (sets) => {
-                this._isLoading.set(false);
-                onSuccess(sets);
-            },
-            error: (error) => {
-                this._isLoading.set(false);
-                const message = error.error?.message || 'Failed to load option sources';
-                this._errorMessage.set(message);
-                if (onError) onError(error);
-            }
-        });
-    }
-
-    copyOptionSourceToOverride(key: string, onSuccess: (updated: OptionSet) => void, onError?: (error: any) => void): void {
-        this._isLoading.set(true);
-        this._errorMessage.set(null);
-
-        this.http.post<OptionSet>(`${this.apiUrl}/profiles/current/options/copy-from-source`, { key }).subscribe({
-            next: (updated) => {
-                this._isLoading.set(false);
-                onSuccess(updated);
-            },
-            error: (error) => {
-                this._isLoading.set(false);
-                const message = error.error?.message || 'Failed to copy option source';
-                this._errorMessage.set(message);
-                if (onError) onError(error);
-            }
-        });
-    }
+    // (Removed) Current job option sources APIs – UI no longer exposes these
 }

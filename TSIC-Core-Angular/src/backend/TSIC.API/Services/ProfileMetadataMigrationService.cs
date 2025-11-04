@@ -353,6 +353,37 @@ public class ProfileMetadataMigrationService
     }
 
     /// <summary>
+    /// Return all known profile types (PP/CAC) observed in the environment.
+    /// Source of truth: Jobs.CoreRegformPlayer across all jobs (excluding markers and 0/1),
+    /// optionally including jobs that already have PlayerProfileMetadataJson.
+    /// This avoids any dependency on GitHub and lists all types in use, migrated or not.
+    /// </summary>
+    public async Task<List<string>> GetKnownProfileTypesAsync()
+    {
+        // Pull the minimal columns needed and process in-memory to reuse ExtractProfileType logic
+        var rows = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CoreRegformPlayer != null
+                        && j.CoreRegformPlayer != "0"
+                        && j.CoreRegformPlayer != "1"
+                        && !j.CoreRegformPlayer!.Contains(CoreRegformExcludeMarker))
+            .Select(j => new { j.CoreRegformPlayer, j.PlayerProfileMetadataJson })
+            .ToListAsync();
+
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var t = ExtractProfileType(row.CoreRegformPlayer);
+            if (!string.IsNullOrEmpty(t) && !ExcludedProfileTypes.Contains(t))
+            {
+                set.Add(t!);
+            }
+        }
+
+        return set.OrderBy(t => t).ToList();
+    }
+
+    /// <summary>
     /// Preview migration for a single profile type (dry run)
     /// </summary>
     public async Task<ProfileMigrationResult> PreviewProfileMigrationAsync(string profileType)
@@ -1334,6 +1365,77 @@ public class ProfileMetadataMigrationService
             return string.Join('|', parts.Append(newProfileType));
         }
         return string.Join('|', parts);
+    }
+
+    // ----------------------------------------------------------------------------
+    // CoreRegformPlayer helpers (compose/decompose)
+    // ----------------------------------------------------------------------------
+    private static (string? ProfileType, string? TeamConstraint, bool AllowPayInFull) ParseCoreRegformParts(string? coreRegformPlayer)
+    {
+        if (string.IsNullOrWhiteSpace(coreRegformPlayer) || coreRegformPlayer == "0" || coreRegformPlayer == "1")
+            return (null, null, false);
+
+        var parts = coreRegformPlayer.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var profileType = parts.Length >= 1 ? parts[0] : null;
+        var teamConstraint = parts.Length >= 2 ? parts[1] : null;
+        var allowPif = parts.Any(p => p.Equals("ALLOWPIF", StringComparison.OrdinalIgnoreCase));
+        return (profileType, teamConstraint, allowPif);
+    }
+
+    private static string BuildCoreRegform(string profileType, string teamConstraint, bool allowPayInFull)
+    {
+        var list = new List<string> { profileType, teamConstraint };
+        if (allowPayInFull) list.Add("ALLOWPIF");
+        return string.Join('|', list);
+    }
+
+    public async Task<(string? ProfileType, string? TeamConstraint, bool AllowPayInFull, string Raw, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
+    {
+        var registration = await _context.Registrations
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+        if (registration?.Job == null)
+        {
+            return (null, null, false, string.Empty, null);
+        }
+
+        var raw = registration.Job.CoreRegformPlayer ?? string.Empty;
+        var (pt, constraint, allowPif) = ParseCoreRegformParts(raw);
+        ProfileMetadata? metadata = null;
+        if (!string.IsNullOrEmpty(pt))
+        {
+            metadata = await GetProfileMetadataAsync(pt);
+        }
+        return (pt, constraint, allowPif, raw, metadata);
+    }
+
+    public async Task<(string ProfileType, string TeamConstraint, bool AllowPayInFull, string Raw, ProfileMetadata? Metadata)>
+        UpdateCurrentJobProfileConfigAsync(Guid regId, string profileType, string teamConstraint, bool allowPayInFull)
+    {
+        var registration = await _context.Registrations
+            .Include(r => r.Job)
+            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+        if (registration?.Job == null)
+        {
+            throw new InvalidOperationException("Current job not found for supplied regId");
+        }
+
+        // Build and persist CoreRegformPlayer
+        var newCore = BuildCoreRegform(profileType, teamConstraint, allowPayInFull);
+        registration.Job.CoreRegformPlayer = newCore;
+
+        // Refresh PlayerProfileMetadataJson to match the selected type
+        var metadata = await GetProfileMetadataAsync(profileType);
+        if (metadata != null)
+        {
+            // Serialize using default options (consistent with other paths)
+            var metadataJson = JsonSerializer.Serialize(metadata);
+            registration.Job.PlayerProfileMetadataJson = metadataJson;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return (profileType, teamConstraint, allowPayInFull, newCore, metadata);
     }
 
     /// <summary>
