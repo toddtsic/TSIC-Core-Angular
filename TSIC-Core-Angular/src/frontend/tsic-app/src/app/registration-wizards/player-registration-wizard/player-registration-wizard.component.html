@@ -10,7 +10,7 @@
 
             <progress class="w-100 mb-3" [value]="progressPercent()" max="100">{{ progressPercent() }}%</progress>
 
-            <nav class="rw-steps mb-3" aria-label="Registration steps">
+            <nav class="rw-steps mb-3" aria-label="Player registration steps">
                 <ol class="rw-steps-list">
                     @for (s of steps(); track s; let i = $index) {
                     <li class="rw-step" [class.active]="i === currentIndex()" [class.completed]="i < currentIndex()"
@@ -36,6 +36,9 @@
             }
             @case ('edit-lookup') {
             <app-rw-edit-lookup (back)="back()" (next)="next()" />
+            }
+            @case ('login') {
+            <app-rw-login (skip)="back()" (next)="next()" />
             }
             @case ('players') {
             <app-rw-player-selection (next)="next()" />

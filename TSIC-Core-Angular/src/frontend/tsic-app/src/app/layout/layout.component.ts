@@ -68,6 +68,16 @@ import { ThemeService } from '../core/services/theme.service';
               
               <!-- Button group on mobile, separate buttons on desktop -->
               <div class="btn-group d-md-none">
+                <!-- Home -->
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-primary" 
+                  (click)="goHome()"
+                  title="Home">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6a.5.5 0 1 0 .708.708L2 7.207V14.5A1.5 1.5 0 0 0 3.5 16h2A1.5 1.5 0 0 0 7 14.5V11h2v3.5A1.5 1.5 0 0 0 10.5 16h2a1.5 1.5 0 0 0 1.5-1.5V7.207l.646.647a.5.5 0 0 0 .708-.708l-6-6z"/>
+                  </svg>
+                </button>
                 @if (showRoleMenu()) {
                   <a 
                     role="button"
@@ -122,6 +132,15 @@ import { ThemeService } from '../core/services/theme.service';
               </div>
               
               <!-- Separate buttons on desktop -->
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-primary d-none d-md-inline-flex" 
+                (click)="goHome()"
+                title="Home">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6a.5.5 0 1 0 .708.708L2 7.207V14.5A1.5 1.5 0 0 0 3.5 16h2A1.5 1.5 0 0 0 7 14.5V11h2v3.5A1.5 1.5 0 0 0 10.5 16h2a1.5 1.5 0 0 0 1.5-1.5V7.207l.646.647a.5.5 0 0 0 .708-.708l-6-6z"/>
+                </svg>
+              </button>
               @if (showRoleMenu()) {
                 <a 
                   role="button"
@@ -459,5 +478,29 @@ export class LayoutComponent {
 
   toggleTheme() {
     this.themeService.toggleTheme();
+  }
+
+  private getActiveJobPath(): string | null {
+    // Prefer JobService current job
+    const job = this.jobService.getCurrentJob();
+    if (job?.jobPath) return job.jobPath;
+    // Next, try AuthService token claim
+    const claimPath = this.auth.getJobPath();
+    if (claimPath) return claimPath;
+    // Fallback: parse current URL for first non-empty segment that isn't 'tsic'
+    const url = this.router.url || '';
+    const seg = url.split('?')[0].split('#')[0].split('/').filter(s => !!s)[0];
+    if (seg && seg.toLowerCase() !== 'tsic') return seg;
+    return null;
+  }
+
+  goHome() {
+    const jobPath = this.getActiveJobPath();
+    if (jobPath) {
+      this.router.navigate(['/', jobPath]);
+    } else {
+      // If we don't know the job, send to TSIC landing/home
+      this.router.navigate(['/tsic']);
+    }
   }
 }
