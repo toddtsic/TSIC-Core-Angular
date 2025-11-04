@@ -43,6 +43,11 @@ public class GitHubProfileFetcher
     private const string BaseClassFileName = "BaseRegForm_ViewModels.cs";
     private const string CacheKeyPrefix = "GitHub_";
     private const string TargetRepoName = "TSIC-Unify-2024";
+    private const string ConfigRepoOwner = "GitHub:RepoOwner";
+    private const string ConfigRepoName = "GitHub:RepoName";
+    private const string ConfigRepoBranch = "GitHub:RepoBranch";
+    private const string ConfigToken = "GitHub:Token";
+    private const string DefaultRepoOwner = "toddtsic";
 
     public GitHubProfileFetcher(
         HttpClient httpClient,
@@ -56,7 +61,7 @@ public class GitHubProfileFetcher
         _configuration = configuration;
 
         // Branch used when querying TSIC-Unify-2024 (configurable)
-        _repoBranch = _configuration["GitHub:RepoBranch"] ?? "master2025";
+        _repoBranch = _configuration[ConfigRepoBranch] ?? "master2025";
         _logger.LogInformation("Using GitHub repo branch: {Branch}", _repoBranch);
 
         // GitHub API requires User-Agent header
@@ -64,7 +69,7 @@ public class GitHubProfileFetcher
             new ProductInfoHeaderValue("TSIC-ProfileMigration", "1.0"));
 
         // Add auth token if configured
-        var githubToken = _configuration["GitHub:Token"];
+        var githubToken = _configuration[ConfigToken];
         if (!string.IsNullOrEmpty(githubToken))
         {
             _httpClient.DefaultRequestHeaders.Authorization =
@@ -85,8 +90,8 @@ public class GitHubProfileFetcher
     {
         try
         {
-            var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
-            var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
+            var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
+            var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
 
             // Determine path based on profile type
             string folder;
@@ -136,8 +141,8 @@ public class GitHubProfileFetcher
 
         try
         {
-            var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
-            var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
+            var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
+            var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
             var path = $"TSIC-Unify-Models/ViewModels/RegForm_ViewModels/{BaseClassFileName}";
 
             _logger.LogInformation("Fetching base class from GitHub: {Path}", path);
@@ -162,8 +167,8 @@ public class GitHubProfileFetcher
     /// </summary>
     public async Task<List<string>> ListAllProfileTypesAsync()
     {
-        var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
-        var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
+        var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
+        var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
 
         var ppPath = "TSIC-Unify-Models/ViewModels/RegPlayersSingle_ViewModels";
         var cacPath = "TSIC-Unify-Models/ViewModels/RegPlayersMulti_ViewModels";
@@ -225,8 +230,8 @@ public class GitHubProfileFetcher
     {
         try
         {
-            var repoOwner = _configuration["GitHub:RepoOwner"] ?? "toddtsic";
-            var repoName = _configuration["GitHub:RepoName"] ?? TargetRepoName;
+            var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
+            var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
 
             // Determine path based on profile type
             string folder = profileType.StartsWith("CAC") ? "PlayerMulti" : "PlayerSingle";

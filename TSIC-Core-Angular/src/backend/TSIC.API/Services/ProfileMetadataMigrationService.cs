@@ -12,6 +12,14 @@ namespace TSIC.API.Services;
 public class ProfileMetadataMigrationService
 {
     private const string UnknownValue = "Unknown";
+    // Common tokens and literals centralized to satisfy analyzers and improve readability
+    private const string VisibilityHidden = "hidden";
+    private const string VisibilityPublic = "public";
+    private const string VisibilityAdminOnly = "adminOnly";
+    private const string InputTypeHidden = "HIDDEN";
+    private const string InputTypeSelect = "SELECT";
+    private const string InputTypeNumber = "NUMBER";
+    private const string InputTypeEmail = "EMAIL";
     private const string TokenList = "list";
     private const string TokenListSizes = "listsizes";
     private const string TokenSizes = "sizes";
@@ -225,18 +233,18 @@ public class ProfileMetadataMigrationService
 
             // Normalize: any hidden field must use inputType = HIDDEN
             metadata.Fields
-                .Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                .Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
                 .ToList()
-                .ForEach(f => f.InputType = "HIDDEN");
+                .ForEach(f => f.InputType = InputTypeHidden);
 
             // Renumber and reorder by visibility groups to match UI grouping (Hidden -> Public -> Admin Only)
-            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, "public", StringComparison.OrdinalIgnoreCase))
+            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityPublic, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
-            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, "adminOnly", StringComparison.OrdinalIgnoreCase))
+            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityAdminOnly, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
-            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
 
@@ -253,6 +261,7 @@ public class ProfileMetadataMigrationService
             // Serialize to JSON
             var metadataJson = JsonSerializer.Serialize(metadata, s_IndentedCamelCase);
 
+            if (!dryRun)
             {
                 var jobEntity = await _context.Jobs.FindAsync(jobId);
                 if (jobEntity != null)
@@ -269,7 +278,7 @@ public class ProfileMetadataMigrationService
             result.Success = true;
 
             // Add warnings if any
-            if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && f.InputType == "SELECT"))
+            if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && string.Equals(f.InputType, InputTypeSelect, StringComparison.OrdinalIgnoreCase)))
             {
                 result.Warnings.Add("Some SELECT fields are missing dataSource mapping");
             }
@@ -418,18 +427,18 @@ public class ProfileMetadataMigrationService
 
             // Normalize: any hidden field must use inputType = HIDDEN
             metadata.Fields
-                .Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                .Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
                 .ToList()
-                .ForEach(f => f.InputType = "HIDDEN");
+                .ForEach(f => f.InputType = InputTypeHidden);
 
             // Renumber and reorder by visibility groups to match UI grouping (Hidden -> Public -> Admin Only)
-            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, "public", StringComparison.OrdinalIgnoreCase))
+            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityPublic, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
-            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, "adminOnly", StringComparison.OrdinalIgnoreCase))
+            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityAdminOnly, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
-            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
 
@@ -495,7 +504,7 @@ public class ProfileMetadataMigrationService
             result.Success = true;
 
             // Add warnings if any
-            if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && f.InputType == "SELECT"))
+            if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && string.Equals(f.InputType, InputTypeSelect, StringComparison.OrdinalIgnoreCase)))
             {
                 result.Warnings.Add("Some SELECT fields are missing dataSource mapping");
             }
@@ -856,15 +865,21 @@ public class ProfileMetadataMigrationService
                 Name = name,
                 DisplayName = MostFrequent(agg.displayNames, name),
                 DefaultInputType = MostFrequent(agg.inputTypes, "TEXT"),
-                DefaultVisibility = MostFrequent(agg.visibilities, "public"),
+                DefaultVisibility = MostFrequent(agg.visibilities, VisibilityPublic),
                 SeenInProfiles = agg.total
             };
             list.Add(item);
         }
 
         // Order by visibility then name for readability
+        // Order by visibility (Hidden -> Public -> other) using a clearer mapping function
+        static int VisibilityRank(string v)
+            => v.Equals(VisibilityHidden, StringComparison.OrdinalIgnoreCase) ? 0
+             : v.Equals(VisibilityPublic, StringComparison.OrdinalIgnoreCase) ? 1
+             : 2;
+
         list = list
-            .OrderBy(i => i.DefaultVisibility.Equals("hidden", StringComparison.OrdinalIgnoreCase) ? 0 : i.DefaultVisibility.Equals("public", StringComparison.OrdinalIgnoreCase) ? 1 : 2)
+            .OrderBy(i => VisibilityRank(i.DefaultVisibility))
             .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -962,7 +977,7 @@ public class ProfileMetadataMigrationService
         var selectFields = metadata.Fields
             .Where(f => !string.IsNullOrWhiteSpace(f.DbColumn)
                         && !string.IsNullOrWhiteSpace(f.Name)
-                        && string.Equals(f.InputType, "SELECT", StringComparison.OrdinalIgnoreCase))
+                        && string.Equals(f.InputType, InputTypeSelect, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1049,18 +1064,18 @@ public class ProfileMetadataMigrationService
 
             // Normalize: ensure hidden fields use inputType = HIDDEN
             metadata.Fields
-                .Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+                .Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
                 .ToList()
-                .ForEach(f => f.InputType = "HIDDEN");
+                .ForEach(f => f.InputType = InputTypeHidden);
 
             // Renumber orders consistently by visibility groups: Public -> AdminOnly -> Hidden
-            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, "public", StringComparison.OrdinalIgnoreCase))
+            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityPublic, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
-            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, "adminOnly", StringComparison.OrdinalIgnoreCase))
+            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityAdminOnly, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
-            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, "hidden", StringComparison.OrdinalIgnoreCase))
+            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
                                          .OrderBy(f => f.Order)
                                          .ToList();
 
@@ -1129,75 +1144,14 @@ public class ProfileMetadataMigrationService
             return result;
         }
 
-        // Test required
-        if (field.Validation.Required && string.IsNullOrWhiteSpace(testValue))
-        {
-            result.IsValid = false;
-            result.Messages.Add("Field is required");
-        }
-
-        // Test requiredTrue (for checkboxes)
-        if (field.Validation.RequiredTrue)
-        {
-            if (!bool.TryParse(testValue, out var boolValue) || !boolValue)
-            {
-                result.IsValid = false;
-                result.Messages.Add("Checkbox must be checked (value must be true)");
-            }
-        }
-
+        ValidateRequired(field, testValue, result);
+        ValidateRequiredTrue(field, testValue, result);
         if (!string.IsNullOrWhiteSpace(testValue))
         {
-            // Test min/max length
-            if (field.Validation.MinLength.HasValue && testValue.Length < field.Validation.MinLength.Value)
-            {
-                result.IsValid = false;
-                result.Messages.Add($"Value too short (min: {field.Validation.MinLength})");
-            }
-
-            if (field.Validation.MaxLength.HasValue && testValue.Length > field.Validation.MaxLength.Value)
-            {
-                result.IsValid = false;
-                result.Messages.Add($"Value too long (max: {field.Validation.MaxLength})");
-            }
-
-            // Test numeric range
-            if (field.InputType == "NUMBER" && double.TryParse(testValue, out var numValue))
-            {
-                if (field.Validation.Min.HasValue && numValue < field.Validation.Min.Value)
-                {
-                    result.IsValid = false;
-                    result.Messages.Add($"Value too small (min: {field.Validation.Min})");
-                }
-
-                if (field.Validation.Max.HasValue && numValue > field.Validation.Max.Value)
-                {
-                    result.IsValid = false;
-                    result.Messages.Add($"Value too large (max: {field.Validation.Max})");
-                }
-            }
-
-            // Test pattern
-            if (!string.IsNullOrEmpty(field.Validation.Pattern))
-            {
-                var regex = new System.Text.RegularExpressions.Regex(field.Validation.Pattern);
-                if (!regex.IsMatch(testValue))
-                {
-                    result.IsValid = false;
-                    result.Messages.Add($"Value does not match required pattern: {field.Validation.Pattern}");
-                }
-            }
-
-            // Test email
-            if (field.Validation.Email && field.InputType == "EMAIL")
-            {
-                var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
-                if (!emailRegex.IsMatch(testValue))
-                {
-                    result.IsValid = false;
-                    result.Messages.Add("Invalid email format");
-                }
-            }
+            ValidateLength(field, testValue, result);
+            ValidateNumericRange(field, testValue, result);
+            ValidatePattern(field, testValue, result);
+            ValidateEmail(field, testValue, result);
         }
 
         if (result.IsValid && result.Messages.Count == 0)
@@ -1206,6 +1160,84 @@ public class ProfileMetadataMigrationService
         }
 
         return result;
+    }
+
+    private static void ValidateRequired(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    {
+        if (field.Validation?.Required == true && string.IsNullOrWhiteSpace(testValue))
+        {
+            result.IsValid = false;
+            result.Messages.Add("Field is required");
+        }
+    }
+
+    private static void ValidateRequiredTrue(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    {
+        if (field.Validation?.RequiredTrue == true)
+        {
+            if (!bool.TryParse(testValue, out var boolValue) || !boolValue)
+            {
+                result.IsValid = false;
+                result.Messages.Add("Checkbox must be checked (value must be true)");
+            }
+        }
+    }
+
+    private static void ValidateLength(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    {
+        if (field.Validation?.MinLength.HasValue == true && testValue.Length < field.Validation.MinLength.Value)
+        {
+            result.IsValid = false;
+            result.Messages.Add($"Value too short (min: {field.Validation.MinLength})");
+        }
+        if (field.Validation?.MaxLength.HasValue == true && testValue.Length > field.Validation.MaxLength.Value)
+        {
+            result.IsValid = false;
+            result.Messages.Add($"Value too long (max: {field.Validation.MaxLength})");
+        }
+    }
+
+    private static void ValidateNumericRange(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    {
+        if (string.Equals(field.InputType, InputTypeNumber, StringComparison.OrdinalIgnoreCase) && double.TryParse(testValue, out var numValue))
+        {
+            if (field.Validation?.Min.HasValue == true && numValue < field.Validation.Min.Value)
+            {
+                result.IsValid = false;
+                result.Messages.Add($"Value too small (min: {field.Validation.Min})");
+            }
+            if (field.Validation?.Max.HasValue == true && numValue > field.Validation.Max.Value)
+            {
+                result.IsValid = false;
+                result.Messages.Add($"Value too large (max: {field.Validation.Max})");
+            }
+        }
+    }
+
+    private static void ValidatePattern(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    {
+        if (!string.IsNullOrEmpty(field.Validation?.Pattern))
+        {
+            var regex = new System.Text.RegularExpressions.Regex(field.Validation.Pattern);
+            if (!regex.IsMatch(testValue))
+            {
+                result.IsValid = false;
+                result.Messages.Add($"Value does not match required pattern: {field.Validation.Pattern}");
+            }
+        }
+    }
+
+    private static void ValidateEmail(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    {
+        if (field.Validation?.Email == true && string.Equals(field.InputType, InputTypeEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+            if (!emailRegex.IsMatch(testValue))
+            {
+                result.IsValid = false;
+                result.Messages.Add("Invalid email format");
+            }
+        }
     }
 
     /// <summary>
@@ -1480,7 +1512,7 @@ public class ProfileMetadataMigrationService
             }
 
             // Find all SELECT fields and inject their options
-            foreach (var field in metadata.Fields.Where(f => f.InputType == "SELECT"))
+            foreach (var field in metadata.Fields.Where(f => string.Equals(f.InputType, InputTypeSelect, StringComparison.OrdinalIgnoreCase)))
             {
                 if (string.IsNullOrEmpty(field.DataSource))
                 {
@@ -1529,55 +1561,9 @@ public class ProfileMetadataMigrationService
     /// </summary>
     private static string? FindJsonOptionsKey(Dictionary<string, JsonElement> jsonOptions, string dataSource)
     {
-        // Normalize helper: lowercase and remove non-alphanumerics for flexible matching
-        static string Normalize(string s)
-            => new string(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
-
-        // Generate candidate variants from the dataSource
-        // Examples:
-        // - positions -> [positions, listpositions]
-        // - List_Positions -> [listpositions, positions]
-        // - ListSizes_Jersey -> [listsizesjersey, listjerseysizes, jerseysizes, sizesjersey, jersey]
-        var candidates = new HashSet<string>();
-
         var ds = dataSource ?? string.Empty;
-        var dsNorm = Normalize(ds);
-        candidates.Add(dsNorm);
 
-        // Strip common prefixes
-        string StripPrefix(string s, string prefixNorm)
-            => s.StartsWith(prefixNorm) ? s.Substring(prefixNorm.Length) : s;
-
-        var dsNoList = StripPrefix(dsNorm, TokenList);
-        candidates.Add(dsNoList);
-
-        var dsNoListSizes = StripPrefix(dsNorm, TokenListSizes);
-        candidates.Add(dsNoListSizes);
-
-        // Add prefixed forms
-        candidates.Add(TokenList + dsNoList);
-        candidates.Add(TokenListSizes + dsNoList);
-
-        // Handle Sizes_ reordering: ListSizes_Jersey <-> List_JerseySizes
-        // Try to split on "sizes" token and swap
-        int sizesIdx = dsNorm.IndexOf(TokenSizes, StringComparison.Ordinal);
-        if (sizesIdx >= 0)
-        {
-            var before = dsNorm.Substring(0, sizesIdx); // may include 'list'
-            var after = dsNorm.Substring(sizesIdx + TokenSizes.Length); // e.g., _jersey (without underscore after normalize)
-            // Normalize again in case we cut mid-token
-            before = Normalize(before);
-            after = Normalize(after);
-
-            if (!string.IsNullOrEmpty(after))
-            {
-                candidates.Add(before + after + TokenSizes); // listjerseysizes
-                candidates.Add(TokenList + after + TokenSizes);
-                candidates.Add(after + TokenSizes);
-            }
-        }
-
-        // Direct exact, prefix, and contains search using original strings first
+        // Direct exact, prefix, and contains search using original strings first (fast path)
         var exact = jsonOptions.Keys.FirstOrDefault(k => k.Equals(ds, StringComparison.OrdinalIgnoreCase));
         if (exact != null) return exact;
 
@@ -1587,10 +1573,11 @@ public class ProfileMetadataMigrationService
         var contains = jsonOptions.Keys.FirstOrDefault(k => k.Contains(ds, StringComparison.OrdinalIgnoreCase));
         if (contains != null) return contains;
 
-        // Fallback: normalized fuzzy matching (both directions)
+        // Fallback: normalized fuzzy matching using candidate variants
+        var candidates = GenerateDataSourceCandidates(ds);
         foreach (var key in jsonOptions.Keys)
         {
-            var nk = Normalize(key);
+            var nk = NormalizeKey(key);
             foreach (var cand in candidates)
             {
                 if (string.IsNullOrEmpty(cand)) continue;
@@ -1602,6 +1589,51 @@ public class ProfileMetadataMigrationService
         }
 
         return null;
+    }
+
+    // Normalization helper: lowercase and remove non-alphanumerics for flexible matching
+    private static string NormalizeKey(string s)
+        => new string((s ?? string.Empty).ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+
+    private static string StripPrefixNormalized(string s, string prefixNorm)
+        => s.StartsWith(prefixNorm, StringComparison.Ordinal) ? s.Substring(prefixNorm.Length) : s;
+
+    private static HashSet<string> GenerateDataSourceCandidates(string? dataSource)
+    {
+        var candidates = new HashSet<string>(StringComparer.Ordinal);
+        var ds = dataSource ?? string.Empty;
+        var dsNorm = NormalizeKey(ds);
+        candidates.Add(dsNorm);
+
+        // Strip common prefixes
+        var dsNoList = StripPrefixNormalized(dsNorm, TokenList);
+        candidates.Add(dsNoList);
+
+        var dsNoListSizes = StripPrefixNormalized(dsNorm, TokenListSizes);
+        candidates.Add(dsNoListSizes);
+
+        // Add prefixed forms
+        candidates.Add(TokenList + dsNoList);
+        candidates.Add(TokenListSizes + dsNoList);
+
+        // Handle Sizes_ reordering: ListSizes_Jersey <-> List_JerseySizes
+        int sizesIdx = dsNorm.IndexOf(TokenSizes, StringComparison.Ordinal);
+        if (sizesIdx >= 0)
+        {
+            var before = dsNorm.Substring(0, sizesIdx);
+            var after = dsNorm.Substring(sizesIdx + TokenSizes.Length);
+            before = NormalizeKey(before);
+            after = NormalizeKey(after);
+
+            if (!string.IsNullOrEmpty(after))
+            {
+                candidates.Add(before + after + TokenSizes); // listjerseysizes
+                candidates.Add(TokenList + after + TokenSizes);
+                candidates.Add(after + TokenSizes);
+            }
+        }
+
+        return candidates;
     }
 
     /// <summary>
