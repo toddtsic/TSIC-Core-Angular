@@ -192,9 +192,19 @@
 
                                     @if (status.isAvailable) {
                                     <p class="text-muted mb-3">Registration is open</p>
-                                    <a [href]="status.registrationUrl" class="btn btn-success w-100">
-                                        Start Registration
+                                    <!-- Primary: In-app Registration Wizard for Player registrations -->
+                                    @if (status.registrationType === 'Player') {
+                                    <a [routerLink]="['/', jobPath(), 'register-player']"
+                                        class="btn btn-success w-100 mb-2">
+                                        Start Registration Wizard
                                     </a>
+                                    }
+                                    <!-- Secondary: External/legacy registration URL when provided -->
+                                    @if (status.registrationUrl) {
+                                    <a [href]="status.registrationUrl" class="btn btn-outline-success w-100">
+                                        Open Registration Page
+                                    </a>
+                                    }
                                     } @else {
                                     <p class="text-muted mb-0">{{ status.message }}</p>
                                     }

@@ -1,0 +1,58 @@
+<main class="container py-4" aria-labelledby="rw-title">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <div class="card shadow-lg border-0 card-rounded mb-4">
+                <div class="card-header gradient-header text-center py-4 border-0">
+                    <h2 id="rw-title" class="mb-0 fw-bold">Registration</h2>
+                    <p class="mb-0 mt-2 opacity-75 small">Step {{ currentStep() }} of {{ totalSteps() }}</p>
+                </div>
+            </div>
+
+            <progress class="w-100 mb-4" [value]="progressPercent()" max="100">{{ progressPercent() }}%</progress>
+
+            @switch (currentStep()) {
+            @case (1) {
+            <app-rw-start-choice (selected)="onStartChoice($event)" />
+            }
+            @case (2) {
+            @if (state.startMode() === 'edit') {
+            <app-rw-edit-lookup (back)="back()" (next)="next()" />
+            } @else {
+            <app-rw-player-selection (next)="next()" />
+            }
+            }
+            @case (3) {
+            @if (state.startMode() === 'edit') {
+            <app-rw-player-forms (back)="back()" (next)="next()" />
+            } @else {
+            <app-rw-constraint-selection (back)="back()" (next)="next()" />
+            }
+            }
+            @case (4) {
+            @if (state.startMode() === 'edit') {
+            <app-rw-review (back)="back()" (next)="next()" />
+            } @else {
+            <app-rw-team-selection (back)="back()" (next)="next()" />
+            }
+            }
+            @case (5) {
+            @if (state.startMode() === 'edit') {
+            <app-rw-payment (back)="back()" (submitted)="next()" />
+            } @else {
+            <app-rw-player-forms (back)="back()" (next)="next()" />
+            }
+            }
+            @case (6) {
+            @if (state.startMode() !== 'edit') {
+            <app-rw-review (back)="back()" (next)="next()" />
+            }
+            }
+            @case (7) {
+            @if (state.startMode() !== 'edit') {
+            <app-rw-payment (back)="back()" (submitted)="next()" />
+            }
+            }
+            }
+        </div>
+    </div>
+</main>

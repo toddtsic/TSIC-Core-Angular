@@ -31,6 +31,11 @@ export const routes: Routes = [
 				loadComponent: () => import('./role-selection/role-selection.component').then(m => m.RoleSelectionComponent),
 				canActivate: [authGuard]
 			},
+			// Family Account wizard (create/manage family + children)
+			{
+				path: 'family-account',
+				loadComponent: () => import('./family-account-wizard/family-account-wizard.component').then(m => m.FamilyAccountWizardComponent)
+			},
 			// TSIC job home when user is registered for TSIC (wrapped in job-specific layout)
 			{
 				path: 'home',
@@ -54,6 +59,12 @@ export const routes: Routes = [
 			{
 				path: '',
 				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
+				canActivate: [anonymousJobGuard]
+			},
+			// Registration wizard route (player-specific)
+			{
+				path: 'register-player',
+				loadComponent: () => import('./registration-wizard/registration-wizard.component').then(m => m.RegistrationWizardComponent),
 				canActivate: [anonymousJobGuard]
 			},
 			{
