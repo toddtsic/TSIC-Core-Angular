@@ -43,6 +43,8 @@ export class RoleSelectionComponent implements OnInit {
   // We defensively queue the call to ensure the popup can calculate sizes.
   public onFirstDropdownCreated(dd: any): void {
     try {
+      // Focus input and open popup to invite immediate selection
+      dd?.focusIn?.();
       // Microtask first
       queueMicrotask(() => dd?.showPopup?.());
       // Fallback in case microtask runs too early
@@ -52,6 +54,7 @@ export class RoleSelectionComponent implements OnInit {
 
   public onFirstDropdownDataBound(dd: any): void {
     try {
+      dd?.focusIn?.();
       dd?.showPopup?.();
     } catch { /* no-op */ }
   }
