@@ -1,6 +1,36 @@
-# Profile Metadata Editor – v1 Overview (November 3, 2025)
+# Profile Metadata Editor – v1.1 Overview (November 4, 2025)
 
 This document summarizes the current state of the Profile Metadata Editor and related migration behavior. It complements the original design docs and the Angular coding standards.
+
+## What’s new in v1.1
+
+- Job Options are strictly per-job
+  - Option sets live only in `Jobs.JsonOptions` and are never stored inside `PlayerProfileMetadataJson`.
+  - The Options tab now lists only the dropdown lists actually referenced by fields in the currently selected profile.
+  - Keys are read-only; rows support drag-and-drop reordering with immediate auto-save.
+  - The old "Available Sources" view and "Copy to override" flow have been removed from the UI.
+
+- Options visibility is contextual
+  - The Job Options tab is shown only when you're editing the active job's profile.
+  - If you navigate to a different profile, the editor auto-returns you to the Fields tab.
+
+- Left-side "This Job’s Player Profile" panel
+  - Edit Profile Type, Team Constraint (optional, can be empty), and Allow Pay In Full.
+  - Apply writes `Job.CoreRegformPlayer` and then refreshes metadata/options in the UI.
+  - Reset restores the last applied values.
+  - A warning-styled badge displays the raw CoreRegform string for quick verification.
+  - Dirty-state protections: unsaved-changes badge, guarded profile switching, and `beforeunload` warning.
+
+- CoreRegform semantics tightened
+  - Team Constraint is optional; when empty it's omitted from the pipe-delimited string (no stray pipes).
+  - `ALLOWPIF` is appended only when enabled.
+
+- Apply button polish
+  - Ghosted/disabled appearance until changes exist; highlighted with a subtle pulse/glow when actionable.
+
+- Backend admin endpoints expanded
+  - `GET /api/admin/profile-migration/profiles/current/config` → `{ profileType, teamConstraint, allowPayInFull, coreRegform, metadata }`.
+  - `PUT /api/admin/profile-migration/profiles/current/config` → accepts `{ profileType, teamConstraint, allowPayInFull }`, persists `CoreRegformPlayer`, and returns updated `{ ... , coreRegform, metadata }`.
 
 ## What’s in v1
 
@@ -19,10 +49,10 @@ This document summarizes the current state of the Profile Metadata Editor and re
   - Placement is chosen at add time (“Place in: Public | Admin Only | Hidden”). The static list no longer determines visibility.
   - If you place a field into Hidden, its `inputType` is forced to `HIDDEN` automatically.
 
-- Job Options (overrides) + Sources
+- Job Options (per-job overrides only)
   - CRUD for per-job override option sets, mapped to `Jobs.JsonOptions`.
-  - Read-only Sources from `Registrations` columns with a “Copy to override” action.
-  - Flexible key matching bridges differences like `positions` ↔ `List_Positions` and `ListSizes_Jersey`.
+  - View shows only lists used by the active profile; the Sources concept has been removed from the editor.
+  - Flexible key matching still bridges differences like `positions` ↔ `List_Positions` and `ListSizes_Jersey`.
 
 - Safer destructive actions
   - Destructive actions use Bootstrap-styled confirmation modals (no browser dialogs).
@@ -50,11 +80,17 @@ This document summarizes the current state of the Profile Metadata Editor and re
 - TestFieldValidation
   - Returns granular messages for required, min/max, pattern, email, and numeric range checks.
 
+- Current Job Profile Config
+  - `GET /api/admin/profile-migration/profiles/current/config` returns the active job’s profile config plus refreshed metadata.
+  - `PUT /api/admin/profile-migration/profiles/current/config` updates `CoreRegformPlayer` with optional Team Constraint and `ALLOWPIF`, then re-materializes `PlayerProfileMetadataJson`.
+
 ## Open follow-ups
 
 - Live preview panel (deferred).
-- Modal a11y refinements (consider native <dialog> with focus trapping helpers).
+- Modal a11y refinements (convert to native <dialog> with focus helpers; remove role-based warnings).
 - Extract complex client methods to helpers to reduce cognitive complexity warnings.
+- Add a toast/snackbar after drag-and-drop auto-saves in Options.
+- Prune unused backend "sources" endpoints if not referenced elsewhere.
 
 ## Files of interest
 
@@ -63,9 +99,10 @@ This document summarizes the current state of the Profile Metadata Editor and re
   - `src/app/admin/profile-editor/profile-editor.component.html` – Grouped table, badges, confirm modal, Add Field modal.
   - `src/app/admin/profile-editor/profile-editor.component.scss` – Drag grip and table polish.
   - `src/app/admin/profile-editor/allowed-fields.ts` – Flat, deduped static list for the Add Field picker (one entry per field name).
+  - `src/app/core/services/profile-migration.service.ts` – Client for current job profile config (GET/PUT) and migration-related APIs.
 - Backend
   - `TSIC.API/Services/ProfileMetadataMigrationService.cs` – Normalization in update and migration paths.
-  - `TSIC.API/Controllers/ProfileMigrationController.cs` – Admin endpoints.
+  - `TSIC.API/Controllers/ProfileMigrationController.cs` – Admin endpoints (includes current job profile config GET/PUT).
 
 ## Standards reminder
 
