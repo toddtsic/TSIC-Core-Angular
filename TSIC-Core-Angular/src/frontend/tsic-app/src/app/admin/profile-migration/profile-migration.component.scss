@@ -48,3 +48,21 @@
     margin-bottom: 0.5rem;
     font-weight: 600;
 }
+
+/* Native dialog styling to align with Bootstrap modal look */
+.tsic-dialog {
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0;
+    width: min(960px, 96vw);
+    max-height: 90vh;
+}
+
+.tsic-dialog .modal-content {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.tsic-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}

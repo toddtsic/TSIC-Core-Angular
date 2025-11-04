@@ -217,159 +217,154 @@
     </div>
 </div>
 
-<!-- Confirmation Modal -->
+<!-- Confirmation Dialog -->
 @if (showConfirmModal()) {
-<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle text-warning"></i> {{ confirmModalTitle() }}
-                </h5>
-                <button type="button" class="btn-close" (click)="closeConfirmModal()"></button>
-            </div>
-            <div class="modal-body">
-                <p>{{ confirmModalMessage() }}</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" (click)="confirmAction()">
-                    <i class="bi bi-check-circle"></i> OK
-                </button>
-            </div>
+<dialog class="tsic-dialog" open (keydown.escape)="closeConfirmModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i> {{ confirmModalTitle() }}
+            </h5>
+            <button type="button" class="btn-close" (click)="closeConfirmModal()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <p>{{ confirmModalMessage() }}</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" (click)="confirmAction()">
+                <i class="bi bi-check-circle"></i> OK
+            </button>
         </div>
     </div>
-</div>
+</dialog>
 }
 
-<!-- Preview Modal -->
+<!-- Preview Dialog -->
 @if (previewResult()) {
-<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-eye"></i>
-                    @if (selectedProfile()?.allJobsMigrated) {
-                    Current Metadata: {{ selectedProfile()?.profileType }}
-                    } @else {
-                    Preview Migration: {{ selectedProfile()?.profileType }}
-                    }
-                </h5>
-                <button type="button" class="btn-close" (click)="closePreview()"></button>
-            </div>
-            <div class="modal-body">
-                @if (previewResult()?.success) {
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    @if (selectedProfile()?.allJobsMigrated) {
-                    Currently applied to <strong>{{ previewResult()?.jobsAffected }}</strong> job{{
-                    previewResult()!.jobsAffected > 1 ? 's' : '' }}
-                    with <strong>{{ previewResult()?.fieldCount }}</strong> field{{ previewResult()!.fieldCount > 1 ?
-                    's' : '' }}.
-                    } @else {
-                    This migration will affect <strong>{{ previewResult()?.jobsAffected }}</strong> job{{
-                    previewResult()!.jobsAffected > 1 ? 's' : '' }}
-                    with <strong>{{ previewResult()?.fieldCount }}</strong> field{{ previewResult()!.fieldCount > 1 ?
-                    's' : '' }}.
-                    }
-                </div>
-
-                <!-- Form Preview -->
-                @if (previewResult()?.generatedMetadata) {
-                <div class="card mb-3">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">
-                            <i class="bi bi-ui-checks"></i> Form Preview
-                        </h6>
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary" (click)="toggleJsonView()">
-                                @if (showJsonView()) {
-                                <i class="bi bi-ui-checks"></i> Show Form
-                                } @else {
-                                <i class="bi bi-code-square"></i> Show JSON
-                                }
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <!-- Job Selector for Dynamic Preview -->
-                        <div class="mb-3 border-bottom pb-3">
-                            <label for="jobSelectorDropdown" class="form-label">
-                                <strong>Preview with Job-Specific Options (Current Year ± 1):</strong>
-                            </label>
-                            <select id="jobSelectorDropdown" class="form-select" (change)="onJobSelected($event)">
-                                <option value="">Select a job to see its specific dropdown options...</option>
-                                @for (job of sortedAffectedJobs(); track job.name) {
-                                <option>{{ job.name }}</option>
-                                }
-                            </select>
-                            @if (selectedJobId()) {
-                            <div class="alert alert-info small mb-0 mt-2">
-                                <i class="bi bi-info-circle"></i>
-                                Showing dropdown options for selected job
-                            </div>
-                            } @else {
-                            <small class="text-muted d-block mt-1">
-                                Select a job to preview with that job's specific dropdown values (from JsonOptions).
-                            </small>
-                            }
-                        </div>
-
-                        @if (showJsonView()) {
-                        <!-- JSON View -->
-                        <pre class="bg-light p-3 rounded"
-                            style="max-height: 500px; overflow-y: auto;"><code>{{ previewResult()!.generatedMetadata | json }}</code></pre>
-                        } @else {
-                        <!-- Form Preview -->
-                        <app-profile-form-preview [metadata]="previewResult()?.generatedMetadata ?? null"
-                            [jobOptions]="jobSpecificOptions()" [showFieldNumbers]="true" [showValidationHints]="true">
-                        </app-profile-form-preview>
-                        }
-                    </div>
-                </div>
-                }
-
-                <div class="mb-3">
-                    <label for="affectedJobsDropdown" class="form-label">
-                        <strong>All Affected Jobs: {{ sortedAffectedJobs().length }} (Current Year ± 1)</strong>
-                    </label>
-                    <select id="affectedJobsDropdown" class="form-select">
-                        @for (job of sortedAffectedJobs(); track job.name) {
-                        <option>{{ job.name }}</option>
-                        }
-                    </select>
-                    @if (sortedAffectedJobs().length === 0) {
-                    <small class="text-muted">No jobs from current year ± 1 use this profile type.</small>
-                    }
-                </div>
-
-                @if (previewResult()?.warnings && previewResult()!.warnings.length > 0) {
-                <div class="alert alert-warning">
-                    <h6><i class="bi bi-exclamation-triangle"></i> Warnings:</h6>
-                    <ul class="mb-0">
-                        @for (warning of previewResult()?.warnings; track warning) {
-                        <li>{{ warning }}</li>
-                        }
-                    </ul>
-                </div>
-                }
+<dialog class="tsic-dialog tsic-dialog-lg" open (keydown.escape)="closePreview()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">
+                <i class="bi bi-eye"></i>
+                @if (selectedProfile()?.allJobsMigrated) {
+                Current Metadata: {{ selectedProfile()?.profileType }}
                 } @else {
-                <div class="alert alert-danger">
-                    <i class="bi bi-x-circle"></i> {{ previewResult()?.errorMessage }}
+                Preview Migration: {{ selectedProfile()?.profileType }}
+                }
+            </h5>
+            <button type="button" class="btn-close" (click)="closePreview()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            @if (previewResult()?.success) {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                @if (selectedProfile()?.allJobsMigrated) {
+                Currently applied to <strong>{{ previewResult()?.jobsAffected }}</strong> job{{
+                previewResult()!.jobsAffected > 1 ? 's' : '' }}
+                with <strong>{{ previewResult()?.fieldCount }}</strong> field{{ previewResult()!.fieldCount > 1 ?
+                's' : '' }}.
+                } @else {
+                This migration will affect <strong>{{ previewResult()?.jobsAffected }}</strong> job{{
+                previewResult()!.jobsAffected > 1 ? 's' : '' }}
+                with <strong>{{ previewResult()?.fieldCount }}</strong> field{{ previewResult()!.fieldCount > 1 ?
+                's' : '' }}.
+                }
+            </div>
+
+            <!-- Form Preview -->
+            @if (previewResult()?.generatedMetadata) {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="bi bi-ui-checks"></i> Form Preview
+                    </h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" (click)="toggleJsonView()">
+                            @if (showJsonView()) {
+                            <i class="bi bi-ui-checks"></i> Show Form
+                            } @else {
+                            <i class="bi bi-code-square"></i> Show JSON
+                            }
+                        </button>
+                    </div>
                 </div>
+                <div class="card-body">
+                    <!-- Job Selector for Dynamic Preview -->
+                    <div class="mb-3 border-bottom pb-3">
+                        <label for="jobSelectorDropdown" class="form-label">
+                            <strong>Preview with Job-Specific Options (Current Year ± 1):</strong>
+                        </label>
+                        <select id="jobSelectorDropdown" class="form-select" (change)="onJobSelected($event)">
+                            <option value="">Select a job to see its specific dropdown options...</option>
+                            @for (job of sortedAffectedJobs(); track job.name) {
+                            <option>{{ job.name }}</option>
+                            }
+                        </select>
+                        @if (selectedJobId()) {
+                        <div class="alert alert-info small mb-0 mt-2">
+                            <i class="bi bi-info-circle"></i>
+                            Showing dropdown options for selected job
+                        </div>
+                        } @else {
+                        <small class="text-muted d-block mt-1">
+                            Select a job to preview with that job's specific dropdown values (from JsonOptions).
+                        </small>
+                        }
+                    </div>
+
+                    @if (showJsonView()) {
+                    <!-- JSON View -->
+                    <pre class="bg-light p-3 rounded"
+                        style="max-height: 500px; overflow-y: auto;"><code>{{ previewResult()!.generatedMetadata | json }}</code></pre>
+                    } @else {
+                    <!-- Form Preview -->
+                    <app-profile-form-preview [metadata]="previewResult()?.generatedMetadata ?? null"
+                        [jobOptions]="jobSpecificOptions()" [showFieldNumbers]="true" [showValidationHints]="true">
+                    </app-profile-form-preview>
+                    }
+                </div>
+            </div>
+            }
+
+            <div class="mb-3">
+                <label for="affectedJobsDropdown" class="form-label">
+                    <strong>All Affected Jobs: {{ sortedAffectedJobs().length }} (Current Year ± 1)</strong>
+                </label>
+                <select id="affectedJobsDropdown" class="form-select">
+                    @for (job of sortedAffectedJobs(); track job.name) {
+                    <option>{{ job.name }}</option>
+                    }
+                </select>
+                @if (sortedAffectedJobs().length === 0) {
+                <small class="text-muted">No jobs from current year ± 1 use this profile type.</small>
                 }
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" (click)="closePreview()">Close</button>
-                @if (previewResult()?.success && selectedProfile() && !selectedProfile()?.allJobsMigrated) {
-                <button type="button" class="btn btn-success"
-                    (click)="migrateSingle(selectedProfile()!); closePreview()">
-                    <i class="bi bi-check-circle"></i> Migrate Now
-                </button>
-                }
+
+            @if (previewResult()?.warnings && previewResult()!.warnings.length > 0) {
+            <div class="alert alert-warning">
+                <h6><i class="bi bi-exclamation-triangle"></i> Warnings:</h6>
+                <ul class="mb-0">
+                    @for (warning of previewResult()?.warnings; track warning) {
+                    <li>{{ warning }}</li>
+                    }
+                </ul>
             </div>
+            }
+            } @else {
+            <div class="alert alert-danger">
+                <i class="bi bi-x-circle"></i> {{ previewResult()?.errorMessage }}
+            </div>
+            }
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closePreview()">Close</button>
+            @if (previewResult()?.success && selectedProfile() && !selectedProfile()?.allJobsMigrated) {
+            <button type="button" class="btn btn-success" (click)="migrateSingle(selectedProfile()!); closePreview()">
+                <i class="bi bi-check-circle"></i> Migrate Now
+            </button>
+            }
         </div>
     </div>
-</div>
+</dialog>
 }

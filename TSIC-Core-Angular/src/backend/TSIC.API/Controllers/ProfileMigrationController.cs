@@ -624,77 +624,7 @@ public class ProfileMigrationController : ControllerBase
         }
     }
 
-    // ============================================================================
-    // CURRENT JOB OPTION SOURCES (Registrations) — read-only + copy helper
-    // ============================================================================
-
-    /// <summary>
-    /// List read-only sources from Job_Registrations derived columns for the current job.
-    /// Keys align with metadata dataSource when available.
-    /// </summary>
-    [HttpGet("profiles/current/options/sources")]
-    public async Task<ActionResult<List<OptionSet>>> GetCurrentJobOptionSources()
-    {
-        try
-        {
-            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
-            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
-            {
-                return BadRequest(new { error = MissingRegIdMsg });
-            }
-
-            var sources = await _migrationService.GetCurrentJobOptionSourcesAsync(regId);
-            return Ok(sources);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get option sources");
-            return StatusCode(500, new { error = "Failed to get option sources", details = ex.Message });
-        }
-    }
-
-    public sealed class CopyOptionSourceRequest { public string Key { get; set; } = string.Empty; }
-
-    /// <summary>
-    /// Copy a read-only source set (from Registrations) into Jobs.JsonOptions overrides for the current job.
-    /// </summary>
-    [HttpPost("profiles/current/options/copy-from-source")]
-    public async Task<ActionResult<OptionSet>> CopyOptionSourceToOverride([FromBody] CopyOptionSourceRequest request)
-    {
-        try
-        {
-            var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
-            if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
-            {
-                return BadRequest(new { error = MissingRegIdMsg });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Key))
-            {
-                return BadRequest(new { error = "Key is required" });
-            }
-
-            var sources = await _migrationService.GetCurrentJobOptionSourcesAsync(regId);
-            var source = sources.Find(s => s.Key.Equals(request.Key, StringComparison.OrdinalIgnoreCase));
-            if (source == null)
-            {
-                return NotFound(new { error = $"Source '{request.Key}' not found" });
-            }
-
-            var updated = await _migrationService.UpsertCurrentJobOptionSetAsync(regId, source.Key, source.Values);
-            if (updated == null)
-            {
-                return StatusCode(500, new { error = "Failed to copy option source" });
-            }
-
-            return Ok(updated);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to copy option source {Key}", request.Key);
-            return StatusCode(500, new { error = "Failed to copy option source", details = ex.Message });
-        }
-    }
+    // (Deprecated) CURRENT JOB OPTION SOURCES endpoints removed. Source discovery has been retired from the UI.
 
     /// <summary>
     /// Test field validation rules

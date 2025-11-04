@@ -7,7 +7,7 @@
             </div>
             <!-- Action buttons: centered on mobile, right-aligned on md+ -->
             <div class="w-100 d-flex justify-content-center justify-content-md-end mb-3">
-                <div class="btn-group btn-group-sm" role="group" aria-label="Page actions">
+                <div class="btn-group btn-group-sm" aria-label="Page actions">
                     <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary">
                         <i class="bi bi-house-door me-1"></i>
                         <span class="d-none d-sm-inline">Home</span>
@@ -513,353 +513,336 @@
     }
 </div>
 
-<!-- Confirm Modal -->
+<!-- Confirm Dialog -->
 @if (showConfirmModal()) {
-<div class="modal d-block" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>{{
-                    confirmModalTitle() }}</h5>
-                <button type="button" class="btn-close" (click)="closeConfirm()"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">{{ confirmModalMessage() }}</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" (click)="closeConfirm()">Cancel</button>
-                <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
-            </div>
+<dialog class="tsic-dialog" open (keydown.escape)="closeConfirm()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>{{ confirmModalTitle()
+                }}</h5>
+            <button type="button" class="btn-close" (click)="closeConfirm()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <p class="mb-0">{{ confirmModalMessage() }}</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeConfirm()">Cancel</button>
+            <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
         </div>
     </div>
-</div>
-<div class="modal-backdrop fade show"></div>
+</dialog>
 }
 
-<!-- Add Field Modal -->
+<!-- Add Field Dialog -->
 @if (isAddFieldModalOpen()) {
-<div class="modal d-block" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Field</h5>
-                <button type="button" class="btn-close" (click)="closeAddFieldModal()"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label" for="new-field-select">Choose a field</label>
-                    <select id="new-field-select" class="form-select" [(ngModel)]="selectedNewFieldName">
-                        <option [ngValue]="null">-- Select a field --</option>
-                        @for (opt of availableNewFields(); track opt.name) {
-                        <option [ngValue]="opt.name">{{ opt.name }} ({{ opt.displayName }})</option>
-                        }
-                    </select>
-                    @if (availableNewFields().length === 0) {
-                    <div class="text-muted small mt-2">All allowed fields are already in use.</div>
+<dialog class="tsic-dialog" open (keydown.escape)="closeAddFieldModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Add Field</h5>
+            <button type="button" class="btn-close" (click)="closeAddFieldModal()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label" for="new-field-select">Choose a field</label>
+                <select id="new-field-select" class="form-select" [(ngModel)]="selectedNewFieldName">
+                    <option [ngValue]="null">-- Select a field --</option>
+                    @for (opt of availableNewFields(); track opt.name) {
+                    <option [ngValue]="opt.name">{{ opt.name }} ({{ opt.displayName }})</option>
                     }
-                </div>
-                @if (selectedNewField()) {
-                <div class="alert alert-secondary py-2">
-                    <div class="mb-2"><strong>Default Type:</strong> {{ addFieldPlacement() === 'hidden' ? 'HIDDEN' :
-                        selectedNewField()!.inputType }}</div>
-                    <div class="row g-2 align-items-center">
-                        <div class="col-auto"><strong>Place in:</strong></div>
-                        <div class="col">
-                            <select class="form-select" [(ngModel)]="addFieldPlacement">
-                                <option value="public">Public</option>
-                                <option value="adminOnly">Admin Only</option>
-                                <option value="hidden">Hidden</option>
-                            </select>
-                        </div>
-                    </div>
-                    @if (addFieldPlacement() === 'hidden') {
-                    <div class="text-muted small mt-2">Hidden fields are always type HIDDEN.</div>
-                    }
-                </div>
+                </select>
+                @if (availableNewFields().length === 0) {
+                <div class="text-muted small mt-2">All allowed fields are already in use.</div>
                 }
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" (click)="closeAddFieldModal()">Cancel</button>
-                <button type="button" class="btn btn-success" (click)="confirmAddSelectedField()"
-                    [disabled]="!selectedNewFieldName()">
-                    Add
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="modal-backdrop fade show"></div>
-}
-
-<!-- Edit Field Modal -->
-@if (isEditModalOpen()) {
-<div class="modal d-block" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Field: {{ editingField()?.name }}</h5>
-                <button type="button" class="btn-close" (click)="closeEditModal()"></button>
-            </div>
-            <div class="modal-body">
-                @if (editingField(); as field) {
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="edit-field-name">Field Name</label>
-                        <input id="edit-field-name" type="text" class="form-control" [(ngModel)]="field.name" disabled>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="edit-db-column">DB Column</label>
-                        <input id="edit-db-column" type="text" class="form-control" [(ngModel)]="field.dbColumn">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="edit-display-name">Display Name</label>
-                        <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="edit-input-type">Input Type</label>
-                        <select id="edit-input-type" class="form-select" [(ngModel)]="field.inputType"
-                            [disabled]="field.visibility === 'hidden'">
-                            @if (field.visibility === 'hidden') {
-                            <option value="HIDDEN">HIDDEN</option>
-                            } @else {
-                            @for (type of fieldTypeOptions; track type) {
-                            <option [value]="type">{{ type }}</option>
-                            }
-                            }
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="edit-order">Order</label>
-                        <select id="edit-order" class="form-select" [(ngModel)]="selectedOrderIndex"
-                            [disabled]="field.visibility !== 'public'">
-                            @for (idx of orderOptions(); track idx) {
-                            <option [ngValue]="idx">{{ idx + 1 }}</option>
-                            }
-                        </select>
-                        @if (field.visibility !== 'public') {
-                        <small class="text-muted">Reordering is available for registrant-visible fields only.</small>
-                        }
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="edit-visibility">Visibility</label>
-                        <select id="edit-visibility" class="form-select" [(ngModel)]="field.visibility"
-                            (ngModelChange)="onVisibilityChange(field)">
+            @if (selectedNewField()) {
+            <div class="alert alert-secondary py-2">
+                <div class="mb-2"><strong>Default Type:</strong> {{ addFieldPlacement() === 'hidden' ? 'HIDDEN' :
+                    selectedNewField()!.inputType }}</div>
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto"><strong>Place in:</strong></div>
+                    <div class="col">
+                        <select class="form-select" [(ngModel)]="addFieldPlacement">
                             <option value="public">Public</option>
                             <option value="adminOnly">Admin Only</option>
                             <option value="hidden">Hidden</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-check mt-4">
-                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.computed" id="computed">
-                            <label class="form-check-label" for="computed">Computed</label>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="edit-data-source">Data Source</label>
-                        <input id="edit-data-source" type="text" class="form-control" [(ngModel)]="field.dataSource"
-                            placeholder="e.g., states, countries">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="edit-placeholder">Placeholder</label>
-                        <input id="edit-placeholder" type="text" class="form-control" [(ngModel)]="field.placeholder">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="edit-help-text">Help Text</label>
-                        <textarea id="edit-help-text" class="form-control" [(ngModel)]="field.helpText"
-                            rows="2"></textarea>
-                    </div>
-
-                    <div class="col-12">
-                        <hr>
-                        <h6>Validation Rules</h6>
-                    </div>
-
-                    @if (!field.validation) {
-                    <div class="col-12">
-                        <button class="btn btn-sm btn-outline-secondary" (click)="field.validation = {}">
-                            <i class="bi bi-plus-circle me-1"></i> Add Validation
-                        </button>
-                    </div>
-                    }
-
-                    @if (field.validation) {
-                    <div class="col-md-6">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.required"
-                                id="required">
-                            <label class="form-check-label" for="required">Required</label>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.email"
-                                id="email">
-                            <label class="form-check-label" for="email">Email Format</label>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.requiredTrue"
-                                id="requiredTrue">
-                            <label class="form-check-label" for="requiredTrue">
-                                Required True (Checkbox Must Be Checked)
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="val-min-length">Min Length</label>
-                        <input id="val-min-length" type="number" class="form-control"
-                            [(ngModel)]="field.validation.minLength">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="val-max-length">Max Length</label>
-                        <input id="val-max-length" type="number" class="form-control"
-                            [(ngModel)]="field.validation.maxLength">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="val-min">Min Value</label>
-                        <input id="val-min" type="number" class="form-control" [(ngModel)]="field.validation.min">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="val-max">Max Value</label>
-                        <input id="val-max" type="number" class="form-control" [(ngModel)]="field.validation.max">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="val-pattern">Pattern (Regex)</label>
-                        <input id="val-pattern" type="text" class="form-control" [(ngModel)]="field.validation.pattern"
-                            placeholder="^\d{10}$">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="val-remote">Remote Validation URL</label>
-                        <input id="val-remote" type="text" class="form-control" [(ngModel)]="field.validation.remote"
-                            placeholder="/api/Validation/ValidateUSALacrosseID">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="val-message">Custom Error Message</label>
-                        <input id="val-message" type="text" class="form-control" [(ngModel)]="field.validation.message">
-                    </div>
-                    }
                 </div>
+                @if (addFieldPlacement() === 'hidden') {
+                <div class="text-muted small mt-2">Hidden fields are always type HIDDEN.</div>
                 }
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" (click)="saveFieldEdit()" [disabled]="isSaving()">
-                    @if (isSaving()) {
-                    <span class="spinner-border spinner-border-sm me-1"></span>
-                    }
-                    Save Changes
-                </button>
-            </div>
+            }
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeAddFieldModal()">Cancel</button>
+            <button type="button" class="btn btn-success" (click)="confirmAddSelectedField()"
+                [disabled]="!selectedNewFieldName()">
+                Add
+            </button>
         </div>
     </div>
-</div>
-<div class="modal-backdrop fade show"></div>
+</dialog>
 }
 
-<!-- Create New Profile Modal -->
-@if (isCreateModalOpen()) {
-<div class="modal d-block" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create New Profile</h5>
-                <button type="button" class="btn-close" (click)="closeCreateModal()"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label fw-bold" for="clone-from">Clone From:</label>
-                    <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource"
-                        (ngModelChange)="onCloneSourceSelected($event)" [disabled]="isCloning()">
-                        <option [ngValue]="null">-- Select a profile to clone --</option>
-                        @for (profile of availableProfiles(); track profile.type) {
-                        <option [ngValue]="profile.type">{{ profile.display }}</option>
+<!-- Edit Field Dialog -->
+@if (isEditModalOpen()) {
+<dialog class="tsic-dialog tsic-dialog-lg" open (keydown.escape)="closeEditModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Edit Field: {{ editingField()?.name }}</h5>
+            <button type="button" class="btn-close" (click)="closeEditModal()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            @if (editingField(); as field) {
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="edit-field-name">Field Name</label>
+                    <input id="edit-field-name" type="text" class="form-control" [(ngModel)]="field.name" disabled>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="edit-db-column">DB Column</label>
+                    <input id="edit-db-column" type="text" class="form-control" [(ngModel)]="field.dbColumn">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="edit-display-name">Display Name</label>
+                    <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="edit-input-type">Input Type</label>
+                    <select id="edit-input-type" class="form-select" [(ngModel)]="field.inputType"
+                        [disabled]="field.visibility === 'hidden'">
+                        @if (field.visibility === 'hidden') {
+                        <option value="HIDDEN">HIDDEN</option>
+                        } @else {
+                        @for (type of fieldTypeOptions; track type) {
+                        <option [value]="type">{{ type }}</option>
+                        }
                         }
                     </select>
-                    <small class="text-muted">Select an existing profile to use as a template</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="edit-order">Order</label>
+                    <select id="edit-order" class="form-select" [(ngModel)]="selectedOrderIndex"
+                        [disabled]="field.visibility !== 'public'">
+                        @for (idx of orderOptions(); track idx) {
+                        <option [ngValue]="idx">{{ idx + 1 }}</option>
+                        }
+                    </select>
+                    @if (field.visibility !== 'public') {
+                    <small class="text-muted">Reordering is available for registrant-visible fields only.</small>
+                    }
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="edit-visibility">Visibility</label>
+                    <select id="edit-visibility" class="form-select" [(ngModel)]="field.visibility"
+                        (ngModelChange)="onVisibilityChange(field)">
+                        <option value="public">Public</option>
+                        <option value="adminOnly">Admin Only</option>
+                        <option value="hidden">Hidden</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" [(ngModel)]="field.computed" id="computed">
+                        <label class="form-check-label" for="computed">Computed</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="edit-data-source">Data Source</label>
+                    <input id="edit-data-source" type="text" class="form-control" [(ngModel)]="field.dataSource"
+                        placeholder="e.g., states, countries">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="edit-placeholder">Placeholder</label>
+                    <input id="edit-placeholder" type="text" class="form-control" [(ngModel)]="field.placeholder">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="edit-help-text">Help Text</label>
+                    <textarea id="edit-help-text" class="form-control" [(ngModel)]="field.helpText" rows="2"></textarea>
                 </div>
 
-                @if (selectedCloneSource() && newProfileName()) {
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Will prepare:</strong> <code>{{ newProfileName() }}</code>
-                    <br>
-                    <small>This will create a new profile based on <strong>{{ selectedCloneSource() }}</strong> with an
-                        auto-incremented name.</small>
+                <div class="col-12">
+                    <hr>
+                    <h6>Validation Rules</h6>
+                </div>
+
+                @if (!field.validation) {
+                <div class="col-12">
+                    <button class="btn btn-sm btn-outline-secondary" (click)="field.validation = {}">
+                        <i class="bi bi-plus-circle me-1"></i> Add Validation
+                    </button>
+                </div>
+                }
+
+                @if (field.validation) {
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.required"
+                            id="required">
+                        <label class="form-check-label" for="required">Required</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.email" id="email">
+                        <label class="form-check-label" for="email">Email Format</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.requiredTrue"
+                            id="requiredTrue">
+                        <label class="form-check-label" for="requiredTrue">
+                            Required True (Checkbox Must Be Checked)
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="val-min-length">Min Length</label>
+                    <input id="val-min-length" type="number" class="form-control"
+                        [(ngModel)]="field.validation.minLength">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="val-max-length">Max Length</label>
+                    <input id="val-max-length" type="number" class="form-control"
+                        [(ngModel)]="field.validation.maxLength">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="val-min">Min Value</label>
+                    <input id="val-min" type="number" class="form-control" [(ngModel)]="field.validation.min">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="val-max">Max Value</label>
+                    <input id="val-max" type="number" class="form-control" [(ngModel)]="field.validation.max">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="val-pattern">Pattern (Regex)</label>
+                    <input id="val-pattern" type="text" class="form-control" [(ngModel)]="field.validation.pattern"
+                        placeholder="^\d{10}$">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="val-remote">Remote Validation URL</label>
+                    <input id="val-remote" type="text" class="form-control" [(ngModel)]="field.validation.remote"
+                        placeholder="/api/Validation/ValidateUSALacrosseID">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="val-message">Custom Error Message</label>
+                    <input id="val-message" type="text" class="form-control" [(ngModel)]="field.validation.message">
                 </div>
                 }
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" (click)="closeCreateModal()"
-                    [disabled]="isCloning()">Cancel</button>
-                <button type="button" class="btn btn-success" (click)="createNewProfile()"
-                    [disabled]="!selectedCloneSource() || isCloning()">
-                    @if (isCloning()) {
-                    <span class="spinner-border spinner-border-sm me-1"></span>
-                    Creating...
-                    } @else {
-                    <i class="bi bi-plus-circle me-1"></i>
-                    Create Profile
-                    }
-                </button>
-            </div>
+            }
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" (click)="saveFieldEdit()" [disabled]="isSaving()">
+                @if (isSaving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Save Changes
+            </button>
         </div>
     </div>
-</div>
-<div class="modal-backdrop fade show"></div>
+</dialog>
 }
 
-<!-- Test Validation Modal -->
-@if (isTestModalOpen()) {
-<div class="modal d-block" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Test Validation: {{ testFieldName() }}</h5>
-                <button type="button" class="btn-close" (click)="closeTestModal()"></button>
+<!-- Create New Profile Dialog -->
+@if (isCreateModalOpen()) {
+<dialog class="tsic-dialog" open (keydown.escape)="closeCreateModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Create New Profile</h5>
+            <button type="button" class="btn-close" (click)="closeCreateModal()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="clone-from">Clone From:</label>
+                <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource"
+                    (ngModelChange)="onCloneSourceSelected($event)" [disabled]="isCloning()">
+                    <option [ngValue]="null">-- Select a profile to clone --</option>
+                    @for (profile of availableProfiles(); track profile.type) {
+                    <option [ngValue]="profile.type">{{ profile.display }}</option>
+                    }
+                </select>
+                <small class="text-muted">Select an existing profile to use as a template</small>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label" for="test-value">Test Value</label>
-                    <input id="test-value" type="text" class="form-control" [(ngModel)]="testValue"
-                        placeholder="Enter a value to test">
-                </div>
 
-                <button class="btn btn-primary w-100 mb-3" (click)="runValidationTest()"
-                    [disabled]="isTesting() || !testValue()">
-                    @if (isTesting()) {
-                    <span class="spinner-border spinner-border-sm me-1"></span>
-                    Testing...
-                    } @else {
-                    <i class="bi bi-play-circle me-1"></i> Run Test
-                    }
-                </button>
-
-                @if (testResult()) {
-                <div class="alert" [ngClass]="testResult()!.isValid ? 'alert-success' : 'alert-danger'">
-                    <h6>
-                        @if (testResult()!.isValid) {
-                        <i class="bi bi-check-circle-fill me-1"></i> Valid
-                        } @else {
-                        <i class="bi bi-x-circle-fill me-1"></i> Invalid
-                        }
-                    </h6>
-                    @if (testResult()!.messages && testResult()!.messages.length > 0) {
-                    <ul class="mb-0 mt-2">
-                        @for (msg of testResult()!.messages; track msg) {
-                        <li>{{ msg }}</li>
-                        }
-                    </ul>
-                    }
-                </div>
+            @if (selectedCloneSource() && newProfileName()) {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Will prepare:</strong> <code>{{ newProfileName() }}</code>
+                <br>
+                <small>This will create a new profile based on <strong>{{ selectedCloneSource() }}</strong> with an
+                    auto-incremented name.</small>
+            </div>
+            }
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeCreateModal()"
+                [disabled]="isCloning()">Cancel</button>
+            <button type="button" class="btn btn-success" (click)="createNewProfile()"
+                [disabled]="!selectedCloneSource() || isCloning()">
+                @if (isCloning()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Creating...
+                } @else {
+                <i class="bi bi-plus-circle me-1"></i>
+                Create Profile
                 }
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" (click)="closeTestModal()">Close</button>
-            </div>
+            </button>
         </div>
     </div>
-</div>
-<div class="modal-backdrop fade show"></div>
+</dialog>
+}
+
+<!-- Test Validation Dialog -->
+@if (isTestModalOpen()) {
+<dialog class="tsic-dialog" open (keydown.escape)="closeTestModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Test Validation: {{ testFieldName() }}</h5>
+            <button type="button" class="btn-close" (click)="closeTestModal()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label" for="test-value">Test Value</label>
+                <input id="test-value" type="text" class="form-control" [(ngModel)]="testValue"
+                    placeholder="Enter a value to test">
+            </div>
+
+            <button class="btn btn-primary w-100 mb-3" (click)="runValidationTest()"
+                [disabled]="isTesting() || !testValue()">
+                @if (isTesting()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Testing...
+                } @else {
+                <i class="bi bi-play-circle me-1"></i> Run Test
+                }
+            </button>
+
+            @if (testResult()) {
+            <div class="alert" [ngClass]="testResult()!.isValid ? 'alert-success' : 'alert-danger'">
+                <h6>
+                    @if (testResult()!.isValid) {
+                    <i class="bi bi-check-circle-fill me-1"></i> Valid
+                    } @else {
+                    <i class="bi bi-x-circle-fill me-1"></i> Invalid
+                    }
+                </h6>
+                @if (testResult()!.messages && testResult()!.messages.length > 0) {
+                <ul class="mb-0 mt-2">
+                    @for (msg of testResult()!.messages; track msg) {
+                    <li>{{ msg }}</li>
+                    }
+                </ul>
+                }
+            </div>
+            }
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closeTestModal()">Close</button>
+        </div>
+    </div>
+</dialog>
 }

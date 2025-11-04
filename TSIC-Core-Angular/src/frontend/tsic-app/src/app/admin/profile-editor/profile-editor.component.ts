@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ProfileMigrationService, ProfileMetadata, ProfileMetadataField, ValidationTestResult, OptionSet, ProfileFieldOption, CurrentJobProfileConfigResponse } from '../../core/services/profile-migration.service';
+import { ToastService } from '../../shared/toast.service';
 import { ALLOWED_PROFILE_FIELDS, AllowedField } from './allowed-fields';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -19,6 +20,7 @@ type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DA
 export class ProfileEditorComponent implements OnInit {
     private readonly migrationService = inject(ProfileMigrationService);
     private readonly authService = inject(AuthService);
+    private readonly toast = inject(ToastService);
 
     // Navigation
     jobPath = computed(() => this.authService.currentUser()?.jobPath || 'tsic');
@@ -366,10 +368,12 @@ export class ProfileEditorComponent implements OnInit {
                 // sync left list
                 this.optionSets.update(list => list.map(s => s.key.toLowerCase() === updated.key.toLowerCase() ? updated : s));
                 this.isSavingOption.set(false);
+                this.toast.show('Option order saved', 'success', 1500);
             },
             (err) => {
                 this.isSavingOption.set(false);
                 this.optionsError.set(err?.error?.message || 'Failed to save option order');
+                this.toast.show('Failed to save option order', 'danger', 2500);
             }
         );
     }

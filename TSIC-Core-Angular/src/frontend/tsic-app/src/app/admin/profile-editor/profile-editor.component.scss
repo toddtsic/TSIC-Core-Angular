@@ -28,6 +28,28 @@
     z-index: 1050;
 }
 
+/* Native dialog styling for accessibility-friendly modals */
+.tsic-dialog {
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0;
+    width: min(720px, 96vw);
+    max-height: 90vh;
+}
+
+.tsic-dialog.tsic-dialog-lg {
+    width: min(960px, 96vw);
+}
+
+.tsic-dialog .modal-content {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.tsic-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
 .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
 }
