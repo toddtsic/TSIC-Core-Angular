@@ -45,7 +45,9 @@ public class JobsController : ControllerBase
             USLaxNumberValidThroughDate = jobMetadata.USLaxNumberValidThroughDate,
             ExpiryUsers = jobMetadata.ExpiryUsers,
             PlayerProfileMetadataJson = jobMetadata.PlayerProfileMetadataJson,
-            JsonOptions = jobMetadata.JsonOptions
+            JsonOptions = jobMetadata.JsonOptions,
+            MomLabel = jobMetadata.MomLabel,
+            DadLabel = jobMetadata.DadLabel
         };
 
         return Ok(response);

@@ -18,8 +18,7 @@ export class FormFieldDataService {
     private readonly dataSourceMappings: Record<string, SelectOption[]> = {
         genders: [
             { value: 'M', label: 'Male' },
-            { value: 'F', label: 'Female' },
-            { value: 'O', label: 'Other' }
+            { value: 'F', label: 'Female' }
         ],
         positions: [
             { value: 'attack', label: 'Attack' },

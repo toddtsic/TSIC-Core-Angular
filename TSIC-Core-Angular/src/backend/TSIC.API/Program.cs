@@ -38,8 +38,18 @@ builder.Services.AddDbContext<SqlDbContext>(options =>
 builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+ //PASSWORD RESTRICTIONS
+ builder.Services.Configure<IdentityOptions>(options =>
+ {
+     // Password settings
+     options.Password.RequireDigit = false;
+     options.Password.RequiredLength = 6;
+     options.Password.RequireNonAlphanumeric = false;
+     options.Password.RequireUppercase = false;
+     options.Password.RequireLowercase = false;
+ });
 // Configure Identity to use the dedicated TsicIdentityDbContext
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options => options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-!._@+/ ")
     .AddEntityFrameworkStores<TsicIdentityDbContext>();
 
 // Add JWT Authentication

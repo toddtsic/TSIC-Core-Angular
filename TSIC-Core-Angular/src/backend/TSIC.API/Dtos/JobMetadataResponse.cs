@@ -12,4 +12,6 @@ public class JobMetadataResponse
     public DateTime? ExpiryUsers { get; set; }
     public string? PlayerProfileMetadataJson { get; set; }
     public string? JsonOptions { get; set; }
+    public string? MomLabel { get; set; }
+    public string? DadLabel { get; set; }
 }

@@ -22,6 +22,8 @@ public class JobMetadataDto
     public DateTime? ExpiryUsers { get; set; }
     public string? PlayerProfileMetadataJson { get; set; }
     public string? JsonOptions { get; set; }
+    public string? MomLabel { get; set; }
+    public string? DadLabel { get; set; }
 }
 
 public class JobLookupService : IJobLookupService
@@ -70,7 +72,9 @@ public class JobLookupService : IJobLookupService
                 USLaxNumberValidThroughDate = j.UslaxNumberValidThroughDate,
                 ExpiryUsers = j.ExpiryUsers,
                 PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
-                JsonOptions = j.JsonOptions
+                JsonOptions = j.JsonOptions,
+                MomLabel = j.MomLabel,
+                DadLabel = j.DadLabel
             })
             .SingleOrDefaultAsync();
 
