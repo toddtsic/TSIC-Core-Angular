@@ -115,7 +115,7 @@
 /* On mobile, increase breathing room below the chips so the scrollbar doesn't overlap */
 @media (max-width: 767.98px) {
     .rw-steps-list {
-        padding-bottom: 1.5rem;
+        padding-bottom: 1.25rem;
     }
 }
 
@@ -163,6 +163,35 @@
     background: var(--bs-primary);
     color: #fff;
     border-color: var(--bs-primary);
+}
+
+/* Toolbar row beneath chips */
+.rw-toolbar {
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: .75rem;
+    padding: .5rem .75rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+:root[data-bs-theme='dark'] .rw-toolbar,
+[data-bs-theme='dark'] .rw-toolbar {
+    background-color: var(--bg-elevated);
+    border-color: var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+
+/* Sticky variant for the toolbar so controls stay visible on scroll */
+.rw-toolbar.sticky {
+    position: sticky;
+    top: 0;
+    /* sticks to the top of the viewport */
+    z-index: 1020;
+    /* above content, below navbars (1030) */
+    /* Slight translucency with blur for a modern effect; falls back to solid bg */
+    background-color: var(--bg-elevated);
+    -webkit-backdrop-filter: saturate(120%) blur(6px);
+    backdrop-filter: saturate(120%) blur(6px);
 }
 
 /* Choice tile pattern for start screens and similar */

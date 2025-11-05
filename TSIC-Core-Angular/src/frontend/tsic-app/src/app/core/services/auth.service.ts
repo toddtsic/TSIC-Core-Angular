@@ -179,6 +179,16 @@ export class AuthService {
   }
 
   /**
+   * Clear local auth state without navigating or calling the server.
+   * Useful for flows that need a clean slate while staying on the same route.
+   */
+  logoutLocal(): void {
+    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    this.currentUser.set(null);
+  }
+
+  /**
  * Check if user has valid token
  * Returns true if token exists and is not expired
  */

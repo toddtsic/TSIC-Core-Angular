@@ -10,15 +10,15 @@ import { PaymentComponent } from './steps/payment.component';
 import { RegistrationWizardService } from './registration-wizard.service';
 import { StartChoiceComponent, StartChoice } from './steps/start-choice.component';
 import { EditLookupComponent } from './steps/edit-lookup.component';
-import { LoginStepComponent } from './steps/login.component';
+import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '../../core/services/auth.service';
 
-export type StepId = 'start' | 'login' | 'edit-lookup' | 'players' | 'constraint' | 'teams' | 'forms' | 'review' | 'payment';
+export type StepId = 'start' | 'family-check' | 'edit-lookup' | 'players' | 'constraint' | 'teams' | 'forms' | 'review' | 'payment';
 
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, StartChoiceComponent, LoginStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, ConstraintSelectionComponent, PlayerFormsComponent, PaymentComponent],
+    imports: [CommonModule, RouterModule, StartChoiceComponent, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, ConstraintSelectionComponent, PlayerFormsComponent, PaymentComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss']
 })
@@ -30,9 +30,10 @@ export class PlayerRegistrationWizardComponent implements OnInit {
 
     // Steps managed by stable IDs for deep-linking
     // Note: 'constraint' may be skipped in a future enhancement if job has no constraint.
-    private readonly allStepsEdit: StepId[] = ['start', 'edit-lookup', 'forms', 'review', 'payment'];
-    private readonly allStepsNewUnauthed: StepId[] = ['start', 'login', 'players', 'constraint', 'teams', 'forms', 'review', 'payment'];
-    private readonly allStepsNewAuthed: StepId[] = ['start', 'players', 'constraint', 'teams', 'forms', 'review', 'payment'];
+    // Reordered so 'family-check' is always first (Step 1), 'start' becomes Step 2
+    private readonly allStepsEdit: StepId[] = ['family-check', 'start', 'edit-lookup', 'forms', 'review', 'payment'];
+    private readonly allStepsNewUnauthed: StepId[] = ['family-check', 'start', 'players', 'constraint', 'teams', 'forms', 'review', 'payment'];
+    private readonly allStepsNewAuthed: StepId[] = ['family-check', 'start', 'players', 'constraint', 'teams', 'forms', 'review', 'payment'];
 
     // Current index into the computed steps array
     currentIndex = signal(0);
@@ -53,7 +54,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     // Labels for steps used in the header indicator
     readonly stepLabels: Record<StepId, string> = {
         start: 'Start',
-        login: 'Family login',
+        'family-check': 'Family account?',
         'edit-lookup': 'Edit lookup',
         players: 'Players',
         constraint: 'Constraint',
@@ -64,6 +65,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     };
 
     ngOnInit(): void {
+        // Force a clean unauthenticated state when entering the wizard
+        this.auth.logoutLocal();
         // Initialize jobPath from route
         const jobPath = this.route.snapshot.paramMap.get('jobPath') ?? '';
         this.state.jobPath.set(jobPath);
@@ -72,16 +75,15 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         const qpMode = this.route.snapshot.queryParamMap.get('mode') as StartChoice | null;
         if (qpMode === 'new' || qpMode === 'edit' || qpMode === 'parent') {
             this.state.startMode.set(qpMode);
-            // Default to the first post-start step
-            this.currentIndex.set(1);
+            // Keep index at 0 by default so Family Check is always first
         }
 
         const qpStep = this.route.snapshot.queryParamMap.get('step');
         if (qpStep) {
-            // If deep-linking to 'players' but user isn't authed, redirect to 'login' step
+            // If deep-linking to 'players' but user isn't authed, redirect to 'family-check' step
             const user = this.auth.currentUser();
             const authed = !!user;
-            const desired = (!authed && qpStep === 'players') ? 'login' : (qpStep as StepId);
+            const desired: StepId = (!authed && qpStep === 'players') ? 'family-check' : (qpStep as StepId);
             const targetIndex = this.steps().indexOf(desired);
             if (targetIndex >= 0) this.currentIndex.set(targetIndex);
         }
@@ -98,12 +100,10 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     // Handle selection from StartChoice step
     onStartChoice(choice: StartChoice): void {
         this.state.startMode.set(choice);
+        // After Family Check (now Step 1), Start (Step 2) should branch normally
         if (choice === 'edit') {
-            // Jump directly to Edit Lookup
             const idx = this.steps().indexOf('edit-lookup');
-            const newIdx = idx >= 0 ? idx : 1;
-            this.currentIndex.set(newIdx);
-            // reflect in URL for deep-linkability
+            this.currentIndex.set(idx >= 0 ? idx : 2);
             this.router.navigate([], {
                 relativeTo: this.route,
                 queryParams: { mode: choice, step: 'edit-lookup' },
@@ -112,13 +112,11 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             return;
         }
 
-        // For 'new': if already authenticated, skip login, else go to login step
+        // For 'new': proceed to players if authenticated; otherwise send back to family-check
         const authed = !!this.auth.currentUser();
-        const target: StepId = authed ? 'players' : 'login';
+        const target: StepId = authed ? 'players' : 'family-check';
         const idx = this.steps().indexOf(target);
-        const newIdx = idx >= 0 ? idx : 1;
-        this.currentIndex.set(newIdx);
-        // reflect in URL for deep-linkability
+        this.currentIndex.set(idx >= 0 ? idx : 2);
         this.router.navigate([], {
             relativeTo: this.route,
             queryParams: { mode: choice, step: target },

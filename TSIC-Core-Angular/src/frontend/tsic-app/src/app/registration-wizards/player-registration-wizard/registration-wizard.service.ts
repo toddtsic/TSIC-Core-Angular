@@ -11,6 +11,9 @@ export class RegistrationWizardService {
     // Start mode selection: 'new' (start fresh), 'edit' (edit prior), 'parent' (update/deassign)
     startMode = signal<'new' | 'edit' | 'parent' | null>(null);
 
+    // Family account presence (from Family Check step)
+    hasFamilyAccount = signal<'yes' | 'no' | null>(null);
+
     // Players and selections
     selectedPlayers = signal<Array<{ userId: string; name: string }>>([]);
     teamConstraintType = signal<string | null>(null); // e.g., BYGRADYEAR
