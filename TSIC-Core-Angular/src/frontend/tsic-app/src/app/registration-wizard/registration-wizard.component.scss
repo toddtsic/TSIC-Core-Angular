@@ -1,0 +1,58 @@
+/* Step indicator styling kept local to the wizard */
+.rw-steps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    overflow-x: auto;
+}
+
+.rw-step {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    padding: .25rem .75rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+    font-size: .875rem;
+}
+
+.rw-step-index {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--bs-border-color);
+    font-weight: 600;
+    font-size: .8rem;
+}
+
+.rw-step.completed {
+    border-color: var(--bs-success-border-subtle);
+    color: var(--bs-success);
+}
+
+.rw-step.completed .rw-step-index {
+    background: var(--bs-success-bg-subtle);
+    border-color: var(--bs-success-border-subtle);
+}
+
+.rw-step.active {
+    background: var(--bs-primary-bg-subtle);
+    border-color: var(--bs-primary);
+    color: var(--bs-primary);
+}
+
+.rw-step.active .rw-step-index {
+    background: var(--bs-primary);
+    color: #fff;
+    border-color: var(--bs-primary);
+}
+
+/* Minimal styling placeholder; inherit app theme */

@@ -10,6 +10,8 @@
     --gradient-primary-end: #764ba2;
 
     // Light theme colors
+    /* Fallback for Bootstrap primary RGB if not defined by theme */
+    --bs-primary-rgb: 13, 110, 253;
     --bg-primary: #ffffff;
     --bg-secondary: #f8f9fa;
     --bg-elevated: #ffffff;
@@ -194,6 +196,23 @@
     backdrop-filter: saturate(120%) blur(6px);
 }
 
+/* Sticky wrapper for the step chips + toolbar as a single block */
+.rw-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    background-color: var(--bg-elevated);
+    -webkit-backdrop-filter: saturate(120%) blur(6px);
+    backdrop-filter: saturate(120%) blur(6px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .06);
+}
+
+:root[data-bs-theme='dark'] .rw-sticky-header,
+[data-bs-theme='dark'] .rw-sticky-header {
+    background-color: var(--bg-elevated);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+}
+
 /* Choice tile pattern for start screens and similar */
 .selectable {
     border: 1px solid var(--bs-border-color);
@@ -231,6 +250,125 @@
 /* Reduce default list-group flush divider weight so our border reads stronger */
 .list-group-flush>.list-group-item {
     border-width: 0;
+}
+
+/* Utility to override clipping when inner shadows/glows need to escape a rounded card */
+.allow-overflow {
+    overflow: visible !important;
+}
+
+/* ============================================
+   CTA Emphasis Utilities
+   ============================================ */
+
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), .35), 0 0 0 0 rgba(var(--bs-primary-rgb), .15);
+        transform: translateZ(0) scale(1);
+    }
+
+    70% {
+        box-shadow: 0 0 0 .75rem rgba(var(--bs-primary-rgb), 0), 0 0 12px 2px rgba(var(--bs-primary-rgb), .25);
+        transform: translateZ(0) scale(1.015);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0), 0 0 0 0 rgba(var(--bs-primary-rgb), 0);
+        transform: translateZ(0) scale(1);
+    }
+}
+
+.btn-cta-pulse {
+    position: relative;
+    font-weight: 600;
+    border-width: 2px;
+    animation: pulse-glow 2s ease-out infinite;
+    will-change: transform, box-shadow;
+}
+
+.btn-cta-pulse:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 0 0 .15rem rgba(var(--bs-primary-rgb), .2), 0 6px 18px rgba(0, 0, 0, .08);
+}
+
+.btn-cta-pulse:active:not(:disabled) {
+    transform: translateY(0) scale(1.0);
+}
+
+.btn-cta-pulse:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 .25rem rgba(var(--bs-primary-rgb), .35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-cta-pulse {
+        animation: none;
+    }
+}
+
+/* Stronger pulse variant to ensure visibility */
+@keyframes pulse-glow-strong {
+    0% {
+        box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), .35), 0 0 0 0 rgba(var(--bs-primary-rgb), .2);
+        transform: translateZ(0) scale(1);
+    }
+
+    50% {
+        box-shadow: 0 0 0 .45rem rgba(var(--bs-primary-rgb), 0.15), 0 0 18px 4px rgba(var(--bs-primary-rgb), .35);
+        transform: translateZ(0) scale(1.03);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0), 0 0 0 0 rgba(var(--bs-primary-rgb), 0);
+        transform: translateZ(0) scale(1);
+    }
+}
+
+/* Alias utility class requested: pulsing-button */
+.pulsing-button {
+    position: relative;
+    font-weight: 600;
+    border-width: 2px;
+    animation: pulse-glow-strong 1.6s ease-in-out infinite;
+    will-change: transform, box-shadow;
+}
+
+.pulsing-button:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.025);
+    box-shadow: 0 0 0 .15rem rgba(var(--bs-primary-rgb), .22), 0 8px 22px rgba(0, 0, 0, .12);
+}
+
+.pulsing-button:active:not(:disabled) {
+    transform: translateY(0) scale(1.0);
+}
+
+.pulsing-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 .25rem rgba(var(--bs-primary-rgb), .4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pulsing-button {
+        animation: none;
+        /* Make the change visible even when motion is reduced */
+        background-color: rgb(var(--bs-primary-rgb));
+        color: #fff;
+    }
+}
+
+/* Color pulse so the effect is clearly visible even without shadow */
+@keyframes pulse-color {
+
+    0%,
+    100% {
+        background-color: transparent;
+        color: inherit;
+    }
+
+    50% {
+        background-color: rgb(var(--bs-primary-rgb));
+        color: #fff;
+    }
 }
 
 /* ============================================

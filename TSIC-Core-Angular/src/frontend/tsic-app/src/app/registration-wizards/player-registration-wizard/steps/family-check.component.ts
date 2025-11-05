@@ -10,7 +10,7 @@ import { AuthService } from '../../../core/services/auth.service';
     standalone: true,
     imports: [CommonModule, FormsModule],
     template: `
-  <div class="card shadow border-0 card-rounded">
+  <div class="card shadow border-0 card-rounded allow-overflow">
     <div class="card-header gradient-header border-0 py-4 text-center text-white">
       <h5 class="mb-1 fw-semibold">Family Account</h5>
     </div>
@@ -59,10 +59,7 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <!-- CTA for users who need to create a Family Account -->
         <div class="mt-4" *ngIf="hasAccount === 'no'">
-          <div class="alert alert-info border-0">
-            You’ll create your Family Account first, then we’ll bring you back to continue registration.
-          </div>
-          <button type="button" class="btn btn-outline-primary" (click)="createAccount()">Create a Family Account</button>
+          <button type="button" class="btn btn-primary pulsing-button" (click)="createAccount()">OK, Lets create a FAMILY ACCOUNT for you</button>
         </div>
     </div>
   </div>

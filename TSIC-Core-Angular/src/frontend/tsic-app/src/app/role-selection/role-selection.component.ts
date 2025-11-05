@@ -1,8 +1,8 @@
-import { Component, OnInit, inject, signal, effect } from '@angular/core';
+import { Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel } from '@syncfusion/ej2-angular-dropdowns';
+import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 
 @Component({
@@ -12,21 +12,16 @@ import { Query } from '@syncfusion/ej2-data';
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']
 })
-export class RoleSelectionComponent implements OnInit {
+export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-
-  // Signals instead of observables
   registrations = signal<any[]>([]);
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
 
-  // Syncfusion DropdownList field mappings
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
-  // Reflect service signals into local state used by the template
-  // Define as a field initializer so it runs within the component's injection context
   private readonly _mirrorServiceState = effect(() => {
     this.registrations.set(this.authService.registrations());
     this.isLoading.set(this.authService.registrationsLoading());
@@ -38,35 +33,29 @@ export class RoleSelectionComponent implements OnInit {
     this.authService.loadAvailableRegistrations();
   }
 
-  // No extra lifecycle hooks needed; popup opens from (created)/(dataBound) in the template
-  // Auto-open support for the first dropdown: call showPopup once it is created/bound.
-  // We defensively queue the call to ensure the popup can calculate sizes.
-  public onFirstDropdownCreated(dd: any): void {
-    try {
-      // Focus input and open popup to invite immediate selection
-      dd?.focusIn?.();
-      // Microtask first
-      queueMicrotask(() => dd?.showPopup?.());
-      // Fallback in case microtask runs too early
-      setTimeout(() => dd?.showPopup?.(), 0);
-    } catch { /* no-op */ }
+  @ViewChildren(DropDownListComponent) readonly dropdowns!: QueryList<DropDownListComponent>;
+  private _openedOnce = false;
+
+  ngAfterViewInit(): void {
+    this.tryOpenFirstDropdown();
+    this.dropdowns.changes.subscribe(() => this.tryOpenFirstDropdown());
   }
 
-  public onFirstDropdownDataBound(dd: any): void {
-    try {
-      dd?.focusIn?.();
-      dd?.showPopup?.();
-    } catch { /* no-op */ }
+  private tryOpenFirstDropdown(): void {
+    if (this._openedOnce) return;
+    const first = this.dropdowns?.first;
+    if (first) {
+      this._openedOnce = true;
+      setTimeout(() => { try { first.showPopup(); } catch { /* no-op */ } }, 0);
+    }
   }
 
-  // Handle typeahead filtering
   public onFiltering(e: FilteringEventArgs, roleGroup: any): void {
-    let query = new Query();
-    query = (e.text === '') ? query : query.where('displayText', 'contains', e.text, true);
+    const text = (e.text ?? '').trim();
+    const query = text ? new Query().where('displayText', 'contains', text, true) : new Query();
     e.updateData(roleGroup.roleRegistrations, query);
   }
 
-  // Handle dropdown selection
   public onDropdownChange(e: ChangeEventArgs): void {
     if (e.itemData) {
       this.selectRole(e.itemData as any);
@@ -82,20 +71,16 @@ export class RoleSelectionComponent implements OnInit {
     this.authService.selectRegistrationCommand(registration.regId);
   }
 
-  // Navigate to job path only after a selection action completes
-  // Track a local flag to ensure we only navigate on a true selection lifecycle
   private _wasSelecting = false;
   private readonly _navEffect = effect(() => {
     const loading = this.authService.selectLoading();
     const user = this.authService.getCurrentUser();
 
-    // Mark when a selection is in-flight
     if (loading) {
       this._wasSelecting = true;
       return;
     }
 
-    // Only navigate when a selection just finished successfully
     if (!loading && this._wasSelecting && user?.jobPath) {
       const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
       this._wasSelecting = false;
