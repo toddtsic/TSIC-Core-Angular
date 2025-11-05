@@ -19,30 +19,36 @@ import { AuthService } from '../../../core/services/auth.service';
           <div class="col-12 col-md-6">
             <label class="form-label" for="username">Username</label>
             <input id="username" type="text" formControlName="username" class="form-control" [disabled]="isAuthed" [class.is-invalid]="submitted && form.controls['username'].invalid && !isAuthed" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls['username'].errors && !isAuthed">
-              <span *ngIf="form.controls['username'].errors['required']">Required</span>
-              <span *ngIf="form.controls['username'].errors['minlength']">Min 3 characters</span>
-              <span *ngIf="form.controls['username'].errors['pattern']">Letters, numbers, dot, underscore, hyphen only</span>
-            </div>
-            <div class="form-text" *ngIf="isAuthed">You are signed in; username is not required.</div>
+            @if (submitted && form.controls['username'].errors && !isAuthed) {
+              <div class="invalid-feedback">
+                @if (form.controls['username'].errors['required']) { <span>Required</span> }
+                @if (form.controls['username'].errors['minlength']) { <span>Min 3 characters</span> }
+                @if (form.controls['username'].errors['pattern']) { <span>Letters, numbers, dot, underscore, hyphen only</span> }
+              </div>
+            }
+            @if (isAuthed) { <div class="form-text">You are signed in; username is not required.</div> }
           </div>
           <div class="col-12 col-md-6"></div>
 
           <div class="col-12 col-md-6">
             <label class="form-label" for="password">Password</label>
             <input id="password" type="password" formControlName="password" class="form-control" [disabled]="isAuthed" [class.is-invalid]="submitted && form.controls['password'].invalid && !isAuthed" autocomplete="new-password" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls['password'].errors && !isAuthed">
-              <span *ngIf="form.controls['password'].errors['required']">Required</span>
-              <span *ngIf="form.controls['password'].errors['minlength']">Min 6 characters</span>
-            </div>
+            @if (submitted && form.controls['password'].errors && !isAuthed) {
+              <div class="invalid-feedback">
+                @if (form.controls['password'].errors['required']) { <span>Required</span> }
+                @if (form.controls['password'].errors['minlength']) { <span>Min 6 characters</span> }
+              </div>
+            }
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="confirm">Confirm password</label>
             <input id="confirm" type="password" formControlName="confirmPassword" class="form-control" [disabled]="isAuthed" [class.is-invalid]="submitted && (form.controls['confirmPassword'].invalid || form.errors?.['passwordMismatch']) && !isAuthed" autocomplete="new-password" />
-            <div class="invalid-feedback" *ngIf="submitted && !isAuthed && (form.controls['confirmPassword'].errors || form.errors?.['passwordMismatch'])">
-              <span *ngIf="form.controls['confirmPassword'].errors?.['required']">Required</span>
-              <span *ngIf="form.errors?.['passwordMismatch']">Passwords do not match</span>
-            </div>
+            @if (submitted && !isAuthed && (form.controls['confirmPassword'].errors || form.errors?.['passwordMismatch'])) {
+              <div class="invalid-feedback">
+                @if (form.controls['confirmPassword'].errors?.['required']) { <span>Required</span> }
+                @if (form.errors?.['passwordMismatch']) { <span>Passwords do not match</span> }
+              </div>
+            }
           </div>
 
           <div class="d-flex gap-2 mt-2">

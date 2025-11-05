@@ -21,12 +21,16 @@ import { JobService } from '../../../core/services/job.service';
               <div class="col-12">
                 <label class="form-label" for="p1First">First name</label>
                 <input id="p1First" type="text" formControlName="p1First" class="form-control" [class.is-invalid]="submitted && form.controls['p1First'].invalid" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p1First'].errors?.['required']">Required</div>
+                @if (submitted && form.controls['p1First'].errors?.['required']) {
+                  <div class="invalid-feedback">Required</div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p1Last">Last name</label>
                 <input id="p1Last" type="text" formControlName="p1Last" class="form-control" [class.is-invalid]="submitted && form.controls['p1Last'].invalid" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p1Last'].errors?.['required']">Required</div>
+                @if (submitted && form.controls['p1Last'].errors?.['required']) {
+                  <div class="invalid-feedback">Required</div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p1Phone">Cellphone</label>
@@ -35,24 +39,30 @@ import { JobService } from '../../../core/services/job.service';
                   title="Numbers only" placeholder="Numbers only"
                   (input)="onDigitsOnly('p1Phone', $event)"
                   [class.is-invalid]="submitted && form.controls['p1Phone'].errors?.['pattern']" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p1Phone'].errors?.['pattern']">Numbers only</div>
+                @if (submitted && form.controls['p1Phone'].errors?.['pattern']) {
+                  <div class="invalid-feedback">Numbers only</div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p1Email">Email</label>
                 <input id="p1Email" type="email" formControlName="p1Email" class="form-control" [class.is-invalid]="submitted && form.controls['p1Email'].invalid" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p1Email'].errors">
-                  <span *ngIf="form.controls['p1Email'].errors['required']">Required</span>
-                  <span *ngIf="form.controls['p1Email'].errors['email']">Invalid email</span>
-                </div>
+                @if (submitted && form.controls['p1Email'].errors) {
+                  <div class="invalid-feedback">
+                    @if (form.controls['p1Email'].errors['required']) { <span>Required</span> }
+                    @if (form.controls['p1Email'].errors['email']) { <span>Invalid email</span> }
+                  </div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p1Email2">Confirm email</label>
                 <input id="p1Email2" type="email" formControlName="p1EmailConfirm" class="form-control" [class.is-invalid]="submitted && (form.controls['p1EmailConfirm'].invalid || form.errors?.['p1EmailMismatch'])" />
-                <div class="invalid-feedback" *ngIf="submitted && (form.controls['p1EmailConfirm'].errors || form.errors?.['p1EmailMismatch'])">
-                  <span *ngIf="form.controls['p1EmailConfirm'].errors?.['required']">Required</span>
-                  <span *ngIf="form.controls['p1EmailConfirm'].errors?.['email']">Invalid email</span>
-                  <span *ngIf="form.errors?.['p1EmailMismatch']">Emails do not match</span>
-                </div>
+                @if (submitted && (form.controls['p1EmailConfirm'].errors || form.errors?.['p1EmailMismatch'])) {
+                  <div class="invalid-feedback">
+                    @if (form.controls['p1EmailConfirm'].errors?.['required']) { <span>Required</span> }
+                    @if (form.controls['p1EmailConfirm'].errors?.['email']) { <span>Invalid email</span> }
+                    @if (form.errors?.['p1EmailMismatch']) { <span>Emails do not match</span> }
+                  </div>
+                }
               </div>
             </div>
           </div>
@@ -63,12 +73,16 @@ import { JobService } from '../../../core/services/job.service';
               <div class="col-12">
                 <label class="form-label" for="p2First">First name</label>
                 <input id="p2First" type="text" formControlName="p2First" class="form-control" [class.is-invalid]="submitted && form.controls['p2First'].invalid" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p2First'].errors?.['required']">Required</div>
+                @if (submitted && form.controls['p2First'].errors?.['required']) {
+                  <div class="invalid-feedback">Required</div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p2Last">Last name</label>
                 <input id="p2Last" type="text" formControlName="p2Last" class="form-control" [class.is-invalid]="submitted && form.controls['p2Last'].invalid" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p2Last'].errors?.['required']">Required</div>
+                @if (submitted && form.controls['p2Last'].errors?.['required']) {
+                  <div class="invalid-feedback">Required</div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p2Phone">Cellphone</label>
@@ -77,27 +91,33 @@ import { JobService } from '../../../core/services/job.service';
                   title="Numbers only" placeholder="Numbers only"
                   (input)="onDigitsOnly('p2Phone', $event)"
                   [class.is-invalid]="submitted && form.controls['p2Phone'].invalid" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p2Phone'].errors">
-                  <span *ngIf="form.controls['p2Phone'].errors?.['required']">Required</span>
-                  <span *ngIf="form.controls['p2Phone'].errors?.['pattern']">Numbers only</span>
-                </div>
+                @if (submitted && form.controls['p2Phone'].errors) {
+                  <div class="invalid-feedback">
+                    @if (form.controls['p2Phone'].errors['required']) { <span>Required</span> }
+                    @if (form.controls['p2Phone'].errors['pattern']) { <span>Numbers only</span> }
+                  </div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p2Email">Email</label>
                 <input id="p2Email" type="email" formControlName="p2Email" class="form-control" [class.is-invalid]="submitted && form.controls['p2Email'].invalid" />
-                <div class="invalid-feedback" *ngIf="submitted && form.controls['p2Email'].errors">
-                  <span *ngIf="form.controls['p2Email'].errors?.['required']">Required</span>
-                  <span *ngIf="form.controls['p2Email'].errors?.['email']">Invalid email</span>
-                </div>
+                @if (submitted && form.controls['p2Email'].errors) {
+                  <div class="invalid-feedback">
+                    @if (form.controls['p2Email'].errors['required']) { <span>Required</span> }
+                    @if (form.controls['p2Email'].errors['email']) { <span>Invalid email</span> }
+                  </div>
+                }
               </div>
               <div class="col-12">
                 <label class="form-label" for="p2Email2">Confirm email</label>
                 <input id="p2Email2" type="email" formControlName="p2EmailConfirm" class="form-control" [class.is-invalid]="submitted && (form.controls['p2EmailConfirm'].invalid || form.errors?.['p2EmailMismatch'])" />
-                <div class="invalid-feedback" *ngIf="submitted && (form.controls['p2EmailConfirm'].errors || form.errors?.['p2EmailMismatch'])">
-                  <span *ngIf="form.controls['p2EmailConfirm'].errors?.['required']">Required</span>
-                  <span *ngIf="form.controls['p2EmailConfirm'].errors?.['email']">Invalid email</span>
-                  <span *ngIf="form.errors?.['p2EmailMismatch']">Emails do not match</span>
-                </div>
+                @if (submitted && (form.controls['p2EmailConfirm'].errors || form.errors?.['p2EmailMismatch'])) {
+                  <div class="invalid-feedback">
+                    @if (form.controls['p2EmailConfirm'].errors?.['required']) { <span>Required</span> }
+                    @if (form.controls['p2EmailConfirm'].errors?.['email']) { <span>Invalid email</span> }
+                    @if (form.errors?.['p2EmailMismatch']) { <span>Emails do not match</span> }
+                  </div>
+                }
               </div>
             </div>
           </div>

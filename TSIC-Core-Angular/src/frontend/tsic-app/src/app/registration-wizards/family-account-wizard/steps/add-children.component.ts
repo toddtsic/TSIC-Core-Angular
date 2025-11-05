@@ -18,20 +18,20 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           <div class="col-12 col-md-3">
             <label class="form-label" for="childFirst">First name</label>
             <input id="childFirst" type="text" formControlName="firstName" class="form-control" [class.is-invalid]="submitted && form.controls.firstName.invalid" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.firstName.errors?.['required']">Required</div>
+            @if (submitted && form.controls.firstName.errors?.['required']) { <div class="invalid-feedback">Required</div> }
           </div>
           <div class="col-12 col-md-3">
             <label class="form-label" for="childLast">Last name</label>
             <input id="childLast" type="text" formControlName="lastName" class="form-control" [class.is-invalid]="submitted && form.controls.lastName.invalid" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.lastName.errors?.['required']">Required</div>
+            @if (submitted && form.controls.lastName.errors?.['required']) { <div class="invalid-feedback">Required</div> }
           </div>
           <div class="col-12 col-md-3">
             <label class="form-label" for="childGender">Gender</label>
             <select id="childGender" formControlName="gender" class="form-select" [class.is-invalid]="submitted && form.controls.gender.invalid">
               <option value="" disabled>Select</option>
-              <option *ngFor="let g of genderOptions" [value]="g.value">{{ g.label }}</option>
+              @for (g of genderOptions; track g.value) { <option [value]="g.value">{{ g.label }}</option> }
             </select>
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.gender.errors?.['required']">Required</div>
+            @if (submitted && form.controls.gender.errors?.['required']) { <div class="invalid-feedback">Required</div> }
           </div>
           <div class="col-12 col-md-3">
             <label class="form-label" for="childDob">Date of birth</label>
@@ -41,7 +41,7 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           <div class="col-12 col-md-6">
             <label class="form-label" for="childEmail">Email <span class="text-secondary small">(optional)</span></label>
             <input id="childEmail" type="email" formControlName="email" class="form-control" [class.is-invalid]="submitted && form.controls.email.errors?.['email']" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.email.errors?.['email']">Invalid email</div>
+            @if (submitted && form.controls.email.errors?.['email']) { <div class="invalid-feedback">Invalid email</div> }
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="childPhone">Cellphone <span class="text-secondary small">(optional)</span></label>
@@ -50,7 +50,7 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
               title="Numbers only" placeholder="Numbers only"
               (input)="onDigitsOnly('phone', $event)"
               [class.is-invalid]="submitted && form.controls.phone.errors?.['pattern']" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.phone.errors?.['pattern']">Numbers only</div>
+            @if (submitted && form.controls.phone.errors?.['pattern']) { <div class="invalid-feedback">Numbers only</div> }
           </div>
           <div class="col-12">
             <button type="submit" class="btn btn-outline-primary">Add child</button>
@@ -59,17 +59,21 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
         <hr />
 
-        <div *ngIf="state.children().length === 0" class="text-secondary">No children added yet.</div>
+  @if (state.children().length === 0) { <div class="text-secondary">No children added yet.</div> }
 
-        <ul class="list-group mb-3" *ngIf="state.children().length > 0">
-          <li class="list-group-item d-flex justify-content-between align-items-center" *ngFor="let c of state.children(); index as i">
-            <div>
-              <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
-              <div class="text-secondary small" *ngIf="c.dob">DOB: {{ c.dob }}</div>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove(i)">Remove</button>
-          </li>
-        </ul>
+        @if (state.children().length > 0) {
+          <ul class="list-group mb-3">
+            @for (c of state.children(); track $index) {
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
+                  @if (c.dob) { <div class="text-secondary small">DOB: {{ c.dob }}</div> }
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove($index)">Remove</button>
+              </li>
+            }
+          </ul>
+        }
 
         <div class="d-flex gap-2">
           <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>

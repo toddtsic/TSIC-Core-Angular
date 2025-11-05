@@ -18,28 +18,29 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           <div class="col-12">
             <label class="form-label" for="addr1">Street Address</label>
             <input id="addr1" type="text" formControlName="address1" class="form-control" [class.is-invalid]="submitted && form.controls.address1.invalid" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.address1.errors?.['required']">Required</div>
+            @if (submitted && form.controls.address1.errors?.['required']) { <div class="invalid-feedback">Required</div> }
           </div>
           <div class="col-12 col-md-6">
             <label class="form-label" for="city">City</label>
             <input id="city" type="text" formControlName="city" class="form-control" [class.is-invalid]="submitted && form.controls.city.invalid" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.city.errors?.['required']">Required</div>
+            @if (submitted && form.controls.city.errors?.['required']) { <div class="invalid-feedback">Required</div> }
           </div>
           <div class="col-6 col-md-3">
             <label class="form-label" for="state">State</label>
             <select id="state" formControlName="state" class="form-select" [class.is-invalid]="submitted && form.controls.state.invalid">
               <option value="" disabled>Select a state</option>
-              <option *ngFor="let s of statesOptions" [value]="s.value">{{ s.label }}</option>
+              @for (s of statesOptions; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
             </select>
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.state.errors?.['required']">Required</div>
+            @if (submitted && form.controls.state.errors?.['required']) { <div class="invalid-feedback">Required</div> }
           </div>
           <div class="col-6 col-md-3">
-            <label class="form-label" for="postal">ZIP Code</label>
+            <label class="form-label" for="postal">Postal code</label>
             <input id="postal" type="text" formControlName="postalCode" class="form-control" [class.is-invalid]="submitted && form.controls.postalCode.invalid" />
-            <div class="invalid-feedback" *ngIf="submitted && form.controls.postalCode.errors">
-              <span *ngIf="form.controls.postalCode.errors['required']">Required</span>
-              <span *ngIf="form.controls.postalCode.errors['pattern']">Invalid code</span>
-            </div>
+            @if (submitted && form.controls.postalCode.errors) {
+              <div class="invalid-feedback">
+                @if (form.controls.postalCode.errors['required']) { <span>Required</span> }
+              </div>
+            }
           </div>
 
           <div class="d-flex gap-2 mt-2">
@@ -66,7 +67,7 @@ export class FamAccountStepAddressComponent {
         address1: [this.state.address1(), [Validators.required]],
         city: [this.state.city(), [Validators.required]],
         state: [this.state.state(), [Validators.required]],
-        postalCode: [this.state.postalCode(), [Validators.required, Validators.pattern(/^[A-Za-z0-9\-\s]{3,10}$/)]]
+        postalCode: [this.state.postalCode(), [Validators.required]]
     });
 
     submit(): void {
