@@ -52,7 +52,7 @@
     <!-- Profile Selector + Job Profile Panel -->
     <div class="row mb-4 g-3">
         <div class="col-md-6">
-            <div class="card h-100">
+            <div class="card h-100 allow-overflow">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0 d-flex align-items-center gap-2">
@@ -90,9 +90,12 @@
                         <div class="d-flex gap-2">
                             <button class="btn btn-outline-secondary" (click)="onResetJobProfileConfig()"
                                 [disabled]="!jobConfigDirty()">Reset</button>
-                            <button class="btn apply-button"
-                                [ngClass]="{ 'btn-primary apply-pulse': jobConfigDirty() && !isSaving(), 'btn-secondary': !jobConfigDirty() || isSaving() }"
-                                (click)="applyJobProfileConfig()"
+                            <button class="btn apply-button" [ngClass]="{
+                                    'btn-primary': jobConfigDirty() && !isSaving(),
+                                    'pulsing-button': jobConfigDirty() && !isSaving(),
+                                    'apply-pulse': jobConfigDirty() && !isSaving(),
+                                    'btn-secondary': !jobConfigDirty() || isSaving()
+                                }" (click)="applyJobProfileConfig()"
                                 [disabled]="isSaving() || !jobProfileType() || !jobConfigDirty()">
                                 @if (isSaving()) {<span class="spinner-border spinner-border-sm me-1"></span>}Apply
                             </button>

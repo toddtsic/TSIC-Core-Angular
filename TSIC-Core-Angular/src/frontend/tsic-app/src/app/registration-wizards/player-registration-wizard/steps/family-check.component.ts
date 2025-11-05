@@ -6,10 +6,10 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
-    selector: 'app-rw-family-check',
-    standalone: true,
-    imports: [CommonModule, FormsModule],
-    template: `
+  selector: 'app-rw-family-check',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
   <div class="card shadow border-0 card-rounded allow-overflow">
     <div class="card-header gradient-header border-0 py-4 text-center text-white">
       <h5 class="mb-1 fw-semibold">Family Account</h5>
@@ -59,44 +59,44 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <!-- CTA for users who need to create a Family Account -->
         <div class="mt-4" *ngIf="hasAccount === 'no'">
-          <button type="button" class="btn btn-primary pulsing-button" (click)="createAccount()">OK, Lets create a FAMILY ACCOUNT for you</button>
+          <button type="button" class="btn btn-primary pulsing-button apply-pulse" (click)="createAccount()">OK, Lets create a FAMILY ACCOUNT for you</button>
         </div>
     </div>
   </div>
   `
 })
 export class FamilyCheckStepComponent {
-    private readonly state = inject(RegistrationWizardService);
-    private readonly auth = inject(AuthService);
-    private readonly router = inject(Router);
+  private readonly state = inject(RegistrationWizardService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
-    @Output() next = new EventEmitter<void>();
+  @Output() next = new EventEmitter<void>();
 
-    get hasAccount(): 'yes' | 'no' | null { return this.state.hasFamilyAccount(); }
-    set hasAccount(v: 'yes' | 'no' | null) { this.state.hasFamilyAccount.set(v); }
+  get hasAccount(): 'yes' | 'no' | null { return this.state.hasFamilyAccount(); }
+  set hasAccount(v: 'yes' | 'no' | null) { this.state.hasFamilyAccount.set(v); }
 
-    username = '';
-    password = '';
-    loginError: string | null = null;
+  username = '';
+  password = '';
+  loginError: string | null = null;
 
-    submitLogin(): void {
-        this.loginError = null;
-        if (!this.username || !this.password) {
-            this.loginError = 'Please enter both username and password.';
-            return;
-        }
-        this.auth.login({ username: this.username, password: this.password }).subscribe({
-            next: () => this.next.emit(),
-            error: (err) => {
-                const msg = err?.error?.message || 'Login failed. Please check your credentials and try again.';
-                this.loginError = msg;
-            }
-        });
+  submitLogin(): void {
+    this.loginError = null;
+    if (!this.username || !this.password) {
+      this.loginError = 'Please enter both username and password.';
+      return;
     }
+    this.auth.login({ username: this.username, password: this.password }).subscribe({
+      next: () => this.next.emit(),
+      error: (err) => {
+        const msg = err?.error?.message || 'Login failed. Please check your credentials and try again.';
+        this.loginError = msg;
+      }
+    });
+  }
 
-    createAccount(): void {
-        const jobPath = this.state.jobPath();
-        const returnUrl = `/${jobPath}/register-player?step=start`;
-        this.router.navigate(['/tsic/family-account'], { queryParams: { returnUrl } });
-    }
+  createAccount(): void {
+    const jobPath = this.state.jobPath();
+    const returnUrl = `/${jobPath}/register-player?step=start`;
+    this.router.navigate(['/tsic/family-account'], { queryParams: { returnUrl } });
+  }
 }
