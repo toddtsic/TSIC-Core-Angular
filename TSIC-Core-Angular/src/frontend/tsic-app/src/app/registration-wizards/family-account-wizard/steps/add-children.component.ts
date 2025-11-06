@@ -14,7 +14,36 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
         <h5 class="mb-0 fw-semibold">Add Children</h5>
       </div>
       <div class="card-body">
-        <form [formGroup]="form" (ngSubmit)="addChild()" class="row g-3">
+        <!-- Emphasize created children list first -->
+        <div class="mb-4 allow-overflow">
+  @if (state.children().length === 0) {
+            <div class="alert alert-info mb-3">Add at least one child to continue.</div>
+          }
+
+          @if (state.children().length > 0) {
+            <div class="border border-primary rounded p-3 bg-primary-subtle">
+              <h6 class="fw-semibold mb-3">Children added</h6>
+              <ul class="list-group mb-0">
+                @for (c of state.children(); track $index) {
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
+                      @if (c.dob) { <div class="text-secondary small">DOB: {{ c.dob }}</div> }
+                      @if (c.email) { <div class="text-secondary small">Email: {{ c.email }}</div> }
+                      @if (c.phone) { <div class="text-secondary small">Cell: {{ c.phone }}</div> }
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove($index)">Remove</button>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+
+        <!-- New child entry form on its own card to visually separate from list -->
+        <div class="card bg-body-tertiary border-0 mb-3">
+          <div class="card-body">
+            <form [formGroup]="form" (ngSubmit)="addChild()" class="row g-3">
           <div class="col-12 col-md-3">
             <label class="form-label" for="childFirst">First name</label>
             <input id="childFirst" type="text" formControlName="firstName" class="form-control" [class.is-invalid]="submitted && form.controls.firstName.invalid" />
@@ -61,29 +90,15 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           <div class="col-12">
             <button type="submit" class="btn btn-outline-primary">Add child</button>
           </div>
-        </form>
+            </form>
+          </div>
+        </div>
 
         <hr />
 
-  @if (state.children().length === 0) { <div class="text-secondary">No children added yet.</div> }
-
-        @if (state.children().length > 0) {
-          <ul class="list-group mb-3">
-            @for (c of state.children(); track $index) {
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
-                  @if (c.dob) { <div class="text-secondary small">DOB: {{ c.dob }}</div> }
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove($index)">Remove</button>
-              </li>
-            }
-          </ul>
-        }
-
         <div class="d-flex gap-2">
           <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-          <button type="button" class="btn btn-primary" (click)="next.emit()">Continue</button>
+          <button type="button" class="btn btn-primary" (click)="next.emit()" [disabled]="state.children().length === 0">Continue</button>
         </div>
       </div>
     </div>

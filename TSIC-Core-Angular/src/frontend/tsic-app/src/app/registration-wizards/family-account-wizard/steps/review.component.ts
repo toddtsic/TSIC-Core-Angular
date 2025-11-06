@@ -1,9 +1,9 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
-import { FamilyService, FamilyRegistrationRequest } from '../../../core/services/family.service';
+import { FamilyService, FamilyRegistrationRequest, FamilyUpdateRequest } from '../../../core/services/family.service';
 import { JobService } from '../../../core/services/job.service';
 
 @Component({
@@ -53,43 +53,53 @@ import { JobService } from '../../../core/services/job.service';
         </div>
 
         <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
-          <button type="button" class="btn btn-success" (click)="createFamily()" [disabled]="creating">Create Family Account</button>
-          @if (createError) { <span class="text-danger small">{{ createError }}</span> }
-          @if (createSuccess) { <span class="text-success small">Family account created. You can now sign in below.</span> }
+          @if (creating) { <span class="text-secondary small d-inline-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving your family account…</span> }
+          @if (!creating && createSuccess) { <span class="text-success small">Family account saved.</span> }
+          @if (!creating && createError) {
+            <span class="text-danger small">{{ createError }}</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="autoSave()">Retry</button>
+          }
         </div>
 
         <div class="mt-3">
           <h6 class="fw-semibold mb-2">Children</h6>
           @if (state.children().length === 0) { <div class="text-secondary">No children added.</div> }
           @if (state.children().length > 0) {
-            <ul class="list-group">
-              @for (c of state.children(); track $index) {
-                <li class="list-group-item">
-                  <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
-                  <div class="small text-secondary mt-1">Gender</div>
-                  <div>{{ c.gender }}</div>
-                  <div class="small text-secondary mt-1">DOB</div>
-                  <div>{{ c.dob || '—' }}</div>
-                  @if (c.email) {
-                    <div class="small text-secondary mt-1">Email</div>
-                    <div>{{ c.email }}</div>
+            <div class="table-responsive">
+              <table class="table align-middle table-sm">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Gender</th>
+                    <th scope="col">DOB</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Cellphone</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of state.children(); track $index) {
+                    <tr>
+                      <td class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</td>
+                      <td>{{ c.gender }}</td>
+                      <td>{{ c.dob || '—' }}</td>
+                      <td>{{ c.email || '—' }}</td>
+                      <td>{{ c.phone || '—' }}</td>
+                    </tr>
                   }
-                  @if (c.phone) {
-                    <div class="small text-secondary mt-1">Cellphone</div>
-                    <div>{{ c.phone }}</div>
-                  }
-                </li>
-              }
-            </ul>
+                </tbody>
+              </table>
+            </div>
           }
         </div>
 
+        
+
         <hr class="my-4" />
-        <div class="card border-0 bg-light-subtle">
+        <div class="card border rounded bg-body-tertiary">
           <div class="card-body">
             <h6 class="fw-semibold">Sign in now (optional)</h6>
             <p class="text-secondary small mb-3">Already created your Family Account? You can sign in here to head straight back to Player Registration.</p>
-            <form class="row g-2" (ngSubmit)="login()" autocomplete="on">
+            <form class="row g-2 align-items-end" (ngSubmit)="login()" autocomplete="on">
               <div class="col-12 col-md-4">
                 <label class="form-label" for="famLoginUsername">Username</label>
                 <input id="famLoginUsername" name="username" [(ngModel)]="username" class="form-control" />
@@ -98,10 +108,10 @@ import { JobService } from '../../../core/services/job.service';
                 <label class="form-label" for="famLoginPassword">Password</label>
                 <input id="famLoginPassword" type="password" name="password" [(ngModel)]="password" class="form-control" />
               </div>
-              <div class="col-12 col-md-4 d-flex align-items-end gap-2 flex-wrap">
-                <button type="submit" class="btn btn-primary" [disabled]="auth.loginLoading()">Sign in and continue</button>
-                <button type="button" class="btn btn-outline-secondary" (click)="completed.emit()">Return home</button>
-                @if (auth.loginError()) { <span class="text-danger small ms-auto">{{ auth.loginError() }}</span> }
+              <div class="col-12 col-md-4 d-grid d-sm-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1" [disabled]="auth.loginLoading()">Sign in and continue</button>
+                <button type="button" class="btn btn-outline-secondary flex-grow-1" (click)="completed.emit()">Return home</button>
+                @if (auth.loginError()) { <span class="text-danger small ms-sm-auto mt-2 mt-sm-0">{{ auth.loginError() }}</span> }
               </div>
             </form>
           </div>
@@ -110,7 +120,7 @@ import { JobService } from '../../../core/services/job.service';
     </div>
   `
 })
-export class FamAccountStepReviewComponent {
+export class FamAccountStepReviewComponent implements OnInit {
   @Output() completed = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
   private readonly authSvc = inject(AuthService);
@@ -126,6 +136,7 @@ export class FamAccountStepReviewComponent {
   creating = false;
   createError: string | null = null;
   createSuccess = false;
+  private autoSaveAttempted = false;
 
   // Dynamic labels (Mom/Dad etc.) or fallback
   label1(): string {
@@ -135,6 +146,11 @@ export class FamAccountStepReviewComponent {
   label2(): string {
     const label = this.jobService.currentJob()?.dadLabel?.trim();
     return label && label.length > 0 ? label : 'Parent 2';
+  }
+
+  ngOnInit(): void {
+    // Auto-create or auto-update when entering the Review step
+    this.autoSave();
   }
 
   login(): void {
@@ -206,5 +222,68 @@ export class FamAccountStepReviewComponent {
         this.createError = err?.error?.message || 'Unable to create Family Account';
       }
     });
+  }
+
+  updateFamily(): void {
+    this.createError = null;
+    this.createSuccess = false;
+    this.creating = true;
+    const uname = this.state.username() || this.authSvc.getCurrentUser()?.username || '';
+    const req: FamilyUpdateRequest = {
+      username: uname,
+      primary: {
+        firstName: this.state.parent1FirstName(),
+        lastName: this.state.parent1LastName(),
+        cellphone: this.state.parent1Phone(),
+        email: this.state.parent1Email()
+      },
+      secondary: {
+        firstName: this.state.parent2FirstName(),
+        lastName: this.state.parent2LastName(),
+        cellphone: this.state.parent2Phone(),
+        email: this.state.parent2Email()
+      },
+      address: {
+        streetAddress: this.state.address1(),
+        city: this.state.city(),
+        state: this.state.state(),
+        postalCode: this.state.postalCode()
+      },
+      children: this.state.children().map(c => ({
+        firstName: c.firstName,
+        lastName: c.lastName,
+        gender: c.gender,
+        dob: c.dob,
+        email: c.email,
+        phone: c.phone
+      }))
+    };
+
+    this.familyService.updateFamily(req).subscribe({
+      next: (res) => {
+        this.creating = false;
+        if (res?.success) {
+          this.createSuccess = true;
+        } else {
+          this.createError = res?.message || 'Unable to update Family Account';
+        }
+      },
+      error: (err) => {
+        this.creating = false;
+        this.createError = err?.error?.message || 'Unable to update Family Account';
+      }
+    });
+  }
+
+  autoSave(): void {
+    if (this.autoSaveAttempted) return;
+    // Require at least one child before auto-saving to avoid server 400
+    if (this.state.children().length === 0) return;
+    this.autoSaveAttempted = true;
+    if (this.state.mode() === 'edit') {
+      this.updateFamily();
+    } else {
+      this.createFamily();
+    }
   }
 }

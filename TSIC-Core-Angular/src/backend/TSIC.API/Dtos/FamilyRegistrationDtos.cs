@@ -38,3 +38,11 @@ public record FamilyRegistrationResponse(
     Guid? FamilyId,
     string? Message
 );
+
+public record FamilyUpdateRequest(
+    string Username,
+    PersonDto Primary,
+    PersonDto Secondary,
+    AddressDto Address,
+    List<ChildDto> Children
+);

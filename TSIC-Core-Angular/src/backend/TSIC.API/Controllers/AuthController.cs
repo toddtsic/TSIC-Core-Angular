@@ -9,6 +9,7 @@ using TSIC.Application.Validators;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Application.Services;
 using FluentValidation;
+using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.API.Controllers
 {
@@ -16,14 +17,14 @@ namespace TSIC.API.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly IRoleLookupService _roleLookupService;
         private readonly IValidator<LoginRequest> _loginValidator;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenService _refreshTokenService;
 
         public AuthController(
-            UserManager<IdentityUser> userManager,
+            UserManager<ApplicationUser> userManager,
             IRoleLookupService roleLookupService,
             IValidator<LoginRequest> loginValidator,
             IConfiguration configuration,
@@ -175,7 +176,7 @@ namespace TSIC.API.Controllers
         /// <summary>
         /// Generate Phase 1 JWT token with minimal claims (username only)
         /// </summary>
-        private string GenerateMinimalJwtToken(IdentityUser user)
+        private string GenerateMinimalJwtToken(ApplicationUser user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
@@ -208,7 +209,7 @@ namespace TSIC.API.Controllers
         /// <summary>
         /// Generate Phase 2 JWT token with enriched claims (username, regId, jobPath, jobLogo, role)
         /// </summary>
-        private string GenerateEnrichedJwtToken(IdentityUser user, string regId, string jobPath, string? jobLogo, string roleName)
+        private string GenerateEnrichedJwtToken(ApplicationUser user, string regId, string jobPath, string? jobLogo, string roleName)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
