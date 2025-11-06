@@ -41,14 +41,14 @@
             @case (2) { <app-fam-account-step-account (next)="next()" /> }
             @case (3) { <app-fam-account-step-address (back)="back()" (next)="next()" /> }
             @case (4) { <app-fam-account-step-children (back)="back()" (next)="next()" /> }
-            @case (5) { <app-fam-account-step-review (back)="back()" (completed)="finish()" /> }
+            @case (5) { <app-fam-account-step-review (back)="back()" (completed)="finish($event)" /> }
             }
             } @else {
             @switch (currentStep()) {
             @case (1) { <app-fam-account-step-account (next)="next()" /> }
             @case (2) { <app-fam-account-step-address (back)="back()" (next)="next()" /> }
             @case (3) { <app-fam-account-step-children (back)="back()" (next)="next()" /> }
-            @case (4) { <app-fam-account-step-review (back)="back()" (completed)="finish()" /> }
+            @case (4) { <app-fam-account-step-review (back)="back()" (completed)="finish($event)" /> }
             }
             }
         </div>

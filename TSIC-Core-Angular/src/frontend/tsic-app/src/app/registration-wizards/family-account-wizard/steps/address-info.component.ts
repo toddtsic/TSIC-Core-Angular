@@ -5,10 +5,10 @@ import { FormFieldDataService, SelectOption } from '../../../core/services/form-
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
 @Component({
-    selector: 'app-fam-account-step-address',
-    standalone: true,
-    imports: [CommonModule, ReactiveFormsModule],
-    template: `
+  selector: 'app-fam-account-step-address',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
+  template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Address</h5>
@@ -43,7 +43,7 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
             }
           </div>
 
-          <div class="d-flex gap-2 mt-2">
+          <div class="rw-bottom-nav d-flex gap-2">
             <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
             <button type="submit" class="btn btn-primary">Continue</button>
           </div>
@@ -53,31 +53,31 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
   `
 })
 export class FamAccountStepAddressComponent {
-    @Output() next = new EventEmitter<void>();
-    @Output() back = new EventEmitter<void>();
+  @Output() next = new EventEmitter<void>();
+  @Output() back = new EventEmitter<void>();
 
-    private readonly fb = inject(FormBuilder);
-    private readonly state = inject(FamilyAccountWizardService);
-    private readonly fieldData = inject(FormFieldDataService);
+  private readonly fb = inject(FormBuilder);
+  private readonly state = inject(FamilyAccountWizardService);
+  private readonly fieldData = inject(FormFieldDataService);
 
-    submitted = false;
-    statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
+  submitted = false;
+  statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
-    form = this.fb.group({
-        address1: [this.state.address1(), [Validators.required]],
-        city: [this.state.city(), [Validators.required]],
-        state: [this.state.state(), [Validators.required]],
-        postalCode: [this.state.postalCode(), [Validators.required]]
-    });
+  form = this.fb.group({
+    address1: [this.state.address1(), [Validators.required]],
+    city: [this.state.city(), [Validators.required]],
+    state: [this.state.state(), [Validators.required]],
+    postalCode: [this.state.postalCode(), [Validators.required]]
+  });
 
-    submit(): void {
-        this.submitted = true;
-        if (this.form.invalid) return;
-        const v = this.form.value;
-        this.state.address1.set(v.address1 ?? '');
-        this.state.city.set(v.city ?? '');
-        this.state.state.set(v.state ?? '');
-        this.state.postalCode.set(v.postalCode ?? '');
-        this.next.emit();
-    }
+  submit(): void {
+    this.submitted = true;
+    if (this.form.invalid) return;
+    const v = this.form.value;
+    this.state.address1.set(v.address1 ?? '');
+    this.state.city.set(v.city ?? '');
+    this.state.state.set(v.state ?? '');
+    this.state.postalCode.set(v.postalCode ?? '');
+    this.next.emit();
+  }
 }

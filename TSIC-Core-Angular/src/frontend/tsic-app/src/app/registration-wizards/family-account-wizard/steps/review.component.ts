@@ -110,7 +110,7 @@ import { JobService } from '../../../core/services/job.service';
               </div>
               <div class="col-12 col-md-4 d-grid d-sm-flex align-items-end gap-2">
                 <button type="submit" class="btn btn-primary flex-grow-1" [disabled]="auth.loginLoading()">Sign in and continue</button>
-                <button type="button" class="btn btn-outline-secondary flex-grow-1" (click)="completed.emit()">Return home</button>
+                <button type="button" class="btn btn-outline-secondary flex-grow-1" (click)="completed.emit('home')">Return home</button>
                 @if (auth.loginError()) { <span class="text-danger small ms-sm-auto mt-2 mt-sm-0">{{ auth.loginError() }}</span> }
               </div>
             </form>
@@ -121,7 +121,7 @@ import { JobService } from '../../../core/services/job.service';
   `
 })
 export class FamAccountStepReviewComponent implements OnInit {
-  @Output() completed = new EventEmitter<void>();
+  @Output() completed = new EventEmitter<'home' | 'register'>();
   @Output() back = new EventEmitter<void>();
   private readonly authSvc = inject(AuthService);
   private readonly familyService = inject(FamilyService);
@@ -161,7 +161,7 @@ export class FamAccountStepReviewComponent implements OnInit {
     this.authSvc.login({ username: this.username, password: this.password }).subscribe({
       next: () => {
         this.auth.loginLoading.set(false);
-        this.completed.emit();
+        this.completed.emit('register');
       },
       error: (error) => {
         this.auth.loginLoading.set(false);

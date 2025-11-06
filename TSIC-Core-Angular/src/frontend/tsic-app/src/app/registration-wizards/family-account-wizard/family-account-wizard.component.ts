@@ -56,9 +56,18 @@ export class FamilyAccountWizardComponent implements OnInit {
         this.currentStep.update(s => Math.max(1, s - 1));
     }
 
-    finish(): void {
-        const dest = this.returnUrl() || '/tsic/role-selection';
-        this.router.navigateByUrl(dest);
+    finish(action?: 'home' | 'register'): void {
+        // Prefer known job from JobService; fall back to parsing returnUrl if provided
+        const jobPath = this.jobService.getCurrentJob()?.jobPath || this.extractJobPathFromReturnUrl(this.returnUrl());
+        if (!jobPath) {
+            this.router.navigateByUrl('/tsic/role-selection');
+            return;
+        }
+        if (action === 'register') {
+            this.router.navigateByUrl(`/${jobPath}/register-player`);
+        } else {
+            this.router.navigateByUrl(`/${jobPath}`);
+        }
     }
 
     private extractJobPathFromReturnUrl(ru: string | null): string | null {

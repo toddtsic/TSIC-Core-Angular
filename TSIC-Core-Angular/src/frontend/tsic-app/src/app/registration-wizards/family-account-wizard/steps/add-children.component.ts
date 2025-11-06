@@ -93,10 +93,7 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
             </form>
           </div>
         </div>
-
-        <hr />
-
-        <div class="d-flex gap-2">
+        <div class="rw-bottom-nav d-flex gap-2">
           <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
           <button type="button" class="btn btn-primary" (click)="next.emit()" [disabled]="state.children().length === 0">Continue</button>
         </div>
@@ -142,7 +139,7 @@ export class FamAccountStepChildrenComponent {
       const val: string | null = control.value;
       if (!val) return null; // required handled separately
       const dob = new Date(val);
-      if (isNaN(dob.getTime())) return null; // let browser handle format issues
+      if (Number.isNaN(dob.getTime())) return null; // let browser handle format issues
       const today = new Date();
 
       // Compute age as full years
