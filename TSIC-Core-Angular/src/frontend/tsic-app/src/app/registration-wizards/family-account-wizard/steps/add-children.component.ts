@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
@@ -35,7 +35,13 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           </div>
           <div class="col-12 col-md-3">
             <label class="form-label" for="childDob">Date of birth</label>
-            <input id="childDob" type="date" formControlName="dob" class="form-control" />
+            <input id="childDob" type="date" formControlName="dob" class="form-control"
+                   [attr.min]="minDob" [attr.max]="maxDob"
+                   [class.is-invalid]="submitted && form.controls.dob.invalid" />
+            @if (submitted && form.controls.dob.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+            @if (submitted && (form.controls.dob.errors?.['ageTooYoung'] || form.controls.dob.errors?.['ageTooOld'])) {
+              <div class="invalid-feedback">Age must be between 2 and 99 years.</div>
+            }
           </div>
 
           <div class="col-12 col-md-6">
@@ -97,10 +103,45 @@ export class FamAccountStepChildrenComponent {
     firstName: ['', [Validators.required]],
     lastName: ['', [Validators.required]],
     gender: ['', [Validators.required]],
-    dob: [''],
+    dob: ['', [Validators.required, this.ageRangeValidator(2, 99)]],
     email: ['', [Validators.email]],
     phone: ['', [Validators.pattern(/^\d*$/)]]
   });
+
+  // Limit selection to reasonable DOB range in the date picker
+  get maxDob(): string {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 2); // must be older than 1 => at least 2 years old
+    return d.toISOString().slice(0, 10);
+  }
+
+  get minDob(): string {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 99); // must be younger than 100 => at most 99 years old
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Custom validator ensuring age is within [min,max] inclusive for years
+  private ageRangeValidator(minYears: number, maxYears: number): ValidatorFn {
+    return (control: AbstractControl) => {
+      const val: string | null = control.value;
+      if (!val) return null; // required handled separately
+      const dob = new Date(val);
+      if (isNaN(dob.getTime())) return null; // let browser handle format issues
+      const today = new Date();
+
+      // Compute age as full years
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+
+      if (age < minYears) return { ageTooYoung: true };
+      if (age > maxYears) return { ageTooOld: true };
+      return null;
+    };
+  }
 
   addChild(): void {
     this.submitted = true;

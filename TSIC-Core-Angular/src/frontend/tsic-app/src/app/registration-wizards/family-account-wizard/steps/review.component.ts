@@ -139,9 +139,18 @@ export class FamAccountStepReviewComponent {
 
   login(): void {
     if (!this.username || !this.password) return;
+    // Drive UI signals so button state/error message work reliably
+    this.auth.loginLoading.set(true);
+    this.auth.loginError.set(null);
     this.authSvc.login({ username: this.username, password: this.password }).subscribe({
-      next: () => this.completed.emit(),
-      error: () => { /* error surfaced via auth.loginError signal */ }
+      next: () => {
+        this.auth.loginLoading.set(false);
+        this.completed.emit();
+      },
+      error: (error) => {
+        this.auth.loginLoading.set(false);
+        this.auth.loginError.set(error?.error?.message || 'Login failed. Please check your credentials.');
+      }
     });
   }
 

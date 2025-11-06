@@ -1408,9 +1408,26 @@ public class ProfileMetadataMigrationService
             return (null, null, false);
 
         var parts = coreRegformPlayer.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var profileType = parts.Length >= 1 ? parts[0] : null;
-        var teamConstraint = parts.Length >= 2 ? parts[1] : null;
-        var allowPif = parts.Any(p => p.Equals("ALLOWPIF", StringComparison.OrdinalIgnoreCase));
+        if (parts.Length == 0)
+            return (null, null, false);
+
+        static bool IsProfileType(string p) =>
+            !string.IsNullOrWhiteSpace(p) && (p.StartsWith("PP", StringComparison.OrdinalIgnoreCase) || p.StartsWith("CAC", StringComparison.OrdinalIgnoreCase));
+
+        static bool IsAllowPif(string p) => p.Equals("ALLOWPIF", StringComparison.OrdinalIgnoreCase) || p.Equals("AllowPIF", StringComparison.OrdinalIgnoreCase);
+
+        // Identify profile type as the first PP##/CAC## segment
+        string? profileType = parts.FirstOrDefault(IsProfileType);
+
+        // Allow PIF if the token appears anywhere
+        bool allowPif = parts.Any(IsAllowPif);
+
+        // Team constraint: first non-empty, non-profileType, non-ALLOWPIF segment
+        string? teamConstraint = parts.FirstOrDefault(p =>
+            !string.IsNullOrWhiteSpace(p)
+            && !IsProfileType(p)
+            && !IsAllowPif(p));
+
         return (profileType, teamConstraint, allowPif);
     }
 
