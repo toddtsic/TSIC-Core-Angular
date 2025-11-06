@@ -61,6 +61,12 @@ export const routes: Routes = [
 				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
 				canActivate: [anonymousJobGuard]
 			},
+			// Registration entry screen: sign in then choose next action
+			{
+				path: 'registration',
+				loadComponent: () => import('./registration/registration-entry.component').then(m => m.RegistrationEntryComponent),
+				canActivate: [anonymousJobGuard]
+			},
 			// Registration wizard route (player-specific)
 			{
 				path: 'register-player',

@@ -32,11 +32,16 @@ export class FamilyAccountWizardComponent implements OnInit {
     currentIndex = computed(() => Math.max(0, Math.min(this.currentStep() - 1, this.stepLabels().length - 1)));
 
     private readonly returnUrl = signal<string | null>(null);
+    private nextAction: 'register-player' | null = null;
 
     ngOnInit(): void {
         this.returnUrl.set(this.route.snapshot.queryParamMap.get('returnUrl'));
+        const nextParam = this.route.snapshot.queryParamMap.get('next');
+        if (nextParam === 'register-player') this.nextAction = 'register-player';
         const mode = this.route.snapshot.queryParamMap.get('mode');
-        if (mode === 'edit') this.state.mode.set('edit');
+        if (mode === 'edit') {
+            this.state.mode.set('edit');
+        }
 
         // If a returnUrl carries a jobPath, pre-load the job to get dynamic labels
         const ru = this.returnUrl();
@@ -57,13 +62,29 @@ export class FamilyAccountWizardComponent implements OnInit {
     }
 
     finish(action?: 'home' | 'register'): void {
+        const ru = this.returnUrl();
+        // If a safe returnUrl was provided and no explicit "register" action overrides it, honor it first
+        if (ru && action !== 'register' && this.nextAction !== 'register-player') {
+            try {
+                const u = new URL(ru, globalThis.location.origin);
+                const internalPath = `${u.pathname}${u.search}${u.hash}`;
+                this.router.navigateByUrl(internalPath);
+                return;
+            } catch {
+                // fall through to jobPath-based routing
+            }
+        }
+
         // Prefer known job from JobService; fall back to parsing returnUrl if provided
-        const jobPath = this.jobService.getCurrentJob()?.jobPath || this.extractJobPathFromReturnUrl(this.returnUrl());
+        const jobPath = this.jobService.getCurrentJob()?.jobPath || this.extractJobPathFromReturnUrl(ru);
         if (!jobPath) {
             this.router.navigateByUrl('/tsic/role-selection');
             return;
         }
-        if (action === 'register') {
+        // If nextAction is set to register-player, prefer that unless user explicitly chose 'home'
+        if (this.nextAction === 'register-player' && action !== 'home') {
+            this.router.navigateByUrl(`/${jobPath}/register-player`);
+        } else if (action === 'register') {
             this.router.navigateByUrl(`/${jobPath}/register-player`);
         } else {
             this.router.navigateByUrl(`/${jobPath}`);

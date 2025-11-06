@@ -112,6 +112,14 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             return;
         }
 
+        if (choice === 'parent') {
+            // Send user to Family Account wizard in edit mode and return to this Start step afterward
+            const jobPath = this.state.jobPath();
+            const returnUrl = `/${jobPath}/register-player?step=start`;
+            this.router.navigate(['/tsic/family-account'], { queryParams: { mode: 'edit', returnUrl } });
+            return;
+        }
+
         // For 'new': proceed to players if authenticated; otherwise send back to family-check
         const authed = !!this.auth.currentUser();
         const target: StepId = authed ? 'players' : 'family-check';

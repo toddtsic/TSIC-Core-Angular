@@ -4,11 +4,11 @@ import { CommonModule } from '@angular/common';
 export type StartChoice = 'new' | 'edit' | 'parent';
 
 @Component({
-    selector: 'app-rw-start-choice',
-    standalone: true,
-    imports: [CommonModule],
-    styleUrls: ['./start-choice.component.scss'],
-    template: `
+  selector: 'app-rw-start-choice',
+  standalone: true,
+  imports: [CommonModule],
+  styleUrls: ['./start-choice.component.scss'],
+  template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header gradient-header border-0 py-4 text-center text-white">
         <h5 class="mb-1 fw-semibold">Get started with Player registration</h5>
@@ -34,6 +34,14 @@ export type StartChoice = 'new' | 'edit' | 'parent';
                   <div class="text-muted small">Look up a prior submission to make changes</div>
                 </div>
               </label>
+
+              <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
+                <input class="form-check-input mt-1" type="radio" name="rwStart" (change)="choose('parent')" />
+                <div>
+                  <div class="fw-semibold">Review/Update Family Account</div>
+                  <div class="text-muted small">Open your Family Account to review or update parent/child info, then return here</div>
+                </div>
+              </label>
             </div>
           </fieldset>
         </div>
@@ -41,6 +49,6 @@ export type StartChoice = 'new' | 'edit' | 'parent';
     `
 })
 export class StartChoiceComponent {
-    @Output() selected = new EventEmitter<StartChoice>();
-    choose(val: StartChoice): void { this.selected.emit(val); }
+  @Output() selected = new EventEmitter<StartChoice>();
+  choose(val: StartChoice): void { this.selected.emit(val); }
 }
