@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
@@ -69,6 +69,18 @@ export class FamAccountStepAddressComponent {
     state: [this.state.state(), [Validators.required]],
     postalCode: [this.state.postalCode(), [Validators.required]]
   });
+
+  constructor() {
+    // Keep form synchronized with state when populated asynchronously
+    effect(() => {
+      this.form.patchValue({
+        address1: this.state.address1(),
+        city: this.state.city(),
+        state: this.state.state(),
+        postalCode: this.state.postalCode(),
+      }, { emitEvent: false });
+    });
+  }
 
   submit(): void {
     this.submitted = true;

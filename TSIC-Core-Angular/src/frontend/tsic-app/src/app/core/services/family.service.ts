@@ -70,6 +70,22 @@ export interface FamilyUpdateRequest {
     }>;
 }
 
+export interface FamilyProfileResponse {
+    username: string;
+    primary: {
+        firstName: string; lastName: string; cellphone: string; email: string;
+    };
+    secondary: {
+        firstName: string; lastName: string; cellphone: string; email: string;
+    };
+    address: {
+        streetAddress: string; city: string; state: string; postalCode: string;
+    };
+    children: Array<{
+        firstName: string; lastName: string; gender: string; dob?: string; email?: string; phone?: string;
+    }>;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FamilyService {
     private readonly http = inject(HttpClient);
@@ -92,5 +108,9 @@ export class FamilyService {
         this.createError.set(null);
         this.createResult.set(null);
         return this.http.put<FamilyRegistrationResponse>(`${this.apiUrl}/update`, request);
+    }
+
+    getMyFamily() {
+        return this.http.get<FamilyProfileResponse>(`${this.apiUrl}/me`);
     }
 }

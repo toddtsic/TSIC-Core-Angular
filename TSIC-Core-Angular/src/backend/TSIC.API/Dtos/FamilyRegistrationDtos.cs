@@ -46,3 +46,11 @@ public record FamilyUpdateRequest(
     AddressDto Address,
     List<ChildDto> Children
 );
+
+public record FamilyProfileResponse(
+    string Username,
+    PersonDto Primary,
+    PersonDto Secondary,
+    AddressDto Address,
+    List<ChildDto> Children
+);

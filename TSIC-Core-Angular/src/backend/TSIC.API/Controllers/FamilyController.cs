@@ -8,6 +8,8 @@ using System.Globalization;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.Identity;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace TSIC.API.Controllers;
 
@@ -22,6 +24,60 @@ public class FamilyController : ControllerBase
     {
         _userManager = userManager;
         _db = db;
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(FamilyProfileResponse), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetMyFamily()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        // Load AspNetUsers profile (address/phone/email) and Families record
+        var aspUser = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == userId);
+        if (aspUser == null) return NotFound();
+
+        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == userId);
+        if (fam == null)
+        {
+            // If no Families record yet, return minimal profile using AspNetUsers fields
+            var emptyChildren = new List<ChildDto>();
+            var respLite = new FamilyProfileResponse(
+                aspUser.UserName ?? string.Empty,
+                new PersonDto(aspUser.FirstName ?? string.Empty, aspUser.LastName ?? string.Empty, aspUser.Cellphone ?? string.Empty, aspUser.Email ?? string.Empty),
+                new PersonDto(string.Empty, string.Empty, string.Empty, string.Empty),
+                new AddressDto(aspUser.StreetAddress ?? string.Empty, aspUser.City ?? string.Empty, aspUser.State ?? string.Empty, aspUser.PostalCode ?? string.Empty),
+                emptyChildren
+            );
+            return Ok(respLite);
+        }
+
+        // Load existing child links and child users
+        var links = await _db.FamilyMembers.Where(l => l.FamilyUserId == fam.FamilyUserId).ToListAsync();
+        var childIds = links.Select(l => l.FamilyMemberUserId).ToList();
+        var children = await _db.AspNetUsers.Where(u => childIds.Contains(u.Id)).ToListAsync();
+
+        var childDtos = children.Select(c => new ChildDto(
+            c.FirstName ?? string.Empty,
+            c.LastName ?? string.Empty,
+            c.Gender ?? string.Empty,
+            c.Dob?.ToString("yyyy-MM-dd"),
+            c.Email,
+            c.Cellphone ?? c.Phone
+        )).ToList();
+
+        var response = new FamilyProfileResponse(
+            aspUser.UserName ?? string.Empty,
+            new PersonDto(fam.MomFirstName ?? string.Empty, fam.MomLastName ?? string.Empty, fam.MomCellphone ?? string.Empty, fam.MomEmail ?? string.Empty),
+            new PersonDto(fam.DadFirstName ?? string.Empty, fam.DadLastName ?? string.Empty, fam.DadCellphone ?? string.Empty, fam.DadEmail ?? string.Empty),
+            new AddressDto(aspUser.StreetAddress ?? string.Empty, aspUser.City ?? string.Empty, aspUser.State ?? string.Empty, aspUser.PostalCode ?? string.Empty),
+            childDtos
+        );
+
+        return Ok(response);
     }
 
     [HttpPost("register")]

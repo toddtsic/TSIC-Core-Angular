@@ -534,3 +534,39 @@
     border-color: var(--border-color);
     box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
 }
+
+/* Progress element theming to match wizard primary color */
+.wizard-theme-family progress::-webkit-progress-value,
+.wizard-theme-player progress::-webkit-progress-value {
+    background-color: var(--bs-primary);
+}
+
+.wizard-theme-family progress::-webkit-progress-bar,
+.wizard-theme-player progress::-webkit-progress-bar {
+    background-color: var(--bs-secondary-bg);
+}
+
+.wizard-theme-family progress::-moz-progress-bar,
+.wizard-theme-player progress::-moz-progress-bar {
+    background-color: var(--bs-primary);
+}
+
+/* Shared progress styling */
+.rw-progress {
+    height: 10px;
+    border: none;
+    border-radius: 999px;
+    overflow: hidden;
+    background-color: var(--bs-secondary-bg);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.rw-progress::-webkit-progress-bar {
+    background-color: var(--bs-secondary-bg);
+    border-radius: 999px;
+}
+
+.rw-progress::-webkit-progress-value {
+    border-radius: 999px;
+}

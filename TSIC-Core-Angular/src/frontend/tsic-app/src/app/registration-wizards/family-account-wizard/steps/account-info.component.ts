@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidationErrors, AbstractControl, FormGroup } from '@angular/forms';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
@@ -162,6 +162,22 @@ export class FamAccountStepAccountComponent {
         }
         return Object.keys(errors).length ? errors : null;
       }
+    });
+
+    // Keep form in sync if state gets populated asynchronously (e.g., fetched on parent init)
+    effect(() => {
+      this.form.patchValue({
+        p1First: this.state.parent1FirstName(),
+        p1Last: this.state.parent1LastName(),
+        p1Phone: this.state.parent1Phone(),
+        p1Email: this.state.parent1Email(),
+        p1EmailConfirm: this.state.parent1Email(),
+        p2First: this.state.parent2FirstName(),
+        p2Last: this.state.parent2LastName(),
+        p2Phone: this.state.parent2Phone(),
+        p2Email: this.state.parent2Email(),
+        p2EmailConfirm: this.state.parent2Email(),
+      }, { emitEvent: false });
     });
   }
 
