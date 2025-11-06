@@ -32,14 +32,12 @@ export class FamilyAccountWizardService {
     parent1FirstName = signal<string>('');
     parent1LastName = signal<string>('');
     parent1Phone = signal<string>('');
-    parent1Carrier = signal<string>('');
     parent1Email = signal<string>('');
     parent1EmailConfirm = signal<string>('');
 
     parent2FirstName = signal<string>('');
     parent2LastName = signal<string>('');
     parent2Phone = signal<string>('');
-    parent2Carrier = signal<string>('');
     parent2Email = signal<string>('');
     parent2EmailConfirm = signal<string>('');
 
@@ -74,13 +72,11 @@ export class FamilyAccountWizardService {
         this.parent1FirstName.set('');
         this.parent1LastName.set('');
         this.parent1Phone.set('');
-        this.parent1Carrier.set('');
         this.parent1Email.set('');
         this.parent1EmailConfirm.set('');
         this.parent2FirstName.set('');
         this.parent2LastName.set('');
         this.parent2Phone.set('');
-        this.parent2Carrier.set('');
         this.parent2Email.set('');
         this.parent2EmailConfirm.set('');
         this.children.set([]);

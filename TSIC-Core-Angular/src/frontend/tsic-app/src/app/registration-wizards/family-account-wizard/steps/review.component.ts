@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
+import { FamilyService, FamilyRegistrationRequest } from '../../../core/services/family.service';
 import { JobService } from '../../../core/services/job.service';
 
 @Component({
@@ -22,7 +23,7 @@ import { JobService } from '../../../core/services/job.service';
               <div class="small text-secondary">Name</div>
               <div>{{ state.parent1FirstName() }} {{ state.parent1LastName() }}</div>
               <div class="small text-secondary mt-2">Cellphone</div>
-              <div>{{ state.parent1Phone() }} @if (state.parent1Carrier()) { <span class="text-secondary">— {{ state.parent1Carrier() }}</span> }</div>
+              <div>{{ state.parent1Phone() }}</div>
               <div class="small text-secondary mt-2">Email</div>
               <div>{{ state.parent1Email() }}</div>
               <div class="small text-secondary mt-2">Username</div>
@@ -35,7 +36,7 @@ import { JobService } from '../../../core/services/job.service';
               <div class="small text-secondary">Name</div>
               <div>{{ state.parent2FirstName() }} {{ state.parent2LastName() }}</div>
               <div class="small text-secondary mt-2">Cellphone</div>
-              <div>{{ state.parent2Phone() }} @if (state.parent2Carrier()) { <span class="text-secondary">— {{ state.parent2Carrier() }}</span> }</div>
+              <div>{{ state.parent2Phone() }}</div>
               <div class="small text-secondary mt-2">Email</div>
               <div>{{ state.parent2Email() }}</div>
             </div>
@@ -49,6 +50,12 @@ import { JobService } from '../../../core/services/job.service';
               <div>{{ state.city() }}, {{ state.state() }} {{ state.postalCode() }}</div>
             </div>
           </div>
+        </div>
+
+        <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+          <button type="button" class="btn btn-success" (click)="createFamily()" [disabled]="creating">Create Family Account</button>
+          @if (createError) { <span class="text-danger small">{{ createError }}</span> }
+          @if (createSuccess) { <span class="text-success small">Family account created. You can now sign in below.</span> }
         </div>
 
         <div class="mt-3">
@@ -107,6 +114,7 @@ export class FamAccountStepReviewComponent {
   @Output() completed = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
   private readonly authSvc = inject(AuthService);
+  private readonly familyService = inject(FamilyService);
   private readonly jobService = inject(JobService);
   constructor(public state: FamilyAccountWizardService) { }
 
@@ -114,6 +122,10 @@ export class FamAccountStepReviewComponent {
   password = '';
 
   get auth() { return this.authSvc; }
+
+  creating = false;
+  createError: string | null = null;
+  createSuccess = false;
 
   // Dynamic labels (Mom/Dad etc.) or fallback
   label1(): string {
@@ -130,6 +142,60 @@ export class FamAccountStepReviewComponent {
     this.authSvc.login({ username: this.username, password: this.password }).subscribe({
       next: () => this.completed.emit(),
       error: () => { /* error surfaced via auth.loginError signal */ }
+    });
+  }
+
+  createFamily(): void {
+    this.createError = null;
+    this.createSuccess = false;
+    this.creating = true;
+    const req: FamilyRegistrationRequest = {
+      username: this.state.username(),
+      password: this.state.password(),
+      primary: {
+        firstName: this.state.parent1FirstName(),
+        lastName: this.state.parent1LastName(),
+        cellphone: this.state.parent1Phone(),
+        email: this.state.parent1Email()
+      },
+      secondary: {
+        firstName: this.state.parent2FirstName(),
+        lastName: this.state.parent2LastName(),
+        cellphone: this.state.parent2Phone(),
+        email: this.state.parent2Email()
+      },
+      address: {
+        streetAddress: this.state.address1(),
+        city: this.state.city(),
+        state: this.state.state(),
+        postalCode: this.state.postalCode()
+      },
+      children: this.state.children().map(c => ({
+        firstName: c.firstName,
+        lastName: c.lastName,
+        gender: c.gender,
+        dob: c.dob,
+        email: c.email,
+        phone: c.phone
+      }))
+    };
+
+    this.familyService.registerFamily(req).subscribe({
+      next: (res) => {
+        this.creating = false;
+        if (res?.success) {
+          this.createSuccess = true;
+          // Pre-fill login form with chosen credentials
+          this.username = req.username;
+          this.password = req.password;
+        } else {
+          this.createError = res?.message || 'Unable to create Family Account';
+        }
+      },
+      error: (err) => {
+        this.creating = false;
+        this.createError = err?.error?.message || 'Unable to create Family Account';
+      }
     });
   }
 }
