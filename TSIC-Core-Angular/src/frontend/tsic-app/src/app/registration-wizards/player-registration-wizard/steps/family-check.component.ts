@@ -63,9 +63,12 @@ import { AuthService } from '../../../core/services/auth.service';
             <!-- CTA appears directly under the NO option -->
             <div class="list-group-item border-0 pt-0 pb-3" *ngIf="hasAccount === 'no'">
               <div class="rw-accent-panel-neutral">
-                <div class="d-flex align-items-center gap-3">
+                <div class="d-flex flex-column flex-md-row align-items-start gap-3">
                   <i class="bi bi-person-plus-fill rw-accent-icon-neutral" aria-hidden="true"></i>
-                  <button type="button" class="btn btn-primary pulsing-button apply-pulse" (click)="createAccount()">OK, Lets create a FAMILY ACCOUNT for you</button>
+                  <div class="flex-grow-1">
+                    <div class="text-muted small mb-2">We'll guide you through a quick setup. Takes about 1–2 minutes.</div>
+                    <button type="button" class="btn btn-primary pulsing-button apply-pulse" (click)="createAccount()">OK, Let's create a FAMILY ACCOUNT for you</button>
+                  </div>
                 </div>
               </div>
             </div>

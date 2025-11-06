@@ -72,16 +72,20 @@
 
 /* Player Registration: purple/indigo */
 .wizard-theme-player {
-    --gradient-primary-start: #6a5acd; /* SlateBlue */
-    --gradient-primary-end: #7b68ee;   /* MediumSlateBlue */
+    --gradient-primary-start: #6a5acd;
+    /* SlateBlue */
+    --gradient-primary-end: #7b68ee;
+    /* MediumSlateBlue */
     --bs-primary: #6a5acd;
     --bs-primary-rgb: 106, 90, 205;
 }
 
 /* Family Account: teal/green */
 .wizard-theme-family {
-    --gradient-primary-start: #2bb673; /* TSIC-like teal */
-    --gradient-primary-end: #00a884;   /* teal-green */
+    --gradient-primary-start: #2bb673;
+    /* TSIC-like teal */
+    --gradient-primary-end: #00a884;
+    /* teal-green */
     --bs-primary: #2bb673;
     --bs-primary-rgb: 43, 182, 115;
 }
@@ -293,6 +297,7 @@
     border-left: 4px solid var(--bs-primary);
     border-radius: .75rem;
     padding: 1rem;
+    margin: .5rem 0 .75rem 0;
 }
 
 .rw-accent-icon {
@@ -304,9 +309,10 @@
 /* Neutral variant for non-primary callouts (e.g., create account) */
 .rw-accent-panel-neutral {
     background-color: var(--bs-secondary-bg);
-    border-left: 4px solid var(--bs-secondary);
+    border-left: 3px solid var(--bs-secondary);
     border-radius: .75rem;
     padding: 1rem;
+    margin: .5rem 0 .75rem 0;
 }
 
 .rw-accent-icon-neutral {

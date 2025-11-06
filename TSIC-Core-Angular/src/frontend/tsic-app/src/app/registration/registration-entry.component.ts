@@ -9,7 +9,7 @@ import { JobService } from '../core/services/job.service';
     selector: 'app-registration-entry',
     standalone: true,
     imports: [CommonModule, ReactiveFormsModule],
-  host: { class: 'wizard-theme-player' },
+    host: { class: 'wizard-theme-player' },
     template: `
   <div class="container py-4">
     <div class="row justify-content-center">
