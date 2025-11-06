@@ -65,6 +65,27 @@
    Reusable Utility Classes
    ============================================ */
 
+/* ============================================
+   Wizard theme scopes (per-wizard color accents)
+   - Keep it subtle: we only override the gradient header and primary accent
+   ============================================ */
+
+/* Player Registration: purple/indigo */
+.wizard-theme-player {
+    --gradient-primary-start: #6a5acd; /* SlateBlue */
+    --gradient-primary-end: #7b68ee;   /* MediumSlateBlue */
+    --bs-primary: #6a5acd;
+    --bs-primary-rgb: 106, 90, 205;
+}
+
+/* Family Account: teal/green */
+.wizard-theme-family {
+    --gradient-primary-start: #2bb673; /* TSIC-like teal */
+    --gradient-primary-end: #00a884;   /* teal-green */
+    --bs-primary: #2bb673;
+    --bs-primary-rgb: 43, 182, 115;
+}
+
 .gradient-header {
     background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%) !important;
     color: white !important;
@@ -265,6 +286,34 @@
 /* ============================================
    CTA Emphasis Utilities
    ============================================ */
+
+/* Subtle accent panel used to draw attention to inline actions (e.g., login) */
+.rw-accent-panel {
+    background-color: var(--bs-primary-bg-subtle);
+    border-left: 4px solid var(--bs-primary);
+    border-radius: .75rem;
+    padding: 1rem;
+}
+
+.rw-accent-icon {
+    color: var(--bs-primary);
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+/* Neutral variant for non-primary callouts (e.g., create account) */
+.rw-accent-panel-neutral {
+    background-color: var(--bs-secondary-bg);
+    border-left: 4px solid var(--bs-secondary);
+    border-radius: .75rem;
+    padding: 1rem;
+}
+
+.rw-accent-icon-neutral {
+    color: var(--bs-secondary);
+    font-size: 1.35rem;
+    line-height: 1;
+}
 
 @keyframes pulse-glow {
     0% {

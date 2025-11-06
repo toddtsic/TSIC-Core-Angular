@@ -20,7 +20,8 @@ export type StepId = 'start' | 'family-check' | 'edit-lookup' | 'players' | 'con
     standalone: true,
     imports: [CommonModule, RouterModule, StartChoiceComponent, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, ConstraintSelectionComponent, PlayerFormsComponent, PaymentComponent],
     templateUrl: './player-registration-wizard.component.html',
-    styleUrls: ['./player-registration-wizard.component.scss']
+    styleUrls: ['./player-registration-wizard.component.scss'],
+    host: { class: 'wizard-theme-player' }
 })
 export class PlayerRegistrationWizardComponent implements OnInit {
     private readonly router = inject(Router);

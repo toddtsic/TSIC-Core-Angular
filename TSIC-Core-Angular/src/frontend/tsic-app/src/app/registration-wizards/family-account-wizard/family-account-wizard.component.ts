@@ -14,7 +14,8 @@ import { JobService } from '../../core/services/job.service';
     standalone: true,
     imports: [CommonModule, RouterModule, FamAccountStepCredentialsComponent, FamAccountStepAccountComponent, FamAccountStepAddressComponent, FamAccountStepChildrenComponent, FamAccountStepReviewComponent],
     templateUrl: './family-account-wizard.component.html',
-    styleUrls: ['./family-account-wizard.component.scss']
+    styleUrls: ['./family-account-wizard.component.scss'],
+    host: { class: 'wizard-theme-family' }
 })
 export class FamilyAccountWizardComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
