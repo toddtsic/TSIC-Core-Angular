@@ -62,9 +62,6 @@
             </div>
 
             @switch (currentStepId()) {
-            @case ('start') {
-            <app-rw-start-choice (selected)="onStartChoice($event)" />
-            }
             @case ('family-check') {
             <app-rw-family-check (next)="next()" />
             }

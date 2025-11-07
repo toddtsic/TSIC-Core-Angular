@@ -285,6 +285,68 @@ private string GenerateEnrichedJwtToken(
 - Admin UI cards display correctly based on role
 - Guards properly protect routes based on role claims
 
+## Frontend Role Handling (November 2025 Update)
+
+To eliminate scattered magic strings and prepare for multi-role support, the Angular client now centralizes role names:
+
+```ts
+// src/app/core/models/roles.constants.ts
+export const Roles = {
+    Superuser: 'Superuser',
+    Director: 'Director',
+    SuperDirector: 'SuperDirector',
+    RefAssignor: 'Ref Assignor',
+    StoreAdmin: 'Store Admin',
+    Staff: 'Staff',
+    Family: 'Family',
+    Player: 'Player',
+    UnassignedAdult: 'Unassigned Adult',
+    ClubRep: 'Club Rep'
+} as const;
+export type RoleName = typeof Roles[keyof typeof Roles];
+```
+
+### Normalization in `AuthService`
+The decoded JWT `role` claim is coerced into a `roles: string[]` array (future-proof for multiple roles). Legacy `user.role` remains for backward compatibility:
+
+```ts
+const rawRole = payload.role || payload[ClaimTypes.Role];
+const roles = Array.isArray(rawRole) ? rawRole : rawRole ? [rawRole] : [];
+this.currentUser.set({ ...baseUser, role: roles[0], roles });
+```
+
+### Computed Helpers
+`isSuperuser` / `isAdmin` now reference `Roles.Superuser`, etc., instead of comparing lowercase strings.
+
+### Why Names Not GUIDs?
+UI logic never needs role GUIDs; those are database identifiers. Emitting the human-readable name keeps tokens compact and makes debugging easier. If GUID mapping is needed later (e.g., audit logs), map name -> GUID via a local dictionary.
+
+### Adding a New Role (Checklist)
+1. Add GUID + Name to server `RoleConstants`.
+2. Add name to `Roles` constant in Angular.
+3. Include role in appropriate authorization policies (`Program.cs`).
+4. Adjust any UI feature gating with new `Roles.X` constant.
+5. Regenerate or select registration to obtain fresh token containing new role claim.
+
+### Multi-Role Future
+If the backend begins issuing multiple role claims (array), the client code already handles it. `roles.includes(Roles.Family)` supersedes fragile `role?.toLowerCase() === 'family'` checks.
+
+### Migration Notes
+- Replace existing string comparisons (`user.role?.toLowerCase() === 'superuser'`) with `user.roles?.includes(Roles.Superuser)`.
+- Avoid storing derived booleans long-term; prefer computed getters to stay reactive.
+
+## Role Names vs GUIDs Summary
+
+| Concern | Use Role Name | Use GUID |
+|---------|---------------|----------|
+| Authorization policy match | ✅ | ❌ |
+| UI gating / feature flags | ✅ | ❌ |
+| Database foreign keys | ❌ | ✅ |
+| Token payload readability | ✅ | ❌ |
+| Auditing integrity | ✅ (with server-side resolve) | ✅ |
+
+Token payloads should carry the role NAME only. Server logic can map name → GUID when persistence or deeper validation is required.
+
 **Testing:**
 After this fix, you must:
 1. Restart the API

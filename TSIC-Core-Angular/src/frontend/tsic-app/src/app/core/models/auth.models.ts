@@ -28,7 +28,10 @@ export interface AuthenticatedUser {
     regId?: string;
     jobPath?: string;
     jobLogo?: string;  // URL to job logo from registration
-    role?: string;     // User role (e.g., 'superuser', 'parent', 'player')
+    // Legacy single role name (will be derived from roles[0] if present)
+    role?: string;
+    // New multi-role support (server currently emits single name; we normalize to array)
+    roles?: string[];
 }
 
 // Bootstrap payload optionally returned with login to avoid extra API calls.

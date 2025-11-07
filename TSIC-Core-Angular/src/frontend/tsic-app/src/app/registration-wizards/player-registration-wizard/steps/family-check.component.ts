@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
+import { Roles } from '../../../core/models/roles.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -68,7 +69,7 @@ import { AuthService } from '../../../core/services/auth.service';
   </div>
   `
 })
-export class FamilyCheckStepComponent {
+export class FamilyCheckStepComponent implements OnInit {
   private readonly state = inject(RegistrationWizardService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -82,6 +83,26 @@ export class FamilyCheckStepComponent {
   password = '';
   loginError: string | null = null;
 
+  ngOnInit(): void {
+    // Initialize hasFamilyAccount based on claims first, then localStorage fallback
+    // Only set if not already chosen by the user
+    if (this.state.hasFamilyAccount() == null) {
+      const user = this.auth.getCurrentUser();
+      const roles = user?.roles || (user?.role ? [user.role] : []);
+      if (roles.includes(Roles.Family)) {
+        this.state.hasFamilyAccount.set('yes');
+        // Auto-advance: already authenticated as Family
+        this.next.emit();
+        return;
+      }
+      // Fallback: if we have a remembered username, suggest family login
+      const lastUser = localStorage.getItem('last_username');
+      if (lastUser && lastUser.trim().length > 0) {
+        this.state.hasFamilyAccount.set('yes');
+      }
+    }
+  }
+
   // Use centralized login screen with theming and a safe returnUrl back to this wizard
   goToLogin(): void {
     // Derive jobPath robustly: prefer wizard state, fallback to URL first segment
@@ -94,7 +115,8 @@ export class FamilyCheckStepComponent {
       }
     }
     // Build a normalized returnUrl (avoid double slashes)
-    const returnUrl = jobPath ? `/${jobPath}/register-player?step=start` : `/register-player?step=start`;
+    // We now deep-link directly to the Players step (skipping Start) after successful family login.
+    const returnUrl = jobPath ? `/${jobPath}/register-player?step=players` : `/register-player?step=players`;
     // Pass intent and jobPath so login can auto-select Player role and redirect back here
     this.router.navigate(['/tsic/login'], {
       queryParams: {
@@ -110,7 +132,7 @@ export class FamilyCheckStepComponent {
 
   createAccount(): void {
     const jobPath = this.state.jobPath();
-    const returnUrl = `/${jobPath}/register-player?step=start`;
+    const returnUrl = `/${jobPath}/register-player?step=players`;
     this.router.navigate(['/tsic/family-account'], { queryParams: { returnUrl } });
   }
 }

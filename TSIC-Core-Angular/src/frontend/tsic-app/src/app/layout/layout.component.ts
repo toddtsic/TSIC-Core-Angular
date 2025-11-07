@@ -452,7 +452,28 @@ export class LayoutComponent {
   }
 
   logout() {
-    this.auth.logout();
+    // Preserve current job context and theme-specific login (family/player). Determine theme by active route usage.
+    const jobPath = this.getActiveJobPath();
+    // Infer theme: if current URL contains 'register-player' and query/theme hints indicate family, keep 'family'; else 'player' when in player wizard; default 'login'.
+    const url = this.router.url || '';
+    let theme: 'family' | 'player' | 'login' = 'login';
+    if (/register-player/i.test(url)) {
+      theme = /theme=family|family-account|family-check/i.test(url) ? 'family' : 'player';
+    } else if (/family-account/i.test(url)) {
+      theme = 'family';
+    }
+    // Escape route flag: multi-role users can still reach generic login without job context via a query param toggle later.
+    const queryParams: Record<string, any> = { theme };
+    if (jobPath) {
+      queryParams['jobPath'] = jobPath;
+      if (/register-player/i.test(url)) {
+        queryParams['intent'] = 'player-register';
+        queryParams['returnUrl'] = `/${jobPath}/register-player?step=players`;
+        queryParams['header'] = theme === 'family' ? 'Family Account Login' : 'Player Registration Login';
+        queryParams['subHeader'] = 'Sign in to continue';
+      }
+    }
+    this.auth.logout({ queryParams });
   }
 
   login() {
@@ -489,7 +510,7 @@ export class LayoutComponent {
     if (claimPath) return claimPath;
     // Fallback: parse current URL for first non-empty segment that isn't 'tsic'
     const url = this.router.url || '';
-    const seg = url.split('?')[0].split('#')[0].split('/').filter(s => !!s)[0];
+    const seg = url.split('?')[0].split('#')[0].split('/').find(s => !!s) || '';
     if (seg && seg.toLowerCase() !== 'tsic') return seg;
     return null;
   }

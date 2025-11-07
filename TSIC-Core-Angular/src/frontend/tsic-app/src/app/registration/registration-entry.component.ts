@@ -80,7 +80,7 @@ export class RegistrationEntryComponent implements OnInit {
   goFamilyReview(): void {
     if (!this.jobPath) return;
     // Route to Family Account wizard with both next and a concrete returnUrl back to player wizard
-    const returnUrl = `/${this.jobPath}/register-player?step=start`;
+    const returnUrl = `/${this.jobPath}/register-player?step=players`;
     this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player', returnUrl } });
   }
 }

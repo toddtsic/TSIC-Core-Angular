@@ -72,6 +72,15 @@
           </span>
           }
         </button>
+
+        <!-- Escape route: allow switching to generic login if this is a themed login -->
+        @if (theme !== 'login') {
+        <div class="text-center mt-3">
+          <a [routerLink]="['/tsic/login']" [queryParams]="escapeQueryParams" class="small text-decoration-underline">
+            Not your login type? Switch
+          </a>
+        </div>
+        }
       </form>
     </div>
   </div>

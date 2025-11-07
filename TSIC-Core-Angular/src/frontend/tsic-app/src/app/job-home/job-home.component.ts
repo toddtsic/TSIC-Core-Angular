@@ -59,7 +59,7 @@ export class JobHomeComponent implements OnInit {
   startFamilyRegistration(): void {
     try { this.authService.logoutLocal(); } catch { /* no-op */ }
     const jp = this.jobPath();
-    const returnUrl = `/${jp}/register-player?step=start`;
+    const returnUrl = `/${jp}/register-player?step=players`;
     // Provide both a concrete returnUrl (with jobPath) and a next hint for older flows
     this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player', returnUrl } });
   }

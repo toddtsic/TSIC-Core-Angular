@@ -1,7 +1,7 @@
 import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, effect, HostBinding, Input, OnInit } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { LoginRequest } from '../core/models/auth.models';
 import { AutofillMonitor } from '@angular/cdk/text-field';
@@ -12,7 +12,7 @@ import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule],
+  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule, RouterModule],
   styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -29,6 +29,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() theme: 'login' | 'player' | 'family' | '' = '';
   // Optional client-provided return URL to prefer over query param
   @Input() returnUrl: string | null | undefined = undefined;
+
+  // Escape route query params (switching themes while preserving context)
+  public escapeQueryParams: Record<string, any> = {};
+  public jobPathQuery: string | null = null;
 
   // Apply per-wizard theme class for gradient and primary accents
   @HostBinding('class.wizard-theme-login') get isLoginTheme() { return this.theme === 'login'; }
@@ -60,6 +64,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     const theme = qp.get('theme');
     const header = qp.get('header');
     const sub = qp.get('subHeader');
+    this.jobPathQuery = qp.get('jobPath');
     if (theme === 'login' || theme === 'player' || theme === 'family') this.theme = theme as any;
     if (header) this.headerText = header;
     if (sub) this.subHeaderText = sub;
@@ -73,6 +78,14 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     this._intent = qp.get('intent');
     this._intentJobPath = qp.get('jobPath');
     this._returnUrlFromQuery = qp.get('returnUrl');
+
+    // Build escape route query params so user can switch to generic login retaining original intent
+    const effectiveReturnUrl = this.returnUrl?.trim() || this._returnUrlFromQuery || '';
+    this.escapeQueryParams = {
+      theme: 'login',
+      ...(effectiveReturnUrl ? { returnUrl: effectiveReturnUrl } : {}),
+      ...(this.jobPathQuery ? { jobPath: this.jobPathQuery } : {})
+    };
   }
 
   ngAfterViewInit() {
@@ -178,9 +191,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
         if (parsed2) return parsed2;
       } catch { /* ignore */ }
     }
-    // For player intent, fallback to wizard start if jobPath known
+    // For player intent, fallback to Players step if jobPath known (Start step retired)
     if (this._intent === 'player-register' && jobPathFromToken) {
-      return `/${jobPathFromToken}/register-player?step=start`;
+      return `/${jobPathFromToken}/register-player?step=players`;
     }
     // Default: role-selection
     return '/tsic/role-selection';

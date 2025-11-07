@@ -1,4 +1,5 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
+import { Roles, RoleName } from '../models/roles.constants';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, throwError } from 'rxjs';
@@ -39,13 +40,13 @@ export class AuthService {
   // Computed signals for derived state
   public readonly isSuperuser = computed(() => {
     const user = this.currentUser();
-    return user?.role?.toLowerCase() === 'superuser';
+    return !!user?.roles?.includes(Roles.Superuser) || user?.role === Roles.Superuser;
   });
 
   public readonly isAdmin = computed(() => {
     const user = this.currentUser();
-    const role = user?.role?.toLowerCase();
-    return role === 'superuser' || role === 'admin';
+    const roles = user?.roles || (user?.role ? [user.role] : []);
+    return roles.includes(Roles.Superuser) || roles.includes(Roles.Director) || roles.includes(Roles.SuperDirector);
   });
 
   constructor() {
@@ -165,7 +166,7 @@ export class AuthService {
   /**
    * Logout - revoke refresh token and clear stored auth data
    */
-  logout(): void {
+  logout(options?: { redirectTo?: string; queryParams?: Record<string, any> }): void {
     const refreshToken = this.getRefreshToken();
 
     // Revoke refresh token on server if it exists
@@ -180,7 +181,13 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     this.currentUser.set(null);
-    this.router.navigate(['/tsic/login']);
+    const redirect = options?.redirectTo || '/tsic/login';
+    const q = options?.queryParams || undefined;
+    if (q) {
+      this.router.navigate([redirect], { queryParams: q });
+    } else {
+      this.router.navigate([redirect]);
+    }
   }
 
   /**
@@ -311,12 +318,24 @@ export class AuthService {
       const payload = this.decodeToken(token);
 
       // Extract user info from token payload regardless of expiration
+      // Normalize role claim(s) -> roles array.
+      // Server presently issues a single role claim name; future enhancement may emit an array.
+      const rawRole = payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+      let roles: RoleName[] | undefined = undefined;
+      if (rawRole) {
+        if (Array.isArray(rawRole)) {
+          roles = rawRole as RoleName[];
+        } else if (typeof rawRole === 'string') {
+          roles = [rawRole as RoleName];
+        }
+      }
       const user: AuthenticatedUser = {
         username: payload.username || payload.sub,
         regId: payload.regId,
         jobPath: payload.jobPath,
         jobLogo: payload.jobLogo,
-        role: payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+        role: roles?.[0] || rawRole,
+        roles
       };
       this.currentUser.set(user);
 
