@@ -36,17 +36,33 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
                   <option value="family">Family</option>
                 </select>
               </div>
-              <div class="col-6 col-md-3">
+              <div class="col-12 col-md-3">
                 <label class="form-label">Primary</label>
-                <input type="color" class="form-control form-control-color w-100" [formControl]="form.controls['primary']" />
+                <select class="form-select" [formControl]="form.controls['primaryToken']">
+                  <option *ngFor="let t of paletteTokens" [value]="t.key">{{t.label}}</option>
+                </select>
+                <div class="form-text d-flex align-items-center gap-2 mt-1">
+                  <span class="d-inline-block rounded" style="width:18px;height:18px;" [style.background]="'var(' + form.controls['primaryToken'].value + ')'"> </span>
+                  <span class="text-secondary small">Preview</span>
+                </div>
               </div>
               <div class="col-6 col-md-3">
                 <label class="form-label">Gradient Start</label>
-                <input type="color" class="form-control form-control-color w-100" [formControl]="form.controls['gradientStart']" />
+                <select class="form-select" [formControl]="form.controls['gradientStartToken']">
+                  <option *ngFor="let t of paletteTokens" [value]="t.key">{{t.label}}</option>
+                </select>
+                <div class="form-text d-flex align-items-center gap-2 mt-1">
+                  <span class="d-inline-block rounded" style="width:18px;height:18px;" [style.background]="'var(' + form.controls['gradientStartToken'].value + ')'"> </span>
+                </div>
               </div>
               <div class="col-6 col-md-3">
                 <label class="form-label">Gradient End</label>
-                <input type="color" class="form-control form-control-color w-100" [formControl]="form.controls['gradientEnd']" />
+                <select class="form-select" [formControl]="form.controls['gradientEndToken']">
+                  <option *ngFor="let t of paletteTokens" [value]="t.key">{{t.label}}</option>
+                </select>
+                <div class="form-text d-flex align-items-center gap-2 mt-1">
+                  <span class="d-inline-block rounded" style="width:18px;height:18px;" [style.background]="'var(' + form.controls['gradientEndToken'].value + ')'"> </span>
+                </div>
               </div>
             </div>
 
@@ -88,11 +104,25 @@ export class ThemeEditorComponent implements OnInit {
 
     jobPath = signal<string>('');
 
+    // Default palette token list (subset focused on accents). Labels are friendly names.
+    paletteTokens: Array<{ key: string; label: string }> = [
+        { key: '--indigo-400', label: 'Indigo 400' },
+        { key: '--indigo-500', label: 'Indigo 500' },
+        { key: '--indigo-600', label: 'Indigo 600' },
+        { key: '--violet-500', label: 'Violet 500' },
+        { key: '--violet-600', label: 'Violet 600' },
+        { key: '--cyan-500', label: 'Cyan 500' },
+        { key: '--cyan-600', label: 'Cyan 600' },
+        { key: '--emerald-500', label: 'Emerald 500' },
+        { key: '--emerald-600', label: 'Emerald 600' },
+        { key: '--emerald-700', label: 'Emerald 700' },
+    ];
+
     form = this.fb.nonNullable.group({
         theme: this.fb.nonNullable.control<ThemeKey>('player', { validators: [Validators.required] }),
-        primary: this.fb.nonNullable.control<string>('#6a5acd', { validators: [Validators.required] }),
-        gradientStart: this.fb.nonNullable.control<string>('#6a5acd', { validators: [Validators.required] }),
-        gradientEnd: this.fb.nonNullable.control<string>('#7b68ee', { validators: [Validators.required] }),
+        primaryToken: this.fb.nonNullable.control<string>('--indigo-500', { validators: [Validators.required] }),
+        gradientStartToken: this.fb.nonNullable.control<string>('--indigo-500', { validators: [Validators.required] }),
+        gradientEndToken: this.fb.nonNullable.control<string>('--violet-600', { validators: [Validators.required] }),
     });
 
     ngOnInit(): void {
@@ -119,15 +149,31 @@ export class ThemeEditorComponent implements OnInit {
 
     private loadSavedForTheme(theme: ThemeKey) {
         const raw = localStorage.getItem(this.storageKey(theme));
-        if (!raw) return;
-        try {
-            const obj = JSON.parse(raw) as { primary: string; gradientStart: string; gradientEnd: string };
+        if (!raw) {
+            // No saved state; apply sensible defaults per theme from our mapping
+            const d = this.defaultTokensFor(theme);
             this.form.patchValue({
-                primary: obj.primary,
-                gradientStart: obj.gradientStart,
-                gradientEnd: obj.gradientEnd
+                primaryToken: d.primaryToken,
+                gradientStartToken: d.gradientStartToken,
+                gradientEndToken: d.gradientEndToken
             }, { emitEvent: false });
-            // Also apply live so preview reflects saved
+            this.apply();
+            return;
+        }
+        try {
+            const obj = JSON.parse(raw);
+            if (obj?.primaryToken && obj?.gradientStartToken && obj?.gradientEndToken) {
+                this.form.patchValue({
+                    primaryToken: obj.primaryToken,
+                    gradientStartToken: obj.gradientStartToken,
+                    gradientEndToken: obj.gradientEndToken
+                }, { emitEvent: false });
+            } else if (obj?.primary && obj?.gradientStart && obj?.gradientEnd) {
+                // Back-compat (hex values previously saved)
+                this.applyLegacy(theme, obj.primary, obj.gradientStart, obj.gradientEnd);
+                const d = this.defaultTokensFor(theme);
+                this.form.patchValue(d, { emitEvent: false });
+            }
             this.apply();
         } catch { /* ignore */ }
     }
@@ -141,6 +187,22 @@ export class ThemeEditorComponent implements OnInit {
         return `${r}, ${g}, ${b}`;
     }
 
+    private defaultTokensFor(theme: ThemeKey) {
+        switch (theme) {
+            case 'landing':
+                return { primaryToken: '--violet-600', gradientStartToken: '--violet-600', gradientEndToken: '--indigo-600' };
+            case 'login':
+                return { primaryToken: '--cyan-600', gradientStartToken: '--cyan-600', gradientEndToken: '--violet-600' };
+            case 'role-select':
+                return { primaryToken: '--indigo-500', gradientStartToken: '--indigo-500', gradientEndToken: '--cyan-600' };
+            case 'family':
+                return { primaryToken: '--emerald-600', gradientStartToken: '--emerald-500', gradientEndToken: '--emerald-700' };
+            case 'player':
+            default:
+                return { primaryToken: '--indigo-500', gradientStartToken: '--indigo-500', gradientEndToken: '--violet-600' };
+        }
+    }
+
     private ensureStyleElement(): HTMLStyleElement {
         const id = `tsic-theme-${this.jobPath()}`;
         let style = document.getElementById(id) as HTMLStyleElement | null;
@@ -152,16 +214,21 @@ export class ThemeEditorComponent implements OnInit {
         return style;
     }
 
-    private buildCss(theme: ThemeKey, primary: string, start: string, end: string): string {
-        const rgb = this.hexToRgb(primary) ?? '106, 90, 205';
-        return `\n.wizard-theme-${theme} {\n  --gradient-primary-start: ${start};\n  --gradient-primary-end: ${end};\n  --bs-primary: ${primary};\n  --bs-primary-rgb: ${rgb};\n}`;
+    private buildCssFromTokens(theme: ThemeKey, primaryToken: string, startToken: string, endToken: string): string {
+        // Use semantic variable mapping so dark mode inherits correctly
+        return `\n.wizard-theme-${theme} {\n  --color-primary: var(${primaryToken});\n  --bs-primary: var(${primaryToken});\n  --gradient-start: var(${startToken});\n  --gradient-end: var(${endToken});\n  --gradient-primary-start: var(${startToken});\n  --gradient-primary-end: var(${endToken});\n}`;
+    }
+
+    private buildCssLegacy(theme: ThemeKey, primaryHex: string, startHex: string, endHex: string): string {
+        const rgb = this.hexToRgb(primaryHex) ?? '106, 90, 205';
+        return `\n.wizard-theme-${theme} {\n  --gradient-primary-start: ${startHex};\n  --gradient-primary-end: ${endHex};\n  --bs-primary: ${primaryHex};\n  --bs-primary-rgb: ${rgb};\n}`;
     }
 
     apply(): void {
         const t = this.form.controls.theme.value;
-        const primary = this.form.controls.primary.value;
-        const start = this.form.controls.gradientStart.value;
-        const end = this.form.controls.gradientEnd.value;
+        const primaryToken = this.form.controls.primaryToken.value;
+        const startToken = this.form.controls.gradientStartToken.value;
+        const endToken = this.form.controls.gradientEndToken.value;
 
         // Merge saved CSS for all themes so switching pages keeps overrides
         const savedLanding = localStorage.getItem(this.storageKey('landing'));
@@ -170,23 +237,26 @@ export class ThemeEditorComponent implements OnInit {
         const savedPlayer = localStorage.getItem(this.storageKey('player'));
         const savedFamily = localStorage.getItem(this.storageKey('family'));
         const cssParts: string[] = [];
-        if (savedLanding) {
-            try { const sln = JSON.parse(savedLanding); cssParts.push(this.buildCss('landing', sln.primary, sln.gradientStart, sln.gradientEnd)); } catch { /* noop */ }
-        }
-        if (savedLogin) {
-            try { const sl = JSON.parse(savedLogin); cssParts.push(this.buildCss('login', sl.primary, sl.gradientStart, sl.gradientEnd)); } catch { /* noop */ }
-        }
-        if (savedRole) {
-            try { const sr = JSON.parse(savedRole); cssParts.push(this.buildCss('role-select', sr.primary, sr.gradientStart, sr.gradientEnd)); } catch { /* noop */ }
-        }
-        if (savedPlayer) {
-            try { const sp = JSON.parse(savedPlayer); cssParts.push(this.buildCss('player', sp.primary, sp.gradientStart, sp.gradientEnd)); } catch { /* noop */ }
-        }
-        if (savedFamily) {
-            try { const sf = JSON.parse(savedFamily); cssParts.push(this.buildCss('family', sf.primary, sf.gradientStart, sf.gradientEnd)); } catch { /* noop */ }
-        }
+        const tryPush = (theme: ThemeKey, raw: string | null) => {
+            if (!raw) return;
+            try {
+                const obj = JSON.parse(raw);
+                if (obj.primaryToken && obj.gradientStartToken && obj.gradientEndToken) {
+                    cssParts.push(this.buildCssFromTokens(theme, obj.primaryToken, obj.gradientStartToken, obj.gradientEndToken));
+                } else if (obj.primary && obj.gradientStart && obj.gradientEnd) {
+                    cssParts.push(this.buildCssLegacy(theme, obj.primary, obj.gradientStart, obj.gradientEnd));
+                }
+            } catch { /* noop */ }
+        };
+
+        tryPush('landing', savedLanding);
+        tryPush('login', savedLogin);
+        tryPush('role-select', savedRole);
+        tryPush('player', savedPlayer);
+        tryPush('family', savedFamily);
+
         // Always include current in-memory form values for immediate preview
-        cssParts.push(this.buildCss(t, primary, start, end));
+        cssParts.push(this.buildCssFromTokens(t, primaryToken, startToken, endToken));
 
         const style = this.ensureStyleElement();
         style.textContent = cssParts.join('\n');
@@ -195,9 +265,9 @@ export class ThemeEditorComponent implements OnInit {
     save(): void {
         const t = this.form.controls.theme.value;
         const data = {
-            primary: this.form.controls.primary.value,
-            gradientStart: this.form.controls.gradientStart.value,
-            gradientEnd: this.form.controls.gradientEnd.value
+            primaryToken: this.form.controls.primaryToken.value,
+            gradientStartToken: this.form.controls.gradientStartToken.value,
+            gradientEndToken: this.form.controls.gradientEndToken.value
         };
         localStorage.setItem(this.storageKey(t), JSON.stringify(data));
         this.apply();
@@ -216,9 +286,21 @@ export class ThemeEditorComponent implements OnInit {
             if (!raw) continue;
             try {
                 const obj = JSON.parse(raw);
-                cssParts.push(this.buildCss(th, obj.primary, obj.gradientStart, obj.gradientEnd));
+                if (obj.primaryToken && obj.gradientStartToken && obj.gradientEndToken) {
+                    cssParts.push(this.buildCssFromTokens(th, obj.primaryToken, obj.gradientStartToken, obj.gradientEndToken));
+                } else if (obj.primary && obj.gradientStart && obj.gradientEnd) {
+                    cssParts.push(this.buildCssLegacy(th, obj.primary, obj.gradientStart, obj.gradientEnd));
+                }
             } catch { /* ignore */ }
         }
         style.textContent = cssParts.join('\n');
+    }
+
+    private applyLegacy(theme: ThemeKey, primaryHex: string, startHex: string, endHex: string) {
+        const style = this.ensureStyleElement();
+        // Merge with existing
+        const existing = style.textContent ?? '';
+        const css = this.buildCssLegacy(theme, primaryHex, startHex, endHex);
+        style.textContent = [existing, css].filter(Boolean).join('\n');
     }
 }

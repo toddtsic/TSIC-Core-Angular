@@ -6,6 +6,7 @@ import { tokenRefreshInterceptor } from './core/interceptors/token-refresh.inter
 
 import { routes } from './app.routes';
 import { LastLocationService } from './core/services/last-location.service';
+import { ThemeOverridesService } from './core/services/theme-overrides.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -19,6 +20,13 @@ export const appConfig: ApplicationConfig = {
       provide: APP_INITIALIZER,
       deps: [LastLocationService],
       useFactory: (svc: LastLocationService) => () => void 0,
+      multi: true
+    },
+    // Instantiate ThemeOverridesService to auto-apply saved per-job theme tokens
+    {
+      provide: APP_INITIALIZER,
+      deps: [ThemeOverridesService],
+      useFactory: (svc: ThemeOverridesService) => () => void 0,
       multi: true
     }
   ]
