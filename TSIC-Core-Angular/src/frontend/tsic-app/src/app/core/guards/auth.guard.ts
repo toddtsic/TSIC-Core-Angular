@@ -2,6 +2,7 @@
 import { Router, type CanActivateFn } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
+import { LastLocationService } from '../services/last-location.service';
 
 // Shared helper to centralize redirect decisions and avoid duplication between guards
 function resolveAuthRedirect(
@@ -45,6 +46,19 @@ function resolveAuthRedirect(
 export const tsicEntryGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
     const router = inject(Router);
+    const last = inject(LastLocationService);
+
+    // Always prefer resuming to a job home when hitting bare /tsic
+    if (state.url === '/tsic' || state.url === '/tsic/') {
+        const lastJob = last.getLastJobPath();
+        if (lastJob) {
+            return router.createUrlTree([`/${lastJob}`]);
+        }
+        const user = authService.getCurrentUser();
+        if (user?.jobPath && user.jobPath !== 'tsic') {
+            return router.createUrlTree([`/${user.jobPath}`]);
+        }
+    }
 
     const user = authService.getCurrentUser();
     if (user?.jobPath === 'tsic' && !!user.regId) {

@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
+import { LoginComponent } from '../../../login/login.component';
 import { FamilyService, FamilyRegistrationRequest, FamilyUpdateRequest } from '../../../core/services/family.service';
 import { JobService } from '../../../core/services/job.service';
 
 @Component({
   selector: 'app-fam-account-step-review',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoginComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -92,30 +93,33 @@ import { JobService } from '../../../core/services/job.service';
           }
         </div>
 
-        
-
-        <hr class="my-4" />
-        <div class="card border rounded bg-body-tertiary">
-          <div class="card-body">
-            <h6 class="fw-semibold">Sign in now (optional)</h6>
-            <p class="text-secondary small mb-3">Already created your Family Account? You can sign in here to head straight back to Player Registration.</p>
-            <form class="row g-2 align-items-end" (ngSubmit)="login()" autocomplete="on">
-              <div class="col-12 col-md-4">
-                <label class="form-label" for="famLoginUsername">Username</label>
-                <input id="famLoginUsername" name="username" [(ngModel)]="username" class="form-control" />
-              </div>
-              <div class="col-12 col-md-4">
-                <label class="form-label" for="famLoginPassword">Password</label>
-                <input id="famLoginPassword" type="password" name="password" [(ngModel)]="password" class="form-control" />
-              </div>
-              <div class="col-12 col-md-4 d-grid d-sm-flex align-items-end gap-2">
-                <button type="submit" class="btn btn-primary flex-grow-1" [disabled]="auth.loginLoading()">Sign in and continue</button>
-                <button type="button" class="btn btn-outline-secondary flex-grow-1" (click)="completed.emit('home')">Return home</button>
-                @if (auth.loginError()) { <span class="text-danger small ms-sm-auto mt-2 mt-sm-0">{{ auth.loginError() }}</span> }
-              </div>
-            </form>
+        <!-- Bottom navigation for edit mode: allow returning to home or back to Player Registration when applicable -->
+        @if (state.mode() === 'edit') {
+          <div class="rw-bottom-nav d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
+            @if (showReturnToRegistration) {
+              <button type="button" class="btn btn-primary" (click)="completed.emit('register')">Return to Player Registration</button>
+            }
           </div>
-        </div>
+        }
+
+
+        @if (showLoginPanel) {
+          <hr class="my-4" />
+          <div class="card border rounded bg-body-tertiary">
+            <div class="card-body">
+              <app-login
+                [theme]="'family'"
+                [headerText]="'Sign in now (optional)'"
+                [subHeaderText]="'Already created your Family Account? Sign in to head straight back to Player Registration.'"
+                [returnUrl]="loginReturnUrl()"
+              />
+              <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
+              </div>
+            </div>
+          </div>
+        }
       </div>
     </div>
   `
@@ -128,15 +132,28 @@ export class FamAccountStepReviewComponent implements OnInit {
   private readonly jobService = inject(JobService);
   constructor(public state: FamilyAccountWizardService) { }
 
-  username = '';
-  password = '';
-
-  get auth() { return this.authSvc; }
+  // Centralized login component handles its own credentials, errors, and loading state
 
   creating = false;
   createError: string | null = null;
   createSuccess = false;
   private autoSaveAttempted = false;
+  // Show login panel only when user is not authenticated yet (e.g., after creating account in create mode)
+  get showLoginPanel(): boolean {
+    // In edit mode the user is already authenticated (redirect enforced earlier), so hide.
+    if (this.state.mode() === 'edit') return false;
+    return !this.authSvc.isAuthenticated();
+  }
+  // Show 'Return to Player Registration' only when next=register-player is present
+  get showReturnToRegistration(): boolean {
+    try {
+      const qp = (globalThis as any)?.location?.search || '';
+      const params = new URLSearchParams(qp);
+      return params.get('next') === 'register-player';
+    } catch {
+      return false;
+    }
+  }
 
   // Dynamic labels (Mom/Dad etc.) or fallback
   label1(): string {
@@ -153,21 +170,11 @@ export class FamAccountStepReviewComponent implements OnInit {
     this.autoSave();
   }
 
-  login(): void {
-    if (!this.username || !this.password) return;
-    // Drive UI signals so button state/error message work reliably
-    this.auth.loginLoading.set(true);
-    this.auth.loginError.set(null);
-    this.authSvc.login({ username: this.username, password: this.password }).subscribe({
-      next: () => {
-        this.auth.loginLoading.set(false);
-        this.completed.emit('register');
-      },
-      error: (error) => {
-        this.auth.loginLoading.set(false);
-        this.auth.loginError.set(error?.error?.message || 'Login failed. Please check your credentials.');
-      }
-    });
+  loginReturnUrl(): string {
+    const jobPath = this.jobService.getCurrentJob()?.jobPath;
+    if (jobPath) return `/${jobPath}/register-player`;
+    // Fallback
+    return '/tsic/role-selection';
   }
 
   createFamily(): void {
@@ -210,9 +217,6 @@ export class FamAccountStepReviewComponent implements OnInit {
         this.creating = false;
         if (res?.success) {
           this.createSuccess = true;
-          // Pre-fill login form with chosen credentials
-          this.username = req.username;
-          this.password = req.password;
         } else {
           this.createError = res?.message || 'Unable to create Family Account';
         }

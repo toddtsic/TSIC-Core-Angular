@@ -8,7 +8,8 @@
                 </div>
             </div>
 
-            <progress class="w-100 mb-4" [value]="progressPercent()" max="100">{{ progressPercent() }}%</progress>
+            <progress class="w-100 mb-4 rw-progress" [value]="progressPercent()" max="100">{{ progressPercent()
+                }}%</progress>
 
             @switch (currentStep()) {
             @case (1) {

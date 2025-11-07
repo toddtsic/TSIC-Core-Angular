@@ -4,34 +4,28 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { LoginComponent } from '../../../login/login.component';
 
 @Component({
-    selector: 'app-rw-login',
-    standalone: true,
-    imports: [CommonModule, FormsModule],
-    template: `
+  selector: 'app-rw-login',
+  standalone: true,
+  imports: [CommonModule, FormsModule, LoginComponent],
+  template: `
   <div class="card shadow border-0 card-rounded">
     <div class="card-header card-header-subtle border-0 py-3">
       <h5 class="mb-0 fw-semibold">Family Account Login</h5>
     </div>
     <div class="card-body">
-      <p class="text-secondary">Sign in with your Family Account to continue.</p>
+      <app-login
+        [theme]="'family'"
+        [headerText]="'Family Account Login'"
+        [subHeaderText]="'Sign in with your Family Account to continue.'"
+        [returnUrl]="returnUrl()"
+      />
 
-      <form (ngSubmit)="submit()" class="row g-3" autocomplete="on">
-        <div class="col-12 col-md-6">
-          <label for="rwLoginUsername" class="form-label">Username</label>
-          <input id="rwLoginUsername" name="username" [(ngModel)]="username" class="form-control" required />
-        </div>
-        <div class="col-12 col-md-6">
-          <label for="rwLoginPassword" class="form-label">Password</label>
-          <input id="rwLoginPassword" name="password" type="password" [(ngModel)]="password" class="form-control" required />
-        </div>
-        <div class="col-12 d-flex gap-2 align-items-center">
-          <button type="submit" class="btn btn-primary" [disabled]="auth.loginLoading()">Login</button>
-          <button type="button" class="btn btn-outline-secondary" (click)="skip.emit()">Back</button>
-          <span class="text-danger small" *ngIf="auth.loginError()">{{ auth.loginError() }}</span>
-        </div>
-      </form>
+      <div class="d-flex gap-2 mt-3">
+        <button type="button" class="btn btn-outline-secondary" (click)="skip.emit()">Back</button>
+      </div>
 
       <hr class="my-4" />
       <div>
@@ -43,28 +37,21 @@ import { RegistrationWizardService } from '../registration-wizard.service';
   `
 })
 export class LoginStepComponent {
-    private readonly authService = inject(AuthService);
-    private readonly router = inject(Router);
-    private readonly state = inject(RegistrationWizardService);
-    @Output() next = new EventEmitter<void>();
-    @Output() skip = new EventEmitter<void>();
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly state = inject(RegistrationWizardService);
+  @Output() next = new EventEmitter<void>();
+  @Output() skip = new EventEmitter<void>();
 
-    username = '';
-    password = '';
+  returnUrl(): string {
+    const jobPath = this.state.jobPath();
+    // After successful login, deep-link back into player wizard to the players step
+    return `/${jobPath}/register-player?step=players`;
+  }
 
-    get auth() { return this.authService; }
-
-    submit(): void {
-        if (!this.username || !this.password) return;
-        this.authService.login({ username: this.username, password: this.password }).subscribe({
-            next: () => this.next.emit(),
-            error: () => { /* error surfaced via auth.loginError signal in command style, but here we ignore */ }
-        });
-    }
-
-    createAccount(): void {
-        const jobPath = this.state.jobPath();
-        const returnUrl = `/${jobPath}/register-player?mode=new&step=players`;
-        this.router.navigate(['/tsic/family-account'], { queryParams: { returnUrl } });
-    }
+  createAccount(): void {
+    const jobPath = this.state.jobPath();
+    const returnUrl = `/${jobPath}/register-player?mode=new&step=players`;
+    this.router.navigate(['/tsic/family-account'], { queryParams: { returnUrl } });
+  }
 }

@@ -1,48 +1,34 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
+import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';
+import { LoginComponent } from '../login/login.component';
 
 @Component({
     selector: 'app-registration-entry',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule],
-    host: { class: 'wizard-theme-player' },
+    imports: [CommonModule, WizardThemeDirective, LoginComponent],
+    host: {},
     template: `
-  <div class="container py-4">
+  <div class="container py-4" [wizardTheme]="'player'">
     <div class="row justify-content-center">
       <div class="col-lg-8 col-xl-7">
-        <div class="card shadow border-0 card-rounded mb-4">
+        <div class="card shadow border-0 card-rounded mb-4" *ngIf="isAuthenticated()">
           <div class="card-header gradient-header text-white py-4 border-0">
             <h2 class="mb-0">Registration</h2>
             <p class="mb-0 mt-1 opacity-75 small">Sign in and choose what you'd like to do.</p>
           </div>
         </div>
 
-        <!-- Sign in form (shown when not signed in) -->
-        <div class="card shadow-sm border-0 card-rounded mb-3" *ngIf="!isAuthenticated()">
-          <div class="card-body">
-            <h5 class="fw-semibold mb-3">I have a username/password</h5>
-            <form [formGroup]="form" (ngSubmit)="signIn()" class="row g-3" autocomplete="on">
-              <div class="col-12 col-md-6">
-                <label class="form-label" for="username">Username</label>
-                <input id="username" type="text" formControlName="username" class="form-control" autocomplete="username" [class.is-invalid]="submitted && form.controls.username.invalid">
-                <div class="invalid-feedback" *ngIf="submitted && form.controls.username.errors?.['required']">Required</div>
-              </div>
-              <div class="col-12 col-md-6">
-                <label class="form-label" for="password">Password</label>
-                <input id="password" type="password" formControlName="password" class="form-control" autocomplete="current-password" [class.is-invalid]="submitted && form.controls.password.invalid">
-                <div class="invalid-feedback" *ngIf="submitted && form.controls.password.errors?.['required']">Required</div>
-              </div>
-              <div class="col-12 d-flex align-items-center gap-2">
-                <button type="submit" class="btn btn-primary" [disabled]="auth.loginLoading()">Sign in</button>
-                <span class="text-danger small" *ngIf="auth.loginError()">{{ auth.loginError() }}</span>
-              </div>
-            </form>
-          </div>
-        </div>
+        <!-- Unified Login (shown when not signed in) -->
+        <app-login *ngIf="!isAuthenticated()"
+          [theme]="'player'"
+          [headerText]="'Registration'"
+          [subHeaderText]="subHeaderReg">
+        </app-login>
 
         <!-- Choice card (shown once signed in) -->
         <div class="card shadow-sm border-0 card-rounded" *ngIf="isAuthenticated()">
@@ -70,11 +56,7 @@ export class RegistrationEntryComponent implements OnInit {
 
     jobPath = '';
     submitted = false;
-
-    form = this.fb.group({
-        username: ['', [Validators.required]],
-        password: ['', [Validators.required]]
-    });
+    subHeaderReg = "Sign in and choose what you'd like to do.";
 
     ngOnInit(): void {
         this.jobPath = this.route.snapshot.paramMap.get('jobPath') ?? '';
@@ -88,20 +70,7 @@ export class RegistrationEntryComponent implements OnInit {
         return this.auth.isAuthenticated();
     }
 
-    signIn(): void {
-        this.submitted = true;
-        if (this.form.invalid) return;
-        const creds = { username: this.form.value.username ?? '', password: this.form.value.password ?? '' };
-        this.auth.login(creds).subscribe({
-            next: () => {
-                // no-op: the template will reveal the choice card when authenticated
-            },
-            error: (err) => {
-                // Error signal already set by interceptor/pipe in service in other flows; set a local message for safety
-                this.auth.loginError.set(err?.error?.message || 'Login failed. Please check your credentials.');
-            }
-        });
-    }
+    // Login is handled by <app-login>
 
     goRegister(): void {
         if (!this.jobPath) return;

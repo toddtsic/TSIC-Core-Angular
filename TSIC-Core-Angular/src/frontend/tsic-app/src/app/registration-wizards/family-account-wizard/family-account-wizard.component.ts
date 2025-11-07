@@ -8,16 +8,17 @@ import { FamAccountStepReviewComponent } from './steps/review.component';
 import { FamAccountStepAddressComponent } from './steps/address-info.component';
 import { FamAccountStepCredentialsComponent } from './steps/credentials.component';
 import { JobService } from '../../core/services/job.service';
+import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 import { FamilyService } from '../../core/services/family.service';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
     selector: 'app-family-account-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, FamAccountStepCredentialsComponent, FamAccountStepAccountComponent, FamAccountStepAddressComponent, FamAccountStepChildrenComponent, FamAccountStepReviewComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, FamAccountStepCredentialsComponent, FamAccountStepAccountComponent, FamAccountStepAddressComponent, FamAccountStepChildrenComponent, FamAccountStepReviewComponent],
     templateUrl: './family-account-wizard.component.html',
     styleUrls: ['./family-account-wizard.component.scss'],
-    host: { class: 'wizard-theme-family' }
+    host: {}
 })
 export class FamilyAccountWizardComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
@@ -58,7 +59,14 @@ export class FamilyAccountWizardComponent implements OnInit {
         // If we're editing and unauthenticated, send user to login and return here afterward
         if (this.state.mode() === 'edit' && !this.auth.isAuthenticated()) {
             const currentUrl = this.router.url;
-            this.router.navigate(['/tsic/login'], { queryParams: { returnUrl: currentUrl } });
+            this.router.navigate(['/tsic/login'], {
+                queryParams: {
+                    returnUrl: currentUrl,
+                    theme: 'family',
+                    header: 'Family Account Login',
+                    subHeader: 'Sign in to continue'
+                }
+            });
             return;
         }
 

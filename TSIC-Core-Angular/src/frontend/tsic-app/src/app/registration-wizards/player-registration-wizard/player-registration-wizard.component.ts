@@ -12,16 +12,17 @@ import { StartChoiceComponent, StartChoice } from './steps/start-choice.componen
 import { EditLookupComponent } from './steps/edit-lookup.component';
 import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '../../core/services/auth.service';
+import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 
 export type StepId = 'start' | 'family-check' | 'edit-lookup' | 'players' | 'constraint' | 'teams' | 'forms' | 'review' | 'payment';
 
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, StartChoiceComponent, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, ConstraintSelectionComponent, PlayerFormsComponent, PaymentComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, StartChoiceComponent, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, ConstraintSelectionComponent, PlayerFormsComponent, PaymentComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
-    host: { class: 'wizard-theme-player' }
+    host: {}
 })
 export class PlayerRegistrationWizardComponent implements OnInit {
     private readonly router = inject(Router);

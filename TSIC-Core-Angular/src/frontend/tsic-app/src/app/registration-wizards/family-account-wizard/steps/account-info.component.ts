@@ -122,7 +122,7 @@ import { JobService } from '../../../core/services/job.service';
             </div>
           </div>
 
-          <div class="d-flex gap-2 mt-2">
+          <div class="rw-bottom-nav d-flex gap-2">
             <button type="submit" class="btn btn-primary">Continue</button>
           </div>
         </form>

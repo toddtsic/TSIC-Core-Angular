@@ -176,6 +176,25 @@
                     </div>
                     } @else {
                     <div class="row g-3">
+                        <!-- Family Account entry: always available; edit mode will redirect to login if needed -->
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 border-2 border-success">
+                                <div class="card-body text-center p-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                                        class="mb-3 text-success" viewBox="0 0 16 16">
+                                        <path d="M8 2.354a2.5 2.5 0 1 0 0 4.292 2.5 2.5 0 0 0 0-4.292Z" />
+                                        <path d="M14 14s-1 0-1-1-1-4-5-4-5 3-5 4-1 1-1 1h12Z" />
+                                    </svg>
+                                    <h5 class="card-title fw-bold mb-2">Family Account</h5>
+                                    <p class="text-muted mb-3">Review or update your family and children</p>
+                                    <a [routerLink]="['/tsic','family-account']"
+                                        [queryParams]="{ mode: 'edit', returnUrl: '/' + jobPath() + '/home' }"
+                                        class="btn btn-success w-100">
+                                        Open Family Account
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                         @for (status of registrationStatuses(); track status.registrationType) {
                         <div class="col-md-6 col-lg-4">
                             <div class="card h-100 border-2" [class.border-success]="status.isAvailable"

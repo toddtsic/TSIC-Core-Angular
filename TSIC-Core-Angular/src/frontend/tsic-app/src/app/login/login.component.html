@@ -2,8 +2,8 @@
   <div class="card shadow-lg border-0 card-rounded">
     <!-- Card Header with Gradient -->
     <div class="card-header text-center py-4 border-0 gradient-header">
-      <h2 class="mb-0 fw-bold">Welcome Back</h2>
-      <p class="mb-0 mt-2 opacity-75 small">Sign in to continue</p>
+      <h2 class="mb-0 fw-bold">{{ headerText }}</h2>
+      <p class="mb-0 mt-2 opacity-75 small">{{ subHeaderText }}</p>
     </div>
 
     <!-- Card Body -->
@@ -55,15 +55,15 @@
           }
         </div>
 
-        @if (errorMessage()) {
+        @if (auth.loginError()) {
         <div class="alert alert-danger border-0 shadow-sm mb-4">
-          {{ errorMessage() }}
+          {{ auth.loginError() }}
         </div>
         }
 
         <button type="submit" class="btn btn-lg w-100 fw-semibold shadow-sm btn-gradient"
-          [disabled]="isLoading() || form.invalid">
-          @if (!isLoading()) {
+          [disabled]="auth.loginLoading() || form.invalid">
+          @if (!auth.loginLoading()) {
           <span>Sign In</span>
           } @else {
           <span>

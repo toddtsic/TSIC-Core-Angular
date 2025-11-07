@@ -1,10 +1,11 @@
-import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, APP_INITIALIZER, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { tokenRefreshInterceptor } from './core/interceptors/token-refresh.interceptor';
 
 import { routes } from './app.routes';
+import { LastLocationService } from './core/services/last-location.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -12,6 +13,13 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(
       withInterceptors([authInterceptor, tokenRefreshInterceptor])
-    )
+    ),
+    // Ensure LastLocationService is instantiated at startup to begin tracking
+    {
+      provide: APP_INITIALIZER,
+      deps: [LastLocationService],
+      useFactory: (svc: LastLocationService) => () => void 0,
+      multi: true
+    }
   ]
 };

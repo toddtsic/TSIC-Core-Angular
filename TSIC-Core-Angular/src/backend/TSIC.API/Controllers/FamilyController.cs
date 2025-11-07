@@ -69,10 +69,27 @@ public class FamilyController : ControllerBase
             c.Cellphone ?? c.Phone
         )).ToList();
 
+        // Prefer Families contact data when present; fall back to AspNetUsers profile fields
+        string Fallback(string? primary, string? fallback) => !string.IsNullOrWhiteSpace(primary) ? primary! : (fallback ?? string.Empty);
+
+        var primary = new PersonDto(
+            Fallback(fam.MomFirstName, aspUser.FirstName),
+            Fallback(fam.MomLastName, aspUser.LastName),
+            Fallback(fam.MomCellphone, aspUser.Cellphone ?? aspUser.Phone),
+            Fallback(fam.MomEmail, aspUser.Email)
+        );
+
+        var secondary = new PersonDto(
+            fam.DadFirstName ?? string.Empty,
+            fam.DadLastName ?? string.Empty,
+            fam.DadCellphone ?? string.Empty,
+            fam.DadEmail ?? string.Empty
+        );
+
         var response = new FamilyProfileResponse(
             aspUser.UserName ?? string.Empty,
-            new PersonDto(fam.MomFirstName ?? string.Empty, fam.MomLastName ?? string.Empty, fam.MomCellphone ?? string.Empty, fam.MomEmail ?? string.Empty),
-            new PersonDto(fam.DadFirstName ?? string.Empty, fam.DadLastName ?? string.Empty, fam.DadCellphone ?? string.Empty, fam.DadEmail ?? string.Empty),
+            primary,
+            secondary,
             new AddressDto(aspUser.StreetAddress ?? string.Empty, aspUser.City ?? string.Empty, aspUser.State ?? string.Empty, aspUser.PostalCode ?? string.Empty),
             childDtos
         );
@@ -261,16 +278,28 @@ public class FamilyController : ControllerBase
         string KeyEmail(string? e) => (e ?? string.Empty).Trim().ToLowerInvariant();
         string KeyPhone(string? p) => DigitsOnly(p);
         string KeyNameDob(string? f, string? l, DateTime? dob) => $"{(f ?? string.Empty).Trim().ToLowerInvariant()}|{(l ?? string.Empty).Trim().ToLowerInvariant()}|{(dob?.ToString("yyyy-MM-dd") ?? string.Empty)}";
+        bool IsPlaceholderEmail(string? e)
+            => string.Equals((e ?? string.Empty).Trim(), "not@given.com", StringComparison.OrdinalIgnoreCase);
 
-        // Build lookup maps for existing children
-        var mapByEmail = existingChildrenUsers
+        // Build lookup maps for existing children (duplicate-tolerant)
+        // In real data, placeholders (e.g., not@given.com) or repeated phones can exist across siblings.
+        // For email, keep ALL candidates per email to allow disambiguation (don't collapse to one).
+        var listByEmail = existingChildrenUsers
             .Where(c => !string.IsNullOrWhiteSpace(c.Email))
-            .ToDictionary(c => KeyEmail(c.Email!), c => c, StringComparer.OrdinalIgnoreCase);
-        var mapByPhone = existingChildrenUsers
-            .Where(c => !string.IsNullOrWhiteSpace(c.Cellphone) || !string.IsNullOrWhiteSpace(c.Phone))
-            .ToDictionary(c => KeyPhone(c.Cellphone ?? c.Phone), c => c);
-        var mapByNameDob = existingChildrenUsers
-            .ToDictionary(c => KeyNameDob(c.FirstName, c.LastName, c.Dob), c => c);
+            .GroupBy(c => KeyEmail(c.Email!), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Select(x => x).ToList(), StringComparer.OrdinalIgnoreCase);
+
+        // Collect all children per phone (digits-only) to allow disambiguation when multiple share a placeholder number
+        var listByPhone = existingChildrenUsers
+            .Select(c => new { Child = c, Key = KeyPhone(c.Cellphone ?? c.Phone) })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .GroupBy(x => x.Key)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Child).ToList());
+
+        // Group by Name+DOB (not guaranteed unique; twins or identical data can exist)
+        var listByNameDob = existingChildrenUsers
+            .GroupBy(c => KeyNameDob(c.FirstName, c.LastName, c.Dob))
+            .ToDictionary(g => g.Key, g => g.Select(x => x).ToList());
 
         var matchedChildIds = new HashSet<string>();
 
@@ -278,13 +307,73 @@ public class FamilyController : ControllerBase
         {
             // Resolve match
             AspNetUsers? aspChild = null;
-            if (!string.IsNullOrWhiteSpace(child.Email))
+            // Email-based match only if the provided email is not a known placeholder.
+            if (!string.IsNullOrWhiteSpace(child.Email) && !IsPlaceholderEmail(child.Email))
             {
-                mapByEmail.TryGetValue(KeyEmail(child.Email), out aspChild);
+                if (listByEmail.TryGetValue(KeyEmail(child.Email), out var emailCandidates) && emailCandidates.Count > 0)
+                {
+                    // If multiple children share the same email, disambiguate further
+                    // Prefer a candidate not already matched in this request round.
+                    // Then try Name + DOB, then Name-only.
+                    var pick = emailCandidates.FirstOrDefault(c => !matchedChildIds.Contains(c.Id));
+
+                    if (pick == null)
+                    {
+                        DateTime? emailChildDob = null;
+                        if (!string.IsNullOrWhiteSpace(child.Dob) && DateTime.TryParse(child.Dob, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedEmailDob))
+                        {
+                            emailChildDob = parsedEmailDob.Date;
+                        }
+                        pick = emailCandidates.FirstOrDefault(c =>
+                            string.Equals((c.FirstName ?? string.Empty).Trim(), (child.FirstName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals((c.LastName ?? string.Empty).Trim(), (child.LastName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            c.Dob.HasValue && emailChildDob.HasValue && c.Dob.Value.Date == emailChildDob.Value.Date);
+                    }
+                    if (pick == null)
+                    {
+                        pick = emailCandidates.FirstOrDefault(c =>
+                            string.Equals((c.FirstName ?? string.Empty).Trim(), (child.FirstName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals((c.LastName ?? string.Empty).Trim(), (child.LastName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase));
+                    }
+                    aspChild = pick ?? emailCandidates[0];
+                }
             }
             if (aspChild == null && !string.IsNullOrWhiteSpace(child.Phone))
             {
-                mapByPhone.TryGetValue(KeyPhone(child.Phone), out aspChild);
+                var phoneKey = KeyPhone(child.Phone);
+                if (listByPhone.TryGetValue(phoneKey, out var candidates) && candidates.Count > 0)
+                {
+                    // Disambiguation strategy:
+                    // 1. Exact email match among candidates if child provided email
+                    // 2. Name + DOB match
+                    // 3. Name-only match
+                    // 4. Fallback to first
+                    AspNetUsers? pick = null;
+                    if (!string.IsNullOrWhiteSpace(child.Email))
+                    {
+                        pick = candidates.FirstOrDefault(c => string.Equals(Norm(c.Email), Norm(child.Email), StringComparison.OrdinalIgnoreCase));
+                    }
+                    if (pick == null)
+                    {
+                        DateTime? phoneChildDob = null;
+                        if (!string.IsNullOrWhiteSpace(child.Dob) && DateTime.TryParse(child.Dob, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedDob3))
+                        {
+                            phoneChildDob = parsedDob3.Date;
+                        }
+                        pick = candidates.FirstOrDefault(c =>
+                            string.Equals((c.FirstName ?? string.Empty).Trim(), (child.FirstName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals((c.LastName ?? string.Empty).Trim(), (child.LastName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            c.Dob.HasValue && phoneChildDob.HasValue && c.Dob.Value.Date == phoneChildDob.Value.Date);
+                    }
+                    if (pick == null)
+                    {
+                        pick = candidates.FirstOrDefault(c =>
+                            string.Equals((c.FirstName ?? string.Empty).Trim(), (child.FirstName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals((c.LastName ?? string.Empty).Trim(), (child.LastName ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase));
+                    }
+                    // If still not decided, pick a candidate not yet matched this round; else first
+                    aspChild = pick ?? candidates.FirstOrDefault(c => !matchedChildIds.Contains(c.Id)) ?? candidates[0];
+                }
             }
             DateTime? childDob = null;
             if (!string.IsNullOrWhiteSpace(child.Dob) && DateTime.TryParse(child.Dob, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedDob2))
@@ -293,7 +382,13 @@ public class FamilyController : ControllerBase
             }
             if (aspChild == null)
             {
-                mapByNameDob.TryGetValue(KeyNameDob(child.FirstName, child.LastName, childDob), out aspChild);
+                var nameDobKey = KeyNameDob(child.FirstName, child.LastName, childDob);
+                if (listByNameDob.TryGetValue(nameDobKey, out var candidatesByNameDob) && candidatesByNameDob.Count > 0)
+                {
+                    // Prefer a candidate not already matched in this session
+                    aspChild = candidatesByNameDob.FirstOrDefault(c => !matchedChildIds.Contains(c.Id))
+                               ?? candidatesByNameDob[0];
+                }
             }
 
             if (aspChild != null)

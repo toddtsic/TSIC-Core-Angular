@@ -29,25 +29,15 @@ import { AuthService } from '../../../core/services/auth.service';
               </div>
             </label>
 
-            <!-- Inline login appears directly under the YES option -->
+            <!-- Redirect to centralized login with returnUrl instead of inline form -->
             <div class="list-group-item border-0 pt-0 pb-3" *ngIf="hasAccount === 'yes'">
               <div class="rw-accent-panel">
                 <div class="d-flex align-items-start gap-3">
                   <i class="bi bi-shield-lock-fill rw-accent-icon" aria-hidden="true"></i>
-                  <form class="row g-3 flex-grow-1" (ngSubmit)="submitLogin()" autocomplete="on" aria-label="Family account sign in">
-                    <div class="col-12 col-md-6">
-                      <label for="famUsername" class="form-label">Username</label>
-                      <input id="famUsername" name="username" [(ngModel)]="username" class="form-control" required />
-                    </div>
-                    <div class="col-12 col-md-6">
-                      <label for="famPassword" class="form-label">Password</label>
-                      <input id="famPassword" name="password" type="password" [(ngModel)]="password" class="form-control" required />
-                    </div>
-                    <div class="col-12 d-flex align-items-center gap-2">
-                      <button type="submit" class="btn btn-primary">Sign in</button>
-                      <span class="text-danger small" *ngIf="loginError">{{ loginError }}</span>
-                    </div>
-                  </form>
+                  <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2">
+                    <button type="button" class="btn btn-primary" (click)="goToLogin()">Sign in</button>
+                    <span class="text-secondary small">You'll return here automatically after signing in.</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -92,17 +82,17 @@ export class FamilyCheckStepComponent {
   password = '';
   loginError: string | null = null;
 
-  submitLogin(): void {
-    this.loginError = null;
-    if (!this.username || !this.password) {
-      this.loginError = 'Please enter both username and password.';
-      return;
-    }
-    this.auth.login({ username: this.username, password: this.password }).subscribe({
-      next: () => this.next.emit(),
-      error: (err) => {
-        const msg = err?.error?.message || 'Login failed. Please check your credentials and try again.';
-        this.loginError = msg;
+  // Use centralized login screen with theming and a safe returnUrl back to this wizard
+  goToLogin(): void {
+    const jobPath = this.state.jobPath();
+    // Return to the wizard start step after login
+    const returnUrl = `/${jobPath}/register-player?step=start`;
+    this.router.navigate(['/tsic/login'], {
+      queryParams: {
+        returnUrl,
+        theme: 'family',
+        header: 'Family Account Login',
+        subHeader: 'Sign in to continue'
       }
     });
   }

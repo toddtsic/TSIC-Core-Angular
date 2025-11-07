@@ -90,6 +90,38 @@
     --bs-primary-rgb: 43, 182, 115;
 }
 
+/* DRY mixin for per-theme button variable overrides */
+@mixin wizard-button-theme($scope) {
+    #{$scope} .btn-primary {
+        --bs-btn-color: #fff;
+        --bs-btn-bg: var(--bs-primary);
+        --bs-btn-border-color: var(--bs-primary);
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-bg: var(--bs-primary);
+        --bs-btn-hover-border-color: var(--bs-primary);
+        --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+        --bs-btn-active-color: #fff;
+        --bs-btn-active-bg: var(--bs-primary);
+        --bs-btn-active-border-color: var(--bs-primary);
+    }
+
+    #{$scope} .btn-outline-primary {
+        --bs-btn-color: var(--bs-primary);
+        --bs-btn-border-color: var(--bs-primary);
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-bg: var(--bs-primary);
+        --bs-btn-hover-border-color: var(--bs-primary);
+        --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+        --bs-btn-active-color: #fff;
+        --bs-btn-active-bg: var(--bs-primary);
+        --bs-btn-active-border-color: var(--bs-primary);
+    }
+}
+
+/* Apply the mixin for each theme scope */
+@include wizard-button-theme('.wizard-theme-family');
+@include wizard-button-theme('.wizard-theme-player');
+
 .gradient-header {
     background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%) !important;
     color: white !important;
