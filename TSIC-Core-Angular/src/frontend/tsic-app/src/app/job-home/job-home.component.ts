@@ -1,6 +1,6 @@
 import { Component, effect, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobService, RegistrationStatusResponse } from '../core/services/job.service';
 import { AuthService } from '../core/services/auth.service';
 
@@ -15,6 +15,7 @@ export class JobHomeComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly jobService = inject(JobService);
   protected readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
 
   jobPath = signal('');
   registrationStatuses = signal<RegistrationStatusResponse[]>([]);
@@ -52,5 +53,18 @@ export class JobHomeComponent implements OnInit {
     this.error.set(null);
     this.jobService.loadRegistrationStatus(this.jobPath(), ['Player']);
 
+  }
+
+  // Start a fresh Family Registration flow: ensure no existing auth context carries over
+  startFamilyRegistration(): void {
+    try { this.authService.logoutLocal(); } catch { /* no-op */ }
+    this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player' } });
+  }
+
+  // Start a fresh Player Registration flow: explicit logout for symmetry and safety
+  startPlayerRegistration(): void {
+    try { this.authService.logoutLocal(); } catch { /* no-op */ }
+    const jp = this.jobPath();
+    this.router.navigate(['/', jp, 'register-player']);
   }
 }

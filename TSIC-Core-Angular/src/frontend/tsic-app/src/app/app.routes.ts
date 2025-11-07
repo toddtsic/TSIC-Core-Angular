@@ -90,6 +90,10 @@ export const routes: Routes = [
 					{
 						path: 'profile-editor',
 						loadComponent: () => import('./admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
+					},
+					{
+						path: 'theme',
+						loadComponent: () => import('./admin/theme-editor/theme-editor.component').then(m => m.ThemeEditorComponent)
 					}
 				]
 			}

@@ -26,11 +26,12 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   // Themed, reusable header content (overridable via inputs or query params)
   @Input() headerText = 'Welcome Back';
   @Input() subHeaderText = 'Sign in to continue';
-  @Input() theme: 'player' | 'family' | '' = '';
+  @Input() theme: 'login' | 'player' | 'family' | '' = '';
   // Optional client-provided return URL to prefer over query param
   @Input() returnUrl: string | null | undefined = undefined;
 
   // Apply per-wizard theme class for gradient and primary accents
+  @HostBinding('class.wizard-theme-login') get isLoginTheme() { return this.theme === 'login'; }
   @HostBinding('class.wizard-theme-player') get isPlayerTheme() { return this.theme === 'player'; }
   @HostBinding('class.wizard-theme-family') get isFamilyTheme() { return this.theme === 'family'; }
 
@@ -59,9 +60,14 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     const theme = qp.get('theme');
     const header = qp.get('header');
     const sub = qp.get('subHeader');
-    if (theme === 'player' || theme === 'family') this.theme = theme;
+    if (theme === 'login' || theme === 'player' || theme === 'family') this.theme = theme as any;
     if (header) this.headerText = header;
     if (sub) this.subHeaderText = sub;
+
+    // If used as a routed page and no theme provided, default to 'login'
+    if (!this.theme) {
+      this.theme = 'login';
+    }
   }
 
   ngAfterViewInit() {
