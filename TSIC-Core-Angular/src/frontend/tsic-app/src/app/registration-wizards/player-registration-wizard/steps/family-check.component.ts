@@ -37,7 +37,20 @@ import { AuthService } from '../../../core/services/auth.service';
                   <i class="bi bi-shield-lock-fill rw-accent-icon" aria-hidden="true"></i>
                   <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2">
                     <button type="button" class="btn btn-primary" (click)="goToLogin()">Sign in</button>
-                    <span class="text-secondary small">You'll return here automatically after signing in.</span>
+                    <span class="text-secondary small">We'll start your player(s) registration after you're authenticated.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option: Access Family Account (distinct accent color) -->
+            <div class="list-group-item border-0 pt-0 pb-3" *ngIf="hasAccount === 'yes'">
+              <div class="rw-accent-panel bg-success-subtle">
+                <div class="d-flex align-items-start gap-3">
+                  <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
+                  <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2">
+                    <button type="button" class="btn btn-success" (click)="goToFamilyAccount()">Sign in</button>
+                    <span class="text-secondary small">Review or update your family and children after signing in.</span>
                   </div>
                 </div>
               </div>
@@ -84,8 +97,8 @@ export class FamilyCheckStepComponent implements OnInit {
   loginError: string | null = null;
 
   ngOnInit(): void {
-    // Initialize hasFamilyAccount based on claims first, then localStorage fallback
-    // Only set if not already chosen by the user
+    // Initialize: if authenticated with Family role, preselect 'yes' and auto-advance.
+    // Otherwise leave radio unselected; do NOT use localStorage fallbacks.
     if (this.state.hasFamilyAccount() == null) {
       const user = this.auth.getCurrentUser();
       const roles = user?.roles || (user?.role ? [user.role] : []);
@@ -95,10 +108,12 @@ export class FamilyCheckStepComponent implements OnInit {
         this.next.emit();
         return;
       }
-      // Fallback: if we have a remembered username, suggest family login
-      const lastUser = localStorage.getItem('last_username');
-      if (lastUser && lastUser.trim().length > 0) {
-        this.state.hasFamilyAccount.set('yes');
+      // Leave as null when unauthenticated; user will choose explicitly.
+    } else {
+      // If user has logged out since last visit (no auth token now) but residual state remained, clear it.
+      const userNow = this.auth.getCurrentUser();
+      if (!userNow && this.state.hasFamilyAccount() === 'yes') {
+        this.state.hasFamilyAccount.set(null);
       }
     }
   }
@@ -134,5 +149,31 @@ export class FamilyCheckStepComponent implements OnInit {
     const jobPath = this.state.jobPath();
     const returnUrl = `/${jobPath}/register-player?step=players`;
     this.router.navigate(['/tsic/family-account'], { queryParams: { returnUrl } });
+  }
+
+  goToFamilyAccount(): void {
+    // Authenticate, then advance directly to the Family Account wizard.
+    // After the family flow, we still want to resume the player wizard's Players step.
+    let jobPath = (this.state.jobPath() || '').trim();
+    if (!jobPath) {
+      const url = (this.router.url || '').split('?')[0].split('#')[0];
+      const segs = url.split('/').filter(s => !!s);
+      if (segs.length > 0 && segs[0].toLowerCase() !== 'tsic') {
+        jobPath = segs[0];
+      }
+    }
+    const playersReturn = jobPath ? `/${jobPath}/register-player?step=players` : `/register-player?step=players`;
+    // Include jobPath and force edit mode so the wizard skips Credentials and loads data.
+    // Provide next=register-player as a hint, though returnUrl alone is sufficient.
+    const familyWizardUrl = `/tsic/family-account?mode=edit&next=register-player&jobPath=${encodeURIComponent(jobPath)}&returnUrl=${encodeURIComponent(playersReturn)}`;
+    this.router.navigate(['/tsic/login'], {
+      queryParams: {
+        returnUrl: familyWizardUrl,
+        theme: 'family',
+        intent: 'family-account',
+        header: 'Family Account Login',
+        subHeader: 'Sign in to continue'
+      }
+    });
   }
 }

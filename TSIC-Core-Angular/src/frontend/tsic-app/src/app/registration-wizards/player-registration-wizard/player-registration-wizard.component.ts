@@ -67,7 +67,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     });
     progressPercent = computed(() => Math.round(((this.currentIndex() + 1) / this.steps().length) * 100));
 
-    familyAccountUsername = signal<string>('');
+    // Only show an account badge when authenticated family user is present (via state.activeFamilyUser)
 
     readonly stepLabels: Record<StepId, string> = {
         'family-check': 'Family account?',
@@ -90,19 +90,13 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     }, { allowSignalWrites: true });
 
     ngOnInit(): void {
-        // Always start clean to avoid stale enriched tokens
-        this.auth.logoutLocal();
-
+        // Ensure a clean wizard state each time this route is entered (does not affect auth)
+        this.state.reset();
         // Job path
         const jobPath = this.route.snapshot.paramMap.get('jobPath') ?? '';
         this.state.jobPath.set(jobPath);
 
-        // Stored family username (auto-detect family account)
-        try {
-            const u = localStorage.getItem('last_username') || '';
-            this.familyAccountUsername.set(u);
-            if (u) this.state.hasFamilyAccount.set('yes');
-        } catch { /* ignore */ }
+        // No localStorage fallback: unauthenticated users must choose explicitly on Family Check.
 
         // Apply query params (mode + step)
         const qpMode = this.route.snapshot.queryParamMap.get('mode') as 'new' | 'edit' | 'parent' | null;
@@ -122,7 +116,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         }
 
         // Auto-advance: if we have a stored family account AND are authenticated, jump straight to players
-        if (!hadStepFromQuery && this.familyAccountUsername() && !!this.auth.currentUser()) {
+        if (!hadStepFromQuery && !!this.auth.currentUser()) {
             const playersIdx = this.steps().indexOf('players');
             if (playersIdx >= 0) this.currentIndex.set(playersIdx);
         }

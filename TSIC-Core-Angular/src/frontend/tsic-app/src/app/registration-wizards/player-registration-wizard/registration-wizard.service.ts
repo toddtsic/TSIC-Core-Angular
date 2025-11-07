@@ -35,6 +35,7 @@ export class RegistrationWizardService {
 
     reset(): void {
         this.startMode.set(null);
+        this.hasFamilyAccount.set(null);
         this.selectedPlayers.set([]);
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
