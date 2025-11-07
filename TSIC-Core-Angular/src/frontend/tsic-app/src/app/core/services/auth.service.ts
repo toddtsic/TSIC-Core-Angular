@@ -31,6 +31,8 @@ export class AuthService {
   public readonly registrations = signal<RegistrationRoleDto[]>([]);
   public readonly registrationsLoading = signal(false);
   public readonly registrationsError = signal<string | null>(null);
+  // Internal flag so we don't refetch registrations repeatedly in the same session
+  private _registrationsFetched = false;
   public readonly selectLoading = signal(false);
   public readonly selectError = signal<string | null>(null);
 
@@ -104,12 +106,15 @@ export class AuthService {
    * Command-style fetch for available registrations using signals
    */
   loadAvailableRegistrations(): void {
+    // Guard: only fetch once unless explicitly reset (e.g., on logoutLocal or explicit manual refresh in future)
+    if (this._registrationsFetched) return;
     this.registrationsLoading.set(true);
     this.registrationsError.set(null);
     this.http.get<LoginResponse>(`${this.apiUrl}/registrations`).subscribe({
       next: (resp) => {
         this.registrations.set(resp.registrations ?? []);
         this.registrationsLoading.set(false);
+        this._registrationsFetched = true;
       },
       error: (error) => {
         this.registrationsLoading.set(false);
@@ -186,6 +191,9 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     this.currentUser.set(null);
+    // reset one-shot registration fetch so next authenticated flow can reload
+    this._registrationsFetched = false;
+    this.registrations.set([]);
   }
 
   /**

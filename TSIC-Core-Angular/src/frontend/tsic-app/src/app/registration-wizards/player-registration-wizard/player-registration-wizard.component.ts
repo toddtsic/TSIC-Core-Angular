@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { PlayerSelectionComponent } from './steps/player-selection.component';
@@ -41,17 +41,38 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     currentIndex = signal(0);
 
     steps = computed<StepId[]>(() => {
-        const mode = this.state.startMode();
-        // make reactive to auth changes
-        const user = this.auth.currentUser();
-        const authed = !!user;
-        if (mode === 'edit') return this.allStepsEdit;
-        // default when mode is null or 'new' or 'parent'
-        return authed ? this.allStepsNewAuthed : this.allStepsNewUnauthed;
+        try {
+            const mode = this.state.startMode();
+            const authed = !!this.auth.currentUser();
+            let arr: StepId[];
+            if (mode === 'edit') {
+                arr = this.allStepsEdit;
+            } else if (authed) {
+                arr = this.allStepsNewAuthed;
+            } else {
+                arr = this.allStepsNewUnauthed;
+            }
+            if (!arr || arr.length === 0) {
+                console.warn('[PRW] Steps array unexpectedly empty – falling back to unauth new flow');
+                return this.allStepsNewUnauthed;
+            }
+            return arr;
+        } catch (err) {
+            console.error('[PRW] Error computing steps; fallback applied', err);
+            return this.allStepsNewUnauthed;
+        }
     });
 
-    currentStepId = computed<StepId>(() => this.steps()[Math.min(this.currentIndex(), this.steps().length - 1)]);
+    currentStepId = computed<StepId>(() => {
+        const arr = this.steps();
+        if (!arr || arr.length === 0) return 'family-check';
+        const idx = Math.min(this.currentIndex(), arr.length - 1);
+        return arr[idx];
+    });
     progressPercent = computed(() => Math.round(((this.currentIndex() + 1) / this.steps().length) * 100));
+
+    // Lightweight visual hint: show family account username if present (until a FamilyUser is selected)
+    familyAccountUsername = signal<string>('');
 
     // Labels for steps used in the header indicator
     readonly stepLabels: Record<StepId, string> = {
@@ -67,11 +88,20 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     };
 
     ngOnInit(): void {
-        // Force a clean unauthenticated state when entering the wizard
+        // Reinstate unconditional local logout on entry:
+        // Player registration wizard should always start from a clean auth slate to avoid
+        // accidentally reusing a stale Phase 2 token tied to a prior registration/job.
+        // Family login will re-hydrate Phase 1; selection inside the wizard will enrich as needed.
         this.auth.logoutLocal();
         // Initialize jobPath from route
         const jobPath = this.route.snapshot.paramMap.get('jobPath') ?? '';
         this.state.jobPath.set(jobPath);
+
+        // Read last family login username to show as a visual cue
+        try {
+            const u = localStorage.getItem('last_username') || '';
+            this.familyAccountUsername.set(u);
+        } catch { /* ignore */ }
 
         // Initialize from query params (mode and step) for deep-linking
         const qpMode = this.route.snapshot.queryParamMap.get('mode') as StartChoice | null;
@@ -89,6 +119,19 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             const targetIndex = this.steps().indexOf(desired);
             if (targetIndex >= 0) this.currentIndex.set(targetIndex);
         }
+        // Reactive effect: when an active family user is set, determine if any existing registration
+        // For now, placeholder logic: future enhancement will query backend summary endpoint.
+        effect(() => {
+            const fam = this.state.activeFamilyUser();
+            if (!fam) {
+                this.state.existingRegistrationAvailable.set(null);
+                return;
+            }
+            // Placeholder heuristic: if startMode was previously 'edit', assume existing true.
+            // Later: replace with API call or bootstrap summary check.
+            const assumed = this.state.startMode() === 'edit';
+            this.state.existingRegistrationAvailable.set(assumed);
+        });
     }
 
     next(): void {

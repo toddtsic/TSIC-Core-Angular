@@ -54,6 +54,15 @@ The `WizardThemeDirective` (standalone) applies a `wizard-theme-{name}` class to
 - `.rw-progress`: shared progress style; color comes from `--bs-primary`
 - `.rw-sticky-header`, `.rw-toolbar`, `.rw-bottom-nav`: shared wizard scaffolding
 
+### Context badges
+
+Wizards can surface small identity/context badges inside the header/toolbar area. For example, the Player Registration Wizard shows:
+
+- Active Family User (child) display name, when selected
+- Fallback Family Account username (from `last_username` in local storage) when no child is selected yet
+
+These badges inherit theme colors (via `--bs-primary`) and live alongside the current step indicator to keep users oriented.
+
 ## Themed Login screen
 
 `LoginComponent` accepts query parameters to theme and relabel the header:

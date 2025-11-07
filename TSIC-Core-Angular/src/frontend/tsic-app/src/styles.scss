@@ -425,6 +425,34 @@
     margin: .5rem 0 .75rem 0;
 }
 
+/* ============================================
+   Vibrant context badges (Family User / Family Account)
+   ============================================ */
+.rw-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    border-radius: 999px;
+    padding: .25rem .75rem;
+    font-weight: 600;
+    letter-spacing: .1px;
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(var(--bs-primary-rgb), .35);
+}
+
+.rw-badge--muted {
+    background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), .08) 0%, rgba(var(--bs-primary-rgb), .18) 100%);
+    color: var(--bs-primary);
+    border-color: rgba(var(--bs-primary-rgb), .35);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+
+.rw-badge i {
+    font-size: .95em;
+}
+
 .rw-accent-icon {
     color: var(--bs-primary);
     font-size: 1.35rem;

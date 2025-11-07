@@ -58,7 +58,10 @@ export class JobHomeComponent implements OnInit {
   // Start a fresh Family Registration flow: ensure no existing auth context carries over
   startFamilyRegistration(): void {
     try { this.authService.logoutLocal(); } catch { /* no-op */ }
-    this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player' } });
+    const jp = this.jobPath();
+    const returnUrl = `/${jp}/register-player?step=start`;
+    // Provide both a concrete returnUrl (with jobPath) and a next hint for older flows
+    this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player', returnUrl } });
   }
 
   // Start a fresh Player Registration flow: explicit logout for symmetry and safety

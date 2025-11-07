@@ -1,5 +1,6 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RegistrationWizardService } from '../registration-wizard.service';
 
 export type StartChoice = 'new' | 'edit' | 'parent';
 
@@ -19,21 +20,25 @@ export type StartChoice = 'new' | 'edit' | 'parent';
             <legend id="rwStartLegend" class="visually-hidden">Registration start options</legend>
 
             <div class="list-group list-group-flush">
-              <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
-                <input class="form-check-input mt-1" type="radio" name="rwStart" (change)="choose('new')" />
-                <div>
-                  <div class="fw-semibold">Start a new registration</div>
-                  <div class="text-muted small">Begin a fresh registration for this event</div>
-                </div>
-              </label>
+              @if (canShowNew()) {
+                <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
+                  <input class="form-check-input mt-1" type="radio" name="rwStart" (change)="choose('new')" />
+                  <div>
+                    <div class="fw-semibold">Start a new registration</div>
+                    <div class="text-muted small">Begin a fresh registration for this event</div>
+                  </div>
+                </label>
+              }
 
-              <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
-                <input class="form-check-input mt-1" type="radio" name="rwStart" (change)="choose('edit')" />
-                <div>
-                  <div class="fw-semibold">Edit a previous registration</div>
-                  <div class="text-muted small">Look up a prior submission to make changes</div>
-                </div>
-              </label>
+              @if (canShowEdit()) {
+                <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
+                  <input class="form-check-input mt-1" type="radio" name="rwStart" (change)="choose('edit')" />
+                  <div>
+                    <div class="fw-semibold">Edit a previous registration</div>
+                    <div class="text-muted small">Look up a prior submission to make changes</div>
+                  </div>
+                </label>
+              }
 
               <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
                 <input class="form-check-input mt-1" type="radio" name="rwStart" (change)="choose('parent')" />
@@ -49,6 +54,21 @@ export type StartChoice = 'new' | 'edit' | 'parent';
     `
 })
 export class StartChoiceComponent {
+  readonly state = inject(RegistrationWizardService);
   @Output() selected = new EventEmitter<StartChoice>();
   choose(val: StartChoice): void { this.selected.emit(val); }
+
+  // Visibility rules:
+  // - If existingRegistrationAvailable === true, prefer Edit (hide New)
+  // - If === false, prefer New (hide Edit)
+  // - If null/unknown, show both
+  canShowNew(): boolean {
+    const v = this.state.existingRegistrationAvailable();
+    return (v === null) || (v === false);
+  }
+
+  canShowEdit(): boolean {
+    const v = this.state.existingRegistrationAvailable();
+    return (v === null) || (v === true);
+  }
 }

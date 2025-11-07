@@ -84,12 +84,23 @@ export class FamilyCheckStepComponent {
 
   // Use centralized login screen with theming and a safe returnUrl back to this wizard
   goToLogin(): void {
-    const jobPath = this.state.jobPath();
-    // Return to the wizard start step after login
-    const returnUrl = `/${jobPath}/register-player?step=start`;
+    // Derive jobPath robustly: prefer wizard state, fallback to URL first segment
+    let jobPath = (this.state.jobPath() || '').trim();
+    if (!jobPath) {
+      const url = (this.router.url || '').split('?')[0].split('#')[0];
+      const segs = url.split('/').filter(s => !!s);
+      if (segs.length > 0 && segs[0].toLowerCase() !== 'tsic') {
+        jobPath = segs[0];
+      }
+    }
+    // Build a normalized returnUrl (avoid double slashes)
+    const returnUrl = jobPath ? `/${jobPath}/register-player?step=start` : `/register-player?step=start`;
+    // Pass intent and jobPath so login can auto-select Player role and redirect back here
     this.router.navigate(['/tsic/login'], {
       queryParams: {
         returnUrl,
+        intent: 'player-register',
+        jobPath,
         theme: 'family',
         header: 'Family Account Login',
         subHeader: 'Sign in to continue'

@@ -16,6 +16,10 @@ export class RegistrationWizardService {
 
     // Players and selections
     selectedPlayers = signal<Array<{ userId: string; name: string }>>([]);
+    activeFamilyUser = signal<{ familyUserId: string; displayName: string } | null>(null);
+    // Whether an existing player registration for the current job + active family user already exists.
+    // null = unknown/not yet checked; true/false = definitive.
+    existingRegistrationAvailable = signal<boolean | null>(null);
     teamConstraintType = signal<string | null>(null); // e.g., BYGRADYEAR
     teamConstraintValue = signal<string | null>(null); // e.g., 2027
     selectedTeams = signal<Record<string, string>>({}); // playerId -> teamId
@@ -34,5 +38,7 @@ export class RegistrationWizardService {
         this.selectedTeams.set({});
         this.formData.set({});
         this.paymentOption.set('PIF');
+        this.activeFamilyUser.set(null);
+        this.existingRegistrationAvailable.set(null);
     }
 }

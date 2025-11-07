@@ -30,12 +30,33 @@
                         <i class="bi bi-arrow-left"></i>
                         <span>Back</span>
                     </button>
-                    <div class="d-inline-flex align-items-center gap-2">
-                        <span class="text-secondary small">Current:</span>
-                        <span
-                            class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
-                            {{ stepLabels[currentStepId()] }}
-                        </span>
+                    <div class="d-flex flex-column flex-md-row align-items-md-center gap-2">
+                        <div class="d-inline-flex align-items-center gap-2">
+                            <span class="text-secondary small">Current:</span>
+                            <span class="rw-badge rw-badge--muted">
+                                <i class="bi bi-flag"></i>
+                                {{ stepLabels[currentStepId()] }}
+                            </span>
+                        </div>
+                        @if (state.activeFamilyUser()) {
+                        <div class="d-inline-flex align-items-center gap-2">
+                            <span class="text-secondary small">Family User:</span>
+                            <span class="rw-badge">
+                                <i class="bi bi-person-check"></i>
+                                {{ state.activeFamilyUser()?.displayName }}
+                            </span>
+                        </div>
+                        } @else {
+                        @if (familyAccountUsername()) {
+                        <div class="d-inline-flex align-items-center gap-2">
+                            <span class="text-secondary small">Family Account:</span>
+                            <span class="rw-badge">
+                                <i class="bi bi-people-fill"></i>
+                                {{ familyAccountUsername() }}
+                            </span>
+                        </div>
+                        }
+                        }
                     </div>
                 </div>
             </div>

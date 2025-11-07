@@ -8,11 +8,11 @@ import { WizardThemeDirective } from '../shared/directives/wizard-theme.directiv
 import { LoginComponent } from '../login/login.component';
 
 @Component({
-    selector: 'app-registration-entry',
-    standalone: true,
-    imports: [CommonModule, WizardThemeDirective, LoginComponent],
-    host: {},
-    template: `
+  selector: 'app-registration-entry',
+  standalone: true,
+  imports: [CommonModule, WizardThemeDirective, LoginComponent],
+  host: {},
+  template: `
   <div class="container py-4" [wizardTheme]="'player'">
     <div class="row justify-content-center">
       <div class="col-lg-8 col-xl-7">
@@ -48,38 +48,39 @@ import { LoginComponent } from '../login/login.component';
   `
 })
 export class RegistrationEntryComponent implements OnInit {
-    private readonly route = inject(ActivatedRoute);
-    private readonly router = inject(Router);
-    readonly auth = inject(AuthService);
-    private readonly jobService = inject(JobService);
-    private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  readonly auth = inject(AuthService);
+  private readonly jobService = inject(JobService);
+  private readonly fb = inject(FormBuilder);
 
-    jobPath = '';
-    submitted = false;
-    subHeaderReg = "Sign in and choose what you'd like to do.";
+  jobPath = '';
+  submitted = false;
+  subHeaderReg = "Sign in and choose what you'd like to do.";
 
-    ngOnInit(): void {
-        this.jobPath = this.route.snapshot.paramMap.get('jobPath') ?? '';
-        if (this.jobPath) {
-            // Load job metadata so family wizard can use dynamic labels when routed next
-            this.jobService.loadJobMetadata(this.jobPath);
-        }
+  ngOnInit(): void {
+    this.jobPath = this.route.snapshot.paramMap.get('jobPath') ?? '';
+    if (this.jobPath) {
+      // Load job metadata so family wizard can use dynamic labels when routed next
+      this.jobService.loadJobMetadata(this.jobPath);
     }
+  }
 
-    isAuthenticated(): boolean {
-        return this.auth.isAuthenticated();
-    }
+  isAuthenticated(): boolean {
+    return this.auth.isAuthenticated();
+  }
 
-    // Login is handled by <app-login>
+  // Login is handled by <app-login>
 
-    goRegister(): void {
-        if (!this.jobPath) return;
-        this.router.navigate(['/', this.jobPath, 'register-player']);
-    }
+  goRegister(): void {
+    if (!this.jobPath) return;
+    this.router.navigate(['/', this.jobPath, 'register-player']);
+  }
 
-    goFamilyReview(): void {
-        if (!this.jobPath) return;
-        // Route to central Family Account wizard with next=register-player so it will send user to player reg afterward
-        this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player' } });
-    }
+  goFamilyReview(): void {
+    if (!this.jobPath) return;
+    // Route to Family Account wizard with both next and a concrete returnUrl back to player wizard
+    const returnUrl = `/${this.jobPath}/register-player?step=start`;
+    this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player', returnUrl } });
+  }
 }

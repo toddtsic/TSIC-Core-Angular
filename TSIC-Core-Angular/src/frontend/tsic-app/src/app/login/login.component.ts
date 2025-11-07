@@ -68,6 +68,11 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.theme) {
       this.theme = 'login';
     }
+
+    // Capture optional intent/jobPath for post-login auto-navigation
+    this._intent = qp.get('intent');
+    this._intentJobPath = qp.get('jobPath');
+    this._returnUrlFromQuery = qp.get('returnUrl');
   }
 
   ngAfterViewInit() {
@@ -139,39 +144,67 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.passwordInput) this.autofill.stopMonitoring(this.passwordInput);
   }
 
-  // Navigate to role selection after a successful login
-  // We watch for currentUser to be set and loginLoading to be false
-  // to avoid navigating on initial token presence without user action
+  // Unified navigation effect with intent-aware sequencing.
+  // For intent=player-register we delay navigating to the wizard returnUrl until after a registration
+  // (regId/jobPath) has been selected, ensuring we don't arrive and then immediately lose context.
+  // Note: This effect performs imperative commands (load registrations, select registration, navigate)
+  // that write to signals inside AuthService. Angular requires allowSignalWrites when effects
+  // trigger writes to avoid NG0600. We guard against infinite loops with early returns and a one-shot
+  // navigation flag.
   private readonly _navEffect = effect(() => {
-    const loading = this.authService.loginLoading();
+    if (this._navigated) return;
     const user = this.authService.getCurrentUser();
-    if (!loading && user) {
-      // Prefer explicit returnUrl Input when provided (e.g., embedded usage)
-      const inputReturnUrl = (this.returnUrl ?? '').trim();
-      if (inputReturnUrl) {
-        try {
-          const u = new URL(inputReturnUrl, globalThis.location.origin);
-          const internalPath = `${u.pathname}${u.search}${u.hash}`;
-          this.router.navigateByUrl(internalPath);
-          return;
-        } catch {
-          // fall through to query param or default
-        }
-      }
-
-      // Next, prefer returnUrl from query string when used as a full-screen page
-      const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-      if (returnUrl) {
-        try {
-          const u = new URL(returnUrl, globalThis.location.origin);
-          const internalPath = `${u.pathname}${u.search}${u.hash}`;
-          this.router.navigateByUrl(internalPath);
-          return;
-        } catch {
-          // Fall back to role selection if provided URL is invalid or external
-        }
-      }
-      this.router.navigate(['/tsic/role-selection']);
-    }
+    if (this.authService.loginLoading() || !user) return;
+    // Simplified: after login, always go to returnUrl (wizard) or role-selection fallback.
+    this._navigateOnce(this._computeReturnUrl(user.jobPath));
   });
+
+  private _computeReturnUrl(jobPathFromToken: string | undefined | null): string {
+    // Prefer explicit input returnUrl
+    const inputReturnUrlRaw = (this.returnUrl ?? '').trim();
+    if (inputReturnUrlRaw) {
+      const parsed = this._safeInternalUrl(inputReturnUrlRaw);
+      if (parsed) return parsed;
+    }
+    // Prefer query returnUrl captured at init
+    if (this._returnUrlFromQuery) {
+      const parsed = this._safeInternalUrl(this._returnUrlFromQuery);
+      if (parsed) return parsed;
+      // Attempt secondary normalization: decode and strip leading double slash
+      try {
+        const raw = decodeURIComponent(this._returnUrlFromQuery);
+        const normalized = raw.replace(/^\/\/+/, '/');
+        const parsed2 = this._safeInternalUrl(normalized);
+        if (parsed2) return parsed2;
+      } catch { /* ignore */ }
+    }
+    // For player intent, fallback to wizard start if jobPath known
+    if (this._intent === 'player-register' && jobPathFromToken) {
+      return `/${jobPathFromToken}/register-player?step=start`;
+    }
+    // Default: role-selection
+    return '/tsic/role-selection';
+  }
+
+  private _safeInternalUrl(candidate: string): string | null {
+    try {
+      const u = new URL(candidate, globalThis.location.origin);
+      if (u.origin !== globalThis.location.origin) return null; // disallow external origins
+      return `${u.pathname}${u.search}${u.hash}`;
+    } catch {
+      return null;
+    }
+  }
+
+  private _navigateOnce(target: string): void {
+    if (this._navigated) return;
+    this._navigated = true;
+    this.router.navigateByUrl(target);
+  }
+
+  // Internal intent metadata captured at init
+  private _intent: string | null = null;
+  private _intentJobPath: string | null = null; // retained for future use (may be removed later)
+  private _returnUrlFromQuery: string | null = null;
+  private _navigated = false;
 }

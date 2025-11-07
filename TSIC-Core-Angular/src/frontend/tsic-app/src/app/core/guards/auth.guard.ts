@@ -156,13 +156,32 @@ export const landingPageGuard: CanActivateFn = () => {
 /**
  * Guard that prevents authenticated users from accessing login page
  */
-export const redirectAuthenticatedGuard: CanActivateFn = () => {
+export const redirectAuthenticatedGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
     const router = inject(Router);
 
     const user = authService.getCurrentUser();
+    const isAuthenticated = authService.isAuthenticated();
 
-    return resolveAuthRedirect('login', router, authService.isAuthenticated(), user);
+    if (!isAuthenticated) return true;
+
+    // If a returnUrl is present and points to an internal path, honor it instead of forcing role-selection.
+    const returnUrl = route.queryParamMap.get('returnUrl');
+    if (returnUrl) {
+        try {
+            const u = new URL(returnUrl, globalThis.location.origin);
+            // Only allow internal navigations
+            if (u.origin === globalThis.location.origin) {
+                const internalPath = `${u.pathname}${u.search}${u.hash}`;
+                return router.parseUrl(internalPath);
+            }
+        } catch {
+            // malformed returnUrl -> ignore and fall through
+        }
+    }
+
+    // Default behavior when authenticated: send to role selection or active job home
+    return resolveAuthRedirect('login', router, isAuthenticated, user);
 };
 
 /**

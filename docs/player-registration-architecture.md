@@ -5,6 +5,52 @@
 
 ---
 
+## Implementation Status Update — November 7, 2025
+
+Recent work aligned the login, routing, and wizard orchestration to enable a clean, reliable return to the Player Registration Wizard after Family login. Highlights:
+
+- Deep-linking to the wizard now works consistently using `returnUrl`.
+  - Family Check step builds a normalized `returnUrl` such as `/{jobPath}/register-player?step=start` (or `/register-player` when no `jobPath`).
+  - The login page is themed via `theme=family&header=...&subHeader=...` and includes `intent=player-register` and the `returnUrl`.
+- Authentication/guards behavior:
+  - The wizard intentionally calls `auth.logoutLocal()` on init to ensure a clean slate, then expects a bounce through the login page.
+  - `redirectAuthenticatedGuard` now honors an internal `returnUrl` when the user is already authenticated, navigating directly to the wizard instead of role selection.
+  - `LoginComponent` normalizes malformed `returnUrl` values (decodes, strips leading double slashes) and navigates to it without auto-selecting any registration context.
+- Stability fixes:
+  - Prevented repeated `/registrations` fetches via a one-shot guard in `AuthService`; reset occurs on `logoutLocal()`.
+  - Normalized `returnUrl` construction in Family Check to avoid `//register-player` and to correctly infer `jobPath` when missing.
+- UX improvement:
+  - The wizard header shows a badge with the active Family User (when selected) or falls back to the Family Account username (from `last_username` in local storage).
+
+What’s next (high-level):
+
+- Implement a wizard step to select the Family User, then determine whether there is an existing player registration for the job or a new one should be created.
+- Add/align backend endpoints for: family users list, job-specific registration summary, form schema, and create-registration; enrich the token after the wizard decides on a registration id.
+- Prefill mapping (PP/CAC) and edge cases (roster full, waitlist, partial forms).
+
+Key file touchpoints (frontend):
+
+- `app/registration-wizards/player-registration-wizard/player-registration-wizard.component.ts`
+- `app/registration-wizards/player-registration-wizard/player-registration-wizard.component.html`
+- `app/registration-wizards/player-registration-wizard/registration-wizard.service.ts`
+- `app/registration-wizards/player-registration-wizard/steps/family-check.component.ts`
+- `app/login/login.component.ts`
+- `app/core/services/auth.service.ts`
+- `app/core/guards/auth.guard.ts` (redirect behavior)
+
+Deep-linking contract examples:
+
+- Start from job context: `/{jobPath}/register-player?step=start`
+- Start without job context: `/register-player?step=start`
+- Family login URL (example): `/tsic/login?theme=family&header=Family%20Account%20Login&subHeader=Sign%20in%20to%20continue&intent=player-register&returnUrl=/{jobPath}/register-player%3Fstep%3Dstart`
+
+Notes:
+
+- We purposefully keep login minimal (Phase 1 token). Token enrichment (adding `regId`, `jobPath`) happens after the wizard establishes context.
+- Return URL parsing uses router `parseUrl` to safely handle internal paths.
+
+---
+
 ## Executive Summary
 
 This document proposes a modernized architecture for the TSIC player registration system, migrating from hardcoded C# view models and Razor forms to a dynamic, API-driven approach suitable for Angular frontend integration.
