@@ -5,11 +5,12 @@ import { FamilyAccountWizardService } from './family-account-wizard.service';
 import { FamAccountStepAccountComponent } from './steps/account-info.component';
 import { FamAccountStepChildrenComponent } from './steps/add-children.component';
 import { FamAccountStepReviewComponent } from './steps/review.component';
+import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';
 
 @Component({
     selector: 'app-family-account-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, FamAccountStepAccountComponent, FamAccountStepChildrenComponent, FamAccountStepReviewComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, FamAccountStepAccountComponent, FamAccountStepChildrenComponent, FamAccountStepReviewComponent],
     templateUrl: './family-account-wizard.component.html',
     styleUrls: ['./family-account-wizard.component.scss']
 })

@@ -5,33 +5,70 @@
 /* ============================================
    CSS Custom Properties - Theme Variables
    ============================================ */
+/* ============================================
+   Base Palette Tokens (Light Mode Root)
+   Semantic tokens derive from these; themes pick from accent families.
+   ============================================ */
 :root {
-    --gradient-primary-start: #667eea;
-    --gradient-primary-end: #764ba2;
+    /* Neutral scale */
+    --neutral-50:#f9fafb; --neutral-100:#f3f4f6; --neutral-200:#e5e7eb; --neutral-300:#d1d5db; --neutral-400:#9ca3af; --neutral-500:#6b7280; --neutral-600:#4b5563; --neutral-700:#374151; --neutral-800:#1f2937; --neutral-900:#111827;
 
-    // Light theme colors
-    /* Fallback for Bootstrap primary RGB if not defined by theme */
-    --bs-primary-rgb: 13, 110, 253;
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-    --bg-elevated: #ffffff;
-    --text-primary: #212529;
-    --text-secondary: #6c757d;
-    --border-color: #dee2e6;
-    --input-bg: #ffffff;
-    --input-border: #ced4da;
+    /* Accent scales (subset) */
+    --indigo-400:#6366f1; --indigo-500:#4f46e5; --indigo-600:#4338ca;
+    --violet-500:#8b5cf6; --violet-600:#7c3aed;
+    --emerald-500:#10b981; --emerald-600:#059669; --emerald-700:#047857;
+    --cyan-500:#06b6d4; --cyan-600:#0891b2;
+
+    /* Semantic base (light) */
+    --color-bg: var(--neutral-50);
+    --color-surface: #ffffff;
+    --color-surface-alt: var(--neutral-100);
+    --color-text: var(--neutral-800);
+    --color-text-muted: var(--neutral-500);
+    --color-border: var(--neutral-200);
+
+    /* Default (fallback) primary + gradient */
+    --color-primary: var(--indigo-500);
+    --color-primary-rgb: 79,70,229;
+    --gradient-start: var(--indigo-500);
+    --gradient-end: var(--violet-600);
+
+    /* Legacy variable names mapped for existing selectors */
+    --gradient-primary-start: var(--gradient-start);
+    --gradient-primary-end: var(--gradient-end);
+
+    /* Bootstrap mappings */
+    --bs-primary: var(--color-primary);
+    --bs-primary-rgb: var(--color-primary-rgb);
+    --bg-primary: var(--color-bg);
+    --bg-secondary: var(--color-surface-alt);
+    --bg-elevated: var(--color-surface);
+    --text-primary: var(--color-text);
+    --text-secondary: var(--color-text-muted);
+    --border-color: var(--color-border);
+    --input-bg: var(--color-surface);
+    --input-border: var(--color-border);
 }
 
+/* ============================================
+   Dark Mode Overrides
+   ============================================ */
 [data-bs-theme='dark'] {
-    // Dark theme colors - improved contrast and depth
-    --bg-primary: #1a1d23;
-    --bg-secondary: #0d1117;
-    --bg-elevated: #2d333b;
-    --text-primary: #e6edf3;
-    --text-secondary: #8b949e;
-    --border-color: #444c56;
-    --input-bg: #22272e;
-    --input-border: #444c56;
+    --color-bg: var(--neutral-100);
+    --color-surface: var(--neutral-200);
+    --color-surface-alt: var(--neutral-300);
+    --color-text: var(--neutral-600);
+    --color-text-muted: var(--neutral-400);
+    --color-border: var(--neutral-300);
+
+    --bg-primary: var(--color-bg);
+    --bg-secondary: var(--color-surface-alt);
+    --bg-elevated: var(--color-surface);
+    --text-primary: var(--color-text);
+    --text-secondary: var(--color-text-muted);
+    --border-color: var(--color-border);
+    --input-bg: var(--color-surface);
+    --input-border: var(--color-border);
 
     /* Card and form styling for better visibility in dark mode */
     .card {
@@ -70,24 +107,62 @@
    - Keep it subtle: we only override the gradient header and primary accent
    ============================================ */
 
-/* Player Registration: purple/indigo */
+/* ============================================
+   Theme Scopes (choose tokens from palette)
+   ============================================ */
 .wizard-theme-player {
-    --gradient-primary-start: #6a5acd;
-    /* SlateBlue */
-    --gradient-primary-end: #7b68ee;
-    /* MediumSlateBlue */
-    --bs-primary: #6a5acd;
-    --bs-primary-rgb: 106, 90, 205;
+    --color-primary: var(--indigo-500);
+    --color-primary-rgb: 79,70,229;
+    --gradient-start: var(--indigo-500);
+    --gradient-end: var(--violet-600);
+    --gradient-primary-start: var(--gradient-start);
+    --gradient-primary-end: var(--gradient-end);
+    --bs-primary: var(--color-primary);
+    --bs-primary-rgb: var(--color-primary-rgb);
 }
 
-/* Family Account: teal/green */
 .wizard-theme-family {
-    --gradient-primary-start: #2bb673;
-    /* TSIC-like teal */
-    --gradient-primary-end: #00a884;
-    /* teal-green */
-    --bs-primary: #2bb673;
-    --bs-primary-rgb: 43, 182, 115;
+    --color-primary: var(--emerald-600);
+    --color-primary-rgb: 5,150,105;
+    --gradient-start: var(--emerald-500);
+    --gradient-end: var(--emerald-700);
+    --gradient-primary-start: var(--gradient-start);
+    --gradient-primary-end: var(--gradient-end);
+    --bs-primary: var(--color-primary);
+    --bs-primary-rgb: var(--color-primary-rgb);
+}
+
+.wizard-theme-login {
+    --color-primary: var(--cyan-600);
+    --color-primary-rgb: 8,145,178;
+    --gradient-start: var(--cyan-600);
+    --gradient-end: var(--violet-600);
+    --gradient-primary-start: var(--gradient-start);
+    --gradient-primary-end: var(--gradient-end);
+    --bs-primary: var(--color-primary);
+    --bs-primary-rgb: var(--color-primary-rgb);
+}
+
+.wizard-theme-role-select {
+    --color-primary: var(--indigo-500);
+    --color-primary-rgb: 79,70,229;
+    --gradient-start: var(--indigo-500);
+    --gradient-end: var(--cyan-600);
+    --gradient-primary-start: var(--gradient-start);
+    --gradient-primary-end: var(--gradient-end);
+    --bs-primary: var(--color-primary);
+    --bs-primary-rgb: var(--color-primary-rgb);
+}
+
+.wizard-theme-landing {
+    --color-primary: var(--violet-600);
+    --color-primary-rgb: 124,58,237;
+    --gradient-start: var(--violet-600);
+    --gradient-end: var(--indigo-600);
+    --gradient-primary-start: var(--gradient-start);
+    --gradient-primary-end: var(--gradient-end);
+    --bs-primary: var(--color-primary);
+    --bs-primary-rgb: var(--color-primary-rgb);
 }
 
 /* DRY mixin for per-theme button variable overrides */
@@ -121,6 +196,9 @@
 /* Apply the mixin for each theme scope */
 @include wizard-button-theme('.wizard-theme-family');
 @include wizard-button-theme('.wizard-theme-player');
+@include wizard-button-theme('.wizard-theme-login');
+@include wizard-button-theme('.wizard-theme-role-select');
+@include wizard-button-theme('.wizard-theme-landing');
 
 .gradient-header {
     background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%) !important;
@@ -569,17 +647,26 @@
 
 /* Progress element theming to match wizard primary color */
 .wizard-theme-family progress::-webkit-progress-value,
-.wizard-theme-player progress::-webkit-progress-value {
+.wizard-theme-player progress::-webkit-progress-value,
+.wizard-theme-login progress::-webkit-progress-value,
+.wizard-theme-role-select progress::-webkit-progress-value,
+.wizard-theme-landing progress::-webkit-progress-value {
     background-color: var(--bs-primary);
 }
 
 .wizard-theme-family progress::-webkit-progress-bar,
-.wizard-theme-player progress::-webkit-progress-bar {
+.wizard-theme-player progress::-webkit-progress-bar,
+.wizard-theme-login progress::-webkit-progress-bar,
+.wizard-theme-role-select progress::-webkit-progress-bar,
+.wizard-theme-landing progress::-webkit-progress-bar {
     background-color: var(--bs-secondary-bg);
 }
 
 .wizard-theme-family progress::-moz-progress-bar,
-.wizard-theme-player progress::-moz-progress-bar {
+.wizard-theme-player progress::-moz-progress-bar,
+.wizard-theme-login progress::-moz-progress-bar,
+.wizard-theme-role-select progress::-moz-progress-bar,
+.wizard-theme-landing progress::-moz-progress-bar {
     background-color: var(--bs-primary);
 }
 
