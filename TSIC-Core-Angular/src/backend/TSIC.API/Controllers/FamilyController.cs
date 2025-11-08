@@ -484,4 +484,142 @@ public class FamilyController : ControllerBase
             : null;
         return Ok(new FamilyRegistrationResponse(true, user.Id, null, message));
     }
+
+    // List child players for a family user within a job context, including registration status.
+    // Lightweight listing of family account users (currently single-family user). Returns an array for future multi-user support.
+    [HttpGet("users")]
+    [Authorize]
+    [ProducesResponseType(typeof(IEnumerable<object>), 200)]
+    public async Task<IActionResult> GetFamilyUsers([FromQuery] string? jobPath)
+    {
+        // Caller identity
+        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (callerId == null) return Unauthorized();
+
+        // Determine if caller has a Families record; if not, return empty list (must create one first)
+        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == callerId);
+        if (fam == null)
+        {
+            return Ok(Array.Empty<object>());
+        }
+
+        // Display name preference: MomFirstName/LastName then Dad fallback then username (from AspNetUsers)
+        var aspUser = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == callerId);
+        // Build a display name with clear imperative logic (avoid nested ternaries for readability / complexity)
+        string display;
+        if (!string.IsNullOrWhiteSpace(fam.MomFirstName) || !string.IsNullOrWhiteSpace(fam.MomLastName))
+        {
+            display = $"{fam.MomFirstName} {fam.MomLastName}".Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(fam.DadFirstName) || !string.IsNullOrWhiteSpace(fam.DadLastName))
+        {
+            display = $"{fam.DadFirstName} {fam.DadLastName}".Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(aspUser?.FirstName) || !string.IsNullOrWhiteSpace(aspUser?.LastName))
+        {
+            display = $"{aspUser?.FirstName} {aspUser?.LastName}".Trim();
+        }
+        else
+        {
+            display = aspUser?.UserName ?? "Family";
+        }
+
+        var result = new[]
+        {
+            new { familyUserId = fam.FamilyUserId, displayName = display, userName = aspUser?.UserName ?? string.Empty }
+        };
+        return Ok(result);
+    }
+
+    [HttpGet("players")]
+    [Authorize]
+    [ProducesResponseType(typeof(IEnumerable<object>), 200)]
+    public async Task<IActionResult> GetFamilyPlayers([FromQuery] string jobPath, [FromQuery] string familyUserId)
+    {
+        if (string.IsNullOrWhiteSpace(jobPath) || string.IsNullOrWhiteSpace(familyUserId))
+        {
+            return BadRequest(new { message = "jobPath and familyUserId are required" });
+        }
+
+        // Ensure caller is the same family user (or has elevated roles) - basic check
+        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (callerId == null) return Unauthorized();
+        if (!string.Equals(callerId, familyUserId, StringComparison.OrdinalIgnoreCase))
+        {
+            // Future: allow admin/superusers; for now restrict
+            return Forbid();
+        }
+
+        // Load family member links
+        var links = await _db.FamilyMembers.Where(fm => fm.FamilyUserId == familyUserId).ToListAsync();
+        var childIds = links.Select(l => l.FamilyMemberUserId).Distinct().ToList();
+
+        // Fallback/augment: include any children who previously registered under this family even if not linked in FamilyMembers
+        var regChildIds = await _db.Registrations
+            .Where(r => r.FamilyUserId == familyUserId && r.UserId != null)
+            .Select(r => r.UserId!)
+            .Distinct()
+            .ToListAsync();
+        var allChildIds = childIds.Union(regChildIds).Distinct().ToList();
+        if (allChildIds.Count == 0) return Ok(Array.Empty<object>());
+
+        // Load child profiles
+        var children = await _db.AspNetUsers.Where(u => allChildIds.Contains(u.Id)).ToListAsync();
+
+        // Determine registration status per child for the given job
+        // Registrations table may not have JobPath; attempt filter via Registrations and associated Jobs metadata.
+        // Fallback: load registrations for children and infer job match through a join if available; else treat all as registered.
+        var regsRaw = await _db.Registrations
+            .Where(r => r.UserId != null && allChildIds.Contains(r.UserId))
+            .Select(r => new { r.UserId, r.BActive, r.PaidTotal, r.OwedTotal, r.JobId })
+            .ToListAsync();
+
+        // Attempt to map jobId -> jobPath via Jobs table if present
+        Dictionary<Guid, string> jobPathMap = new();
+        try
+        {
+            var jobIds = regsRaw.Select(r => r.JobId).Distinct().ToList();
+            if (jobIds.Count > 0)
+            {
+                var jobs = await _db.Jobs.Where(j => jobIds.Contains(j.JobId)).Select(j => new { j.JobId, j.JobPath }).ToListAsync();
+                jobPathMap = jobs.ToDictionary(j => j.JobId, j => j.JobPath ?? string.Empty);
+            }
+        }
+        catch { /* Jobs table or mapping not available; proceed */ }
+
+        var regs = regsRaw.Where(r => jobPathMap.TryGetValue(r.JobId, out var jp) && string.Equals(jp, jobPath, StringComparison.OrdinalIgnoreCase))
+            .Select(r => new { r.UserId, r.BActive, r.PaidTotal, r.OwedTotal })
+            .ToList();
+        // Build a map indicating whether each child has any active/paid/owed registration rows for this job.
+        // PaidTotal and OwedTotal are non-nullable decimals per the entity model; avoid null-coalescing.
+        var regMap = regs
+            .GroupBy(r => r.UserId!)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Any(x => (x.BActive ?? false) || x.PaidTotal > 0m || x.OwedTotal > 0m)
+            );
+
+        // Optional lightweight debug via response headers (non-breaking for clients)
+        if (Request.Query.ContainsKey("debug"))
+        {
+            try
+            {
+                Response.Headers["X-FP-Counts"] = $"links={links.Count}; unionChildren={children.Count}; regsRaw={regsRaw.Count}; regsJob={regs.Count}";
+                Response.Headers["X-FP-JobPath"] = jobPath;
+            }
+            catch { /* ignore header failures */ }
+        }
+
+        var result = children.Select(c => new
+        {
+            playerId = c.Id,
+            firstName = c.FirstName ?? string.Empty,
+            lastName = c.LastName ?? string.Empty,
+            gender = c.Gender ?? string.Empty,
+            dob = c.Dob.HasValue ? c.Dob.Value.ToString("yyyy-MM-dd") : null,
+            registered = regMap.TryGetValue(c.Id, out var isReg) && isReg
+        });
+
+        return Ok(result);
+    }
 }

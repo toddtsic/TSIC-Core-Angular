@@ -120,8 +120,11 @@ export class FamilyCheckStepComponent implements OnInit {
 
   // Use centralized login screen with theming and a safe returnUrl back to this wizard
   goToLogin(): void {
-    // Derive jobPath robustly: prefer wizard state, fallback to URL first segment
+    // Derive jobPath robustly: prefer wizard state, fallback to token claim, then URL first segment
     let jobPath = (this.state.jobPath() || '').trim();
+    if (!jobPath) {
+      jobPath = this.auth.getJobPath() || '';
+    }
     if (!jobPath) {
       const url = (this.router.url || '').split('?')[0].split('#')[0];
       const segs = url.split('/').filter(s => !!s);
@@ -146,7 +149,7 @@ export class FamilyCheckStepComponent implements OnInit {
   }
 
   createAccount(): void {
-    const jobPath = this.state.jobPath();
+    let jobPath = this.state.jobPath() || this.auth.getJobPath() || '';
     const returnUrl = `/${jobPath}/register-player?step=players`;
     this.router.navigate(['/tsic/family-account'], { queryParams: { returnUrl } });
   }
@@ -155,6 +158,9 @@ export class FamilyCheckStepComponent implements OnInit {
     // Authenticate, then advance directly to the Family Account wizard.
     // After the family flow, we still want to resume the player wizard's Players step.
     let jobPath = (this.state.jobPath() || '').trim();
+    if (!jobPath) {
+      jobPath = this.auth.getJobPath() || '';
+    }
     if (!jobPath) {
       const url = (this.router.url || '').split('?')[0].split('#')[0];
       const segs = url.split('/').filter(s => !!s);

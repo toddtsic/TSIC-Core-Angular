@@ -494,7 +494,11 @@ export class LayoutComponent {
     // Fallback: parse current URL for first non-empty segment that isn't 'tsic'
     const url = this.router.url || '';
     const seg = url.split('?')[0].split('#')[0].split('/').find(s => !!s) || '';
-    if (seg && seg.toLowerCase() !== 'tsic') return seg;
+    // Ignore known app shell segments like 'tsic' and feature routes like 'register-player'
+    const lower = seg.toLowerCase();
+    if (lower && lower !== 'tsic' && lower !== 'register-player') return seg;
+    // Still unknown
+    if (claimPath) return claimPath;
     return null;
   }
 

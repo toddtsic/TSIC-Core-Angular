@@ -1,5 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+// Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
+import { environment } from '../../../environments/environment';
 
 export type PaymentOption = 'PIF' | 'Deposit';
 
@@ -18,8 +20,11 @@ export class RegistrationWizardService {
 
     // Players and selections
     selectedPlayers = signal<Array<{ userId: string; name: string }>>([]);
-    activeFamilyUser = signal<{ familyUserId: string; displayName: string } | null>(null);
-    familyUsers = signal<Array<{ familyUserId: string; displayName: string }>>([]);
+    // Family players available for registration
+    familyPlayers = signal<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered?: boolean }>>([]);
+    // Include username explicitly for UI badge (displayName kept for future flexibility)
+    activeFamilyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
+    familyUsers = signal<Array<{ familyUserId: string; displayName: string; userName: string }>>([]);
     // Whether an existing player registration for the current job + active family user already exists.
     // null = unknown/not yet checked; true/false = definitive.
     existingRegistrationAvailable = signal<boolean | null>(null);
@@ -37,6 +42,7 @@ export class RegistrationWizardService {
         this.startMode.set(null);
         this.hasFamilyAccount.set(null);
         this.selectedPlayers.set([]);
+        this.familyPlayers.set([]);
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
         this.selectedTeams.set({});
@@ -50,7 +56,9 @@ export class RegistrationWizardService {
     loadFamilyUsers(jobPath: string): void {
         if (!jobPath) return;
         // Future: cache by jobPath; for now simple fetch
-        this.http.get<Array<{ familyUserId: string; displayName: string }>>(`/api/family/users`, { params: { jobPath } })
+        const base = this.resolveApiBase();
+        console.log('[RegWizard] GET family users', { jobPath, base });
+        this.http.get<Array<{ familyUserId: string; displayName: string; userName: string }>>(`${base}/family/users`, { params: { jobPath } })
             .subscribe({
                 next: users => {
                     this.familyUsers.set(users || []);
@@ -64,5 +72,50 @@ export class RegistrationWizardService {
                     this.familyUsers.set([]);
                 }
             });
+    }
+
+    loadFamilyPlayers(jobPath: string, familyUserId: string): void {
+        if (!jobPath || !familyUserId) return;
+        const base = this.resolveApiBase();
+        console.log('[RegWizard] GET family players', { jobPath, familyUserId, base });
+        this.http.get<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered?: boolean }>>(`${base}/family/players`, { params: { jobPath, familyUserId, debug: '1' } })
+            .subscribe({
+                next: players => {
+                    const list = players || [];
+                    this.familyPlayers.set(list);
+                    // Pre-select already registered players and lock them via selectedPlayers list
+                    const preselected = list.filter(p => p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
+                    this.selectedPlayers.set(preselected);
+                    console.log('[RegWizard] Loaded players', { count: list.length, preselected });
+                },
+                error: err => {
+                    console.error('[RegWizard] Failed to load family players', err);
+                    this.familyPlayers.set([]);
+                }
+            });
+    }
+
+    // Prefer localhost API when running locally regardless of production flag mismatch.
+    private resolveApiBase(): string {
+        try {
+            const host = globalThis.location?.host?.toLowerCase?.() ?? '';
+            if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
+                // Hard-coded local API port used by backend.
+                return 'https://localhost:7215/api';
+            }
+        } catch { /* SSR or no window */ }
+        return environment.apiUrl.endsWith('/api') ? environment.apiUrl : `${environment.apiUrl}/api`;
+    }
+
+    togglePlayerSelection(player: { playerId: string; firstName: string; lastName: string; registered?: boolean }): void {
+        if (player.registered) return; // cannot deselect previously registered players
+        const current = this.selectedPlayers();
+        const id = player.playerId;
+        const exists = current.some(p => p.userId === id);
+        if (exists) {
+            this.selectedPlayers.set(current.filter(p => p.userId !== id));
+        } else {
+            this.selectedPlayers.set([...current, { userId: id, name: `${player.firstName} ${player.lastName}`.trim() }]);
+        }
     }
 }

@@ -41,9 +41,9 @@
                         @if (state.activeFamilyUser()) {
                         <div class="d-inline-flex align-items-center gap-2">
                             <span class="text-secondary small">Family User:</span>
-                            <span class="rw-badge">
+                            <span class="rw-badge" title="Username (login identifier)">
                                 <i class="bi bi-person-check"></i>
-                                {{ state.activeFamilyUser()?.displayName }}
+                                {{ state.activeFamilyUser()?.userName || state.activeFamilyUser()?.displayName }}
                             </span>
                         </div>
                         }
@@ -76,7 +76,13 @@
             @case ('payment') {
             <app-rw-payment (back)="back()" (submitted)="next()" />
             }
+            @default {
+            <div class="alert alert-warning" role="note">
+                Unknown step "{{ currentStepId() }}". Please go back and try again.
+            </div>
+            }
             }
         </div>
     </div>
+
 </main>

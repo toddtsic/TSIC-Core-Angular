@@ -89,12 +89,48 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         }
     }, { allowSignalWrites: true });
 
+    // Load players whenever jobPath and activeFamilyUser are both available
+    private readonly _loadPlayersEffect = effect(() => {
+        const jp = this.state.jobPath();
+        const fam = this.state.activeFamilyUser();
+        if (jp && fam?.familyUserId) {
+            this.state.loadFamilyPlayers(jp, fam.familyUserId);
+        }
+    }, { allowSignalWrites: true });
+
     ngOnInit(): void {
         // Ensure a clean wizard state each time this route is entered (does not affect auth)
         this.state.reset();
-        // Job path
-        const jobPath = this.route.snapshot.paramMap.get('jobPath') ?? '';
+        // Job path (robust resolution: route param -> query param -> token -> URL path)
+        let jobPath = this.route.snapshot.paramMap.get('jobPath')?.trim() ?? '';
+        if (!jobPath) {
+            jobPath = this.route.snapshot.queryParamMap.get('jobPath')?.trim() ?? '';
+        }
+        if (!jobPath) {
+            // Fallback to token claim if route param absent
+            jobPath = this.auth.getJobPath() ?? '';
+        }
+        if (!jobPath) {
+            try {
+                const path = globalThis.location?.pathname || '';
+                if (path) {
+                    const ignore = new Set(['register-player', 'tsic']);
+                    const seg = path.split('/').filter(Boolean).find(s => !ignore.has(s.toLowerCase()));
+                    if (seg) jobPath = seg;
+                }
+            } catch { /* SSR or no location */ }
+        }
+        if (!jobPath) {
+            console.warn('[PRW] jobPath could not be resolved; players/users will not auto-load.');
+        } else {
+            console.debug('[PRW] Resolved jobPath:', jobPath);
+        }
         this.state.jobPath.set(jobPath);
+
+        // If already authenticated, proactively load family users for this job
+        if (!!this.auth.currentUser() && !!jobPath) {
+            this.state.loadFamilyUsers(jobPath);
+        }
 
         // No localStorage fallback: unauthenticated users must choose explicitly on Family Check.
 
@@ -107,7 +143,9 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         let hadStepFromQuery = false;
         if (qpStep) {
             const authed = !!this.auth.currentUser();
-            const desired: StepId = (!authed && qpStep === 'players') ? 'family-check' : (qpStep as StepId);
+            // case-insensitive & guard unauthenticated deep-link to players
+            const qpLower = qpStep.toLowerCase();
+            const desired: StepId = (!authed && qpLower === 'players') ? 'family-check' : (qpLower as StepId);
             const targetIndex = this.steps().indexOf(desired);
             if (targetIndex >= 0) {
                 this.currentIndex.set(targetIndex);
@@ -115,11 +153,36 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             }
         }
 
-        // Auto-advance: if we have a stored family account AND are authenticated, jump straight to players
+        // If authenticated, optionally auto-advance to players
         if (!hadStepFromQuery && !!this.auth.currentUser()) {
             const playersIdx = this.steps().indexOf('players');
             if (playersIdx >= 0) this.currentIndex.set(playersIdx);
         }
+
+        // Hard baseline for unauthenticated sessions: always start at family-check
+        if (!this.auth.currentUser()) {
+            const famIdx = this.steps().indexOf('family-check');
+            if (famIdx >= 0) this.currentIndex.set(famIdx);
+        }
+
+        // Debug logging (temporary) to trace blank-step issue
+        if (!this.auth.currentUser()) {
+            console.debug('[PRW] Init unauth user: steps=', this.steps(), 'currentStepId=', this.currentStepId(), 'startMode=', this.state.startMode(), 'hasFamilyAccount=', this.state.hasFamilyAccount());
+        }
+    }
+
+    // Temporary helper to expose debug data (could be removed later)
+    get debugState() {
+        return {
+            authed: !!this.auth.currentUser(),
+            stepIds: this.steps(),
+            currentStep: this.currentStepId(),
+            index: this.currentIndex(),
+            startMode: this.state.startMode(),
+            hasFamilyAccount: this.state.hasFamilyAccount(),
+            jobPath: this.state.jobPath(),
+            activeFamilyUser: this.state.activeFamilyUser()
+        };
     }
 
     next(): void {
