@@ -66,7 +66,14 @@ import { ThemeService } from '../core/services/theme.service';
           <!-- Right: User Actions (auto-width) -->
           <div class="col-auto">
             <div class="d-flex align-items-center justify-content-end gap-2">
-              <span class="text-secondary small d-none d-md-inline fw-medium">{{ username() }}</span>
+              <span class="user-role-pill d-none d-md-inline" *ngIf="username() as u">
+                <span class="badge bg-user me-1">{{ u }}</span>
+                <ng-container *ngIf="roleName() as r; else noRole">
+                  <span class="text-muted small">as</span>
+                  <span class="badge bg-role ms-1">{{ r }}</span>
+                </ng-container>
+                <ng-template #noRole></ng-template>
+              </span>
               
               <!-- Button group on mobile, separate buttons on desktop -->
               <div class="btn-group d-md-none">
@@ -421,6 +428,27 @@ import { ThemeService } from '../core/services/theme.service';
       border-color: #6DBE45;
       color: white;
     }
+    /* User/Role badges */
+    .user-role-pill { display: inline-flex; align-items: center; }
+    .badge.bg-user {
+      background: #e9f7ef; /* light green tint */
+      color: #2e7d32;
+      font-weight: 600;
+    }
+    .badge.bg-role {
+      background: #e7f1ff; /* light blue tint */
+      color: #0d47a1;
+      font-weight: 600;
+    }
+
+    :host-context([data-bs-theme="dark"]) .badge.bg-user {
+      background: rgba(109,190,69,.2);
+      color: #9fe28a;
+    }
+    :host-context([data-bs-theme="dark"]) .badge.bg-role {
+      background: rgba(13,71,161,.25);
+      color: #9ec3ff;
+    }
   `]
 })
 export class LayoutComponent {
@@ -482,6 +510,10 @@ export class LayoutComponent {
   jobBannerPath = signal('');
   jobName = signal('');
   username = signal('');
+  // Derived display string for "{username} as {roleName}" (store the STRING, not a function)
+  displayUserRole = signal('');
+  // Separate role name signal so template can distinguish visually
+  roleName = signal('');
   showRoleMenu = signal(false);
   isAuthenticated = signal(false);
   roles = signal(['Parent', 'Director', 'Club Rep']);
@@ -495,10 +527,28 @@ export class LayoutComponent {
     this.username.set(user?.username || '');
     this.showRoleMenu.set(!!user?.regId);
 
-    // Mirror AuthService state reactively into header UI
+    // Initialize displayUserRole & roleName once with current user
+    {
+      const initialRole = (user?.roles?.[0] ?? user?.role) || '';
+      let initialDisplay = '';
+      if (user?.username) {
+        initialDisplay = initialRole ? `${user.username} as ${initialRole}` : user.username;
+      }
+      this.displayUserRole.set(initialDisplay);
+      this.roleName.set(initialRole);
+    }
+
+    // Mirror AuthService state reactively into header UI (recompute display string)
     effect(() => {
       const u = this.auth.currentUser();
       this.username.set(u?.username || '');
+      const r = (u?.roles?.[0] ?? u?.role) || '';
+      let display = '';
+      if (u?.username) {
+        display = r ? `${u.username} as ${r}` : u.username;
+      }
+      this.displayUserRole.set(display);
+      this.roleName.set(r);
       this.showRoleMenu.set(!!u?.regId);
       this.isAuthenticated.set(!!u);
     }, { allowSignalWrites: true });

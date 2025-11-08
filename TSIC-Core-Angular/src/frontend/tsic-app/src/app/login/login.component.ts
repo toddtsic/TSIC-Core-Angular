@@ -220,4 +220,5 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   private _intentJobPath: string | null = null; // retained for future use (may be removed later)
   private _returnUrlFromQuery: string | null = null;
   private _navigated = false;
+
 }

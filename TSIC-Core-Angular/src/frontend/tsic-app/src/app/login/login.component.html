@@ -8,11 +8,12 @@
 
     <!-- Card Body -->
     <div class="card-body p-4">
-      <form [formGroup]="form" (ngSubmit)="onSubmit($event)" autocomplete="on" novalidate>
+      <form [formGroup]="form" (ngSubmit)="onSubmit($event)" autocomplete="on" name="login" id="login-form"
+        method="post" action="/" novalidate>
 
         <div class="mb-4">
           <label for="username" class="form-label fw-semibold">Username</label>
-          <input #usernameInput id="username" type="text" class="form-control form-control-lg border-2"
+          <input #usernameInput id="username" name="username" type="text" class="form-control form-control-lg border-2"
             formControlName="username" placeholder="Enter your username" autocomplete="username" aria-label="Username"
             [class.is-invalid]="submitted() && form.get('username')?.invalid">
           @if (submitted() && form.get('username')?.invalid) {
@@ -25,10 +26,11 @@
         <div class="mb-4">
           <label for="password" class="form-label fw-semibold">Password</label>
           <div class="position-relative">
-            <input #passwordInput id="password" [type]="showPassword() ? 'text' : 'password'"
+            <input #passwordInput id="password" name="password" [type]="showPassword() ? 'text' : 'password'"
               class="form-control form-control-lg border-2 pe-5" formControlName="password"
-              placeholder="Enter your password" [attr.autocomplete]="showPassword() ? 'off' : 'current-password'"
-              aria-label="Password" [class.is-invalid]="submitted() && form.get('password')?.invalid">
+              placeholder="Enter your password" [attr.autocomplete]="'current-password'" autocapitalize="none"
+              spellcheck="false" aria-label="Password"
+              [class.is-invalid]="submitted() && form.get('password')?.invalid">
             <button type="button"
               class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary p-0 border-0"
               style="width: 40px; height: 40px;" (click)="toggleShowPassword()"

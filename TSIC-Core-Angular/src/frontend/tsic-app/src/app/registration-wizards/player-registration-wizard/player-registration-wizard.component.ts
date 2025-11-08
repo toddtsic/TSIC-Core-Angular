@@ -4,7 +4,7 @@ import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { PlayerSelectionComponent } from './steps/player-selection.component';
 import { TeamSelectionComponent } from './steps/team-selection.component';
 import { ReviewComponent } from './steps/review.component';
-import { ConstraintSelectionComponent } from './steps/constraint-selection.component';
+import { ConstraintSelectionComponent as EligibilitySelectionComponent } from './steps/constraint-selection.component';
 import { PlayerFormsComponent } from './steps/player-forms.component';
 import { PaymentComponent } from './steps/payment.component';
 import { RegistrationWizardService } from './registration-wizard.service';
@@ -15,12 +15,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 
-export type StepId = 'family-check' | 'edit-lookup' | 'players' | 'constraint' | 'teams' | 'forms' | 'review' | 'payment';
+export type StepId = 'family-check' | 'edit-lookup' | 'players' | 'eligibility' | 'teams' | 'forms' | 'review' | 'payment';
 
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, ConstraintSelectionComponent, PlayerFormsComponent, PaymentComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, PaymentComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
     host: {}
@@ -36,8 +36,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     // Note: 'constraint' may be skipped in a future enhancement if job has no constraint.
     // Start step retired; Family Check now offers CTAs to proceed directly
     private readonly allStepsEdit: StepId[] = ['family-check', 'edit-lookup', 'forms', 'review', 'payment'];
-    private readonly allStepsNewUnauthed: StepId[] = ['family-check', 'players', 'constraint', 'teams', 'forms', 'review', 'payment'];
-    private readonly allStepsNewAuthed: StepId[] = ['family-check', 'players', 'constraint', 'teams', 'forms', 'review', 'payment'];
+    private readonly allStepsNewUnauthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'review', 'payment'];
+    private readonly allStepsNewAuthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'review', 'payment'];
 
     // Current index into the computed steps array
     currentIndex = signal(0);
@@ -75,7 +75,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         'family-check': 'Family account?',
         'edit-lookup': 'Edit lookup',
         players: 'Players',
-        constraint: 'Constraint',
+        eligibility: 'Eligibility',
         teams: 'Teams',
         forms: 'Forms',
         review: 'Review',

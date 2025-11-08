@@ -12,7 +12,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
         <h5 class="mb-0 fw-semibold">Select Teams</h5>
       </div>
       <div class="card-body">
-        <p class="text-secondary mb-3">Team list will be filtered by constraint (e.g., grad year) and shown here.</p>
+  <p class="text-secondary mb-3">Teams displayed below are filtered by your eligibility (e.g., Graduation Year, Age Group).</p>
         <div class="rw-bottom-nav d-flex gap-2">
           <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
           <button type="button" class="btn btn-primary" (click)="next.emit()">Continue</button>

@@ -67,7 +67,7 @@ public class JobLookupService : IJobLookupService
                 JobName = jdo.Job.JobName ?? string.Empty,
                 JobPath = jdo.Job.JobPath ?? string.Empty,
                 JobLogoPath = jdo.LogoHeader, // Using BannerFile for logo/banner
-                JobBannerPath = jdo.Job.BannerFile,
+                JobBannerPath = jdo.ParallaxSlide1Image,
                 CoreRegformPlayer = jdo.Job.CoreRegformPlayer == "1",
                 USLaxNumberValidThroughDate = jdo.Job.UslaxNumberValidThroughDate,
                 ExpiryUsers = jdo.Job.ExpiryUsers,
