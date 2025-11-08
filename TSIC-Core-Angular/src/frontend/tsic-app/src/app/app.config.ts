@@ -7,6 +7,7 @@ import { tokenRefreshInterceptor } from './core/interceptors/token-refresh.inter
 import { routes } from './app.routes';
 import { LastLocationService } from './core/services/last-location.service';
 import { ThemeOverridesService } from './core/services/theme-overrides.service';
+import { JobContextService } from './core/services/job-context.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -27,6 +28,13 @@ export const appConfig: ApplicationConfig = {
       provide: APP_INITIALIZER,
       deps: [ThemeOverridesService],
       useFactory: (svc: ThemeOverridesService) => () => void 0,
+      multi: true
+    },
+    // Initialize JobContextService early so jobPath is available to components/guards
+    {
+      provide: APP_INITIALIZER,
+      deps: [JobContextService],
+      useFactory: (svc: JobContextService) => () => svc.init(),
       multi: true
     }
   ]

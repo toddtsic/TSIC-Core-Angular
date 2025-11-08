@@ -12,6 +12,7 @@ import { RegistrationWizardService } from './registration-wizard.service';
 import { EditLookupComponent } from './steps/edit-lookup.component';
 import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '../../core/services/auth.service';
+import { JobContextService } from '../../core/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 
 export type StepId = 'family-check' | 'edit-lookup' | 'players' | 'constraint' | 'teams' | 'forms' | 'review' | 'payment';
@@ -29,6 +30,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
     readonly state = inject(RegistrationWizardService);
     private readonly auth = inject(AuthService);
+    private readonly jobContext = inject(JobContextService);
 
     // Steps managed by stable IDs for deep-linking
     // Note: 'constraint' may be skipped in a future enhancement if job has no constraint.
@@ -101,29 +103,12 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     ngOnInit(): void {
         // Ensure a clean wizard state each time this route is entered (does not affect auth)
         this.state.reset();
-        // Job path (robust resolution: route param -> query param -> token -> URL path)
-        let jobPath = this.route.snapshot.paramMap.get('jobPath')?.trim() ?? '';
-        if (!jobPath) {
-            jobPath = this.route.snapshot.queryParamMap.get('jobPath')?.trim() ?? '';
-        }
-        if (!jobPath) {
-            // Fallback to token claim if route param absent
-            jobPath = this.auth.getJobPath() ?? '';
-        }
-        if (!jobPath) {
-            try {
-                const path = globalThis.location?.pathname || '';
-                if (path) {
-                    const ignore = new Set(['register-player', 'tsic']);
-                    const seg = path.split('/').filter(Boolean).find(s => !ignore.has(s.toLowerCase()));
-                    if (seg) jobPath = seg;
-                }
-            } catch { /* SSR or no location */ }
-        }
-        if (!jobPath) {
-            console.warn('[PRW] jobPath could not be resolved; players/users will not auto-load.');
+        // Derive canonical jobPath from JobContextService (URL is source of truth)
+        const jobPath = this.jobContext.jobPath() || '';
+        if (jobPath) {
+            console.debug('[PRW] jobPath:', jobPath);
         } else {
-            console.debug('[PRW] Resolved jobPath:', jobPath);
+            console.warn('[PRW] jobPath was not found in URL; wizard may not load data.');
         }
         this.state.jobPath.set(jobPath);
 

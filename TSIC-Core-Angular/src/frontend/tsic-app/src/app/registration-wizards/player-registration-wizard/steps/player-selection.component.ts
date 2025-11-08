@@ -42,11 +42,6 @@ import { FormsModule } from '@angular/forms';
         <div class="rw-bottom-nav d-flex gap-2">
           <button type="button" class="btn btn-primary" [disabled]="state.selectedPlayers().length === 0" (click)="next.emit()">Continue</button>
         </div>
-
-        <!-- Debug hook for verifying players signal (remove later) -->
-        <div *ngIf="debugEnabled" class="small text-muted mt-3">
-          Debug: players={{ state.familyPlayers().length }} selected={{ state.selectedPlayers().length }} activeFamilyUser={{ state.activeFamilyUser()?.displayName || 'none' }}
-        </div>
       </div>
     </div>
   `
@@ -54,8 +49,6 @@ import { FormsModule } from '@angular/forms';
 export class PlayerSelectionComponent implements OnInit {
   @Output() next = new EventEmitter<void>();
   state = inject(RegistrationWizardService);
-  // Temporary debug flag (could wire to query param later)
-  debugEnabled = false;
 
   ngOnInit(): void {
     // Load players when we have jobPath and an active family user
@@ -63,10 +56,6 @@ export class PlayerSelectionComponent implements OnInit {
     const fam = this.state.activeFamilyUser();
     if (jobPath && fam?.familyUserId) {
       this.state.loadFamilyPlayers(jobPath, fam.familyUserId);
-    }
-    // Enable debug if players already present (helps confirm signal flow visually)
-    if (this.state.familyPlayers().length > 0) {
-      this.debugEnabled = true;
     }
   }
 
