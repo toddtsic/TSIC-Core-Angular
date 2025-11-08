@@ -24,21 +24,25 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
           <div class="mb-3">
             <p class="small text-muted mb-2">Select {{ selectLabel().toLowerCase() }} for each player you are registering.</p>
             <div class="list-group list-group-flush">
-              <div class="list-group-item" *ngFor="let p of state.selectedPlayers(); trackBy: trackPlayer">
-                <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 justify-content-between">
-                  <div class="fw-semibold">{{ p.name }}</div>
-                  <div class="flex-grow-1">
-                    <select class="form-select" [value]="eligibilityFor(p.userId)" (change)="onSelectChange(p.userId, $event)">
-                      <option value="" disabled>Select {{ selectLabel().toLowerCase() }}</option>
-                      <option *ngFor="let opt of eligibleOptions()" [value]="opt.value">{{ opt.label }}</option>
-                    </select>
+              @for (p of state.selectedPlayers(); track p.userId) {
+                <div class="list-group-item">
+                  <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 justify-content-between">
+                    <div class="fw-semibold">{{ p.name }}</div>
+                    <div class="flex-grow-1">
+                      <select class="form-select" [disabled]="eligibilityDisabled()" [value]="eligibilityFor(p.userId)" (change)="onSelectChange(p.userId, $event)">
+                        <option value="" disabled>Select {{ selectLabel().toLowerCase() }}</option>
+                        @for (opt of eligibleOptions(); track opt.value) {
+                          <option [value]="opt.value">{{ opt.label }}</option>
+                        }
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
+              }
             </div>
-            <div *ngIf="submitted() && missingEligibility().length" class="invalid-feedback d-block mt-2">
-              Please select {{ selectLabel().toLowerCase() }} for: {{ missingEligibilityNames() }}.
-            </div>
+            @if (submitted() && missingEligibility().length) {
+              <div class="invalid-feedback d-block mt-2">Please select {{ selectLabel().toLowerCase() }} for: {{ missingEligibilityNames() }}.</div>
+            }
           </div>
         }
 
@@ -100,6 +104,8 @@ export class ConstraintSelectionComponent {
       default: return 'Choose the value (e.g., Graduation Year) that determines which teams you\'re eligible to join.';
     }
   });
+
+  eligibilityDisabled = computed(() => this.state.startMode() === 'edit');
 
   // Effect: watch current job and derive options
   private readonly _jobEffect = effect(() => {
@@ -250,6 +256,7 @@ export class ConstraintSelectionComponent {
     return this.state.getEligibilityForPlayer(playerId) || '';
   }
   onSelectChange(playerId: string, ev: Event) {
+    if (this.eligibilityDisabled()) return; // locked in edit mode
     const target = ev.target as HTMLSelectElement | null;
     const val = target?.value ?? '';
     this.state.setEligibilityForPlayer(playerId, val);

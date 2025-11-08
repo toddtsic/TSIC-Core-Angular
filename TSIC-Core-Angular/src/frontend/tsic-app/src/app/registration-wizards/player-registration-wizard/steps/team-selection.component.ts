@@ -15,74 +15,93 @@ import { TeamService } from '../team.service';
       </div>
       <div class="card-body">
         <p class="text-secondary mb-3">Assign a team to each player. Team lists are filtered by that player's eligibility selection.</p>
-        <ng-container *ngIf="loading(); else bodyBlock">
+        @if (loading()) {
           <div class="text-muted small">Loading teams...</div>
-        </ng-container>
-        <ng-template #bodyBlock>
-          <div *ngIf="error()" class="alert alert-danger py-2 px-3">{{ error() }}</div>
-          <div *ngIf="selectedPlayers().length === 0" class="alert alert-info">Select players first to assign teams.</div>
-          <div class="vstack gap-3" *ngIf="selectedPlayers().length > 0">
-            <div class="player-team-row p-3 border rounded" *ngFor="let p of selectedPlayers(); trackBy: trackPlayer">
-              <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
-                <div class="flex-grow-1">
-                  <div class="fw-semibold mb-1">{{ p.name }}</div>
-                  <div class="small text-muted" *ngIf="!eligibilityFor(p.userId)">Eligibility not selected; go back to set it.</div>
-                  <div class="small" *ngIf="eligibilityFor(p.userId)">
-                    Eligibility: <span class="badge bg-primary-subtle text-dark">{{ eligibilityFor(p.userId) }}</span>
+        } @else {
+          @if (error()) { <div class="alert alert-danger py-2 px-3">{{ error() }}</div> }
+          @if (selectedPlayers().length === 0) {
+            <div class="alert alert-info">Select players first to assign teams.</div>
+          }
+          @if (selectedPlayers().length > 0) {
+            <div class="vstack gap-3">
+              @for (p of selectedPlayers(); track p.userId) {
+                <div class="player-team-row p-3 border rounded">
+                  <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold mb-1">{{ p.name }}</div>
+                      @if (!eligibilityFor(p.userId)) {
+                        <div class="small text-muted">Eligibility not selected; go back to set it.</div>
+                      } @else {
+                        <div class="small">
+                          Eligibility: <span class="badge bg-primary-subtle text-dark">{{ eligibilityFor(p.userId) }}</span>
+                        </div>
+                      }
+                    </div>
+                    <div class="flex-grow-1">
+                      <label class="form-label small fw-semibold">Team</label>
+                      @if (!readonlyMode()) {
+                        <select class="form-select"
+                                [disabled]="!eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0"
+                                (change)="onTeamSelect(p.userId, $event)"
+                                [ngModel]="selectedTeams()[p.userId] || ''">
+                          <option value="">Select team</option>
+                          @for (t of filteredTeamsFor(p.userId); track t.teamId) {
+                            @if (!multiSelect) {
+                              <option [value]="t.teamId" [disabled]="t.rosterIsFull || wouldExceedCapacity(p.userId, t)">
+                                {{ t.teamName }}
+                                @if (t.rosterIsFull || wouldExceedCapacity(p.userId, t)) { <span> FULL</span> }
+                                @if (showRemaining(t.teamId)) {
+                                  <span class="text-warning"> — only {{ baseRemaining(t.teamId) }} {{ s(baseRemaining(t.teamId)) }} of {{ baseMax(t.teamId) }} remaining!</span>
+                                }
+                              </option>
+                            }
+                          }
+                        </select>
+                        @if (filteredTeamsFor(p.userId).length===0 && eligibilityFor(p.userId)) {
+                          <div class="form-text">No teams match eligibility.</div>
+                        }
+                      } @else {
+                        <div class="mt-1"><span class="badge bg-warning text-dark">Team: {{ readOnlyTeams(p.userId) }}</span></div>
+                      }
+                    </div>
                   </div>
+                  @if (multiSelect) {
+                    <div class="mt-2">
+                      <div class="dropdown" [class.disabled]="!eligibilityFor(p.userId)">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" [disabled]="!eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0">
+                          {{ multiSelectLabel(p.userId) }}
+                        </button>
+                        <ul class="dropdown-menu p-2" style="max-height:260px;overflow:auto;min-width:320px">
+                          @if (filteredTeamsFor(p.userId).length===0) {
+                            <li class="text-muted small px-2 py-1">No teams match eligibility.</li>
+                          }
+                          @for (t of filteredTeamsFor(p.userId); track t.teamId) {
+                            <li>
+                              <label class="form-check d-flex align-items-center gap-2 small mb-1">
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       [checked]="isTeamChecked(p.userId, t.teamId)"
+                                       [disabled]="t.rosterIsFull || wouldExceedCapacity(p.userId, t)"
+                                       (change)="onMultiToggle(p.userId, t.teamId, $event)" />
+                                <span>{{ t.teamName }}</span>
+                                @if (showRemaining(t.teamId)) {
+                                  <span class="ms-auto text-muted small">only {{ baseRemaining(t.teamId) }} {{ s(baseRemaining(t.teamId)) }} of {{ baseMax(t.teamId) }} remaining!</span>
+                                }
+                              </label>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    </div>
+                  }
                 </div>
-                <div class="flex-grow-1">
-                  <label class="form-label small fw-semibold">Team</label>
-                  <select class="form-select"
-                          [disabled]="!eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0"
-                          (change)="onTeamSelect(p.userId, $event)"
-                          [ngModel]="selectedTeams()[p.userId] || ''">
-                    <option value="">Select team</option>
-                    <ng-container *ngFor="let t of filteredTeamsFor(p.userId)">
-                      <option *ngIf="!multiSelect" [value]="t.teamId" [disabled]="t.rosterIsFull || wouldExceedCapacity(p.userId, t)">
-                        {{ t.teamName }}
-                        <span *ngIf="t.rosterIsFull || wouldExceedCapacity(p.userId, t)"> FULL</span>
-                        <span *ngIf="showRemaining(t.teamId)" class="text-warning">
-                          — only {{ baseRemaining(t.teamId) }} {{ s(baseRemaining(t.teamId)) }} of {{ baseMax(t.teamId) }} remaining!
-                        </span>
-                      </option>
-                    </ng-container>
-                  </select>
-                  <div class="form-text" *ngIf="filteredTeamsFor(p.userId).length===0 && eligibilityFor(p.userId)">
-                    No teams match eligibility.
-                  </div>
-                </div>
-              </div>
-              <!-- Multi-select dropdown with checkboxes (rendered when multiSelect true) -->
-              <div *ngIf="multiSelect" class="mt-2">
-                <div class="dropdown" [class.disabled]="!eligibilityFor(p.userId)">
-                  <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" [disabled]="!eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0">
-                    {{ multiSelectLabel(p.userId) }}
-                  </button>
-                  <ul class="dropdown-menu p-2" style="max-height:260px;overflow:auto;min-width:320px">
-                    <li *ngIf="filteredTeamsFor(p.userId).length===0" class="text-muted small px-2 py-1">No teams match eligibility.</li>
-                    <li *ngFor="let t of filteredTeamsFor(p.userId)">
-                      <label class="form-check d-flex align-items-center gap-2 small mb-1">
-                        <input type="checkbox"
-                               class="form-check-input"
-                               [checked]="isTeamChecked(p.userId, t.teamId)"
-                               [disabled]="t.rosterIsFull || wouldExceedCapacity(p.userId, t)"
-                               (change)="onMultiToggle(p.userId, t.teamId, $event)" />
-                        <span>{{ t.teamName }}</span>
-                        <span class="ms-auto text-muted small" *ngIf="showRemaining(t.teamId)">
-                          only {{ baseRemaining(t.teamId) }} {{ s(baseRemaining(t.teamId)) }} of {{ baseMax(t.teamId) }} remaining!
-                        </span>
-                      </label>
-                    </li>
-                  </ul>
-                </div>
-              </div>
+              }
             </div>
-          </div>
-          <div *ngIf="missingAssignments().length && selectedPlayers().length > 0" class="invalid-feedback d-block mt-2">
-            Assign a team for: {{ missingAssignments().join(', ') }}.
-          </div>
-        </ng-template>
+          }
+          @if (missingAssignments().length && selectedPlayers().length > 0) {
+            <div class="invalid-feedback d-block mt-2">Assign a team for: {{ missingAssignments().join(', ') }}.</div>
+          }
+        }
         <div class="border-top pt-3 mt-4">
           <div class="rw-bottom-nav d-flex gap-2">
             <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
@@ -108,6 +127,7 @@ export class TeamSelectionComponent {
   selectedPlayers = this.wizard.selectedPlayers;
   selectedTeams = this.wizard.selectedTeams;
   eligibilityMap = this.wizard.eligibilityByPlayer;
+  readonlyMode = computed(() => this.wizard.startMode() === 'edit');
 
   allPlayersAssigned = computed(() => {
     const players = this.selectedPlayers();
@@ -124,6 +144,7 @@ export class TeamSelectionComponent {
     return this.wizard.getEligibilityForPlayer(playerId);
   }
   onTeamSelect(playerId: string, ev: Event) {
+    if (this.readonlyMode()) return; // prevent changes in edit mode
     const target = ev.target as HTMLSelectElement | null;
     if (!target) return;
     const val = target.value || '';
@@ -132,6 +153,7 @@ export class TeamSelectionComponent {
     this.wizard.selectedTeams.set(current);
   }
   onMultiToggle(playerId: string, teamId: string, ev: Event) {
+    if (this.readonlyMode()) return; // prevent changes in edit mode
     const checked = (ev.target as HTMLInputElement).checked;
     const map = { ...this.selectedTeams() } as Record<string, string | string[]>;
     const existing = map[playerId];
@@ -210,4 +232,12 @@ export class TeamSelectionComponent {
     return players.filter(p => !map[p.userId] || (Array.isArray(map[p.userId]) && map[p.userId].length === 0)).map(p => p.name);
   }
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
+  readOnlyTeams(playerId: string): string {
+    const val = this.selectedTeams()[playerId];
+    const all = this.teamService.filterByEligibility(null);
+    const nameFor = (id: string) => all.find(t => t.teamId === id)?.teamName || id;
+    if (!val) return '—';
+    if (Array.isArray(val)) return val.map(nameFor).join(', ');
+    return nameFor(val);
+  }
 }

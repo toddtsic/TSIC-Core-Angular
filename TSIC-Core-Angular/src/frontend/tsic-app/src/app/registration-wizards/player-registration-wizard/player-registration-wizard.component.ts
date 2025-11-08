@@ -7,6 +7,7 @@ import { ReviewComponent } from './steps/review.component';
 import { ConstraintSelectionComponent as EligibilitySelectionComponent } from './steps/constraint-selection.component';
 import { PlayerFormsComponent } from './steps/player-forms.component';
 import { PaymentComponent } from './steps/payment.component';
+import { WaiversComponent } from './steps/waivers.component';
 import { RegistrationWizardService } from './registration-wizard.service';
 // Start step retired; StartChoiceComponent removed from flow
 import { EditLookupComponent } from './steps/edit-lookup.component';
@@ -15,12 +16,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 
-export type StepId = 'family-check' | 'edit-lookup' | 'players' | 'eligibility' | 'teams' | 'forms' | 'review' | 'payment';
+export type StepId = 'family-check' | 'edit-lookup' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment';
 
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, PaymentComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
     host: {}
@@ -35,9 +36,9 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     // Steps managed by stable IDs for deep-linking
     // Note: 'constraint' may be skipped in a future enhancement if job has no constraint.
     // Start step retired; Family Check now offers CTAs to proceed directly
-    private readonly allStepsEdit: StepId[] = ['family-check', 'edit-lookup', 'forms', 'review', 'payment'];
-    private readonly allStepsNewUnauthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'review', 'payment'];
-    private readonly allStepsNewAuthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'review', 'payment'];
+    private readonly allStepsEdit: StepId[] = ['family-check', 'edit-lookup', 'forms', 'waivers', 'review', 'payment'];
+    private readonly allStepsNewUnauthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'waivers', 'review', 'payment'];
+    private readonly allStepsNewAuthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'waivers', 'review', 'payment'];
 
     // Current index into the computed steps array
     currentIndex = signal(0);
@@ -45,6 +46,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     steps = computed<StepId[]>(() => {
         try {
             const mode = this.state.startMode();
+            const hasWaivers = ((this.state.waiverDefinitions()?.length ?? 0) > 0) || ((this.state.waiverFieldNames()?.length ?? 0) > 0);
             const authed = !!this.auth.currentUser();
             let arr: StepId[];
             if (mode === 'edit') {
@@ -54,7 +56,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             } else {
                 arr = this.allStepsNewUnauthed;
             }
-            return arr?.length ? arr : this.allStepsNewUnauthed;
+            const withWaivers = arr?.length ? arr : this.allStepsNewUnauthed;
+            return hasWaivers ? withWaivers : (withWaivers.filter(s => s !== 'waivers') as StepId[]);
         } catch (err) {
             console.error('[PRW] Error computing steps; fallback applied', err);
             return this.allStepsNewUnauthed;
@@ -78,6 +81,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         eligibility: 'Eligibility',
         teams: 'Teams',
         forms: 'Forms',
+        waivers: 'Waivers',
         review: 'Review',
         payment: 'Payment'
     };
