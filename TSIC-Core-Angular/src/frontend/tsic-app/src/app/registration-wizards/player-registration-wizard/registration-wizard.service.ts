@@ -34,7 +34,8 @@ export class RegistrationWizardService {
     teamConstraintValue = signal<string | null>(null); // e.g., 2027
     // New: per-player eligibility selection map (playerId -> value)
     eligibilityByPlayer = signal<Record<string, string>>({});
-    selectedTeams = signal<Record<string, string>>({}); // playerId -> teamId
+    // Team selection per player. Supports single selection (string) or multi (string[])
+    selectedTeams = signal<Record<string, string | string[]>>({}); // playerId -> teamId | teamIds
 
     // Forms data per player (dynamic fields later)
     formData = signal<Record<string, any>>({}); // playerId -> { fieldName: value }
