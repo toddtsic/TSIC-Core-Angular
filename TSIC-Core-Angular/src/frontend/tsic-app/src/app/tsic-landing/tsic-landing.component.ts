@@ -14,6 +14,6 @@ export class TsicLandingComponent {
   private readonly router = inject(Router);
 
   navigateToLogin(): void {
-    this.router.navigate(['/tsic/login']);
+    this.router.navigate(['/tsic/login'], { queryParams: { force: 1 } });
   }
 }

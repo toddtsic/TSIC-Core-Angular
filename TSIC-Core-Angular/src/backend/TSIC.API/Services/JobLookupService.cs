@@ -59,22 +59,22 @@ public class JobLookupService : IJobLookupService
 
     public async Task<JobMetadataDto?> GetJobMetadataAsync(string jobPath)
     {
-        var job = await _context.Jobs
-            .Where(j => j.JobPath == jobPath)
-            .Select(j => new JobMetadataDto
+        var job = await _context.JobDisplayOptions
+            .Where(jdo => jdo.Job.JobPath == jobPath)
+            .Select(jdo => new JobMetadataDto
             {
-                JobId = j.JobId,
-                JobName = j.JobName ?? string.Empty,
-                JobPath = j.JobPath ?? string.Empty,
-                JobLogoPath = j.BannerFile, // Using BannerFile for logo/banner
-                JobBannerPath = j.BannerFile,
-                CoreRegformPlayer = j.CoreRegformPlayer == "1",
-                USLaxNumberValidThroughDate = j.UslaxNumberValidThroughDate,
-                ExpiryUsers = j.ExpiryUsers,
-                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
-                JsonOptions = j.JsonOptions,
-                MomLabel = j.MomLabel,
-                DadLabel = j.DadLabel
+                JobId = jdo.Job.JobId,
+                JobName = jdo.Job.JobName ?? string.Empty,
+                JobPath = jdo.Job.JobPath ?? string.Empty,
+                JobLogoPath = jdo.LogoHeader, // Using BannerFile for logo/banner
+                JobBannerPath = jdo.Job.BannerFile,
+                CoreRegformPlayer = jdo.Job.CoreRegformPlayer == "1",
+                USLaxNumberValidThroughDate = jdo.Job.UslaxNumberValidThroughDate,
+                ExpiryUsers = jdo.Job.ExpiryUsers,
+                PlayerProfileMetadataJson = jdo.Job.PlayerProfileMetadataJson,
+                JsonOptions = jdo.Job.JsonOptions,
+                MomLabel = jdo.Job.MomLabel,
+                DadLabel = jdo.Job.DadLabel
             })
             .SingleOrDefaultAsync();
 

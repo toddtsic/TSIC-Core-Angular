@@ -143,7 +143,8 @@ export class FamilyCheckStepComponent implements OnInit {
         jobPath,
         theme: 'family',
         header: 'Family Account Login',
-        subHeader: 'Sign in to continue'
+        subHeader: 'Sign in to continue',
+        force: 1
       }
     });
   }
@@ -178,7 +179,8 @@ export class FamilyCheckStepComponent implements OnInit {
         theme: 'family',
         intent: 'family-account',
         header: 'Family Account Login',
-        subHeader: 'Sign in to continue'
+        subHeader: 'Sign in to continue',
+        force: 1
       }
     });
   }

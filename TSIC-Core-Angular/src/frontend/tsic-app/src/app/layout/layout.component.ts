@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
+import { JobContextService } from '../core/services/job-context.service';
 import { ThemeService } from '../core/services/theme.service';
 
 @Component({
@@ -39,14 +40,15 @@ import { ThemeService } from '../core/services/theme.service';
               <!-- Divider -->
               <div class="brand-divider"></div>
               
-              <!-- Job Info Container -->
-              <div class="job-brand-container d-flex align-items-center justify-content-center gap-2 flex-md-grow-1">
-                @if (jobLogoPath()) {
-                  <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo" />
-                }
-                <!-- Job name on desktop -->
+              <!-- Job Info Container (logo + name pill) -->
+              <div class="job-brand-container d-flex align-items-center gap-2 flex-md-grow-1">
                 @if (jobName()) {
-                  <div class="job-name small text-muted">{{ jobName() }}</div>
+                  <button type="button" class="btn btn-sm btn-outline-secondary job-button d-inline-flex align-items-center gap-2 px-2 py-1" (click)="goHome()" [title]="jobName()">
+                    @if (jobLogoPath()) {
+                      <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo-inline" />
+                    }
+                    <span class="job-name-text text-muted fw-medium">{{ jobName() }}</span>
+                  </button>
                 }
               </div>
             </div>
@@ -293,6 +295,30 @@ import { ThemeService } from '../core/services/theme.service';
       max-width: 120px;
     }
 
+    .job-logo-inline {
+      height: 20px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .job-button {
+      background: #ffffff;
+      border-color: rgba(0,0,0,0.15);
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: background-color .15s, box-shadow .15s;
+      line-height: 1;
+    }
+    .job-button:hover {
+      background: #f8f9fa;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+    .job-name-text {
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
     .job-brand-container {
       background: #f5f5f5;
       border-radius: 6px;
@@ -356,6 +382,15 @@ import { ThemeService } from '../core/services/theme.service';
       border-color: rgba(255, 255, 255, 0.08);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
     }
+    :host-context([data-bs-theme="dark"]) .job-button {
+      background: #2f3439;
+      border-color: rgba(255,255,255,0.15);
+      color: #ddd;
+    }
+    :host-context([data-bs-theme="dark"]) .job-button:hover {
+      background: #3a4046;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
 
     :host-context([data-bs-theme="dark"]) .tsic-label {
       color: #6DBE45;
@@ -392,9 +427,55 @@ export class LayoutComponent {
   private readonly auth = inject(AuthService);
   private readonly jobService = inject(JobService);
   private readonly router = inject(Router);
+  private readonly jobContext = inject(JobContextService);
   readonly themeService = inject(ThemeService);
 
   private readonly STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
+
+  private bestLogoUrl(job: Job | null, userLogo?: string): string {
+    // Helper to identify suspicious jobPath-derived filenames like "steps.jpg" that shouldn't be treated as logos.
+    const isSuspiciousDerived = (raw: string | undefined, j: Job | null) => {
+      if (!raw || !j?.jobPath) return false;
+      const lower = raw.trim().toLowerCase();
+      const jp = j.jobPath.toLowerCase();
+      // Consider direct jobPath + common image extension without any suffix as suspicious.
+      return ['.png', '.jpg', '.jpeg', '.gif', '.webp'].some(ext => lower === jp + ext);
+    };
+
+    // 1) API provided logo (skip if suspicious jobPath-derived)
+    const apiLogoRaw = job?.jobLogoPath;
+    if (!isSuspiciousDerived(apiLogoRaw, job)) {
+      const apiLogo = this.buildAssetUrl(apiLogoRaw);
+      if (apiLogo) return apiLogo;
+    }
+
+    // 2) Conventional GUID-based header with variable extensions
+    if (job?.jobId) {
+      const candidates = [
+        // Primary logo header variants
+        `${job.jobId}_logoheader.png`,
+        `${job.jobId}_logoheader.jpg`,
+        `${job.jobId}_logoheader.jpeg`,
+        // Parallax / alternate header background variants as secondary fallbacks
+        `${job.jobId}_parallaxheader.png`,
+        `${job.jobId}_parallaxheader.jpg`,
+        `${job.jobId}_parallaxheader.jpeg`
+      ];
+      for (const c of candidates) {
+        const url = this.buildAssetUrl(c);
+        if (url) return url;
+      }
+    }
+
+    // 3) Token-provided logo (skip if suspicious)
+    if (!isSuspiciousDerived(userLogo, job)) {
+      const tokenLogo = this.buildAssetUrl(userLogo);
+      if (tokenLogo) return tokenLogo;
+    }
+
+    // 4) None
+    return '';
+  }
 
   // Signals
   jobLogoPath = signal('');
@@ -427,28 +508,58 @@ export class LayoutComponent {
       const job = this.jobService.currentJob();
       this.applyJobInfo(job);
     }, { allowSignalWrites: true });
+
+    // Proactively load job metadata when navigating anonymously (or before metadata arrives)
+    // Ensures we can show the proper job name + logo even for first-time / unauth hits.
+    const requestedJobPaths = new Set<string>();
+    effect(() => {
+      const jp = this.jobContext.jobPath();
+      const current = this.jobService.currentJob();
+      if (jp && !current && !requestedJobPaths.has(jp)) {
+        requestedJobPaths.add(jp);
+        this.jobService.loadJobMetadata(jp);
+      }
+    }, { allowSignalWrites: true });
   }
 
   private applyJobInfo(job: Job | null) {
     const user = this.auth.getCurrentUser();
-    // Priority: JobService currentJob (from API) > user token
-    if (job) {
-      this.jobName.set(job.jobName);
-      this.jobLogoPath.set(this.buildAssetUrl(job.jobLogoPath));
-      this.jobBannerPath.set(this.buildAssetUrl(job.jobBannerPath));
-      return;
-    }
+    // Always display the job label derived from jobPath in ALL CAPS for consistency.
+    // Fallback order: job.jobPath -> JobContextService -> user.jobPath -> 'TSIC'
+    const ctxPath = this.jobContext.jobPath();
+    const display = (job?.jobPath || ctxPath || user?.jobPath || 'TSIC').toUpperCase();
+    this.jobName.set(display);
 
-    // Fallback to user token if JobService hasn't loaded yet
-    if (user?.jobLogo) {
-      this.jobLogoPath.set(this.buildAssetUrl(user.jobLogo));
-      this.jobName.set((user.jobPath || 'TSIC').toUpperCase());
+    // Compute best logo URL from available inputs
+    const bestLogo = this.bestLogoUrl(job, user?.jobLogo || undefined);
+    if (bestLogo) this.jobLogoPath.set(bestLogo);
+    // Banner comes only from API when available
+    if (job) {
+      const apiBanner = this.buildAssetUrl(job.jobBannerPath);
+      if (apiBanner) this.jobBannerPath.set(apiBanner);
     }
   }
 
   private buildAssetUrl(path?: string): string {
     if (!path) return '';
-    return path.startsWith('http') ? path : `${this.STATIC_BASE_URL}/${path}`;
+    const p = String(path).trim();
+    if (!p || p === 'undefined' || p === 'null') return '';
+    // Already absolute URL - collapse any accidental double slashes (except after protocol)
+    if (/^https?:\/\//i.test(p)) {
+      return p.replace(/([^:])\/\/+/, '$1/');
+    }
+    // Remove leading slashes to avoid double slashes
+    const noLead = p.replace(/^\/+/, '');
+    // If the value already includes the BannerFiles segment, don't duplicate it
+    if (/^BannerFiles\//i.test(noLead)) {
+      const rest = noLead.replace(/^BannerFiles\//i, '');
+      return `${this.STATIC_BASE_URL}/${rest}`;
+    }
+    // Prevent accidental use of raw jobPath like 'steps' as an image filename; reject short alpha tokens without extension
+    if (!/[.]/.test(noLead) && /^[a-z0-9-]{2,20}$/i.test(noLead)) {
+      return '';
+    }
+    return `${this.STATIC_BASE_URL}/${noLead}`;
   }
 
   logout() {
@@ -460,7 +571,8 @@ export class LayoutComponent {
   }
 
   login() {
-    this.router.navigate(['/tsic/login']);
+    // Force generic login page even if last_job_path would normally auto-redirect
+    this.router.navigate(['/tsic/login'], { queryParams: { force: 1 } });
   }
 
   switchRole() {

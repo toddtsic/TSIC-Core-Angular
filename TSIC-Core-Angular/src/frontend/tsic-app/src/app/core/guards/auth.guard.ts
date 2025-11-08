@@ -159,11 +159,23 @@ export const landingPageGuard: CanActivateFn = () => {
 export const redirectAuthenticatedGuard: CanActivateFn = (route, state) => {
     const authService = inject(AuthService);
     const router = inject(Router);
+    const last = inject(LastLocationService);
 
     const user = authService.getCurrentUser();
     const isAuthenticated = authService.isAuthenticated();
 
-    if (!isAuthenticated) return true;
+    // If not authenticated, optionally redirect to last job unless explicitly forced to show login
+    if (!isAuthenticated) {
+        const force = route.queryParamMap.get('force');
+        const hasReturnUrl = !!route.queryParamMap.get('returnUrl');
+        const hasIntent = !!route.queryParamMap.get('intent');
+        if (force === '1' || force === 'true' || hasReturnUrl || hasIntent) {
+            return true; // honor explicit request to show login page
+        }
+        const lastJob = last.getLastJobPath();
+        if (lastJob) return router.createUrlTree([`/${lastJob}`]);
+        return true; // no last job -> show login normally
+    }
 
     // If a returnUrl is present and points to an internal path, honor it instead of forcing role-selection.
     const returnUrl = route.queryParamMap.get('returnUrl');
