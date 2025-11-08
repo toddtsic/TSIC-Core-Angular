@@ -20,6 +20,7 @@ builder.Services.AddMemoryCache(); // Add memory cache for refresh tokens
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJobLookupService, JobLookupService>();
+builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 
 // Profile Migration Services
 builder.Services.AddHttpClient<GitHubProfileFetcher>();

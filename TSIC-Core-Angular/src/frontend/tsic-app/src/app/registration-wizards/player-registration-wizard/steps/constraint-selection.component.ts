@@ -21,20 +21,25 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
         } @else if (eligibleOptions().length === 0) {
           <div class="alert alert-warning small mb-3">No eligibility options were found for this job. You can continue to teams.</div>
         } @else {
-          <form [formGroup]="form" (ngSubmit)="handleContinue()" class="mb-3">
-            <div class="mb-3">
-              <label for="eligibilityValue" class="form-label fw-semibold">{{ selectLabel() }}</label>
-              <select id="eligibilityValue" formControlName="eligibilityValue" class="form-select">
-                <option value="" disabled>Select {{ selectLabel().toLowerCase() }}</option>
-                @for (opt of eligibleOptions(); track opt.value) {
-                  <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              @if (submitted() && form.get('eligibilityValue')?.invalid) {
-                <div class="invalid-feedback d-block">A selection is required.</div>
-              }
+          <div class="mb-3">
+            <p class="small text-muted mb-2">Select {{ selectLabel().toLowerCase() }} for each player you are registering.</p>
+            <div class="list-group list-group-flush">
+              <div class="list-group-item" *ngFor="let p of state.selectedPlayers(); trackBy: trackPlayer">
+                <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 justify-content-between">
+                  <div class="fw-semibold">{{ p.name }}</div>
+                  <div class="flex-grow-1">
+                    <select class="form-select" [value]="eligibilityFor(p.userId)" (change)="onSelectChange(p.userId, $event)">
+                      <option value="" disabled>Select {{ selectLabel().toLowerCase() }}</option>
+                      <option *ngFor="let opt of eligibleOptions()" [value]="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
-          </form>
+            <div *ngIf="submitted() && missingEligibility().length" class="invalid-feedback d-block mt-2">
+              Please select {{ selectLabel().toLowerCase() }} for: {{ missingEligibilityNames() }}.
+            </div>
+          </div>
         }
 
         <div class="rw-bottom-nav d-flex gap-2">
@@ -55,9 +60,8 @@ export class ConstraintSelectionComponent {
   private readonly fb = inject(FormBuilder);
 
   // Form & submission state
-  form: FormGroup = this.fb.group({
-    eligibilityValue: ['']
-  });
+  // Legacy single-value form deprecated; using per-player selection.
+  form: FormGroup = this.fb.group({});
   submitted = signal(false);
 
   // Reactive option state
@@ -222,20 +226,43 @@ export class ConstraintSelectionComponent {
   disableContinue(): boolean {
     if (this.loading()) return true;
     const opts = this.eligibleOptions();
-    if (opts.length === 0) return false;
-    return this.form.invalid;
+    if (opts.length === 0) return false; // no options means skip eligibility
+    // Require eligibility value for each selected player
+    return this.missingEligibility().length > 0;
   }
 
   handleContinue(): void {
     if (this.disableContinue()) {
       this.submitted.set(true);
-      this.form.markAllAsTouched();
       return;
     }
-    const value = this.form.get('eligibilityValue')?.value;
-    if (value) {
-      this.state.teamConstraintValue.set(String(value));
+    // For backward compatibility set global value if all players share same eligibility selection
+    const eligMap = this.state.eligibilityByPlayer();
+    const values = Object.values(eligMap).filter(v => !!v);
+    const unique = Array.from(new Set(values));
+    if (unique.length === 1) {
+      this.state.teamConstraintValue.set(unique[0]);
     }
     this.next.emit();
   }
+
+  eligibilityFor(playerId: string): string {
+    return this.state.getEligibilityForPlayer(playerId) || '';
+  }
+  onSelectChange(playerId: string, ev: Event) {
+    const target = ev.target as HTMLSelectElement | null;
+    const val = target?.value ?? '';
+    this.state.setEligibilityForPlayer(playerId, val);
+  }
+  missingEligibility() {
+    const sel = this.state.selectedPlayers();
+    const map = this.state.eligibilityByPlayer();
+    const opts = this.eligibleOptions();
+    if (opts.length === 0) return []; // skip check when no options
+    return sel.filter(p => !map[p.userId]);
+  }
+  missingEligibilityNames() {
+    return this.missingEligibility().map(p => p.name).join(', ');
+  }
+  trackPlayer = (_: number, p: { userId: string }) => p.userId;
 }

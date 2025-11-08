@@ -28,8 +28,12 @@ export class RegistrationWizardService {
     // Whether an existing player registration for the current job + active family user already exists.
     // null = unknown/not yet checked; true/false = definitive.
     existingRegistrationAvailable = signal<boolean | null>(null);
+    // Eligibility type is job-wide (e.g., BYGRADYEAR), but the selected value is PER PLAYER
     teamConstraintType = signal<string | null>(null); // e.g., BYGRADYEAR
+    // Deprecated: legacy single eligibility value (kept for backward compatibility where needed)
     teamConstraintValue = signal<string | null>(null); // e.g., 2027
+    // New: per-player eligibility selection map (playerId -> value)
+    eligibilityByPlayer = signal<Record<string, string>>({});
     selectedTeams = signal<Record<string, string>>({}); // playerId -> teamId
 
     // Forms data per player (dynamic fields later)
@@ -45,6 +49,7 @@ export class RegistrationWizardService {
         this.familyPlayers.set([]);
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
+        this.eligibilityByPlayer.set({});
         this.selectedTeams.set({});
         this.formData.set({});
         this.paymentOption.set('PIF');
@@ -114,8 +119,29 @@ export class RegistrationWizardService {
         const exists = current.some(p => p.userId === id);
         if (exists) {
             this.selectedPlayers.set(current.filter(p => p.userId !== id));
+            // drop eligibility and team assignment for deselected player
+            const elig = { ...this.eligibilityByPlayer() };
+            delete elig[id];
+            this.eligibilityByPlayer.set(elig);
+            const teams = { ...this.selectedTeams() };
+            delete teams[id];
+            this.selectedTeams.set(teams);
         } else {
             this.selectedPlayers.set([...current, { userId: id, name: `${player.firstName} ${player.lastName}`.trim() }]);
         }
+    }
+
+    setEligibilityForPlayer(playerId: string, value: string | null | undefined): void {
+        const map = { ...this.eligibilityByPlayer() };
+        if (value == null || value === '') {
+            delete map[playerId];
+        } else {
+            map[playerId] = String(value);
+        }
+        this.eligibilityByPlayer.set(map);
+    }
+
+    getEligibilityForPlayer(playerId: string): string | undefined {
+        return this.eligibilityByPlayer()[playerId];
     }
 }

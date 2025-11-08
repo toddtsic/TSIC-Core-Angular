@@ -11,13 +11,16 @@ public class JobsController : ControllerBase
 {
     private readonly ILogger<JobsController> _logger;
     private readonly IJobLookupService _jobLookupService;
+    private readonly ITeamLookupService _teamLookupService;
 
     public JobsController(
         ILogger<JobsController> logger,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        ITeamLookupService teamLookupService)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
+        _teamLookupService = teamLookupService;
     }
 
     [AllowAnonymous]
@@ -51,5 +54,28 @@ public class JobsController : ControllerBase
         };
 
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Lists teams available for player self-rostering within the given job.
+    /// Mirrors core legacy filtering rules (active, self-rostering flags, date windows, roster capacity).
+    /// NOTE: Waitlist substitution logic from legacy has not yet been ported (placeholder fields included for future work).
+    /// </summary>
+    /// <param name="jobPath">Job path segment (e.g. summer-showcase-2025)</param>
+    /// <returns>Collection of available teams with capacity metadata.</returns>
+    [AllowAnonymous]
+    [HttpGet("{jobPath}/available-teams")]
+    public async Task<ActionResult<IEnumerable<AvailableTeamDto>>> GetAvailableTeams(string jobPath)
+    {
+        _logger.LogInformation("Fetching available teams for job: {JobPath}", jobPath);
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
+        if (jobId == null)
+        {
+            return NotFound(new { message = $"Job not found: {jobPath}" });
+        }
+
+        var teams = await _teamLookupService.GetAvailableTeamsForJobAsync(jobId.Value);
+        return Ok(teams);
     }
 }

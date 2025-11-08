@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, OnInit, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { FormsModule } from '@angular/forms';
@@ -46,18 +46,26 @@ import { FormsModule } from '@angular/forms';
     </div>
   `
 })
-export class PlayerSelectionComponent implements OnInit {
+export class PlayerSelectionComponent {
   @Output() next = new EventEmitter<void>();
   state = inject(RegistrationWizardService);
+  private requestedUsers = false;
+  private requestedPlayersForFamId: string | null = null;
 
-  ngOnInit(): void {
-    // Load players when we have jobPath and an active family user
-    const jobPath = this.state.jobPath();
-    const fam = this.state.activeFamilyUser();
-    if (jobPath && fam?.familyUserId) {
-      this.state.loadFamilyPlayers(jobPath, fam.familyUserId);
+  // Create the reactive loader in an injection context (field initializer),
+  // and allow controlled signal writes inside the effect.
+  private readonly autoLoad = effect(() => {
+    const jp = this.state.jobPath();
+    const famUser = this.state.activeFamilyUser();
+    if (jp && !famUser && !this.requestedUsers) {
+      this.requestedUsers = true;
+      this.state.loadFamilyUsers(jp);
     }
-  }
+    if (jp && famUser?.familyUserId && this.requestedPlayersForFamId !== famUser.familyUserId) {
+      this.requestedPlayersForFamId = famUser.familyUserId;
+      this.state.loadFamilyPlayers(jp, famUser.familyUserId);
+    }
+  }, { allowSignalWrites: true });
 
   isSelected(id: string): boolean {
     try {
