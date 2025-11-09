@@ -257,7 +257,12 @@ export class RegistrationWizardService {
             const schemas: PlayerProfileFieldSchema[] = fields.map(f => {
                 const name = String(f.name || f.dbColumn || f.field || '');
                 if (!name) return null;
-                const label = String(f.label || f.displayName || f.display || f.name || name);
+                let label = String(f.label || f.displayName || f.display || f.name || name);
+                // Global normalization: strip legacy informational suffix from labels
+                const _suffix = /(\s*\(will not be verified at this time\))$/i;
+                if (_suffix.test(label)) {
+                    label = label.replace(_suffix, '').trim();
+                }
                 // If metadata provides a dbColumn (typically PascalCase backend property) and it's different from the schema field name,
                 // register a precise alias to bridge backend -> UI without guessing.
                 const dbCol = typeof f.dbColumn === 'string' ? f.dbColumn : null;
@@ -466,6 +471,36 @@ export class RegistrationWizardService {
 
     private applyExistingRegistration(data: { teams?: Record<string, string | string[]>; values?: Record<string, Record<string, any>> } | null): void {
         if (!data) return;
+        // Auto-select any players referenced by the existing registration snapshot that are not yet in selectedPlayers.
+        // This covers the rollback regression where previously registered players were not marked with registered=true
+        // in the familyPlayers list and thus never added to selectedPlayers, causing their form values to be hidden.
+        try {
+            const currentSelected = this.selectedPlayers();
+            const selectedIdSet = new Set(currentSelected.map(p => p.userId));
+            const toEnsureIds = new Set<string>();
+            for (const pid of Object.keys(data.teams || {})) toEnsureIds.add(pid);
+            for (const pid of Object.keys(data.values || {})) toEnsureIds.add(pid);
+            if (toEnsureIds.size) {
+                const famPlayers = this.familyPlayers();
+                const additions: Array<{ userId: string; name: string }> = [];
+                for (const pid of toEnsureIds) {
+                    if (selectedIdSet.has(pid)) continue;
+                    const fam = famPlayers.find(fp => fp.playerId === pid);
+                    if (fam) {
+                        additions.push({ userId: pid, name: `${fam.firstName} ${fam.lastName}`.trim() });
+                    } else {
+                        // Fallback placeholder name when family players not yet loaded or player missing.
+                        additions.push({ userId: pid, name: 'Player' });
+                    }
+                }
+                if (additions.length) {
+                    this.selectedPlayers.set([...currentSelected, ...additions]);
+                    console.debug('[RegWizard] Auto-selected players from existing registration snapshot', { added: additions.map(a => a.userId) });
+                }
+            }
+        } catch (e) {
+            console.warn('[RegWizard] Failed auto-selecting players from existing registration snapshot', e);
+        }
         const schemas = this.profileFieldSchemas() || [];
         const validFields = new Set(schemas.map(s => s.name));
         const schemaGradField = (schemas.find(f => {

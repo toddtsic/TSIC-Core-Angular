@@ -88,7 +88,9 @@ export class UsLaxValidatorDirective {
     ): { ok: boolean; message?: string; membership?: any } {
         // Strictly adhere to observed response: { status_code, output: { ...fields } }
         const membership = res?.output ?? null;
-        if (!membership) return { ok: false, message: 'No membership found' };
+        const guidanceHtml = `<strong>Beginning July 1, 2025 all USA Lacrosse player members will be required to complete the one-time age verification process to maintain active membership status. (<a href='https://www.usalacrosse.com/age-verification' target='_blank' rel='noopener'>Learn more</a>)</strong><br><br>The USA Lacrosse Number entered does not meet validation requirements. To pass validation:<ol><li>The membership must be <strong>Valid and Active</strong></li><li>The membership must not expire before the date required by the event or club director</li><li>The DOB and Last Name Spelling on your Family Account must match what USA Lacrosse has on file</li></ol><br>To look up your USA Lacrosse Number at USA Lacrosse, <a href='https://account.usalacrosse.com/login/lookup' target='_blank' rel='noopener'>CLICK HERE</a><br>To register for a USA Lacrosse Number at USA Lacrosse, <a href='https://www.usalacrosse.com/membership' target='_blank' rel='noopener'>CLICK HERE</a><br>For assistance please contact <a href='mailto:membership@usalacrosse.com'>membership@usalacrosse.com</a> or call 410-235-6882`;
+        // If no membership record returned, treat number as invalid and avoid generic guidance/modal
+        if (!membership) return { ok: false, message: 'The number you entered is not a valid USA Lacrosse number.', membership: undefined };
 
         const memLast = this.normalizeName((membership as any).lastname || '');
         const wantLast = this.normalizeName(lastName);
@@ -100,17 +102,30 @@ export class UsLaxValidatorDirective {
         const needThrough = validThrough ? new Date(validThrough) : null;
 
         // Require last name and DOB; only require expiration if a required-through date is specified
+        // If membership data is incomplete from the API, surface the general guidance (still a USA Lacrosse-side issue)
         if (!memLast || !memDob || (needThrough && !memExp))
-            return { ok: false, message: 'Incomplete membership data', membership };
+            return { ok: false, message: guidanceHtml, membership };
 
+        // TSIC/entry mismatch: Last name doesn't match the player's TSIC profile; do not show generic guidance or API modal
         if (memLast !== wantLast)
-            return { ok: false, message: 'Last name mismatch', membership };
+            return { ok: false, message: 'The last name you entered in TSIC does not match the last name on file at USA Lacrosse for this number. Please correct the Last Name in your TSIC Family Account or enter the USA Lacrosse number for the matching player.', membership: undefined };
 
+        // TSIC/entry mismatch: DOB mismatch; do not show generic guidance or API modal
         if (!wantDob || !this.sameDate(memDob, wantDob))
-            return { ok: false, message: 'DOB mismatch', membership };
+            return { ok: false, message: 'The date of birth in TSIC does not match the date of birth on file at USA Lacrosse for this number. Please verify and correct the DOB in your TSIC Family Account.', membership: undefined };
 
-        if (needThrough && memExp && memExp < needThrough)
-            return { ok: false, message: 'Membership expires before required date', membership };
+        // Event requirement not met: membership expires before the required-through date; do not show generic guidance or API modal
+        if (needThrough && memExp && memExp < needThrough) {
+            const exp = memExp.toLocaleDateString?.() || String(memExp);
+            const req = needThrough.toLocaleDateString?.() || String(needThrough);
+            return { ok: false, message: `The USA Lacrosse membership expires on ${exp}, which is before this event’s required date (${req}). Please renew the membership so it is valid through the required date.`, membership: undefined };
+        }
+
+        // Active status check
+        const status = String((membership as any).mem_status || '').trim();
+        if (status && status.toLowerCase() !== 'active') {
+            return { ok: false, message: `Your USA Lacrosse account is NOT ACTIVE.<br><br>${guidanceHtml}`, membership };
+        }
 
         return { ok: true, message: 'Valid membership', membership };
     }

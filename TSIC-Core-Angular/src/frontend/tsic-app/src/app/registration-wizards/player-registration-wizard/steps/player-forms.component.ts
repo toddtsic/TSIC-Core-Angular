@@ -60,7 +60,27 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                               @if (uslax.pending) {
                                 <span class="text-muted">Validating...</span>
                               } @else if (uslax.invalid && (uslax.dirty || uslax.touched)) {
-                                <span class="text-danger">{{ uslax.errors?.['uslax']?.message || 'Invalid number' }}</span>
+                                <!-- Place call-to-action FIRST, then the guidance message -->
+                                @if (usLaxStatus(player.userId).membership !== undefined) {
+                                  <button type="button"
+                                          class="btn btn-warning btn-sm fw-semibold mt-2 mb-2 pt-1 pb-1 px-3 me-2"
+                                          (click)="openUsLaxDetails(player.userId)"
+                                          style="box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.1);">
+                                    Click here for error details
+                                  </button>
+                                }
+                                <!-- Render rich HTML guidance from validator (Angular sanitizes automatically). Wrap generic multi-paragraph guidance in a card for visual separation. -->
+                                <div class="card border-0 mb-2 mt-2" *ngIf="isGenericGuidance(uslax.errors?.['uslax']?.message); else plainMsg"
+                                     role="alert" aria-live="polite"
+                                     style="border-left: 4px solid var(--bs-warning);">
+                                  <div class="card-body py-3 px-3 bg-danger-subtle rounded">
+                                    <div class="fw-semibold text-danger-emphasis mb-1">USA Lacrosse guidance</div>
+                                    <span class="text-danger-emphasis small d-block" [innerHTML]="uslax.errors?.['uslax']?.message"></span>
+                                  </div>
+                                </div>
+                                <ng-template #plainMsg>
+                                  <span class="text-danger d-inline-block" [innerHTML]="uslax.errors?.['uslax']?.message || 'Invalid number'"></span>
+                                </ng-template>
                               } @else if ((value(player.userId, field.name) || '').toString().trim().length > 0) {
                                 <span class="text-success">Valid membership ✔</span>
                               } @else {
@@ -164,6 +184,44 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
         </div>
       </div>
     </div>
+
+    @if (modalOpen) {
+      <!-- Lightweight modal overlay for API details -->
+      <div class="position-fixed top-0 start-0 w-100 h-100" style="background: rgba(0,0,0,0.5); z-index: 1050;" role="presentation" (click)="closeModal()"></div>
+      <div class="position-fixed top-50 start-50 translate-middle bg-white rounded shadow border w-100" style="max-width: 720px; z-index: 1060;" role="dialog" aria-modal="true" aria-label="USA Lacrosse API Details">
+        <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
+          <h6 class="mb-0">USA Lacrosse API Details</h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeModal()">Close</button>
+        </div>
+        <div class="p-3">
+          <p class="small text-muted mb-2">
+            Your membership didn’t validate. Recommend calling USA Lacrosse at call 410-235-6882. Please share the following information with them.
+          </p>
+
+          @if (modalData) {
+            <div class="table-responsive mb-3">
+              <table class="table table-sm mb-0 align-middle">
+                <tbody>
+                  <tr><th class="text-nowrap">Member #</th><td>{{ modalData?.membernumber || modalData?.mem_number || '—' }}</td></tr>
+                  <tr><th class="text-nowrap">First Name</th><td>{{ modalData?.firstname || '—' }}</td></tr>
+                  <tr><th class="text-nowrap">Last Name</th><td>{{ modalData?.lastname || '—' }}</td></tr>
+                  <tr><th class="text-nowrap">DOB</th><td>{{ modalData?.birthdate || '—' }}</td></tr>
+                  <tr><th class="text-nowrap">Status</th><td>{{ modalData?.mem_status || '—' }}</td></tr>
+                  <tr><th class="text-nowrap">Expires</th><td>{{ modalData?.exp_date || '—' }}</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="mb-2 d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="copyModalJson()">Copy JSON</button>
+              <a class="btn btn-sm btn-link" href="#" (click)="$event.preventDefault(); closeModal()">Done</a>
+            </div>
+            <pre class="bg-light border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
+          } @else {
+            <div class="alert alert-warning small">No membership details were returned by the API.</div>
+          }
+        </div>
+      </div>
+    }
   `
 })
 export class PlayerFormsComponent {
@@ -220,6 +278,33 @@ export class PlayerFormsComponent {
   }
   usLaxStatus(playerId: string) {
     return this.state.usLaxStatus()[playerId] || { value: '', status: 'idle' };
+  }
+  // --- Modal state for viewing raw API details ---
+  modalOpen = false;
+  modalData: any = null;
+  openUsLaxDetails(playerId: string) {
+    const entry = this.state.usLaxStatus()[playerId];
+    this.modalData = entry ? (entry.membership ?? null) : null;
+    this.modalOpen = true;
+  }
+  closeModal() { this.modalOpen = false; this.modalData = null; }
+  prettyJson(obj: any): string {
+    try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
+  }
+  // Determine whether the message is the full guidance block (heuristic: contains ordered list markup and multiple help links)
+  isGenericGuidance(msg: string | undefined): boolean {
+    if (!msg) return false;
+    return /<ol>/i.test(msg) && /membership@usalacrosse\.com/i.test(msg);
+  }
+  copyModalJson() {
+    try {
+      const txt = this.prettyJson(this.modalData);
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(txt);
+      }
+    } catch {
+      // no-op
+    }
   }
   canValidateUsLax(playerId: string, field: string) {
     const v = String(this.value(playerId, field) ?? '').trim();
