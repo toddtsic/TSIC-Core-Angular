@@ -47,6 +47,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         try {
             const mode = this.state.startMode();
             const hasWaivers = ((this.state.waiverDefinitions()?.length ?? 0) > 0) || ((this.state.waiverFieldNames()?.length ?? 0) > 0);
+            const hasEligibility = !!this.state.teamConstraintType();
             const authed = !!this.auth.currentUser();
             let arr: StepId[];
             if (mode === 'edit') {
@@ -56,8 +57,12 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             } else {
                 arr = this.allStepsNewUnauthed;
             }
-            const withWaivers = arr?.length ? arr : this.allStepsNewUnauthed;
-            return hasWaivers ? withWaivers : (withWaivers.filter(s => s !== 'waivers') as StepId[]);
+            let stepsBase = arr?.length ? arr : this.allStepsNewUnauthed;
+            // If no eligibility constraint configured, drop that step entirely
+            if (!hasEligibility) stepsBase = stepsBase.filter(s => s !== 'eligibility') as StepId[];
+            // If no waivers present, drop waivers step
+            const withWaivers = hasWaivers ? stepsBase : (stepsBase.filter(s => s !== 'waivers') as StepId[]);
+            return withWaivers;
         } catch (err) {
             console.error('[PRW] Error computing steps; fallback applied', err);
             return this.allStepsNewUnauthed;
@@ -71,6 +76,11 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         return arr[safeIndex];
     });
     progressPercent = computed(() => Math.round(((this.currentIndex() + 1) / this.steps().length) * 100));
+    // CAC-style: allow multiple team selections when no explicit eligibility constraint (or BYCLUBNAME)
+    isMultiTeamMode = computed(() => {
+        const t = (this.state.teamConstraintType() || '').toUpperCase();
+        return !t || t === 'BYCLUBNAME';
+    });
 
     // Only show an account badge when authenticated family user is present (via state.activeFamilyUser)
 
@@ -119,8 +129,17 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     ngOnInit(): void {
         // Ensure a clean wizard state each time this route is entered (does not affect auth)
         this.state.reset();
-        // Derive canonical jobPath from JobContextService (URL is source of truth)
-        const jobPath = this.jobContext.jobPath() || '';
+        // Derive canonical jobPath from JobContextService (URL is source of truth).
+        // Ensure service is initialized; then fall back to route params if needed.
+        try { this.jobContext.init(); } catch { /* no-op */ }
+        let jobPath = this.jobContext.jobPath() || '';
+        if (!jobPath) {
+            const qpParam = this.route.snapshot.paramMap.get('jobPath')
+                || this.route.parent?.snapshot.paramMap.get('jobPath')
+                || this.route.root.firstChild?.snapshot.paramMap.get('jobPath')
+                || '';
+            jobPath = qpParam || '';
+        }
         if (jobPath) {
             console.debug('[PRW] jobPath:', jobPath);
         } else {

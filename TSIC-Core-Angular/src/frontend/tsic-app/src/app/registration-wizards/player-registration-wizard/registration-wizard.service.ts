@@ -194,6 +194,20 @@ export class RegistrationWizardService {
                     this.jobId.set(meta.jobId);
                     this.jobProfileMetadataJson.set(meta.playerProfileMetadataJson || null);
                     this.jobJsonOptions.set(meta.jsonOptions || null);
+                    // Early derive of constraint type (so wizard can decide to skip Eligibility step before component mounts)
+                    try {
+                        if (!this.teamConstraintType()) {
+                            const derived = deriveConstraintTypeFromJsonOptions(meta.jsonOptions);
+                            if (derived) {
+                                this.teamConstraintType.set(derived);
+                            } else {
+                                // Explicitly set null (already null) for clarity when logging
+                                this.teamConstraintType.set(null);
+                            }
+                        }
+                    } catch (e) {
+                        console.debug('[RegWizard] derive constraint type failed (non-fatal)', e);
+                    }
                     // Helper to read values regardless of camelCase vs PascalCase coming from API
                     const getMetaString = (obj: any, key: string): string | null => {
                         const pascal = key;
@@ -768,5 +782,39 @@ function mapFieldType(raw: any): PlayerProfileFieldSchema['type'] {
         case 'bool':
         case 'boolean': return 'checkbox';
         default: return 'text';
+    }
+}
+
+// Attempt to derive constraint type from jsonOptions (stringified JSON) heuristically.
+// Returns one of known types or null if no recognizable constraint token present.
+function deriveConstraintTypeFromJsonOptions(raw: string | null | undefined): string | null {
+    if (!raw || typeof raw !== 'string' || !raw.trim()) return null;
+    try {
+        const lower = raw.toLowerCase();
+        // Parse the JSON object first; only derive constraint if an explicit constraint key exists.
+        let obj: any; try { obj = JSON.parse(raw); } catch { obj = null; }
+        if (!obj || typeof obj !== 'object') return null;
+        const entries = Object.entries(obj);
+        // Look for explicit constraint descriptor keys and prefer their values.
+        const explicitKey = entries.find(([k]) => {
+            const lk = k.toLowerCase();
+            return lk === 'constrainttype' || lk === 'teamconstraint' || lk === 'eligibilityconstraint';
+        });
+        if (explicitKey) {
+            const valRaw = String(explicitKey[1] ?? '').toUpperCase();
+            switch (valRaw) {
+                case 'BYGRADYEAR':
+                case 'BYAGEGROUP':
+                case 'BYAGERANGE':
+                case 'BYCLUBNAME':
+                    return valRaw;
+            }
+            return null; // explicit but unrecognized value -> treat as none
+        }
+        // No explicit constraint key: do NOT infer from the mere presence of option sets; safest is null.
+        // (Previously we inferred from keys like GradYear lists causing unwanted Eligibility step.)
+        return null;
+    } catch {
+        return null;
     }
 }

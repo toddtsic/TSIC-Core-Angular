@@ -65,7 +65,7 @@
             <app-rw-eligibility-selection (back)="back()" (next)="next()" />
             }
             @case ('teams') {
-            <app-rw-team-selection (back)="back()" (next)="next()" />
+            <app-rw-team-selection (back)="back()" (next)="next()" [multiSelect]="isMultiTeamMode()" />
             }
             @case ('forms') {
             <app-rw-player-forms (back)="back()" (next)="next()" />

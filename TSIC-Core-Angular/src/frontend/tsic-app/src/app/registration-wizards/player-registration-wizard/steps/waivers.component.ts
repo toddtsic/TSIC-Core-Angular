@@ -37,6 +37,11 @@ import { RegistrationWizardService } from '../registration-wizard.service';
                           [class.collapsed]="!isOpen(w.id)" (click)="toggleOpenExclusive(w.id)"
                           [attr.aria-expanded]="isOpen(w.id)" [attr.aria-controls]="'waiver-c-' + w.id">
                     <span class="fw-semibold">{{ w.title }}</span>
+                    <span class="ms-auto d-inline-flex align-items-center">
+                      <span class="badge" [ngClass]="isAccepted(w.id) ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger-emphasis'">
+                        {{ isAccepted(w.id) ? 'Accepted' : 'Not Accepted' }}
+                      </span>
+                    </span>
                   </button>
                 </h2>
                 <div [id]="'waiver-c-' + w.id" class="accordion-collapse collapse" [class.show]="isOpen(w.id)" role="region" [attr.aria-labelledby]="'waiver-h-' + w.id">
@@ -50,12 +55,17 @@ import { RegistrationWizardService } from '../registration-wizard.service';
                     <div class="form-check">
                       <input class="form-check-input" type="checkbox" [checked]="isAccepted(w.id)"
                              [disabled]="isEditingMode()" [id]="'waiver-' + w.id"
-                             (change)="onCheckboxChange(w.id, $event)" />
+                             (change)="onCheckboxChange(w.id, $event)"
+                             [class.is-invalid]="submitted() && w.required && !isAccepted(w.id) && !isEditingMode()"
+                             [attr.aria-invalid]="submitted() && w.required && !isAccepted(w.id) && !isEditingMode()" />
                       <label class="form-check-label" [for]="'waiver-' + w.id">
                         I have read and agree to the {{ w.title.toLowerCase() }}
                       </label>
                       @if (isAccepted(w.id) && isEditingMode()) {
                         <span class="badge bg-secondary ms-2" title="Previously accepted and locked">Locked</span>
+                      }
+                      @if (submitted() && w.required && !isAccepted(w.id) && !isEditingMode()) {
+                        <div class="invalid-feedback d-block mt-1">Please accept this waiver to continue.</div>
                       }
                     </div>
                   </div>
@@ -130,7 +140,36 @@ export class WaiversComponent implements AfterViewInit {
 
   handleContinue(): void {
     this.submitted.set(true);
-    if (this.disableContinue()) return;
+    if (this.disableContinue()) {
+      this.openFirstMissingAndFocus();
+      return;
+    }
     this.next.emit();
+  }
+
+  private firstMissingRequiredWaiverId(): string | null {
+    const list = this.waivers();
+    for (const w of list) {
+      if (w.required && !this.isAccepted(w.id)) return w.id;
+    }
+    return null;
+  }
+
+  private openFirstMissingAndFocus(): void {
+    const id = this.firstMissingRequiredWaiverId();
+    if (!id) return;
+    // Open this waiver exclusively
+    this.openSet.set(new Set([id]));
+    // Focus checkbox after DOM updates
+    try {
+      queueMicrotask(() => {
+        const el = document.getElementById(`waiver-${id}`) as HTMLInputElement | null;
+        el?.focus();
+        // If not visible yet, try next frame
+        if (!el) requestAnimationFrame(() => (document.getElementById(`waiver-${id}`) as HTMLInputElement | null)?.focus());
+      });
+    } catch {
+      // no-op
+    }
   }
 }

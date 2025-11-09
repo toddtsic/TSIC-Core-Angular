@@ -95,6 +95,7 @@ export class ConstraintSelectionComponent {
       case 'BYGRADYEAR': return 'Select Eligibility';
       case 'BYAGEGROUP': return 'Select Age Group';
       case 'BYAGERANGE': return 'Select Age Range';
+      case 'BYCLUBNAME': return 'Select Club';
       default: return 'Select Eligibility';
     }
   });
@@ -104,6 +105,7 @@ export class ConstraintSelectionComponent {
       case 'BYGRADYEAR': return 'Graduation Year';
       case 'BYAGEGROUP': return 'Age Group';
       case 'BYAGERANGE': return 'Age Range';
+      case 'BYCLUBNAME': return 'Club Name';
       default: return 'Eligibility Value';
     }
   });
@@ -113,6 +115,7 @@ export class ConstraintSelectionComponent {
       case 'BYGRADYEAR': return 'Choose your graduation year to filter available teams.';
       case 'BYAGEGROUP': return 'Choose your age group to filter available teams.';
       case 'BYAGERANGE': return 'Choose the applicable age range to filter available teams.';
+      case 'BYCLUBNAME': return 'Choose the club you wish to register under to filter available teams.';
       default: return 'Choose the value (e.g., Graduation Year) that determines which teams you\'re eligible to join.';
     }
   });
@@ -154,12 +157,20 @@ export class ConstraintSelectionComponent {
     if (existing) return existing;
     const raw = job.jsonOptions;
     if (raw) {
-      const lower = raw.toLowerCase();
-      if (lower.includes('grad')) return 'BYGRADYEAR';
-      if (lower.includes('agegroup')) return 'BYAGEGROUP';
-      if (lower.includes('agerange')) return 'BYAGERANGE';
+      try {
+        const parsed = JSON.parse(raw);
+        const explicit = String(parsed?.constraintType ?? parsed?.teamConstraint ?? parsed?.eligibilityConstraint ?? '').toUpperCase();
+        switch (explicit) {
+          case 'BYGRADYEAR':
+          case 'BYAGEGROUP':
+          case 'BYAGERANGE':
+          case 'BYCLUBNAME':
+            return explicit;
+        }
+      } catch { /* ignore */ }
     }
-    return 'BYGRADYEAR';
+    // No recognizable constraint tokens -> no eligibility step required
+    return null as any; // signal null upstream; cast to any to satisfy legacy return type signature
   }
 
   private getJobOptionsRaw(job: Job): string | null {

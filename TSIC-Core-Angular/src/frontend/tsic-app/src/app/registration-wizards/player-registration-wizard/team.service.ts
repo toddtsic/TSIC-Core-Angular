@@ -56,6 +56,10 @@ export class TeamService {
                 });
             case 'BYAGEGROUP':
                 return teams.filter(t => t.agegroupName?.toLowerCase() === constraintValue.toLowerCase());
+            case 'BYCLUBNAME': {
+                const needle = constraintValue.toLowerCase();
+                return teams.filter(t => (t.teamName || '').toLowerCase().includes(needle));
+            }
             default:
                 return teams;
         }
@@ -107,6 +111,10 @@ export class TeamService {
             }
             case 'BYAGEGROUP':
                 return teams.filter(t => (t.agegroupName || '').toLowerCase() === v.toLowerCase());
+            case 'BYCLUBNAME': {
+                const needle = v.toLowerCase();
+                return teams.filter(t => (t.teamName || '').toLowerCase().includes(needle));
+            }
             default:
                 return teams;
         }
