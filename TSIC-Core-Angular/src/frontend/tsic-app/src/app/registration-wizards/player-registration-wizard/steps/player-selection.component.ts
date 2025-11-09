@@ -12,15 +12,20 @@ import { FormsModule } from '@angular/forms';
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Select Players</h5>
       </div>
-      <div class="card-body">
+      <div class="card-body position-relative">
+        <!-- Loading overlay -->
+        <div *ngIf="state.familyPlayersLoading()" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 10;">
+          <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+          <div class="fw-semibold">Loading Family Players...</div>
+        </div>
         <p class="text-secondary mb-3">Select the players you wish to register.</p>
 
         <!-- Fallback to classic *ngIf / *ngFor for widest compatibility -->
-        <ng-container *ngIf="state.familyPlayers().length === 0; else playersList">
+        <ng-container *ngIf="!state.familyPlayersLoading() && state.familyPlayers().length === 0; else playersList">
           <div class="alert alert-info">No players found for your family. You can add players in your Family Account.</div>
         </ng-container>
         <ng-template #playersList>
-          <ul class="list-group list-group-flush mb-3">
+          <ul class="list-group list-group-flush mb-3" [class.opacity-50]="state.familyPlayersLoading()">
             <li class="list-group-item d-flex align-items-center justify-content-between" *ngFor="let p of state.familyPlayers(); trackBy: trackPlayer">
               <div class="d-flex align-items-center gap-3">
                 <input type="checkbox"

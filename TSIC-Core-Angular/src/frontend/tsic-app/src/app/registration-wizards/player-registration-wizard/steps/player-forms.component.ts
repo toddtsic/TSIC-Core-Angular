@@ -2,12 +2,14 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
+import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
+import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -45,6 +47,28 @@ import { TeamService } from '../team.service';
                           @if (field.required) { <span class="text-danger">*</span> }
                         </label>
 
+                        @if (isUsLaxField(field)) {
+                          <div class="uslax-field-group">
+                            <input type="text" class="form-control"
+                                   #uslax="ngModel"
+                                   [required]="field.required"
+                                   [ngModel]="value(player.userId, field.name)"
+                                   (ngModelChange)="setValue(player.userId, field.name, $event)"
+                                   [usLaxValidator]="player.userId"
+                                   placeholder="Enter USA Lacrosse #" />
+                            <div class="mt-1 small">
+                              @if (uslax.pending) {
+                                <span class="text-muted">Validating...</span>
+                              } @else if (uslax.invalid && (uslax.dirty || uslax.touched)) {
+                                <span class="text-danger">{{ uslax.errors?.['uslax']?.message || 'Invalid number' }}</span>
+                              } @else if ((value(player.userId, field.name) || '').toString().trim().length > 0) {
+                                <span class="text-success">Valid membership ✔</span>
+                              } @else {
+                                <span class="text-muted">Type or edit value to validate automatically.</span>
+                              }
+                            </div>
+                          </div>
+                        } @else {
                         @switch (field.type) {
                           @case ('text') {
                             <input type="text" class="form-control"
@@ -108,6 +132,7 @@ import { TeamService } from '../team.service';
                                    (ngModelChange)="setValue(player.userId, field.name, $event)" />
                           }
                         }
+                        }
 
                         @if (field.helpText) {
                           <div class="form-text" [id]="helpId(player.userId, field.name)">{{ field.helpText }}</div>
@@ -146,6 +171,7 @@ export class PlayerFormsComponent {
   @Output() back = new EventEmitter<void>();
   private readonly state = inject(RegistrationWizardService);
   private readonly teams = inject(TeamService);
+  private readonly uslax = inject(UsLaxService);
 
   schemas = () => this.state.profileFieldSchemas();
   selectedPlayers = () => this.state.selectedPlayers();
@@ -187,6 +213,19 @@ export class PlayerFormsComponent {
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
   trackField = (_: number, f: PlayerProfileFieldSchema) => f.name;
   trackOpt = (_: number, o: string) => o;
+  isUsLaxField(field: PlayerProfileFieldSchema): boolean {
+    const lname = field.name.toLowerCase();
+    const llabel = field.label.toLowerCase();
+    return lname === 'sportassnid' || llabel.includes('lacrosse');
+  }
+  usLaxStatus(playerId: string) {
+    return this.state.usLaxStatus()[playerId] || { value: '', status: 'idle' };
+  }
+  canValidateUsLax(playerId: string, field: string) {
+    const v = String(this.value(playerId, field) ?? '').trim();
+    return v.length > 0;
+  }
+  // US Lax validation handled by async validator directive; component keeps state only
   teamsLabel(playerId: string): string | null {
     const sel = this.state.selectedTeams()[playerId];
     if (!sel) return null;

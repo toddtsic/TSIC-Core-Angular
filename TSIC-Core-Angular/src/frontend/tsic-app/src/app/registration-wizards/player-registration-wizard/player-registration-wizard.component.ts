@@ -104,6 +104,18 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         }
     }, { allowSignalWrites: true });
 
+    // Attempt to prefill existing registration (teams + form values) once when job + user are known
+    private _triedExistingPrefill = false;
+    private readonly _prefillExistingEffect = effect(() => {
+        const jp = this.state.jobPath();
+        const fam = this.state.activeFamilyUser();
+        const jobId = this.state.jobId(); // indicates job metadata was loaded
+        if (!this._triedExistingPrefill && jp && fam?.familyUserId && jobId) {
+            this._triedExistingPrefill = true;
+            this.state.loadExistingRegistration(jp, fam.familyUserId);
+        }
+    }, { allowSignalWrites: true });
+
     ngOnInit(): void {
         // Ensure a clean wizard state each time this route is entered (does not affect auth)
         this.state.reset();

@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Output, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { JobService, Job } from '../../../core/services/job.service';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -7,7 +8,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 @Component({
   selector: 'app-rw-eligibility-selection',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -27,10 +28,21 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
               @for (p of state.selectedPlayers(); track p.userId) {
                 <div class="list-group-item">
                   <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 justify-content-between">
-                    <div class="fw-semibold">{{ p.name }}</div>
+                    <div class="fw-semibold d-flex align-items-center gap-2">
+                      <span>{{ p.name }}</span>
+                      @if (isPlayerLocked(p.userId)) {
+                        <span class="badge bg-secondary" title="Already registered; eligibility locked">Locked</span>
+                      }
+                    </div>
                     <div class="flex-grow-1">
-                      <select class="form-select" [disabled]="eligibilityDisabled()" [value]="eligibilityFor(p.userId)" (change)="onSelectChange(p.userId, $event)">
+                      <select class="form-select"
+                              [disabled]="eligibilityDisabled() || isPlayerLocked(p.userId)"
+                              [ngModel]="eligibilityFor(p.userId)"
+                              (ngModelChange)="state.setEligibilityForPlayer(p.userId, $event)">
                         <option value="" disabled>Select {{ selectLabel().toLowerCase() }}</option>
+                        @if (eligibilityFor(p.userId) && !hasEligibleOption(eligibilityFor(p.userId))) {
+                          <option [value]="eligibilityFor(p.userId)" selected>{{ eligibilityFor(p.userId) }}</option>
+                        }
                         @for (opt of eligibleOptions(); track opt.value) {
                           <option [value]="opt.value">{{ opt.label }}</option>
                         }
@@ -106,6 +118,12 @@ export class ConstraintSelectionComponent {
   });
 
   eligibilityDisabled = computed(() => this.state.startMode() === 'edit');
+
+  private isPlayerRegistered(playerId: string): boolean {
+    try {
+      return !!this.state.familyPlayers().find(p => p.playerId === playerId)?.registered;
+    } catch { return false; }
+  }
 
   // Effect: watch current job and derive options
   private readonly _jobEffect = effect(() => {
@@ -255,6 +273,11 @@ export class ConstraintSelectionComponent {
   eligibilityFor(playerId: string): string {
     return this.state.getEligibilityForPlayer(playerId) || '';
   }
+  isPlayerLocked(playerId: string): boolean {
+    const elig = this.state.getEligibilityForPlayer(playerId);
+    // Locked when editing or when player is already registered for this job (defensive in case startMode not set)
+    return this.eligibilityDisabled() || this.isPlayerRegistered(playerId) || (!!elig && this.state.startMode() === 'edit');
+  }
   onSelectChange(playerId: string, ev: Event) {
     if (this.eligibilityDisabled()) return; // locked in edit mode
     const target = ev.target as HTMLSelectElement | null;
@@ -272,4 +295,11 @@ export class ConstraintSelectionComponent {
     return this.missingEligibility().map(p => p.name).join(', ');
   }
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
+
+  // Helper: check if a given value exists in the eligible options list
+  hasEligibleOption(val: string | undefined): boolean {
+    if (!val) return false;
+    const opts = this.eligibleOptions();
+    return Array.isArray(opts) && opts.some(o => o?.value === val);
+  }
 }

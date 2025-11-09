@@ -102,6 +102,18 @@
 				"$msCompile"
 			],
 			"group": "build"
+		},
+		{
+			"label": "curl-uslax-probe",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$ErrorActionPreference = 'SilentlyContinue'; try { Invoke-WebRequest -UseBasicParsing -Uri http://localhost:5000/api/validation/uslax?number=000000000001 | Select-Object -ExpandProperty Content | Write-Output } catch { Write-Output 'probe failed' }"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

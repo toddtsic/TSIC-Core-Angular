@@ -28,7 +28,12 @@ import { TeamService } from '../team.service';
                 <div class="player-team-row p-3 border rounded">
                   <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                     <div class="flex-grow-1">
-                      <div class="fw-semibold mb-1">{{ p.name }}</div>
+                      <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
+                        <span>{{ p.name }}</span>
+                        @if (readonlyMode() || isRegistered(p.userId)) {
+                          <span class="badge bg-secondary" title="Already registered; team locked">Locked</span>
+                        }
+                      </div>
                       @if (!eligibilityFor(p.userId)) {
                         <div class="small text-muted">Eligibility not selected; go back to set it.</div>
                       } @else {
@@ -39,36 +44,32 @@ import { TeamService } from '../team.service';
                     </div>
                     <div class="flex-grow-1">
                       <label class="form-label small fw-semibold">Team</label>
-                      @if (!readonlyMode()) {
-                        <select class="form-select"
-                                [disabled]="!eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0"
-                                (change)="onTeamSelect(p.userId, $event)"
-                                [ngModel]="selectedTeams()[p.userId] || ''">
-                          <option value="">Select team</option>
-                          @for (t of filteredTeamsFor(p.userId); track t.teamId) {
-                            @if (!multiSelect) {
-                              <option [value]="t.teamId" [disabled]="t.rosterIsFull || wouldExceedCapacity(p.userId, t)">
-                                {{ t.teamName }}
-                                @if (t.rosterIsFull || wouldExceedCapacity(p.userId, t)) { <span> FULL</span> }
-                                @if (showRemaining(t.teamId)) {
-                                  <span class="text-warning"> — only {{ baseRemaining(t.teamId) }} {{ s(baseRemaining(t.teamId)) }} of {{ baseMax(t.teamId) }} remaining!</span>
-                                }
-                              </option>
-                            }
+                      <select class="form-select"
+                              [disabled]="readonlyMode() || isRegistered(p.userId) || !eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0"
+                              (change)="onTeamSelect(p.userId, $event)"
+                              [ngModel]="selectedTeams()[p.userId] || ''">
+                        <option value="">Select team</option>
+                        @for (t of filteredTeamsFor(p.userId); track t.teamId) {
+                          @if (!multiSelect) {
+                            <option [value]="t.teamId" [disabled]="t.rosterIsFull || wouldExceedCapacity(p.userId, t)">
+                              {{ t.teamName }}
+                              @if (t.rosterIsFull || wouldExceedCapacity(p.userId, t)) { <span> FULL</span> }
+                              @if (showRemaining(t.teamId)) {
+                                <span class="text-warning"> — only {{ baseRemaining(t.teamId) }} {{ s(baseRemaining(t.teamId)) }} of {{ baseMax(t.teamId) }} remaining!</span>
+                              }
+                            </option>
                           }
-                        </select>
-                        @if (filteredTeamsFor(p.userId).length===0 && eligibilityFor(p.userId)) {
-                          <div class="form-text">No teams match eligibility.</div>
                         }
-                      } @else {
-                        <div class="mt-1"><span class="badge bg-warning text-dark">Team: {{ readOnlyTeams(p.userId) }}</span></div>
+                      </select>
+                      @if (filteredTeamsFor(p.userId).length===0 && eligibilityFor(p.userId)) {
+                        <div class="form-text">No teams match eligibility.</div>
                       }
                     </div>
                   </div>
                   @if (multiSelect) {
                     <div class="mt-2">
-                      <div class="dropdown" [class.disabled]="!eligibilityFor(p.userId)">
-                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" [disabled]="!eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0">
+                      <div class="dropdown" [class.disabled]="readonlyMode() || isRegistered(p.userId) || !eligibilityFor(p.userId)">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" [disabled]="readonlyMode() || isRegistered(p.userId) || !eligibilityFor(p.userId) || filteredTeamsFor(p.userId).length===0">
                           {{ multiSelectLabel(p.userId) }}
                         </button>
                         <ul class="dropdown-menu p-2" style="max-height:260px;overflow:auto;min-width:320px">
@@ -81,7 +82,7 @@ import { TeamService } from '../team.service';
                                 <input type="checkbox"
                                        class="form-check-input"
                                        [checked]="isTeamChecked(p.userId, t.teamId)"
-                                       [disabled]="t.rosterIsFull || wouldExceedCapacity(p.userId, t)"
+                                       [disabled]="readonlyMode() || isRegistered(p.userId) || t.rosterIsFull || wouldExceedCapacity(p.userId, t)"
                                        (change)="onMultiToggle(p.userId, t.teamId, $event)" />
                                 <span>{{ t.teamName }}</span>
                                 @if (showRemaining(t.teamId)) {
@@ -128,6 +129,12 @@ export class TeamSelectionComponent {
   selectedTeams = this.wizard.selectedTeams;
   eligibilityMap = this.wizard.eligibilityByPlayer;
   readonlyMode = computed(() => this.wizard.startMode() === 'edit');
+
+  isRegistered(playerId: string): boolean {
+    try {
+      return !!this.wizard.familyPlayers().find(p => p.playerId === playerId)?.registered;
+    } catch { return false; }
+  }
 
   allPlayersAssigned = computed(() => {
     const players = this.selectedPlayers();

@@ -22,6 +22,8 @@ export class RegistrationWizardService {
     selectedPlayers = signal<Array<{ userId: string; name: string }>>([]);
     // Family players available for registration
     familyPlayers = signal<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered?: boolean }>>([]);
+    // Loading state for family players fetch (used for big spinner in Players step)
+    familyPlayersLoading = signal<boolean>(false);
     // Include username explicitly for UI badge (displayName kept for future flexibility)
     activeFamilyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
     familyUsers = signal<Array<{ familyUserId: string; displayName: string; userName: string }>>([]);
@@ -41,6 +43,8 @@ export class RegistrationWizardService {
     jobJsonOptions = signal<string | null>(null);
     // Parsed field schema derived from PlayerProfileMetadataJson
     profileFieldSchemas = signal<PlayerProfileFieldSchema[]>([]);
+    // Map of backend db column/property names (PascalCase) -> schema field name used in UI
+    aliasFieldMap = signal<Record<string, string>>({});
     // Per-player form values (fieldName -> value)
     playerFormValues = signal<Record<string, Record<string, any>>>({});
     // Waiver text blocks (extracted from job meta properties like PlayerRegReleaseOfLiability)
@@ -56,6 +60,8 @@ export class RegistrationWizardService {
 
     // Forms data per player (dynamic fields later)
     formData = signal<Record<string, any>>({}); // playerId -> { fieldName: value }
+    // US Lacrosse number validation status per player
+    usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: any }>>({});
 
     // Payment
     paymentOption = signal<PaymentOption>('PIF');
@@ -135,6 +141,7 @@ export class RegistrationWizardService {
         if (!jobPath || !familyUserId) return;
         const base = this.resolveApiBase();
         console.log('[RegWizard] GET family players', { jobPath, familyUserId, base });
+        this.familyPlayersLoading.set(true);
         this.http.get<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered?: boolean }>>(`${base}/family/players`, { params: { jobPath, familyUserId, debug: '1' } })
             .subscribe({
                 next: players => {
@@ -146,10 +153,12 @@ export class RegistrationWizardService {
                     console.log('[RegWizard] Loaded players', { count: list.length, preselected });
                     // Once players loaded, ensure we have job metadata parsed so Forms step can render
                     this.ensureJobMetadata(jobPath);
+                    this.familyPlayersLoading.set(false);
                 },
                 error: err => {
                     console.error('[RegWizard] Failed to load family players', err);
                     this.familyPlayers.set([]);
+                    this.familyPlayersLoading.set(false);
                 }
             });
     }
@@ -244,11 +253,22 @@ export class RegistrationWizardService {
                 if (l.includes('grad') && l.includes('year')) return 'List_GradYears';
                 return null;
             };
+            const aliasMapLocal: Record<string, string> = {};
             const schemas: PlayerProfileFieldSchema[] = fields.map(f => {
                 const name = String(f.name || f.dbColumn || f.field || '');
                 if (!name) return null;
                 const label = String(f.label || f.displayName || f.display || f.name || name);
-                const type = mapFieldType(f.type || f.inputType);
+                // If metadata provides a dbColumn (typically PascalCase backend property) and it's different from the schema field name,
+                // register a precise alias to bridge backend -> UI without guessing.
+                const dbCol = typeof f.dbColumn === 'string' ? f.dbColumn : null;
+                if (dbCol && dbCol !== name) {
+                    aliasMapLocal[dbCol] = name;
+                }
+                let type = mapFieldType(f.type || f.inputType);
+                // Force US Lacrosse number (sportassnid) to text regardless of metadata type/options
+                if (name.toLowerCase() === 'sportassnid' || name.toLowerCase() === 'uslax' || label.toLowerCase().includes('lacrosse')) {
+                    type = 'text';
+                }
                 const required = !!(f.required || f?.validation?.required || f?.validation?.requiredTrue);
                 const dsKey = String(f.dataSource || f.optionsSource || f.optionSet || '').trim();
                 const options = (() => {
@@ -326,6 +346,7 @@ export class RegistrationWizardService {
                 return { name, label, type, required, options, helpText, visibility, condition } as PlayerProfileFieldSchema;
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
             this.profileFieldSchemas.set(schemas);
+            this.aliasFieldMap.set(aliasMapLocal);
             // Detect waiver-like checkbox fields so we can hide them from Forms UI
             const detectedWaiverFields: string[] = [];
             const detectedWaiverLabels: string[] = [];
@@ -379,6 +400,17 @@ export class RegistrationWizardService {
                     if (!(field.name in current[p.userId])) current[p.userId][field.name] = null;
                 }
             }
+            // Precise alias normalization using dbColumn mapping: migrate values from backend property to schema field name
+            const alias = this.aliasFieldMap();
+            if (alias && Object.keys(alias).length) {
+                for (const [pid, vals] of Object.entries(current)) {
+                    for (const [from, to] of Object.entries(alias)) {
+                        if (from in vals && !(to in vals)) {
+                            vals[to] = vals[from];
+                        }
+                    }
+                }
+            }
             this.playerFormValues.set(current);
         } catch (err) {
             console.error('[RegWizard] Failed to parse PlayerProfileMetadataJson', err);
@@ -392,6 +424,13 @@ export class RegistrationWizardService {
         if (!all[playerId]) all[playerId] = {};
         all[playerId][fieldName] = value;
         this.playerFormValues.set(all);
+        // Track US Lacrosse number value in usLaxStatus map when field updated
+        if (fieldName.toLowerCase() === 'sportassnid') {
+            const statusMap = { ...this.usLaxStatus() };
+            const existing = statusMap[playerId] || { value: '', status: 'idle' };
+            statusMap[playerId] = { ...existing, value: String(value || ''), status: 'idle' };
+            this.usLaxStatus.set(statusMap);
+        }
     }
 
     /** Convenience accessor */
@@ -419,32 +458,93 @@ export class RegistrationWizardService {
         if (!jobPath || !familyUserId) return;
         const base = this.resolveApiBase();
         // Minimal implementation: attempt GET existing registration snapshot (endpoint to be finalized)
-        const url = `${base}/registrations/existing`;
+        // Updated endpoint (controller route is singular 'registration')
+        const url = `${base}/registration/existing`;
         this.http.get<{ teams: Record<string, string | string[]>; values: Record<string, Record<string, any>> }>(url, { params: { jobPath, familyUserId } })
             .subscribe({ next: d => this.applyExistingRegistration(d), error: e => this.onExistingRegistrationError(e) });
     }
 
     private applyExistingRegistration(data: { teams?: Record<string, string | string[]>; values?: Record<string, Record<string, any>> } | null): void {
         if (!data) return;
-        const allowedIds = new Set(this.selectedPlayers().map(p => p.userId));
+        const schemas = this.profileFieldSchemas() || [];
+        const validFields = new Set(schemas.map(s => s.name));
+        const schemaGradField = (schemas.find(f => {
+            const n = f.name?.toLowerCase?.() || '';
+            return n === 'gradyear' || n === 'graduationyear';
+        })?.name) || null;
         if (data.teams) {
-            const filteredTeams: Record<string, string | string[]> = {};
+            const allTeams: Record<string, string | string[]> = {};
             for (const [pid, val] of Object.entries(data.teams)) {
-                if (allowedIds.has(pid)) filteredTeams[pid] = val;
+                allTeams[pid] = val;
             }
-            this.selectedTeams.set(filteredTeams);
+            this.selectedTeams.set(allTeams);
         }
         if (data.values) {
             const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+            const eligMap = { ...this.eligibilityByPlayer() } as Record<string, string>;
+            const alias = this.aliasFieldMap();
             for (const [pid, fieldMap] of Object.entries(data.values)) {
-                if (!allowedIds.has(pid)) continue;
                 const existing = current[pid] ? { ...current[pid] } : {} as Record<string, any>;
                 for (const [k, v] of Object.entries(fieldMap || {})) {
-                    existing[k] = v;
+                    const kLower = String(k).toLowerCase();
+                    if (validFields.size === 0 || validFields.has(k)) {
+                        existing[k] = v;
+                        continue;
+                    }
+                    // Precise alias mapping via dbColumn -> schema field
+                    const aliasTarget = alias?.[k];
+                    if (aliasTarget && validFields.has(aliasTarget)) {
+                        existing[aliasTarget] = v;
+                        continue;
+                    }
+                    // Case-insensitive bridge: map PascalCase or different-cased property to schema canonical name
+                    // (Retained as fallback but not preferred; can be removed if undesired)
+                    const ciMatch = Array.from(validFields).find(fn => fn.toLowerCase() === kLower);
+                    if (ciMatch && !Object.prototype.hasOwnProperty.call(existing, ciMatch)) { existing[ciMatch] = v; continue; }
+                    // Bridge: map incoming entity GradYear to schema field GraduationYear (or GradYear) if schema uses a different name
+                    if (kLower === 'gradyear' && schemaGradField && validFields.has(schemaGradField)) {
+                        existing[schemaGradField] = v;
+                        continue;
+                    }
                 }
                 current[pid] = existing;
+                // If US Lax number present, seed status map value for consistency
+                const usKey = Object.keys(existing).find(n => n.toLowerCase() === 'sportassnid');
+                if (usKey) {
+                    const statusMap = { ...this.usLaxStatus() };
+                    const prev = statusMap[pid] || { value: '', status: 'idle' };
+                    statusMap[pid] = { ...prev, value: String(existing[usKey] ?? ''), status: 'idle' };
+                    this.usLaxStatus.set(statusMap);
+                }
+                // Deterministic: only honor canonical key from backend for BYGRADYEAR
+                // Derive GradYear regardless of current constraint type to avoid sequencing races
+                if (!eligMap[pid]) {
+                    const keys = Object.keys(existing);
+                    const findKey = (target: string) => keys.find(k => k.toLowerCase() === target);
+                    const canonical = findKey('gradyear') || (schemaGradField ? findKey(schemaGradField.toLowerCase()) : undefined) || undefined;
+                    if (canonical) {
+                        const rawVal = existing[canonical];
+                        const valStr = (rawVal ?? '').toString().trim();
+                        if (/^(20|19)\d{2}$/.test(valStr)) {
+                            eligMap[pid] = valStr;
+                            console.debug('[RegWizard] Using GradYear from values', { playerId: pid, field: canonical, value: valStr });
+                        } else {
+                            console.debug('[RegWizard] GradYear present but invalid', { playerId: pid, field: canonical, rawVal });
+                        }
+                    } else {
+                        console.debug('[RegWizard] GradYear key not present in values', { playerId: pid, keys });
+                    }
+                }
             }
             this.playerFormValues.set(current);
+            if (Object.keys(eligMap).length) {
+                this.eligibilityByPlayer.set(eligMap);
+                // If all elig values identical, seed legacy teamConstraintValue
+                const distinct = Array.from(new Set(Object.values(eligMap)));
+                if (distinct.length === 1) {
+                    this.teamConstraintValue.set(distinct[0]);
+                }
+            }
         }
         console.debug('[RegWizard] Prefilled existing registration snapshot');
     }
@@ -463,6 +563,52 @@ export class RegistrationWizardService {
             }
         } catch { /* SSR or no window */ }
         return environment.apiUrl.endsWith('/api') ? environment.apiUrl : `${environment.apiUrl}/api`;
+    }
+    private parsedJobOptions: any | undefined;
+    private getJobOptionsObject(): any | null {
+        if (this.parsedJobOptions !== undefined) return this.parsedJobOptions;
+        const raw = this.jobJsonOptions();
+        if (!raw) { this.parsedJobOptions = null; return null; }
+        try { this.parsedJobOptions = JSON.parse(raw); }
+        catch { this.parsedJobOptions = null; }
+        return this.parsedJobOptions;
+    }
+    /** Required valid-through date for USA Lax membership (from Job JsonOptions.USLaxNumberValidThroughDate) */
+    getUsLaxValidThroughDate(): Date | null {
+        const opts = this.getJobOptionsObject();
+        const v = opts?.USLaxNumberValidThroughDate ?? opts?.usLaxNumberValidThroughDate ?? null;
+        if (!v) return null;
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    /** Last name for a player: prefer familyPlayers list; fallback to form values */
+    getPlayerLastName(playerId: string): string | null {
+        const fam = this.familyPlayers().find(p => p.playerId === playerId);
+        if (fam?.lastName) return fam.lastName;
+        const vals = this.playerFormValues()[playerId] || {};
+        const keys = Object.keys(vals);
+        const pick = keys.find(k => k.toLowerCase() === 'lastname')
+            || keys.find(k => k.toLowerCase().includes('last') && k.toLowerCase().includes('name'))
+            || null;
+        return pick ? String(vals[pick] ?? '').trim() || null : null;
+    }
+    /** DOB for a player: prefer familyPlayers list; fallback to form values */
+    getPlayerDob(playerId: string): Date | null {
+        const fam = this.familyPlayers().find(p => p.playerId === playerId);
+        if (fam?.dob) {
+            const d = new Date(fam.dob);
+            if (!isNaN(d.getTime())) return d;
+        }
+        const vals = this.playerFormValues()[playerId] || {};
+        const keys = Object.keys(vals);
+        const pick = keys.find(k => k.toLowerCase() === 'dob')
+            || keys.find(k => k.toLowerCase().includes('birth') && k.toLowerCase().includes('date'))
+            || null;
+        if (pick) {
+            const d = new Date(vals[pick]);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
     }
 
     togglePlayerSelection(player: { playerId: string; firstName: string; lastName: string; registered?: boolean }): void {
@@ -496,6 +642,15 @@ export class RegistrationWizardService {
 
     getEligibilityForPlayer(playerId: string): string | undefined {
         return this.eligibilityByPlayer()[playerId];
+    }
+
+    setUsLaxValidating(playerId: string): void {
+        const m = { ...this.usLaxStatus() }; const cur = m[playerId] || { value: '', status: 'idle' };
+        m[playerId] = { ...cur, status: 'validating', message: undefined }; this.usLaxStatus.set(m);
+    }
+    setUsLaxResult(playerId: string, ok: boolean, message?: string, membership?: any): void {
+        const m = { ...this.usLaxStatus() }; const cur = m[playerId] || { value: '', status: 'idle' };
+        m[playerId] = { ...cur, status: ok ? 'valid' : 'invalid', message, membership }; this.usLaxStatus.set(m);
     }
 }
 
