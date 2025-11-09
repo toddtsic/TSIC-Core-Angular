@@ -165,19 +165,6 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
             }
           </div>
         }
-        @if (hasWaivers()) {
-          <div class="mt-4">
-            <h6 class="fw-semibold">Waivers and Agreements</h6>
-            <div class="vstack gap-2">
-              @for (w of waiverEntries(); track w[0]) {
-                <details class="border rounded p-2 bg-body-tertiary">
-                  <summary class="fw-semibold cursor-pointer">{{ waiverTitle(w[0]) }}</summary>
-                  <div class="mt-2 small" style="white-space:pre-wrap">{{ w[1] }}</div>
-                </details>
-              }
-            </div>
-          </div>
-        }
         <div class="rw-bottom-nav d-flex gap-2 mt-3">
           <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
           <button type="button" class="btn btn-primary" (click)="next.emit()">Continue</button>
@@ -235,13 +222,6 @@ export class PlayerFormsComponent {
   selectedPlayers = () => this.state.selectedPlayers();
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
-  hasWaivers = () => Object.keys(this.state.jobWaivers()).length > 0;
-  waiverEntries = () => Object.entries(this.state.jobWaivers());
-  waiverTitle(key: string): string {
-    const trimmed = key.replace(/^PlayerReg/, '');
-    // Split camel-case into words (replaceAll for lint preference)
-    return trimmed.replaceAll(/([a-z])([A-Z])/g, '$1 $2').trim();
-  }
   cardBgClass(i: number): string {
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
     return palette[i % palette.length];

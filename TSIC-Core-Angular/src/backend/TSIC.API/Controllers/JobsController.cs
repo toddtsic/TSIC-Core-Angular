@@ -50,7 +50,11 @@ public class JobsController : ControllerBase
             PlayerProfileMetadataJson = jobMetadata.PlayerProfileMetadataJson,
             JsonOptions = jobMetadata.JsonOptions,
             MomLabel = jobMetadata.MomLabel,
-            DadLabel = jobMetadata.DadLabel
+            DadLabel = jobMetadata.DadLabel,
+            PlayerRegReleaseOfLiability = jobMetadata.PlayerRegReleaseOfLiability,
+            PlayerRegCodeOfConduct = jobMetadata.PlayerRegCodeOfConduct,
+            PlayerRegCovid19Waiver = jobMetadata.PlayerRegCovid19Waiver,
+            PlayerRegRefundPolicy = jobMetadata.PlayerRegRefundPolicy
         };
 
         return Ok(response);

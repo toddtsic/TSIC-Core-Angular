@@ -91,6 +91,26 @@ export class RegistrationWizardService {
         this.signatureRole.set('');
     }
 
+    /** Seed required waiver acceptance for read-only scenarios (edit mode or previously registered players present).
+     * Called after waiverDefinitions populated and again after existing registration snapshot applied. */
+    private seedAcceptedWaiversIfReadOnly(): void {
+        try {
+            const defs = this.waiverDefinitions();
+            if (!defs || defs.length === 0) return;
+            // If already have any accepted entries, don't overwrite (user may have interacted in a new flow)
+            if (Object.keys(this.waiversAccepted()).length > 0) return;
+            const isEdit = this.startMode() === 'edit';
+            const selectedIds = new Set(this.selectedPlayers().map(p => p.userId));
+            const anyRegisteredSelected = this.familyPlayers().some(p => p.registered && selectedIds.has(p.playerId));
+            if (!(isEdit || anyRegisteredSelected)) return;
+            const accepted: Record<string, boolean> = {};
+            for (const d of defs) if (d.required) accepted[d.id] = true;
+            this.waiversAccepted.set(accepted);
+        } catch (e) {
+            console.debug('[RegWizard] seedAcceptedWaiversIfReadOnly failed', e);
+        }
+    }
+
     // --- Waiver helpers ---
     setWaiverAccepted(id: string, accepted: boolean): void {
         const map = { ...this.waiversAccepted() };
@@ -174,18 +194,27 @@ export class RegistrationWizardService {
                     this.jobId.set(meta.jobId);
                     this.jobProfileMetadataJson.set(meta.playerProfileMetadataJson || null);
                     this.jobJsonOptions.set(meta.jsonOptions || null);
-                    // Extract waiver text blocks heuristically: keys starting with PlayerReg and containing long string content
+                    // Helper to read values regardless of camelCase vs PascalCase coming from API
+                    const getMetaString = (obj: any, key: string): string | null => {
+                        const pascal = key;
+                        const camel = key.length ? key.charAt(0).toLowerCase() + key.slice(1) : key;
+                        const val = obj?.[pascal] ?? obj?.[camel] ?? null;
+                        return (typeof val === 'string' && val.trim()) ? String(val).trim() : null;
+                    };
+                    const normalizeId = (k: string): string => k.length ? (k.charAt(0).toUpperCase() + k.slice(1)) : k;
+                    // Extract waiver text blocks heuristically: keys starting with playerreg/PlayerReg and containing long string content
                     const waivers: Record<string, string> = {};
                     for (const [k, v] of Object.entries(meta)) {
-                        if (k.startsWith('PlayerReg') && typeof v === 'string' && v.trim().length > 30) {
-                            waivers[k] = v.trim();
+                        const lower = k.toLowerCase();
+                        if (lower.startsWith('playerreg') && typeof v === 'string' && v.trim().length > 0) {
+                            waivers[normalizeId(k)] = v.trim();
                         }
                     }
                     this.jobWaivers.set(waivers);
                     // Build structured definitions using explicit mapping when present
                     const defs: WaiverDefinition[] = [];
                     const addDef = (id: string, title: string) => {
-                        const html = (meta as any)[id];
+                        const html = getMetaString(meta, id);
                         if (typeof html === 'string' && html.trim()) {
                             defs.push({ id, title, html, required: true, version: String(html.length) });
                         }
@@ -193,6 +222,7 @@ export class RegistrationWizardService {
                     addDef('PlayerRegReleaseOfLiability', 'Player Waiver');
                     addDef('PlayerRegCodeOfConduct', 'Code of Conduct');
                     addDef('PlayerRegCovid19Waiver', 'Covid Waiver');
+                    addDef('PlayerRegRefundPolicy', 'Refund Terms and Conditions');
                     // Fallback: include any other PlayerReg* blocks not already added
                     for (const [id, html] of Object.entries(waivers)) {
                         if (!defs.some(d => d.id === id)) {
@@ -200,6 +230,8 @@ export class RegistrationWizardService {
                         }
                     }
                     this.waiverDefinitions.set(defs);
+                    // After we have definitions, seed acceptance for read-only scenarios (edit/prior-registration)
+                    this.seedAcceptedWaiversIfReadOnly();
                     this.parseProfileMetadata();
                 },
                 error: err => {
@@ -582,6 +614,8 @@ export class RegistrationWizardService {
             }
         }
         console.debug('[RegWizard] Prefilled existing registration snapshot');
+        // After existing registration applied, we may now know which players are registered; seed waiver acceptance if needed.
+        this.seedAcceptedWaiversIfReadOnly();
     }
 
     private onExistingRegistrationError(err: any): void {

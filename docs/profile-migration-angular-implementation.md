@@ -1005,11 +1005,12 @@ _logger.LogDebug("Adding registrant property: {Name} with Display='{Display}'", 
 _logger.LogDebug("Skipping admin property {Name} (exists in registrant with Display='{Display}')", kvp.Key, metadata[kvp.Key].DisplayName);
 ```
 
-**Results:**
+**Results & Current UI Note:**
 - ✅ BWaiverSigned1 now shows: "I agree with the Waiver Terms and Conditions" (registrant version)
 - ✅ BWaiverSigned3 now shows: "I agree with the Refund Terms and Conditions" (registrant version)
 - ✅ Admin-only fields like `RegistrationId` still included from admin class
 - ✅ Parser correctly identifies and prioritizes player-facing metadata
+- ℹ️ UI update (Nov 2025): The public registration wizard now renders waiver acceptance exclusively in a dedicated Waivers step sourced from Job waiver HTML blocks. Legacy checkbox fields like `BWaiverSigned1` are filtered out from the Player Forms step to avoid duplication. See `waivers-step-implementation.md` for details.
 
 **Files Updated:**
 - `CSharpToMetadataParser.cs` - Complete rewrite of `ParseClassProperties()` method (lines 218-262)

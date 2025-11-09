@@ -14,4 +14,9 @@ public class JobMetadataResponse
     public string? JsonOptions { get; set; }
     public string? MomLabel { get; set; }
     public string? DadLabel { get; set; }
+    // Waiver / registration policy HTML blocks
+    public string? PlayerRegReleaseOfLiability { get; set; }
+    public string? PlayerRegCodeOfConduct { get; set; }
+    public string? PlayerRegCovid19Waiver { get; set; }
+    public string? PlayerRegRefundPolicy { get; set; }
 }

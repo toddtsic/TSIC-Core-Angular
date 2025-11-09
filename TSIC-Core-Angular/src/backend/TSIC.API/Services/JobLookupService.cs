@@ -24,6 +24,11 @@ public class JobMetadataDto
     public string? JsonOptions { get; set; }
     public string? MomLabel { get; set; }
     public string? DadLabel { get; set; }
+    // Waiver / registration policy HTML blocks (raw HTML stored on Job)
+    public string? PlayerRegReleaseOfLiability { get; set; }
+    public string? PlayerRegCodeOfConduct { get; set; }
+    public string? PlayerRegCovid19Waiver { get; set; }
+    public string? PlayerRegRefundPolicy { get; set; }
 }
 
 public class JobLookupService : IJobLookupService
@@ -75,6 +80,14 @@ public class JobLookupService : IJobLookupService
                 JsonOptions = jdo.Job.JsonOptions,
                 MomLabel = jdo.Job.MomLabel,
                 DadLabel = jdo.Job.DadLabel
+                ,
+                PlayerRegReleaseOfLiability = jdo.Job.PlayerRegReleaseOfLiability
+                ,
+                PlayerRegCodeOfConduct = jdo.Job.PlayerRegCodeOfConduct
+                ,
+                PlayerRegCovid19Waiver = jdo.Job.PlayerRegCovid19Waiver
+                ,
+                PlayerRegRefundPolicy = jdo.Job.PlayerRegRefundPolicy
             })
             .SingleOrDefaultAsync();
 

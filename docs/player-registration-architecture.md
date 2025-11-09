@@ -5,6 +5,31 @@
 
 ---
 
+## Implementation Status Update — November 9, 2025
+
+Recent work finalized the dedicated Waivers step and removed legacy waiver UI from the Player Forms step.
+
+Key changes:
+
+- Dedicated Waivers step (single-open accordion, first panel auto-expanded) replaces inline waiver checkboxes in the Forms step.
+- Per-waiver acceptance via checkbox; signature capture removed.
+- Read-only/edit flows: waiver acceptance auto-seeded, checkboxes disabled, dual "Locked" badges (header + next to checkbox) signal prior acceptance.
+- Refund Policy treated as a waiver and included in the same step.
+- Waiver HTML loaded case-insensitively from Job metadata: `PlayerRegReleaseOfLiability`, `PlayerRegCodeOfConduct`, `PlayerRegCovid19Waiver`, `PlayerRegRefundPolicy`.
+- Missing waiver HTML shows a neutral placeholder for debugging.
+- Forms step template (`player-forms.component.ts`) purged of legacy "Waivers & Agreements" block.
+
+Frontend touchpoints:
+- `waivers.component.ts` (accordion UI, locked badges, acceptance gating)
+- `player-forms.component.ts` (legacy removal)
+- `registration-wizard.service.ts` (waiver definitions, case-insensitive metadata read, acceptance state, read-only seeding)
+
+Next focus areas:
+1. CAC-type registration behavior (multi-camp matrix & aggregation)
+2. Payment flow and registration submission DTOs/API
+
+---
+
 ## Implementation Status Update — November 7, 2025
 
 Recent work aligned the login, routing, and wizard orchestration to enable a clean, reliable return to the Player Registration Wizard after Family login. Highlights:
@@ -110,7 +135,8 @@ Jobs (Configuration & Metadata)
    - `Family_UserId` → AspNetUsers.Id (the parent who registered them)
    - `jobID` → Jobs.JobId
    - `assigned_teamID` → Teams.TeamId (nullable, set after registration)
-   - Contains all profile-specific fields (jersey_size, school_name, waivers, etc.)
+  - Contains all profile-specific fields (jersey_size, school_name, etc.)
+  - UI note: Waiver acceptance now lives in a dedicated Waivers step sourced from Job metadata; legacy checkbox fields like `BWaiverSigned1` are deprecated in the public forms UI
    - Profile defines WHICH fields to show and make required
 
 4. **Jobs** (Job Configuration)
@@ -248,6 +274,12 @@ Each Job entity contains a JSON string with dropdown options specific to that jo
   "jobName": "Summer League 2025",
   "jsonOptions": "{\"ListSizes_Jersey\":[...]}",
   "playerProfileMetadataJson": "{\"profileName\":\"PP47\",\"fields\":[...]}"
+  ,
+  // Waiver/policy content; property casing may vary (client reads case-insensitively)
+  "PlayerRegReleaseOfLiability": "<p>...</p>",
+  "PlayerRegCodeOfConduct": "<p>...</p>",
+  "PlayerRegCovid19Waiver": "<p>...</p>",
+  "PlayerRegRefundPolicy": "<p>...</p>"
 }
 ```
 
@@ -735,7 +767,7 @@ public class USLaxValidationResult
 
 The registration process uses a multi-step wizard pattern with dynamic steps based on job configuration. This approach provides clear user guidance while maintaining flexibility for different registration types (PP vs CAC).
 
-**Enhanced Flow (6-7 Steps)**:
+**Enhanced Flow (7-8 Steps)**:
 
 1. **Select Players**
    - Display family members from authenticated user account
@@ -769,20 +801,27 @@ The registration process uses a multi-step wizard pattern with dynamic steps bas
    - External validation (e.g., USLax number)
    - Visual indicators for completion status
 
-5. **Review**
+5. **Waivers**
+  - Dedicated step showing waiver/policy HTML content from Job metadata
+  - Single-open accordion; first waiver expanded by default
+  - Per-waiver acceptance via checkbox; required waivers gate Continue
+  - Edit/prior-registered flows: acceptance auto-seeded, checkboxes disabled, “Locked” badges shown
+  - Refund Policy included alongside other waivers
+
+6. **Review**
    - Summary of all registrations before payment
    - Show player name, team, key details, fee
    - Edit links to go back and modify
    - Total cost calculation
    - Critical for multi-player registrations to catch errors
 
-6. **Payment**
+7. **Payment**
    - Select payment option (Pay in Full vs Deposit)
    - Only show deposit option if `allowPayInFull` is true
    - Payment processing integration
    - Secure card entry
 
-7. **Confirmation**
+8. **Confirmation**
    - Success message with confirmation number
    - Summary of what was registered
    - Receipt download/email options
