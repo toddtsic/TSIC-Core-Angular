@@ -69,7 +69,10 @@ export class RegistrationWizardService {
     reset(): void {
         this.startMode.set(null);
         this.hasFamilyAccount.set(null);
-        this.selectedPlayers.set([]);
+        // Do NOT clear selectedPlayers if prior registration exists
+        if (!this.selectedPlayers() || this.selectedPlayers().length === 0) {
+            this.selectedPlayers.set([]);
+        }
         this.familyPlayers.set([]);
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
@@ -165,11 +168,17 @@ export class RegistrationWizardService {
         this.http.get<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered?: boolean }>>(`${base}/family/players`, { params: { jobPath, familyUserId, debug: '1' } })
             .subscribe({
                 next: players => {
-                    const list = players || [];
-                    this.familyPlayers.set(list);
-                    // Pre-select already registered players and lock them via selectedPlayers list
+                    let list = players || [];
+                    // If there is an existing registration snapshot, ensure referenced players are marked registered
+                    const snapshot = this.selectedPlayers();
+                    const snapshotIds = new Set(snapshot.map(p => p.userId));
+                    // Mark registered in familyPlayers if referenced in snapshot or backend
+                    list = list.map(p => (snapshotIds.has(p.playerId) || p.registered) ? { ...p, registered: true } : p);
+                    // Merge prior registration player IDs into selectedPlayers
                     const preselected = list.filter(p => p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
-                    this.selectedPlayers.set(preselected);
+                    const merged = Array.from(new Map([...preselected, ...snapshot].map(p => [p.userId, p])).values());
+                    this.familyPlayers.set(list);
+                    this.selectedPlayers.set(merged);
                     console.log('[RegWizard] Loaded players', { count: list.length, preselected });
                     // Once players loaded, ensure we have job metadata parsed so Forms step can render
                     this.ensureJobMetadata(jobPath);
@@ -636,6 +645,46 @@ export class RegistrationWizardService {
         console.debug('[RegWizard] No existing registration snapshot available', err?.status);
     }
 
+    /**
+     * Pre-submit API call: checks team roster capacity and creates pending registrations before payment.
+     * Returns per-team results and next tab to show.
+     */
+    preSubmitRegistration(): Promise<PreSubmitRegistrationResponseDto> {
+        const base = this.resolveApiBase();
+        const jobPath = this.jobPath();
+        const familyUserId = this.activeFamilyUser()?.familyUserId;
+        return new Promise<PreSubmitRegistrationResponseDto>((resolve, reject) => {
+            if (!jobPath || !familyUserId) {
+                reject('Missing jobPath or familyUserId');
+                return;
+            }
+            // Gather selected teams per player
+            const teamSelections: PreSubmitTeamSelectionDto[] = [];
+            for (const player of this.selectedPlayers()) {
+                const teamId = this.selectedTeams()[player.userId];
+                if (teamId) {
+                    if (Array.isArray(teamId)) {
+                        for (const tid of teamId) teamSelections.push({ playerId: player.userId, teamId: tid });
+                    } else {
+                        teamSelections.push({ playerId: player.userId, teamId });
+                    }
+                }
+            }
+            const payload: PreSubmitRegistrationRequestDto = {
+                jobPath,
+                familyUserId,
+                teamSelections
+            };
+            this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload)
+                .toPromise()
+                .then(resp => {
+                    if (resp) resolve(resp);
+                    else reject('No response from preSubmit API');
+                })
+                .catch(err => reject(err));
+        });
+    }
+
     // Prefer localhost API when running locally regardless of production flag mismatch.
     private resolveApiBase(): string {
         try {
@@ -755,6 +804,29 @@ export interface WaiverDefinition {
     html: string;        // HTML encoded waiver text
     required: boolean;   // whether acceptance is required
     version: string;     // simple version token to force re-consent when content changes
+}
+
+// DTOs for preSubmit
+export interface PreSubmitRegistrationRequestDto {
+    jobPath: string;
+    familyUserId: string;
+    teamSelections: PreSubmitTeamSelectionDto[];
+}
+export interface PreSubmitTeamSelectionDto {
+    playerId: string;
+    teamId: string;
+}
+export interface PreSubmitRegistrationResponseDto {
+    teamResults: PreSubmitTeamResultDto[];
+    nextTab: string;
+}
+export interface PreSubmitTeamResultDto {
+    playerId: string;
+    teamId: string;
+    isFull: boolean;
+    teamName: string;
+    message: string;
+    registrationCreated: boolean;
 }
 
 // Helper to create a friendly title from a PlayerReg* key

@@ -32,11 +32,22 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
               <div class="border rounded p-3 shadow-sm" [ngClass]="cardBgClass(i)">
                 <h6 class="fw-semibold mb-3 d-flex flex-wrap align-items-center gap-2">
                   <span>{{ player.name }}</span>
-                  @if (teamBadge(player.userId)) {
-                    <span class="badge bg-warning text-dark px-2 py-1">
-                      {{ teamBadge(player.userId)?.label }}: {{ teamBadge(player.userId)?.text }}
-                    </span>
-                  }
+                  <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
+                    @for (teamId of arrayify(state.selectedTeams()[player.userId]); track teamId) {
+                      <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
+                        {{ nameForTeam(teamId) }}
+                        @if (!(readonlyMode() || isRegistered(player.userId))) {
+                          <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline" (click)="removeTeam(player.userId, teamId)">×</button>
+                        }
+                        @if (readonlyMode() || isRegistered(player.userId)) {
+                          <span class="badge bg-secondary ms-2" title="Already registered; team locked">Locked</span>
+                        }
+                      </li>
+                    }
+                    @if (arrayify(state.selectedTeams()[player.userId]).length === 0) {
+                      <li class="text-muted">None</li>
+                    }
+                  </ul>
                 </h6>
                 <div class="row g-3">
                   @for (field of schemas(); track field.name) {
@@ -112,6 +123,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                    [attr.aria-describedby]="helpId(player.userId, field.name)" />
                           }
                           @case ('select') {
+                            <!-- Refined TeamId select: disables full teams, shows strike-through, faded, tooltip, and inline message for full teams -->
                             <select class="form-select"
                                     [required]="field.required"
                                     [ngModel]="value(player.userId, field.name)"
@@ -121,7 +133,16 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                 <option value=""></option>
                               }
                               @for (opt of field.options; track opt) {
-                                <option [value]="opt">{{ opt }}</option>
+                                @let team = getTeam(opt);
+                                <option [value]="opt" *ngIf="!field.name.toLowerCase().includes('team')">{{ opt }}</option>
+                                <option [value]="opt" *ngIf="field.name.toLowerCase().includes('team')"
+                                  [disabled]="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0)"
+                                  [title]="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0) ? 'Team is full and cannot be selected.' : ''"
+                                  [ngStyle]="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0) ? { 'text-decoration': 'line-through', 'opacity': 0.6 } : null"
+                                >
+                                  {{ opt }}
+                                  <span *ngIf="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0)" class="text-danger ms-2 small">(Cannot select)</span>
+                                </option>
                               }
                             </select>
                           }
@@ -212,9 +233,29 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
   `
 })
 export class PlayerFormsComponent {
+  /**
+   * Lookup a team by name from the TeamService filtered list.
+   * Used for TeamId select field feedback (full/disabled logic).
+   */
+  getTeam(teamName: string) {
+    return this.teams.filterByEligibility(null).find(t => t.teamName === teamName);
+  }
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
-  private readonly state = inject(RegistrationWizardService);
+  public readonly state = inject(RegistrationWizardService);
+  /** Returns true if the wizard is in readonly mode (edit mode or any registered player selected). */
+  public readonlyMode(): boolean {
+    const mode = this.state.startMode();
+    if (mode === 'edit' || mode === 'parent') return true;
+    // Also readonly if any selected player is registered
+    const selectedIds = new Set(this.state.selectedPlayers().map(p => p.userId));
+    return this.state.familyPlayers().some(p => p.registered && selectedIds.has(p.playerId));
+  }
+
+  /** Returns true if the player is registered. */
+  public isRegistered(playerId: string): boolean {
+    return !!this.state.familyPlayers().find(p => p.playerId === playerId)?.registered;
+  }
   private readonly teams = inject(TeamService);
   private readonly uslax = inject(UsLaxService);
 
@@ -350,5 +391,34 @@ export class PlayerFormsComponent {
     }
     // default fallback
     return otherVal === field.condition.value;
+  }
+  /**
+   * Converts a value to an array for template iteration (used as a pipe in template).
+   */
+  arrayify(val: string | string[] | null | undefined): string[] {
+    if (!val) return [];
+    return Array.isArray(val) ? val : [val];
+  }
+
+  /**
+   * Looks up the team name for a given teamId.
+   */
+  nameForTeam(teamId: string): string {
+    const all = this.teams.filterByEligibility(null);
+    const t = all.find(x => x.teamId === teamId);
+    return t?.teamName || teamId;
+  }
+
+  /**
+   * Removes a team from the selectedTeams for a player.
+   */
+  removeTeam(playerId: string, teamId: string): void {
+    const map = { ...this.state.selectedTeams() } as Record<string, string | string[]>;
+    const sel = map[playerId];
+    if (!sel) return;
+    let arr = Array.isArray(sel) ? [...sel] : [sel];
+    arr = arr.filter(id => id !== teamId);
+    map[playerId] = arr;
+    this.state.selectedTeams.set(map);
   }
 }

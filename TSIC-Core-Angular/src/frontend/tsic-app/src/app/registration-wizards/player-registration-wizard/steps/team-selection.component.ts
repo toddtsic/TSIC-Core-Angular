@@ -70,6 +70,26 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                           </div>
                         }
                       }
+                      <!-- Selected teams pills above dropdown -->
+                      <div class="small text-secondary mt-2">
+                        <div class="fw-semibold mb-1">Selected teams</div>
+                        <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
+                          @for (id of selectedArrayFor(p.userId); track id) {
+                            <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
+                              {{ nameForTeam(id) }}
+                              <ng-container *ngIf="!(readonlyMode() || isRegistered(p.userId))">
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
+                                        (click)="removeTeam(p.userId, id)">
+                                  ×
+                                </button>
+                              </ng-container>
+                            </li>
+                          }
+                          @if (selectedArrayFor(p.userId).length === 0) {
+                            <li class="text-muted">None</li>
+                          }
+                        </ul>
+                      </div>
                     </div>
                     <div class="flex-grow-1">
                       @if (!multiSelect) {
@@ -87,18 +107,18 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                                           [value]="selectedTeams()[p.userId] || null"
                                           (change)="onSyncSingleChange(p.userId, $event)">
                           <ng-template #itemTemplate let-data>
-                            <span class="rw-item">
-                              <span class="name"
-                                    [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
-                                    [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}</span>
-          <span class="capacity-badge badge rounded-pill"
-            
-                                    [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
-                                                  'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
-                                @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
-                                @else { {{ baseRemaining(data.teamId) }} spots left }
-                              </span>
-                            </span>
+                                                      <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
+                                                        <span class="name"
+                                                              [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
+                                                              [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}</span>
+                                                        <span class="capacity-badge badge rounded-pill"
+                                                              [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
+                                                                            'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
+                                                          @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
+                                                          @else { {{ baseRemaining(data.teamId) }} spots left }
+                                                        </span>
+                                                        <span *ngIf="data.rosterIsFull || baseRemaining(data.teamId) === 0" class="text-danger ms-2 small">(Cannot select)</span>
+                                                      </span>
                           </ng-template>
                         </ejs-dropdownlist>
                       }
@@ -146,24 +166,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                           </span>
                         </ng-template>
                       </ejs-multiselect>
-                      <div class="small text-secondary mt-2">
-                        <div class="fw-semibold mb-1">Selected teams</div>
-                        <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
-                          @for (id of selectedArrayFor(p.userId); track id) {
-                            <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                              {{ nameForTeam(id) }}
-                              <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
-                                      [disabled]="readonlyMode() || isRegistered(p.userId)"
-                                      (click)="removeTeam(p.userId, id)">
-                                ×
-                              </button>
-                            </li>
-                          }
-                          @if (selectedArrayFor(p.userId).length === 0) {
-                            <li class="text-muted">None</li>
-                          }
-                        </ul>
-                      </div>
+                      <!-- Pills only shown above dropdown, duplicate section removed for multi-select mode -->
                     </div>
                   }
                 </div>

@@ -74,7 +74,7 @@
             <app-rw-waivers (back)="back()" (next)="next()" />
             }
             @case ('review') {
-            <app-rw-review (back)="back()" (next)="next()" />
+            <app-rw-review (back)="back()" (next)="proceedToPayment()" />
             }
             @case ('payment') {
             <app-rw-payment (back)="back()" (submitted)="next()" />

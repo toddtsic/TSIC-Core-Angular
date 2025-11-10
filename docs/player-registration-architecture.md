@@ -7,7 +7,8 @@
 
 ## Implementation Status Update — November 9, 2025
 
-Recent work finalized the dedicated Waivers step and removed legacy waiver UI from the Player Forms step.
+
+Recent work finalized the dedicated Waivers step, implemented robust team selection logic, and added pre-payment roster checks.
 
 Key changes:
 
@@ -18,11 +19,14 @@ Key changes:
 - Waiver HTML loaded case-insensitively from Job metadata: `PlayerRegReleaseOfLiability`, `PlayerRegCodeOfConduct`, `PlayerRegCovid19Waiver`, `PlayerRegRefundPolicy`.
 - Missing waiver HTML shows a neutral placeholder for debugging.
 - Forms step template (`player-forms.component.ts`) purged of legacy "Waivers & Agreements" block.
+- Teams step and TeamId field in Forms step now provide robust UI feedback for full teams (strike-through, faded, disabled, tooltip/message).
+- Before payment, the wizard calls the backend `preSubmit` API to check roster capacity and create pending registrations (BActive=false); only activated after payment.
+- Registration data is saved and restored using only fields defined in the current profile metadata (`PlayerProfileMetadataJson`).
 
 Frontend touchpoints:
 - `waivers.component.ts` (accordion UI, locked badges, acceptance gating)
-- `player-forms.component.ts` (legacy removal)
-- `registration-wizard.service.ts` (waiver definitions, case-insensitive metadata read, acceptance state, read-only seeding)
+- `player-forms.component.ts` (legacy removal, TeamId field logic)
+- `registration-wizard.service.ts` (waiver definitions, case-insensitive metadata read, acceptance state, read-only seeding, preSubmit logic, profile-driven save/restore)
 
 Next focus areas:
 1. CAC-type registration behavior (multi-camp matrix & aggregation)

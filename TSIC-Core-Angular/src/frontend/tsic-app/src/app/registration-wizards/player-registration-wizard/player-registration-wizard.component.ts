@@ -214,4 +214,24 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     }
 
     // Start step removed; branching handled via Family Check CTAs and direct deep-links
+
+    async proceedToPayment() {
+        // Call preSubmit before showing payment step
+        try {
+            const result = await this.state.preSubmitRegistration();
+            if (result.teamResults.some(r => r.isFull)) {
+                // At least one team is full, go back to Team tab and show message
+                const teamsIdx = this.steps().indexOf('teams');
+                if (teamsIdx >= 0) this.currentIndex.set(teamsIdx);
+                // Optionally, display a message to the user (implement your own notification system)
+                alert('One or more selected teams are full. Please update your selections.');
+            } else {
+                // All teams OK, proceed to Forms or Payment
+                const nextIdx = this.steps().indexOf(result.nextTab === 'Forms' ? 'forms' : 'payment');
+                if (nextIdx >= 0) this.currentIndex.set(nextIdx);
+            }
+        } catch (err) {
+            alert('Error checking team availability: ' + err);
+        }
+    }
 }

@@ -4,18 +4,12 @@ This document summarizes the current Teams step in the Player Registration wizar
 
 ## Overview
 
-- Uses Syncfusion EJ2 Angular components:
-  - Single-select: `DropDownList`
-  - Multi-select (CAC): `MultiSelect` in CheckBox mode
-- Capacity awareness:
-  - Shows a badge with remaining capacity (e.g., "5 spots left").
-  - Teams at capacity render a red "FULL" badge and are disabled from selection.
-  - Team names for FULL entries are shown with strikethrough for quick scanning.
-- Filtering:
-  - Client-side filtering with `allowFiltering` and `filterType: 'Contains'`.
-  - Placeholder text clarifies search intent (team name or year).
-- Eligibility:
-  - When a team constraint is configured (BYGRADYEAR/BYAGEGROUP/BYCLUBNAME), the list is filtered per player.
+- Teams step and TeamId field in Forms step now provide robust UI feedback for full teams:
+  - Strike-through, faded, disabled states for full teams.
+  - Tooltips and inline messages for disabled teams.
+  - Selection is prevented for full teams in both steps.
+- If the job profile has no constraint, the Teams tab is skipped and a TeamId field is added to the Forms step, with the same full/disabled logic.
+- Restarting registration auto-fills team selections and form data from saved work, using only fields defined in the current profile metadata.
 
 ## UX specifics
 

@@ -32,6 +32,101 @@ public class RegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Checks team roster capacity and creates pending registrations (BActive=false) for available teams before payment.
+    /// Returns per-team results and next tab to show.
+    /// </summary>
+    [HttpPost("preSubmit")]
+    [Authorize]
+    [ProducesResponseType(typeof(TSIC.API.Dtos.PreSubmitRegistrationResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> PreSubmitRegistration([FromBody] TSIC.API.Dtos.PreSubmitRegistrationRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.JobPath) || string.IsNullOrWhiteSpace(request.FamilyUserId))
+            return BadRequest(new { message = "Invalid preSubmit request" });
+
+        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (callerId == null) return Unauthorized();
+        if (!string.Equals(callerId, request.FamilyUserId, StringComparison.OrdinalIgnoreCase))
+            return Forbid();
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        var teamIds = request.TeamSelections.Select(ts => ts.TeamId).Distinct().ToList();
+        var teams = await _db.Teams.Where(t => t.JobId == jobId.Value && teamIds.Contains(t.TeamId)).ToListAsync();
+        var teamRosterCounts = await _db.Registrations
+            .Where(r => r.JobId == jobId.Value && r.AssignedTeamId.HasValue && teamIds.Contains(r.AssignedTeamId.Value) && r.BActive == true)
+            .GroupBy(r => r.AssignedTeamId!.Value)
+            .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+        var teamResults = new List<TSIC.API.Dtos.PreSubmitTeamResultDto>();
+        foreach (var sel in request.TeamSelections)
+        {
+            var team = teams.Find(t => t.TeamId == sel.TeamId);
+            if (team == null)
+            {
+                teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
+                {
+                    PlayerId = sel.PlayerId,
+                    TeamId = sel.TeamId,
+                    IsFull = true,
+                    TeamName = "Unknown",
+                    Message = "Team not found.",
+                    RegistrationCreated = false
+                });
+                continue;
+            }
+            var rosterCount = teamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
+            var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
+            if (isFull)
+            {
+                teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
+                {
+                    PlayerId = sel.PlayerId,
+                    TeamId = team.TeamId,
+                    IsFull = true,
+                    TeamName = team.TeamName ?? "",
+                    Message = "Team roster is full.",
+                    RegistrationCreated = false
+                });
+            }
+            else
+            {
+                // Create pending registration (BActive=false)
+                var reg = new Registrations
+                {
+                    RegistrationId = Guid.NewGuid(),
+                    JobId = jobId.Value,
+                    FamilyUserId = request.FamilyUserId,
+                    UserId = sel.PlayerId,
+                    AssignedTeamId = team.TeamId,
+                    BActive = false,
+                    Modified = DateTime.UtcNow
+                };
+                _db.Registrations.Add(reg);
+                await _db.SaveChangesAsync();
+                teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
+                {
+                    PlayerId = sel.PlayerId,
+                    TeamId = team.TeamId,
+                    IsFull = false,
+                    TeamName = team.TeamName ?? "",
+                    Message = "Registration created, pending payment.",
+                    RegistrationCreated = true
+                });
+            }
+        }
+        var response = new TSIC.API.Dtos.PreSubmitRegistrationResponseDto
+        {
+            TeamResults = teamResults,
+            NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Forms"
+        };
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Returns an existing registration snapshot for a family user in the context of a job.
     /// Shape is compatible with the wizard prefill expectations: teams per player and form values per player.
     /// NOTE: Currently returns an empty payload as a placeholder until data-mapping is implemented.

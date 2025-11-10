@@ -65,16 +65,24 @@ Provide a deterministic, wizard-driven player registration experience for Family
    - Build reactive form from metadata; prefill from existing registration (or defaults for new).
 
 4. Team / Constraint Handling
-   - If profile specifies constraint (BYGRADYEAR, etc.), gather constraint value first.
-   - Filter teams via `TeamFilterService` endpoint.
-   - Select team (PP) or multiple camps (CAC).
+   - If the job profile specifies a constraint (BYGRADYEAR, etc.), gather constraint value first and show the Teams tab.
+   - Teams step: robust UI feedback for full teams (strike-through, faded, disabled, tooltip/message).
+   - If no constraint, skip Teams tab and add a TeamId field to each player form in the Forms step, with the same full/disabled logic.
+   - Selection is prevented for full teams in both steps.
 
-5. Review & Payment
+5. Pre-Payment Roster Check & Pending Registration
+   - Before payment, the wizard calls the backend `preSubmit` API to check roster capacity and create pending registrations (BActive=false).
+   - Only after successful payment are registrations activated.
+
+6. Review & Payment
    - Summarize chosen teams, fees, profile fields.
    - Offer Pay-In-Full vs Deposit (if `allowPayInFull`).
 
-6. Confirmation & Token Enrichment
+7. Confirmation & Token Enrichment
    - On successful submission, enrich token with `regId`, `jobPath` (Phase 2 token) for downstream guarded routes.
+
+8. Auto-Fill on Restart
+   - Restarting registration auto-fills team selections and form data from saved work, using only fields defined in the current profile metadata.
 
 ---
 

@@ -28,12 +28,12 @@ import { FormsModule } from '@angular/forms';
           <ul class="list-group list-group-flush mb-3" [class.opacity-50]="state.familyPlayersLoading()">
             <li class="list-group-item d-flex align-items-center justify-content-between" *ngFor="let p of state.familyPlayers(); trackBy: trackPlayer">
               <div class="d-flex align-items-center gap-3">
-                <input type="checkbox"
-                       class="form-check-input"
-                       [checked]="isSelected(p.playerId)"
-                       [disabled]="p.registered"
-                       (change)="state.togglePlayerSelection(p)"
-                       [attr.aria-label]="p.registered ? 'Already registered' : 'Select player'" />
+      <input type="checkbox"
+        class="form-check-input"
+        [checked]="p.registered || isSelected(p.playerId)"
+        [disabled]="p.registered"
+        (change)="!p.registered && state.togglePlayerSelection(p)"
+        [attr.aria-label]="p.registered ? 'Already registered' : 'Select player'" />
                 <div>
                   <div class="fw-semibold">{{ p.firstName }} {{ p.lastName }}</div>
                   <div class="text-secondary small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
