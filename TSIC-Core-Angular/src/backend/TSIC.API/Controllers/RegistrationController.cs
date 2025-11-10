@@ -16,16 +16,19 @@ public class RegistrationController : ControllerBase
     private readonly ILogger<RegistrationController> _logger;
     private readonly IJobLookupService _jobLookupService;
     private readonly SqlDbContext _db;
+    private readonly IPaymentService _paymentService;
     private static readonly string IsoDate = "yyyy-MM-dd";
 
     public RegistrationController(
         ILogger<RegistrationController> logger,
         IJobLookupService jobLookupService,
-        SqlDbContext db)
+        SqlDbContext db,
+        IPaymentService paymentService)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
         _db = db;
+        _paymentService = paymentService;
     }
 
     /// <summary>
@@ -343,5 +346,37 @@ public class RegistrationController : ControllerBase
         }
 
         return Ok(responses);
+    }
+
+    [HttpPost("submit-payment")]
+    [Authorize]
+    [ProducesResponseType(typeof(PaymentResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SubmitPayment([FromBody] PaymentRequestDto request)
+    {
+        if (request == null || request.CreditCard == null)
+        {
+            return BadRequest(new { message = "Invalid payment request" });
+        }
+
+        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (callerId == null) return Unauthorized();
+
+        // Ensure caller is the family user
+        if (!string.Equals(callerId, request.FamilyUserId.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return Forbid();
+        }
+
+        var result = await _paymentService.ProcessPaymentAsync(request, callerId);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+        else
+        {
+            return BadRequest(new { message = result.Message });
+        }
     }
 }

@@ -120,6 +120,11 @@ export class TeamService {
         }
     }
 
+    getTeamById(teamId: string): AvailableTeam | undefined {
+        const teams = this._teams();
+        return teams?.find(t => t.teamId === teamId);
+    }
+
     constructor() {
         // Auto-refetch when jobPath changes. Allow signal writes inside the effect
         // because ensureLoaded/fetch update local signals like _teams/loading/error.

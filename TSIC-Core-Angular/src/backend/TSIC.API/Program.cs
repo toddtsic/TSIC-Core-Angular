@@ -21,6 +21,8 @@ builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJobLookupService, JobLookupService>();
 builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
+builder.Services.AddScoped<IAdnApiService, AdnApiService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 // Profile Migration Services
 builder.Services.AddHttpClient<GitHubProfileFetcher>();

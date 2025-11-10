@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 // Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
 import { environment } from '../../../environments/environment';
 
-export type PaymentOption = 'PIF' | 'Deposit';
+export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 
 @Injectable({ providedIn: 'root' })
 export class RegistrationWizardService {

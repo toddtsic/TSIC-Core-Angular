@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AuthorizeNet.Core" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
@@ -23,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TSIC.Application\TSIC.Application.csproj" />
+    <ProjectReference Include="..\TSIC.Domain\TSIC.Domain.csproj" />
     <ProjectReference Include="..\TSIC.Infrastructure\TSIC.Infrastructure.csproj" />
   </ItemGroup>
 
