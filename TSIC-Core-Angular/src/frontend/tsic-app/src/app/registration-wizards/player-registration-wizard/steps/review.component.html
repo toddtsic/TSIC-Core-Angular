@@ -6,7 +6,8 @@
         <!-- New copy: user could not reach this step without required waivers; show welcome summary instead -->
         <div class="mb-4">
             <p class="lead mb-1 fw-semibold">Welcome to {{ state.jobPath() || 'your event' }}!</p>
-            <p class="text-secondary mb-0">You're almost done. Below is a summary of players and their team assignments.</p>
+            <p class="text-secondary mb-0">You're almost done. Below is a summary of players and their team assignments.
+            </p>
         </div>
 
         <div class="mb-3">
@@ -21,20 +22,22 @@
                     </thead>
                     <tbody>
                         @for (player of selectedPlayers(); track trackPlayer($index, player)) {
-                            <tr>
-                                <td class="fw-semibold">{{ player.name }}</td>
-                                <td>
-                                    @if (getTeamsForPlayer(player.userId).length === 0) {
-                                        <span class="text-muted">No team selected</span>
-                                    } @else {
-                                        <span class="d-inline-flex flex-wrap gap-1">
-                                            @for (t of getTeamsForPlayer(player.userId); track t) {
-                                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ t }}</span>
-                                            }
-                                        </span>
+                        <tr>
+                            <td class="fw-semibold">{{ player.name }}</td>
+                            <td>
+                                @if (getTeamsForPlayer(player.userId).length === 0) {
+                                <span class="text-muted">No team selected</span>
+                                } @else {
+                                <span class="d-inline-flex flex-wrap gap-1">
+                                    @for (t of getTeamsForPlayer(player.userId); track t) {
+                                    <span
+                                        class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{
+                                        t }}</span>
                                     }
-                                </td>
-                            </tr>
+                                </span>
+                                }
+                            </td>
+                        </tr>
                         }
                     </tbody>
                 </table>
