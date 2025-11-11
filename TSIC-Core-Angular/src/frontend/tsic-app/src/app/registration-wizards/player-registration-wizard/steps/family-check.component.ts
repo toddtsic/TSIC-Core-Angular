@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { Roles } from '../../../core/models/roles.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -122,7 +122,7 @@ import { AuthService } from '../../../core/services/auth.service';
   </div>
   `
 })
-export class FamilyCheckStepComponent implements OnInit {
+export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   private readonly state = inject(RegistrationWizardService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -148,6 +148,9 @@ export class FamilyCheckStepComponent implements OnInit {
   private _pendingFocusPassword = false;
 
   ngOnInit(): void { this.initialize(); }
+
+  // Re-run focus attempt after each view check until it succeeds once (then _pendingFocusPassword resets)
+  ngAfterViewChecked(): void { this.attemptFocusPassword(); }
 
   // Focus password field after the panel first appears (radio toggled to 'yes').
   // Using microtask ensures it runs after Angular finishes rendering the conditional block.
