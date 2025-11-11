@@ -3,40 +3,46 @@
         <h5 class="mb-0 fw-semibold">Review & Submit</h5>
     </div>
     <div class="card-body">
-        <p class="text-secondary mb-3">Summary of selections will show here. Payment step comes next.</p>
+        <!-- New copy: user could not reach this step without required waivers; show welcome summary instead -->
+        <div class="mb-4">
+            <p class="lead mb-1 fw-semibold">Welcome to {{ state.jobPath() || 'your event' }}!</p>
+            <p class="text-secondary mb-0">You're almost done. Below is a summary of players and their team assignments.</p>
+        </div>
+
         <div class="mb-3">
-            <div class="fw-semibold mb-2">Player Registrations</div>
-            <ul class="list-unstyled mb-0">
-                @for (player of selectedPlayers(); track trackPlayer($index, player)) {
-                <li>
-                    <span class="fw-semibold">{{ player.name }}</span>
-                    <span class="ms-2 text-secondary">registration</span>
-                </li>
-                }
-            </ul>
-        </div>
-        @if (state.waiverDefinitions().length > 0) {
-        <div class="mb-3 p-3 border rounded bg-body-tertiary">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="fw-semibold">Waivers</div>
-                <span class="badge"
-                    [ngClass]="state.allRequiredWaiversAccepted() ? 'bg-success' : 'bg-warning text-dark'">
-                    {{ state.allRequiredWaiversAccepted() ? 'All required accepted' : 'Pending acceptance' }}
-                </span>
+            <div class="fw-semibold mb-2">Registered Players & Teams</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Player</th>
+                            <th scope="col">Team{{ isMultiTeamMode() ? 's' : '' }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (player of selectedPlayers(); track trackPlayer($index, player)) {
+                            <tr>
+                                <td class="fw-semibold">{{ player.name }}</td>
+                                <td>
+                                    @if (getTeamsForPlayer(player.userId).length === 0) {
+                                        <span class="text-muted">No team selected</span>
+                                    } @else {
+                                        <span class="d-inline-flex flex-wrap gap-1">
+                                            @for (t of getTeamsForPlayer(player.userId); track t) {
+                                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ t }}</span>
+                                            }
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
-            <ul class="small mb-0">
-                @for (w of state.waiverDefinitions(); track w.id) {
-                <li>
-                    <i class="bi"
-                        [ngClass]="state.isWaiverAccepted(w.id) ? 'bi-check-circle text-success' : 'bi-exclamation-circle text-warning' "></i>
-                    <span class="ms-1">{{ w.title }}</span>
-                </li>
-                }
-            </ul>
-            <!-- Signature line removed: waivers now use checkbox acceptance only -->
         </div>
-        }
-        <div class="rw-bottom-nav d-flex gap-2">
+
+        <!-- Payment navigation -->
+        <div class="rw-bottom-nav d-flex gap-2 mt-2">
             <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
             <button type="button" class="btn btn-primary" (click)="next.emit()">Proceed to Payment</button>
         </div>

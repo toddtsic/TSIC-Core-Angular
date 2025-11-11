@@ -256,7 +256,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         // Scroll into view (defer to allow collapse/expand classes to apply)
         setTimeout(() => {
           const headerBtn = document.getElementById('waiver-h-' + w.id)?.querySelector('button');
-            (headerBtn as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          (headerBtn as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 30);
         break;
       }
