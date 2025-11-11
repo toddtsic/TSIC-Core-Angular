@@ -22,6 +22,30 @@ interface LineItem {
         <h5 class="mb-0 fw-semibold">Payment</h5>
       </div>
       <div class="card-body">
+        <!-- RegSaver placeholder banner (appears at top of Payment step) -->
+        <div class="mb-3">
+          @if (state.regSaverDetails()) {
+            <div class="alert alert-info border-0" role="status">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-info-subtle text-dark border">RegSaver</span>
+                <div>
+                  <div class="fw-semibold">RegSaver policy on file</div>
+                  <div class="small text-muted">Policy #: {{ state.regSaverDetails()!.policyNumber }} • Created: {{ state.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}</div>
+                </div>
+              </div>
+            </div>
+          } @else {
+            <div class="alert alert-warning border-0" role="status">
+              <div class="fw-semibold mb-1">Optional Registration Insurance (RegSaver)</div>
+              <div class="small text-muted mb-2">Protect your registration investment with RegSaver. Insert purchase flow here.</div>
+              <div class="bg-light border rounded p-3 small">
+                <!-- Placeholder for RegSaver widget/iframe/button -->
+                <em>RegSaver purchase widget placeholder</em>
+              </div>
+            </div>
+          }
+        </div>
+
         <div class="mb-3">
           <label class="form-label fw-semibold">Payment Option</label>
           <div class="form-check">

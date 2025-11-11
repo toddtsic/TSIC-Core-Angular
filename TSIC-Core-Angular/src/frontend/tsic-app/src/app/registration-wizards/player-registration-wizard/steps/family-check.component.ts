@@ -30,15 +30,41 @@ import { AuthService } from '../../../core/services/auth.service';
               </div>
             </label>
 
-            <!-- Redirect to centralized login with returnUrl instead of inline form -->
+            <!-- Inline login form and actions -->
             @if (hasAccount === 'yes') {
             <div class="list-group-item border-0 pt-0 pb-3">
               <div class="rw-accent-panel">
                 <div class="d-flex align-items-start gap-3">
                   <i class="bi bi-shield-lock-fill rw-accent-icon" aria-hidden="true"></i>
-                  <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2">
-                    <button type="button" class="btn btn-primary" (click)="goToLogin()">Sign in</button>
-                    <span class="text-secondary small">We'll start your player(s) registration after you're authenticated.</span>
+                  <div class="flex-grow-1">
+                    <div class="row g-2 align-items-end mb-2">
+                      <div class="col-12 col-md-5">
+                        <label for="famUsername" class="form-label small text-muted">Family username</label>
+                        <input id="famUsername" name="famUsername" class="form-control" type="text" [(ngModel)]="username" autocomplete="username" (keyup.enter)="signInThenProceed()" />
+                      </div>
+                      <div class="col-12 col-md-5">
+                        <label for="famPassword" class="form-label small text-muted">Password</label>
+                        <input id="famPassword" name="famPassword" class="form-control" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
+                      </div>
+                      <div class="col-12 col-md-2 d-grid">
+                        <button type="button"
+                                class="btn btn-primary"
+                                [disabled]="submitting || !username || !password"
+                                (click)="signInThenProceed()">
+                          @if (submitting) {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          }
+                          <span>{{ submitting ? 'Signing in…' : 'Sign in' }}</span>
+                        </button>
+                      </div>
+                    </div>
+                    @if (inlineError) {
+                      <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div>
+                    }
+                    <div class="text-secondary small">We'll start your player(s) registration after you're authenticated.</div>
+                    <div class="mt-2 small">
+                      <a href="javascript:void(0)" (click)="goToLogin()">Having trouble? Open the full login screen</a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -52,8 +78,20 @@ import { AuthService } from '../../../core/services/auth.service';
                 <div class="d-flex align-items-start gap-3">
                   <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
                   <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2">
-                    <button type="button" class="btn btn-success" (click)="goToFamilyAccount()">Sign in</button>
-                    <span class="text-secondary small">Review or update your family and children after signing in.</span>
+                    <div class="d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
+                      <button type="button" class="btn btn-success"
+                              [disabled]="submitting || !username || !password"
+                              (click)="signInThenGoFamilyAccount()">
+                        @if (submitting) {
+                          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        }
+                        <span>{{ submitting ? 'Signing in…' : 'Sign in' }}</span>
+                      </button>
+                      <span class="text-secondary small">Review or update your family and children after signing in.</span>
+                    </div>
+                    <div class="mt-2 small">
+                      <a href="javascript:void(0)" (click)="goToFamilyAccount()">Use the full login screen instead</a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -101,6 +139,9 @@ export class FamilyCheckStepComponent implements OnInit {
   username = '';
   password = '';
   loginError: string | null = null;
+  submitting = false;
+  inlineError: string | null = null;
+  private readonly LAST_USER_KEY = 'tsic_last_family_username';
 
   ngOnInit(): void {
     // Initialize: if authenticated with Family role, preselect 'yes' and auto-advance.
@@ -120,6 +161,14 @@ export class FamilyCheckStepComponent implements OnInit {
       const userNow = this.auth.getCurrentUser();
       if (!userNow && this.state.hasFamilyAccount() === 'yes') {
         this.state.hasFamilyAccount.set(null);
+      }
+    }
+
+    // Prefill last successful username if present and user not already authenticated
+    if (!this.auth.getCurrentUser()) {
+      const last = localStorage.getItem(this.LAST_USER_KEY);
+      if (last && !this.username) {
+        this.username = last;
       }
     }
   }
@@ -189,5 +238,61 @@ export class FamilyCheckStepComponent implements OnInit {
         force: 1
       }
     });
+  }
+
+  private doInlineLogin(): Promise<void> {
+    this.inlineError = null;
+    if (!this.username || !this.password || this.submitting) {
+      return Promise.resolve();
+    }
+    this.submitting = true;
+    return new Promise((resolve, reject) => {
+      this.auth.login({ username: this.username.trim(), password: this.password }).subscribe({
+        next: () => {
+          this.submitting = false;
+          try { localStorage.setItem(this.LAST_USER_KEY, this.username.trim()); } catch {}
+          resolve();
+        },
+        error: (err) => {
+          this.submitting = false;
+          this.inlineError = err?.error?.message || 'Login failed. Please check your username and password.';
+          reject(err);
+        }
+      });
+    });
+  }
+
+  async signInThenProceed(): Promise<void> {
+    try {
+      await this.doInlineLogin();
+      // Mark state and advance to Players step
+      this.state.hasFamilyAccount.set('yes');
+      this.next.emit();
+    } catch {
+      // handled in doInlineLogin
+    }
+  }
+
+  async signInThenGoFamilyAccount(): Promise<void> {
+    try {
+      await this.doInlineLogin();
+      // After successful login, route directly to Family Account wizard in edit mode
+      let jobPath = (this.state.jobPath() || '').trim();
+      if (!jobPath) {
+        jobPath = this.auth.getJobPath() || '';
+      }
+      if (!jobPath) {
+        const url = (this.router.url || '').split('?')[0].split('#')[0];
+        const segs = url.split('/').filter(s => !!s);
+        if (segs.length > 0 && segs[0].toLowerCase() !== 'tsic') {
+          jobPath = segs[0];
+        }
+      }
+      const playersReturn = jobPath ? `/${jobPath}/register-player?step=players` : `/register-player?step=players`;
+      const familyWizardUrl = `/tsic/family-account?mode=edit&next=register-player&jobPath=${encodeURIComponent(jobPath)}&returnUrl=${encodeURIComponent(playersReturn)}`;
+      this.router.navigateByUrl(familyWizardUrl);
+    } catch {
+      // handled in doInlineLogin
+    }
   }
 }

@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 // Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
 import { environment } from '../../../environments/environment';
+import { FamilyPlayer, FamilyPlayerRegistration, RegSaverDetails, normalizeFormValues } from './family-players.dto';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 
@@ -17,11 +18,13 @@ export class RegistrationWizardService {
     hasFamilyAccount = signal<'yes' | 'no' | null>(null);
 
     // Players and selections
-    // Family players with client-only selection flag
-    familyPlayers = signal<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered: boolean; selected: boolean }>>([]);
+    // Family players enriched with prior registrations + selection flag
+    familyPlayers = signal<FamilyPlayer[]>([]);
     familyPlayersLoading = signal<boolean>(false);
     // Family user summary (from players endpoint); name fields used for header badge
     familyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
+    // RegSaver (optional insurance) details for family/job
+    regSaverDetails = signal<RegSaverDetails | null>(null);
     // Whether an existing player registration for the current job + active family user already exists.
     // null = unknown/not yet checked; true/false = definitive.
     // Eligibility type is job-wide (e.g., BYGRADYEAR), but the selected value is PER PLAYER
@@ -125,17 +128,64 @@ export class RegistrationWizardService {
         return this.waiverDefinitions().some(w => w.required);
     }
 
-    /** Single loader: returns family user summary + players (registered + client-side selected flag). */
+    /** Loader: returns family user summary + family players (registered + server-selected flag) + optional RegSaver details. */
     loadFamilyPlayers(jobPath: string): void {
         if (!jobPath) return;
         const base = this.resolveApiBase();
         console.log('[RegWizard] GET family players', { jobPath, base });
         this.familyPlayersLoading.set(true);
-        this.http.get<{ familyUser: { familyUserId: string; displayName: string; userName: string }; players: Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered: boolean }> }>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
+        this.http.get<any>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
-                    if (resp?.familyUser) this.familyUser.set(resp.familyUser);
-                    const list = (resp?.players || []).map(p => ({ ...p, registered: !!p.registered, selected: false }));
+                    // Normalize familyUser
+                    const fu = resp?.familyUser || resp?.FamilyUser || null;
+                    if (fu) this.familyUser.set({
+                        familyUserId: fu.familyUserId ?? fu.FamilyUserId ?? '',
+                        displayName: fu.displayName ?? fu.DisplayName ?? '',
+                        userName: fu.userName ?? fu.UserName ?? ''
+                    });
+                    // Normalize regSaver details
+                    const rs = resp?.regSaverDetails || resp?.RegSaverDetails || null;
+                    if (rs) {
+                        this.regSaverDetails.set({
+                            policyNumber: rs.policyNumber ?? rs.PolicyNumber ?? '',
+                            policyCreateDate: rs.policyCreateDate ?? rs.PolicyCreateDate ?? ''
+                        });
+                    } else {
+                        this.regSaverDetails.set(null);
+                    }
+                    // Players list (server property now familyPlayers; fallback to players for backward compatibility)
+                    const rawPlayers: any[] = resp?.familyPlayers || resp?.FamilyPlayers || resp?.players || resp?.Players || [];
+                    const list: FamilyPlayer[] = rawPlayers.map(p => {
+                        const prior: any[] = p.priorRegistrations || p.PriorRegistrations || [];
+                        const priorRegs: FamilyPlayerRegistration[] = prior.map(r => ({
+                            registrationId: r.registrationId ?? r.RegistrationId ?? '',
+                            active: !!(r.active ?? r.Active),
+                            financials: {
+                                feeBase: +(r.financials?.feeBase ?? r.financials?.FeeBase ?? 0),
+                                feeProcessing: +(r.financials?.feeProcessing ?? r.financials?.FeeProcessing ?? 0),
+                                feeDiscount: +(r.financials?.feeDiscount ?? r.financials?.FeeDiscount ?? 0),
+                                feeDonation: +(r.financials?.feeDonation ?? r.financials?.FeeDonation ?? 0),
+                                feeLateFee: +(r.financials?.feeLateFee ?? r.financials?.FeeLateFee ?? 0),
+                                feeTotal: +(r.financials?.feeTotal ?? r.financials?.FeeTotal ?? 0),
+                                owedTotal: +(r.financials?.owedTotal ?? r.financials?.OwedTotal ?? 0),
+                                paidTotal: +(r.financials?.paidTotal ?? r.financials?.PaidTotal ?? 0)
+                            },
+                            assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? null,
+                            assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? null,
+                            formValues: normalizeFormValues(r.formValues || r.FormValues)
+                        }));
+                        return {
+                            playerId: p.playerId ?? p.PlayerId ?? '',
+                            firstName: p.firstName ?? p.FirstName ?? '',
+                            lastName: p.lastName ?? p.LastName ?? '',
+                            gender: p.gender ?? p.Gender ?? '',
+                            dob: p.dob ?? p.Dob ?? undefined,
+                            registered: !!(p.registered ?? p.Registered),
+                            selected: !!(p.selected ?? p.Selected ?? (p.registered ?? p.Registered)),
+                            priorRegistrations: priorRegs
+                        } as FamilyPlayer;
+                    });
                     this.familyPlayers.set(list);
                     // Ensure job metadata so forms parse soon after
                     this.ensureJobMetadata(jobPath);
@@ -145,6 +195,7 @@ export class RegistrationWizardService {
                     console.error('[RegWizard] Failed to load family players', err);
                     this.familyPlayers.set([]);
                     this.familyUser.set(null);
+                    this.regSaverDetails.set(null);
                     this.familyPlayersLoading.set(false);
                 }
             });
@@ -661,6 +712,8 @@ export interface PreSubmitTeamResultDto {
 }
 
 // Removed unified registration context types; client now loads players and metadata directly.
+
+// Enriched DTOs moved to ./family-players.dto
 
 // Helper to create a friendly title from a PlayerReg* key
 // e.g., PlayerRegReleaseOfLiability -> Release Of Liability

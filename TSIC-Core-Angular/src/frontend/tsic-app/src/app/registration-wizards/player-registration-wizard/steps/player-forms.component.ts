@@ -2,6 +2,7 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
+import { FamilyPlayer } from '../family-players.dto';
 import { BottomNavComponent } from '../bottom-nav.component';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
@@ -160,8 +161,11 @@ export class PlayerFormsComponent {
   }
   /** Returns registrationId for a player if present in familyPlayers. */
   getRegistrationId(playerId: string): string | null {
-    const p = this.state.familyPlayers().find(fp => fp.playerId === playerId);
-    return p && (p as any).registrationId ? (p as any).registrationId : null;
+    const p: FamilyPlayer | undefined = this.state.familyPlayers().find(fp => fp.playerId === playerId);
+    if (!p) return null;
+    // Return first prior registration's ID if present (active preferred)
+    const activeFirst = [...(p.priorRegistrations || [])].sort(r => r.active ? -1 : 1);
+    return activeFirst.length ? activeFirst[0].registrationId : null;
   }
   /**
    * Lookup a team by name from the TeamService filtered list.

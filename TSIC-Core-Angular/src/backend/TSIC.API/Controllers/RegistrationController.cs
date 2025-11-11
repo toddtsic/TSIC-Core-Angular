@@ -6,6 +6,7 @@ using TSIC.API.DTOs;
 using TSIC.API.Services;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Domain.Entities;
+using TSIC.API.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -103,7 +104,9 @@ public class RegistrationController : ControllerBase
                     UserId = sel.PlayerId,
                     AssignedTeamId = team.TeamId,
                     BActive = false,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.UtcNow,
+                    RegistrationTs = DateTime.UtcNow,
+                    RoleId = RoleConstants.Player
                 };
                 _db.Registrations.Add(reg);
                 await _db.SaveChangesAsync();

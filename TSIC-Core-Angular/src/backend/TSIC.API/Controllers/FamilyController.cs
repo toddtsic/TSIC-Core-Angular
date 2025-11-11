@@ -10,6 +10,7 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.Identity;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace TSIC.API.Controllers;
 
@@ -20,6 +21,64 @@ public class FamilyController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SqlDbContext _db;
     private const string DateFormat = "yyyy-MM-dd";
+
+    // Internal projection to carry minimal registration fields for FamilyPlayers
+    private sealed record RegRow(
+        string UserId,
+        Guid RegistrationId,
+        bool Active,
+        Guid? AssignedTeamId,
+        decimal FeeBase,
+        decimal FeeProcessing,
+        decimal FeeDiscount,
+        decimal FeeDonation,
+        decimal FeeLatefee,
+        decimal FeeTotal,
+        decimal OwedTotal,
+        decimal PaidTotal
+    );
+
+    private static IReadOnlyDictionary<string, JsonElement> BuildFormValuesDictionary(RegRow row, List<(string Name, string DbColumn)> mapped)
+    {
+        // Note: We'll populate from the Registrations entity via known columns; for now, limited to a few known mappings.
+        // This can be expanded by using EF.Property on a hydrated registration if needed.
+        var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var (name, dbCol) in mapped)
+        {
+            // Minimal seed: map financials if present in profile (uncommon), else skip
+            switch (dbCol)
+            {
+                case nameof(Domain.Entities.Registrations.FeeBase):
+                    dict[name] = JsonDocument.Parse(row.FeeBase.ToString()).RootElement.Clone();
+                    break;
+                case nameof(Domain.Entities.Registrations.FeeProcessing):
+                    dict[name] = JsonDocument.Parse(row.FeeProcessing.ToString()).RootElement.Clone();
+                    break;
+                case nameof(Domain.Entities.Registrations.FeeDiscount):
+                    dict[name] = JsonDocument.Parse(row.FeeDiscount.ToString()).RootElement.Clone();
+                    break;
+                case nameof(Domain.Entities.Registrations.FeeDonation):
+                    dict[name] = JsonDocument.Parse(row.FeeDonation.ToString()).RootElement.Clone();
+                    break;
+                case nameof(Domain.Entities.Registrations.FeeLatefee):
+                    dict[name] = JsonDocument.Parse(row.FeeLatefee.ToString()).RootElement.Clone();
+                    break;
+                case nameof(Domain.Entities.Registrations.FeeTotal):
+                    dict[name] = JsonDocument.Parse(row.FeeTotal.ToString()).RootElement.Clone();
+                    break;
+                case nameof(Domain.Entities.Registrations.OwedTotal):
+                    dict[name] = JsonDocument.Parse(row.OwedTotal.ToString()).RootElement.Clone();
+                    break;
+                case nameof(Domain.Entities.Registrations.PaidTotal):
+                    dict[name] = JsonDocument.Parse(row.PaidTotal.ToString()).RootElement.Clone();
+                    break;
+                default:
+                    // Not available in current projection; skip
+                    break;
+            }
+        }
+        return dict;
+    }
 
     public FamilyController(UserManager<ApplicationUser> userManager, SqlDbContext db)
     {
@@ -38,10 +97,10 @@ public class FamilyController : ControllerBase
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
         // Load AspNetUsers profile (address/phone/email) and Families record
-        var aspUser = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == userId);
+        var aspUser = await _db.AspNetUsers.SingleOrDefaultAsync(u => u.Id == userId);
         if (aspUser == null) return NotFound();
 
-        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == userId);
+        var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == userId);
         if (fam == null)
         {
             // If no Families record yet, return minimal profile using AspNetUsers fields
@@ -224,7 +283,7 @@ public class FamilyController : ControllerBase
         }
 
         // Update AspNetUsers profile fields
-        var aspUser = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == user.Id);
+        var aspUser = await _db.AspNetUsers.SingleOrDefaultAsync(u => u.Id == user.Id);
         if (aspUser != null)
         {
             aspUser.StreetAddress = request.Address.StreetAddress;
@@ -241,7 +300,7 @@ public class FamilyController : ControllerBase
         }
 
         // Update Families record if present
-        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == user.Id);
+        var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == user.Id);
         if (fam == null)
         {
             return NotFound(new FamilyRegistrationResponse(false, null, null, "Family record not found"));
@@ -498,14 +557,14 @@ public class FamilyController : ControllerBase
         if (callerId == null) return Unauthorized();
 
         // Determine if caller has a Families record; if not, return empty list (must create one first)
-        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == callerId);
+        var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == callerId);
         if (fam == null)
         {
             return Ok(Array.Empty<object>());
         }
 
         // Display name preference: MomFirstName/LastName then Dad fallback then username (from AspNetUsers)
-        var aspUser = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == callerId);
+        var aspUser = await _db.AspNetUsers.SingleOrDefaultAsync(u => u.Id == callerId);
         // Build a display name with clear imperative logic (avoid nested ternaries for readability / complexity)
         string display;
         if (!string.IsNullOrWhiteSpace(fam.MomFirstName) || !string.IsNullOrWhiteSpace(fam.MomLastName))
@@ -532,104 +591,191 @@ public class FamilyController : ControllerBase
         return Ok(result);
     }
 
+    // ...existing code...
     [HttpGet("players")]
     [Authorize]
     [ProducesResponseType(typeof(FamilyPlayersResponseDto), 200)]
     public async Task<IActionResult> GetFamilyPlayers([FromQuery] string jobPath)
     {
         if (string.IsNullOrWhiteSpace(jobPath))
-        {
             return BadRequest(new { message = "jobPath is required" });
-        }
 
-        // Ensure caller is the same family user (or has elevated roles) - basic check
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (familyUserId == null) return Unauthorized();
+        if (string.IsNullOrWhiteSpace(familyUserId))
+            return Unauthorized();
 
-        // Load family member links
-        var links = await _db.FamilyMembers.Where(fm => fm.FamilyUserId == familyUserId).ToListAsync();
-        var childIds = links.Select(l => l.FamilyMemberUserId).Distinct().ToList();
+        jobPath = jobPath.Trim();
 
-        // Fallback/augment: include any children who previously registered under this family even if not linked in FamilyMembers
-        var regChildIds = await _db.Registrations
-            .Where(r => r.FamilyUserId == familyUserId && r.UserId != null)
-            .Select(r => r.UserId!)
+        // Resolve jobId from jobPath (case-insensitive); if not found, treat as no prior registrations.
+        Guid? jobId = await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobPath != null && EF.Functions.Collate(j.JobPath!, "SQL_Latin1_General_CP1_CI_AS") == jobPath.Trim())
+            .Select(j => (Guid?)j.JobId)
+            .FirstOrDefaultAsync();
+
+        // Linked children for this family
+        var linkedChildIds = await _db.FamilyMembers
+            .AsNoTracking()
+            .Where(fm => fm.FamilyUserId == familyUserId)
+            .Select(fm => fm.FamilyMemberUserId)
             .Distinct()
             .ToListAsync();
-        var allChildIds = childIds.Union(regChildIds).Distinct().ToList();
-        if (allChildIds.Count == 0) return Ok(Array.Empty<object>());
 
-        // Load child profiles
-        var children = await _db.AspNetUsers.Where(u => allChildIds.Contains(u.Id)).ToListAsync();
+        // Build family header (always present in response)
+        var fam = await _db.Families.AsNoTracking().SingleOrDefaultAsync(f => f.FamilyUserId == familyUserId);
+        var asp = await _db.AspNetUsers.AsNoTracking().SingleOrDefaultAsync(u => u.Id == familyUserId);
 
-        // Determine registration status per child for the given job
-        // Registrations table may not have JobPath; attempt filter via Registrations and associated Jobs metadata.
-        // Fallback: load registrations for children and infer job match through a join if available; else treat all as registered.
-        var regsRaw = await _db.Registrations
-            .Where(r => r.UserId != null && allChildIds.Contains(r.UserId))
-            .Select(r => new { r.UserId, r.BActive, r.PaidTotal, r.OwedTotal, r.JobId })
-            .ToListAsync();
-
-        // Attempt to map jobId -> jobPath via Jobs table if present
-        Dictionary<Guid, string> jobPathMap = new();
-        try
-        {
-            var jobIds = regsRaw.Select(r => r.JobId).Distinct().ToList();
-            if (jobIds.Count > 0)
-            {
-                var jobs = await _db.Jobs.Where(j => jobIds.Contains(j.JobId)).Select(j => new { j.JobId, j.JobPath }).ToListAsync();
-                jobPathMap = jobs.ToDictionary(j => j.JobId, j => j.JobPath ?? string.Empty);
-            }
-        }
-        catch { /* Jobs table or mapping not available; proceed */ }
-
-        var regs = regsRaw.Where(r => jobPathMap.TryGetValue(r.JobId, out var jp) && string.Equals(jp, jobPath, StringComparison.OrdinalIgnoreCase))
-            .Select(r => new { r.UserId, r.BActive, r.PaidTotal, r.OwedTotal })
-            .ToList();
-        // Build a map indicating whether each child has any registration rows for this job (existence-only rule).
-        var regMap = regs
-            .GroupBy(r => r.UserId!)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Any()
-            );
-
-        // Optional lightweight debug via response headers (non-breaking for clients)
-        if (Request.Query.ContainsKey("debug"))
-        {
-            try
-            {
-                Response.Headers["X-FP-Counts"] = $"links={links.Count}; unionChildren={children.Count}; regsRaw={regsRaw.Count}; regsJob={regs.Count}";
-                Response.Headers["X-FP-JobPath"] = jobPath;
-            }
-            catch { /* ignore header failures */ }
-        }
-
-        // Build family user summary for header/badge usage
-        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == familyUserId);
-        var asp = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == familyUserId);
         string display;
         if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
             display = $"{fam?.MomFirstName} {fam?.MomLastName}".Trim();
         else if (!string.IsNullOrWhiteSpace(fam?.DadFirstName) || !string.IsNullOrWhiteSpace(fam?.DadLastName))
             display = $"{fam?.DadFirstName} {fam?.DadLastName}".Trim();
         else if (!string.IsNullOrWhiteSpace(asp?.FirstName) || !string.IsNullOrWhiteSpace(asp?.LastName))
-            display = $"{asp!.FirstName} {asp!.LastName}".Trim();
+            display = $"{asp?.FirstName} {asp?.LastName}".Trim();
         else
             display = asp?.UserName ?? "Family";
 
         var familyUser = new FamilyUserSummaryDto(familyUserId, display, asp?.UserName ?? string.Empty);
 
-        var players = children.Select(c => new FamilyPlayerDto(
-            c.Id,
-            c.FirstName ?? string.Empty,
-            c.LastName ?? string.Empty,
-            c.Gender ?? string.Empty,
-            c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
-            regMap.TryGetValue(c.Id, out var isReg) && isReg
-        ));
+        if (linkedChildIds.Count == 0)
+            return Ok(new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>()));
 
-        return Ok(new FamilyPlayersResponseDto(familyUser, players));
+        // Compute registrations for this job and family among linked children (existence-only semantics + summaries)
+        var regsRaw = jobId == null
+            ? new List<RegRow>()
+            : await _db.Registrations
+                .AsNoTracking()
+                .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && linkedChildIds.Contains(r.UserId))
+                .Select(r => new RegRow(
+                    r.UserId!,
+                    r.RegistrationId,
+                    r.BActive == true,
+                    r.AssignedTeamId,
+                    r.FeeBase,
+                    r.FeeProcessing,
+                    r.FeeDiscount,
+                    r.FeeDonation,
+                    r.FeeLatefee,
+                    r.FeeTotal,
+                    r.OwedTotal,
+                    r.PaidTotal
+                ))
+                .ToListAsync();
+
+        var regSet = regsRaw.Select(x => x.UserId).Distinct().ToHashSet(StringComparer.Ordinal);
+
+        // Load profile metadata fields (for mapping DbColumn -> FormValues)
+        var metadataJson = jobId == null ? null : await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.PlayerProfileMetadataJson)
+            .SingleOrDefaultAsync();
+
+        List<(string Name, string DbColumn)> mappedFields = new();
+        if (!string.IsNullOrWhiteSpace(metadataJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(metadataJson);
+                if (doc.RootElement.TryGetProperty("fields", out var fieldsEl) && fieldsEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var f in fieldsEl.EnumerateArray())
+                    {
+                        var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
+                        var dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
+                        if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(dbCol))
+                        {
+                            mappedFields.Add((name!, dbCol!));
+                        }
+                    }
+                }
+            }
+            catch { /* swallow parse errors; FormValues will be empty */ }
+        }
+
+        // Map team names for assigned teams (if any)
+        var teamNameMap = new Dictionary<Guid, string>();
+        if (jobId != null)
+        {
+            var teamIds = regsRaw.Where(x => x.AssignedTeamId.HasValue).Select(x => x.AssignedTeamId!.Value).Distinct().ToList();
+            if (teamIds.Count > 0)
+            {
+                teamNameMap = await _db.Teams
+                    .AsNoTracking()
+                    .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+                    .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty);
+            }
+        }
+
+        var regsByUser = regsRaw
+            .GroupBy(x => x.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => new FamilyPlayerRegistrationDto(
+                        x.RegistrationId,
+                        x.Active,
+                        new RegistrationFinancialsDto(
+                            x.FeeBase,
+                            x.FeeProcessing,
+                            x.FeeDiscount,
+                            x.FeeDonation,
+                            x.FeeLatefee,
+                            x.FeeTotal,
+                            x.OwedTotal,
+                            x.PaidTotal
+                        ),
+                        x.AssignedTeamId,
+                        x.AssignedTeamId.HasValue && teamNameMap.ContainsKey(x.AssignedTeamId.Value) ? teamNameMap[x.AssignedTeamId.Value] : null,
+                        BuildFormValuesDictionary(x, mappedFields)
+                    )).ToList(),
+                StringComparer.Ordinal);
+
+        // RegSaver details: pick first active registration with policy; else any registration with policy
+        RegSaverDetailsDto? regSaver = null;
+        var withPolicy = regsRaw.Where(r => !string.IsNullOrWhiteSpace(r.AssignedTeamId?.ToString())); // placeholder to avoid warnings
+        var policySource = regsRaw
+            .OrderByDescending(r => r.Active) // active first
+            .FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.UserId)); // we will refine below
+
+        // Refine: actually need policy fields from registrations
+        var regSaverRaw = jobId == null ? null : await _db.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.RegsaverPolicyId != null)
+            .OrderByDescending(r => r.BActive == true)
+            .ThenByDescending(r => r.RegsaverPolicyIdCreateDate)
+            .Select(r => new { r.RegsaverPolicyId, r.RegsaverPolicyIdCreateDate })
+            .FirstOrDefaultAsync();
+        if (regSaverRaw != null && !string.IsNullOrWhiteSpace(regSaverRaw.RegsaverPolicyId) && regSaverRaw.RegsaverPolicyIdCreateDate.HasValue)
+        {
+            regSaver = new RegSaverDetailsDto(regSaverRaw.RegsaverPolicyId, regSaverRaw.RegsaverPolicyIdCreateDate.Value);
+        }
+
+        // Load child profiles and project DTOs
+        var children = await _db.AspNetUsers
+            .AsNoTracking()
+            .Where(u => linkedChildIds.Contains(u.Id))
+            .ToListAsync();
+
+        var players = children.Select(c =>
+        {
+            var prior = regsByUser.TryGetValue(c.Id, out var list) ? (IReadOnlyList<FamilyPlayerRegistrationDto>)list : Array.Empty<FamilyPlayerRegistrationDto>();
+            var registered = regSet.Contains(c.Id);
+            return new FamilyPlayerDto(
+                c.Id,
+                c.FirstName ?? string.Empty,
+                c.LastName ?? string.Empty,
+                c.Gender ?? string.Empty,
+                c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
+                registered,
+                registered, // Selected defaults to Registered; UI may toggle when not registered
+                prior
+            );
+        })
+        .OrderBy(p => p.LastName)
+        .ThenBy(p => p.FirstName)
+        .ToList();
+
+        return Ok(new FamilyPlayersResponseDto(familyUser, players, regSaver));
     }
-
+    // ...existing code...
 }

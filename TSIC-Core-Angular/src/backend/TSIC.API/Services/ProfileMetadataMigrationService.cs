@@ -180,7 +180,7 @@ public class ProfileMetadataMigrationService
         var job = await _context.Jobs
             .Where(j => j.JobId == jobId)
             .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer })
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         if (job == null)
         {
@@ -650,7 +650,7 @@ public class ProfileMetadataMigrationService
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
             .Select(j => new { j.JobId, j.JobName, j.JsonOptions })
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         if (job == null)
         {
@@ -690,7 +690,7 @@ public class ProfileMetadataMigrationService
         // Load the registration and its job
         var registration = await _context.Registrations
             .Include(r => r.Job)
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
 
         if (registration?.Job == null)
         {
@@ -715,7 +715,7 @@ public class ProfileMetadataMigrationService
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
 
         var optionSets = new List<OptionSet>();
         if (registration?.Job == null || string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
@@ -757,7 +757,7 @@ public class ProfileMetadataMigrationService
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
 
         if (registration?.Job == null)
             return null;
@@ -890,7 +890,7 @@ public class ProfileMetadataMigrationService
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
 
         if (registration?.Job == null)
             return false;
@@ -920,7 +920,7 @@ public class ProfileMetadataMigrationService
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
 
         if (registration?.Job == null)
             return false;
@@ -965,7 +965,7 @@ public class ProfileMetadataMigrationService
         // Get the jobId from registration
         var registration = await _context.Registrations
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
         if (registration == null)
         {
             return results;
@@ -1446,7 +1446,7 @@ public class ProfileMetadataMigrationService
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
         if (registration?.Job == null)
         {
             return (null, null, false, string.Empty, null);
@@ -1467,7 +1467,7 @@ public class ProfileMetadataMigrationService
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
-            .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
         if (registration?.Job == null)
         {
             throw new InvalidOperationException("Current job not found for supplied regId");
