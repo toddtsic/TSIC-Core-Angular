@@ -75,6 +75,12 @@ export class RegistrationWizardService {
     // US Lacrosse number validation status per player
     usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: any }>>({});
 
+    // Server-side validation errors captured from latest preSubmit response (playerId/field/message).
+    // Empty array when none; undefined before first preSubmit call.
+    private _serverValidationErrors: PreSubmitValidationErrorDto[] | undefined;
+    getServerValidationErrors(): PreSubmitValidationErrorDto[] { return this._serverValidationErrors ? [...this._serverValidationErrors] : []; }
+    hasServerValidationErrors(): boolean { return !!this._serverValidationErrors?.length; }
+
     // Payment
     paymentOption = signal<PaymentOption>('PIF');
 
@@ -279,6 +285,11 @@ export class RegistrationWizardService {
                     this.jobId.set(meta.jobId);
                     this.jobProfileMetadataJson.set(meta.playerProfileMetadataJson || null);
                     this.jobJsonOptions.set(meta.jsonOptions || null);
+                    // Offer flag for RegSaver
+                    try {
+                        const offer = (meta as any).offerPlayerRegsaverInsurance ?? (meta as any).OfferPlayerRegsaverInsurance;
+                        this._offerPlayerRegSaver = !!offer;
+                    } catch { this._offerPlayerRegSaver = false; }
                     // Early derive of constraint type (so wizard can decide to skip Eligibility step before component mounts)
                     try {
                         if (!this.teamConstraintType()) {
@@ -332,9 +343,49 @@ export class RegistrationWizardService {
                     // After we have definitions, seed acceptance for read-only scenarios (edit/prior-registration)
                     this.seedAcceptedWaiversIfReadOnly();
                     this.parseProfileMetadata();
+                    // Attempt prefetch of VI object if feature enabled and family user known
+                    if (this._offerPlayerRegSaver && this.familyUser()?.familyUserId) {
+                        this.fetchVerticalInsureObject(false);
+                    }
                 },
                 error: err => {
                     console.error('[RegWizard] Failed to load job metadata for form parsing', err);
+                }
+            });
+    }
+    // RegSaver offer flag (job-level)
+    private _offerPlayerRegSaver = false;
+    // VerticalInsure offer state; prefer structured object over any/unknown.
+    verticalInsureOffer = signal<{ loading: boolean; data: Record<string, unknown> | null; error: string | null }>({ loading: false, data: null, error: null });
+
+    /** Whether the job offers player RegSaver insurance */
+    offerPlayerRegSaver(): boolean { return this._offerPlayerRegSaver; }
+
+    /** Fetch VerticalInsure player-object (registration-cancellation) via API */
+    fetchVerticalInsureObject(secondChance: boolean): void {
+        if (!this._offerPlayerRegSaver) return; // feature off
+        const base = this.resolveApiBase();
+        const jobPath = this.jobPath();
+        const familyUserId = this.familyUser()?.familyUserId;
+        if (!jobPath || !familyUserId) return;
+        this.verticalInsureOffer.set({ loading: true, data: null, error: null });
+        this.http.get<any>(`${base}/verticalInsure/player-object`, { params: { jobPath, familyUserId, secondChance } })
+            .subscribe({
+                next: obj => {
+                    try {
+                        // If disabled response (empty client_id) treat as not offered
+                        if (!obj?.client_id || !obj?.product_config) {
+                            this.verticalInsureOffer.set({ loading: false, data: null, error: null });
+                            return;
+                        }
+                        // If no product configs (empty registration_cancellation), still surface object (user may not have eligible registrations)
+                        this.verticalInsureOffer.set({ loading: false, data: obj, error: null });
+                    } catch (e: any) {
+                        this.verticalInsureOffer.set({ loading: false, data: null, error: String(e?.message || e) });
+                    }
+                },
+                error: err => {
+                    this.verticalInsureOffer.set({ loading: false, data: null, error: 'Failed to load insurance offer.' });
                 }
             });
     }
@@ -623,8 +674,24 @@ export class RegistrationWizardService {
                 familyUserId,
                 teamSelections
             };
-            firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload))
+            firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto & { validationErrors?: PreSubmitValidationErrorDto[] }>(`${base}/registration/preSubmit`, payload))
                 .then(resp => {
+                    try {
+                        // Capture server-side validation errors (metadata enforced). Store for UI consumption.
+                        const ve = (resp as any)?.validationErrors as PreSubmitValidationErrorDto[] | undefined;
+                        if (ve && Array.isArray(ve) && ve.length) {
+                            this._serverValidationErrors = ve;
+                        } else {
+                            this._serverValidationErrors = [];
+                        }
+                        const ins: any = (resp as any)?.insurance;
+                        if (ins?.available && ins?.playerObject) {
+                            this.verticalInsureOffer.set({ loading: false, data: ins.playerObject, error: null });
+                        } else if (this._offerPlayerRegSaver && this.familyUser()?.familyUserId) {
+                            // Fetch after PreSubmit to include newly created registrations
+                            this.fetchVerticalInsureObject(false);
+                        }
+                    } catch { /* ignore */ }
                     if (resp) resolve(resp);
                     else reject(new Error('No response from preSubmit API'));
                 })
@@ -751,6 +818,138 @@ export class RegistrationWizardService {
         m[playerId] = { ...cur, status: ok ? 'valid' : 'invalid', message, membership }; this.usLaxStatus.set(m);
     }
 
+    // --- Client-side metadata driven validation -------------------------------------------
+    /** Determine if a schema field is considered the USA Lacrosse number (for special async validation rules). */
+    private isUsLaxSchemaField(field: PlayerProfileFieldSchema): boolean {
+        const lname = field.name.toLowerCase();
+        const llabel = field.label.toLowerCase();
+        return lname === 'sportassnid' || llabel.includes('lacrosse');
+    }
+
+    /** Visibility logic reused by Forms step; centralizes hidden/admin-only & conditional display rules. */
+    private isFieldVisibleForPlayer(playerId: string, field: PlayerProfileFieldSchema): boolean {
+        if (field.visibility === 'hidden' || field.visibility === 'adminOnly') return false;
+        // Hide waiver fields (rendered in Waivers step)
+        if (this.waiverFieldNames().includes(field.name)) return false;
+        // Hide legacy team selection fields (handled in Teams step)
+        const lname = field.name.toLowerCase();
+        const llabel = field.label.toLowerCase();
+        if (['team', 'teamid', 'teams'].includes(lname) || llabel.includes('select a team')) return false;
+        // Hide generic eligibility markers
+        if (lname === 'eligibility' || llabel.includes('eligibility')) return false;
+        const tctype = (this.teamConstraintType() || '').toUpperCase();
+        const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
+        if (tctype === 'BYGRADYEAR') {
+            if (hasAll(lname, ['grad', 'year']) || hasAll(llabel, ['grad', 'year'])) return false;
+        } else if (tctype === 'BYAGEGROUP') {
+            if (hasAll(lname, ['age', 'group']) || hasAll(llabel, ['age', 'group'])) return false;
+        } else if (tctype === 'BYAGERANGE') {
+            if (hasAll(lname, ['age', 'range']) || hasAll(llabel, ['age', 'range'])) return false;
+        }
+        if (!field.condition) return true;
+        const otherVal = this.getPlayerFieldValue(playerId, field.condition.field);
+        const op = (field.condition.operator || 'equals').toLowerCase();
+        if (op === 'equals') return otherVal === field.condition.value;
+        // Default fallback matches equals semantics
+        return otherVal === field.condition.value;
+    }
+
+    /** Validate a single field for a player. Returns null if valid, else a message string. */
+    private validateFieldForPlayer(playerId: string, field: PlayerProfileFieldSchema): string | null {
+        if (!this.isFieldVisibleForPlayer(playerId, field)) return null; // invisible fields ignored
+        // Registered (edit/readonly) players are not required to re-validate
+        if (this.isPlayerLocked(playerId)) return null;
+        const raw = this.getPlayerFieldValue(playerId, field.name);
+        const str = raw == null ? '' : String(raw).trim();
+        const isEmpty = str.length === 0;
+
+        // Required check (checkbox must be true; text/date/number must be non-empty)
+        if (field.required) {
+            if (field.type === 'checkbox') {
+                if (raw !== true) return 'Required';
+            } else if (isEmpty) {
+                return 'Required';
+            }
+        }
+
+        // Type-specific sanity (lightweight)
+        if (!isEmpty) {
+            if (field.type === 'number') {
+                if (Number.isNaN(Number(str))) return 'Must be a number';
+            } else if (field.type === 'date') {
+                const dt = new Date(str);
+                if (Number.isNaN(dt.getTime())) return 'Invalid date';
+            } else if (field.type === 'select') {
+                if (field.options?.length && !field.options.includes(str)) return 'Invalid option';
+            } else if (field.type === 'multiselect') {
+                if (Array.isArray(raw)) {
+                    const arr = raw;
+                    if (field.options?.length && arr.some(v => !field.options.includes(String(v)))) return 'Invalid option';
+                    if (field.required && arr.length === 0) return 'Required';
+                } else if (field.required) {
+                    return 'Required';
+                }
+            }
+        }
+
+        // USA Lacrosse async validator integration: if field is US Lax field and value present, require usLaxStatus valid
+        if (this.isUsLaxSchemaField(field)) {
+            const statusEntry = this.usLaxStatus()[playerId];
+            const status = statusEntry?.status || 'idle';
+            if (field.required) {
+                if (isEmpty) return 'Required';
+                if (status === 'validating') return 'Validating…';
+                if (status === 'invalid') return statusEntry?.message || 'Invalid membership';
+                if (status !== 'valid') return 'Membership not validated';
+            } else if (!isEmpty) {
+                if (status === 'validating') return 'Validating…';
+                if (status === 'invalid') return statusEntry?.message || 'Invalid membership';
+                if (status !== 'valid') return 'Membership not validated';
+            }
+        }
+        return null;
+    }
+
+    /** Returns a map of playerId -> fieldName -> error message for currently selected players. */
+    validateAllSelectedPlayers(): Record<string, Record<string, string>> {
+        const errors: Record<string, Record<string, string>> = {};
+        const schemas = this.profileFieldSchemas();
+        for (const pid of this.selectedPlayerIds()) {
+            for (const field of schemas) {
+                const msg = this.validateFieldForPlayer(pid, field);
+                if (msg) {
+                    if (!errors[pid]) errors[pid] = {};
+                    errors[pid][field.name] = msg;
+                }
+            }
+        }
+        return errors;
+    }
+
+    /** True when all visible required (and entered optional) fields are valid for all selected, non-locked players. */
+    areFormsValid(): boolean {
+        const schemas = this.profileFieldSchemas();
+        for (const pid of this.selectedPlayerIds()) {
+            if (this.isPlayerLocked(pid)) continue; // skip readonly players
+            for (const field of schemas) {
+                const msg = this.validateFieldForPlayer(pid, field);
+                if (msg) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Per-player validity helper. */
+    arePlayerFormsValid(playerId: string): boolean {
+        const schemas = this.profileFieldSchemas();
+        if (this.isPlayerLocked(playerId)) return true;
+        for (const field of schemas) {
+            const msg = this.validateFieldForPlayer(playerId, field);
+            if (msg) return false;
+        }
+        return true;
+    }
+
     /** Central helper: a player is locked ONLY when editing an existing registration for this job. */
     isPlayerLocked(playerId: string): boolean {
         return this.familyPlayers().some(p => p.playerId === playerId && p.registered);
@@ -792,6 +991,8 @@ export interface PreSubmitTeamSelectionDto {
 export interface PreSubmitRegistrationResponseDto {
     teamResults: PreSubmitTeamResultDto[];
     nextTab: string;
+    insurance?: PreSubmitInsuranceDto;
+    validationErrors?: PreSubmitValidationErrorDto[];
 }
 export interface PreSubmitTeamResultDto {
     playerId: string;
@@ -800,6 +1001,20 @@ export interface PreSubmitTeamResultDto {
     teamName: string;
     message: string;
     registrationCreated: boolean;
+}
+
+export interface PreSubmitInsuranceDto {
+    available: boolean;
+    playerObject?: Record<string, unknown> | null;
+    error?: string | null;
+    expiresUtc?: string | null;
+    stateId?: string | null;
+}
+
+export interface PreSubmitValidationErrorDto {
+    playerId: string;
+    field: string;
+    message: string;
 }
 
 // Removed unified registration context types; client now loads players and metadata directly.

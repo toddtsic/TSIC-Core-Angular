@@ -8,6 +8,7 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Domain.Entities;
 using TSIC.API.Constants;
 using System.Text.Json;
+using System.Globalization;
 
 namespace TSIC.API.Controllers;
 
@@ -160,7 +161,7 @@ public class RegistrationController : ControllerBase
                 if (regToUpdate != null)
                 {
                     regToUpdate.Modified = DateTime.UtcNow;
-                    var sel = selections.Last(); // use last selection for form values
+                    var sel = selections[selections.Count - 1]; // use last selection for form values
                     if (string.Equals(registrationMode, "PP", StringComparison.OrdinalIgnoreCase))
                     {
                         // PP: Allow team change ONLY if unpaid OR (paid and destination team has identical base fee)
@@ -188,7 +189,7 @@ public class RegistrationController : ControllerBase
                                 ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
                                 if (regToUpdate.AssignedTeamId.HasValue)
                                 {
-                                    var assigned = teams.FirstOrDefault(x => x.TeamId == regToUpdate.AssignedTeamId.Value);
+                                    var assigned = teams.Find(x => x.TeamId == regToUpdate.AssignedTeamId.Value);
                                     if (assigned != null)
                                         regToUpdate.Assignment = $"Player: {assigned.TeamName}";
                                 }
@@ -268,7 +269,7 @@ public class RegistrationController : ControllerBase
                         RoleId = RoleConstants.Player,
                         Assignment = $"Player: {team.TeamName}"
                     };
-                    var sel = selections.Last();
+                    var sel = selections[selections.Count - 1];
                     ApplyFormValues(reg, sel, nameToProperty, writableProps);
                     _db.Registrations.Add(reg);
                     AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
@@ -340,9 +341,294 @@ public class RegistrationController : ControllerBase
         var response = new TSIC.API.Dtos.PreSubmitRegistrationResponseDto
         {
             TeamResults = teamResults,
-            NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment" // advance to Payment when no blocking fullness
+            NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment" // may be downgraded to Forms if validation errors
         };
+
+        // --- Lightweight server-side form validation (metadata-driven) ---
+        try
+        {
+            var validationErrors = ValidatePlayerFormValues(metadataJson, request.TeamSelections);
+            if (validationErrors.Count > 0)
+            {
+                response.ValidationErrors = validationErrors;
+                // Force user back to Forms to fix issues unless team fullness already blocks
+                if (!response.HasFullTeams)
+                {
+                    response.NextTab = "Forms";
+                }
+            }
+        }
+        catch (Exception vex)
+        {
+            _logger.LogWarning(vex, "[PreSubmit] Server-side metadata validation failed (non-fatal). Skipping.");
+        }
+        // Attempt to build insurance snapshot if job offers player RegSaver
+        try
+        {
+            // Load job offer flag & name (avoid earlier jobEntity variable scope issues)
+            var jobOffer = await _db.Jobs
+                .Where(j => j.JobId == jobId.Value)
+                .Select(j => new { j.JobName, j.BOfferPlayerRegsaverInsurance })
+                .SingleOrDefaultAsync();
+            if (jobOffer != null && (jobOffer.BOfferPlayerRegsaverInsurance ?? false))
+            {
+                // Build eligible registrations (pending or existing) with fees > 0 and no policy; ensure team not near expiry.
+                var nowPlus1Day = DateTime.Now.AddHours(24);
+                var regs = await _db.Registrations
+                    .AsNoTracking()
+                    .Where(r => r.JobId == jobId.Value && r.FamilyUserId == request.FamilyUserId && r.FeeTotal > 0 && r.RegsaverPolicyId == null && r.AssignedTeam != null && r.AssignedTeam.Expireondate > nowPlus1Day)
+                    .Select(r => new
+                    {
+                        r.RegistrationId,
+                        r.Assignment,
+                        FirstName = r.User != null ? r.User.FirstName : null,
+                        LastName = r.User != null ? r.User.LastName : null,
+                        PerRegistrantFee = r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
+                        TeamFee = (r.AssignedTeam != null && r.AssignedTeam.Agegroup != null) ? r.AssignedTeam.Agegroup.TeamFee : null,
+                        r.FeeTotal
+                    })
+                    .ToListAsync();
+
+                // Family contact info for customer block
+                var family = await _db.Families.AsNoTracking()
+                    .Where(f => f.FamilyUserId == request.FamilyUserId)
+                    .Select(f => new
+                    {
+                        FirstName = f.MomFirstName,
+                        LastName = f.MomLastName,
+                        Email = f.MomEmail,
+                        Phone = f.MomCellphone,
+                        City = f.FamilyUser.City,
+                        State = f.FamilyUser.State,
+                        Zip = f.FamilyUser.PostalCode
+                    })
+                    .SingleOrDefaultAsync();
+
+                // Organization contact from first Director registration (legacy parity)
+                var director = await _db.Registrations
+                    .AsNoTracking()
+                    .Where(r => r.JobId == jobId.Value && r.Role != null && r.Role.Name == "Director" && r.BActive == true)
+                    .OrderBy(r => r.RegistrationTs)
+                    .Select(r => new
+                    {
+                        Email = r.User != null ? r.User.Email : null,
+                        FirstName = r.User != null ? r.User.FirstName : null,
+                        LastName = r.User != null ? r.User.LastName : null,
+                        Cellphone = r.User != null ? r.User.Cellphone : null,
+                        OrgName = r.Job != null ? r.Job.JobName : null,
+                        PaymentPlan = r.Job != null && (r.Job.AdnArb == true)
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (regs.Count == 0)
+                {
+                    response.Insurance = new TSIC.API.Dtos.PreSubmitInsuranceDto
+                    {
+                        Available = false,
+                        Error = "No eligible registrations for insurance (fee or expiry criteria unmet)."
+                    };
+                }
+                else
+                {
+                    // Build VerticalInsure-like player object inline (mirrors VerticalInsureController output) but keep it opaque (object).
+                    var products = new List<object>();
+                    var contextName = (jobOffer.JobName ?? string.Empty).Split(':')[0];
+                    foreach (var r in regs)
+                    {
+                        int insurable;
+                        if ((int?)(r.PerRegistrantFee ?? 0) > 0) insurable = (int)((r.PerRegistrantFee ?? 0) * 100);
+                        else if ((int?)(r.TeamFee ?? 0) > 0) insurable = (int)((r.TeamFee ?? 0) * 100);
+                        else insurable = (int)(r.FeeTotal * 100);
+                        var product = new
+                        {
+                            customer = new
+                            {
+                                email_address = family?.Email ?? string.Empty,
+                                first_name = family?.FirstName ?? string.Empty,
+                                last_name = family?.LastName ?? string.Empty,
+                                city = family?.City,
+                                state = family?.State,
+                                postal_code = family?.Zip,
+                                phone = family?.Phone
+                            },
+                            metadata = new
+                            {
+                                tsic_secondchance = "0",
+                                context_name = contextName,
+                                context_event = jobOffer.JobName ?? contextName,
+                                context_description = r.Assignment,
+                                tsic_registrationid = r.RegistrationId
+                            },
+                            policy_attributes = new
+                            {
+                                event_start_date = DateOnly.FromDateTime(DateTime.Now).AddDays(1),
+                                event_end_date = DateOnly.FromDateTime(DateTime.Now).AddYears(1),
+                                insurable_amount = insurable,
+                                participant = new { first_name = r.FirstName ?? string.Empty, last_name = r.LastName ?? string.Empty },
+                                organization = new
+                                {
+                                    org_contact_email = director?.Email,
+                                    org_contact_first_name = director?.FirstName,
+                                    org_contact_last_name = director?.LastName,
+                                    org_contact_phone = director?.Cellphone,
+                                    org_name = director?.OrgName,
+                                    payment_plan = director?.PaymentPlan ?? false
+                                }
+                            }
+                        };
+                        products.Add(product);
+                    }
+                    // Hard-coded client id (same as VerticalInsureController); secret not exposed.
+                    var playerObject = new
+                    {
+                        client_id = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS",
+                        payments = new { enabled = false, button = false },
+                        theme = new { colors = new { primary = "purple" }, font_family = "Fira Sans" },
+                        product_config = new { registration_cancellation = products }
+                    };
+                    response.Insurance = new TSIC.API.Dtos.PreSubmitInsuranceDto
+                    {
+                        Available = true,
+                        PlayerObject = playerObject,
+                        ExpiresUtc = DateTime.UtcNow.AddMinutes(10), // short-lived snapshot
+                        StateId = $"vi-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[PreSubmit] Failed to build insurance snapshot.");
+            response.Insurance = new TSIC.API.Dtos.PreSubmitInsuranceDto
+            {
+                Available = false,
+                Error = "Insurance snapshot generation failed"
+            };
+        }
         return Ok(response);
+    }
+
+    // Parse metadata JSON and validate submitted form values per player.
+    private static List<TSIC.API.Dtos.PreSubmitValidationErrorDto> ValidatePlayerFormValues(string? metadataJson, List<TSIC.API.Dtos.PreSubmitTeamSelectionDto> selections)
+    {
+        var errors = new List<TSIC.API.Dtos.PreSubmitValidationErrorDto>();
+        if (string.IsNullOrWhiteSpace(metadataJson) || selections.Count == 0) return errors;
+        JsonDocument? doc = null;
+        try { doc = JsonDocument.Parse(metadataJson); } catch { return errors; }
+        if (doc == null) return errors;
+        if (!doc.RootElement.TryGetProperty("fields", out var fieldsEl) || fieldsEl.ValueKind != JsonValueKind.Array) return errors;
+
+        // Build simplified schema list we care about
+        var schemas = new List<(string Name, bool Required, string Type, string? ConditionField, JsonElement? ConditionValue, string? ConditionOp, HashSet<string> Options)>();
+        foreach (var f in fieldsEl.EnumerateArray())
+        {
+            var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            // visibility: skip hidden only; admin-only SHOULD be validated server-side
+            if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String)
+            {
+                var vis = visEl.GetString()?.ToLowerInvariant();
+                if (vis == "hidden") continue; // validate admin-only
+            }
+            // Determine required
+            bool required = false;
+            if (f.TryGetProperty("required", out var reqEl) && reqEl.ValueKind == JsonValueKind.True) required = true;
+            if (!required && f.TryGetProperty("validation", out var valEl) && valEl.ValueKind == JsonValueKind.Object)
+            {
+                if (valEl.TryGetProperty("required", out var rEl) && rEl.ValueKind == JsonValueKind.True) required = true;
+                if (valEl.TryGetProperty("requiredTrue", out var rtEl) && rtEl.ValueKind == JsonValueKind.True) required = true;
+            }
+            var type = f.TryGetProperty("type", out var tEl) ? (tEl.GetString() ?? "text") : "text";
+            // Condition
+            string? condField = null; JsonElement? condValue = null; string? condOp = null;
+            if (f.TryGetProperty("condition", out var cEl) && cEl.ValueKind == JsonValueKind.Object)
+            {
+                condField = cEl.TryGetProperty("field", out var cfEl) ? cfEl.GetString() : null;
+                if (cEl.TryGetProperty("value", out var cvEl)) condValue = cvEl;
+                condOp = cEl.TryGetProperty("operator", out var coEl) ? coEl.GetString() : null;
+            }
+            // Options
+            var options = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (f.TryGetProperty("options", out var optEl) && optEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var o in optEl.EnumerateArray())
+                {
+                    if (o.ValueKind == JsonValueKind.String) options.Add(o.GetString()!);
+                }
+            }
+            schemas.Add((name!, required, type!.ToLowerInvariant(), condField, condValue, condOp, options));
+        }
+
+        // Group form values per player (a player may appear multiple times with same formValues; use last)
+        var latestValuesByPlayer = new Dictionary<string, Dictionary<string, JsonElement>>();
+        foreach (var sel in selections)
+        {
+            if (sel.FormValues == null) continue;
+            latestValuesByPlayer[sel.PlayerId] = sel.FormValues;
+        }
+
+        foreach (var (playerId, formValues) in latestValuesByPlayer)
+        {
+            foreach (var schema in schemas)
+            {
+                // Evaluate condition (only equals supported)
+                if (schema.ConditionField != null && schema.ConditionValue.HasValue)
+                {
+                    formValues.TryGetValue(schema.ConditionField, out var otherVal);
+                    var condOk = otherVal.ValueKind == schema.ConditionValue.Value.ValueKind && otherVal.ToString() == schema.ConditionValue.Value.ToString();
+                    if (!condOk) continue; // not visible -> skip validation
+                }
+                // Required check
+                formValues.TryGetValue(schema.Name, out var valEl);
+                bool present = valEl.ValueKind != JsonValueKind.Undefined && valEl.ValueKind != JsonValueKind.Null && valEl.ToString().Trim().Length > 0;
+                if (schema.Required && !present)
+                {
+                    errors.Add(new TSIC.API.Dtos.PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
+                    continue;
+                }
+                if (!present) continue; // only validate content if provided
+                var rawStr = valEl.ToString();
+                switch (schema.Type)
+                {
+                    case "number":
+                        if (!double.TryParse(rawStr, out _)) errors.Add(new TSIC.API.Dtos.PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Must be a number" });
+                        break;
+                    case "date":
+                        if (!DateTime.TryParse(rawStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                            errors.Add(new TSIC.API.Dtos.PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid date" });
+                        break;
+                    case "select":
+                        if (schema.Options.Count > 0 && !schema.Options.Contains(rawStr)) errors.Add(new TSIC.API.Dtos.PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid option" });
+                        break;
+                    case "multiselect":
+                        if (valEl.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in valEl.EnumerateArray())
+                            {
+                                var s = item.ToString();
+                                if (schema.Options.Count > 0 && !schema.Options.Contains(s))
+                                {
+                                    errors.Add(new TSIC.API.Dtos.PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid option" });
+                                    break;
+                                }
+                            }
+                        }
+                        else if (schema.Required)
+                        {
+                            errors.Add(new TSIC.API.Dtos.PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
+                        }
+                        break;
+                    case "checkbox":
+                        if (schema.Required)
+                        {
+                            if (!bool.TryParse(rawStr, out var b) || b == false)
+                                errors.Add(new TSIC.API.Dtos.PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
+                        }
+                        break;
+                }
+            }
+        }
+        return errors;
     }
 
     // Determine registration mode for job: "PP" (single registration per player) vs "CAC" (multi-team allowed).
@@ -507,13 +793,13 @@ public class RegistrationController : ControllerBase
                 if (json.ValueKind == JsonValueKind.Number) { boxed = json.GetInt32() != 0; return true; }
                 if (json.ValueKind == JsonValueKind.True || json.ValueKind == JsonValueKind.False) { boxed = json.GetBoolean(); return true; }
             }
-            if (t == typeof(DateTime))
+            if (t == typeof(DateTime) && json.ValueKind == JsonValueKind.String)
             {
-                if (json.ValueKind == JsonValueKind.String && DateTime.TryParse(json.GetString(), out var dt)) { boxed = dt; return true; }
+                if (DateTime.TryParse(json.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)) { boxed = dt; return true; }
             }
-            if (t == typeof(Guid))
+            if (t == typeof(Guid) && json.ValueKind == JsonValueKind.String)
             {
-                if (json.ValueKind == JsonValueKind.String && Guid.TryParse(json.GetString(), out var g)) { boxed = g; return true; }
+                if (Guid.TryParse(json.GetString(), out var g)) { boxed = g; return true; }
             }
         }
         catch

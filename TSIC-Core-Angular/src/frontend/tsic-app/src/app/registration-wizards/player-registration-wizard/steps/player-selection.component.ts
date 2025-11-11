@@ -1,8 +1,9 @@
-import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
+import { Component, EventEmitter, Output, inject, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { BottomNavComponent } from '../bottom-nav.component';
 import { FormsModule } from '@angular/forms';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-rw-player-selection',
@@ -14,11 +15,11 @@ import { FormsModule } from '@angular/forms';
         <h5 class="mb-0 fw-semibold">Select Players</h5>
       </div>
       <div class="card-body position-relative">
-        <!-- Temporary debug panel showing raw GetFamilyPlayers response -->
-        @if (state.debugFamilyPlayersResp()) {
+        <!-- Temporary debug panel showing raw GetFamilyPlayers response (dev-only) -->
+        @if (showDebug() && state.debugFamilyPlayersResp()) {
           <div class="alert alert-secondary mb-3" role="region" aria-label="Family players raw response">
             <div class="d-flex justify-content-between align-items-start mb-2">
-              <strong class="me-2">Debug: Raw GetFamilyPlayers Response</strong>
+              <strong class="me-2">Debug: Raw GetFamilyPlayers Response <span class="badge bg-warning text-dark ms-2">dev only</span></strong>
               <button type="button" class="btn btn-sm btn-outline-secondary" (click)="state.debugFamilyPlayersResp.set(null)">Hide</button>
             </div>
             <pre class="small mb-0" style="max-height:240px; overflow:auto;">
@@ -69,6 +70,18 @@ export class PlayerSelectionComponent {
   @Output() next = new EventEmitter<void>();
   state = inject(RegistrationWizardService);
   private requestedOnce = false;
+  // Prefer Angular environment flag; fallback to hostname heuristics if needed
+  showDebug = computed(() => {
+    try {
+      if (environment && typeof environment.production === 'boolean') {
+        return !environment.production;
+      }
+    } catch { /* ignore */ }
+    try {
+      const host = globalThis.location?.hostname?.toLowerCase() ?? '';
+      return host.startsWith('localhost') || host.startsWith('127.') || host.endsWith('.ngrok-free.app');
+    } catch { return false; }
+  });
 
   // Create the reactive loader in an injection context (field initializer),
   // and allow controlled signal writes inside the effect.

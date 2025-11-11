@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, computed, inject } from '@angular/core';
+import { Component, EventEmitter, Output, computed, inject, AfterViewInit, OnChanges, DoCheck } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -22,8 +22,8 @@ interface LineItem {
         <h5 class="mb-0 fw-semibold">Payment</h5>
       </div>
       <div class="card-body">
-        <!-- RegSaver placeholder banner (appears at top of Payment step) -->
-        <div class="mb-3">
+        <!-- RegSaver / VerticalInsure offer region (hidden when no offer object and no policy) -->
+        <div class="mb-3" id="vi-offer-region" *ngIf="showInsuranceRegion()">
           @if (state.regSaverDetails()) {
             <div class="alert alert-info border-0" role="status">
               <div class="d-flex align-items-center gap-2">
@@ -34,14 +34,23 @@ interface LineItem {
                 </div>
               </div>
             </div>
-          } @else {
-            <div class="alert alert-warning border-0" role="status">
-              <div class="fw-semibold mb-1">Optional Registration Insurance (RegSaver)</div>
-              <div class="small text-muted mb-2">Protect your registration investment with RegSaver. Insert purchase flow here.</div>
-              <div class="bg-light border rounded p-3 small">
-                <!-- Placeholder for RegSaver widget/iframe/button -->
-                <em>RegSaver purchase widget placeholder</em>
+          } @else if (state.offerPlayerRegSaver() && viOffer().loading) {
+            <div class="alert alert-secondary border-0" role="status">
+              <div class="d-flex align-items-center gap-2">
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                <span class="small">Loading insurance offer…</span>
               </div>
+            </div>
+          } @else if (state.offerPlayerRegSaver() && viOffer().error) {
+            <div class="alert alert-danger border-0" role="alert">
+              Failed to load insurance offer. <button class="btn btn-sm btn-outline-light ms-2" type="button" (click)="reloadVi()">Retry</button>
+            </div>
+          } @else if (state.offerPlayerRegSaver() && viProductCount() > 0) {
+            <div class="border rounded p-3 bg-light-subtle">
+              <div class="fw-semibold mb-1">Optional Registration Insurance</div>
+              <div class="small text-muted mb-2">Protect your registration investment. Select quotes below (powered by VerticalInsure).</div>
+              <!-- Container target for VerticalInsure dynamic widget -->
+              <div id="verticalInsureOffer" class="vi-offer"></div>
             </div>
           }
         </div>
@@ -138,7 +147,7 @@ interface LineItem {
     </div>
   `
 })
-export class PaymentComponent {
+export class PaymentComponent implements AfterViewInit, OnChanges, DoCheck {
   @Output() back = new EventEmitter<void>();
   @Output() submitted = new EventEmitter<void>();
 
@@ -155,6 +164,77 @@ export class PaymentComponent {
   };
 
   constructor(public state: RegistrationWizardService, private readonly http: HttpClient) { }
+
+  // VerticalInsure integration state
+  viOffer = computed(() => this.state.verticalInsureOffer());
+  viProductCount = computed(() => {
+    const data = this.viOffer().data;
+    const list = data?.product_config?.registration_cancellation || [];
+    return Array.isArray(list) ? list.length : 0;
+  });
+  // Whether to render insurance region: show when policy exists OR loading/error/product data present
+  showInsuranceRegion = () => {
+    if (this.state.regSaverDetails()) return true; // existing policy always shown
+    if (!this.state.offerPlayerRegSaver()) return false; // feature off
+    const offer = this.viOffer();
+    if (offer.loading) return true; // show spinner while loading
+    if (offer.error) return true; // show error block
+    const products = this.viProductCount();
+    if (products > 0) return true; // show widget container
+    // Otherwise hide entirely (no products, not loading, no error)
+    return false;
+  };
+  private viInitialized = false;
+
+  ngAfterViewInit(): void {
+    this.tryInitVerticalInsure();
+  }
+  ngOnChanges(): void { this.tryInitVerticalInsure(); }
+  ngDoCheck(): void { this.tryInitVerticalInsure(); }
+
+  reloadVi(): void { this.state.fetchVerticalInsureObject(false); this.viInitialized = false; this.tryInitVerticalInsure(true); }
+
+  private tryInitVerticalInsure(force: boolean = false): void {
+    // Conditions: feature offered, data loaded, products > 0, widget not yet initialized
+    const offer = this.state.offerPlayerRegSaver();
+    const loaded = !this.viOffer().loading && !this.viOffer().error && !!this.viOffer().data;
+    const productsOk = this.viProductCount() > 0;
+    if (!offer || !loaded || !productsOk) return;
+    if (this.viInitialized && !force) return;
+    // Load external script (if not already loaded) then instantiate verticalInsure
+    const existingScript = document.querySelector('script[data-vi-script]');
+    const initWidget = () => {
+      try {
+        // Assume global VerticalInsure constructor available after script load
+        const containerSelector = '#verticalInsureOffer';
+        const offerObj = this.viOffer().data;
+        if (!offerObj) return;
+        (globalThis as any).verticalInsureInstance = new (globalThis as any).VerticalInsure(
+          containerSelector,
+          offerObj,
+          (offerState: any) => {
+            // onChange: can inspect offerState.quotes
+            console.debug('[VI] offer change', offerState);
+          },
+          () => {
+            console.debug('[VI] offer ready');
+          }
+        );
+        this.viInitialized = true;
+      } catch (e) {
+        console.error('[VI] init failed', e);
+      }
+    };
+    if (existingScript) { initWidget(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.verticalinsure.com/vi-player.min.js';
+    s.async = true;
+    s.defer = true;
+    (s as any).dataset.viScript = '1';
+    s.onload = () => initWidget();
+    s.onerror = () => console.error('[VI] script load failed');
+    document.head.appendChild(s);
+  }
 
   lineItems = computed(() => {
     const items: LineItem[] = [];

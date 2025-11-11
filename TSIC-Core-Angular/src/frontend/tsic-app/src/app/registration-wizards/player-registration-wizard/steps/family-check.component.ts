@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
+import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { Roles } from '../../../core/models/roles.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -44,7 +44,7 @@ import { AuthService } from '../../../core/services/auth.service';
                       </div>
                       <div class="col-12 col-md-5">
                         <label for="famPassword" class="form-label small text-muted">Password</label>
-                        <input id="famPassword" name="famPassword" class="form-control" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
+                        <input #famPasswordInput id="famPassword" name="famPassword" class="form-control" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
                       </div>
                       <!-- <div class="col-12 col-md-2 small text-muted d-flex align-items-center">Credentials</div> -->
                     </div>
@@ -130,7 +130,13 @@ export class FamilyCheckStepComponent implements OnInit {
   @Output() next = new EventEmitter<void>();
 
   get hasAccount(): 'yes' | 'no' | null { return this.state.hasFamilyAccount(); }
-  set hasAccount(v: 'yes' | 'no' | null) { this.state.hasFamilyAccount.set(v); }
+  set hasAccount(v: 'yes' | 'no' | null) {
+    const prev = this.state.hasFamilyAccount();
+    this.state.hasFamilyAccount.set(v);
+    if (v === 'yes' && prev !== 'yes') {
+      this._pendingFocusPassword = true;
+    }
+  }
 
   username = '';
   password = '';
@@ -138,8 +144,20 @@ export class FamilyCheckStepComponent implements OnInit {
   submitting = false;
   inlineError: string | null = null;
   private readonly LAST_USER_KEY = 'tsic_last_family_username';
+  @ViewChild('famPasswordInput') famPasswordInput?: ElementRef<HTMLInputElement>;
+  private _pendingFocusPassword = false;
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.initialize(); }
+
+  // Focus password field after the panel first appears (radio toggled to 'yes').
+  // Using microtask ensures it runs after Angular finishes rendering the conditional block.
+  private attemptFocusPassword(): void {
+    if (!this._pendingFocusPassword || !this.famPasswordInput?.nativeElement) return;
+    this._pendingFocusPassword = false;
+    try { queueMicrotask(() => this.famPasswordInput?.nativeElement?.focus()); } catch { /* no-op */ }
+  }
+
+  private initialize(): void {
     // Initialize: if authenticated with Family role, preselect 'yes' and auto-advance.
     // Otherwise leave radio unselected; do NOT use localStorage fallbacks.
     if (this.state.hasFamilyAccount() == null) {
@@ -167,6 +185,9 @@ export class FamilyCheckStepComponent implements OnInit {
         this.username = last;
       }
     }
+
+    // If panel already visible (hasAccount === 'yes') attempt to focus immediately.
+    this.attemptFocusPassword();
   }
 
   // Use centralized login screen with theming and a safe returnUrl back to this wizard

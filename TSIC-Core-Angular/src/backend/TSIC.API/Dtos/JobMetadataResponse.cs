@@ -19,4 +19,5 @@ public class JobMetadataResponse
     public string? PlayerRegCodeOfConduct { get; set; }
     public string? PlayerRegCovid19Waiver { get; set; }
     public string? PlayerRegRefundPolicy { get; set; }
+    public bool OfferPlayerRegsaverInsurance { get; set; }
 }

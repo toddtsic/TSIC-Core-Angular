@@ -29,6 +29,8 @@ public class JobMetadataDto
     public string? PlayerRegCodeOfConduct { get; set; }
     public string? PlayerRegCovid19Waiver { get; set; }
     public string? PlayerRegRefundPolicy { get; set; }
+    // Flags
+    public bool OfferPlayerRegsaverInsurance { get; set; }
 }
 
 public class JobLookupService : IJobLookupService
@@ -64,6 +66,7 @@ public class JobLookupService : IJobLookupService
 
     public async Task<JobMetadataDto?> GetJobMetadataAsync(string jobPath)
     {
+        _logger.LogInformation("Fetching job metadata (JobLookupService) for {JobPath}", jobPath);
         var job = await _context.JobDisplayOptions
             .Where(jdo => jdo.Job.JobPath == jobPath)
             .Select(jdo => new JobMetadataDto
@@ -88,6 +91,8 @@ public class JobLookupService : IJobLookupService
                 PlayerRegCovid19Waiver = jdo.Job.PlayerRegCovid19Waiver
                 ,
                 PlayerRegRefundPolicy = jdo.Job.PlayerRegRefundPolicy
+                ,
+                OfferPlayerRegsaverInsurance = (jdo.Job.BOfferPlayerRegsaverInsurance ?? false)
             })
             .SingleOrDefaultAsync();
 

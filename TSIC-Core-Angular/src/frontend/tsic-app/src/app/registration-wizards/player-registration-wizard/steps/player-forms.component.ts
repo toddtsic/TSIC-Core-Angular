@@ -16,6 +16,19 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Player Forms</h5>
+        <!-- Server-side validation summary (appears after a PreSubmit attempt that returned errors) -->
+        @if (serverErrors().length) {
+          <div class="alert alert-danger mt-3 mb-0" role="alert">
+            <div class="fw-semibold mb-1">Please fix the following before continuing:</div>
+            <ul class="mb-0 ps-3">
+              @for (err of serverErrors(); track trackErr($index, err)) {
+                <li>
+                  <strong>{{ nameForPlayer(err.playerId) }}</strong> – <span class="text-nowrap">{{ err.field }}</span>: {{ err.message }}
+                </li>
+              }
+            </ul>
+          </div>
+        }
         <div class="mt-2">
           <div class="fw-semibold mb-1">Selected teams</div>
           <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
@@ -95,7 +108,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
             </div>
           </div>
         }
-        <app-rw-bottom-nav (back)="back.emit()" (next)="next.emit()"></app-rw-bottom-nav>
+        <app-rw-bottom-nav (back)="back.emit()" (next)="next.emit()" [nextDisabled]="isNextDisabled()"></app-rw-bottom-nav>
       </div>
     </div>
 
@@ -234,6 +247,13 @@ export class PlayerFormsComponent {
   usLaxStatus(playerId: string) {
     return this.state.usLaxStatus()[playerId] || { value: '', status: 'idle' };
   }
+  // Server-side validation errors (captured from preSubmit) exposed for template
+  serverErrors = () => this.state.getServerValidationErrors();
+  nameForPlayer(playerId: string): string {
+    const p = this.state.familyPlayers().find(fp => fp.playerId === playerId);
+    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : playerId;
+  }
+  trackErr = (_: number, e: { playerId: string; field: string; message: string }) => `${e.playerId}|${e.field}`;
   // --- Modal state for viewing raw API details ---
   modalOpen = false;
   modalData: any = null;
@@ -365,4 +385,30 @@ export class PlayerFormsComponent {
   }
   inlineSelectedTeam(playerId: string): string | null { return null; }
   onInlineTeamChange(playerId: string, value: string) { /* no-op after revert */ }
+
+  /** Disable Continue when any required visible field is invalid/pending. MVP: gate on USA Lacrosse field. */
+  isNextDisabled(): boolean {
+    // Readonly mode (editing existing registrations) should not block navigation
+    if (this.readonlyMode()) return false;
+    // Use centralized metadata-driven validation (includes USA Lacrosse async state).
+    return !this.state.areFormsValid();
+  }
+
+  /** Returns true when the USA Lax field state for a given player should block navigation. */
+  private shouldBlockForUsLax(playerId: string, field: PlayerProfileFieldSchema): boolean {
+    const raw = this.value(playerId, field.name);
+    const val = (raw == null) ? '' : String(raw).trim();
+    const status = this.usLaxStatus(playerId).status;
+    const isPendingOrInvalid = status === 'validating' || status === 'invalid';
+
+    if (field.required) {
+      // Empty required value or pending/invalid validation blocks
+      if (!val) return true;
+      if (isPendingOrInvalid) return true;
+      return false;
+    }
+    // Optional: only block when a value is present and not yet valid
+    if (val && isPendingOrInvalid) return true;
+    return false;
+  }
 }

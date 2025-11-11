@@ -54,7 +54,8 @@ public class JobsController : ControllerBase
             PlayerRegReleaseOfLiability = jobMetadata.PlayerRegReleaseOfLiability,
             PlayerRegCodeOfConduct = jobMetadata.PlayerRegCodeOfConduct,
             PlayerRegCovid19Waiver = jobMetadata.PlayerRegCovid19Waiver,
-            PlayerRegRefundPolicy = jobMetadata.PlayerRegRefundPolicy
+            PlayerRegRefundPolicy = jobMetadata.PlayerRegRefundPolicy,
+            OfferPlayerRegsaverInsurance = jobMetadata.OfferPlayerRegsaverInsurance
         };
 
         return Ok(response);
