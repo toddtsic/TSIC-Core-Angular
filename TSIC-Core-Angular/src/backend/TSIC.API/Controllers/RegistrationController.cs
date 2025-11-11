@@ -7,6 +7,7 @@ using TSIC.API.Services;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Domain.Entities;
 using TSIC.API.Constants;
+using System.Text.Json;
 
 namespace TSIC.API.Controllers;
 
@@ -62,6 +63,16 @@ public class RegistrationController : ControllerBase
             .GroupBy(r => r.AssignedTeamId!.Value)
             .ToDictionaryAsync(g => g.Key, g => g.Count());
 
+        // Load profile metadata to map field names -> Registrations property names (dbColumn)
+        var metadataJson = await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId.Value)
+            .Select(j => j.PlayerProfileMetadataJson)
+            .SingleOrDefaultAsync();
+
+        var nameToProperty = BuildFieldNameToPropertyMap(metadataJson);
+        var writableProps = BuildWritablePropertyMap();
+
         var teamResults = new List<TSIC.API.Dtos.PreSubmitTeamResultDto>();
         foreach (var sel in request.TeamSelections)
         {
@@ -108,6 +119,26 @@ public class RegistrationController : ControllerBase
                     RegistrationTs = DateTime.UtcNow,
                     RoleId = RoleConstants.Player
                 };
+                // Apply incoming form values (if any) onto the Registrations entity
+                if (sel.FormValues != null && sel.FormValues.Count > 0)
+                {
+                    foreach (var kvp in sel.FormValues)
+                    {
+                        var incomingName = kvp.Key;
+                        var jsonVal = kvp.Value;
+
+                        // Resolve to a target property name via metadata mapping (dbColumn) or direct match
+                        var targetName = ResolveTargetPropertyName(incomingName, nameToProperty, writableProps);
+                        if (targetName == null) continue; // not a writable/known property
+
+                        if (!writableProps.TryGetValue(targetName, out var prop)) continue;
+
+                        if (TryConvertAndAssign(jsonVal, prop.PropertyType, out var converted))
+                        {
+                            prop.SetValue(reg, converted);
+                        }
+                    }
+                }
                 _db.Registrations.Add(reg);
                 await _db.SaveChangesAsync();
                 teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
@@ -127,6 +158,123 @@ public class RegistrationController : ControllerBase
             NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Forms"
         };
         return Ok(response);
+    }
+
+    // Build a case-insensitive map of incoming field name -> Registrations property name, using job metadata when available
+    private static Dictionary<string, string> BuildFieldNameToPropertyMap(string? metadataJson)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(metadataJson)) return map;
+        try
+        {
+            using var doc = JsonDocument.Parse(metadataJson);
+            if (doc.RootElement.TryGetProperty("fields", out var fieldsEl) && fieldsEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var f in fieldsEl.EnumerateArray())
+                {
+                    var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
+                    var dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+                    if (!string.IsNullOrWhiteSpace(dbCol))
+                    {
+                        // Prefer mapping name -> dbColumn when provided
+                        map[name!] = dbCol!;
+                    }
+                    else
+                    {
+                        // Fallback: use name itself
+                        map[name!] = name!;
+                    }
+                }
+            }
+        }
+        catch { /* ignore malformed metadata */ }
+        return map;
+    }
+
+    // Build writable Registrations property map (name -> PropertyInfo), filtered similarly to read model exclusions
+    private static Dictionary<string, System.Reflection.PropertyInfo> BuildWritablePropertyMap()
+    {
+        var props = typeof(Registrations).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        var dict = new Dictionary<string, System.Reflection.PropertyInfo>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in props)
+        {
+            if (!p.CanWrite) continue;
+            // Reuse ShouldIncludeProperty to determine safe, non-system fields; also reject AssignedTeamId as it's set explicitly
+            if (!ShouldIncludeProperty(p)) continue;
+            if (string.Equals(p.Name, nameof(Registrations.AssignedTeamId), StringComparison.OrdinalIgnoreCase)) continue;
+            dict[p.Name] = p;
+        }
+        return dict;
+    }
+
+    // Decide which Registrations property an incoming key should write to
+    private static string? ResolveTargetPropertyName(string incoming,
+        Dictionary<string, string> nameToProperty,
+        Dictionary<string, System.Reflection.PropertyInfo> writable)
+    {
+        // 1) Metadata map (name -> dbColumn/property)
+        if (nameToProperty.TryGetValue(incoming, out var target) && writable.ContainsKey(target))
+        {
+            return target;
+        }
+        // 2) Direct property match
+        if (writable.ContainsKey(incoming)) return incoming;
+        return null;
+    }
+
+    // Convert JsonElement to the desired target type and return boxed value
+    private static bool TryConvertAndAssign(JsonElement json, Type targetType, out object? boxed)
+    {
+        boxed = null;
+        var t = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        try
+        {
+            if (t == typeof(string))
+            {
+                boxed = json.ValueKind == JsonValueKind.Null ? null : json.ToString();
+                return true;
+            }
+            if (t == typeof(int))
+            {
+                if (json.ValueKind == JsonValueKind.String && int.TryParse(json.GetString(), out var iv)) { boxed = iv; return true; }
+                if (json.TryGetInt32(out var i)) { boxed = i; return true; }
+            }
+            if (t == typeof(long))
+            {
+                if (json.ValueKind == JsonValueKind.String && long.TryParse(json.GetString(), out var lv)) { boxed = lv; return true; }
+                if (json.TryGetInt64(out var l)) { boxed = l; return true; }
+            }
+            if (t == typeof(decimal))
+            {
+                if (json.ValueKind == JsonValueKind.String && decimal.TryParse(json.GetString(), out var dv)) { boxed = dv; return true; }
+                if (json.TryGetDecimal(out var d)) { boxed = d; return true; }
+            }
+            if (t == typeof(double))
+            {
+                if (json.ValueKind == JsonValueKind.String && double.TryParse(json.GetString(), out var xv)) { boxed = xv; return true; }
+                if (json.TryGetDouble(out var x)) { boxed = x; return true; }
+            }
+            if (t == typeof(bool))
+            {
+                if (json.ValueKind == JsonValueKind.String && bool.TryParse(json.GetString(), out var bv)) { boxed = bv; return true; }
+                if (json.ValueKind == JsonValueKind.Number) { boxed = json.GetInt32() != 0; return true; }
+                if (json.ValueKind == JsonValueKind.True || json.ValueKind == JsonValueKind.False) { boxed = json.GetBoolean(); return true; }
+            }
+            if (t == typeof(DateTime))
+            {
+                if (json.ValueKind == JsonValueKind.String && DateTime.TryParse(json.GetString(), out var dt)) { boxed = dt; return true; }
+            }
+            if (t == typeof(Guid))
+            {
+                if (json.ValueKind == JsonValueKind.String && Guid.TryParse(json.GetString(), out var g)) { boxed = g; return true; }
+            }
+        }
+        catch
+        {
+            return false;
+        }
+        return false;
     }
 
     /// <summary>

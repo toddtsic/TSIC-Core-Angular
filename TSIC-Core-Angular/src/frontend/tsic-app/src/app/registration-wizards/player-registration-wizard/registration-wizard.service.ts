@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 // Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
@@ -58,6 +58,18 @@ export class RegistrationWizardService {
     // and render them in the dedicated Waivers step instead.
     waiverFieldNames = signal<string[]>([]);
 
+    // Effect: whenever players list or waiver definitions change, re-evaluate waiver acceptance rules.
+    // This catches scenarios where a new unregistered player is added AFTER waivers were previously accepted
+    // for a sibling, forcing re-attestation.
+    private readonly waiverSelectionWatcher = effect(() => {
+        // read dependencies
+        const _players = this.familyPlayers(); // trigger on list change
+        const _defs = this.waiverDefinitions(); // trigger after definitions loaded
+        if (!_defs || _defs.length === 0) return; // nothing to evaluate yet
+        // Recompute acceptance (logic internally no-ops if there are no selections)
+        this.recomputeWaiverAcceptanceOnSelectionChange();
+    });
+
     // Forms data per player (dynamic fields later)
     formData = signal<Record<string, any>>({}); // playerId -> { fieldName: value }
     // US Lacrosse number validation status per player
@@ -87,8 +99,8 @@ export class RegistrationWizardService {
         this.signatureRole.set('');
     }
 
-    /** Seed required waiver acceptance for read-only scenarios (edit mode or previously registered players present).
-     * Called after waiverDefinitions populated and again after existing registration snapshot applied. */
+    /** Seed required waiver acceptance only when ALL selected players are already registered (edit-only scenario).
+     * If any new player is being added, do NOT pre-accept to force re-attestation. */
     private seedAcceptedWaiversIfReadOnly(): void {
         try {
             const defs = this.waiverDefinitions();
@@ -96,13 +108,45 @@ export class RegistrationWizardService {
             // If already have any accepted entries, don't overwrite (user may have interacted in a new flow)
             if (Object.keys(this.waiversAccepted()).length > 0) return;
             const selectedIds = new Set(this.selectedPlayerIds());
-            const anyRegisteredSelected = this.familyPlayers().some(p => p.registered && selectedIds.has(p.playerId));
-            if (!anyRegisteredSelected) return;
+            if (selectedIds.size === 0) return;
+            const selectedPlayers = this.familyPlayers().filter(p => selectedIds.has(p.playerId));
+            const allSelectedRegistered = selectedPlayers.every(p => p.registered);
+            if (!allSelectedRegistered) return;
             const accepted: Record<string, boolean> = {};
             for (const d of defs) if (d.required) accepted[d.id] = true;
             this.waiversAccepted.set(accepted);
         } catch (e) {
             console.debug('[RegWizard] seedAcceptedWaiversIfReadOnly failed', e);
+        }
+    }
+
+    /** Recompute waiver acceptance when player selection changes. Clears acceptance and signature
+     * when any unregistered player is selected; pre-seeds only when all selected are registered. */
+    private recomputeWaiverAcceptanceOnSelectionChange(): void {
+        try {
+            const defs = this.waiverDefinitions();
+            const selectedIds = new Set(this.selectedPlayerIds());
+            if (!defs || defs.length === 0 || selectedIds.size === 0) {
+                // Nothing to enforce
+                return;
+            }
+            const selectedPlayers = this.familyPlayers().filter(p => selectedIds.has(p.playerId));
+            const allSelectedRegistered = selectedPlayers.every(p => p.registered);
+            if (allSelectedRegistered) {
+                // If user hasn't explicitly interacted with waivers this session, ensure accepted
+                if (Object.keys(this.waiversAccepted()).length === 0) {
+                    const accepted: Record<string, boolean> = {};
+                    for (const d of defs) if (d.required) accepted[d.id] = true;
+                    this.waiversAccepted.set(accepted);
+                }
+            } else {
+                // Require re-attestation: clear acceptance and signature since new players are being added
+                if (Object.keys(this.waiversAccepted()).length > 0) this.waiversAccepted.set({});
+                if (this.signatureName()) this.signatureName.set('');
+                if (this.signatureRole()) this.signatureRole.set('');
+            }
+        } catch (e) {
+            console.debug('[RegWizard] recomputeWaiverAcceptanceOnSelectionChange failed', e);
         }
     }
 
@@ -566,10 +610,12 @@ export class RegistrationWizardService {
             for (const pid of selectedIds) {
                 const teamId = this.selectedTeams()[pid];
                 if (!teamId) continue;
+                // Build visible-only form values for this player
+                const formValues = this.buildVisibleFormValuesForPlayer(pid);
                 if (Array.isArray(teamId)) {
-                    for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid });
+                    for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid, formValues });
                 } else {
-                    teamSelections.push({ playerId: pid, teamId });
+                    teamSelections.push({ playerId: pid, teamId, formValues });
                 }
             }
             const payload: PreSubmitRegistrationRequestDto = {
@@ -584,6 +630,25 @@ export class RegistrationWizardService {
                 })
                 .catch(err => reject(err instanceof Error ? err : new Error(String(err))));
         });
+    }
+
+    /** Build a dictionary of visible (non-hidden) form fields for a given player, using the parsed field schemas. */
+    private buildVisibleFormValuesForPlayer(playerId: string): { [key: string]: Json } {
+        const schemas = this.profileFieldSchemas();
+        const visibleNames = new Set(
+            schemas
+                .filter(s => (s.visibility ?? 'public') !== 'hidden')
+                .map(s => s.name)
+        );
+        const all = this.playerFormValues()[playerId] || {} as { [k: string]: any };
+        const out: { [k: string]: Json } = {};
+        for (const [k, v] of Object.entries(all)) {
+            if (!visibleNames.has(k)) continue;
+            // Allow null/empty values to pass through; skip only undefined
+            if (v === undefined) continue;
+            out[k] = v as Json;
+        }
+        return out;
     }
 
     // Prefer localhost API when running locally regardless of production flag mismatch.
@@ -653,6 +718,8 @@ export class RegistrationWizardService {
             if (p.registered) return p; // locked
             return { ...p, selected: !p.selected };
         }));
+        // Re-evaluate waiver acceptance state based on current selection
+        this.recomputeWaiverAcceptanceOnSelectionChange();
     }
 
     selectedPlayerIds(): string[] {
@@ -719,6 +786,8 @@ export interface PreSubmitRegistrationRequestDto {
 export interface PreSubmitTeamSelectionDto {
     playerId: string;
     teamId: string;
+    // Only visible fields are sent; keys come from field schema names
+    formValues?: { [key: string]: Json };
 }
 export interface PreSubmitRegistrationResponseDto {
     teamResults: PreSubmitTeamResultDto[];
