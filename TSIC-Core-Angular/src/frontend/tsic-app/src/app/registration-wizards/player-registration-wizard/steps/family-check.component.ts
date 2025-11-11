@@ -250,7 +250,7 @@ export class FamilyCheckStepComponent implements OnInit {
       this.auth.login({ username: this.username.trim(), password: this.password }).subscribe({
         next: () => {
           this.submitting = false;
-          try { localStorage.setItem(this.LAST_USER_KEY, this.username.trim()); } catch {}
+          try { localStorage.setItem(this.LAST_USER_KEY, this.username.trim()); } catch { }
           resolve();
         },
         error: (err) => {
