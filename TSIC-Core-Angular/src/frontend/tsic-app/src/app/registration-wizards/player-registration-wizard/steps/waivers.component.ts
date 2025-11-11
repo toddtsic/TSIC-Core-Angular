@@ -135,10 +135,19 @@ export class WaiversComponent implements OnInit, AfterViewInit {
     this.buildForm();
     // Subscribe to value changes to push into service (skip disabled locked controls)
     this.waiverForm.valueChanges.subscribe(v => {
+      // Persist to service
       for (const [key, val] of Object.entries(v)) {
         if (!this.lockedIds.has(key)) {
           this.state.setWaiverAccepted(key, !!val);
         }
+      }
+      // Detect newly accepted waiver and open next unchecked
+      for (const [key, val] of Object.entries(v)) {
+        const prev = this._prevValues[key];
+        if (!prev && !!val) {
+          this.openNextUncheckedAfter(key);
+        }
+        this._prevValues[key] = !!val;
       }
     });
   }
@@ -148,6 +157,8 @@ export class WaiversComponent implements OnInit, AfterViewInit {
     const svcMap = this.state.waiversAccepted();
     const editing = this.isEditingMode();
     const group: Record<string, FormControl> = {};
+    // Track previous values so we can detect newly accepted waivers for auto-open UX
+    this._prevValues = {};
     // Determine if legacy edit scenario with none marked accepted yet
     const legacyEdit = editing && defs.some(d => d.required) && Object.values(svcMap).every(v => !v);
     for (const d of defs) {
@@ -161,6 +172,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         if (needsSeed) this.state.setWaiverAccepted(d.id, true);
       }
       group[d.id] = control;
+      this._prevValues[d.id] = initialAccepted; // seed previous snapshot
     }
     this.waiverForm = new FormGroup(group);
   }
@@ -224,5 +236,30 @@ export class WaiversComponent implements OnInit, AfterViewInit {
     } catch {
       // no-op
     }
+  }
+
+  // --- Auto-open next unchecked waiver after accepting current one ---
+  private _prevValues: Record<string, boolean> = {};
+  private openNextUncheckedAfter(id: string): void {
+    try {
+      const defs = this.waivers();
+      const idx = defs.findIndex(w => w.id === id);
+      if (idx === -1) return;
+      for (let i = idx + 1; i < defs.length; i++) {
+        const w = defs[i];
+        // Skip already accepted or locked waivers
+        if (this.isLocked(w.id)) continue;
+        const ctrl = this.waiverForm.get(w.id);
+        if (!ctrl || !!ctrl.value) continue; // already accepted
+        // Found the first subsequent unchecked, open it
+        this.openSet.set(new Set([w.id]));
+        // Scroll into view (defer to allow collapse/expand classes to apply)
+        setTimeout(() => {
+          const headerBtn = document.getElementById('waiver-h-' + w.id)?.querySelector('button');
+            (headerBtn as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 30);
+        break;
+      }
+    } catch { /* no-op */ }
   }
 }
