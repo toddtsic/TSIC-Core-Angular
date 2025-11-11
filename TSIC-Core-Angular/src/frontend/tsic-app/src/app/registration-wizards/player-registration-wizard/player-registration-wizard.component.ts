@@ -45,7 +45,6 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         try {
             const hasWaivers = ((this.state.waiverDefinitions()?.length ?? 0) > 0) || ((this.state.waiverFieldNames()?.length ?? 0) > 0);
             const hasEligibility = !!this.state.teamConstraintType();
-            const authed = !!this.auth.currentUser();
             let stepsBase = this.baseSteps;
             // If no eligibility constraint configured, drop that step entirely
             if (!hasEligibility) stepsBase = stepsBase.filter(s => s !== 'eligibility') as StepId[];

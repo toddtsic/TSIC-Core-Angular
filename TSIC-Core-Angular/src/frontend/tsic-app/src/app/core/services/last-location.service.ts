@@ -6,7 +6,7 @@ import { filter } from 'rxjs/operators';
 export class LastLocationService {
     private readonly STORAGE_KEY = 'last_job_path';
 
-    constructor(private router: Router) {
+    constructor(private readonly router: Router) {
         // Track last visited jobPath (first URL segment that isn't 'tsic')
         this.router.events
             .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))

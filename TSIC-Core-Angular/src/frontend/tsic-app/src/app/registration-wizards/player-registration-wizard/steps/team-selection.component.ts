@@ -205,7 +205,6 @@ export class TeamSelectionComponent {
   error = this.teamService.error;
   selectedPlayers = () => this.wizard.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
   selectedTeams = this.wizard.selectedTeams;
-  eligibilityMap = this.wizard.eligibilityByPlayer;
   // readonly mode removed; selection is locked only for players with prior registrations
   // Syncfusion field mapping (disable selection for FULL teams)
   syncFields = { text: 'teamName', value: 'teamId', disabled: 'rosterIsFull' } as any;
@@ -316,9 +315,7 @@ export class TeamSelectionComponent {
     this.wizard.selectedTeams.set(current);
   }
   // Adapter for native select change
-  onSingleChange(playerId: string, value: any) {
-    this.onSyncSingleChange(playerId, { value });
-  }
+  onSingleChange(playerId: string, value: any) { /* legacy adapter unused in template */ }
   onSyncMultiChange(playerId: string, e: any) {
     // readonlyMode removed; only skip if player already registered
     if (this.isRegistered(playerId)) return;
@@ -380,27 +377,7 @@ export class TeamSelectionComponent {
     this.onSyncMultiChange(playerId, { value: next });
   }
   // Adapter for native multi-select change
-  onMultiChange(playerId: string, event: Event) {
-    const target = event.target as HTMLSelectElement;
-    if (!target) return;
-    const vals: string[] = Array.from(target.selectedOptions).map(o => String(o.value));
-    this.onSyncMultiChange(playerId, { value: vals });
-  }
-  isTeamChecked(playerId: string, teamId: string): boolean {
-    const val = this.selectedTeams()[playerId];
-    if (Array.isArray(val)) return val.includes(teamId);
-    return val === teamId;
-  }
-  multiSelectLabel(playerId: string): string {
-    const val = this.selectedTeams()[playerId];
-    if (!val) return 'Select teams';
-    if (Array.isArray(val)) {
-      const n = val.length;
-      if (n === 0) return 'Select teams';
-      return `${n} team${n > 1 ? 's' : ''} selected`;
-    }
-    return '1 team selected';
-  }
+  onMultiChange(playerId: string, event: Event) { /* legacy adapter unused in template */ }
   // Calculate tentative roster including current selections in this session
   tentativeRoster(teamId: string): number {
     // Access through public filtered collection plus original roster size
@@ -427,7 +404,6 @@ export class TeamSelectionComponent {
     const all = this.teamService.filterByEligibility(null);
     return all.find(t => t.teamId === teamId)?.maxRosterSize || 0;
   }
-  s(n: number): string { return n === 1 ? 'spot' : 'spots'; }
   nameForTeam(id: string): string {
     const all = this.teamService.filterByEligibility(null);
     return all.find(t => t.teamId === id)?.teamName || id;
@@ -458,12 +434,4 @@ export class TeamSelectionComponent {
     return players.filter(p => !map[p.userId] || (Array.isArray(map[p.userId]) && map[p.userId].length === 0)).map(p => p.name);
   }
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
-  readOnlyTeams(playerId: string): string {
-    const val = this.selectedTeams()[playerId];
-    const all = this.teamService.filterByEligibility(null);
-    const nameFor = (id: string) => all.find(t => t.teamId === id)?.teamName || id;
-    if (!val) return '—';
-    if (Array.isArray(val)) return val.map(nameFor).join(', ');
-    return nameFor(val);
-  }
 }

@@ -3,12 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { JobService, Job } from '../../../core/services/job.service';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+// Reactive forms were previously layered here but not used in the template; simplified to template-driven.
 
 @Component({
   selector: 'app-rw-eligibility-selection',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -73,11 +73,8 @@ export class ConstraintSelectionComponent {
 
   // Services
   private readonly jobService = inject(JobService);
-  private readonly fb = inject(FormBuilder);
 
-  // Form & submission state
-  // Legacy single-value form deprecated; using per-player selection.
-  form: FormGroup = this.fb.group({});
+  // Submission state
   submitted = signal(false);
 
   // Reactive option state
@@ -139,10 +136,7 @@ export class ConstraintSelectionComponent {
       this.state.teamConstraintType.set(constraintType);
       const opts = this.extractEligibleOptions(job, constraintType);
       this._eligibleOptions.set(opts);
-      if (opts.length > 0) {
-        this.form.get('eligibilityValue')?.addValidators([Validators.required]);
-        this.form.get('eligibilityValue')?.updateValueAndValidity({ emitEvent: false });
-      }
+      // No local FormGroup used; each player's selection is tracked via state map.
       this.loading.set(false);
     } catch (e) {
       this.error.set('Unable to load eligibility options');
@@ -285,7 +279,6 @@ export class ConstraintSelectionComponent {
     return this.state.getEligibilityForPlayer(playerId) || '';
   }
   isPlayerLocked(playerId: string): boolean {
-    const elig = this.state.getEligibilityForPlayer(playerId);
     // Locked only when player already registered (edit mode concept removed)
     return this.eligibilityDisabled() || this.isPlayerRegistered(playerId);
   }

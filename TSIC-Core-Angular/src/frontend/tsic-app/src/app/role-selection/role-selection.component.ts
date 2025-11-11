@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList } from '@angular/core';
+import { Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
@@ -10,6 +10,7 @@ import { WizardThemeDirective } from '../shared/directives/wizard-theme.directiv
   selector: 'app-role-selection',
   standalone: true,
   imports: [CommonModule, DropDownListModule, WizardThemeDirective],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']
 })

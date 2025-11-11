@@ -11,7 +11,7 @@ import { Directive, ElementRef, HostListener, Input } from '@angular/core';
 export class RwScrollXDirective {
     @Input('rwScrollX') multiplier = 3; // default 3x
 
-    constructor(private el: ElementRef<HTMLElement>) { }
+    constructor(private readonly el: ElementRef<HTMLElement>) { }
 
     @HostListener('wheel', ['$event'])
     onWheel(evt: WheelEvent) {
