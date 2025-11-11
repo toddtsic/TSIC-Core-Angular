@@ -1,12 +1,13 @@
 import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { BottomNavComponent } from '../bottom-nav.component';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-rw-player-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, BottomNavComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -14,39 +15,40 @@ import { FormsModule } from '@angular/forms';
       </div>
       <div class="card-body position-relative">
         <!-- Loading overlay -->
-        <div *ngIf="state.familyPlayersLoading()" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 10;">
+        @if (state.familyPlayersLoading()) {
+        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 10;">
           <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
           <div class="fw-semibold">Loading Family Players...</div>
         </div>
+        }
         <p class="text-secondary mb-3">Select the players you wish to register.</p>
 
         <!-- Fallback to classic *ngIf / *ngFor for widest compatibility -->
-        <ng-container *ngIf="!state.familyPlayersLoading() && state.familyPlayers().length === 0; else playersList">
+        @if (!state.familyPlayersLoading() && state.familyPlayers().length === 0) {
           <div class="alert alert-info">No players found for your family. You can add players in your Family Account.</div>
-        </ng-container>
-        <ng-template #playersList>
+        } @else {
           <ul class="list-group list-group-flush mb-3" [class.opacity-50]="state.familyPlayersLoading()">
-            <li class="list-group-item d-flex align-items-center justify-content-between" *ngFor="let p of state.familyPlayers(); trackBy: trackPlayer">
+            @for (p of state.familyPlayers(); track trackPlayer($index, p)) {
+            <li class="list-group-item d-flex align-items-center justify-content-between">
               <div class="d-flex align-items-center gap-3">
       <input type="checkbox"
         class="form-check-input"
-        [checked]="p.registered || isSelected(p.playerId)"
-        [disabled]="p.registered"
-        (change)="!p.registered && state.togglePlayerSelection(p)"
-        [attr.aria-label]="p.registered ? 'Already registered' : 'Select player'" />
+        [checked]="isSelected(p.playerId)"
+        [disabled]="state.isPlayerLocked(p.playerId)"
+        (change)="!state.isPlayerLocked(p.playerId) && state.togglePlayerSelection(p.playerId)"
+        [attr.aria-label]="state.isPlayerLocked(p.playerId) ? 'Already registered' : (isSelected(p.playerId) ? 'Deselect player' : 'Select player')" />
                 <div>
                   <div class="fw-semibold">{{ p.firstName }} {{ p.lastName }}</div>
                   <div class="text-secondary small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
                 </div>
               </div>
-              <span *ngIf="p.registered" class="badge bg-secondary" title="You cannot remove a previous registration">Locked</span>
+              @if (state.isPlayerLocked(p.playerId)) { <span class="badge bg-secondary" title="Previously registered for this job">Locked</span> }
             </li>
+            }
           </ul>
-        </ng-template>
+        }
 
-        <div class="rw-bottom-nav d-flex gap-2">
-          <button type="button" class="btn btn-primary" [disabled]="state.selectedPlayers().length === 0" (click)="next.emit()">Continue</button>
-        </div>
+  <app-rw-bottom-nav [hideBack]="true" [nextDisabled]="state.selectedPlayerIds().length === 0" (next)="next.emit()"></app-rw-bottom-nav>
       </div>
     </div>
   `
@@ -54,28 +56,23 @@ import { FormsModule } from '@angular/forms';
 export class PlayerSelectionComponent {
   @Output() next = new EventEmitter<void>();
   state = inject(RegistrationWizardService);
-  private requestedUsers = false;
-  private requestedPlayersForFamId: string | null = null;
+  private requestedOnce = false;
 
   // Create the reactive loader in an injection context (field initializer),
   // and allow controlled signal writes inside the effect.
   private readonly autoLoad = effect(() => {
     const jp = this.state.jobPath();
-    const famUser = this.state.activeFamilyUser();
-    if (jp && !famUser && !this.requestedUsers) {
-      this.requestedUsers = true;
-      this.state.loadFamilyUsers(jp);
-    }
-    if (jp && famUser?.familyUserId && this.requestedPlayersForFamId !== famUser.familyUserId) {
-      this.requestedPlayersForFamId = famUser.familyUserId;
-      this.state.loadFamilyPlayers(jp, famUser.familyUserId);
+    if (jp && !this.requestedOnce) {
+      this.requestedOnce = true;
+      this.state.loadFamilyPlayers(jp);
     }
   }, { allowSignalWrites: true });
 
   isSelected(id: string): boolean {
     try {
-      const list = this.state.selectedPlayers();
-      return Array.isArray(list) && list.some(sp => sp.userId === id);
+      const fam = this.state.familyPlayers();
+      const p = fam.find(x => x.playerId === id);
+      return !!p && (p.selected || p.registered);
     } catch { return false; }
   }
 

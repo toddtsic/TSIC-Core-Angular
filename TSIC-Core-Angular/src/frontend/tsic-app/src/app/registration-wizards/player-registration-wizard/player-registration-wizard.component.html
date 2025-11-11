@@ -38,12 +38,12 @@
                                 {{ stepLabels[currentStepId()] }}
                             </span>
                         </div>
-                        @if (state.activeFamilyUser()) {
+                        @if (state.familyUser()) {
                         <div class="d-inline-flex align-items-center gap-2">
                             <span class="text-secondary small">Family User:</span>
                             <span class="rw-badge" title="Username (login identifier)">
                                 <i class="bi bi-person-check"></i>
-                                {{ state.activeFamilyUser()?.userName || state.activeFamilyUser()?.displayName }}
+                                {{ state.familyUser()?.userName || state.familyUser()?.displayName }}
                             </span>
                         </div>
                         }
@@ -54,9 +54,6 @@
             @switch (currentStepId()) {
             @case ('family-check') {
             <app-rw-family-check (next)="next()" />
-            }
-            @case ('edit-lookup') {
-            <app-rw-edit-lookup (back)="back()" (next)="next()" />
             }
             @case ('players') {
             <app-rw-player-selection (next)="next()" />

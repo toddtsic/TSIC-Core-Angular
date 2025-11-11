@@ -12,24 +12,18 @@ export class RegistrationWizardService {
     jobPath = signal<string>('');
     jobId = signal<string>('');
 
-    // Start mode selection: 'new' (start fresh), 'edit' (edit prior), 'parent' (update/deassign)
-    startMode = signal<'new' | 'edit' | 'parent' | null>(null);
 
     // Family account presence (from Family Check step)
     hasFamilyAccount = signal<'yes' | 'no' | null>(null);
 
     // Players and selections
-    selectedPlayers = signal<Array<{ userId: string; name: string }>>([]);
-    // Family players available for registration
-    familyPlayers = signal<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered?: boolean }>>([]);
-    // Loading state for family players fetch (used for big spinner in Players step)
+    // Family players with client-only selection flag
+    familyPlayers = signal<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered: boolean; selected: boolean }>>([]);
     familyPlayersLoading = signal<boolean>(false);
-    // Include username explicitly for UI badge (displayName kept for future flexibility)
-    activeFamilyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
-    familyUsers = signal<Array<{ familyUserId: string; displayName: string; userName: string }>>([]);
+    // Family user summary (from players endpoint); name fields used for header badge
+    familyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
     // Whether an existing player registration for the current job + active family user already exists.
     // null = unknown/not yet checked; true/false = definitive.
-    existingRegistrationAvailable = signal<boolean | null>(null);
     // Eligibility type is job-wide (e.g., BYGRADYEAR), but the selected value is PER PLAYER
     teamConstraintType = signal<string | null>(null); // e.g., BYGRADYEAR
     // Deprecated: legacy single eligibility value (kept for backward compatibility where needed)
@@ -67,12 +61,7 @@ export class RegistrationWizardService {
     paymentOption = signal<PaymentOption>('PIF');
 
     reset(): void {
-        this.startMode.set(null);
         this.hasFamilyAccount.set(null);
-        // Do NOT clear selectedPlayers if prior registration exists
-        if (!this.selectedPlayers() || this.selectedPlayers().length === 0) {
-            this.selectedPlayers.set([]);
-        }
         this.familyPlayers.set([]);
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
@@ -80,9 +69,7 @@ export class RegistrationWizardService {
         this.selectedTeams.set({});
         this.formData.set({});
         this.paymentOption.set('PIF');
-        this.activeFamilyUser.set(null);
-        this.familyUsers.set([]);
-        this.existingRegistrationAvailable.set(null);
+        this.familyUser.set(null);
         this.jobProfileMetadataJson.set(null);
         this.jobJsonOptions.set(null);
         this.profileFieldSchemas.set([]);
@@ -102,10 +89,9 @@ export class RegistrationWizardService {
             if (!defs || defs.length === 0) return;
             // If already have any accepted entries, don't overwrite (user may have interacted in a new flow)
             if (Object.keys(this.waiversAccepted()).length > 0) return;
-            const isEdit = this.startMode() === 'edit';
-            const selectedIds = new Set(this.selectedPlayers().map(p => p.userId));
+            const selectedIds = new Set(this.selectedPlayerIds());
             const anyRegisteredSelected = this.familyPlayers().some(p => p.registered && selectedIds.has(p.playerId));
-            if (!(isEdit || anyRegisteredSelected)) return;
+            if (!anyRegisteredSelected) return;
             const accepted: Record<string, boolean> = {};
             for (const d of defs) if (d.required) accepted[d.id] = true;
             this.waiversAccepted.set(accepted);
@@ -139,54 +125,26 @@ export class RegistrationWizardService {
         return this.waiverDefinitions().some(w => w.required);
     }
 
-    loadFamilyUsers(jobPath: string): void {
+    /** Single loader: returns family user summary + players (registered + client-side selected flag). */
+    loadFamilyPlayers(jobPath: string): void {
         if (!jobPath) return;
-        // Future: cache by jobPath; for now simple fetch
         const base = this.resolveApiBase();
-        console.log('[RegWizard] GET family users', { jobPath, base });
-        this.http.get<Array<{ familyUserId: string; displayName: string; userName: string }>>(`${base}/family/users`, { params: { jobPath } })
-            .subscribe({
-                next: users => {
-                    this.familyUsers.set(users || []);
-                    // Auto-select if exactly one user
-                    if (users?.length === 1) {
-                        this.activeFamilyUser.set(users[0]);
-                    }
-                },
-                error: err => {
-                    console.error('[RegWizard] Failed to load family users', err);
-                    this.familyUsers.set([]);
-                }
-            });
-    }
-
-    loadFamilyPlayers(jobPath: string, familyUserId: string): void {
-        if (!jobPath || !familyUserId) return;
-        const base = this.resolveApiBase();
-        console.log('[RegWizard] GET family players', { jobPath, familyUserId, base });
+        console.log('[RegWizard] GET family players', { jobPath, base });
         this.familyPlayersLoading.set(true);
-        this.http.get<Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered?: boolean }>>(`${base}/family/players`, { params: { jobPath, familyUserId, debug: '1' } })
+        this.http.get<{ familyUser: { familyUserId: string; displayName: string; userName: string }; players: Array<{ playerId: string; firstName: string; lastName: string; gender: string; dob?: string; registered: boolean }> }>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
-                next: players => {
-                    let list = players || [];
-                    // If there is an existing registration snapshot, ensure referenced players are marked registered
-                    const snapshot = this.selectedPlayers();
-                    const snapshotIds = new Set(snapshot.map(p => p.userId));
-                    // Mark registered in familyPlayers if referenced in snapshot or backend
-                    list = list.map(p => (snapshotIds.has(p.playerId) || p.registered) ? { ...p, registered: true } : p);
-                    // Merge prior registration player IDs into selectedPlayers
-                    const preselected = list.filter(p => p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
-                    const merged = Array.from(new Map([...preselected, ...snapshot].map(p => [p.userId, p])).values());
+                next: resp => {
+                    if (resp?.familyUser) this.familyUser.set(resp.familyUser);
+                    const list = (resp?.players || []).map(p => ({ ...p, registered: !!p.registered, selected: false }));
                     this.familyPlayers.set(list);
-                    this.selectedPlayers.set(merged);
-                    console.log('[RegWizard] Loaded players', { count: list.length, preselected });
-                    // Once players loaded, ensure we have job metadata parsed so Forms step can render
+                    // Ensure job metadata so forms parse soon after
                     this.ensureJobMetadata(jobPath);
                     this.familyPlayersLoading.set(false);
                 },
                 error: err => {
                     console.error('[RegWizard] Failed to load family players', err);
                     this.familyPlayers.set([]);
+                    this.familyUser.set(null);
                     this.familyPlayersLoading.set(false);
                 }
             });
@@ -452,12 +410,12 @@ export class RegistrationWizardService {
                 this.waiverDefinitions.set(synthDefs);
             }
             // Initialize per-player form values lazily
-            const players = this.selectedPlayers();
+            const selectedIds = this.selectedPlayerIds();
             const current = { ...this.playerFormValues() };
-            for (const p of players) {
-                if (!current[p.userId]) current[p.userId] = {};
+            for (const pid of selectedIds) {
+                if (!current[pid]) current[pid] = {};
                 for (const field of schemas) {
-                    if (!(field.name in current[p.userId])) current[p.userId][field.name] = null;
+                    if (!(field.name in current[pid])) current[pid][field.name] = null;
                 }
             }
             // Precise alias normalization using dbColumn mapping: migrate values from backend property to schema field name
@@ -500,7 +458,7 @@ export class RegistrationWizardService {
 
     /** Remove form values & team selections for players no longer selected (call after deselect) */
     pruneDeselectedPlayers(): void {
-        const selectedIds = new Set(this.selectedPlayers().map(p => p.userId));
+        const selectedIds = new Set(this.selectedPlayerIds());
         const forms = { ...this.playerFormValues() };
         const teams = { ...this.selectedTeams() };
         for (const pid of Object.keys(forms)) {
@@ -513,137 +471,7 @@ export class RegistrationWizardService {
         this.selectedTeams.set(teams);
     }
 
-    /** Placeholder: load an existing registration to prefill teams and form values (edit/parent modes). */
-    loadExistingRegistration(jobPath: string, familyUserId: string): void {
-        if (!jobPath || !familyUserId) return;
-        const base = this.resolveApiBase();
-        // Minimal implementation: attempt GET existing registration snapshot (endpoint to be finalized)
-        // Updated endpoint (controller route is singular 'registration')
-        const url = `${base}/registration/existing`;
-        this.http.get<{ teams: Record<string, string | string[]>; values: Record<string, Record<string, any>> }>(url, { params: { jobPath, familyUserId } })
-            .subscribe({ next: d => this.applyExistingRegistration(d), error: e => this.onExistingRegistrationError(e) });
-    }
-
-    private applyExistingRegistration(data: { teams?: Record<string, string | string[]>; values?: Record<string, Record<string, any>> } | null): void {
-        if (!data) return;
-        // Auto-select any players referenced by the existing registration snapshot that are not yet in selectedPlayers.
-        // This covers the rollback regression where previously registered players were not marked with registered=true
-        // in the familyPlayers list and thus never added to selectedPlayers, causing their form values to be hidden.
-        try {
-            const currentSelected = this.selectedPlayers();
-            const selectedIdSet = new Set(currentSelected.map(p => p.userId));
-            const toEnsureIds = new Set<string>();
-            for (const pid of Object.keys(data.teams || {})) toEnsureIds.add(pid);
-            for (const pid of Object.keys(data.values || {})) toEnsureIds.add(pid);
-            if (toEnsureIds.size) {
-                const famPlayers = this.familyPlayers();
-                const additions: Array<{ userId: string; name: string }> = [];
-                for (const pid of toEnsureIds) {
-                    if (selectedIdSet.has(pid)) continue;
-                    const fam = famPlayers.find(fp => fp.playerId === pid);
-                    if (fam) {
-                        additions.push({ userId: pid, name: `${fam.firstName} ${fam.lastName}`.trim() });
-                    } else {
-                        // Fallback placeholder name when family players not yet loaded or player missing.
-                        additions.push({ userId: pid, name: 'Player' });
-                    }
-                }
-                if (additions.length) {
-                    this.selectedPlayers.set([...currentSelected, ...additions]);
-                    console.debug('[RegWizard] Auto-selected players from existing registration snapshot', { added: additions.map(a => a.userId) });
-                }
-            }
-        } catch (e) {
-            console.warn('[RegWizard] Failed auto-selecting players from existing registration snapshot', e);
-        }
-        const schemas = this.profileFieldSchemas() || [];
-        const validFields = new Set(schemas.map(s => s.name));
-        const schemaGradField = (schemas.find(f => {
-            const n = f.name?.toLowerCase?.() || '';
-            return n === 'gradyear' || n === 'graduationyear';
-        })?.name) || null;
-        if (data.teams) {
-            const allTeams: Record<string, string | string[]> = {};
-            for (const [pid, val] of Object.entries(data.teams)) {
-                allTeams[pid] = val;
-            }
-            this.selectedTeams.set(allTeams);
-        }
-        if (data.values) {
-            const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
-            const eligMap = { ...this.eligibilityByPlayer() } as Record<string, string>;
-            const alias = this.aliasFieldMap();
-            for (const [pid, fieldMap] of Object.entries(data.values)) {
-                const existing = current[pid] ? { ...current[pid] } : {} as Record<string, any>;
-                for (const [k, v] of Object.entries(fieldMap || {})) {
-                    const kLower = String(k).toLowerCase();
-                    if (validFields.size === 0 || validFields.has(k)) {
-                        existing[k] = v;
-                        continue;
-                    }
-                    // Precise alias mapping via dbColumn -> schema field
-                    const aliasTarget = alias?.[k];
-                    if (aliasTarget && validFields.has(aliasTarget)) {
-                        existing[aliasTarget] = v;
-                        continue;
-                    }
-                    // Case-insensitive bridge: map PascalCase or different-cased property to schema canonical name
-                    // (Retained as fallback but not preferred; can be removed if undesired)
-                    const ciMatch = Array.from(validFields).find(fn => fn.toLowerCase() === kLower);
-                    if (ciMatch && !Object.prototype.hasOwnProperty.call(existing, ciMatch)) { existing[ciMatch] = v; continue; }
-                    // Bridge: map incoming entity GradYear to schema field GraduationYear (or GradYear) if schema uses a different name
-                    if (kLower === 'gradyear' && schemaGradField && validFields.has(schemaGradField)) {
-                        existing[schemaGradField] = v;
-                        continue;
-                    }
-                }
-                current[pid] = existing;
-                // If US Lax number present, seed status map value for consistency
-                const usKey = Object.keys(existing).find(n => n.toLowerCase() === 'sportassnid');
-                if (usKey) {
-                    const statusMap = { ...this.usLaxStatus() };
-                    const prev = statusMap[pid] || { value: '', status: 'idle' };
-                    statusMap[pid] = { ...prev, value: String(existing[usKey] ?? ''), status: 'idle' };
-                    this.usLaxStatus.set(statusMap);
-                }
-                // Deterministic: only honor canonical key from backend for BYGRADYEAR
-                // Derive GradYear regardless of current constraint type to avoid sequencing races
-                if (!eligMap[pid]) {
-                    const keys = Object.keys(existing);
-                    const findKey = (target: string) => keys.find(k => k.toLowerCase() === target);
-                    const canonical = findKey('gradyear') || (schemaGradField ? findKey(schemaGradField.toLowerCase()) : undefined) || undefined;
-                    if (canonical) {
-                        const rawVal = existing[canonical];
-                        const valStr = (rawVal ?? '').toString().trim();
-                        if (/^(20|19)\d{2}$/.test(valStr)) {
-                            eligMap[pid] = valStr;
-                            console.debug('[RegWizard] Using GradYear from values', { playerId: pid, field: canonical, value: valStr });
-                        } else {
-                            console.debug('[RegWizard] GradYear present but invalid', { playerId: pid, field: canonical, rawVal });
-                        }
-                    } else {
-                        console.debug('[RegWizard] GradYear key not present in values', { playerId: pid, keys });
-                    }
-                }
-            }
-            this.playerFormValues.set(current);
-            if (Object.keys(eligMap).length) {
-                this.eligibilityByPlayer.set(eligMap);
-                // If all elig values identical, seed legacy teamConstraintValue
-                const distinct = Array.from(new Set(Object.values(eligMap)));
-                if (distinct.length === 1) {
-                    this.teamConstraintValue.set(distinct[0]);
-                }
-            }
-        }
-        console.debug('[RegWizard] Prefilled existing registration snapshot');
-        // After existing registration applied, we may now know which players are registered; seed waiver acceptance if needed.
-        this.seedAcceptedWaiversIfReadOnly();
-    }
-
-    private onExistingRegistrationError(err: any): void {
-        console.debug('[RegWizard] No existing registration snapshot available', err?.status);
-    }
+    // Removed unified context loader & snapshot apply; future: implement server-side context if needed.
 
     /**
      * Pre-submit API call: checks team roster capacity and creates pending registrations before payment.
@@ -652,7 +480,7 @@ export class RegistrationWizardService {
     preSubmitRegistration(): Promise<PreSubmitRegistrationResponseDto> {
         const base = this.resolveApiBase();
         const jobPath = this.jobPath();
-        const familyUserId = this.activeFamilyUser()?.familyUserId;
+        const familyUserId = this.familyUser()?.familyUserId;
         return new Promise<PreSubmitRegistrationResponseDto>((resolve, reject) => {
             if (!jobPath || !familyUserId) {
                 reject('Missing jobPath or familyUserId');
@@ -660,14 +488,14 @@ export class RegistrationWizardService {
             }
             // Gather selected teams per player
             const teamSelections: PreSubmitTeamSelectionDto[] = [];
-            for (const player of this.selectedPlayers()) {
-                const teamId = this.selectedTeams()[player.userId];
-                if (teamId) {
-                    if (Array.isArray(teamId)) {
-                        for (const tid of teamId) teamSelections.push({ playerId: player.userId, teamId: tid });
-                    } else {
-                        teamSelections.push({ playerId: player.userId, teamId });
-                    }
+            const selectedIds = this.selectedPlayerIds();
+            for (const pid of selectedIds) {
+                const teamId = this.selectedTeams()[pid];
+                if (!teamId) continue;
+                if (Array.isArray(teamId)) {
+                    for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid });
+                } else {
+                    teamSelections.push({ playerId: pid, teamId });
                 }
             }
             const payload: PreSubmitRegistrationRequestDto = {
@@ -743,24 +571,22 @@ export class RegistrationWizardService {
         return null;
     }
 
-    togglePlayerSelection(player: { playerId: string; firstName: string; lastName: string; registered?: boolean }): void {
-        if (player.registered) return; // cannot deselect previously registered players
-        const current = this.selectedPlayers();
-        const id = player.playerId;
-        const exists = current.some(p => p.userId === id);
-        if (exists) {
-            this.selectedPlayers.set(current.filter(p => p.userId !== id));
-            // drop eligibility and team assignment for deselected player
-            const elig = { ...this.eligibilityByPlayer() };
-            delete elig[id];
-            this.eligibilityByPlayer.set(elig);
-            const teams = { ...this.selectedTeams() };
-            delete teams[id];
-            this.selectedTeams.set(teams);
-        } else {
-            this.selectedPlayers.set([...current, { userId: id, name: `${player.firstName} ${player.lastName}`.trim() }]);
-        }
+    togglePlayerSelection(player: string | { playerId: string; registered?: boolean; selected?: boolean }): void {
+        const playerId = typeof player === 'string' ? player : player?.playerId;
+        if (!playerId) return;
+        const list = this.familyPlayers();
+        this.familyPlayers.set(list.map(p => {
+            if (p.playerId !== playerId) return p;
+            if (p.registered) return p; // locked
+            return { ...p, selected: !p.selected };
+        }));
     }
+
+    selectedPlayerIds(): string[] {
+        return this.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId);
+    }
+
+    // Deprecated adapters removed: components now derive directly from familyPlayers/familyUser.
 
     setEligibilityForPlayer(playerId: string, value: string | null | undefined): void {
         const map = { ...this.eligibilityByPlayer() };
@@ -783,6 +609,11 @@ export class RegistrationWizardService {
     setUsLaxResult(playerId: string, ok: boolean, message?: string, membership?: any): void {
         const m = { ...this.usLaxStatus() }; const cur = m[playerId] || { value: '', status: 'idle' };
         m[playerId] = { ...cur, status: ok ? 'valid' : 'invalid', message, membership }; this.usLaxStatus.set(m);
+    }
+
+    /** Central helper: a player is locked ONLY when editing an existing registration for this job. */
+    isPlayerLocked(playerId: string): boolean {
+        return this.familyPlayers().some(p => p.playerId === playerId && p.registered);
     }
 }
 
@@ -828,6 +659,8 @@ export interface PreSubmitTeamResultDto {
     message: string;
     registrationCreated: boolean;
 }
+
+// Removed unified registration context types; client now loads players and metadata directly.
 
 // Helper to create a friendly title from a PlayerReg* key
 // e.g., PlayerRegReleaseOfLiability -> Release Of Liability

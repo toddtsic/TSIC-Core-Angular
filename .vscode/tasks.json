@@ -114,6 +114,48 @@
 			],
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "validate build after backend change",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"TSIC-Core-Angular.sln"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build after removing bootstrap",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"TSIC-Core-Angular.sln"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-backend-after-family-players-refactor",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"TSIC-Core-Angular.sln"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
 		}
 	]
 }

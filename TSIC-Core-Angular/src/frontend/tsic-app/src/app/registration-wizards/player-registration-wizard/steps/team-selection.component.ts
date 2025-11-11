@@ -8,6 +8,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
 @Component({
   selector: 'app-rw-team-selection',
   standalone: true,
+  // Keep Syncfusion modules separate (non-standalone)
   imports: [CommonModule, FormsModule, DropDownListModule, MultiSelectModule],
   providers: [CheckBoxSelectionService],
   styles: [`
@@ -57,7 +58,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                     <div class="flex-grow-1">
                       <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
                         <span>{{ p.name }}</span>
-                        @if (readonlyMode() || isRegistered(p.userId)) {
+                        @if (isRegistered(p.userId)) {
                           <span class="badge bg-secondary" title="Already registered; team locked">Locked</span>
                         }
                       </div>
@@ -77,12 +78,12 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                           @for (id of selectedArrayFor(p.userId); track id) {
                             <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
                               {{ nameForTeam(id) }}
-                              <ng-container *ngIf="!(readonlyMode() || isRegistered(p.userId))">
+                              @if (!isRegistered(p.userId)) {
                                 <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
                                         (click)="removeTeam(p.userId, id)">
                                   ×
                                 </button>
-                              </ng-container>
+                              }
                             </li>
                           }
                           @if (selectedArrayFor(p.userId).length === 0) {
@@ -103,7 +104,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                                           [popupWidth]="'100%'"
                                           [zIndex]="1200"
                                           [cssClass]="'rw-teams-single'"
-                                          [enabled]="!(readonlyMode() || isRegistered(p.userId) || (showEligibilityBadge() && !eligibilityFor(p.userId)) || filteredTeamsFor(p.userId).length===0)"
+                                          [enabled]="!(isRegistered(p.userId) || (showEligibilityBadge() && !eligibilityFor(p.userId)) || filteredTeamsFor(p.userId).length===0)"
                                           [value]="selectedTeams()[p.userId] || null"
                                           (change)="onSyncSingleChange(p.userId, $event)">
                           <ng-template #itemTemplate let-data>
@@ -117,7 +118,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                                                           @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
                                                           @else { {{ baseRemaining(data.teamId) }} spots left }
                                                         </span>
-                                                        <span *ngIf="data.rosterIsFull || baseRemaining(data.teamId) === 0" class="text-danger ms-2 small">(Cannot select)</span>
+                                                        @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { <span class="text-danger ms-2 small">(Cannot select)</span> }
                                                       </span>
                           </ng-template>
                         </ejs-dropdownlist>
@@ -148,7 +149,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                                        (beforeSelect)="onMsBeforeSelect(p.userId, $event)"
                                        (select)="onMsSelect(p.userId, $event)"
                                        (removed)="onMsRemoved(p.userId, $event)"
-                                       [enabled]="!(readonlyMode() || isRegistered(p.userId) || (showEligibilityBadge() && !eligibilityFor(p.userId)))"
+                                       [enabled]="!(isRegistered(p.userId) || (showEligibilityBadge() && !eligibilityFor(p.userId)))"
                                        [value]="selectedArrayFor(p.userId)"
                                        (change)="onSyncMultiChange(p.userId, $event)">
                         <ng-template #itemTemplate let-data>
@@ -199,10 +200,10 @@ export class TeamSelectionComponent {
   // expose signals for template
   loading = this.teamService.loading;
   error = this.teamService.error;
-  selectedPlayers = this.wizard.selectedPlayers;
+  selectedPlayers = () => this.wizard.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
   selectedTeams = this.wizard.selectedTeams;
   eligibilityMap = this.wizard.eligibilityByPlayer;
-  readonlyMode = computed(() => this.wizard.startMode() === 'edit');
+  // readonly mode removed; selection is locked only for players with prior registrations
   // Syncfusion field mapping (disable selection for FULL teams)
   syncFields = { text: 'teamName', value: 'teamId', disabled: 'rosterIsFull' } as any;
 
@@ -246,14 +247,15 @@ export class TeamSelectionComponent {
     return this.wizard.getEligibilityForPlayer(playerId);
   }
   onSyncSingleChange(playerId: string, e: any) {
-    if (this.readonlyMode()) return;
+    // no readonly mode; only registered players are locked via isRegistered
     const val = e?.itemData?.teamId || e?.value || '';
     const current = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (val) current[playerId] = String(val); else delete current[playerId];
     this.wizard.selectedTeams.set(current);
   }
   onSyncMultiChange(playerId: string, e: any) {
-    if (this.readonlyMode()) return;
+    // readonlyMode removed; only skip if player already registered
+    if (this.isRegistered(playerId)) return;
     let values: string[] = Array.isArray(e?.value) ? e.value.map(String) : [];
     // If Syncfusion gives null/undefined fallback to empty array
     if (!values) values = [];
@@ -293,7 +295,7 @@ export class TeamSelectionComponent {
     }
   }
   onMsSelect(playerId: string, e: any) {
-    if (this.readonlyMode()) return;
+    // Only registered players are locked via isRegistered
     const id = e?.itemData?.teamId ?? e?.itemData?.value ?? e?.value;
     if (!id) return;
     const current = this.selectedArrayFor(playerId);
@@ -303,7 +305,7 @@ export class TeamSelectionComponent {
     this.onSyncMultiChange(playerId, { value: next });
   }
   onMsRemoved(playerId: string, e: any) {
-    if (this.readonlyMode()) return;
+    // Only registered players are locked via isRegistered
     const id = e?.itemData?.teamId ?? e?.itemData?.value ?? e?.value;
     if (!id) return;
     const current = this.selectedArrayFor(playerId);
@@ -358,7 +360,7 @@ export class TeamSelectionComponent {
     return all.find(t => t.teamId === id)?.teamName || id;
   }
   removeTeam(playerId: string, teamId: string) {
-    if (this.readonlyMode()) return;
+    // Only registered players are locked via isRegistered
     const current = this.selectedArrayFor(playerId).filter(x => x !== teamId);
     this.onSyncMultiChange(playerId, { value: current });
   }

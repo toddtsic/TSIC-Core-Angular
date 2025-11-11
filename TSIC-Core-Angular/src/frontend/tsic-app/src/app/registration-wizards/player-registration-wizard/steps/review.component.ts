@@ -16,6 +16,12 @@ export class ReviewComponent {
 
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
 
+  selectedPlayers() {
+    return this.state.familyPlayers()
+      .filter(p => p.selected || p.registered)
+      .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+  }
+
   getTeamsForPlayer(playerId: string): string[] {
     const teams = this.state.selectedTeams()[playerId];
     if (!teams) return [];

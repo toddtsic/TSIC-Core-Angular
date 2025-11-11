@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, effect } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { PlayerSelectionComponent } from './steps/player-selection.component';
@@ -10,18 +10,17 @@ import { PaymentComponent } from './steps/payment.component';
 import { WaiversComponent } from './steps/waivers.component';
 import { RegistrationWizardService } from './registration-wizard.service';
 // Start step retired; StartChoiceComponent removed from flow
-import { EditLookupComponent } from './steps/edit-lookup.component';
 import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '../../core/services/auth.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 
-export type StepId = 'family-check' | 'edit-lookup' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment';
+export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment';
 
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, EditLookupComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
     host: {}
@@ -36,36 +35,27 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     // Steps managed by stable IDs for deep-linking
     // Note: 'constraint' may be skipped in a future enhancement if job has no constraint.
     // Start step retired; Family Check now offers CTAs to proceed directly
-    private readonly allStepsEdit: StepId[] = ['family-check', 'edit-lookup', 'forms', 'waivers', 'review', 'payment'];
-    private readonly allStepsNewUnauthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'waivers', 'review', 'payment'];
-    private readonly allStepsNewAuthed: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'waivers', 'review', 'payment'];
+    // Unified steps (edit lookup removed; flow determined solely by backend flags)
+    private readonly baseSteps: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'waivers', 'review', 'payment'];
 
     // Current index into the computed steps array
     currentIndex = signal(0);
 
     steps = computed<StepId[]>(() => {
         try {
-            const mode = this.state.startMode();
             const hasWaivers = ((this.state.waiverDefinitions()?.length ?? 0) > 0) || ((this.state.waiverFieldNames()?.length ?? 0) > 0);
             const hasEligibility = !!this.state.teamConstraintType();
             const authed = !!this.auth.currentUser();
-            let arr: StepId[];
-            if (mode === 'edit') {
-                arr = this.allStepsEdit;
-            } else if (authed) {
-                arr = this.allStepsNewAuthed;
-            } else {
-                arr = this.allStepsNewUnauthed;
-            }
-            let stepsBase = arr?.length ? arr : this.allStepsNewUnauthed;
+            let stepsBase = this.baseSteps;
             // If no eligibility constraint configured, drop that step entirely
             if (!hasEligibility) stepsBase = stepsBase.filter(s => s !== 'eligibility') as StepId[];
+            // Always keep the Teams step in this flow; only eligibility may be skipped
             // If no waivers present, drop waivers step
             const withWaivers = hasWaivers ? stepsBase : (stepsBase.filter(s => s !== 'waivers') as StepId[]);
             return withWaivers;
         } catch (err) {
             console.error('[PRW] Error computing steps; fallback applied', err);
-            return this.allStepsNewUnauthed;
+            return this.baseSteps;
         }
     });
 
@@ -82,11 +72,10 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         return !t || t === 'BYCLUBNAME';
     });
 
-    // Only show an account badge when authenticated family user is present (via state.activeFamilyUser)
+    // Only show an account badge when authenticated family user is present (via state.familyUser)
 
     readonly stepLabels: Record<StepId, string> = {
         'family-check': 'Family account?',
-        'edit-lookup': 'Edit lookup',
         players: 'Players',
         eligibility: 'Eligibility',
         teams: 'Teams',
@@ -96,35 +85,9 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         payment: 'Payment'
     };
 
-    private readonly _familyUserEffect = effect(() => {
-        const fam = this.state.activeFamilyUser();
-        let next: boolean | null = null;
-        if (fam) next = this.state.startMode() === 'edit';
-        if (this.state.existingRegistrationAvailable() !== next) {
-            this.state.existingRegistrationAvailable.set(next);
-        }
-    }, { allowSignalWrites: true });
+    // Removed existingRegistrationAvailable logic; edit mode concept discarded.
 
-    // Load players whenever jobPath and activeFamilyUser are both available
-    private readonly _loadPlayersEffect = effect(() => {
-        const jp = this.state.jobPath();
-        const fam = this.state.activeFamilyUser();
-        if (jp && fam?.familyUserId) {
-            this.state.loadFamilyPlayers(jp, fam.familyUserId);
-        }
-    }, { allowSignalWrites: true });
-
-    // Attempt to prefill existing registration (teams + form values) once when job + user are known
-    private _triedExistingPrefill = false;
-    private readonly _prefillExistingEffect = effect(() => {
-        const jp = this.state.jobPath();
-        const fam = this.state.activeFamilyUser();
-        const jobId = this.state.jobId(); // indicates job metadata was loaded
-        if (!this._triedExistingPrefill && jp && fam?.familyUserId && jobId) {
-            this._triedExistingPrefill = true;
-            this.state.loadExistingRegistration(jp, fam.familyUserId);
-        }
-    }, { allowSignalWrites: true });
+    // Context is simplified: players and job metadata are loaded directly when jobPath is known.
 
     ngOnInit(): void {
         // Ensure a clean wizard state each time this route is entered (does not affect auth)
@@ -147,25 +110,21 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         }
         this.state.jobPath.set(jobPath);
 
-        // If already authenticated, proactively load family users for this job
+        // If already authenticated, proactively load family players for this job
         if (!!this.auth.currentUser() && !!jobPath) {
-            this.state.loadFamilyUsers(jobPath);
+            this.state.loadFamilyPlayers(jobPath);
         }
 
         // No localStorage fallback: unauthenticated users must choose explicitly on Family Check.
 
         // Apply query params (mode + step)
-        const qpMode = this.route.snapshot.queryParamMap.get('mode') as 'new' | 'edit' | 'parent' | null;
-        if (qpMode === 'new' || qpMode === 'edit' || qpMode === 'parent') {
-            this.state.startMode.set(qpMode);
-        }
+        // Mode parameter deprecated; ignore if present.
         const qpStep = this.route.snapshot.queryParamMap.get('step');
         let hadStepFromQuery = false;
         if (qpStep) {
-            const authed = !!this.auth.currentUser();
             // case-insensitive & guard unauthenticated deep-link to players
             const qpLower = qpStep.toLowerCase();
-            const desired: StepId = (!authed && qpLower === 'players') ? 'family-check' : (qpLower as StepId);
+            const desired: StepId = (!this.auth.currentUser() && qpLower === 'players') ? 'family-check' : (qpLower as StepId);
             const targetIndex = this.steps().indexOf(desired);
             if (targetIndex >= 0) {
                 this.currentIndex.set(targetIndex);
@@ -187,7 +146,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
 
         // Debug logging (temporary) to trace blank-step issue
         if (!this.auth.currentUser()) {
-            console.debug('[PRW] Init unauth user: steps=', this.steps(), 'currentStepId=', this.currentStepId(), 'startMode=', this.state.startMode(), 'hasFamilyAccount=', this.state.hasFamilyAccount());
+            console.debug('[PRW] Init unauth user: steps=', this.steps(), 'currentStepId=', this.currentStepId(), 'hasFamilyAccount=', this.state.hasFamilyAccount());
         }
     }
 
@@ -198,10 +157,10 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             stepIds: this.steps(),
             currentStep: this.currentStepId(),
             index: this.currentIndex(),
-            startMode: this.state.startMode(),
+            // startMode removed
             hasFamilyAccount: this.state.hasFamilyAccount(),
             jobPath: this.state.jobPath(),
-            activeFamilyUser: this.state.activeFamilyUser()
+            familyUser: this.state.familyUser()
         };
     }
 

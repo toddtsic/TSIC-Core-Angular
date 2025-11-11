@@ -31,7 +31,8 @@ import { AuthService } from '../../../core/services/auth.service';
             </label>
 
             <!-- Redirect to centralized login with returnUrl instead of inline form -->
-            <div class="list-group-item border-0 pt-0 pb-3" *ngIf="hasAccount === 'yes'">
+            @if (hasAccount === 'yes') {
+            <div class="list-group-item border-0 pt-0 pb-3">
               <div class="rw-accent-panel">
                 <div class="d-flex align-items-start gap-3">
                   <i class="bi bi-shield-lock-fill rw-accent-icon" aria-hidden="true"></i>
@@ -42,9 +43,11 @@ import { AuthService } from '../../../core/services/auth.service';
                 </div>
               </div>
             </div>
+            }
 
             <!-- Option: Access Family Account (distinct accent color) -->
-            <div class="list-group-item border-0 pt-0 pb-3" *ngIf="hasAccount === 'yes'">
+            @if (hasAccount === 'yes') {
+            <div class="list-group-item border-0 pt-0 pb-3">
               <div class="rw-accent-panel bg-success-subtle">
                 <div class="d-flex align-items-start gap-3">
                   <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
@@ -55,6 +58,7 @@ import { AuthService } from '../../../core/services/auth.service';
                 </div>
               </div>
             </div>
+            }
 
             <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
               <input class="form-check-input" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'no'" />
@@ -65,7 +69,8 @@ import { AuthService } from '../../../core/services/auth.service';
             </label>
 
             <!-- CTA appears directly under the NO option -->
-            <div class="list-group-item border-0 pt-0 pb-3" *ngIf="hasAccount === 'no'">
+            @if (hasAccount === 'no') {
+            <div class="list-group-item border-0 pt-0 pb-3">
               <div class="rw-accent-panel-neutral">
                 <div class="d-flex flex-column flex-md-row align-items-start gap-3">
                   <i class="bi bi-person-plus-fill rw-accent-icon-neutral" aria-hidden="true"></i>
@@ -76,6 +81,7 @@ import { AuthService } from '../../../core/services/auth.service';
                 </div>
               </div>
             </div>
+            }
           </div>
         </fieldset>
     </div>

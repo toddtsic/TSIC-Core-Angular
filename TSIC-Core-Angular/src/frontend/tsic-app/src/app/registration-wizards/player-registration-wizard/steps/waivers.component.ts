@@ -47,10 +47,11 @@ import { RegistrationWizardService } from '../registration-wizard.service';
                 <div [id]="'waiver-c-' + w.id" class="accordion-collapse collapse" [class.show]="isOpen(w.id)" role="region" [attr.aria-labelledby]="'waiver-h-' + w.id">
                   <div class="accordion-body small">
                     <div class="mb-3">
-                      <div *ngIf="w.html && w.html.trim().length; else noContent" [innerHTML]="w.html"></div>
-                      <ng-template #noContent>
+                      @if (w.html && w.html.trim().length) {
+                        <div [innerHTML]="w.html"></div>
+                      } @else {
                         <div class="alert alert-light border small mb-0">No content provided for this waiver.</div>
-                      </ng-template>
+                      }
                     </div>
                     <div class="form-check">
                       <input class="form-check-input" type="checkbox" [checked]="isAccepted(w.id)"
@@ -92,7 +93,9 @@ export class WaiversComponent implements AfterViewInit {
   private readonly state = inject(RegistrationWizardService);
 
   waivers = () => this.state.waiverDefinitions();
-  players = () => this.state.selectedPlayers();
+  players = () => this.state.familyPlayers()
+    .filter(p => p.selected || p.registered)
+    .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
   submitted = signal(false);
 
   // Track open panels (exclusive) and auto-open first waiver
@@ -116,11 +119,8 @@ export class WaiversComponent implements AfterViewInit {
 
   // Editing mode detection (checkbox disabled when editing existing registration or when any selected player is already registered)
   isEditingMode(): boolean {
-    if (this.state.startMode() === 'edit') return true;
     try {
-      const selected = new Set(this.state.selectedPlayers().map(p => p.userId));
-      const anyRegisteredSelected = this.state.familyPlayers().some(fp => fp.registered && selected.has(fp.playerId));
-      return anyRegisteredSelected;
+      return this.state.familyPlayers().some(fp => (fp.selected || fp.registered) && fp.registered);
     } catch { return false; }
   }
 

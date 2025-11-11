@@ -55,11 +55,13 @@ interface LineItem {
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of lineItems()">
-                <td>{{ item.playerName }}</td>
-                <td>{{ item.teamName }}</td>
-                <td>{{ item.amount | currency }}</td>
-              </tr>
+              @for (item of lineItems(); track item.playerId) {
+                <tr>
+                  <td>{{ item.playerName }}</td>
+                  <td>{{ item.teamName }}</td>
+                  <td>{{ item.amount | currency }}</td>
+                </tr>
+              }
             </tbody>
             <tfoot>
               <tr>
@@ -132,7 +134,9 @@ export class PaymentComponent {
 
   lineItems = computed(() => {
     const items: LineItem[] = [];
-    const selectedPlayers = this.state.selectedPlayers();
+    const selectedPlayers = this.state.familyPlayers()
+      .filter(p => p.selected || p.registered)
+      .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
     const selectedTeams = this.state.selectedTeams();
 
     for (const player of selectedPlayers) {
@@ -181,7 +185,7 @@ export class PaymentComponent {
   submit(): void {
     const request = {
       jobId: this.state.jobId(),
-      familyUserId: this.state.activeFamilyUser()?.familyUserId,
+      familyUserId: this.state.familyUser()?.familyUserId,
       paymentOption: this.state.paymentOption(),
       creditCard: this.creditCard
     };

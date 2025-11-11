@@ -534,22 +534,17 @@ public class FamilyController : ControllerBase
 
     [HttpGet("players")]
     [Authorize]
-    [ProducesResponseType(typeof(IEnumerable<object>), 200)]
-    public async Task<IActionResult> GetFamilyPlayers([FromQuery] string jobPath, [FromQuery] string familyUserId)
+    [ProducesResponseType(typeof(FamilyPlayersResponseDto), 200)]
+    public async Task<IActionResult> GetFamilyPlayers([FromQuery] string jobPath)
     {
-        if (string.IsNullOrWhiteSpace(jobPath) || string.IsNullOrWhiteSpace(familyUserId))
+        if (string.IsNullOrWhiteSpace(jobPath))
         {
-            return BadRequest(new { message = "jobPath and familyUserId are required" });
+            return BadRequest(new { message = "jobPath is required" });
         }
 
         // Ensure caller is the same family user (or has elevated roles) - basic check
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-        if (!string.Equals(callerId, familyUserId, StringComparison.OrdinalIgnoreCase))
-        {
-            // Future: allow admin/superusers; for now restrict
-            return Forbid();
-        }
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (familyUserId == null) return Unauthorized();
 
         // Load family member links
         var links = await _db.FamilyMembers.Where(fm => fm.FamilyUserId == familyUserId).ToListAsync();
@@ -591,13 +586,12 @@ public class FamilyController : ControllerBase
         var regs = regsRaw.Where(r => jobPathMap.TryGetValue(r.JobId, out var jp) && string.Equals(jp, jobPath, StringComparison.OrdinalIgnoreCase))
             .Select(r => new { r.UserId, r.BActive, r.PaidTotal, r.OwedTotal })
             .ToList();
-        // Build a map indicating whether each child has any active/paid/owed registration rows for this job.
-        // PaidTotal and OwedTotal are non-nullable decimals per the entity model; avoid null-coalescing.
+        // Build a map indicating whether each child has any registration rows for this job (existence-only rule).
         var regMap = regs
             .GroupBy(r => r.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => g.Any(x => (x.BActive ?? false) || x.PaidTotal > 0m || x.OwedTotal > 0m)
+                g => g.Any()
             );
 
         // Optional lightweight debug via response headers (non-breaking for clients)
@@ -611,99 +605,20 @@ public class FamilyController : ControllerBase
             catch { /* ignore header failures */ }
         }
 
-        var result = children.Select(c => new
-        {
-            playerId = c.Id,
-            firstName = c.FirstName ?? string.Empty,
-            lastName = c.LastName ?? string.Empty,
-            gender = c.Gender ?? string.Empty,
-            dob = c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
-            registered = regMap.TryGetValue(c.Id, out var isReg) && isReg
-        });
-        return Ok(result);
-    }
-
-    // Combined bootstrap: returns family user summary and players for the given job in a single call.
-    [HttpGet("bootstrap")]
-    [Authorize]
-    [ProducesResponseType(typeof(FamilyBootstrapResponse), 200)]
-    public async Task<IActionResult> GetBootstrap([FromQuery] string jobPath)
-    {
-        if (string.IsNullOrWhiteSpace(jobPath))
-        {
-            return BadRequest(new { message = "jobPath is required" });
-        }
-
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-
-        // Family summary
-        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == callerId);
-        if (fam == null)
-        {
-            // No family profile yet => return empty players with username fallback
-            var aspUser = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == callerId);
-            var summary = new FamilyUserSummaryDto(callerId, aspUser?.UserName ?? "Family", aspUser?.UserName ?? string.Empty);
-            return Ok(new FamilyBootstrapResponse(jobPath, summary, Array.Empty<FamilyPlayerDto>()));
-        }
-
-        var asp = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == callerId);
+        // Build family user summary for header/badge usage
+        var fam = await _db.Families.FirstOrDefaultAsync(f => f.FamilyUserId == familyUserId);
+        var asp = await _db.AspNetUsers.FirstOrDefaultAsync(u => u.Id == familyUserId);
         string display;
-        if (!string.IsNullOrWhiteSpace(fam.MomFirstName) || !string.IsNullOrWhiteSpace(fam.MomLastName))
-            display = $"{fam.MomFirstName} {fam.MomLastName}".Trim();
-        else if (!string.IsNullOrWhiteSpace(fam.DadFirstName) || !string.IsNullOrWhiteSpace(fam.DadLastName))
-            display = $"{fam.DadFirstName} {fam.DadLastName}".Trim();
+        if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
+            display = $"{fam?.MomFirstName} {fam?.MomLastName}".Trim();
+        else if (!string.IsNullOrWhiteSpace(fam?.DadFirstName) || !string.IsNullOrWhiteSpace(fam?.DadLastName))
+            display = $"{fam?.DadFirstName} {fam?.DadLastName}".Trim();
         else if (!string.IsNullOrWhiteSpace(asp?.FirstName) || !string.IsNullOrWhiteSpace(asp?.LastName))
             display = $"{asp!.FirstName} {asp!.LastName}".Trim();
         else
             display = asp?.UserName ?? "Family";
 
-        var familyUser = new FamilyUserSummaryDto(fam.FamilyUserId, display, asp?.UserName ?? string.Empty);
-
-        // Players for this family + registration status for this jobPath
-        var links = await _db.FamilyMembers.Where(fm => fm.FamilyUserId == fam.FamilyUserId).ToListAsync();
-        var childIds = links.Select(l => l.FamilyMemberUserId).Distinct().ToList();
-        var regChildIds = await _db.Registrations
-            .Where(r => r.FamilyUserId == fam.FamilyUserId && r.UserId != null)
-            .Select(r => r.UserId!)
-            .Distinct()
-            .ToListAsync();
-        var allChildIds = childIds.Union(regChildIds).Distinct().ToList();
-
-        var children = allChildIds.Count == 0
-            ? new List<AspNetUsers>()
-            : await _db.AspNetUsers.Where(u => allChildIds.Contains(u.Id)).ToListAsync();
-
-        var regsRaw = await _db.Registrations
-            .Where(r => r.UserId != null && allChildIds.Contains(r.UserId))
-            .Select(r => new { r.UserId, r.BActive, r.PaidTotal, r.OwedTotal, r.JobId })
-            .ToListAsync();
-
-        Dictionary<Guid, string> jobPathMap = new();
-        try
-        {
-            var jobIds = regsRaw.Select(r => r.JobId).Distinct().ToList();
-            if (jobIds.Count > 0)
-            {
-                var jobs = await _db.Jobs.Where(j => jobIds.Contains(j.JobId)).Select(j => new { j.JobId, j.JobPath }).ToListAsync();
-                jobPathMap = jobs.ToDictionary(j => j.JobId, j => j.JobPath ?? string.Empty);
-            }
-        }
-        catch (Exception ex)
-        {
-            // Jobs mapping is optional; proceed without it.
-            System.Diagnostics.Debug.WriteLine($"[FamilyController] Optional jobs lookup failed: {ex.Message}");
-        }
-
-        var regs = regsRaw.Where(r => jobPathMap.TryGetValue(r.JobId, out var jp) && string.Equals(jp, jobPath, StringComparison.OrdinalIgnoreCase))
-            .Select(r => new { r.UserId, r.BActive, r.PaidTotal, r.OwedTotal })
-            .ToList();
-        var regMap = regs
-            .GroupBy(r => r.UserId!)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Any(x => (x.BActive ?? false) || x.PaidTotal > 0m || x.OwedTotal > 0m)
-            );
+        var familyUser = new FamilyUserSummaryDto(familyUserId, display, asp?.UserName ?? string.Empty);
 
         var players = children.Select(c => new FamilyPlayerDto(
             c.Id,
@@ -714,7 +629,7 @@ public class FamilyController : ControllerBase
             regMap.TryGetValue(c.Id, out var isReg) && isReg
         ));
 
-        var resp = new FamilyBootstrapResponse(jobPath, familyUser, players);
-        return Ok(resp);
+        return Ok(new FamilyPlayersResponseDto(familyUser, players));
     }
+
 }

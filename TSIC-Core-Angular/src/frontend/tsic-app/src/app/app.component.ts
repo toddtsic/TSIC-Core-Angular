@@ -10,4 +10,5 @@ import { ToastsComponent } from './shared/toasts.component';
   styleUrl: './app.component.scss'
 })
 export class AppComponent {
+  title = 'tsic-app';
 }

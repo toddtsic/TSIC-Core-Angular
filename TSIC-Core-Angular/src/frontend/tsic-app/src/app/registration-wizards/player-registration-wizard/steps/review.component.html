@@ -7,21 +7,16 @@
         <div class="mb-3">
             <div class="fw-semibold mb-2">Player Registrations</div>
             <ul class="list-unstyled mb-0">
-                <li *ngFor="let player of state.selectedPlayers(); trackBy: trackPlayer">
+                @for (player of selectedPlayers(); track trackPlayer($index, player)) {
+                <li>
                     <span class="fw-semibold">{{ player.name }}</span>
-                    <span class="ms-2 text-secondary">registered for</span>
-                    <span class="ms-1">
-                        <ng-container *ngIf="getTeamsForPlayer(player.userId).length > 0; else noTeam">
-                            {{ getTeamsForPlayer(player.userId).join(', ') }}
-                        </ng-container>
-                        <ng-template #noTeam>
-                            <span class="text-danger">No team selected</span>
-                        </ng-template>
-                    </span>
+                    <span class="ms-2 text-secondary">registration</span>
                 </li>
+                }
             </ul>
         </div>
-        <div *ngIf="state.waiverDefinitions().length > 0" class="mb-3 p-3 border rounded bg-body-tertiary">
+        @if (state.waiverDefinitions().length > 0) {
+        <div class="mb-3 p-3 border rounded bg-body-tertiary">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="fw-semibold">Waivers</div>
                 <span class="badge"
@@ -40,6 +35,7 @@
             </ul>
             <!-- Signature line removed: waivers now use checkbox acceptance only -->
         </div>
+        }
         <div class="rw-bottom-nav d-flex gap-2">
             <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
             <button type="button" class="btn btn-primary" (click)="next.emit()">Proceed to Payment</button>

@@ -11,6 +11,13 @@ public record FamilyPlayerDto(
     bool Registered
 );
 
+public record FamilyPlayersResponseDto(
+    FamilyUserSummaryDto FamilyUser,
+    IEnumerable<FamilyPlayerDto> Players
+);
+
+// NOTE: Formerly used by GET /api/family/bootstrap (now removed). Retain DTOs for potential future consolidation
+// into a unified /api/family/context endpoint. Remove if not referenced after context API is implemented.
 public record FamilyBootstrapResponse(
     string JobPath,
     FamilyUserSummaryDto FamilyUser,

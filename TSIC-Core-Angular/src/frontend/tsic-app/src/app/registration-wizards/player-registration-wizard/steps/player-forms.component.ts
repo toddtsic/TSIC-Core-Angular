@@ -2,6 +2,7 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
+import { BottomNavComponent } from '../bottom-nav.component';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
@@ -9,247 +10,173 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, BottomNavComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Player Forms</h5>
+        <div class="mt-2">
+          <div class="fw-semibold mb-1">Selected teams</div>
+          <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
+            @for (id of selectedPlayersWithTeams[0]?.teamIds ?? []; track id) {
+              <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
+                {{ nameForTeam(id) }}
+              </li>
+            }
+            @if (!(selectedPlayersWithTeams[0]?.teamIds?.length)) {
+              <li class="text-muted">None</li>
+            }
+          </ul>
+        </div>
       </div>
       <div class="card-body">
-        <p class="text-secondary mb-3">Provide required information for each player.</p>
-
-        @if (schemas().length === 0) {
-          <div class="alert alert-info mb-3">
-            This registration doesn’t define any player form fields.
-            <br class="d-none d-md-block" />
-            <small class="text-muted">If this seems wrong, contact an administrator and reference Job {{ jobId() || jobPath() || 'N/A' }}.</small>
-          </div>
-        }
-
-        @if (schemas().length > 0) {
-          <div class="vstack gap-4">
-            @for (player of selectedPlayers(); track player.userId; let i = $index) {
-              <div class="border rounded p-3 shadow-sm" [ngClass]="cardBgClass(i)">
-                <h6 class="fw-semibold mb-3 d-flex flex-wrap align-items-center gap-2">
-                  <span>{{ player.name }}</span>
-                  <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
-                    @for (teamId of arrayify(state.selectedTeams()[player.userId]); track teamId) {
-                      <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                        {{ nameForTeam(teamId) }}
-                        @if (!(readonlyMode() || isRegistered(player.userId))) {
-                          <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline" (click)="removeTeam(player.userId, teamId)">×</button>
-                        }
-                        @if (readonlyMode() || isRegistered(player.userId)) {
-                          <span class="badge bg-secondary ms-2" title="Already registered; team locked">Locked</span>
-                        }
-                      </li>
-                    }
-                    @if (arrayify(state.selectedTeams()[player.userId]).length === 0) {
-                      <li class="text-muted">None</li>
-                    }
-                  </ul>
-                </h6>
-                <div class="row g-3">
-                  @for (field of schemas(); track field.name) {
-                    @if (isFieldVisible(player.userId, field)) {
-                      <div class="col-12 col-md-6">
-                        <label class="form-label fw-semibold mb-1">
-                          {{ field.label }}
-                          @if (field.required) { <span class="text-danger">*</span> }
-                        </label>
-
-                        @if (isUsLaxField(field)) {
-                          <div class="uslax-field-group">
-                            <input type="text" class="form-control"
-                                   #uslax="ngModel"
-                                   [required]="field.required"
-                                   [ngModel]="value(player.userId, field.name)"
-                                   (ngModelChange)="setValue(player.userId, field.name, $event)"
-                                   [usLaxValidator]="player.userId"
-                                   placeholder="Enter USA Lacrosse #" />
-                            <div class="mt-1 small">
-                              @if (uslax.pending) {
-                                <span class="text-muted">Validating...</span>
-                              } @else if (uslax.invalid && (uslax.dirty || uslax.touched)) {
-                                <!-- Place call-to-action FIRST, then the guidance message -->
-                                @if (usLaxStatus(player.userId).membership !== undefined) {
-                                  <button type="button"
-                                          class="btn btn-warning btn-sm fw-semibold mt-2 mb-2 pt-1 pb-1 px-3 me-2"
-                                          (click)="openUsLaxDetails(player.userId)"
-                                          style="box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.1);">
-                                    Click here for error details
-                                  </button>
-                                }
-                                <!-- Render rich HTML guidance from validator (Angular sanitizes automatically). Wrap generic multi-paragraph guidance in a card for visual separation. -->
-                                <div class="card border-0 mb-2 mt-2" *ngIf="isGenericGuidance(uslax.errors?.['uslax']?.message); else plainMsg"
-                                     role="alert" aria-live="polite"
-                                     style="border-left: 4px solid var(--bs-warning);">
-                                  <div class="card-body py-3 px-3 bg-danger-subtle rounded">
-                                    <div class="fw-semibold text-danger-emphasis mb-1">USA Lacrosse guidance</div>
-                                    <span class="text-danger-emphasis small d-block" [innerHTML]="uslax.errors?.['uslax']?.message"></span>
-                                  </div>
-                                </div>
-                                <ng-template #plainMsg>
-                                  <span class="text-danger d-inline-block" [innerHTML]="uslax.errors?.['uslax']?.message || 'Invalid number'"></span>
-                                </ng-template>
-                              } @else if ((value(player.userId, field.name) || '').toString().trim().length > 0) {
-                                <span class="text-success">Valid membership ✔</span>
-                              } @else {
-                                <span class="text-muted">Type or edit value to validate automatically.</span>
-                              }
-                            </div>
-                          </div>
-                        } @else {
-                        @switch (field.type) {
-                          @case ('text') {
-                            <input type="text" class="form-control"
-                                   [required]="field.required"
-                                   [ngModel]="value(player.userId, field.name)"
-                                   (ngModelChange)="setValue(player.userId, field.name, $event)"
-                                   [attr.aria-describedby]="helpId(player.userId, field.name)" />
-                          }
-                          @case ('number') {
-                            <input type="number" class="form-control"
-                                   [required]="field.required"
-                                   [ngModel]="value(player.userId, field.name)"
-                                   (ngModelChange)="setValue(player.userId, field.name, $event)"
-                                   [attr.aria-describedby]="helpId(player.userId, field.name)" />
-                          }
-                          @case ('date') {
-                            <input type="date" class="form-control"
-                                   [required]="field.required"
-                                   [ngModel]="value(player.userId, field.name)"
-                                   (ngModelChange)="setValue(player.userId, field.name, $event)"
-                                   [attr.aria-describedby]="helpId(player.userId, field.name)" />
-                          }
-                          @case ('select') {
-                            <!-- Refined TeamId select: disables full teams, shows strike-through, faded, tooltip, and inline message for full teams -->
-                            <select class="form-select"
-                                    [required]="field.required"
-                                    [ngModel]="value(player.userId, field.name)"
-                                    (ngModelChange)="setValue(player.userId, field.name, $event)"
-                                    [attr.aria-describedby]="helpId(player.userId, field.name)">
-                              @if (!field.required) {
-                                <option value=""></option>
-                              }
-                              @for (opt of field.options; track opt) {
-                                @let team = getTeam(opt);
-                                <option [value]="opt" *ngIf="!field.name.toLowerCase().includes('team')">{{ opt }}</option>
-                                <option [value]="opt" *ngIf="field.name.toLowerCase().includes('team')"
-                                  [disabled]="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0)"
-                                  [title]="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0) ? 'Team is full and cannot be selected.' : ''"
-                                  [ngStyle]="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0) ? { 'text-decoration': 'line-through', 'opacity': 0.6 } : null"
-                                >
-                                  {{ opt }}
-                                  <span *ngIf="team && (team.rosterIsFull || (team.maxRosterSize - team.currentRosterSize) === 0)" class="text-danger ms-2 small">(Cannot select)</span>
-                                </option>
-                              }
-                            </select>
-                          }
-                          @case ('multiselect') {
-                            <div class="border rounded p-2 bg-light-subtle">
-                              @for (opt of field.options; track opt) {
-                                <div class="form-check">
-                                  <input class="form-check-input" type="checkbox"
-                                         [checked]="isMultiChecked(player.userId, field.name, opt)"
-                                         (change)="toggleMulti(player.userId, field.name, opt, $event)" />
-                                  <label class="form-check-label">{{ opt }}</label>
-                                </div>
-                              }
-                            </div>
-                          }
-                          @case ('checkbox') {
-                            <div class="form-check mt-1">
-                              <input class="form-check-input" type="checkbox"
-                                     [checked]="value(player.userId, field.name) === true"
-                                     (change)="onCheckboxChange(player.userId, field.name, $event)" />
-                              <label class="form-check-label">Yes</label>
-                            </div>
-                          }
-                          @default {
-                            <input type="text" class="form-control"
-                                   [required]="field.required"
-                                   [ngModel]="value(player.userId, field.name)"
-                                   (ngModelChange)="setValue(player.userId, field.name, $event)" />
-                          }
-                        }
-                        }
-
-                        @if (field.helpText) {
-                          <div class="form-text" [id]="helpId(player.userId, field.name)">{{ field.helpText }}</div>
-                        }
-                      </div>
-                    }
+        @for (player of selectedPlayersWithTeams; track trackPlayer($index, player)) {
+          <div class="mb-4">
+            <div class="card card-rounded border-0 shadow-sm">
+              <div class="card-header bg-light-subtle border-bottom-0">
+                <div class="d-flex align-items-center justify-content-between">
+                  <span class="fw-semibold">{{ player.name }}</span>
+                  @if (isRegistered(player.userId)) {
+                    <span class="badge bg-success ms-2">Registered</span>
                   }
+                  <!-- Remove duplicate team pills here -->
                 </div>
               </div>
-            }
+              <div class="card-body">
+                
+                <!-- Only show the first USA Lacrosse # field per player -->
+                @let usLaxField = firstUsLaxField();
+                @if (usLaxField) {
+                  <div class="mb-3">
+                    <div class="uslax-field-group">
+                      <input type="text" class="form-control"
+                             #uslax="ngModel"
+                             [required]="usLaxField.required"
+                             [ngModel]="value(player.userId, usLaxField.name)"
+                             (ngModelChange)="setValue(player.userId, usLaxField.name, $event)"
+                             [usLaxValidator]="player.userId"
+                             placeholder="Enter USA Lacrosse #" />
+                      <div class="mt-1 small">
+                        @if (uslax?.pending) {
+                          <span class="text-muted">Validating...</span>
+                        } @else if (uslax?.invalid && (uslax?.dirty || uslax?.touched)) {
+                          @if (usLaxStatus(player.userId).membership !== undefined) {
+                            <button type="button"
+                                    class="btn btn-warning btn-sm fw-semibold mt-2 mb-2 pt-1 pb-1 px-3 me-2"
+                                    (click)="openUsLaxDetails(player.userId)"
+                                    style="box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.1);">
+                              Click here for error details
+                            </button>
+                          }
+                          @if (isGenericGuidance(uslax?.errors?.['uslax']?.message)) {
+                            <div class="card border-0 mb-2 mt-2" role="alert" aria-live="polite" style="border-left: 4px solid var(--bs-warning);">
+                              <div class="card-body py-3 px-3 bg-danger-subtle rounded">
+                                <div class="fw-semibold text-danger-emphasis mb-1">USA Lacrosse guidance</div>
+                                <span class="text-danger-emphasis small d-block" [innerHTML]="uslax?.errors?.['uslax']?.message"></span>
+                              </div>
+                            </div>
+                          } @else {
+                            <span class="text-danger d-inline-block" [innerHTML]="uslax?.errors?.['uslax']?.message || 'Invalid number'"></span>
+                          }
+                        } @else if ((value(player.userId, usLaxField.name) || '').toString().trim().length > 0) {
+                          <span class="text-success">Valid membership ✔</span>
+                        } @else {
+                          <span class="text-muted">Type or edit value to validate automatically.</span>
+                        }
+                      </div>
+                    </div>
+                    @if (usLaxField.helpText) {
+                      <div class="form-text" [id]="helpId(player.userId, usLaxField.name)">{{ usLaxField.helpText }}</div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
           </div>
         }
-        <div class="rw-bottom-nav d-flex gap-2 mt-3">
-          <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-          <button type="button" class="btn btn-primary" (click)="next.emit()">Continue</button>
-        </div>
+        <app-rw-bottom-nav (back)="back.emit()" (next)="next.emit()"></app-rw-bottom-nav>
       </div>
     </div>
 
-    @if (modalOpen) {
-      <!-- Lightweight modal overlay for API details -->
-      <div class="position-fixed top-0 start-0 w-100 h-100" style="background: rgba(0,0,0,0.5); z-index: 1050;" role="presentation" (click)="closeModal()"></div>
-      <div class="position-fixed top-50 start-50 translate-middle bg-white rounded shadow border w-100" style="max-width: 720px; z-index: 1060;" role="dialog" aria-modal="true" aria-label="USA Lacrosse API Details">
-        <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
-          <h6 class="mb-0">USA Lacrosse API Details</h6>
-          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeModal()">Close</button>
+@if (modalOpen) {
+  <!-- USA Lacrosse API Details modal -->
+  <div class="position-fixed top-0 start-0 w-100 h-100" style="background: rgba(0,0,0,0.5); z-index: 1050;" role="presentation" (click)="closeModal()"></div>
+  <div class="position-fixed top-50 start-50 translate-middle bg-white rounded shadow border w-100" style="max-width: 720px; z-index: 1060;" role="dialog" aria-modal="true" aria-label="USA Lacrosse API Details">
+    <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
+      <h6 class="mb-0">USA Lacrosse API Details</h6>
+      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeModal()">Close</button>
+    </div>
+    <div class="p-3">
+      <p class="small text-muted mb-2">Your membership didn’t validate. Recommend calling USA Lacrosse at call 410-235-6882. Please share the following information with them.</p>
+      @if (modalData) {
+        <div class="table-responsive mb-3">
+          <table class="table table-sm mb-0 align-middle">
+            <tbody>
+              <tr><th class="text-nowrap">Member #</th><td>{{ modalData?.membernumber || modalData?.mem_number || '—' }}</td></tr>
+              <tr><th class="text-nowrap">First Name</th><td>{{ modalData?.firstname || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Last Name</th><td>{{ modalData?.lastname || '—' }}</td></tr>
+              <tr><th class="text-nowrap">DOB</th><td>{{ modalData?.birthdate || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Status</th><td>{{ modalData?.mem_status || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Expires</th><td>{{ modalData?.exp_date || '—' }}</td></tr>
+            </tbody>
+          </table>
         </div>
-        <div class="p-3">
-          <p class="small text-muted mb-2">
-            Your membership didn’t validate. Recommend calling USA Lacrosse at call 410-235-6882. Please share the following information with them.
-          </p>
-
-          @if (modalData) {
-            <div class="table-responsive mb-3">
-              <table class="table table-sm mb-0 align-middle">
-                <tbody>
-                  <tr><th class="text-nowrap">Member #</th><td>{{ modalData?.membernumber || modalData?.mem_number || '—' }}</td></tr>
-                  <tr><th class="text-nowrap">First Name</th><td>{{ modalData?.firstname || '—' }}</td></tr>
-                  <tr><th class="text-nowrap">Last Name</th><td>{{ modalData?.lastname || '—' }}</td></tr>
-                  <tr><th class="text-nowrap">DOB</th><td>{{ modalData?.birthdate || '—' }}</td></tr>
-                  <tr><th class="text-nowrap">Status</th><td>{{ modalData?.mem_status || '—' }}</td></tr>
-                  <tr><th class="text-nowrap">Expires</th><td>{{ modalData?.exp_date || '—' }}</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="mb-2 d-flex gap-2">
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="copyModalJson()">Copy JSON</button>
-              <a class="btn btn-sm btn-link" href="#" (click)="$event.preventDefault(); closeModal()">Done</a>
-            </div>
-            <pre class="bg-light border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
-          } @else {
-            <div class="alert alert-warning small">No membership details were returned by the API.</div>
-          }
+        <div class="mb-2 d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" (click)="copyModalJson()">Copy JSON</button>
+          <a class="btn btn-sm btn-link" href="#" (click)="$event.preventDefault(); closeModal()">Done</a>
         </div>
-      </div>
-    }
+        <pre class="bg-light border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
+      } @else {
+        <div class="alert alert-warning small">No membership details were returned by the API.</div>
+      }
+    </div>
+  </div>
+}
   `
 })
 export class PlayerFormsComponent {
+  /** Returns selected players (from familyPlayers flags) with teamIds property for pill rendering. */
+  get selectedPlayersWithTeams() {
+    const list = this.state.familyPlayers().filter(p => p.selected || p.registered);
+    return list.map(p => ({
+      userId: p.playerId,
+      name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
+      teamIds: (() => {
+        // When eligibility step exists we show team selections elsewhere (Teams step), keep pills minimal here.
+        // When no eligibility step, Teams tab is skipped and team selection happens here in Forms; still expose current selections as pills.
+        const sel = this.state.selectedTeams()[p.playerId];
+        if (!sel) return [];
+        return Array.isArray(sel) ? sel : [sel];
+      })(),
+      // Flag indicating we should render inline team selection controls for this player (only when Teams step skipped)
+      inlineTeams: false // Inline team selection disabled; Teams tab always present
+    }));
+  }
+  /** Returns an array of team IDs for a player, for pill rendering. */
+  teamIds(playerId: string): string[] {
+    const sel = this.state.selectedTeams()[playerId];
+    if (!sel) return [];
+    return Array.isArray(sel) ? sel : [sel];
+  }
+  /** Returns registrationId for a player if present in familyPlayers. */
+  getRegistrationId(playerId: string): string | null {
+    const p = this.state.familyPlayers().find(fp => fp.playerId === playerId);
+    return p && (p as any).registrationId ? (p as any).registrationId : null;
+  }
   /**
    * Lookup a team by name from the TeamService filtered list.
    * Used for TeamId select field feedback (full/disabled logic).
    */
-  getTeam(teamName: string) {
-    return this.teams.filterByEligibility(null).find(t => t.teamName === teamName);
+  getTeam(teamId: string) {
+    return this.teams.filterByEligibility(null).find(t => t.teamId === teamId);
   }
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
   public readonly state = inject(RegistrationWizardService);
   /** Returns true if the wizard is in readonly mode (edit mode or any registered player selected). */
   public readonlyMode(): boolean {
-    const mode = this.state.startMode();
-    if (mode === 'edit' || mode === 'parent') return true;
-    // Also readonly if any selected player is registered
-    const selectedIds = new Set(this.state.selectedPlayers().map(p => p.userId));
-    return this.state.familyPlayers().some(p => p.registered && selectedIds.has(p.playerId));
+    // Readonly only when any selected or registered player is registered (edit scenario)
+    return this.state.familyPlayers().some(p => (p.selected || p.registered) && p.registered);
   }
 
   /** Returns true if the player is registered. */
@@ -260,7 +187,7 @@ export class PlayerFormsComponent {
   private readonly uslax = inject(UsLaxService);
 
   schemas = () => this.state.profileFieldSchemas();
-  selectedPlayers = () => this.state.selectedPlayers();
+  selectedPlayers = () => this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
   cardBgClass(i: number): string {
@@ -296,6 +223,9 @@ export class PlayerFormsComponent {
     const lname = field.name.toLowerCase();
     const llabel = field.label.toLowerCase();
     return lname === 'sportassnid' || llabel.includes('lacrosse');
+  }
+  firstUsLaxField(): PlayerProfileFieldSchema | undefined {
+    return this.schemas().find(f => this.isUsLaxField(f));
   }
   usLaxStatus(playerId: string) {
     return this.state.usLaxStatus()[playerId] || { value: '', status: 'idle' };
@@ -421,4 +351,14 @@ export class PlayerFormsComponent {
     map[playerId] = arr;
     this.state.selectedTeams.set(map);
   }
+
+  // Inline team selection (only active when Teams step skipped). For simplicity support single team selection here.
+  canShowInlineTeamSelect(): boolean {
+    return false; // Reverted: teams selection handled in dedicated Teams step
+  }
+  inlineTeamsFor(playerId: string) {
+    return []; // Not used after revert
+  }
+  inlineSelectedTeam(playerId: string): string | null { return null; }
+  onInlineTeamChange(playerId: string, value: string) { /* no-op after revert */ }
 }

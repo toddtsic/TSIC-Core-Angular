@@ -25,7 +25,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
           <div class="mb-3">
             <p class="small text-muted mb-2">Select {{ selectLabel().toLowerCase() }} for each player you are registering.</p>
             <div class="list-group list-group-flush">
-              @for (p of state.selectedPlayers(); track p.userId) {
+              @for (p of selectedPlayers(); track p.userId) {
                 <div class="list-group-item">
                   <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 justify-content-between">
                     <div class="fw-semibold d-flex align-items-center gap-2">
@@ -120,7 +120,7 @@ export class ConstraintSelectionComponent {
     }
   });
 
-  eligibilityDisabled = computed(() => this.state.startMode() === 'edit');
+  eligibilityDisabled = computed(() => this.state.familyPlayers().some(p => (p.selected || p.registered) && p.registered));
 
   private isPlayerRegistered(playerId: string): boolean {
     try {
@@ -286,8 +286,8 @@ export class ConstraintSelectionComponent {
   }
   isPlayerLocked(playerId: string): boolean {
     const elig = this.state.getEligibilityForPlayer(playerId);
-    // Locked when editing or when player is already registered for this job (defensive in case startMode not set)
-    return this.eligibilityDisabled() || this.isPlayerRegistered(playerId) || (!!elig && this.state.startMode() === 'edit');
+    // Locked only when player already registered (edit mode concept removed)
+    return this.eligibilityDisabled() || this.isPlayerRegistered(playerId);
   }
   onSelectChange(playerId: string, ev: Event) {
     if (this.eligibilityDisabled()) return; // locked in edit mode
@@ -296,7 +296,7 @@ export class ConstraintSelectionComponent {
     this.state.setEligibilityForPlayer(playerId, val);
   }
   missingEligibility() {
-    const sel = this.state.selectedPlayers();
+    const sel = this.selectedPlayers();
     const map = this.state.eligibilityByPlayer();
     const opts = this.eligibleOptions();
     if (opts.length === 0) return []; // skip check when no options
@@ -306,6 +306,12 @@ export class ConstraintSelectionComponent {
     return this.missingEligibility().map(p => p.name).join(', ');
   }
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
+
+  selectedPlayers() {
+    return this.state.familyPlayers()
+      .filter(p => p.selected || p.registered)
+      .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+  }
 
   // Helper: check if a given value exists in the eligible options list
   hasEligibleOption(val: string | undefined): boolean {
