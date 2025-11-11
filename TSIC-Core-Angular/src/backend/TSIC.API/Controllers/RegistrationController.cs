@@ -19,18 +19,21 @@ public class RegistrationController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly SqlDbContext _db;
     private readonly IPaymentService _paymentService;
+    private readonly IFeeResolverService _feeResolver;
     private static readonly string IsoDate = "yyyy-MM-dd";
 
     public RegistrationController(
         ILogger<RegistrationController> logger,
         IJobLookupService jobLookupService,
         SqlDbContext db,
-        IPaymentService paymentService)
+        IPaymentService paymentService,
+        IFeeResolverService feeResolver)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
         _db = db;
         _paymentService = paymentService;
+        _feeResolver = feeResolver;
     }
 
     /// <summary>
@@ -64,100 +67,343 @@ public class RegistrationController : ControllerBase
             .ToDictionaryAsync(g => g.Key, g => g.Count());
 
         // Load profile metadata to map field names -> Registrations property names (dbColumn)
-        var metadataJson = await _db.Jobs
+        var jobEntity = await _db.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId.Value)
-            .Select(j => j.PlayerProfileMetadataJson)
+            .Select(j => new { j.PlayerProfileMetadataJson, j.JsonOptions })
             .SingleOrDefaultAsync();
+
+        var metadataJson = jobEntity?.PlayerProfileMetadataJson;
+        var registrationMode = GetRegistrationMode(jobEntity?.JsonOptions); // "PP" or "CAC"
 
         var nameToProperty = BuildFieldNameToPropertyMap(metadataJson);
         var writableProps = BuildWritablePropertyMap();
 
+        // Load existing registrations for involved players to allow update-in-place when editing
+        var playerIds = request.TeamSelections.Select(ts => ts.PlayerId).Distinct().ToList();
+        var existingRegs = await _db.Registrations
+            .Where(r => r.JobId == jobId.Value && r.FamilyUserId == request.FamilyUserId && r.UserId != null && playerIds.Contains(r.UserId))
+            .OrderByDescending(r => r.Modified)
+            .ToListAsync();
+
+        var existingByPlayer = existingRegs.GroupBy(r => r.UserId!).ToDictionary(g => g.Key, g => g.ToList());
+        var existingByPlayerTeam = existingRegs
+            .Where(r => r.AssignedTeamId.HasValue)
+            .GroupBy(r => (r.UserId!, r.AssignedTeamId!.Value))
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Modified).First());
+
+        // Group requested selections by player to detect single-team edit vs multi-team intent
+        var selectionsByPlayer = request.TeamSelections
+            .GroupBy(s => s.PlayerId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         var teamResults = new List<TSIC.API.Dtos.PreSubmitTeamResultDto>();
-        foreach (var sel in request.TeamSelections)
+
+        // Local wrapper to use central fee resolver; preloaded list gives a fast path
+        async Task<decimal> ResolveTeamBaseFeeAsync(Guid teamId)
         {
-            var team = teams.Find(t => t.TeamId == sel.TeamId);
-            if (team == null)
+            var cached = teams.FirstOrDefault(x => x.TeamId == teamId);
+            if (cached != null && (cached.FeeBase.HasValue || cached.PerRegistrantFee.HasValue))
             {
-                teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
-                {
-                    PlayerId = sel.PlayerId,
-                    TeamId = sel.TeamId,
-                    IsFull = true,
-                    TeamName = "Unknown",
-                    Message = "Team not found.",
-                    RegistrationCreated = false
-                });
-                continue;
+                var v = cached.FeeBase ?? cached.PerRegistrantFee ?? 0m;
+                if (v > 0) return v;
             }
-            var rosterCount = teamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
-            var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
-            if (isFull)
-            {
-                teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
+            return await _feeResolver.ResolveBaseFeeForTeamAsync(teamId);
+        }
+
+        foreach (var (playerId, selections) in selectionsByPlayer)
+        {
+            // De-duplicate teamIds per player just in case
+            var desiredTeamIds = selections.Select(s => s.TeamId).Distinct().ToList();
+            if (desiredTeamIds.Count == 0) continue;
+
+            // Helper to add a result entry
+            void AddResult(Guid teamId, bool isFull, string teamName, string message, bool created)
+                => teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
                 {
-                    PlayerId = sel.PlayerId,
-                    TeamId = team.TeamId,
-                    IsFull = true,
-                    TeamName = team.TeamName ?? "",
-                    Message = "Team roster is full.",
-                    RegistrationCreated = false
+                    PlayerId = playerId,
+                    TeamId = teamId,
+                    IsFull = isFull,
+                    TeamName = teamName,
+                    Message = message,
+                    RegistrationCreated = created
                 });
-            }
-            else
+
+            if (desiredTeamIds.Count == 1)
             {
-                // Create pending registration (BActive=false)
-                var reg = new Registrations
+                var teamId = desiredTeamIds[0];
+                var team = teams.Find(t => t.TeamId == teamId);
+                if (team == null)
                 {
-                    RegistrationId = Guid.NewGuid(),
-                    JobId = jobId.Value,
-                    FamilyUserId = request.FamilyUserId,
-                    UserId = sel.PlayerId,
-                    AssignedTeamId = team.TeamId,
-                    BActive = false,
-                    Modified = DateTime.UtcNow,
-                    RegistrationTs = DateTime.UtcNow,
-                    RoleId = RoleConstants.Player
-                };
-                // Apply incoming form values (if any) onto the Registrations entity
-                if (sel.FormValues != null && sel.FormValues.Count > 0)
+                    AddResult(teamId, true, "Unknown", "Team not found.", false);
+                    continue;
+                }
+                var rosterCount = teamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
+                var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
+                if (isFull)
                 {
-                    foreach (var kvp in sel.FormValues)
+                    AddResult(team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
+                    continue;
+                }
+
+                // If a registration already exists for this player in this job, update it in-place to the selected team
+                Registrations? regToUpdate = null;
+                if (existingByPlayer.TryGetValue(playerId, out var list) && list.Count > 0)
+                {
+                    // Prefer exact team match; else latest registration
+                    if (existingByPlayerTeam.TryGetValue((playerId, team.TeamId), out var exact))
+                        regToUpdate = exact;
+                    else
+                        regToUpdate = list.OrderByDescending(r => r.Modified).First();
+                }
+
+                if (regToUpdate != null)
+                {
+                    regToUpdate.Modified = DateTime.UtcNow;
+                    var sel = selections.Last(); // use last selection for form values
+                    if (string.Equals(registrationMode, "PP", StringComparison.OrdinalIgnoreCase))
                     {
-                        var incomingName = kvp.Key;
-                        var jsonVal = kvp.Value;
-
-                        // Resolve to a target property name via metadata mapping (dbColumn) or direct match
-                        var targetName = ResolveTargetPropertyName(incomingName, nameToProperty, writableProps);
-                        if (targetName == null) continue; // not a writable/known property
-
-                        if (!writableProps.TryGetValue(targetName, out var prop)) continue;
-
-                        if (TryConvertAndAssign(jsonVal, prop.PropertyType, out var converted))
+                        // PP: Allow team change ONLY if unpaid OR (paid and destination team has identical base fee)
+                        var hasPayment = (regToUpdate.PaidTotal > 0) || (regToUpdate.OwedTotal > 0 && regToUpdate.PaidTotal > 0);
+                        if (hasPayment)
                         {
-                            prop.SetValue(reg, converted);
+                            var existingBase = regToUpdate.FeeBase;
+                            if (existingBase <= 0 && regToUpdate.AssignedTeamId.HasValue)
+                            {
+                                existingBase = await ResolveTeamBaseFeeAsync(regToUpdate.AssignedTeamId.Value);
+                            }
+                            var newTeamBase = team.FeeBase ?? team.PerRegistrantFee ?? await ResolveTeamBaseFeeAsync(team.TeamId);
+                            var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
+                            if (sameBase)
+                            {
+                                // Paid, but base fee matches new team: allow switch
+                                regToUpdate.AssignedTeamId = team.TeamId;
+                                regToUpdate.Assignment = $"Player: {team.TeamName}";
+                                ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                                AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed - same cost).", false);
+                            }
+                            else
+                            {
+                                // Paid and different (or unknown) base cost: block switch
+                                ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                                if (regToUpdate.AssignedTeamId.HasValue)
+                                {
+                                    var assigned = teams.FirstOrDefault(x => x.TeamId == regToUpdate.AssignedTeamId.Value);
+                                    if (assigned != null)
+                                        regToUpdate.Assignment = $"Player: {assigned.TeamName}";
+                                }
+                                AddResult(regToUpdate.AssignedTeamId ?? team.TeamId, false, team.TeamName ?? string.Empty, sameBase ? "Registration updated (team changed - same cost)." : "Registration updated (team change blocked after payment).", false);
+                            }
+                        }
+                        else
+                        {
+                            // Unpaid registrant can switch teams freely
+                            regToUpdate.AssignedTeamId = team.TeamId;
+                            regToUpdate.Assignment = $"Player: {team.TeamName}";
+                            ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                            AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
+                        }
+                    }
+                    else
+                    {
+                        // CAC: multi-team friendly
+                        // If exact team match, just update form values.
+                        if (regToUpdate.AssignedTeamId == team.TeamId)
+                        {
+                            ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                            regToUpdate.Assignment = $"Player: {team.TeamName}";
+                            AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
+                        }
+                        else
+                        {
+                            // Not an exact match. If the existing registration is paid, don't retarget it; create a new registration for the selected team.
+                            var hasPayment = (regToUpdate.PaidTotal > 0) || (regToUpdate.OwedTotal > 0 && regToUpdate.PaidTotal > 0);
+                            if (hasPayment)
+                            {
+                                var newReg = new Registrations
+                                {
+                                    RegistrationId = Guid.NewGuid(),
+                                    JobId = jobId.Value,
+                                    FamilyUserId = request.FamilyUserId,
+                                    UserId = playerId,
+                                    AssignedTeamId = team.TeamId,
+                                    BActive = false,
+                                    Modified = DateTime.UtcNow,
+                                    RegistrationTs = DateTime.UtcNow,
+                                    RoleId = RoleConstants.Player,
+                                    Assignment = $"Player: {team.TeamName}"
+                                };
+                                ApplyFormValues(newReg, sel, nameToProperty, writableProps);
+                                _db.Registrations.Add(newReg);
+                                AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
+                            }
+                            else
+                            {
+                                // Unpaid: safe to retarget to new team
+                                regToUpdate.AssignedTeamId = team.TeamId;
+                                regToUpdate.Assignment = $"Player: {team.TeamName}";
+                                ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                                AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
+                            }
                         }
                     }
                 }
-                _db.Registrations.Add(reg);
-                await _db.SaveChangesAsync();
-                teamResults.Add(new TSIC.API.Dtos.PreSubmitTeamResultDto
+                else
                 {
-                    PlayerId = sel.PlayerId,
-                    TeamId = team.TeamId,
-                    IsFull = false,
-                    TeamName = team.TeamName ?? "",
-                    Message = "Registration created, pending payment.",
-                    RegistrationCreated = true
-                });
+                    // Create new pending registration
+                    if (string.Equals(registrationMode, "PP", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // PP: single registration per player; if none exists, allow create; else would have hit prior branch
+                    }
+                    var reg = new Registrations
+                    {
+                        RegistrationId = Guid.NewGuid(),
+                        JobId = jobId.Value,
+                        FamilyUserId = request.FamilyUserId,
+                        UserId = playerId,
+                        AssignedTeamId = team.TeamId,
+                        BActive = false,
+                        Modified = DateTime.UtcNow,
+                        RegistrationTs = DateTime.UtcNow,
+                        RoleId = RoleConstants.Player,
+                        Assignment = $"Player: {team.TeamName}"
+                    };
+                    var sel = selections.Last();
+                    ApplyFormValues(reg, sel, nameToProperty, writableProps);
+                    _db.Registrations.Add(reg);
+                    AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
+                }
+            }
+            else
+            {
+                // Multiple teams requested for this player (multi-camp). Create or update per team.
+                if (string.Equals(registrationMode, "PP", StringComparison.OrdinalIgnoreCase))
+                {
+                    // PP: Multiple teams not allowed; report and skip
+                    foreach (var teamId in desiredTeamIds)
+                    {
+                        var team = teams.Find(t => t.TeamId == teamId);
+                        var name = team?.TeamName ?? string.Empty;
+                        AddResult(teamId, false, name, "Multiple teams not allowed for this job.", false);
+                    }
+                    continue;
+                }
+                foreach (var teamId in desiredTeamIds)
+                {
+                    var team = teams.Find(t => t.TeamId == teamId);
+                    if (team == null)
+                    {
+                        AddResult(teamId, true, "Unknown", "Team not found.", false);
+                        continue;
+                    }
+                    var rosterCount = teamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
+                    var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
+                    if (isFull)
+                    {
+                        AddResult(team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
+                        continue;
+                    }
+                    // Update existing exact match or create new
+                    if (existingByPlayerTeam.TryGetValue((playerId, team.TeamId), out var existing))
+                    {
+                        existing.Modified = DateTime.UtcNow;
+                        var sel = selections.Last(s => s.TeamId == team.TeamId);
+                        ApplyFormValues(existing, sel, nameToProperty, writableProps);
+                        AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
+                    }
+                    else
+                    {
+                        var reg = new Registrations
+                        {
+                            RegistrationId = Guid.NewGuid(),
+                            JobId = jobId.Value,
+                            FamilyUserId = request.FamilyUserId,
+                            UserId = playerId,
+                            AssignedTeamId = team.TeamId,
+                            BActive = false,
+                            Modified = DateTime.UtcNow,
+                            RegistrationTs = DateTime.UtcNow,
+                            RoleId = RoleConstants.Player,
+                            Assignment = $"Player: {team.TeamName}"
+                        };
+                        var sel = selections.Last(s => s.TeamId == team.TeamId);
+                        ApplyFormValues(reg, sel, nameToProperty, writableProps);
+                        _db.Registrations.Add(reg);
+                        AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
+                    }
+                }
             }
         }
+
+        // Persist once
+        await _db.SaveChangesAsync();
         var response = new TSIC.API.Dtos.PreSubmitRegistrationResponseDto
         {
             TeamResults = teamResults,
-            NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Forms"
+            NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment" // advance to Payment when no blocking fullness
         };
         return Ok(response);
+    }
+
+    // Determine registration mode for job: "PP" (single registration per player) vs "CAC" (multi-team allowed).
+    private static string GetRegistrationMode(string? jsonOptions)
+    {
+        if (string.IsNullOrWhiteSpace(jsonOptions)) return "PP";
+        try
+        {
+            using var doc = JsonDocument.Parse(jsonOptions);
+            var root = doc.RootElement;
+            // Accept several possible keys for flexibility
+            string[] keys = new[] { "registrationMode", "profileMode", "regProfileType", "registrationType" };
+            foreach (var k in keys)
+            {
+                if (root.TryGetProperty(k, out var el))
+                {
+                    var s = el.GetString();
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        s = s.Trim();
+                        if (s.Equals("CAC", StringComparison.OrdinalIgnoreCase)) return "CAC";
+                        if (s.Equals("PP", StringComparison.OrdinalIgnoreCase)) return "PP";
+                    }
+                }
+                // Case-insensitive traversal
+                foreach (var prop in root.EnumerateObject())
+                {
+                    if (prop.NameEquals(k))
+                    {
+                        var sv = prop.Value.GetString();
+                        if (!string.IsNullOrWhiteSpace(sv))
+                        {
+                            sv = sv.Trim();
+                            if (sv.Equals("CAC", StringComparison.OrdinalIgnoreCase)) return "CAC";
+                            if (sv.Equals("PP", StringComparison.OrdinalIgnoreCase)) return "PP";
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+        return "PP"; // default safe mode
+    }
+
+    private static void ApplyFormValues(Registrations reg, TSIC.API.Dtos.PreSubmitTeamSelectionDto sel,
+        Dictionary<string, string> nameToProperty,
+        Dictionary<string, System.Reflection.PropertyInfo> writableProps)
+    {
+        if (sel.FormValues == null || sel.FormValues.Count == 0) return;
+        foreach (var kvp in sel.FormValues)
+        {
+            var incomingName = kvp.Key;
+            var jsonVal = kvp.Value;
+            var targetName = ResolveTargetPropertyName(incomingName, nameToProperty, writableProps);
+            if (targetName == null) continue;
+            if (!writableProps.TryGetValue(targetName, out var prop)) continue;
+            if (TryConvertAndAssign(jsonVal, prop.PropertyType, out var converted))
+            {
+                prop.SetValue(reg, converted);
+            }
+        }
     }
 
     // Build a case-insensitive map of incoming field name -> Registrations property name, using job metadata when available

@@ -112,7 +112,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                             <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
                               <span class="name"
                                     [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
-                                    [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}</span>
+                                    [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}<ng-container *ngIf="data.perRegistrantFee != null"> ({{ data.perRegistrantFee | currency }})</ng-container></span>
                               <span class="capacity-badge badge rounded-pill"
                                     [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
                                                   'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
@@ -157,7 +157,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                           <span class="rw-item">
                             <span class="name"
                                   [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
-                                  [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}</span>
+                                  [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}<ng-container *ngIf="data.perRegistrantFee != null"> ({{ data.perRegistrantFee | currency }})</ng-container></span>
                             <span class="capacity-badge badge rounded-pill"
                                   [ngStyle]="{ marginLeft: '.35rem', paddingLeft: '.35rem', paddingRight: '.35rem' }"
                                   [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),

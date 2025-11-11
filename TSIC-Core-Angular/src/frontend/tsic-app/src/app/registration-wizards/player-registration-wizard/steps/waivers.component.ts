@@ -1,12 +1,12 @@
-import { Component, EventEmitter, Output, inject, signal, AfterViewInit } from '@angular/core';
+import { Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 
 @Component({
   selector: 'app-rw-waivers',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -16,6 +16,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
         @if (waivers().length === 0) {
           <div class="alert alert-info">No waivers are required for this registration. You can continue.</div>
         } @else {
+          <form [formGroup]="waiverForm" novalidate>
           <!-- Prominent banner explaining scope -->
           <div class="alert alert-warning mb-4" role="alert">
             <div class="fw-semibold mb-1">Waivers must be agreed to in order for players to participate.</div>
@@ -54,18 +55,19 @@ import { RegistrationWizardService } from '../registration-wizard.service';
                       }
                     </div>
                     <div class="form-check">
-                      <input class="form-check-input" type="checkbox" [checked]="isAccepted(w.id)"
-                             [disabled]="isEditingMode()" [id]="'waiver-' + w.id"
-                             (change)="onCheckboxChange(w.id, $event)"
-                             [class.is-invalid]="submitted() && w.required && !isAccepted(w.id) && !isEditingMode()"
-                             [attr.aria-invalid]="submitted() && w.required && !isAccepted(w.id) && !isEditingMode()" />
+       <input class="form-check-input" type="checkbox"
+         [formControlName]="w.id"
+         [id]="'waiver-' + w.id"
+         [disabled]="isLocked(w.id)"
+         [class.is-invalid]="submitted() && w.required && controlInvalid(w.id)"
+         [attr.aria-invalid]="submitted() && w.required && controlInvalid(w.id)" />
                       <label class="form-check-label" [for]="'waiver-' + w.id">
                         I have read and agree to the {{ w.title.toLowerCase() }}
                       </label>
-                      @if (isAccepted(w.id) && isEditingMode()) {
+                      @if (isAccepted(w.id) && isLocked(w.id)) {
                         <span class="badge bg-secondary ms-2" title="Previously accepted and locked">Locked</span>
                       }
-                      @if (submitted() && w.required && !isAccepted(w.id) && !isEditingMode()) {
+                      @if (submitted() && w.required && controlInvalid(w.id)) {
                         <div class="invalid-feedback d-block mt-1">Please accept this waiver to continue.</div>
                       }
                     </div>
@@ -76,6 +78,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
           </div>
 
           <!-- Signature capture removed per updated requirements: individual waiver acceptance only -->
+          </form>
         }
 
         <div class="rw-bottom-nav d-flex gap-2 mt-3">
@@ -86,7 +89,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
     </div>
   `
 })
-export class WaiversComponent implements AfterViewInit {
+export class WaiversComponent implements OnInit, AfterViewInit {
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
 
@@ -114,28 +117,79 @@ export class WaiversComponent implements AfterViewInit {
     if (!this.openSet().has(id)) s.add(id); // open clicked, close others
     this.openSet.set(s);
   }
-  // Ensure first panel opened when view initialized
-  ngAfterViewInit(): void { this.initFirst(); }
+  // First panel open handled in ngAfterViewInit below
 
   // Editing mode detection (checkbox disabled when editing existing registration or when any selected player is already registered)
   isEditingMode(): boolean {
+    // Editing mode only when ALL selected players are registered (pure edit scenario)
     try {
-      return this.state.familyPlayers().some(fp => (fp.selected || fp.registered) && fp.registered);
+      const selected = this.state.familyPlayers().filter(p => p.selected || p.registered);
+      return selected.length > 0 && selected.every(p => p.registered);
     } catch { return false; }
   }
 
-  isAccepted = (id: string) => this.state.isWaiverAccepted(id);
-  onCheckboxChange(id: string, ev: Event) {
-    if (this.isEditingMode()) return; // read-only in edit mode
-    const checked = (ev.target as HTMLInputElement | null)?.checked ?? false;
-    this.state.setWaiverAccepted(id, checked);
+  waiverForm!: FormGroup;
+  private readonly lockedIds = new Set<string>();
+
+  ngOnInit(): void {
+    this.buildForm();
+    // Subscribe to value changes to push into service (skip disabled locked controls)
+    this.waiverForm.valueChanges.subscribe(v => {
+      for (const [key, val] of Object.entries(v)) {
+        if (!this.lockedIds.has(key)) {
+          this.state.setWaiverAccepted(key, !!val);
+        }
+      }
+    });
   }
 
+  private buildForm(): void {
+    const defs = this.waivers();
+    const svcMap = this.state.waiversAccepted();
+    const editing = this.isEditingMode();
+    const group: Record<string, FormControl> = {};
+    // Determine if legacy edit scenario with none marked accepted yet
+    const legacyEdit = editing && defs.some(d => d.required) && Object.values(svcMap).every(v => !v);
+    for (const d of defs) {
+      const initialAccepted = legacyEdit && d.required ? true : !!svcMap[d.id];
+      const control = new FormControl(initialAccepted, d.required ? Validators.requiredTrue : []);
+      if (editing && initialAccepted) {
+        control.disable({ emitEvent: false });
+        this.lockedIds.add(d.id);
+        // Ensure service map is updated for legacy auto-seed only when previously falsey
+        const needsSeed = legacyEdit && d.required && !svcMap[d.id];
+        if (needsSeed) this.state.setWaiverAccepted(d.id, true);
+      }
+      group[d.id] = control;
+    }
+    this.waiverForm = new FormGroup(group);
+  }
+
+  isAccepted(id: string): boolean {
+    const ctrl = this.waiverForm?.get(id);
+    return !!ctrl?.value;
+  }
+  isLocked(id: string): boolean { return this.lockedIds.has(id); }
+  controlInvalid(id: string): boolean {
+    const ctrl = this.waiverForm?.get(id);
+    return !!ctrl && ctrl.invalid && (ctrl.touched || this.submitted());
+  }
+
+  ngAfterViewInit(): void {
+    this.initFirst();
+    // Auto-seed acceptance if edit-only scenario and none accepted yet
+    if (this.isEditingMode() && this.waivers().length > 0 && !this.waivers().some(w => this.isAccepted(w.id))) {
+      for (const w of this.waivers()) {
+        if (w.required) this.state.setWaiverAccepted(w.id, true);
+      }
+    }
+  }
+  // (moved ngAfterViewInit implementation above to add auto-seed logic)
+
+  // Reactive continue disabled computation using local map
   disableContinue(): boolean {
-    const waivers = this.waivers();
-    const allAccepted = this.state.allRequiredWaiversAccepted();
-    if (waivers.length === 0) return false; // no waivers, can continue
-    return !allAccepted; // only gate on required waiver acceptance now
+    if (this.waivers().length === 0) return false;
+    return !this.waiverForm.valid;
   }
 
   handleContinue(): void {
@@ -148,8 +202,7 @@ export class WaiversComponent implements AfterViewInit {
   }
 
   private firstMissingRequiredWaiverId(): string | null {
-    const list = this.waivers();
-    for (const w of list) {
+    for (const w of this.waivers()) {
       if (w.required && !this.isAccepted(w.id)) return w.id;
     }
     return null;

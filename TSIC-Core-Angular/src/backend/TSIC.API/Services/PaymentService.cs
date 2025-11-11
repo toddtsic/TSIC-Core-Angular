@@ -15,11 +15,13 @@ public class PaymentService : IPaymentService
 {
     private readonly SqlDbContext _db;
     private readonly IAdnApiService _adnApiService;
+    private readonly IFeeResolverService _feeResolver;
 
-    public PaymentService(SqlDbContext db, IAdnApiService adnApiService)
+    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IFeeResolverService feeResolver)
     {
         _db = db;
         _adnApiService = adnApiService;
+        _feeResolver = feeResolver;
     }
 
     public async Task<PaymentResponseDto> ProcessPaymentAsync(PaymentRequestDto request, string userId)
@@ -32,6 +34,27 @@ public class PaymentService : IPaymentService
         if (!registrations.Any())
         {
             return new PaymentResponseDto { Success = false, Message = "No registrations found" };
+        }
+
+        // Ensure fees are populated consistently using the centralized resolver
+        foreach (var reg in registrations)
+        {
+            if (reg.AssignedTeamId.HasValue)
+            {
+                var baseFee = await _feeResolver.ResolveBaseFeeForTeamAsync(reg.AssignedTeamId.Value);
+                if (baseFee > 0 && reg.FeeBase != baseFee)
+                {
+                    reg.FeeBase = baseFee;
+                }
+                if (reg.FeeTotal <= 0 && baseFee > 0)
+                {
+                    reg.FeeTotal = baseFee; // minimal parity until discounts/late fees are modeled
+                }
+                if (reg.OwedTotal <= 0 && reg.FeeTotal > 0 && reg.PaidTotal <= 0)
+                {
+                    reg.OwedTotal = reg.FeeTotal;
+                }
+            }
         }
 
         // Calculate total amount based on payment option
