@@ -1,15 +1,16 @@
-import { Component, EventEmitter, Input, Output, computed, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, inject, CUSTOM_ELEMENTS_SCHEMA, ViewChildren, QueryList, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { TeamService } from '../team.service';
-import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
+import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent } from '@syncfusion/ej2-angular-dropdowns';
 
 @Component({
   selector: 'app-rw-team-selection',
   standalone: true,
-  // Keep Syncfusion modules separate (non-standalone)
+  // Use Syncfusion components for typeahead and checkbox MultiSelect UX
   imports: [CommonModule, FormsModule, DropDownListModule, MultiSelectModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [CheckBoxSelectionService],
   styles: [`
   :host ::ng-deep .rw-teams-ms .e-checkbox-wrapper { display:inline-flex;align-items:center;margin-right:.5rem;flex:0 0 auto; }
@@ -71,7 +72,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                           </div>
                         }
                       }
-                      <!-- Selected teams pills above dropdown -->
+                      <!-- Selected teams pills above dropdown; for registered players, fall back to prior registrations if selectedTeams is empty -->
                       <div class="small text-secondary mt-2">
                         <div class="fw-semibold mb-1">Selected teams</div>
                         <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
@@ -94,7 +95,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                     </div>
                     <div class="flex-grow-1">
                       @if (!multiSelect) {
-                        <ejs-dropdownlist [dataSource]="filteredTeamsFor(p.userId)"
+                        <ejs-dropdownlist #ddRef [dataSource]="filteredTeamsFor(p.userId)"
                                           [fields]="syncFields"
                                           [placeholder]="'Search and select team...'"
                                           [allowFiltering]="true"
@@ -108,18 +109,18 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                                           [value]="selectedTeams()[p.userId] || null"
                                           (change)="onSyncSingleChange(p.userId, $event)">
                           <ng-template #itemTemplate let-data>
-                                                      <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
-                                                        <span class="name"
-                                                              [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
-                                                              [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}</span>
-                                                        <span class="capacity-badge badge rounded-pill"
-                                                              [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
-                                                                            'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
-                                                          @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
-                                                          @else { {{ baseRemaining(data.teamId) }} spots left }
-                                                        </span>
-                                                        @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { <span class="text-danger ms-2 small">(Cannot select)</span> }
-                                                      </span>
+                            <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
+                              <span class="name"
+                                    [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
+                                    [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}</span>
+                              <span class="capacity-badge badge rounded-pill"
+                                    [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
+                                                  'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
+                                @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
+                                @else { {{ baseRemaining(data.teamId) }} spots left }
+                              </span>
+                              @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { <span class="text-danger ms-2 small">(Cannot select)</span> }
+                            </span>
                           </ng-template>
                         </ejs-dropdownlist>
                       }
@@ -130,7 +131,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                   </div>
                   @if (multiSelect) {
                     <div class="mt-2">
-                      <ejs-multiselect [dataSource]="filteredTeamsFor(p.userId)"
+                      <ejs-multiselect #msRef [dataSource]="filteredTeamsFor(p.userId)"
                                        [fields]="syncFields"
                                        [mode]="'CheckBox'"
                                        [showDropDownIcon]="true"
@@ -157,8 +158,8 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                             <span class="name"
                                   [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
                                   [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}</span>
-            <span class="capacity-badge badge rounded-pill"
-              [ngStyle]="{ marginLeft: '.35rem', paddingLeft: '.35rem', paddingRight: '.35rem' }"
+                            <span class="capacity-badge badge rounded-pill"
+                                  [ngStyle]="{ marginLeft: '.35rem', paddingLeft: '.35rem', paddingRight: '.35rem' }"
                                   [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
                                                 'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
                               @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
@@ -167,7 +168,6 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService } from 
                           </span>
                         </ng-template>
                       </ejs-multiselect>
-                      <!-- Pills only shown above dropdown, duplicate section removed for multi-select mode -->
                     </div>
                   }
                 </div>
@@ -196,6 +196,9 @@ export class TeamSelectionComponent {
   @Output() back = new EventEmitter<void>();
   private readonly wizard: RegistrationWizardService = inject(RegistrationWizardService);
   private readonly teamService: TeamService = inject(TeamService);
+  @ViewChildren('ddRef') private readonly ddLists!: QueryList<DropDownListComponent>;
+  @ViewChildren('msRef') private readonly msLists!: QueryList<MultiSelectComponent>;
+  private didAutoOpen = false;
 
   // expose signals for template
   loading = this.teamService.loading;
@@ -206,6 +209,19 @@ export class TeamSelectionComponent {
   // readonly mode removed; selection is locked only for players with prior registrations
   // Syncfusion field mapping (disable selection for FULL teams)
   syncFields = { text: 'teamName', value: 'teamId', disabled: 'rosterIsFull' } as any;
+
+  constructor() {
+    // Auto-open the first unassigned player's selector once data is loaded and view is ready
+    effect(() => {
+      // Touch signals to subscribe
+      this.teamService.loading();
+      const fam = this.wizard.familyPlayers();
+      if (this.teamService.loading() || this.didAutoOpen) return;
+      if (!fam || fam.length === 0) return;
+      // Small timeout to allow view children to render after data arrives
+      queueMicrotask(() => this.tryOpenFirstUnassigned());
+    });
+  }
 
   isRegistered(playerId: string): boolean {
     try {
@@ -224,9 +240,55 @@ export class TeamSelectionComponent {
     const elig = this.wizard.getEligibilityForPlayer(playerId);
     return this.teamService.filterByEligibility(elig);
   }
+  private tryOpenFirstUnassigned() {
+    if (this.didAutoOpen) return;
+    const players = this.selectedPlayers();
+    if (!players || players.length === 0) return;
+    let idx = -1;
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i];
+      // Skip registered (locked)
+      if (this.isRegistered(p.userId)) continue;
+      // Skip if no eligible teams or disabled by eligibility flow
+      const disabled = (this.showEligibilityBadge() && !this.eligibilityFor(p.userId)) || this.filteredTeamsFor(p.userId).length === 0;
+      if (disabled) continue;
+      // Needs selection?
+      if (this.selectedArrayFor(p.userId).length === 0) { idx = i; break; }
+    }
+    if (idx === -1) return;
+    // Defer to ensure QueryLists are populated
+    setTimeout(() => {
+      try {
+        if (this.multiSelect) {
+          const comp = this.msLists?.toArray?.()[idx];
+          comp?.focusIn?.();
+          comp?.showPopup?.();
+        } else {
+          const comp = this.ddLists?.toArray?.()[idx];
+          comp?.focusIn?.();
+          comp?.showPopup?.();
+        }
+        this.didAutoOpen = true;
+      } catch { /* ignore */ }
+    }, 0);
+  }
   selectedArrayFor(playerId: string): string[] {
+    // Prefer explicit selections; if none and player is registered, derive from prior registrations
     const val = this.selectedTeams()[playerId];
-    if (!val) return [];
+    let derived: string[] = [];
+    if (!val && this.isRegistered(playerId)) {
+      try {
+        const fp = this.wizard.familyPlayers().find(p => p.playerId === playerId);
+        const ids = (fp?.priorRegistrations || [])
+          .map(r => r.assignedTeamId)
+          .filter((id: any): id is string => typeof id === 'string' && !!id);
+        // Deduplicate
+        const uniq: string[] = [];
+        for (const id of ids) if (!uniq.includes(id)) uniq.push(id);
+        derived = uniq;
+      } catch { /* ignore */ }
+    }
+    if (!val) return derived;
     return Array.isArray(val) ? val : [val];
   }
   showEligibilityBadge(): boolean {
@@ -252,6 +314,10 @@ export class TeamSelectionComponent {
     const current = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (val) current[playerId] = String(val); else delete current[playerId];
     this.wizard.selectedTeams.set(current);
+  }
+  // Adapter for native select change
+  onSingleChange(playerId: string, value: any) {
+    this.onSyncSingleChange(playerId, { value });
   }
   onSyncMultiChange(playerId: string, e: any) {
     // readonlyMode removed; only skip if player already registered
@@ -312,6 +378,13 @@ export class TeamSelectionComponent {
     if (!current.includes(id)) return;
     const next = current.filter(x => x !== id);
     this.onSyncMultiChange(playerId, { value: next });
+  }
+  // Adapter for native multi-select change
+  onMultiChange(playerId: string, event: Event) {
+    const target = event.target as HTMLSelectElement;
+    if (!target) return;
+    const vals: string[] = Array.from(target.selectedOptions).map(o => String(o.value));
+    this.onSyncMultiChange(playerId, { value: vals });
   }
   isTeamChecked(playerId: string, teamId: string): boolean {
     const val = this.selectedTeams()[playerId];

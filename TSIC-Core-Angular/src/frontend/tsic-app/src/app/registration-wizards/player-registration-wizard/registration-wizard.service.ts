@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 // Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
 import { environment } from '../../../environments/environment';
 import { FamilyPlayer, FamilyPlayerRegistration, RegSaverDetails, normalizeFormValues } from './family-players.dto';
@@ -25,6 +26,8 @@ export class RegistrationWizardService {
     familyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
     // RegSaver (optional insurance) details for family/job
     regSaverDetails = signal<RegSaverDetails | null>(null);
+    // Debug: raw API response for FamilyPlayers (temporary aid for inspection)
+    debugFamilyPlayersResp = signal<Record<string, unknown> | unknown[] | null>(null);
     // Whether an existing player registration for the current job + active family user already exists.
     // null = unknown/not yet checked; true/false = definitive.
     // Eligibility type is job-wide (e.g., BYGRADYEAR), but the selected value is PER PLAYER
@@ -137,6 +140,8 @@ export class RegistrationWizardService {
         this.http.get<any>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
+                    // Capture raw response for temporary debug display
+                    this.debugFamilyPlayersResp.set(resp);
                     // Normalize familyUser
                     const fu = resp?.familyUser || resp?.FamilyUser || null;
                     if (fu) this.familyUser.set({
@@ -187,6 +192,23 @@ export class RegistrationWizardService {
                         } as FamilyPlayer;
                     });
                     this.familyPlayers.set(list);
+
+                    // Prefill selectedTeams for registered players using prior registrations.
+                    // Strategy: collect all assignedTeamIds from priorRegistrations; if one -> store string, if >1 -> store array.
+                    const teamMap: Record<string, string | string[]> = { ...this.selectedTeams() };
+                    for (const fp of list) {
+                        if (!fp.registered) continue; // only prefill for locked/registered
+                        const teamIds = fp.priorRegistrations
+                            .map(r => r.assignedTeamId)
+                            .filter((id: any): id is string => typeof id === 'string' && !!id);
+                        if (teamIds.length === 0) continue; // no assignment history
+                        // Deduplicate while preserving order (earlier = older registrations)
+                        const unique: string[] = [];
+                        for (const t of teamIds) if (!unique.includes(t)) unique.push(t);
+                        if (unique.length === 1) teamMap[fp.playerId] = unique[0];
+                        else if (unique.length > 1) teamMap[fp.playerId] = unique; // multi-assignment history
+                    }
+                    this.selectedTeams.set(teamMap);
                     // Ensure job metadata so forms parse soon after
                     this.ensureJobMetadata(jobPath);
                     this.familyPlayersLoading.set(false);
@@ -196,6 +218,7 @@ export class RegistrationWizardService {
                     this.familyPlayers.set([]);
                     this.familyUser.set(null);
                     this.regSaverDetails.set(null);
+                    this.debugFamilyPlayersResp.set(null);
                     this.familyPlayersLoading.set(false);
                 }
             });
@@ -454,7 +477,7 @@ export class RegistrationWizardService {
                             .replace(/^i\s+agree\s+(with|to)\s+the\s+/i, '')
                             .replace(/\s*terms?\s+and\s+conditions\s*$/i, '')
                             .trim() || 'Agreement';
-                        const id = 'PlayerReg' + title.replace(/[^a-z0-9]+/gi, '');
+                        const id = 'PlayerReg' + title.replaceAll(/[^a-z0-9]+/gi, '');
                         addUnique(id, title);
                     }
                 }
@@ -472,7 +495,7 @@ export class RegistrationWizardService {
             // Precise alias normalization using dbColumn mapping: migrate values from backend property to schema field name
             const alias = this.aliasFieldMap();
             if (alias && Object.keys(alias).length) {
-                for (const [pid, vals] of Object.entries(current)) {
+                for (const [, vals] of Object.entries(current)) {
                     for (const [from, to] of Object.entries(alias)) {
                         if (from in vals && !(to in vals)) {
                             vals[to] = vals[from];
@@ -534,7 +557,7 @@ export class RegistrationWizardService {
         const familyUserId = this.familyUser()?.familyUserId;
         return new Promise<PreSubmitRegistrationResponseDto>((resolve, reject) => {
             if (!jobPath || !familyUserId) {
-                reject('Missing jobPath or familyUserId');
+                reject(new Error('Missing jobPath or familyUserId'));
                 return;
             }
             // Gather selected teams per player
@@ -554,13 +577,12 @@ export class RegistrationWizardService {
                 familyUserId,
                 teamSelections
             };
-            this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload)
-                .toPromise()
+            firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload))
                 .then(resp => {
                     if (resp) resolve(resp);
-                    else reject('No response from preSubmit API');
+                    else reject(new Error('No response from preSubmit API'));
                 })
-                .catch(err => reject(err));
+                .catch(err => reject(err instanceof Error ? err : new Error(String(err))));
         });
     }
 
@@ -575,22 +597,22 @@ export class RegistrationWizardService {
         } catch { /* SSR or no window */ }
         return environment.apiUrl.endsWith('/api') ? environment.apiUrl : `${environment.apiUrl}/api`;
     }
-    private parsedJobOptions: any | undefined;
-    private getJobOptionsObject(): any | null {
+    private parsedJobOptions: Json | null | undefined;
+    private getJobOptionsObject(): Json | null {
         if (this.parsedJobOptions !== undefined) return this.parsedJobOptions;
         const raw = this.jobJsonOptions();
         if (!raw) { this.parsedJobOptions = null; return null; }
         try { this.parsedJobOptions = JSON.parse(raw); }
         catch { this.parsedJobOptions = null; }
-        return this.parsedJobOptions;
+        return (this.parsedJobOptions ?? null);
     }
     /** Required valid-through date for USA Lax membership (from Job JsonOptions.USLaxNumberValidThroughDate) */
     getUsLaxValidThroughDate(): Date | null {
-        const opts = this.getJobOptionsObject();
-        const v = opts?.USLaxNumberValidThroughDate ?? opts?.usLaxNumberValidThroughDate ?? null;
+        const opts = this.getJobOptionsObject() as { [k: string]: any } | null;
+        const v = opts ? (opts['USLaxNumberValidThroughDate'] ?? opts['usLaxNumberValidThroughDate'] ?? null) : null;
         if (!v) return null;
         const d = new Date(v);
-        return isNaN(d.getTime()) ? null : d;
+        return Number.isNaN(d.getTime()) ? null : d;
     }
     /** Last name for a player: prefer familyPlayers list; fallback to form values */
     getPlayerLastName(playerId: string): string | null {
@@ -608,7 +630,7 @@ export class RegistrationWizardService {
         const fam = this.familyPlayers().find(p => p.playerId === playerId);
         if (fam?.dob) {
             const d = new Date(fam.dob);
-            if (!isNaN(d.getTime())) return d;
+            if (!Number.isNaN(d.getTime())) return d;
         }
         const vals = this.playerFormValues()[playerId] || {};
         const keys = Object.keys(vals);
@@ -617,7 +639,7 @@ export class RegistrationWizardService {
             || null;
         if (pick) {
             const d = new Date(vals[pick]);
-            if (!isNaN(d.getTime())) return d;
+            if (!Number.isNaN(d.getTime())) return d;
         }
         return null;
     }
@@ -715,11 +737,14 @@ export interface PreSubmitTeamResultDto {
 
 // Enriched DTOs moved to ./family-players.dto
 
+// JSON type helper to avoid `any`/`unknown` in public fields
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
 // Helper to create a friendly title from a PlayerReg* key
 // e.g., PlayerRegReleaseOfLiability -> Release Of Liability
 function friendlyWaiverTitle(key: string): string {
     const trimmed = key.replace(/^PlayerReg/, '');
-    return trimmed.replace(/([a-z])([A-Z])/g, '$1 $2').trim();
+    return trimmed.replaceAll(/([a-z])([A-Z])/g, '$1 $2').trim();
 }
 
 function mapFieldType(raw: any): PlayerProfileFieldSchema['type'] {
@@ -748,7 +773,6 @@ function mapFieldType(raw: any): PlayerProfileFieldSchema['type'] {
 function deriveConstraintTypeFromJsonOptions(raw: string | null | undefined): string | null {
     if (!raw || typeof raw !== 'string' || !raw.trim()) return null;
     try {
-        const lower = raw.toLowerCase();
         // Parse the JSON object first; only derive constraint if an explicit constraint key exists.
         let obj: any; try { obj = JSON.parse(raw); } catch { obj = null; }
         if (!obj || typeof obj !== 'object') return null;
@@ -759,7 +783,13 @@ function deriveConstraintTypeFromJsonOptions(raw: string | null | undefined): st
             return lk === 'constrainttype' || lk === 'teamconstraint' || lk === 'eligibilityconstraint';
         });
         if (explicitKey) {
-            const valRaw = String(explicitKey[1] ?? '').toUpperCase();
+            const rawVal = explicitKey[1];
+            let valRaw = '';
+            if (typeof rawVal === 'string') {
+                valRaw = rawVal.toUpperCase();
+            } else if (typeof rawVal === 'number' || typeof rawVal === 'boolean') {
+                valRaw = String(rawVal).toUpperCase();
+            }
             switch (valRaw) {
                 case 'BYGRADYEAR':
                 case 'BYAGEGROUP':

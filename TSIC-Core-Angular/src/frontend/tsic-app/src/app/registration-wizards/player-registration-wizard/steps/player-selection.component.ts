@@ -14,6 +14,18 @@ import { FormsModule } from '@angular/forms';
         <h5 class="mb-0 fw-semibold">Select Players</h5>
       </div>
       <div class="card-body position-relative">
+        <!-- Temporary debug panel showing raw GetFamilyPlayers response -->
+        @if (state.debugFamilyPlayersResp()) {
+          <div class="alert alert-secondary mb-3" role="region" aria-label="Family players raw response">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <strong class="me-2">Debug: Raw GetFamilyPlayers Response</strong>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="state.debugFamilyPlayersResp.set(null)">Hide</button>
+            </div>
+            <pre class="small mb-0" style="max-height:240px; overflow:auto;">
+{{ state.debugFamilyPlayersResp() | json }}
+            </pre>
+          </div>
+        }
         <!-- Loading overlay -->
         @if (state.familyPlayersLoading()) {
         <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 10;">

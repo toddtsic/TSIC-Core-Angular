@@ -26,16 +26,16 @@ import { AuthService } from '../../../core/services/auth.service';
               <input class="form-check-input" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'yes'" />
               <div>
                 <div class="fw-semibold">Yes — I have a FAMILY login</div>
-                <div class="text-muted small">Enter your credentials below to continue.</div>
+                <div class="text-muted small">Enter your credentials below once, then choose what you want to do.</div>
               </div>
             </label>
 
-            <!-- Inline login form and actions -->
             @if (hasAccount === 'yes') {
+            <!-- Shared credentials panel (single source of truth for both actions) -->
             <div class="list-group-item border-0 pt-0 pb-3">
-              <div class="rw-accent-panel">
+              <div class="rw-accent-panel-neutral">
                 <div class="d-flex align-items-start gap-3">
-                  <i class="bi bi-shield-lock-fill rw-accent-icon" aria-hidden="true"></i>
+                  <i class="bi bi-person-lock rw-accent-icon-neutral" aria-hidden="true"></i>
                   <div class="flex-grow-1">
                     <div class="row g-2 align-items-end mb-2">
                       <div class="col-12 col-md-5">
@@ -46,56 +46,52 @@ import { AuthService } from '../../../core/services/auth.service';
                         <label for="famPassword" class="form-label small text-muted">Password</label>
                         <input id="famPassword" name="famPassword" class="form-control" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
                       </div>
-                      <div class="col-12 col-md-2 d-grid">
-                        <button type="button"
-                                class="btn btn-primary"
-                                [disabled]="submitting || !username || !password"
-                                (click)="signInThenProceed()">
-                          @if (submitting) {
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          }
-                          <span>{{ submitting ? 'Signing in…' : 'Sign in' }}</span>
-                        </button>
-                      </div>
+                      <!-- <div class="col-12 col-md-2 small text-muted d-flex align-items-center">Credentials</div> -->
                     </div>
-                    @if (inlineError) {
-                      <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div>
-                    }
-                    <div class="text-secondary small">We'll start your player(s) registration after you're authenticated.</div>
-                    <div class="mt-2 small">
-                      <a href="javascript:void(0)" (click)="goToLogin()">Having trouble? Open the full login screen</a>
-                    </div>
+                    @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
+                    <div class="text-secondary small">Use these credentials for either action below.</div>
                   </div>
                 </div>
               </div>
             </div>
             }
 
-            <!-- Option: Access Family Account (distinct accent color) -->
+            <!-- Action panels using shared credentials -->
             @if (hasAccount === 'yes') {
-            <div class="list-group-item border-0 pt-0 pb-3">
-              <div class="rw-accent-panel bg-success-subtle">
-                <div class="d-flex align-items-start gap-3">
-                  <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
-                  <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2">
-                    <div class="d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
-                      <button type="button" class="btn btn-success"
+              <div class="list-group-item border-0 pt-0 pb-3">
+                <div class="rw-accent-panel">
+                  <div class="d-flex align-items-start gap-3">
+                    <i class="bi bi-play-fill rw-accent-icon" aria-hidden="true"></i>
+                    <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
+                      <button type="button"
+                              class="btn btn-primary"
                               [disabled]="submitting || !username || !password"
-                              (click)="signInThenGoFamilyAccount()">
-                        @if (submitting) {
-                          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        }
-                        <span>{{ submitting ? 'Signing in…' : 'Sign in' }}</span>
+                              (click)="signInThenProceed()">
+                        @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
+                        <span>{{ submitting ? 'Signing in…' : 'Sign in & Continue Registration' }}</span>
                       </button>
-                      <span class="text-secondary small">Review or update your family and children after signing in.</span>
-                    </div>
-                    <div class="mt-2 small">
-                      <a href="javascript:void(0)" (click)="goToFamilyAccount()">Use the full login screen instead</a>
+                      <span class="text-secondary small">Authenticate and jump straight to selecting players.</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+              <div class="list-group-item border-0 pt-0 pb-3">
+                <div class="rw-accent-panel bg-success-subtle">
+                  <div class="d-flex align-items-start gap-3">
+                    <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
+                    <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
+                      <button type="button"
+                              class="btn btn-success"
+                              [disabled]="submitting || !username || !password"
+                              (click)="signInThenGoFamilyAccount()">
+                        @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
+                        <span>{{ submitting ? 'Signing in…' : 'Sign in & Manage Family' }}</span>
+                      </button>
+                      <span class="text-secondary small">Authenticate then review / update your family before registering.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             }
 
             <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
