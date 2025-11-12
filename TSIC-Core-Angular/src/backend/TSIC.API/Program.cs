@@ -24,6 +24,7 @@ builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 builder.Services.AddScoped<IAdnApiService, AdnApiService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IFeeResolverService, FeeResolverService>();
+builder.Services.AddScoped<IFeeCalculatorService, FeeCalculatorService>();
 
 // Profile Migration Services
 builder.Services.AddHttpClient<GitHubProfileFetcher>();

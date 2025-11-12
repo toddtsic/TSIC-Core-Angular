@@ -21,6 +21,7 @@ public class RegistrationController : ControllerBase
     private readonly SqlDbContext _db;
     private readonly IPaymentService _paymentService;
     private readonly IFeeResolverService _feeResolver;
+    private readonly IFeeCalculatorService _feeCalculator;
     private static readonly string IsoDate = "yyyy-MM-dd";
 
     public RegistrationController(
@@ -28,13 +29,15 @@ public class RegistrationController : ControllerBase
         IJobLookupService jobLookupService,
         SqlDbContext db,
         IPaymentService paymentService,
-        IFeeResolverService feeResolver)
+        IFeeResolverService feeResolver,
+        IFeeCalculatorService feeCalculator)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
         _db = db;
         _paymentService = paymentService;
         _feeResolver = feeResolver;
+        _feeCalculator = feeCalculator;
     }
 
     /// <summary>
@@ -112,6 +115,31 @@ public class RegistrationController : ControllerBase
             return await _feeResolver.ResolveBaseFeeForTeamAsync(teamId);
         }
 
+        // Ensure initial fee fields are populated for new/unpaid registrations
+        async Task ApplyInitialFeesAsync(Registrations reg, Guid teamId, decimal? teamFeeBase, decimal? teamPerRegistrantFee)
+        {
+            // If any payment already recorded, don't alter core fee fields
+            var paid = reg.PaidTotal;
+            if (paid > 0m) return;
+
+            var baseFee = teamFeeBase ?? teamPerRegistrantFee ?? 0m;
+            if (baseFee <= 0m)
+            {
+                baseFee = await ResolveTeamBaseFeeAsync(teamId);
+            }
+            if (baseFee > 0m)
+            {
+                if (reg.FeeBase <= 0m) reg.FeeBase = baseFee;
+                // Compute processing + total centrally (discount & donation default 0 at this stage)
+                var (processing, total) = _feeCalculator.ComputeTotals(reg.FeeBase, reg.FeeDiscount, reg.FeeDonation,
+                    (reg.FeeProcessing > 0m) ? reg.FeeProcessing : null);
+                if (reg.FeeProcessing <= 0m) reg.FeeProcessing = processing;
+                reg.FeeTotal = total;
+                // Owed = total - paid
+                reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            }
+        }
+
         foreach (var (playerId, selections) in selectionsByPlayer)
         {
             // De-duplicate teamIds per player just in case
@@ -181,6 +209,7 @@ public class RegistrationController : ControllerBase
                                 regToUpdate.AssignedTeamId = team.TeamId;
                                 regToUpdate.Assignment = $"Player: {team.TeamName}";
                                 ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                                await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                                 AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed - same cost).", false);
                             }
                             else
@@ -193,6 +222,8 @@ public class RegistrationController : ControllerBase
                                     if (assigned != null)
                                         regToUpdate.Assignment = $"Player: {assigned.TeamName}";
                                 }
+                                // No fee change when already paid; still ensure owed/total consistent if missing
+                                await ApplyInitialFeesAsync(regToUpdate, regToUpdate.AssignedTeamId ?? team.TeamId, team.FeeBase, team.PerRegistrantFee);
                                 AddResult(regToUpdate.AssignedTeamId ?? team.TeamId, false, team.TeamName ?? string.Empty, sameBase ? "Registration updated (team changed - same cost)." : "Registration updated (team change blocked after payment).", false);
                             }
                         }
@@ -202,6 +233,7 @@ public class RegistrationController : ControllerBase
                             regToUpdate.AssignedTeamId = team.TeamId;
                             regToUpdate.Assignment = $"Player: {team.TeamName}";
                             ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                            await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                             AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
                         }
                     }
@@ -213,6 +245,7 @@ public class RegistrationController : ControllerBase
                         {
                             ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
                             regToUpdate.Assignment = $"Player: {team.TeamName}";
+                            await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                             AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
                         }
                         else
@@ -235,6 +268,7 @@ public class RegistrationController : ControllerBase
                                     Assignment = $"Player: {team.TeamName}"
                                 };
                                 ApplyFormValues(newReg, sel, nameToProperty, writableProps);
+                                await ApplyInitialFeesAsync(newReg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                                 _db.Registrations.Add(newReg);
                                 AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
                             }
@@ -244,6 +278,7 @@ public class RegistrationController : ControllerBase
                                 regToUpdate.AssignedTeamId = team.TeamId;
                                 regToUpdate.Assignment = $"Player: {team.TeamName}";
                                 ApplyFormValues(regToUpdate, sel, nameToProperty, writableProps);
+                                await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                                 AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
                             }
                         }
@@ -271,6 +306,7 @@ public class RegistrationController : ControllerBase
                     };
                     var sel = selections[selections.Count - 1];
                     ApplyFormValues(reg, sel, nameToProperty, writableProps);
+                    await ApplyInitialFeesAsync(reg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                     _db.Registrations.Add(reg);
                     AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
                 }
@@ -310,6 +346,7 @@ public class RegistrationController : ControllerBase
                         existing.Modified = DateTime.UtcNow;
                         var sel = selections.Last(s => s.TeamId == team.TeamId);
                         ApplyFormValues(existing, sel, nameToProperty, writableProps);
+                        await ApplyInitialFeesAsync(existing, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                         AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
                     }
                     else
@@ -329,6 +366,7 @@ public class RegistrationController : ControllerBase
                         };
                         var sel = selections.Last(s => s.TeamId == team.TeamId);
                         ApplyFormValues(reg, sel, nameToProperty, writableProps);
+                        await ApplyInitialFeesAsync(reg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                         _db.Registrations.Add(reg);
                         AddResult(team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
                     }

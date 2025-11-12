@@ -321,7 +321,8 @@ export class RegistrationWizardService {
                         }
                     }
                     this.jobWaivers.set(waivers);
-                    // Build structured definitions using explicit mapping when present
+                    // Build structured definitions using explicit mapping when present, but only
+                    // if there is a matching acceptance checkbox field in PlayerProfileMetadataJson (Option 4).
                     const defs: WaiverDefinition[] = [];
                     const addDef = (id: string, title: string) => {
                         const html = getMetaString(meta, id);
@@ -329,13 +330,63 @@ export class RegistrationWizardService {
                             defs.push({ id, title, html, required: true, version: String(html.length) });
                         }
                     };
-                    addDef('PlayerRegReleaseOfLiability', 'Player Waiver');
-                    addDef('PlayerRegCodeOfConduct', 'Code of Conduct');
-                    addDef('PlayerRegCovid19Waiver', 'Covid Waiver');
-                    addDef('PlayerRegRefundPolicy', 'Refund Terms and Conditions');
-                    // Fallback: include any other PlayerReg* blocks not already added
+                    const rawProfileMeta = this.jobProfileMetadataJson();
+                    const hasAcceptanceField = (predicate: (labelL: string, nameL: string, f: any) => boolean): boolean => {
+                        if (!rawProfileMeta) return false;
+                        try {
+                            const parsed = JSON.parse(rawProfileMeta);
+                            let fields: any[] = [];
+                            if (Array.isArray(parsed)) {
+                                fields = parsed;
+                            } else if (parsed && Array.isArray((parsed as any).fields)) {
+                                fields = (parsed as any).fields;
+                            }
+                            for (const f of fields) {
+                                const name = String(f?.name || f?.dbColumn || f?.field || '').toLowerCase();
+                                const label = String(f?.label || f?.displayName || f?.display || f?.name || '').toLowerCase();
+                                const t = String(f?.type || f?.inputType || '').toLowerCase();
+                                const isCheckbox = t.includes('checkbox') || label.startsWith('i agree');
+                                if (!isCheckbox) continue;
+                                if (predicate(label, name, f)) return true;
+                            }
+                        } catch { /* ignore malformed profile metadata */ }
+                        return false;
+                    };
+                    // Gate each default waiver by presence of an acceptance checkbox in the profile schema
+                    if (hasAcceptanceField((l, n) => l.includes('waiver') || l.includes('release') || n.includes('waiver'))) {
+                        addDef('PlayerRegReleaseOfLiability', 'Player Waiver');
+                    }
+                    if (hasAcceptanceField((l, n) => (l.includes('code') && l.includes('conduct')) || n.includes('codeofconduct'))) {
+                        addDef('PlayerRegCodeOfConduct', 'Code of Conduct');
+                    }
+                    if (hasAcceptanceField((l, n) => l.includes('covid') || n.includes('covid'))) {
+                        addDef('PlayerRegCovid19Waiver', 'Covid Waiver');
+                    }
+                    if (hasAcceptanceField((l, n) => l.includes('refund') || (l.includes('terms') && l.includes('conditions')) || n.includes('refund'))) {
+                        addDef('PlayerRegRefundPolicy', 'Refund Terms and Conditions');
+                    }
+                    // Fallback: include other PlayerReg* blocks only if there is a matching acceptance checkbox field
                     for (const [id, html] of Object.entries(waivers)) {
-                        if (!defs.some(d => d.id === id)) {
+                        if (defs.some(d => d.id === id)) continue;
+                        const lid = id.toLowerCase();
+                        let allow = false;
+                        if (lid.includes('codeofconduct')) {
+                            allow = hasAcceptanceField((l, n) => (l.includes('code') && l.includes('conduct')) || n.includes('codeofconduct'));
+                        } else if (lid.includes('refund') || lid.includes('terms')) {
+                            allow = hasAcceptanceField((l, n) => l.includes('refund') || (l.includes('terms') && l.includes('conditions')) || n.includes('refund'));
+                        } else if (lid.includes('covid')) {
+                            allow = hasAcceptanceField((l, n) => l.includes('covid') || n.includes('covid'));
+                        } else if (lid.includes('waiver') || lid.includes('release')) {
+                            allow = hasAcceptanceField((l, n) => l.includes('waiver') || l.includes('release') || n.includes('waiver'));
+                        } else {
+                            // Attempt a generic match using the derived friendly title words (conservative: require at least one word match)
+                            const title = friendlyWaiverTitle(id).toLowerCase();
+                            const words = title.split(/[^a-z0-9]+/i).filter(w => w.length >= 3);
+                            if (words.length) {
+                                allow = hasAcceptanceField((l, n) => words.some(w => l.includes(w) || n.includes(w)));
+                            }
+                        }
+                        if (allow) {
                             defs.push({ id, title: friendlyWaiverTitle(id), html, required: true, version: String(html.length) });
                         }
                     }
@@ -662,7 +713,7 @@ export class RegistrationWizardService {
                 const teamId = this.selectedTeams()[pid];
                 if (!teamId) continue;
                 // Build visible-only form values for this player
-                const formValues = this.buildVisibleFormValuesForPlayer(pid);
+                const formValues = this.buildPreSubmitFormValuesForPlayer(pid);
                 if (Array.isArray(teamId)) {
                     for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid, formValues });
                 } else {
@@ -714,6 +765,25 @@ export class RegistrationWizardService {
             // Allow null/empty values to pass through; skip only undefined
             if (v === undefined) continue;
             out[k] = v as Json;
+        }
+        return out;
+    }
+
+    /**
+     * Build form values for preSubmit: visible fields plus waiver checkbox results.
+     * Waiver fields are rendered on the Waivers step, so we inject their boolean values here
+     * so the server-side metadata validation sees them.
+     */
+    private buildPreSubmitFormValuesForPlayer(playerId: string): { [key: string]: Json } {
+        const out = this.buildVisibleFormValuesForPlayer(playerId);
+        const waiverNames = this.waiverFieldNames();
+        if (Array.isArray(waiverNames) && waiverNames.length > 0) {
+            // Simple, client-only rule: if required waivers are accepted (gated by the Waivers step),
+            // set each detected waiver checkbox field to true so it persists like any other form field.
+            const acceptedAll = this.allRequiredWaiversAccepted();
+            for (const name of waiverNames) {
+                if (out[name] === undefined) out[name] = acceptedAll as Json;
+            }
         }
         return out;
     }

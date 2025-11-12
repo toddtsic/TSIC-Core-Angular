@@ -5,6 +5,11 @@ import { HttpClient } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { TeamService } from '../team.service';
 
+declare global {
+  // Allow TypeScript to acknowledge the VerticalInsure constructor on window
+  interface Window { VerticalInsure?: any; }
+}
+
 interface LineItem {
   playerId: string;
   playerName: string;
@@ -50,7 +55,8 @@ interface LineItem {
               <div class="fw-semibold mb-1">Optional Registration Insurance</div>
               <div class="small text-muted mb-2">Protect your registration investment. Select quotes below (powered by VerticalInsure).</div>
               <!-- Container target for VerticalInsure dynamic widget -->
-              <div id="verticalInsureOffer" class="vi-offer"></div>
+              <!-- VerticalInsure mounts itself into this container -->
+              <div id="dVIOffer" class="vi-offer"></div>
             </div>
           }
         </div>
@@ -168,8 +174,8 @@ export class PaymentComponent implements AfterViewInit, OnChanges, DoCheck {
   // VerticalInsure integration state
   viOffer = computed(() => this.state.verticalInsureOffer());
   viProductCount = computed(() => {
-    const data = this.viOffer().data;
-    const list = data?.product_config?.registration_cancellation || [];
+    const data: any = this.viOffer().data;
+    const list = data?.['product_config']?.['registration_cancellation'] || [];
     return Array.isArray(list) ? list.length : 0;
   });
   // Whether to render insurance region: show when policy exists OR loading/error/product data present
@@ -185,6 +191,9 @@ export class PaymentComponent implements AfterViewInit, OnChanges, DoCheck {
     return false;
   };
   private viInitialized = false;
+  private verticalInsureInstance: any;
+  viHasUserResponse = false;
+  quotes: any[] = [];
 
   ngAfterViewInit(): void {
     this.tryInitVerticalInsure();
@@ -195,45 +204,54 @@ export class PaymentComponent implements AfterViewInit, OnChanges, DoCheck {
   reloadVi(): void { this.state.fetchVerticalInsureObject(false); this.viInitialized = false; this.tryInitVerticalInsure(true); }
 
   private tryInitVerticalInsure(force: boolean = false): void {
-    // Conditions: feature offered, data loaded, products > 0, widget not yet initialized
-    const offer = this.state.offerPlayerRegSaver();
-    const loaded = !this.viOffer().loading && !this.viOffer().error && !!this.viOffer().data;
-    const productsOk = this.viProductCount() > 0;
-    if (!offer || !loaded || !productsOk) return;
+    // Conditions: feature offered, data loaded, products > 0, widget not yet initialized or forced
+    const offerEnabled = this.state.offerPlayerRegSaver();
+    const offerDataReady = !this.viOffer().loading && !this.viOffer().error && !!this.viOffer().data;
+    const hasProducts = this.viProductCount() > 0;
+    if (!offerEnabled || !offerDataReady || !hasProducts) return;
     if (this.viInitialized && !force) return;
-    // Load external script (if not already loaded) then instantiate verticalInsure
-    const existingScript = document.querySelector('script[data-vi-script]');
-    const initWidget = () => {
+
+    const offerObj = this.viOffer().data;
+    if (!offerObj) return;
+
+    const init = () => {
       try {
-        // Assume global VerticalInsure constructor available after script load
-        const containerSelector = '#verticalInsureOffer';
-        const offerObj = this.viOffer().data;
-        if (!offerObj) return;
-        (globalThis as any).verticalInsureInstance = new (globalThis as any).VerticalInsure(
-          containerSelector,
+        // Instantiate using provided simplified pattern
+        this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
+          '#dVIOffer',
           offerObj,
           (offerState: any) => {
-            // onChange: can inspect offerState.quotes
-            console.debug('[VI] offer change', offerState);
+            this.verticalInsureInstance.validate().then((isValid: boolean) => {
+              this.viHasUserResponse = isValid;
+              this.quotes = offerState?.quotes || [];
+              console.log('[VI] change viHasUserResponse:', this.viHasUserResponse, ' quotes:', this.quotes, ' isValid:', isValid);
+            });
           },
           () => {
-            console.debug('[VI] offer ready');
+            this.verticalInsureInstance.validate().then((isValid: boolean) => {
+              this.viHasUserResponse = isValid;
+              console.log('[VI] ready isValid:', this.viHasUserResponse);
+            });
           }
         );
         this.viInitialized = true;
-      } catch (e) {
-        console.error('[VI] init failed', e);
+      } catch (err) {
+        console.error('[VI] instantiation failed', err);
       }
     };
-    if (existingScript) { initWidget(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdn.verticalinsure.com/vi-player.min.js';
-    s.async = true;
-    s.defer = true;
-    (s as any).dataset.viScript = '1';
-    s.onload = () => initWidget();
-    s.onerror = () => console.error('[VI] script load failed');
-    document.head.appendChild(s);
+
+    if ((globalThis as any).VerticalInsure) {
+      init();
+      return;
+    }
+
+    // Inject script with single @ path if not loaded
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@vertical-insure/embedded-offer';
+    script.async = true;
+    script.onload = () => init();
+    script.onerror = () => console.error('[VI] script load failed');
+    document.head.appendChild(script);
   }
 
   lineItems = computed(() => {

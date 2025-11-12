@@ -46,7 +46,16 @@ import { AuthService } from '../../../core/services/auth.service';
                         <label for="famPassword" class="form-label small text-muted">Password</label>
                         <input #famPasswordInput id="famPassword" name="famPassword" class="form-control" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
                       </div>
-                      <!-- <div class="col-12 col-md-2 small text-muted d-flex align-items-center">Credentials</div> -->
+                      <div class="col-12 col-md-2 d-grid mt-2 mt-md-0">
+                        <button type="button"
+                                class="btn btn-primary"
+                                aria-label="Sign in with Family Account"
+                                [disabled]="submitting || !username || !password"
+                                (click)="signInThenProceed()">
+                          @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
+                          <span>Sign in</span>
+                        </button>
+                      </div>
                     </div>
                     @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
                     <div class="text-secondary small">Use these credentials for either action below.</div>
