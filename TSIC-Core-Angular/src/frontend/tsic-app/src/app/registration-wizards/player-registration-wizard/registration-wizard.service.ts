@@ -26,8 +26,10 @@ export class RegistrationWizardService {
     familyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
     // RegSaver (optional insurance) details for family/job
     regSaverDetails = signal<RegSaverDetails | null>(null);
-    // Debug: raw API response for FamilyPlayers (temporary aid for inspection)
-    debugFamilyPlayersResp = signal<Record<string, unknown> | unknown[] | null>(null);
+    // Design Principle: EACH REGISTRATION OWNS ITS OWN SNAPSHOT OF FORM VALUES.
+    // We do NOT merge or unify formValues across multiple registrations for a player.
+    // Any edit that creates a new registration stamps values only into that new registration.
+    // Prior registrations remain immutable snapshots (unless explicitly edited one-by-one in future flows).
     // Whether an existing player registration for the current job + active family user already exists.
     // null = unknown/not yet checked; true/false = definitive.
     // Eligibility type is job-wide (e.g., BYGRADYEAR), but the selected value is PER PLAYER
@@ -190,8 +192,7 @@ export class RegistrationWizardService {
         this.http.get<any>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
-                    // Capture raw response for temporary debug display
-                    this.debugFamilyPlayersResp.set(resp);
+                    // Removed debugFamilyPlayersResp (false start complexity removed per design principle).
                     // Normalize familyUser
                     const fu = resp?.familyUser || resp?.FamilyUser || null;
                     if (fu) this.familyUser.set({
@@ -228,6 +229,8 @@ export class RegistrationWizardService {
                             },
                             assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? null,
                             assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? null,
+                            // Surface top-level membership / association number directly for edit seeding.
+                            sportAssnId: r.sportAssnId ?? r.SportAssnId ?? null,
                             formValues: normalizeFormValues(r.formValues || r.FormValues)
                         }));
                         return {
@@ -268,7 +271,7 @@ export class RegistrationWizardService {
                     this.familyPlayers.set([]);
                     this.familyUser.set(null);
                     this.regSaverDetails.set(null);
-                    this.debugFamilyPlayersResp.set(null);
+                    // Removed debugFamilyPlayersResp reset.
                     this.familyPlayersLoading.set(false);
                 }
             });
@@ -586,6 +589,7 @@ export class RegistrationWizardService {
             this.profileFieldSchemas.set(schemas);
             this.aliasFieldMap.set(aliasMapLocal);
             // Detect waiver-like checkbox fields so we can hide them from Forms UI
+            // Also include dbColumn aliases if they look like waiver fields (e.g., BWaiverSigned1/3)
             const detectedWaiverFields: string[] = [];
             const detectedWaiverLabels: string[] = [];
             const containsAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
@@ -603,6 +607,41 @@ export class RegistrationWizardService {
                     detectedWaiverFields.push(field.name);
                     detectedWaiverLabels.push(field.label);
                 }
+            }
+            // Include dbColumn names for waiver-like fields (ensures server property names are injected if schema name differs)
+            for (const f of fields) {
+                try {
+                    const name = String(f?.name || '');
+                    const label = String(f?.label || f?.displayName || f?.display || name || '').toLowerCase();
+                    const dbCol = typeof f?.dbColumn === 'string' ? String(f.dbColumn) : '';
+                    const type = String(f?.type || f?.inputType || '').toLowerCase();
+                    const isCheckbox = type.includes('checkbox');
+                    const lname = (name || '').toLowerCase();
+                    const dbLower = dbCol.toLowerCase();
+                    const looksLikeWaiver = isCheckbox && (
+                        label.startsWith('i agree') || label.includes('waiver') || label.includes('release') ||
+                        containsAll(label, ['code', 'conduct']) || label.includes('refund') || containsAll(label, ['terms', 'conditions'])
+                    );
+                    if (looksLikeWaiver || lname.includes('waiver') || dbLower.includes('waiver') || dbLower.includes('codeofconduct') || dbLower.includes('refund')) {
+                        if (name) detectedWaiverFields.push(name);
+                        if (dbCol) detectedWaiverFields.push(dbCol);
+                        if (label) detectedWaiverLabels.push(String(f?.label || ''));
+                    }
+                } catch { /* ignore malformed entries */ }
+            }
+            // De-duplicate detected fields (case-insensitive, keep first encountered variant)
+            {
+                const seen = new Set<string>();
+                const uniqCI: string[] = [];
+                for (const f of detectedWaiverFields) {
+                    if (!f) continue;
+                    const key = f.toLowerCase();
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    uniqCI.push(f);
+                }
+                detectedWaiverFields.length = 0;
+                detectedWaiverFields.push(...uniqCI);
             }
             this.waiverFieldNames.set(detectedWaiverFields);
 
@@ -637,6 +676,34 @@ export class RegistrationWizardService {
                 for (const field of schemas) {
                     if (!(field.name in current[pid])) current[pid][field.name] = null;
                 }
+            }
+            // Seed existing persisted registration form values for registered players using ONLY the most recent prior registration.
+            // (Design Principle enforcement: no cross-registration merging.)
+            try {
+                const players = this.familyPlayers();
+                const schemaNameByLower: Record<string, string> = {};
+                for (const s of schemas) schemaNameByLower[s.name.toLowerCase()] = s.name;
+                for (const p of players) {
+                    if (!p.registered || !p.priorRegistrations?.length) continue;
+                    const pid = p.playerId;
+                    if (!current[pid]) continue;
+                    // Pick the most recent registration (last in array) as the source snapshot.
+                    const source = p.priorRegistrations[p.priorRegistrations.length - 1];
+                    const fv = source?.formValues || {};
+                    for (const [rawK, rawV] of Object.entries(fv)) {
+                        if (rawV == null || rawV === '') continue;
+                        const kLower = rawK.toLowerCase();
+                        let targetName = schemaNameByLower[kLower];
+                        if (!targetName) {
+                            const foundAlias = Object.keys(aliasMapLocal).find(a => a.toLowerCase() === kLower);
+                            if (foundAlias) targetName = aliasMapLocal[foundAlias];
+                        }
+                        if (!targetName) continue;
+                        current[pid][targetName] = rawV; // overwrite (single snapshot source)
+                    }
+                }
+            } catch (e) {
+                console.debug('[RegWizard] Prior registration single-snapshot seed failed (non-fatal)', e);
             }
             // Precise alias normalization using dbColumn mapping: migrate values from backend property to schema field name
             const alias = this.aliasFieldMap();
@@ -777,12 +844,18 @@ export class RegistrationWizardService {
     private buildPreSubmitFormValuesForPlayer(playerId: string): { [key: string]: Json } {
         const out = this.buildVisibleFormValuesForPlayer(playerId);
         const waiverNames = this.waiverFieldNames();
-        if (Array.isArray(waiverNames) && waiverNames.length > 0) {
-            // Simple, client-only rule: if required waivers are accepted (gated by the Waivers step),
-            // set each detected waiver checkbox field to true so it persists like any other form field.
-            const acceptedAll = this.allRequiredWaiversAccepted();
-            for (const name of waiverNames) {
-                if (out[name] === undefined) out[name] = acceptedAll as Json;
+        // Inject actual acceptance state (no unconditional force); preserve design principle (snapshot built from explicit user actions only).
+        try {
+            if (Array.isArray(waiverNames) && waiverNames.length) {
+                for (const name of waiverNames) {
+                    // If required waiver accepted, send true; else omit (server will validate).
+                    out[name] = this.isWaiverAccepted(name) ? true : false;
+                }
+            }
+        } catch (e) {
+            console.warn('[RegWizard] Waiver acceptance injection failed – falling back to explicit map', e);
+            if (Array.isArray(waiverNames)) {
+                for (const name of waiverNames) out[name] = !!this.isWaiverAccepted(name);
             }
         }
         return out;

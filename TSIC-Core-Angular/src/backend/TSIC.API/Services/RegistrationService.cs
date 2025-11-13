@@ -619,6 +619,23 @@ public class RegistrationService : IRegistrationService
                     var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
                     var dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
                     if (string.IsNullOrWhiteSpace(name)) continue;
+                    // Exclude fields marked hidden or adminOnly via visibility
+                    if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String)
+                    {
+                        var vis = visEl.GetString();
+                        if (string.Equals(vis, "hidden", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(vis, "adminOnly", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                    }
+                    // Do not include admin-only fields in the writable map
+                    if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
+                    {
+                        var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
+                                         (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
+                        if (adminFlag) continue;
+                    }
                     map[name!] = !string.IsNullOrWhiteSpace(dbCol) ? dbCol! : name!;
                 }
             }
@@ -628,6 +645,22 @@ public class RegistrationService : IRegistrationService
             // Ignore malformed metadata and return empty map
         }
         return map;
+    }
+
+    // Helper: case-insensitive property lookup on JsonElement objects
+    private static bool TryGetPropertyCI(JsonElement obj, string name, out JsonElement value)
+    {
+        value = default;
+        if (obj.ValueKind != JsonValueKind.Object) return false;
+        foreach (var p in obj.EnumerateObject())
+        {
+            if (string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = p.Value;
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Dictionary<string, System.Reflection.PropertyInfo> BuildWritablePropertyMap()
@@ -700,7 +733,8 @@ public class RegistrationService : IRegistrationService
         {
             return false;
         }
-        if (name.StartsWith("BWaiverSigned", StringComparison.Ordinal) || name.StartsWith("BUploaded", StringComparison.Ordinal))
+        // Allow waiver acceptance booleans to be written (client injects them). Still exclude uploaded flags.
+        if (name.StartsWith("BUploaded", StringComparison.Ordinal))
         {
             return false;
         }
@@ -801,12 +835,27 @@ public class RegistrationService : IRegistrationService
         if (!doc.RootElement.TryGetProperty("fields", out var fieldsEl) || fieldsEl.ValueKind != JsonValueKind.Array) return errors;
 
         var schemas = BuildSchemas(fieldsEl);
-        var latestValuesByPlayer = selections
+        // Merge all FormValues per player across selections (case-insensitive keys, last write wins)
+        var mergedValuesByPlayer = selections
             .Where(s => s.FormValues != null)
             .GroupBy(s => s.PlayerId)
-            .ToDictionary(g => g.Key, g => g.Last().FormValues!);
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var dict = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var sel in g)
+                    {
+                        foreach (var kv in sel.FormValues!)
+                        {
+                            dict[kv.Key] = kv.Value; // last write wins
+                        }
+                    }
+                    return dict;
+                }
+            );
 
-        foreach (var kv in latestValuesByPlayer)
+        foreach (var kv in mergedValuesByPlayer)
         {
             var playerId = kv.Key;
             var formValues = kv.Value;
@@ -823,9 +872,17 @@ public class RegistrationService : IRegistrationService
             var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
             if (string.IsNullOrWhiteSpace(name)) continue;
             if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String &&
-                string.Equals(visEl.GetString(), "hidden", StringComparison.OrdinalIgnoreCase))
+                (string.Equals(visEl.GetString(), "hidden", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(visEl.GetString(), "adminOnly", StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
+            }
+            // Skip admin-only fields so they are not required/validated for player form submission.
+            if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
+            {
+                var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
+                                 (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
+                if (adminFlag) continue;
             }
             var required = f.TryGetProperty("required", out var reqEl) && reqEl.ValueKind == JsonValueKind.True;
             if (!required && f.TryGetProperty("validation", out var valEl) && valEl.ValueKind == JsonValueKind.Object)
@@ -860,36 +917,55 @@ public class RegistrationService : IRegistrationService
         Dictionary<string, JsonElement> formValues,
         List<PreSubmitValidationErrorDto> errors)
     {
+        // Make field key lookup case-insensitive so client differences in casing (e.g., bWaiverSigned1 vs BWaiverSigned1) don't cause false "Required" errors.
+        var ciFormValues = new Dictionary<string, JsonElement>(formValues, StringComparer.OrdinalIgnoreCase);
         foreach (var schema in schemas)
         {
             if (schema.ConditionField != null && schema.ConditionValue.HasValue)
             {
-                formValues.TryGetValue(schema.ConditionField, out var otherVal);
+                ciFormValues.TryGetValue(schema.ConditionField, out var otherVal);
                 var condOk = otherVal.ValueKind == schema.ConditionValue.Value.ValueKind && otherVal.ToString() == schema.ConditionValue.Value.ToString();
                 if (!condOk) continue;
             }
-            formValues.TryGetValue(schema.Name, out var valEl);
+            ciFormValues.TryGetValue(schema.Name, out var valEl);
             var present = valEl.ValueKind != JsonValueKind.Undefined && valEl.ValueKind != JsonValueKind.Null && valEl.ToString().Trim().Length > 0;
-            if (schema.Required && !present)
-            {
-                errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
-                continue;
-            }
-            if (!present) continue;
             var rawStr = valEl.ToString();
             switch (schema.Type)
             {
                 case "number":
+                    if (schema.Required && !present)
+                    {
+                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
+                        break;
+                    }
+                    if (!present) break;
                     if (!double.TryParse(rawStr, out _)) errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Must be a number" });
                     break;
                 case "date":
+                    if (schema.Required && !present)
+                    {
+                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
+                        break;
+                    }
+                    if (!present) break;
                     if (!DateTime.TryParse(rawStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
                         errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid date" });
                     break;
                 case "select":
+                    if (schema.Required && !present)
+                    {
+                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
+                        break;
+                    }
+                    if (!present) break;
                     if (schema.Options.Count > 0 && !schema.Options.Contains(rawStr)) errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid option" });
                     break;
                 case "multiselect":
+                    if (!present)
+                    {
+                        if (schema.Required) errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
+                        break;
+                    }
                     if (valEl.ValueKind == JsonValueKind.Array)
                     {
                         foreach (var item in valEl.EnumerateArray())
@@ -902,13 +978,38 @@ public class RegistrationService : IRegistrationService
                             }
                         }
                     }
-                    else if (schema.Required)
+                    break;
+                case "checkbox":
+                    // For required checkboxes (e.g., waiver accepts): only evaluate if present; if missing, skip.
+                    if (!present) break;
+                    // Accept multiple representations of truthy values: true, "true", 1, "1", "yes", "on", "checked".
+                    bool accepted;
+                    if (valEl.ValueKind == JsonValueKind.True || valEl.ValueKind == JsonValueKind.False)
+                    {
+                        accepted = valEl.GetBoolean();
+                    }
+                    else if (valEl.ValueKind == JsonValueKind.Number)
+                    {
+                        try { accepted = valEl.GetInt32() != 0; } catch { accepted = false; }
+                    }
+                    else
+                    {
+                        var s = rawStr.Trim();
+                        accepted = string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(s, "1", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(s, "yes", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(s, "y", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(s, "on", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(s, "checked", StringComparison.OrdinalIgnoreCase);
+                    }
+                    if (schema.Required && !accepted)
                     {
                         errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
                     }
+                    // legacy bool parse check intentionally not used to avoid double-adding errors
                     break;
-                case "checkbox":
-                    if (schema.Required && (!bool.TryParse(rawStr, out var b) || !b))
+                default:
+                    if (schema.Required && !present)
                     {
                         errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
                     }

@@ -59,8 +59,8 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                     <div class="flex-grow-1">
                       <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
                         <span>{{ p.name }}</span>
-                        @if (isRegistered(p.userId)) {
-                          <span class="badge bg-secondary" title="Already registered; team locked">Locked</span>
+                        @if (isPlayerFullyLocked(p.userId)) {
+                          <span class="badge bg-secondary" title="All prior registrations are paid; team changes may be limited by the director">Locked</span>
                         }
                       </div>
                       @if (showEligibilityBadge()) {
@@ -79,7 +79,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                           @for (id of selectedArrayFor(p.userId); track id) {
                             <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
                               {{ nameForTeam(id) }}
-                              @if (!isRegistered(p.userId)) {
+                              @if (canRemoveTeam(p.userId, id)) {
                                 <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
                                         (click)="removeTeam(p.userId, id)">
                                   ×
@@ -105,7 +105,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                           [popupWidth]="'100%'"
                                           [zIndex]="1200"
                                           [cssClass]="'rw-teams-single'"
-                                          [enabled]="!(isRegistered(p.userId) || (showEligibilityBadge() && !eligibilityFor(p.userId)) || filteredTeamsFor(p.userId).length===0)"
+                                          [enabled]="!((showEligibilityBadge() && !eligibilityFor(p.userId)) || filteredTeamsFor(p.userId).length===0)"
                                           [value]="selectedTeams()[p.userId] || null"
                                           (change)="onSyncSingleChange(p.userId, $event)">
                           <ng-template #itemTemplate let-data>
@@ -150,7 +150,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                        (beforeSelect)="onMsBeforeSelect(p.userId, $event)"
                                        (select)="onMsSelect(p.userId, $event)"
                                        (removed)="onMsRemoved(p.userId, $event)"
-                                       [enabled]="!(isRegistered(p.userId) || (showEligibilityBadge() && !eligibilityFor(p.userId)))"
+                                       [enabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId))"
                                        [value]="selectedArrayFor(p.userId)"
                                        (change)="onSyncMultiChange(p.userId, $event)">
                         <ng-template #itemTemplate let-data>
@@ -225,6 +225,33 @@ export class TeamSelectionComponent {
   isRegistered(playerId: string): boolean {
     try {
       return !!this.wizard.familyPlayers().find(p => p.playerId === playerId)?.registered;
+    } catch { return false; }
+  }
+
+  /** True only when every prior registration for the player has a positive paidTotal (fully paid set). */
+  isPlayerFullyLocked(playerId: string): boolean {
+    try {
+      const fp = this.wizard.familyPlayers().find(p => p.playerId === playerId);
+      if (!fp || !(fp.priorRegistrations?.length)) return false;
+      return fp.priorRegistrations.every(r => (r.financials?.paidTotal ?? 0) > 0);
+    } catch { return false; }
+  }
+
+  /** Determine if a team pill can be removed (unpaid registration or in-session selection). */
+  canRemoveTeam(playerId: string, teamId: string): boolean {
+    try {
+      // If the player isn't registered at all, always removable (in-session only)
+      if (!this.isRegistered(playerId)) return true;
+      const fp = this.wizard.familyPlayers().find(p => p.playerId === playerId);
+      if (!fp) return true;
+      // In-session selections (not yet part of priorRegistrations) are removable
+      const prior = (fp.priorRegistrations || []).filter(r => !!r.assignedTeamId);
+      const isPrior = prior.some(r => r.assignedTeamId === teamId);
+      if (!isPrior) return true;
+      // Prior registration: allow removal only if unpaid
+      const reg = prior.find(r => r.assignedTeamId === teamId);
+      const paid = (reg?.financials?.paidTotal ?? 0) > 0;
+      return !paid; // removable when not paid
     } catch { return false; }
   }
 
@@ -317,8 +344,7 @@ export class TeamSelectionComponent {
   // Adapter for native select change
   onSingleChange(playerId: string, value: any) { /* legacy adapter unused in template */ }
   onSyncMultiChange(playerId: string, e: any) {
-    // readonlyMode removed; only skip if player already registered
-    if (this.isRegistered(playerId)) return;
+    // Allow changes even for previously registered players; server enforces paid/locked rules.
     let values: string[] = Array.isArray(e?.value) ? e.value.map(String) : [];
     // If Syncfusion gives null/undefined fallback to empty array
     if (!values) values = [];

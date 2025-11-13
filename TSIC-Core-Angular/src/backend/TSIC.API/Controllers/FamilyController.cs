@@ -22,60 +22,62 @@ public class FamilyController : ControllerBase
     private readonly SqlDbContext _db;
     private const string DateFormat = "yyyy-MM-dd";
 
-    // Internal projection to carry minimal registration fields for FamilyPlayers
-    private sealed record RegRow(
-        string UserId,
-        Guid RegistrationId,
-        bool Active,
-        Guid? AssignedTeamId,
-        decimal FeeBase,
-        decimal FeeProcessing,
-        decimal FeeDiscount,
-        decimal FeeDonation,
-        decimal FeeLatefee,
-        decimal FeeTotal,
-        decimal OwedTotal,
-        decimal PaidTotal
-    );
-
-    private static IReadOnlyDictionary<string, JsonElement> BuildFormValuesDictionary(RegRow row, List<(string Name, string DbColumn)> mapped)
+    // Generic mapper: include ANY dbColumn-backed metadata field present on Registrations.
+    // Avoid special-casing (fees, waivers, sportAssnId, etc.) so client can rely on a single source of truth.
+    private static IReadOnlyDictionary<string, JsonElement> BuildFormValuesDictionary(Registrations reg, List<(string Name, string DbColumn)> mapped)
     {
-        // Note: We'll populate from the Registrations entity via known columns; for now, limited to a few known mappings.
-        // This can be expanded by using EF.Property on a hydrated registration if needed.
+        // Design Principle (central invariant): Each registration row is an immutable snapshot of form values
+        // at the time that registration was created or explicitly updated. We do NOT merge values across
+        // multiple registrations for a player. The API returns per-registration FormValues; the client
+        // chooses which snapshot to display or copy when creating new registrations.
         var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        if (mapped.Count == 0) return dict;
+
+        var regType = typeof(Registrations);
+        // Exclude infrastructure/system columns that should never surface as editable form fields even if
+        // profile metadata mistakenly maps them. Keep user-entered domain fields (waivers, membership numbers, apparel, etc.).
+        var excluded = new HashSet<string>(new[]
+        {
+            // Identity / linkage
+            nameof(Registrations.RegistrationId), nameof(Registrations.FamilyUserId), nameof(Registrations.UserId), nameof(Registrations.AssignedTeamId), nameof(Registrations.LebUserId),
+            // Financial snapshot columns (not user-entered form fields)
+            nameof(Registrations.FeeBase), nameof(Registrations.FeeProcessing), nameof(Registrations.FeeDiscount), nameof(Registrations.FeeDonation), nameof(Registrations.FeeLatefee), nameof(Registrations.FeeTotal), nameof(Registrations.OwedTotal), nameof(Registrations.PaidTotal),
+            // Timestamps / audit
+            nameof(Registrations.Modified),
+            // Misc technical columns that may appear in legacy metadata dumps
+            "JsonOptions", "JsonFormValues"
+        }, StringComparer.OrdinalIgnoreCase);
+
         foreach (var (name, dbCol) in mapped)
         {
-            // Minimal seed: map financials if present in profile (uncommon), else skip
-            switch (dbCol)
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(dbCol)) continue;
+
+            // Use case-insensitive property lookup to tolerate metadata casing differences.
+            var prop = regType.GetProperty(dbCol, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            if (prop == null) continue; // Unknown property -> skip (extensibility without errors)
+            if (excluded.Contains(prop.Name)) continue; // System/infrastructure field -> skip
+
+            object? value = prop.GetValue(reg);
+            if (value == null) continue; // Unset -> omit from FormValues
+
+            // Serialize primitive/object value into a JSON element preserving native types (bool/number/string/date)
+            // For DateTime/DateTime? normalize to yyyy-MM-dd when time component not needed.
+            JsonElement cloned;
+            switch (value)
             {
-                case nameof(Domain.Entities.Registrations.FeeBase):
-                    dict[name] = JsonDocument.Parse(row.FeeBase.ToString()).RootElement.Clone();
+                case DateTime dt:
+                    // Preserve date only if time is midnight, else serialize full ISO 8601
+                    var normalized = dt.TimeOfDay == TimeSpan.Zero ? dt.ToString("yyyy-MM-dd") : dt.ToString("O");
+                    cloned = JsonDocument.Parse(JsonSerializer.Serialize(normalized)).RootElement.Clone();
                     break;
-                case nameof(Domain.Entities.Registrations.FeeProcessing):
-                    dict[name] = JsonDocument.Parse(row.FeeProcessing.ToString()).RootElement.Clone();
-                    break;
-                case nameof(Domain.Entities.Registrations.FeeDiscount):
-                    dict[name] = JsonDocument.Parse(row.FeeDiscount.ToString()).RootElement.Clone();
-                    break;
-                case nameof(Domain.Entities.Registrations.FeeDonation):
-                    dict[name] = JsonDocument.Parse(row.FeeDonation.ToString()).RootElement.Clone();
-                    break;
-                case nameof(Domain.Entities.Registrations.FeeLatefee):
-                    dict[name] = JsonDocument.Parse(row.FeeLatefee.ToString()).RootElement.Clone();
-                    break;
-                case nameof(Domain.Entities.Registrations.FeeTotal):
-                    dict[name] = JsonDocument.Parse(row.FeeTotal.ToString()).RootElement.Clone();
-                    break;
-                case nameof(Domain.Entities.Registrations.OwedTotal):
-                    dict[name] = JsonDocument.Parse(row.OwedTotal.ToString()).RootElement.Clone();
-                    break;
-                case nameof(Domain.Entities.Registrations.PaidTotal):
-                    dict[name] = JsonDocument.Parse(row.PaidTotal.ToString()).RootElement.Clone();
+                case DateTimeOffset dto:
+                    cloned = JsonDocument.Parse(JsonSerializer.Serialize(dto.ToString("O"))).RootElement.Clone();
                     break;
                 default:
-                    // Not available in current projection; skip
+                    cloned = JsonDocument.Parse(JsonSerializer.Serialize(value)).RootElement.Clone();
                     break;
             }
+            dict[name] = cloned;
         }
         return dict;
     }
@@ -642,27 +644,13 @@ public class FamilyController : ControllerBase
 
         // Compute registrations for this job and family among linked children (existence-only semantics + summaries)
         var regsRaw = jobId == null
-            ? new List<RegRow>()
+            ? new List<Registrations>()
             : await _db.Registrations
                 .AsNoTracking()
                 .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && linkedChildIds.Contains(r.UserId))
-                .Select(r => new RegRow(
-                    r.UserId!,
-                    r.RegistrationId,
-                    r.BActive == true,
-                    r.AssignedTeamId,
-                    r.FeeBase,
-                    r.FeeProcessing,
-                    r.FeeDiscount,
-                    r.FeeDonation,
-                    r.FeeLatefee,
-                    r.FeeTotal,
-                    r.OwedTotal,
-                    r.PaidTotal
-                ))
                 .ToListAsync();
 
-        var regSet = regsRaw.Select(x => x.UserId).Distinct().ToHashSet(StringComparer.Ordinal);
+        var regSet = regsRaw.Select(x => x.UserId!).Distinct().ToHashSet(StringComparer.Ordinal);
 
         // Load profile metadata fields (for mapping DbColumn -> FormValues)
         var metadataJson = jobId == null ? null : await _db.Jobs
@@ -708,34 +696,31 @@ public class FamilyController : ControllerBase
         }
 
         var regsByUser = regsRaw
-            .GroupBy(x => x.UserId)
+            .GroupBy(r => r.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(x => new FamilyPlayerRegistrationDto(
-                        x.RegistrationId,
-                        x.Active,
+                g => g.Select(r => new FamilyPlayerRegistrationDto(
+                        r.RegistrationId,
+                        r.BActive == true,
                         new RegistrationFinancialsDto(
-                            x.FeeBase,
-                            x.FeeProcessing,
-                            x.FeeDiscount,
-                            x.FeeDonation,
-                            x.FeeLatefee,
-                            x.FeeTotal,
-                            x.OwedTotal,
-                            x.PaidTotal
+                            r.FeeBase,
+                            r.FeeProcessing,
+                            r.FeeDiscount,
+                            r.FeeDonation,
+                            r.FeeLatefee,
+                            r.FeeTotal,
+                            r.OwedTotal,
+                            r.PaidTotal
                         ),
-                        x.AssignedTeamId,
-                        x.AssignedTeamId.HasValue && teamNameMap.ContainsKey(x.AssignedTeamId.Value) ? teamNameMap[x.AssignedTeamId.Value] : null,
-                        BuildFormValuesDictionary(x, mappedFields)
+                        r.AssignedTeamId,
+                        r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) ? teamNameMap[r.AssignedTeamId.Value] : null,
+                        BuildFormValuesDictionary(r, mappedFields)
                     )).ToList(),
                 StringComparer.Ordinal);
 
         // RegSaver details: pick first active registration with policy; else any registration with policy
         RegSaverDetailsDto? regSaver = null;
-        var withPolicy = regsRaw.Where(r => !string.IsNullOrWhiteSpace(r.AssignedTeamId?.ToString())); // placeholder to avoid warnings
-        var policySource = regsRaw
-            .OrderByDescending(r => r.Active) // active first
-            .FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.UserId)); // we will refine below
+        // Placeholder variables 'withPolicy' and 'policySource' removed (unused).
 
         // Refine: actually need policy fields from registrations
         var regSaverRaw = jobId == null ? null : await _db.Registrations

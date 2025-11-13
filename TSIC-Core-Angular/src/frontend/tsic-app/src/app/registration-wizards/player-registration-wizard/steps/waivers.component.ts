@@ -200,7 +200,16 @@ export class WaiversComponent implements OnInit, AfterViewInit {
 
   // Reactive continue disabled computation using local map
   disableContinue(): boolean {
+    // No waivers => always allow
     if (this.waivers().length === 0) return false;
+    // If all required accepted according to state, allow even if form is disabled (edit/locked scenario)
+    const allAccepted = this.waivers().every(w => !w.required || this.isAccepted(w.id));
+    if (allAccepted) return false;
+    // Fallback: rely on form validity (reactive path)
+    if (this.waiverForm?.disabled) {
+      // Disabled group but not all accepted? Treat as blocked until acceptance map fills
+      return !allAccepted;
+    }
     return !this.waiverForm.valid;
   }
 
