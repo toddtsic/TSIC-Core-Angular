@@ -4,49 +4,53 @@
             <div class="card shadow-lg border-0 card-rounded mb-4">
                 <div class="card-header gradient-header text-center py-4 border-0">
                     <h2 id="rw-title" class="mb-0 fw-bold">Player Registration</h2>
-                    <p class="mb-0 mt-2 opacity-75 small">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
+                    <div class="mt-2">
+                        <span
+                            class="badge rounded-pill text-bg-light text-primary-emphasis px-3 py-2 fw-semibold text-nowrap shadow-sm"
+                            aria-live="polite">
+                            Step {{ currentIndex() + 1 }} of {{ steps().length }}
+                        </span>
+                    </div>
                 </div>
             </div>
 
             <div class="rw-sticky-header mb-4">
                 <progress class="w-100 mb-2 rw-progress" [value]="progressPercent()" max="100">{{ progressPercent()
                     }}%</progress>
-                <nav class="rw-steps mb-3" aria-label="Player registration steps">
-                    <ol class="rw-steps-list">
-                        @for (s of steps(); track s; let i = $index) {
-                        <li class="rw-step" [class.active]="i === currentIndex()" [class.completed]="i < currentIndex()"
-                            [attr.aria-current]="i === currentIndex() ? 'step' : null">
-                            <span class="rw-step-index">{{ i + 1 }}</span>
-                            <span class="rw-step-label">{{ stepLabels[s] }}</span>
+                <nav class="rw-steps mb-3" aria-label="Current step">
+                    <ol class="rw-steps-list justify-content-center">
+                        <li class="rw-step active" aria-current="step">
+                            <span class="rw-step-index">{{ currentIndex() + 1 }}</span>
+                            <span class="rw-step-label">{{ stepLabels[steps()[currentIndex()]] }}</span>
                         </li>
-                        }
                     </ol>
                 </nav>
 
-                <div class="rw-toolbar d-flex justify-content-between align-items-center">
-                    <button type="button"
-                        class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" (click)="back()"
-                        [disabled]="currentIndex() === 0" aria-label="Go back to previous step">
-                        <i class="bi bi-arrow-left"></i>
-                        <span>Back</span>
-                    </button>
-                    <div class="d-flex flex-column flex-md-row align-items-md-center gap-2">
-                        <div class="d-inline-flex align-items-center gap-2">
-                            <span class="text-secondary small">Current:</span>
-                            <span class="rw-badge rw-badge--muted">
-                                <i class="bi bi-flag"></i>
-                                {{ stepLabels[currentStepId()] }}
-                            </span>
-                        </div>
-                        @if (state.familyUser()) {
-                        <div class="d-inline-flex align-items-center gap-2">
-                            <span class="text-secondary small">Family User:</span>
-                            <span class="rw-badge" title="Username (login identifier)">
-                                <i class="bi bi-person-check"></i>
-                                {{ state.familyUser()?.userName || state.familyUser()?.displayName }}
+                <div class="rw-toolbar">
+                    <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2">
+                        @if (familyLastName()) {
+                        <div class="text-truncate me-2" title="Family account">
+                            <span
+                                class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
+                                {{ familyLastName() }} Family
                             </span>
                         </div>
                         }
+                        <div class="btn-group btn-group-sm">
+                            <button type="button"
+                                class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
+                                (click)="back()" [disabled]="currentIndex() === 0"
+                                aria-label="Go back to previous step">
+                                <i class="bi bi-arrow-left"></i>
+                                <span>Back</span>
+                            </button>
+                            @if (showContinueButton()) {
+                            <button type="button" class="btn btn-primary" (click)="onContinue()"
+                                [disabled]="!canContinue()">
+                                {{ continueLabel() }}
+                            </button>
+                            }
+                        </div>
                     </div>
                 </div>
             </div>

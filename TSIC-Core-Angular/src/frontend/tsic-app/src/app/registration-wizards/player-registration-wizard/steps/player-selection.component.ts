@@ -1,14 +1,13 @@
 import { Component, EventEmitter, Output, inject, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
-import { BottomNavComponent } from '../bottom-nav.component';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-rw-player-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, BottomNavComponent],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -60,8 +59,6 @@ import { environment } from '../../../../environments/environment';
             }
           </ul>
         }
-
-  <app-rw-bottom-nav [hideBack]="true" [nextDisabled]="state.selectedPlayerIds().length === 0" (next)="next.emit()"></app-rw-bottom-nav>
       </div>
     </div>
   `

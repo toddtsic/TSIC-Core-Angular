@@ -81,10 +81,6 @@ import { RegistrationWizardService } from '../registration-wizard.service';
           </form>
         }
 
-        <div class="rw-bottom-nav d-flex gap-2 mt-3">
-          <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-          <button type="button" class="btn btn-primary" [disabled]="disableContinue()" (click)="handleContinue()">Continue</button>
-        </div>
       </div>
     </div>
   `

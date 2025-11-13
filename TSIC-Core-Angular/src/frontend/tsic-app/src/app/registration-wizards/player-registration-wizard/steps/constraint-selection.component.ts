@@ -57,11 +57,6 @@ import { JobService, Job } from '../../../core/services/job.service';
             }
           </div>
         }
-
-        <div class="rw-bottom-nav d-flex gap-2">
-          <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-          <button type="button" class="btn btn-primary" (click)="handleContinue()" [disabled]="disableContinue()">Continue</button>
-        </div>
       </div>
     </div>
   `

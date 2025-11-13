@@ -178,12 +178,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
             <div class="invalid-feedback d-block mt-2">Assign one or more teams for: {{ missingAssignments().join(', ') }}.</div>
           }
         }
-        <div class="border-top pt-3 mt-4">
-          <div class="rw-bottom-nav d-flex gap-2">
-            <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-            <button type="button" class="btn btn-primary" [disabled]="!allPlayersAssigned()" (click)="next.emit()">Continue</button>
-          </div>
-        </div>
+        
       </div>
     </div>
   `

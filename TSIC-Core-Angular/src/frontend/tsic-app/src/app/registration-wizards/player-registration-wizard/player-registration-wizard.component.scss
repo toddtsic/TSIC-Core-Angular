@@ -1,1 +1,31 @@
 /* Wizard-specific local hooks no longer needed; see global styles.scss for .rw-* rules */
+
+/* Compact the toolbar on small screens to help keep it on one line */
+@media (max-width: 576px) {
+    .rw-toolbar {
+        .badge {
+            padding: 0.15rem 0.4rem;
+            font-size: 0.8rem;
+            line-height: 1.1;
+        }
+
+        /* Tighter buttons using Bootstrap CSS variables */
+        .btn-group>.btn,
+        .btn {
+            --bs-btn-padding-y: 0.2rem;
+            --bs-btn-padding-x: 0.5rem;
+            --bs-btn-font-size: 0.8rem;
+            line-height: 1.2;
+        }
+
+        .btn .bi {
+            font-size: 0.9em;
+        }
+    }
+}
+
+/* Center the single active step pill */
+.rw-steps .rw-steps-list {
+    display: flex;
+    justify-content: center;
+}

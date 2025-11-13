@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
 import { FamilyPlayer } from '../family-players.dto';
-import { BottomNavComponent } from '../bottom-nav.component';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
@@ -11,7 +10,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, BottomNavComponent],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -196,7 +195,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
             </div>
           </div>
         }
-        <app-rw-bottom-nav (back)="back.emit()" (next)="next.emit()" [nextDisabled]="isNextDisabled()"></app-rw-bottom-nav>
+        
       </div>
     </div>
 
