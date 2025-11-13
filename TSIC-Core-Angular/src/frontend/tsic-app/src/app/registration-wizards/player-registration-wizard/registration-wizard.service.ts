@@ -53,12 +53,17 @@ export class RegistrationWizardService {
     jobWaivers = signal<Record<string, string>>({});
     // Structured waivers for dedicated step
     waiverDefinitions = signal<WaiverDefinition[]>([]);
-    waiversAccepted = signal<Record<string, boolean>>({}); // id -> accepted
+    // Map waiver definition id -> schema field name (checkbox) for acceptance
+    waiverIdToField = signal<Record<string, string>>({});
+    // Acceptance map stored by schema field name to align with formFieldValues keys in preSubmit
+    waiversAccepted = signal<Record<string, boolean>>({}); // fieldName -> accepted
     signatureName = signal<string>('');
     signatureRole = signal<'Parent/Guardian' | 'Adult Player' | ''>('');
     // When waiver acceptance checkboxes are present as form fields, we'll detect and hide them from Forms
     // and render them in the dedicated Waivers step instead.
     waiverFieldNames = signal<string[]>([]);
+    // Dev-only: capture a normalized snapshot of GET /family/players for the debug panel on Players step
+    debugFamilyPlayersResp = signal<any>(null);
 
     // Effect: whenever players list or waiver definitions change, re-evaluate waiver acceptance rules.
     // This catches scenarios where a new unregistered player is added AFTER waivers were previously accepted
@@ -121,7 +126,11 @@ export class RegistrationWizardService {
             const allSelectedRegistered = selectedPlayers.every(p => p.registered);
             if (!allSelectedRegistered) return;
             const accepted: Record<string, boolean> = {};
-            for (const d of defs) if (d.required) accepted[d.id] = true;
+            for (const d of defs) {
+                if (!d.required) continue;
+                const field = this.waiverIdToField()[d.id] || d.id;
+                accepted[field] = true;
+            }
             this.waiversAccepted.set(accepted);
         } catch (e) {
             console.debug('[RegWizard] seedAcceptedWaiversIfReadOnly failed', e);
@@ -144,7 +153,12 @@ export class RegistrationWizardService {
                 // If user hasn't explicitly interacted with waivers this session, ensure accepted
                 if (Object.keys(this.waiversAccepted()).length === 0) {
                     const accepted: Record<string, boolean> = {};
-                    for (const d of defs) if (d.required) accepted[d.id] = true;
+                    const map = this.waiverIdToField();
+                    for (const d of defs) {
+                        if (!d.required) continue;
+                        const field = map[d.id] || d.id;
+                        accepted[field] = true;
+                    }
                     this.waiversAccepted.set(accepted);
                 }
             } else {
@@ -161,12 +175,16 @@ export class RegistrationWizardService {
     // --- Waiver helpers ---
     setWaiverAccepted(id: string, accepted: boolean): void {
         const map = { ...this.waiversAccepted() };
-        if (accepted) map[id] = true; else delete map[id];
+        // Accept either a definition id or a field name; normalize to field name
+        const binding = this.waiverIdToField()[id] || id;
+        if (accepted) map[binding] = true; else delete map[binding];
         this.waiversAccepted.set(map);
     }
 
-    isWaiverAccepted(id: string): boolean {
-        return !!this.waiversAccepted()[id];
+    isWaiverAccepted(key: string): boolean {
+        // Accept either a definition id or a field name
+        const field = this.waiverIdToField()[key] || key;
+        return !!this.waiversAccepted()[field];
     }
 
     allRequiredWaiversAccepted(): boolean {
@@ -192,7 +210,19 @@ export class RegistrationWizardService {
         this.http.get<any>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
-                    // Removed debugFamilyPlayersResp (false start complexity removed per design principle).
+                    // Set raw debug payload (dev-only panel reads this)
+                    try {
+                        this.debugFamilyPlayersResp.set(resp);
+                    } catch { /* ignore */ }
+                    // If server provided jobRegForm with an explicit constraint type, set it early
+                    // so the wizard can decide to show the Eligibility step before fetching /jobs metadata.
+                    try {
+                        const jrf = (resp?.jobRegForm ?? resp?.JobRegForm);
+                        const rawCt = jrf?.constraintType ?? jrf?.ConstraintType ?? jrf?.teamConstraint ?? jrf?.TeamConstraint ?? null;
+                        if (typeof rawCt === 'string' && rawCt.trim().length > 0) {
+                            this.teamConstraintType.set(rawCt.trim().toUpperCase());
+                        }
+                    } catch { /* non-fatal */ }
                     // Normalize familyUser
                     const fu = resp?.familyUser || resp?.FamilyUser || null;
                     if (fu) this.familyUser.set({
@@ -231,7 +261,10 @@ export class RegistrationWizardService {
                             assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? null,
                             // Surface top-level membership / association number directly for edit seeding.
                             sportAssnId: r.sportAssnId ?? r.SportAssnId ?? null,
-                            formValues: normalizeFormValues(r.formValues || r.FormValues)
+                            // Normalize into client-side formValues from whichever server field exists (preferring visible-only FormFieldValues)
+                            formValues: normalizeFormValues(
+                                r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues
+                            )
                         }));
                         return {
                             playerId: p.playerId ?? p.PlayerId ?? '',
@@ -262,6 +295,7 @@ export class RegistrationWizardService {
                         else if (unique.length > 1) teamMap[fp.playerId] = unique; // multi-assignment history
                     }
                     this.selectedTeams.set(teamMap);
+                    // Keep raw debug payload (already set) so dev panel shows full server snapshot including formFields
                     // Ensure job metadata so forms parse soon after
                     this.ensureJobMetadata(jobPath);
                     this.familyPlayersLoading.set(false);
@@ -271,7 +305,7 @@ export class RegistrationWizardService {
                     this.familyPlayers.set([]);
                     this.familyUser.set(null);
                     this.regSaverDetails.set(null);
-                    // Removed debugFamilyPlayersResp reset.
+                    this.debugFamilyPlayersResp.set(null);
                     this.familyPlayersLoading.set(false);
                 }
             });
@@ -588,11 +622,28 @@ export class RegistrationWizardService {
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
             this.profileFieldSchemas.set(schemas);
             this.aliasFieldMap.set(aliasMapLocal);
-            // Detect waiver-like checkbox fields so we can hide them from Forms UI
-            // Also include dbColumn aliases if they look like waiver fields (e.g., BWaiverSigned1/3)
+            // Detect waiver checkbox fields so we can hide them from Forms UI.
+            // Prioritize explicit requiredTrue on checkbox; also include label/name heuristics and dbColumn aliases (e.g., BWaiverSigned1/3).
             const detectedWaiverFields: string[] = [];
             const detectedWaiverLabels: string[] = [];
             const containsAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
+            // First pass: explicit requiredTrue check on raw metadata objects (ensures accurate capture)
+            for (const raw of fields) {
+                try {
+                    const name = String(raw?.name || raw?.dbColumn || raw?.field || '');
+                    if (!name) continue;
+                    const type = String(raw?.type || raw?.inputType || '').toLowerCase();
+                    const isCheckbox = type.includes('checkbox') || type === 'bool' || type === 'boolean';
+                    const validation = raw?.validation || {};
+                    const requiredTrue = !!(validation?.requiredTrue === true);
+                    if (isCheckbox && requiredTrue) {
+                        detectedWaiverFields.push(name);
+                        const label = String(raw?.label || raw?.displayName || raw?.display || name);
+                        if (label) detectedWaiverLabels.push(label);
+                    }
+                } catch { /* ignore malformed entries */ }
+            }
+            // Second pass: heuristic label/name detection for historical data
             for (const field of schemas) {
                 const lname = field.name.toLowerCase();
                 const llabel = field.label.toLowerCase();
@@ -644,6 +695,67 @@ export class RegistrationWizardService {
                 detectedWaiverFields.push(...uniqCI);
             }
             this.waiverFieldNames.set(detectedWaiverFields);
+
+            // Build bindings from waiver definition ids to schema field names (checkbox acceptances)
+            try {
+                const defs = this.waiverDefinitions();
+                const bindings: Record<string, string> = {};
+                const checkboxFields = schemas.filter(s => s.type === 'checkbox');
+                const toWords = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2);
+                const score = (title: string, label: string) => {
+                    const a = new Set(toWords(title));
+                    const b = new Set(toWords(label));
+                    let m = 0; for (const w of a) if (b.has(w)) m++;
+                    return m;
+                };
+                const pickByHeuristic = (def: WaiverDefinition): string | null => {
+                    // Strong keyword mapping first
+                    const idL = def.id.toLowerCase();
+                    const titleL = def.title.toLowerCase();
+                    const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
+                    let candidates = checkboxFields;
+                    // Filter candidates by thematic keywords
+                    if (idL.includes('codeofconduct') || hasAll(titleL, ['code', 'conduct'])) {
+                        candidates = candidates.filter(f => hasAll(f.label.toLowerCase(), ['code', 'conduct']) || hasAll(f.name.toLowerCase(), ['code', 'conduct']));
+                    } else if (idL.includes('refund') || hasAll(titleL, ['terms', 'conditions']) || titleL.includes('refund')) {
+                        candidates = candidates.filter(f => f.label.toLowerCase().includes('refund') || hasAll(f.label.toLowerCase(), ['terms', 'conditions']) || f.name.toLowerCase().includes('refund'));
+                    } else if (idL.includes('covid') || titleL.includes('covid')) {
+                        candidates = candidates.filter(f => f.label.toLowerCase().includes('covid') || f.name.toLowerCase().includes('covid'));
+                    } else if (titleL.includes('waiver') || titleL.includes('release') || idL.includes('waiver') || idL.includes('release')) {
+                        candidates = candidates.filter(f => f.label.toLowerCase().includes('waiver') || f.label.toLowerCase().includes('release') || f.name.toLowerCase().includes('waiver'));
+                    }
+                    if (candidates.length === 0) candidates = checkboxFields;
+                    // Score by token overlap with title; break ties by order in schemas
+                    let best: { f: PlayerProfileFieldSchema; s: number } | null = null;
+                    for (const f of candidates) {
+                        const s = score(def.title, f.label) + score(def.id, f.label);
+                        if (!best || s > best.s) best = { f, s };
+                    }
+                    return best?.f?.name || null;
+                };
+                for (const d of defs) {
+                    // If there is an exact field name match in detected list, prefer it
+                    const exact = detectedWaiverFields.find(n => n.toLowerCase() === d.id.toLowerCase());
+                    const chosen = exact || pickByHeuristic(d);
+                    if (chosen) bindings[d.id] = chosen;
+                }
+                this.waiverIdToField.set(bindings);
+                // Migrate any acceptance entries keyed by definition id -> field name
+                const current = { ...this.waiversAccepted() } as Record<string, boolean>;
+                let changed = false;
+                for (const [id, field] of Object.entries(bindings)) {
+                    if (current[id] !== undefined && current[field] === undefined) {
+                        current[field] = current[id];
+                        delete current[id];
+                        changed = true;
+                    }
+                }
+                if (changed) this.waiversAccepted.set(current);
+                // If still empty and in edit-only scenario, seed acceptance using field names now that mapping exists
+                if (Object.keys(this.waiversAccepted()).length === 0) {
+                    this.seedAcceptedWaiversIfReadOnly();
+                }
+            } catch { /* mapping best-effort */ }
 
             // If no job-level waiver definitions were populated, synthesize minimal ones from detected fields
             if ((this.waiverDefinitions()?.length ?? 0) === 0 && detectedWaiverLabels.length > 0) {
@@ -817,18 +929,21 @@ export class RegistrationWizardService {
         });
     }
 
-    /** Build a dictionary of visible (non-hidden) form fields for a given player, using the parsed field schemas. */
+    /** Build a dictionary of visible (non-hidden, non-adminOnly) form fields for a given player, using the parsed field schemas. */
     private buildVisibleFormValuesForPlayer(playerId: string): { [key: string]: Json } {
         const schemas = this.profileFieldSchemas();
+        const hidden = new Set(this.waiverFieldNames().map(n => n.toLowerCase()));
         const visibleNames = new Set(
             schemas
-                .filter(s => (s.visibility ?? 'public') !== 'hidden')
+                .filter(s => (s.visibility ?? 'public') !== 'hidden' && (s.visibility ?? 'public') !== 'adminOnly')
                 .map(s => s.name)
         );
         const all = this.playerFormValues()[playerId] || {} as { [k: string]: any };
         const out: { [k: string]: Json } = {};
         for (const [k, v] of Object.entries(all)) {
             if (!visibleNames.has(k)) continue;
+            // Exclude waiver acceptance fields from Forms payload; they will be injected explicitly later
+            if (hidden.has(k.toLowerCase())) continue;
             // Allow null/empty values to pass through; skip only undefined
             if (v === undefined) continue;
             out[k] = v as Json;

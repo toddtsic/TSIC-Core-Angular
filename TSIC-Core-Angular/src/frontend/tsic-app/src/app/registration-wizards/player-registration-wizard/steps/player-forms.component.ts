@@ -104,6 +104,78 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                     }
                   </div>
                 }
+
+                <!-- Render all other visible, non-waiver fields with labels -->
+                @for (field of schemas(); track trackField($index, field)) {
+                  @if (!isUsLaxField(field) && isFieldVisible(player.userId, field)) {
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
+                      @switch (field.type) {
+                        @case ('text') {
+                          <input type="text" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [required]="field.required"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                        @case ('number') {
+                          <input type="number" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [required]="field.required"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                        @case ('date') {
+                          <input type="date" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [required]="field.required"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                        @case ('select') {
+                          <select class="form-select"
+                                  [id]="helpId(player.userId, field.name)"
+                                  [required]="field.required"
+                                  [ngModel]="value(player.userId, field.name)"
+                                  (ngModelChange)="setValue(player.userId, field.name, $event)">
+                            <option [ngValue]="null">-- Select --</option>
+                            @for (opt of field.options; track trackOpt($index, opt)) {
+                              <option [ngValue]="opt">{{ opt }}</option>
+                            }
+                          </select>
+                        }
+                        @case ('multiselect') {
+                          <div class="d-flex flex-wrap gap-2">
+                            @for (opt of field.options; track trackOpt($index, opt)) {
+                              <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox"
+                                       [id]="helpId(player.userId, field.name) + '-' + opt"
+                                       [checked]="isMultiChecked(player.userId, field.name, opt)"
+                                       (change)="toggleMulti(player.userId, field.name, opt, $event)" />
+                                <label class="form-check-label" [for]="helpId(player.userId, field.name) + '-' + opt">{{ opt }}</label>
+                              </div>
+                            }
+                          </div>
+                        }
+                        @case ('checkbox') {
+                          <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   [id]="helpId(player.userId, field.name)"
+                                   [checked]="!!value(player.userId, field.name)"
+                                   (change)="onCheckboxChange(player.userId, field.name, $event)" />
+                            <label class="form-check-label" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
+                          </div>
+                        }
+                        @default {
+                          <input type="text" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                      }
+                    </div>
+                  }
+                }
               </div>
             </div>
           </div>

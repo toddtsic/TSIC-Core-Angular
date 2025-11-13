@@ -17,7 +17,10 @@ export interface FamilyPlayerRegistration {
     financials: RegistrationFinancials;
     assignedTeamId?: string | null;
     assignedTeamName?: string | null;
+    // Server now sends visible-only values as formFieldValues; keep formValues as client-normalized alias
     formValues: Record<string, any>;
+    formFieldValues?: Record<string, any>;
+    formFields?: RegistrationFormField[] | null;
 }
 
 export interface FamilyPlayer {
@@ -34,6 +37,34 @@ export interface FamilyPlayer {
 export interface RegSaverDetails {
     policyNumber: string;
     policyCreateDate: string; // ISO date string
+}
+
+// Typed field metadata + current value (when provided)
+export interface RegistrationFormField {
+    name: string;
+    dbColumn: string;
+    displayName: string;
+    inputType: string;
+    dataSource?: string | null;
+    options?: { value: string; label: string }[] | null;
+    validation?: {
+        required?: boolean;
+        email?: boolean;
+        requiredTrue?: boolean;
+        minLength?: number;
+        maxLength?: number;
+        pattern?: string;
+        min?: number;
+        max?: number;
+        compare?: string;
+        remote?: string;
+        message?: string;
+    } | null;
+    order: number;
+    visibility: string;
+    computed: boolean;
+    conditionalOn?: { field: string; value: any; operator?: string } | null;
+    value?: any; // seeded from latest registration snapshot for player-level fields
 }
 
 // Helper to normalize form values from API JsonElement payloads or plain objects

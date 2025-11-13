@@ -56,7 +56,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
                     </div>
                     <div class="form-check">
        <input class="form-check-input" type="checkbox"
-         [formControlName]="w.id"
+         [formControlName]="bindingKey(w.id)"
          [id]="'waiver-' + w.id"
          [disabled]="isLocked(w.id)"
          [class.is-invalid]="submitted() && w.required && controlInvalid(w.id)"
@@ -138,6 +138,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
       // Persist to service
       for (const [key, val] of Object.entries(v)) {
         if (!this.lockedIds.has(key)) {
+          // Keys are field names; set acceptance normalized in service
           this.state.setWaiverAccepted(key, !!val);
         }
       }
@@ -145,7 +146,9 @@ export class WaiversComponent implements OnInit, AfterViewInit {
       for (const [key, val] of Object.entries(v)) {
         const prev = this._prevValues[key];
         if (!prev && !!val) {
-          this.openNextUncheckedAfter(key);
+          // key is field name; get corresponding def id for UI navigation
+          const id = this.reverseBind(key) || key;
+          this.openNextUncheckedAfter(id);
         }
         this._prevValues[key] = !!val;
       }
@@ -162,28 +165,29 @@ export class WaiversComponent implements OnInit, AfterViewInit {
     // Determine if legacy edit scenario with none marked accepted yet
     const legacyEdit = editing && defs.some(d => d.required) && Object.values(svcMap).every(v => !v);
     for (const d of defs) {
-      const initialAccepted = legacyEdit && d.required ? true : !!svcMap[d.id];
+      const key = this.bindingKey(d.id);
+      const initialAccepted = legacyEdit && d.required ? true : !!svcMap[key];
       const control = new FormControl(initialAccepted, d.required ? Validators.requiredTrue : []);
       if (editing && initialAccepted) {
         control.disable({ emitEvent: false });
-        this.lockedIds.add(d.id);
+        this.lockedIds.add(key);
         // Ensure service map is updated for legacy auto-seed only when previously falsey
-        const needsSeed = legacyEdit && d.required && !svcMap[d.id];
-        if (needsSeed) this.state.setWaiverAccepted(d.id, true);
+        const needsSeed = legacyEdit && d.required && !svcMap[key];
+        if (needsSeed) this.state.setWaiverAccepted(key, true);
       }
-      group[d.id] = control;
-      this._prevValues[d.id] = initialAccepted; // seed previous snapshot
+      group[key] = control;
+      this._prevValues[key] = initialAccepted; // seed previous snapshot
     }
     this.waiverForm = new FormGroup(group);
   }
 
   isAccepted(id: string): boolean {
-    const ctrl = this.waiverForm?.get(id);
+    const ctrl = this.waiverForm?.get(this.bindingKey(id));
     return !!ctrl?.value;
   }
-  isLocked(id: string): boolean { return this.lockedIds.has(id); }
+  isLocked(id: string): boolean { return this.lockedIds.has(this.bindingKey(id)); }
   controlInvalid(id: string): boolean {
-    const ctrl = this.waiverForm?.get(id);
+    const ctrl = this.waiverForm?.get(this.bindingKey(id));
     return !!ctrl && ctrl.invalid && (ctrl.touched || this.submitted());
   }
 
@@ -192,7 +196,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
     // Auto-seed acceptance if edit-only scenario and none accepted yet
     if (this.isEditingMode() && this.waivers().length > 0 && !this.waivers().some(w => this.isAccepted(w.id))) {
       for (const w of this.waivers()) {
-        if (w.required) this.state.setWaiverAccepted(w.id, true);
+        if (w.required) this.state.setWaiverAccepted(this.bindingKey(w.id), true);
       }
     }
   }
@@ -270,5 +274,18 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         break;
       }
     } catch { /* no-op */ }
+  }
+
+  // --- Binding helpers between waiver definition ID and schema field name ---
+  bindingKey(defId: string): string {
+    const map = this.state.waiverIdToField();
+    return map[defId] || defId; // fallback to id if mapping not found
+  }
+  reverseBind(fieldName: string): string | null {
+    const map = this.state.waiverIdToField();
+    for (const [id, fname] of Object.entries(map)) {
+      if (fname === fieldName) return id;
+    }
+    return null;
   }
 }
