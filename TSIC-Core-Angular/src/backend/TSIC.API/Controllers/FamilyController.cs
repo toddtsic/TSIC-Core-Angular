@@ -948,34 +948,25 @@ public class FamilyController : ControllerBase
         JobRegFormDto? jobRegForm = null;
         if (typedFields.Count > 0)
         {
-            // Derive constraint type heuristically from JsonOptions (BYGRADYEAR etc.) - conservative reuse of earlier logic
+            // Determine constraint type strictly from CoreRegformPlayer (e.g., "PP47|BYGRADYEAR|ALLOWPIF").
             string? constraintType = null;
             if (!string.IsNullOrWhiteSpace(metadataJson) && jobId != null)
             {
-                // Simple scan of JsonOptions for explicit constraint keys
                 var job = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId).Select(j => new { j.JsonOptions, j.CoreRegformPlayer }).FirstOrDefaultAsync();
                 string? coreProfile = job?.CoreRegformPlayer;
                 if (string.IsNullOrWhiteSpace(rawJsonOptions)) rawJsonOptions = job?.JsonOptions;
-                if (!string.IsNullOrWhiteSpace(rawJsonOptions))
+                if (!string.IsNullOrWhiteSpace(coreProfile) && coreProfile != "0" && coreProfile != "1")
                 {
-                    try
+                    var parts = coreProfile.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var p in parts)
                     {
-                        using var optsDoc = JsonDocument.Parse(rawJsonOptions);
-                        foreach (var prop in optsDoc.RootElement.EnumerateObject())
+                        var up = p.ToUpperInvariant();
+                        if (up is "BYGRADYEAR" or "BYAGEGROUP" or "BYAGERANGE" or "BYCLUBNAME")
                         {
-                            var key = prop.Name.ToLowerInvariant();
-                            if (key is "constrainttype" or "teamconstraint" or "eligibilityconstraint")
-                            {
-                                var val = prop.Value.GetRawText().Trim('"').ToUpperInvariant();
-                                if (val is "BYGRADYEAR" or "BYAGEGROUP" or "BYAGERANGE" or "BYCLUBNAME")
-                                {
-                                    constraintType = val;
-                                    break;
-                                }
-                            }
+                            constraintType = up;
+                            break;
                         }
                     }
-                    catch { /* ignore malformed JsonOptions */ }
                 }
                 // Compute version token from metadata + options presence (stable-ish)
                 var versionSeed = $"{jobId}-{metadataJson?.Length ?? 0}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";

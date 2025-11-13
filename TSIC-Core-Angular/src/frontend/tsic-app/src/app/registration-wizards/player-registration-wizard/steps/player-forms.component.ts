@@ -44,28 +44,34 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
         </div>
       </div>
       <div class="card-body">
-        @for (player of selectedPlayersWithTeams; track trackPlayer($index, player)) {
+        @for (player of selectedPlayersWithTeams; track trackPlayer($index, player); let i = $index) {
           <div class="mb-4">
             <div class="card card-rounded border-0 shadow-sm">
-              <div class="card-header bg-light-subtle border-bottom-0">
+              <div class="card-header border-bottom-0" [ngClass]="cardBgClass(i)">
                 <div class="d-flex align-items-center justify-content-between">
-                  <span class="fw-semibold">{{ player.name }}</span>
-                  @if (isRegistered(player.userId)) {
-                    <span class="badge bg-success ms-2">Registered</span>
-                  }
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">
+                      {{ player.name }}
+                    </span>
+                    @if (isRegistered(player.userId)) {
+                      <span class="badge bg-success">Registered</span>
+                    }
+                  </div>
                   <!-- Remove duplicate team pills here -->
                 </div>
               </div>
-              <div class="card-body">
+              <div class="card-body" [ngClass]="bodyBgClass(i)">
                 
                 <!-- Only show the first USA Lacrosse # field per player -->
                 @let usLaxField = firstUsLaxField();
                 @if (usLaxField) {
                   <div class="mb-3">
                     <div class="uslax-field-group">
+                      <label class="form-label fw-semibold" [for]="helpId(player.userId, usLaxField.name)">{{ usLaxField.label || 'USA Lacrosse Number' }}</label>
                       <input type="text" class="form-control"
                              #uslax="ngModel"
                              [required]="usLaxField.required"
+                             [id]="helpId(player.userId, usLaxField.name)"
                              [ngModel]="value(player.userId, usLaxField.name)"
                              (ngModelChange)="setValue(player.userId, usLaxField.name, $event)"
                              [usLaxValidator]="player.userId"
@@ -106,39 +112,45 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                 }
 
                 <!-- Render all other visible, non-waiver fields with labels -->
+                <div class="row g-3">
                 @for (field of schemas(); track trackField($index, field)) {
                   @if (!isUsLaxField(field) && isFieldVisible(player.userId, field)) {
-                    <div class="mb-3">
-                      <label class="form-label fw-semibold" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
+                    <div class="col-12 col-md-6">
+                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, field.name)">
+                        <span>{{ field.label }}</span>
+                        @if (!field.required) { <span class="badge text-bg-light border">Optional</span> }
+                      </label>
                       @switch (field.type) {
                         @case ('text') {
-                          <input type="text" class="form-control"
+           <input type="text" class="form-control"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
+                                 autocomplete="off"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
                         @case ('number') {
-                          <input type="number" class="form-control"
+           <input type="number" class="form-control"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
+                                 inputmode="numeric"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
                         @case ('date') {
-                          <input type="date" class="form-control"
+           <input type="date" class="form-control"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
                         @case ('select') {
-                          <select class="form-select"
+        <select class="form-select"
                                   [id]="helpId(player.userId, field.name)"
                                   [required]="field.required"
                                   [ngModel]="value(player.userId, field.name)"
                                   (ngModelChange)="setValue(player.userId, field.name, $event)">
-                            <option [ngValue]="null">-- Select --</option>
+                            <option [ngValue]="null">-- Select {{ field.label }} --</option>
                             @for (opt of field.options; track trackOpt($index, opt)) {
                               <option [ngValue]="opt">{{ opt }}</option>
                             }
@@ -173,9 +185,13 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
                       }
+                      @if (field.helpText) {
+                        <div class="form-text">{{ field.helpText }}</div>
+                      }
                     </div>
                   }
                 }
+                </div>
               </div>
             </div>
           </div>
@@ -280,6 +296,12 @@ export class PlayerFormsComponent {
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
   cardBgClass(i: number): string {
+    const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
+    return palette[i % palette.length];
+  }
+  bodyBgClass(i: number): string {
+    // Use the same palette on the card body to give a subtle tinted surface.
+    // Bootstrap "-subtle" utilities adapt automatically to dark mode.
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
     return palette[i % palette.length];
   }

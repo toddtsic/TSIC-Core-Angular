@@ -327,20 +327,7 @@ export class RegistrationWizardService {
                         const offer = (meta as any).offerPlayerRegsaverInsurance ?? (meta as any).OfferPlayerRegsaverInsurance;
                         this._offerPlayerRegSaver = !!offer;
                     } catch { this._offerPlayerRegSaver = false; }
-                    // Early derive of constraint type (so wizard can decide to skip Eligibility step before component mounts)
-                    try {
-                        if (!this.teamConstraintType()) {
-                            const derived = deriveConstraintTypeFromJsonOptions(meta.jsonOptions);
-                            if (derived) {
-                                this.teamConstraintType.set(derived);
-                            } else {
-                                // Explicitly set null (already null) for clarity when logging
-                                this.teamConstraintType.set(null);
-                            }
-                        }
-                    } catch (e) {
-                        console.debug('[RegWizard] derive constraint type failed (non-fatal)', e);
-                    }
+                    // Do not infer Eligibility constraint type on the client. Rely solely on server-provided jobRegForm.constraintType from /family/players.
                     // Helper to read values regardless of camelCase vs PascalCase coming from API
                     const getMetaString = (obj: any, key: string): string | null => {
                         const pascal = key;
@@ -829,6 +816,56 @@ export class RegistrationWizardService {
                 }
             }
             this.playerFormValues.set(current);
+
+            // Seed Eligibility select values for locked (already registered) players using their latest registration snapshot.
+            try {
+                const tctype = (this.teamConstraintType() || '').toUpperCase();
+                const pickEligibilityField = (): string | null => {
+                    if (!tctype || !schemas || schemas.length === 0) return null;
+                    const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
+                    const candidates = schemas.filter(f => (f.visibility ?? 'public') !== 'hidden' && (f.visibility ?? 'public') !== 'adminOnly');
+                    const byName = (parts: string[]) => candidates.find(f => hasAll(f.name.toLowerCase(), parts) || hasAll(f.label.toLowerCase(), parts));
+                    if (tctype === 'BYGRADYEAR') {
+                        const f = byName(['grad', 'year']);
+                        return f?.name || null;
+                    }
+                    if (tctype === 'BYAGEGROUP') {
+                        const f = byName(['age', 'group']);
+                        return f?.name || null;
+                    }
+                    if (tctype === 'BYAGERANGE') {
+                        const f = byName(['age', 'range']);
+                        return f?.name || null;
+                    }
+                    if (tctype === 'BYCLUBNAME') {
+                        const f = byName(['club']);
+                        return f?.name || null;
+                    }
+                    return null;
+                };
+                const eligField = pickEligibilityField();
+                if (eligField) {
+                    const map = { ...this.eligibilityByPlayer() } as Record<string, string>;
+                    const players = this.familyPlayers();
+                    for (const p of players) {
+                        if (!p.registered) continue; // only seed for locked players
+                        const v = (this.playerFormValues()[p.playerId] || {})[eligField];
+                        if (v !== undefined && v !== null && String(v).trim() !== '') {
+                            map[p.playerId] = String(v);
+                        }
+                    }
+                    // If we seeded anything, persist and set global value when unanimous
+                    if (Object.keys(map).length > 0) {
+                        this.eligibilityByPlayer.set(map);
+                        const selected = this.selectedPlayerIds();
+                        const values = selected.map(id => map[id]).filter(v => !!v) as string[];
+                        const unique = Array.from(new Set(values));
+                        if (unique.length === 1) this.teamConstraintValue.set(unique[0]);
+                    }
+                }
+            } catch { /* best-effort; non-fatal */ }
+
+            // Do not infer Eligibility constraint type from field schemas; server is the source of truth.
         } catch (err) {
             console.error('[RegWizard] Failed to parse PlayerProfileMetadataJson', err);
             this.profileFieldSchemas.set([]);
