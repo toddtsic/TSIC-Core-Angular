@@ -47,7 +47,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
         @for (player of selectedPlayersWithTeams; track trackPlayer($index, player); let i = $index) {
           <div class="mb-4">
             <div class="card card-rounded border-0 shadow-sm">
-              <div class="card-header border-bottom-0" [ngClass]="cardBgClass(i)">
+              <div class="card-header border-bottom-0" [ngClass]="colorClassFor(player.userId)">
                 <div class="d-flex align-items-center justify-content-between">
                   <div class="d-flex align-items-center gap-2">
                     <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">
@@ -60,7 +60,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                   <!-- Remove duplicate team pills here -->
                 </div>
               </div>
-              <div class="card-body" [ngClass]="bodyBgClass(i)">
+              <div class="card-body" [ngClass]="colorClassFor(player.userId)">
                 
                 <!-- Only show the first USA Lacrosse # field per player -->
                 @let usLaxField = firstUsLaxField();
@@ -295,15 +295,13 @@ export class PlayerFormsComponent {
   selectedPlayers = () => this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
-  cardBgClass(i: number): string {
+  // Deterministic color per player across steps (light/dark friendly using *-subtle variants)
+  colorClassFor(playerId: string): string {
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
-    return palette[i % palette.length];
-  }
-  bodyBgClass(i: number): string {
-    // Use the same palette on the card body to give a subtle tinted surface.
-    // Bootstrap "-subtle" utilities adapt automatically to dark mode.
-    const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
-    return palette[i % palette.length];
+    let h = 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.charCodeAt(i)) >>> 0;
+    const idx = h % palette.length;
+    return palette[idx];
   }
 
   value(playerId: string, field: string) { return this.state.getPlayerFieldValue(playerId, field); }

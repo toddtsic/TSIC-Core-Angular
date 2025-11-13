@@ -54,11 +54,11 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
           @if (selectedPlayers().length > 0) {
             <div class="vstack gap-3">
               @for (p of selectedPlayers(); track p.userId) {
-                <div class="player-team-row p-3 border rounded">
+                <div class="player-team-row p-3 border rounded" [ngClass]="colorClassFor(p.userId)">
                   <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                     <div class="flex-grow-1">
                       <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
-                        <span>{{ p.name }}</span>
+                        <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">{{ p.name }}</span>
                         @if (isPlayerFullyLocked(p.userId)) {
                           <span class="badge bg-secondary" title="All prior registrations are paid; team changes may be limited by the director">Locked</span>
                         }
@@ -460,4 +460,12 @@ export class TeamSelectionComponent {
     return players.filter(p => !map[p.userId] || (Array.isArray(map[p.userId]) && map[p.userId].length === 0)).map(p => p.name);
   }
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
+
+  // Deterministic color per player across steps
+  colorClassFor(playerId: string): string {
+    const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
+    let h = 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  }
 }
