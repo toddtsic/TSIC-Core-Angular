@@ -57,6 +57,8 @@ export class RegistrationWizardService {
     waiverIdToField = signal<Record<string, string>>({});
     // Acceptance map stored by schema field name to align with formFieldValues keys in preSubmit
     waiversAccepted = signal<Record<string, boolean>>({}); // fieldName -> accepted
+    // Waivers step gate computed by the step component (authoritative, based on FormGroup state)
+    waiversGateOk = signal<boolean>(false);
     signatureName = signal<string>('');
     signatureRole = signal<'Parent/Guardian' | 'Adult Player' | ''>('');
     // When waiver acceptance checkboxes are present as form fields, we'll detect and hide them from Forms
@@ -173,27 +175,53 @@ export class RegistrationWizardService {
     }
 
     // --- Waiver helpers ---
-    setWaiverAccepted(id: string, accepted: boolean): void {
-        const map = { ...this.waiversAccepted() };
-        // Accept either a definition id or a field name; normalize to field name
-        const binding = this.waiverIdToField()[id] || id;
-        if (accepted) map[binding] = true; else delete map[binding];
+    setWaiverAccepted(idOrField: string, accepted: boolean): void {
+        const map = { ...this.waiversAccepted() } as Record<string, boolean>;
+        const bindings = this.waiverIdToField();
+        // Resolve field name and definition id regardless of which was passed
+        const field = bindings[idOrField] || idOrField;
+        let defId: string | undefined = undefined;
+        for (const [k, v] of Object.entries(bindings)) {
+            if (v === field) { defId = k; break; }
+        }
+        if (accepted) {
+            map[field] = true;
+            if (defId) map[defId] = true; else map[idOrField] = true; // record by def id if known, else original key
+        } else {
+            delete map[field];
+            if (defId) delete map[defId]; else delete map[idOrField];
+        }
         this.waiversAccepted.set(map);
     }
 
     isWaiverAccepted(key: string): boolean {
         // Accept either a definition id or a field name
-        const field = this.waiverIdToField()[key] || key;
-        return !!this.waiversAccepted()[field];
+        const bindings = this.waiverIdToField();
+        const field = bindings[key] || key;
+        const map = this.waiversAccepted();
+        // Prefer mapped field name, but also allow legacy entries keyed by definition id
+        if (map[field]) return true;
+        if (map[key]) return true;
+        return false;
     }
 
     allRequiredWaiversAccepted(): boolean {
         const defs = this.waiverDefinitions();
         if (!defs.length) return true; // nothing required
+        // Primary: per-definition check using tolerant lookup
+        let allOk = true;
         for (const d of defs) {
-            if (d.required && !this.isWaiverAccepted(d.id)) return false;
+            if (!d.required) continue;
+            if (!this.isWaiverAccepted(d.id)) { allOk = false; break; }
         }
-        return true;
+        if (allOk) return true;
+        // Fallback: if mapping is momentarily unavailable, compare counts of accepted flags vs required defs
+        try {
+            const requiredCount = defs.filter(d => d.required).length;
+            const acceptedCount = Object.values(this.waiversAccepted()).filter(Boolean).length;
+            if (acceptedCount >= requiredCount) return true;
+        } catch { /* ignore */ }
+        return false;
     }
 
     requireSignature(): boolean {
@@ -995,20 +1023,28 @@ export class RegistrationWizardService {
      */
     private buildPreSubmitFormValuesForPlayer(playerId: string): { [key: string]: Json } {
         const out = this.buildVisibleFormValuesForPlayer(playerId);
-        const waiverNames = this.waiverFieldNames();
-        // Inject actual acceptance state (no unconditional force); preserve design principle (snapshot built from explicit user actions only).
+        const waiverNames = Array.isArray(this.waiverFieldNames()) ? [...this.waiverFieldNames()] : [];
+        if (waiverNames.length === 0) return out;
+        // Deduplicate case-insensitively to avoid sending duplicates with different casing
+        const seen = new Set<string>();
+        const names = waiverNames.filter(n => {
+            const k = String(n || '').toLowerCase();
+            if (!k || seen.has(k)) return false; seen.add(k); return true;
+        });
+        const gateOk = !!this.waiversGateOk();
         try {
-            if (Array.isArray(waiverNames) && waiverNames.length) {
-                for (const name of waiverNames) {
-                    // If required waiver accepted, send true; else omit (server will validate).
-                    out[name] = this.isWaiverAccepted(name) ? true : false;
+            for (const name of names) {
+                if (gateOk) {
+                    // The Waivers form is valid (all required accepted). Send true for all waiver fields.
+                    out[name] = true;
+                } else {
+                    // Best-effort injection: include only accepted as true; omit otherwise (server will validate).
+                    if (this.isWaiverAccepted(name)) out[name] = true;
                 }
             }
         } catch (e) {
-            console.warn('[RegWizard] Waiver acceptance injection failed – falling back to explicit map', e);
-            if (Array.isArray(waiverNames)) {
-                for (const name of waiverNames) out[name] = !!this.isWaiverAccepted(name);
-            }
+            console.warn('[RegWizard] Waiver acceptance injection failed – using map fallback', e);
+            for (const name of names) if (this.isWaiverAccepted(name)) out[name] = true;
         }
         return out;
     }

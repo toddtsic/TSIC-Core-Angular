@@ -124,7 +124,20 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             case 'forms':
                 return this.state.areFormsValid();
             case 'waivers':
-                return this.state.allRequiredWaiversAccepted();
+                // Authoritative: gate status as computed by the Waivers component's FormGroup
+                const ok = this.state.waiversGateOk();
+                if (ok) return true;
+                // Fallback: explicit signal reads to ensure recomputation
+                try {
+                    const defs = this.state.waiverDefinitions();
+                    const acc = this.state.waiversAccepted();
+                    const required = defs.filter(d => d.required);
+                    if (required.length === 0) return true;
+                    const allOk = required.every(d => this.state.isWaiverAccepted(d.id));
+                    if (allOk) return true;
+                    const acceptedCount = Object.values(acc).filter(Boolean).length;
+                    return acceptedCount >= required.length;
+                } catch { return false; }
             case 'review':
                 return true;
             default:

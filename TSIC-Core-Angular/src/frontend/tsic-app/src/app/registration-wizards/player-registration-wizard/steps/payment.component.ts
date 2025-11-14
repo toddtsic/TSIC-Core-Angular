@@ -51,13 +51,8 @@ interface LineItem {
               Failed to load insurance offer. <button class="btn btn-sm btn-outline-light ms-2" type="button" (click)="reloadVi()">Retry</button>
             </div>
           } @else if (state.offerPlayerRegSaver() && viProductCount() > 0) {
-            <div class="border rounded p-3 bg-light-subtle">
-              <div class="fw-semibold mb-1">Optional Registration Insurance</div>
-              <div class="small text-muted mb-2">Protect your registration investment. Select quotes below (powered by VerticalInsure).</div>
-              <!-- Container target for VerticalInsure dynamic widget -->
-              <!-- VerticalInsure mounts itself into this container -->
-              <div id="dVIOffer" class="vi-offer"></div>
-            </div>
+            <!-- VerticalInsure mounts itself into this container -->
+            <div id="dVIOffer" class="border rounded p-3 bg-light-subtle"></div>
           }
         </div>
 
@@ -194,6 +189,7 @@ export class PaymentComponent implements AfterViewInit, OnChanges, DoCheck {
   private verticalInsureInstance: any;
   viHasUserResponse = false;
   quotes: any[] = [];
+
 
   ngAfterViewInit(): void {
     this.tryInitVerticalInsure();

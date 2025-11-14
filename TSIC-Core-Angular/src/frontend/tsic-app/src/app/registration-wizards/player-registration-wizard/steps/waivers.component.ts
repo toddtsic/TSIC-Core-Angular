@@ -148,7 +148,11 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         }
         this._prevValues[key] = !!val;
       }
+      // Update global gate after any change
+      this.pushGate();
     });
+    // Initial gate
+    this.pushGate();
   }
 
   private buildForm(): void {
@@ -167,9 +171,9 @@ export class WaiversComponent implements OnInit, AfterViewInit {
       if (editing && initialAccepted) {
         control.disable({ emitEvent: false });
         this.lockedIds.add(key);
-        // Ensure service map is updated for legacy auto-seed only when previously falsey
-        const needsSeed = legacyEdit && d.required && !svcMap[key];
-        if (needsSeed) this.state.setWaiverAccepted(key, true);
+        // Ensure service map reflects locked acceptance so Continue can enable
+        // Use definition id for stable keying; setter records both def id and field name
+        if (d.required) this.state.setWaiverAccepted(d.id, true);
       }
       group[key] = control;
       this._prevValues[key] = initialAccepted; // seed previous snapshot
@@ -195,6 +199,8 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         if (w.required) this.state.setWaiverAccepted(this.bindingKey(w.id), true);
       }
     }
+    // Re-evaluate gate after any programmatic seeding
+    this.pushGate();
   }
   // (moved ngAfterViewInit implementation above to add auto-seed logic)
 
@@ -258,7 +264,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         const w = defs[i];
         // Skip already accepted or locked waivers
         if (this.isLocked(w.id)) continue;
-        const ctrl = this.waiverForm.get(w.id);
+        const ctrl = this.waiverForm.get(this.bindingKey(w.id));
         if (!ctrl || !!ctrl.value) continue; // already accepted
         // Found the first subsequent unchecked, open it
         this.openSet.set(new Set([w.id]));
@@ -283,5 +289,15 @@ export class WaiversComponent implements OnInit, AfterViewInit {
       if (fname === fieldName) return id;
     }
     return null;
+  }
+
+  // --- Gate helper: publish whether Continue should be enabled based on current form state ---
+  private pushGate(): void {
+    try {
+      const allow = !this.disableContinue();
+      this.state.waiversGateOk.set(allow);
+    } catch {
+      // no-op
+    }
   }
 }

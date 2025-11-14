@@ -6,9 +6,11 @@
                     <h2 id="rw-title" class="mb-0 fw-bold">Player Registration</h2>
                     <div class="mt-2">
                         <span
-                            class="badge rounded-pill text-bg-light text-primary-emphasis px-3 py-2 fw-semibold text-nowrap shadow-sm"
+                            class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 text-nowrap shadow-sm d-inline-flex align-items-center gap-2"
                             aria-live="polite">
-                            Step {{ currentIndex() + 1 }} of {{ steps().length }}
+                            <i class="bi bi-question-circle" aria-hidden="true"></i>
+                            <span class="fw-bold">{{ stepLabels[steps()[currentIndex()]] }}</span>
+                            <span class="opacity-75">(Step {{ currentIndex() + 1 }} of {{ steps().length }})</span>
                         </span>
                     </div>
                 </div>
@@ -17,14 +19,7 @@
             <div class="rw-sticky-header mb-4">
                 <progress class="w-100 mb-2 rw-progress" [value]="progressPercent()" max="100">{{ progressPercent()
                     }}%</progress>
-                <nav class="rw-steps mb-3" aria-label="Current step">
-                    <ol class="rw-steps-list justify-content-center">
-                        <li class="rw-step active" aria-current="step">
-                            <span class="rw-step-index">{{ currentIndex() + 1 }}</span>
-                            <span class="rw-step-label">{{ stepLabels[steps()[currentIndex()]] }}</span>
-                        </li>
-                    </ol>
-                </nav>
+                <!-- Step tabs hidden intentionally to save space; single header badge above provides context -->
 
                 <div class="rw-toolbar">
                     <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2">
