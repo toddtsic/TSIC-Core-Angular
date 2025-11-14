@@ -1,4 +1,5 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
+import { VerticalInsureOfferState } from '../../core/models/verticalinsure.models';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 // Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
@@ -446,10 +447,6 @@ export class RegistrationWizardService {
                     // After we have definitions, seed acceptance for read-only scenarios (edit/prior-registration)
                     this.seedAcceptedWaiversIfReadOnly();
                     this.parseProfileMetadata();
-                    // Attempt prefetch of VI object if feature enabled and family user known
-                    if (this._offerPlayerRegSaver && this.familyUser()?.familyUserId) {
-                        this.fetchVerticalInsureObject(false);
-                    }
                 },
                 error: err => {
                     console.error('[RegWizard] Failed to load job metadata for form parsing', err);
@@ -458,40 +455,13 @@ export class RegistrationWizardService {
     }
     // RegSaver offer flag (job-level)
     private _offerPlayerRegSaver = false;
-    // VerticalInsure offer state; prefer structured object over any/unknown.
-    verticalInsureOffer = signal<{ loading: boolean; data: Record<string, unknown> | null; error: string | null }>({ loading: false, data: null, error: null });
+    // VerticalInsure offer state; we avoid duplicating backend DTOs in TS – keep as structural data
+    verticalInsureOffer = signal<VerticalInsureOfferState>({ loading: false, data: null, error: null });
 
     /** Whether the job offers player RegSaver insurance */
     offerPlayerRegSaver(): boolean { return this._offerPlayerRegSaver; }
 
-    /** Fetch VerticalInsure player-object (registration-cancellation) via API */
-    fetchVerticalInsureObject(secondChance: boolean): void {
-        if (!this._offerPlayerRegSaver) return; // feature off
-        const base = this.resolveApiBase();
-        const jobPath = this.jobPath();
-        const familyUserId = this.familyUser()?.familyUserId;
-        if (!jobPath || !familyUserId) return;
-        this.verticalInsureOffer.set({ loading: true, data: null, error: null });
-        this.http.get<any>(`${base}/verticalInsure/player-object`, { params: { jobPath, familyUserId, secondChance } })
-            .subscribe({
-                next: obj => {
-                    try {
-                        // If disabled response (empty client_id) treat as not offered
-                        if (!obj?.client_id || !obj?.product_config) {
-                            this.verticalInsureOffer.set({ loading: false, data: null, error: null });
-                            return;
-                        }
-                        // If no product configs (empty registration_cancellation), still surface object (user may not have eligible registrations)
-                        this.verticalInsureOffer.set({ loading: false, data: obj, error: null });
-                    } catch (e: any) {
-                        this.verticalInsureOffer.set({ loading: false, data: null, error: String(e?.message || e) });
-                    }
-                },
-                error: err => {
-                    this.verticalInsureOffer.set({ loading: false, data: null, error: 'Failed to load insurance offer.' });
-                }
-            });
-    }
+    // Removed direct fetch of VerticalInsure player-object; preSubmit response is now the single source of truth.
 
     /** Schema parsing for PlayerProfileMetadataJson (simplified MVP). */
     private parseProfileMetadata(): void {
@@ -958,6 +928,27 @@ export class RegistrationWizardService {
                 if (!teamId) continue;
                 // Build visible-only form values for this player
                 const formValues = this.buildPreSubmitFormValuesForPlayer(pid);
+                // Inject teamId into formValues when schema includes a required team field but we hide legacy team inputs on the Forms step.
+                // Root cause of redirect: server metadata marks teamId required; blank value triggered ValidationErrors forcing NextTab="Forms".
+                // For PP jobs (single team) and CAC (multi-team) we map selection(s) separately; still we satisfy validation by populating the field here.
+                const needsTeamField = (() => {
+                    // Heuristic: if any schema has name 'teamId' and it's required (tracked in profileFieldSchemas), but current value missing/blank.
+                    const schema = this.profileFieldSchemas().find(s => s.name.toLowerCase() === 'teamid');
+                    if (!schema) return false;
+                    if (!schema.required) return false;
+                    // If already truthy guid present skip.
+                    const cur = Object.entries(formValues).find(([k]) => k.toLowerCase() === 'teamid');
+                    if (cur && typeof cur[1] === 'string' && cur[1].trim().length > 0) return false;
+                    return true;
+                })();
+                if (needsTeamField) {
+                    // Single team selection
+                    if (typeof teamId === 'string') {
+                        formValues['teamId'] = teamId;
+                    } else if (Array.isArray(teamId) && teamId.length === 1 && typeof teamId[0] === 'string') {
+                        formValues['teamId'] = teamId[0];
+                    }
+                }
                 if (Array.isArray(teamId)) {
                     for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid, formValues });
                 } else {
@@ -982,9 +973,10 @@ export class RegistrationWizardService {
                         const ins: any = (resp as any)?.insurance;
                         if (ins?.available && ins?.playerObject) {
                             this.verticalInsureOffer.set({ loading: false, data: ins.playerObject, error: null });
-                        } else if (this._offerPlayerRegSaver && this.familyUser()?.familyUserId) {
-                            // Fetch after PreSubmit to include newly created registrations
-                            this.fetchVerticalInsureObject(false);
+                        } else if (ins && ins.error) {
+                            this.verticalInsureOffer.set({ loading: false, data: null, error: String(ins.error) });
+                        } else {
+                            this.verticalInsureOffer.set({ loading: false, data: null, error: null });
                         }
                     } catch { /* ignore */ }
                     if (resp) resolve(resp);
