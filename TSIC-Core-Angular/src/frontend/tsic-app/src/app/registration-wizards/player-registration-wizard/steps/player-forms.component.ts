@@ -6,6 +6,7 @@ import { FamilyPlayer } from '../family-players.dto';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
+import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSubmitValidationErrorDto';
 
 @Component({
   selector: 'app-rw-player-forms',
@@ -340,11 +341,12 @@ export class PlayerFormsComponent {
   }
   // Server-side validation errors (captured from preSubmit) exposed for template
   serverErrors = () => this.state.getServerValidationErrors();
-  nameForPlayer(playerId: string): string {
-    const p = this.state.familyPlayers().find(fp => fp.playerId === playerId);
-    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : playerId;
+  nameForPlayer(playerId: string | null | undefined): string {
+    const id = playerId ?? '';
+    const p = this.state.familyPlayers().find(fp => fp.playerId === id);
+    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : id;
   }
-  trackErr = (_: number, e: { playerId: string; field: string; message: string }) => `${e.playerId}|${e.field}`;
+  trackErr = (_: number, e: PreSubmitValidationErrorDto) => `${e.playerId ?? ''}|${e.field ?? ''}`;
   // --- Modal state for viewing raw API details ---
   modalOpen = false;
   modalData: any = null;

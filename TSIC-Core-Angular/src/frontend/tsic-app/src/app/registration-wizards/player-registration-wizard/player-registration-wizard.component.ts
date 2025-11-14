@@ -261,7 +261,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         // Call preSubmit before showing payment step
         try {
             const result = await this.state.preSubmitRegistration();
-            if (result.teamResults.some(r => r.isFull)) {
+            if (result.teamResults?.some(r => r.isFull)) {
                 // At least one team is full, go back to Team tab and show message
                 const teamsIdx = this.steps().indexOf('teams');
                 if (teamsIdx >= 0) this.currentIndex.set(teamsIdx);

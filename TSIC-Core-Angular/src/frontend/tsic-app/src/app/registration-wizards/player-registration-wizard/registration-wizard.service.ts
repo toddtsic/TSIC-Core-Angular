@@ -1,10 +1,15 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
-import { VerticalInsureOfferState } from '../../core/models/verticalinsure.models';
+import type { Loadable } from '../../core/models/state.models';
+import type { VIPlayerObjectResponse } from '../../core/api/models/VIPlayerObjectResponse';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 // Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
 import { environment } from '../../../environments/environment';
 import { FamilyPlayer, FamilyPlayerRegistration, RegSaverDetails, normalizeFormValues } from './family-players.dto';
+import type { PreSubmitRegistrationRequestDto } from '../../core/api/models/PreSubmitRegistrationRequestDto';
+import type { PreSubmitRegistrationResponseDto } from '../../core/api/models/PreSubmitRegistrationResponseDto';
+import type { PreSubmitTeamSelectionDto } from '../../core/api/models/PreSubmitTeamSelectionDto';
+import type { PreSubmitValidationErrorDto } from '../../core/api/models/PreSubmitValidationErrorDto';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 
@@ -455,8 +460,8 @@ export class RegistrationWizardService {
     }
     // RegSaver offer flag (job-level)
     private _offerPlayerRegSaver = false;
-    // VerticalInsure offer state; we avoid duplicating backend DTOs in TS – keep as structural data
-    verticalInsureOffer = signal<VerticalInsureOfferState>({ loading: false, data: null, error: null });
+    // VerticalInsure offer state
+    verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
 
     /** Whether the job offers player RegSaver insurance */
     offerPlayerRegSaver(): boolean { return this._offerPlayerRegSaver; }
@@ -960,7 +965,7 @@ export class RegistrationWizardService {
                 familyUserId,
                 teamSelections
             };
-            firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto & { validationErrors?: PreSubmitValidationErrorDto[] }>(`${base}/registration/preSubmit`, payload))
+            firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload))
                 .then(resp => {
                     try {
                         // Capture server-side validation errors (metadata enforced). Store for UI consumption.
@@ -1300,45 +1305,7 @@ export interface WaiverDefinition {
 }
 
 // DTOs for preSubmit
-export interface PreSubmitRegistrationRequestDto {
-    jobPath: string;
-    familyUserId: string;
-    teamSelections: PreSubmitTeamSelectionDto[];
-}
-export interface PreSubmitTeamSelectionDto {
-    playerId: string;
-    teamId: string;
-    // Only visible fields are sent; keys come from field schema names
-    formValues?: { [key: string]: Json };
-}
-export interface PreSubmitRegistrationResponseDto {
-    teamResults: PreSubmitTeamResultDto[];
-    nextTab: string;
-    insurance?: PreSubmitInsuranceDto;
-    validationErrors?: PreSubmitValidationErrorDto[];
-}
-export interface PreSubmitTeamResultDto {
-    playerId: string;
-    teamId: string;
-    isFull: boolean;
-    teamName: string;
-    message: string;
-    registrationCreated: boolean;
-}
-
-export interface PreSubmitInsuranceDto {
-    available: boolean;
-    playerObject?: Record<string, unknown> | null;
-    error?: string | null;
-    expiresUtc?: string | null;
-    stateId?: string | null;
-}
-
-export interface PreSubmitValidationErrorDto {
-    playerId: string;
-    field: string;
-    message: string;
-}
+// PreSubmit DTOs now imported from generated API models
 
 // Removed unified registration context types; client now loads players and metadata directly.
 

@@ -7,7 +7,8 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:tsic-app": "node dist/tsic-app/server/server.mjs"
+    "serve:ssr:tsic-app": "node dist/tsic-app/server/server.mjs",
+    "generate:api": "openapi -i http://localhost:5022/swagger/v1/swagger.json -o src/app/core/api --client axios --useOptions --useUnionTypes --exportCore false --exportServices false --exportModels true --postfixServices Api --postfixModels Dto"
   },
   "private": true,
   "dependencies": {
@@ -46,6 +47,7 @@
     "karma-coverage": "2.2.0",
     "karma-jasmine": "5.1.0",
     "karma-jasmine-html-reporter": "2.1.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "openapi-typescript-codegen": "^0.27.0"
   }
 }

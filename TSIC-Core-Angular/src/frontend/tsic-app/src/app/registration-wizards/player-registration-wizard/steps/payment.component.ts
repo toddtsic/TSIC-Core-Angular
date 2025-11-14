@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
-import { VIPlayerObjectResponse, VerticalInsureOfferState } from '../../../core/models/verticalinsure.models';
+import type { VIPlayerObjectResponse } from '../../../core/api/models/VIPlayerObjectResponse';
+import type { Loadable } from '../../../core/models/state.models';
 import { TeamService } from '../team.service';
 
 declare global {
@@ -172,7 +173,7 @@ export class PaymentComponent implements AfterViewInit {
   private tryInitVerticalInsure(force: boolean = false): void {
     // Minimal gating: require a response object present
     const offerEnabled: boolean = this.state.offerPlayerRegSaver();
-    const offer: VerticalInsureOfferState = this.state.verticalInsureOffer();
+    const offer: Loadable<VIPlayerObjectResponse> = this.state.verticalInsureOffer();
     const offerObj: VIPlayerObjectResponse | null = offer?.data ?? null;
     if (!offerEnabled || !offerObj) return;
     if (this.viInitialized && !force) { return; }
