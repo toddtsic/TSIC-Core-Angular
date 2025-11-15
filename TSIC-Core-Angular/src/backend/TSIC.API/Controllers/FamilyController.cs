@@ -944,7 +944,13 @@ public class FamilyController : ControllerBase
         .ThenBy(p => p.FirstName)
         .ToList();
 
-        // Build JobRegForm (immutable schema) if we have typedFields
+        // Enforce: a job must define typed fields; fail loudly instead of accommodating missing metadata
+        if (jobId != null && typedFields.Count == 0)
+        {
+            return StatusCode(500, new { message = "Job profile metadata has no fields; this job must define fields.", jobId, jobPath });
+        }
+
+        // Build JobRegForm (immutable schema) only when we have typedFields
         JobRegFormDto? jobRegForm = null;
         if (typedFields.Count > 0)
         {

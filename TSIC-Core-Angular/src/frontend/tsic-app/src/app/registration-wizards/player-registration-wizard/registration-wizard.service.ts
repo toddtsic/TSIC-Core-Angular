@@ -254,7 +254,11 @@ export class RegistrationWizardService {
                         const jrf = (resp?.jobRegForm ?? resp?.JobRegForm);
                         const rawCt = jrf?.constraintType ?? jrf?.ConstraintType ?? jrf?.teamConstraint ?? jrf?.TeamConstraint ?? null;
                         if (typeof rawCt === 'string' && rawCt.trim().length > 0) {
-                            this.teamConstraintType.set(rawCt.trim().toUpperCase());
+                            const norm = rawCt.trim().toUpperCase();
+                            this.teamConstraintType.set(norm);
+                            try { console.debug('[RegWizard] constraintType from /family/players:', norm); } catch { /* no-op */ }
+                        } else {
+                            try { console.warn('[RegWizard] constraintType not present in /family/players response; Eligibility step will be hidden.'); } catch { /* no-op */ }
                         }
                     } catch { /* non-fatal */ }
                     // Normalize familyUser
@@ -356,6 +360,7 @@ export class RegistrationWizardService {
                     this.jobId.set(meta.jobId);
                     this.jobProfileMetadataJson.set(meta.playerProfileMetadataJson || null);
                     this.jobJsonOptions.set(meta.jsonOptions || null);
+                    // Do not set constraintType from client-side heuristics; rely solely on /family/players response.
                     // Offer flag for RegSaver
                     try {
                         const offer = (meta as any).offerPlayerRegsaverInsurance ?? (meta as any).OfferPlayerRegsaverInsurance;
@@ -883,9 +888,15 @@ export class RegistrationWizardService {
         this.playerFormValues.set(all);
         // Track US Lacrosse number value in usLaxStatus map when field updated
         if (fieldName.toLowerCase() === 'sportassnid') {
-            const statusMap = { ...this.usLaxStatus() };
+            const statusMap = { ...this.usLaxStatus() } as Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: any }>;
             const existing = statusMap[playerId] || { value: '', status: 'idle' };
-            statusMap[playerId] = { ...existing, value: String(value || ''), status: 'idle' };
+            const raw = String(value ?? '').trim();
+            // Dev/test bypass: immediately mark the well-known test number as valid without calling validator
+            if (raw === '424242424242') {
+                statusMap[playerId] = { ...existing, value: raw, status: 'valid', message: 'Test US Lax number accepted' };
+            } else {
+                statusMap[playerId] = { ...existing, value: raw, status: 'idle', message: undefined };
+            }
             this.usLaxStatus.set(statusMap);
         }
     }
@@ -1224,6 +1235,12 @@ export class RegistrationWizardService {
         if (this.isUsLaxSchemaField(field)) {
             const statusEntry = this.usLaxStatus()[playerId];
             const status = statusEntry?.status || 'idle';
+            const rawVal = this.getPlayerFieldValue(playerId, field.name);
+            const strVal = rawVal == null ? '' : String(rawVal).trim();
+            // Dev/test bypass: allow the well-known test number regardless of async validator state
+            if (strVal === '424242424242') {
+                return null;
+            }
             if (field.required) {
                 if (isEmpty) return 'Required';
                 if (status === 'validating') return 'Validating…';

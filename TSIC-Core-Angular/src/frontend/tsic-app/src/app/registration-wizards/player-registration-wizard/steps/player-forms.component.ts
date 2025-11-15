@@ -7,6 +7,7 @@ import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSubmitValidationErrorDto';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-rw-player-forms',
@@ -44,6 +45,24 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
         </div>
       </div>
       <div class="card-body">
+        <!-- Client-side required-fields summary (prevents confusion why Continue is disabled) -->
+        @if (clientRequiredErrors().length) {
+          <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+            <div>
+              <div class="fw-semibold mb-1">Please fill the required fields below:</div>
+              <ul class="mb-0 ps-3">
+                @for (err of clientRequiredErrors(); track trackClientErr($index, err)) {
+                  <li><strong>{{ nameForPlayer(err.playerId) }}</strong> – <span class="text-nowrap">{{ labelForField(err.field) }}</span></li>
+                }
+              </ul>
+            </div>
+            @if (!isProd) {
+              <div class="ms-auto">
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="copyClientErrors()">Copy</button>
+              </div>
+            }
+          </div>
+        }
         @for (player of selectedPlayersWithTeams; track trackPlayer($index, player); let i = $index) {
           <div class="mb-4">
             <div class="card card-rounded border-0 shadow-sm">
@@ -67,7 +86,10 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                 @if (usLaxField) {
                   <div class="mb-3">
                     <div class="uslax-field-group">
-                      <label class="form-label fw-semibold" [for]="helpId(player.userId, usLaxField.name)">{{ usLaxField.label || 'USA Lacrosse Number' }}</label>
+                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, usLaxField.name)">
+                        <span>{{ usLaxField.label || 'USA Lacrosse Number' }}</span>
+                        @if (usLaxField.required) { <span class="badge bg-danger text-white">Required</span> }
+                      </label>
                       <input type="text" class="form-control"
                              #uslax="ngModel"
                              [required]="usLaxField.required"
@@ -118,7 +140,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                     <div class="col-12 col-md-6">
                       <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, field.name)">
                         <span>{{ field.label }}</span>
-                        @if (!field.required) { <span class="badge text-bg-light border">Optional</span> }
+                        @if (field.required) { <span class="badge bg-danger text-white">Required</span> } @else { <span class="badge text-bg-light border">Optional</span> }
                       </label>
                       @switch (field.type) {
                         @case ('text') {
@@ -170,12 +192,13 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                           </div>
                         }
                         @case ('checkbox') {
-                          <div class="form-check">
+                          <div class="form-check d-flex align-items-center gap-2">
                             <input class="form-check-input" type="checkbox"
                                    [id]="helpId(player.userId, field.name)"
                                    [checked]="!!value(player.userId, field.name)"
                                    (change)="onCheckboxChange(player.userId, field.name, $event)" />
                             <label class="form-check-label" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
+                            @if (field.required) { <span class="badge bg-danger text-white">Required</span> }
                           </div>
                         }
                         @default {
@@ -237,6 +260,8 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
   `
 })
 export class PlayerFormsComponent {
+  // Environment flag for dev extras
+  isProd = environment.production;
   /** Returns selected players (from familyPlayers flags) with teamIds property for pill rendering. */
   get selectedPlayersWithTeams() {
     const list = this.state.familyPlayers().filter(p => p.selected || p.registered);
@@ -299,7 +324,10 @@ export class PlayerFormsComponent {
   colorClassFor(playerId: string): string {
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
     let h = 0;
-    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) {
+      const cp = playerId.codePointAt(i) ?? 0;
+      h = (h * 31 + cp) >>> 0;
+    }
     const idx = h % palette.length;
     return palette[idx];
   }
@@ -341,12 +369,44 @@ export class PlayerFormsComponent {
   }
   // Server-side validation errors (captured from preSubmit) exposed for template
   serverErrors = () => this.state.getServerValidationErrors();
-  nameForPlayer(playerId: string | null | undefined): string {
-    const id = playerId ?? '';
-    const p = this.state.familyPlayers().find(fp => fp.playerId === id);
-    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : id;
+  nameForPlayer(playerId?: string | null): string {
+    const p = this.state.familyPlayers().find(fp => fp.playerId === (playerId ?? ''));
+    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : (playerId ?? '');
   }
   trackErr = (_: number, e: PreSubmitValidationErrorDto) => `${e.playerId ?? ''}|${e.field ?? ''}`;
+  // Client-side required-errors summary helpers
+  clientRequiredErrors(): { playerId: string; field: string }[] {
+    const errs = this.state.validateAllSelectedPlayers();
+    const list: { playerId: string; field: string }[] = [];
+    for (const [pid, fields] of Object.entries(errs)) {
+      for (const [fname, msg] of Object.entries(fields)) {
+        if (msg === 'Required') list.push({ playerId: pid, field: fname });
+      }
+    }
+    // Stable sort by player then field label
+    return list.sort((a, b) => {
+      const an = this.nameForPlayer(a.playerId).toLowerCase();
+      const bn = this.nameForPlayer(b.playerId).toLowerCase();
+      if (an !== bn) return an < bn ? -1 : 1;
+      const al = this.labelForField(a.field).toLowerCase();
+      const bl = this.labelForField(b.field).toLowerCase();
+      if (al < bl) return -1;
+      if (al > bl) return 1;
+      return 0;
+    });
+  }
+  labelForField(fieldName: string): string {
+    const f = this.schemas().find(s => s.name.toLowerCase() === fieldName.toLowerCase());
+    return f?.label || fieldName;
+  }
+  trackClientErr = (_: number, e: { playerId: string; field: string }) => `${e.playerId}|${e.field}`;
+  copyClientErrors(): void {
+    try {
+      const data = this.clientRequiredErrors().map(e => ({ player: this.nameForPlayer(e.playerId), field: this.labelForField(e.field) }));
+      const txt = JSON.stringify(data, null, 2);
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) navigator.clipboard.writeText(txt);
+    } catch { /* no-op */ }
+  }
   // --- Modal state for viewing raw API details ---
   modalOpen = false;
   modalData: any = null;
