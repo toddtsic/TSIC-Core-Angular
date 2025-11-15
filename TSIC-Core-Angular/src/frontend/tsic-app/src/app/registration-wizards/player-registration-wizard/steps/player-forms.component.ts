@@ -34,7 +34,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
           <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
             @for (id of selectedPlayersWithTeams[0]?.teamIds ?? []; track id) {
               <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                {{ nameForTeam(id) }}
+                <span class="name">{{ nameForTeam(id) }}<ng-container *ngIf="priceForTeam(id) != null"> ({{ priceForTeam(id) | currency }})</ng-container></span>
               </li>
             }
             @if (!(selectedPlayersWithTeams[0]?.teamIds?.length)) {
@@ -454,6 +454,12 @@ export class PlayerFormsComponent {
     const all = this.teams.filterByEligibility(null);
     const t = all.find(x => x.teamId === teamId);
     return t?.teamName || teamId;
+  }
+  priceForTeam(teamId: string): number | null {
+    const all = this.teams.filterByEligibility(null);
+    const t = all.find(x => x.teamId === teamId);
+    const fee = (t as any)?.perRegistrantFee as number | undefined;
+    return fee ?? null;
   }
 
   /**

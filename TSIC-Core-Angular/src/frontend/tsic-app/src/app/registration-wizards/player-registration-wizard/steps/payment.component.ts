@@ -45,8 +45,10 @@ interface LineItem {
               </div>
             </div>
           }
-          <!-- VerticalInsure mounts itself into this container; empty by default, padding for layout -->
-          <div id="dVIOffer" class="border rounded bg-light-subtle" style="padding:10px; padding-bottom:20px;"></div>
+        <div id="dVIOffer" class="g-my-30 text-center">
+        </div>
+        <div id="divVIPayment" class="text-center" style="display:none;">
+            <button type="button" id="btnVIPayment" onclick="submitVIPayment()">Submit Payment</button>
         </div>
 
         <div class="mb-3">
@@ -160,41 +162,53 @@ export class PaymentComponent implements AfterViewInit {
   constructor(public state: RegistrationWizardService, private readonly http: HttpClient) { }
 
   // VerticalInsure integration state
-  private viInitialized = false;
   private verticalInsureInstance: any;
+  private quotes: any[] = [];
+  private viHasUserResponse: boolean = false;
 
 
   ngAfterViewInit(): void {
     this.tryInitVerticalInsure();
   }
 
-  reloadVi(): void { this.viInitialized = false; this.tryInitVerticalInsure(true); }
-
   private tryInitVerticalInsure(force: boolean = false): void {
     // Minimal gating: require a response object present
     const offerEnabled: boolean = this.state.offerPlayerRegSaver();
     const offer: Loadable<VIPlayerObjectResponse> = this.state.verticalInsureOffer();
     const offerObj: VIPlayerObjectResponse | null = offer?.data ?? null;
-    if (!offerEnabled || !offerObj) return;
-    if (this.viInitialized && !force) { return; }
 
-    const init = () => {
-      // Clear container so it can be reused
-      const el = document.getElementById('dVIOffer');
-      if (el) {
-        try { el.replaceChildren(); } catch { el.innerHTML = ''; }
+    if (!offerEnabled || !offerObj) { return };
+
+    this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
+      '#dVIOffer',
+      offerObj,
+      (offerState: any) => {
+
+        this.verticalInsureInstance.validate()
+          .then((isValid: boolean) => {
+            this.viHasUserResponse = isValid;
+
+            // save quotes in global variable, will never be null hereafter, will be empty array [] if no quotes
+            this.quotes = offerState?.quotes;
+
+            console.log('viHasUserResponse:', this.viHasUserResponse, ' quotes:', this.quotes, 'isValid:', isValid);
+          });
+      },
+      () => {
+        this.verticalInsureInstance.validate()
+          .then((isValid: boolean) => {
+            this.viHasUserResponse = isValid;
+
+            // a failed quotes requests returns isValid TRUE, a successful Request returns false (seems paradoxical, but necessary for prompting for user interaction on payment)
+            // if (viHasUserResponse){
+            //     $("#dVIOffer").hide();
+            // } else {
+            //     $("#dVIOffer").show();
+            // }
+            console.log('offer ready, isValid:', this.viHasUserResponse);
+          });
       }
-      this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
-        '#dVIOffer',
-        offerObj,
-        () => { },
-        () => { }
-      );
-      this.viInitialized = true;
-    };
-
-    // Global script now loaded in index.html; instantiate immediately when available
-    if ((globalThis as any).VerticalInsure) init();
+    );
   }
 
 

@@ -57,8 +57,18 @@ public class TeamLookupService : ITeamLookupService
             DivisionId = t.DivId,
             DivisionName = t.Div != null ? t.Div.DivName : null,
             t.MaxCount,
-            t.PerRegistrantFee,
-            t.PerRegistrantDeposit,
+            PerRegistrantFee = (t.PerRegistrantFee > 0)
+                ? t.PerRegistrantFee
+                : (t.Agegroup.TeamFee > 0 && t.Agegroup.RosterFee > 0)
+                    ? t.Agegroup.TeamFee
+                    : (t.Agegroup.RosterFee > 0)
+                        ? t.Agegroup.RosterFee
+                        : 0,
+            PerRegistrantDeposit = (t.PerRegistrantDeposit > 0)
+                ? t.PerRegistrantDeposit
+                : (t.Agegroup.TeamFee > 0 && t.Agegroup.RosterFee > 0)
+                    ? t.Agegroup.RosterFee
+                    : 0,
             TeamAllowsSelfRostering = t.BAllowSelfRostering,
             AgegroupAllowsSelfRostering = t.Agegroup.BAllowSelfRostering
         }).ToListAsync();

@@ -78,7 +78,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                         <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
                           @for (id of selectedArrayFor(p.userId); track id) {
                             <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                              {{ nameForTeam(id) }}
+                              <span class="name">{{ nameForTeam(id) }}<ng-container *ngIf="priceForTeam(id) != null"> ({{ priceForTeam(id) | currency }})</ng-container></span>
                               @if (canRemoveTeam(p.userId, id)) {
                                 <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
                                         (click)="removeTeam(p.userId, id)">
@@ -108,6 +108,12 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                           [enabled]="!((showEligibilityBadge() && !eligibilityFor(p.userId)) || filteredTeamsFor(p.userId).length===0)"
                                           [value]="selectedTeams()[p.userId] || null"
                                           (change)="onSyncSingleChange(p.userId, $event)">
+                          <!-- Selected value template to also display price when present -->
+                          <ng-template #valueTemplate let-data>
+                            <span class="rw-item">
+                              <span class="name">{{ data?.teamName }}<ng-container *ngIf="data?.perRegistrantFee != null"> ({{ data?.perRegistrantFee | currency }})</ng-container></span>
+                            </span>
+                          </ng-template>
                           <ng-template #itemTemplate let-data>
                             <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
                               <span class="name"
@@ -117,7 +123,9 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                     [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
                                                   'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
                                 @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
-                                @else { {{ baseRemaining(data.teamId) }} spots left }
+                                @else {
+                                  @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left }
+                                }
                               </span>
                               @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { <span class="text-danger ms-2 small">(Cannot select)</span> }
                             </span>
@@ -153,6 +161,10 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                        [enabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId))"
                                        [value]="selectedArrayFor(p.userId)"
                                        (change)="onSyncMultiChange(p.userId, $event)">
+                        <!-- Selected chip/value template to also display price when present -->
+                        <ng-template #valueTemplate let-data>
+                          <span class="name">{{ data?.teamName }}<ng-container *ngIf="data?.perRegistrantFee != null"> ({{ data?.perRegistrantFee | currency }})</ng-container></span>
+                        </ng-template>
                         <ng-template #itemTemplate let-data>
                           <span class="rw-item">
                             <span class="name"
@@ -163,7 +175,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                   [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
                                                 'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
                               @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
-                              @else { {{ baseRemaining(data.teamId) }} spots left }
+                              @else { @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left } }
                             </span>
                           </span>
                         </ng-template>
@@ -210,8 +222,12 @@ export class TeamSelectionComponent {
       // Touch signals to subscribe
       this.teamService.loading();
       const fam = this.wizard.familyPlayers();
-      if (this.teamService.loading() || this.didAutoOpen) return;
+      if (this.teamService.loading()) return;
       if (!fam || fam.length === 0) return;
+      // New: if a player has exactly one selectable team, auto-select it
+      this.ensureAutoSelectSingleOptions();
+      // Then, if nothing is selected for the first unassigned player, auto-open their selector once
+      if (this.didAutoOpen) return;
       // Small timeout to allow view children to render after data arrives
       queueMicrotask(() => this.tryOpenFirstUnassigned());
     });
@@ -429,10 +445,44 @@ export class TeamSelectionComponent {
     const all = this.teamService.filterByEligibility(null);
     return all.find(t => t.teamId === id)?.teamName || id;
   }
+  priceForTeam(id: string): number | null {
+    const all = this.teamService.filterByEligibility(null);
+    const fee = all.find(t => t.teamId === id)?.perRegistrantFee as number | undefined;
+    return fee != null ? fee : null;
+  }
   removeTeam(playerId: string, teamId: string) {
     // Only registered players are locked via isRegistered
     const current = this.selectedArrayFor(playerId).filter(x => x !== teamId);
     this.onSyncMultiChange(playerId, { value: current });
+  }
+  /**
+   * When a player has exactly one selectable eligible team, pre-select it.
+   * A team is considered selectable when it's not full and has base remaining capacity > 0.
+   */
+  private ensureAutoSelectSingleOptions(): void {
+    try {
+      const players = this.selectedPlayers();
+      if (!players || players.length === 0) return;
+      const map = { ...this.selectedTeams() } as Record<string, string | string[]>;
+      let changed = false;
+      for (const p of players) {
+        // Skip if there's already a selection (explicit or derived from prior registrations)
+        if (this.selectedArrayFor(p.userId).length > 0) continue;
+        const teams = this.filteredTeamsFor(p.userId) || [];
+        // Filter to teams that are actually selectable
+        const selectable = teams.filter((t: any) => !t.rosterIsFull && this.baseRemaining(t.teamId) > 0);
+        if (selectable.length === 1) {
+          const t = selectable[0];
+          // Guard against exceeding capacity when near limits
+          if (this.wouldExceedCapacity(p.userId, { teamId: t.teamId, maxRosterSize: t.maxRosterSize, rosterIsFull: t.rosterIsFull })) {
+            continue;
+          }
+          map[p.userId] = this.multiSelect ? [String(t.teamId)] : String(t.teamId);
+          changed = true;
+        }
+      }
+      if (changed) this.wizard.selectedTeams.set(map as any);
+    } catch { /* no-op */ }
   }
   wouldExceedCapacity(playerId: string, team: { teamId: string; maxRosterSize: number; rosterIsFull?: boolean }): boolean {
     const currentChoice = this.selectedTeams()[playerId];

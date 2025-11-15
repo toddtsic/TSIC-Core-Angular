@@ -1,0 +1,43 @@
+{
+    "customer": {
+        "email_address": "user@example.com",
+        "state": "MN",
+        "country": "US",
+        "postal_code": "12345",
+        "first_name": "Test",
+        "middle_name": "",
+        "last_name": "User",
+        "phone_number": "555-0100",
+        "street": "123 Main St",
+        "city": "Springfield"
+    },
+    "metadata": {},
+    "partner_id": "string",
+    "policy_attributes": {
+        "insurable_amount": 300,
+        "insurable_amount_currency": "USD",
+        "event_start_date": "2026-01-29",
+        "event_end_date": "2026-01-29",
+        "participant": {
+            "first_name": "Test",
+            "last_name": "User"
+        },
+        "organization": {
+            "org_name": "Org",
+            "org_contact_email": "org@example.com",
+            "org_contact_first_name": "OrgFirst",
+            "org_contact_last_name": "OrgLast",
+            "org_contact_phone": "555-0100",
+            "org_website": "https://example.com",
+            "org_city": "City",
+            "org_state": "MN",
+            "org_postal_code": "12345",
+            "org_country": "US",
+            "payment_plan": true,
+            "registration_session_name": "string"
+        }
+    },
+    "email_quote": false,
+    "language": "en",
+    "currency": "USD"
+}
