@@ -8,10 +8,12 @@ using TSIC.Application.Validators;
 using TSIC.Infrastructure.Services;
 using TSIC.API.Services;
 using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Validation;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +32,17 @@ builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IFamilyService, FamilyService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
+builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
+builder.Services.AddScoped<IUsLaxService, UsLaxService>();
+
+// US LAX settings and HTTP client
+builder.Services.Configure<UsLaxSettings>(builder.Configuration.GetSection("UsLax"));
+builder.Services.AddHttpClient("uslax", (sp, client) =>
+{
+    var opts = sp.GetRequiredService<IOptions<UsLaxSettings>>().Value;
+    var baseUrl = opts.ApiBase ?? Environment.GetEnvironmentVariable("USLAX_API_BASE") ?? "https://api.usalacrosse.com/";
+    client.BaseAddress = new Uri(baseUrl);
+});
 
 // Profile Migration Services
 builder.Services.AddHttpClient<GitHubProfileFetcher>();
