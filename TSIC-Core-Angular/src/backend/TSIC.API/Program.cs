@@ -7,6 +7,7 @@ using TSIC.Application.Services;
 using TSIC.Application.Validators;
 using TSIC.Infrastructure.Services;
 using TSIC.API.Services;
+using TSIC.API.Services.Metadata;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -27,6 +28,8 @@ builder.Services.AddScoped<IFeeResolverService, FeeResolverService>();
 builder.Services.AddScoped<IFeeCalculatorService, FeeCalculatorService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
+builder.Services.AddScoped<IFamilyService, FamilyService>();
+builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 
 // Profile Migration Services
 builder.Services.AddHttpClient<GitHubProfileFetcher>();
