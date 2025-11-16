@@ -50,7 +50,7 @@ public sealed class UsLaxService : IUsLaxService
 
     private async Task<string?> FetchAccessTokenAsync(HttpClient client, CancellationToken ct)
     {
-    var (clientId, secret, username, password, _) = ResolveCredentials();
+        var (clientId, secret, username, password, _) = ResolveCredentials();
         // Use password grant; refresh flow can be added later if needed
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth2/")
         {
