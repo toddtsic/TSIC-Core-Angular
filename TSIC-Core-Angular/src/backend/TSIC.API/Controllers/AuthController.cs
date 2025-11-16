@@ -21,7 +21,7 @@ namespace TSIC.API.Controllers
         private readonly IValidator<LoginRequest> _loginValidator;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenService _refreshTokenService;
-    private readonly ITokenService _tokenService;
+        private readonly ITokenService _tokenService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
