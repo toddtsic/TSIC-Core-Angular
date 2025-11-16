@@ -23,7 +23,7 @@ public record FamilyPlayerRegistrationDto(
     RegistrationFinancialsDto Financials,
     Guid? AssignedTeamId,
     string? AssignedTeamName,
-    IReadOnlyDictionary<string, JsonElement> FormValues
+    IReadOnlyDictionary<string, JsonElement> FormFieldValues
 );
 
 public record FamilyPlayerDto(
@@ -45,5 +45,51 @@ public record RegSaverDetailsDto(
 public record FamilyPlayersResponseDto(
     FamilyUserSummaryDto FamilyUser,
     IEnumerable<FamilyPlayerDto> FamilyPlayers,
-    RegSaverDetailsDto? RegSaverDetails = null
+    RegSaverDetailsDto? RegSaverDetails = null,
+    JobRegFormDto? JobRegForm = null
+);
+
+// Typed field definition combined with the current value for a specific registration
+public record RegistrationFormFieldDto(
+    string Name,
+    string DbColumn,
+    string DisplayName,
+    string InputType,
+    string? DataSource,
+    List<ProfileFieldOption>? Options,
+    FieldValidation? Validation,
+    int Order,
+    string Visibility,
+    bool Computed,
+    FieldCondition? ConditionalOn,
+    JsonElement? Value
+);
+
+// Minimal name/value projection for visible (non-admin, non-hidden) fields
+public record RegistrationFieldValueDto(
+    string Name,
+    JsonElement? Value
+);
+
+// Immutable job-level schema (shared across players and registrations)
+public record JobRegFormDto(
+    string Version,
+    string? CoreProfileName,
+    IReadOnlyList<JobRegFieldDto> Fields,
+    IReadOnlyList<string> WaiverFieldNames,
+    string? ConstraintType
+);
+
+public record JobRegFieldDto(
+    string Name,
+    string DbColumn,
+    string DisplayName,
+    string InputType,
+    string? DataSource,
+    IReadOnlyList<ProfileFieldOption>? Options,
+    FieldValidation? Validation,
+    int Order,
+    string Visibility,
+    bool Computed,
+    FieldCondition? ConditionalOn
 );

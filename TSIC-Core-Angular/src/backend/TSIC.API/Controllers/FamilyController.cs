@@ -658,8 +658,17 @@ public class FamilyController : ControllerBase
             .Where(j => j.JobId == jobId)
             .Select(j => j.PlayerProfileMetadataJson)
             .SingleOrDefaultAsync();
+        // Load job JsonOptions (option sets for select fields)
+        string? rawJsonOptions = jobId == null ? null : await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.JsonOptions)
+            .SingleOrDefaultAsync();
 
         List<(string Name, string DbColumn)> mappedFields = new();
+        List<ProfileMetadataField> typedFields = new();
+        // Capture raw waiver-like field names for JobRegForm (reuse detection logic later if needed)
+        var waiverFieldNames = new List<string>();
         if (!string.IsNullOrWhiteSpace(metadataJson))
         {
             try
@@ -669,16 +678,163 @@ public class FamilyController : ControllerBase
                 {
                     foreach (var f in fieldsEl.EnumerateArray())
                     {
-                        var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
-                        var dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
+                        var name = f.TryGetProperty("name", out var nEl) ? (nEl.GetString() ?? string.Empty) : string.Empty;
+                        var dbCol = f.TryGetProperty("dbColumn", out var dEl) ? (dEl.GetString() ?? string.Empty) : string.Empty;
                         if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(dbCol))
                         {
-                            mappedFields.Add((name!, dbCol!));
+                            mappedFields.Add((name, dbCol));
+                        }
+
+                        // Build a typed field for richer metadata (validators/options)
+                        var field = new ProfileMetadataField
+                        {
+                            Name = name,
+                            DbColumn = dbCol,
+                            DisplayName = f.TryGetProperty("displayName", out var dnEl) ? (dnEl.GetString() ?? name) : name,
+                            InputType = f.TryGetProperty("inputType", out var itEl) ? (itEl.GetString() ?? "TEXT") : "TEXT",
+                            DataSource = f.TryGetProperty("dataSource", out var dsEl) ? dsEl.GetString() : null,
+                            Order = f.TryGetProperty("order", out var ordEl) && ordEl.ValueKind == JsonValueKind.Number ? ordEl.GetInt32() : 0,
+                            Visibility = f.TryGetProperty("visibility", out var visEl) ? (visEl.GetString() ?? "public") : "public",
+                            Computed = f.TryGetProperty("computed", out var compEl) && compEl.ValueKind == JsonValueKind.True,
+                        };
+                        // Legacy adminOnly flag support -> map to Visibility
+                        try
+                        {
+                            if (f.TryGetProperty("adminOnly", out var aoEl) && aoEl.ValueKind == JsonValueKind.True)
+                            {
+                                field.Visibility = "adminOnly";
+                            }
+                        }
+                        catch { /* ignore */ }
+
+                        // options
+                        if (f.TryGetProperty("options", out var optsEl) && optsEl.ValueKind == JsonValueKind.Array)
+                        {
+                            var opts = new List<ProfileFieldOption>();
+                            foreach (var o in optsEl.EnumerateArray())
+                            {
+                                var val = o.TryGetProperty("value", out var vEl) ? (vEl.GetString() ?? string.Empty) : string.Empty;
+                                var lab = o.TryGetProperty("label", out var lEl) ? (lEl.GetString() ?? string.Empty) : string.Empty;
+                                opts.Add(new ProfileFieldOption { Value = val, Label = lab });
+                            }
+                            field.Options = opts;
+                        }
+
+                        // validation
+                        if (f.TryGetProperty("validation", out var valEl) && valEl.ValueKind == JsonValueKind.Object)
+                        {
+                            var v = new FieldValidation
+                            {
+                                Required = valEl.TryGetProperty("required", out var reqEl) && reqEl.ValueKind == JsonValueKind.True,
+                                Email = valEl.TryGetProperty("email", out var emEl) && emEl.ValueKind == JsonValueKind.True,
+                                RequiredTrue = valEl.TryGetProperty("requiredTrue", out var rtEl) && rtEl.ValueKind == JsonValueKind.True,
+                                MinLength = valEl.TryGetProperty("minLength", out var minLEl) && minLEl.ValueKind == JsonValueKind.Number ? minLEl.GetInt32() : null,
+                                MaxLength = valEl.TryGetProperty("maxLength", out var maxLEl) && maxLEl.ValueKind == JsonValueKind.Number ? maxLEl.GetInt32() : null,
+                                Pattern = valEl.TryGetProperty("pattern", out var patEl) ? patEl.GetString() : null,
+                                Min = valEl.TryGetProperty("min", out var minEl) && (minEl.ValueKind == JsonValueKind.Number) ? minEl.GetDouble() : null,
+                                Max = valEl.TryGetProperty("max", out var maxEl) && (maxEl.ValueKind == JsonValueKind.Number) ? maxEl.GetDouble() : null,
+                                Compare = valEl.TryGetProperty("compare", out var cmpEl) ? cmpEl.GetString() : null,
+                                Remote = valEl.TryGetProperty("remote", out var remEl) ? remEl.GetString() : null,
+                                Message = valEl.TryGetProperty("message", out var msgEl) ? msgEl.GetString() : null
+                            };
+                            field.Validation = v;
+                        }
+
+                        // conditionalOn
+                        if (f.TryGetProperty("conditionalOn", out var condEl) && condEl.ValueKind == JsonValueKind.Object)
+                        {
+                            var cond = new FieldCondition
+                            {
+                                Field = condEl.TryGetProperty("field", out var cf) ? (cf.GetString() ?? string.Empty) : string.Empty,
+                                Operator = condEl.TryGetProperty("operator", out var op) ? (op.GetString() ?? "equals") : "equals",
+                                Value = condEl.TryGetProperty("value", out var cv) ? JsonSerializer.Deserialize<object>(cv.GetRawText()) : null
+                            };
+                            field.ConditionalOn = cond;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(field.Name))
+                        {
+                            typedFields.Add(field);
+                            // Basic waiver heuristic for schema-level listing (mirrors client logic)
+                            var lname = field.Name.ToLowerInvariant();
+                            var ldisp = field.DisplayName.ToLowerInvariant();
+                            var isCheckbox = (field.InputType ?? "").ToLowerInvariant().Contains("checkbox");
+                            bool looksLikeWaiver = isCheckbox && (
+                                ldisp.StartsWith("i agree") ||
+                                ldisp.Contains("waiver") || ldisp.Contains("release") ||
+                                (ldisp.Contains("code") && ldisp.Contains("conduct")) ||
+                                ldisp.Contains("refund") || (ldisp.Contains("terms") && ldisp.Contains("conditions"))
+                            );
+                            if (looksLikeWaiver || lname.Contains("waiver") || lname.Contains("codeofconduct") || lname.Contains("refund"))
+                            {
+                                waiverFieldNames.Add(field.Name);
+                            }
                         }
                     }
                 }
             }
-            catch { /* swallow parse errors; FormValues will be empty */ }
+            catch { /* swallow parse errors; FormValues will be empty and no FormFields will be returned */ }
+        }
+
+        // Enrich typed field options from JsonOptions when available using DataSource key
+        if (!string.IsNullOrWhiteSpace(rawJsonOptions) && typedFields.Count > 0)
+        {
+            try
+            {
+                using var optsDoc = JsonDocument.Parse(rawJsonOptions);
+                if (optsDoc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    // Build a case-insensitive lookup of option sets
+                    var optionSets = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var prop in optsDoc.RootElement.EnumerateObject())
+                    {
+                        optionSets[prop.Name] = prop.Value;
+                    }
+                    List<ProfileFieldOption> MapOptions(JsonElement set)
+                    {
+                        var list = new List<ProfileFieldOption>();
+                        if (set.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var el in set.EnumerateArray())
+                            {
+                                if (el.ValueKind == JsonValueKind.Object)
+                                {
+                                    string GetStr(string a, string b) => el.TryGetProperty(a, out var x) ? (x.GetString() ?? string.Empty) : (el.TryGetProperty(b, out var y) ? (y.GetString() ?? string.Empty) : string.Empty);
+                                    var val = GetStr("value", "Value");
+                                    if (string.IsNullOrWhiteSpace(val)) val = GetStr("id", "Id");
+                                    if (string.IsNullOrWhiteSpace(val)) val = GetStr("code", "Code");
+                                    if (string.IsNullOrWhiteSpace(val)) val = GetStr("year", "Year");
+                                    var lab = GetStr("label", "Label");
+                                    if (string.IsNullOrWhiteSpace(lab)) lab = GetStr("text", "Text");
+                                    if (string.IsNullOrWhiteSpace(lab)) lab = val;
+                                    list.Add(new ProfileFieldOption { Value = val, Label = lab });
+                                }
+                                else if (el.ValueKind == JsonValueKind.String)
+                                {
+                                    var v = el.GetString() ?? string.Empty; list.Add(new ProfileFieldOption { Value = v, Label = v });
+                                }
+                                else if (el.ValueKind == JsonValueKind.Number || el.ValueKind == JsonValueKind.True || el.ValueKind == JsonValueKind.False)
+                                {
+                                    var v = el.GetRawText(); list.Add(new ProfileFieldOption { Value = v, Label = v });
+                                }
+                            }
+                        }
+                        return list;
+                    }
+                    foreach (var tf in typedFields)
+                    {
+                        if (!string.IsNullOrWhiteSpace(tf.DataSource) && optionSets.TryGetValue(tf.DataSource!, out var setEl))
+                        {
+                            var mapped = MapOptions(setEl);
+                            if (mapped.Count > 0)
+                            {
+                                tf.Options = mapped;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* ignore malformed JsonOptions */ }
         }
 
         // Map team names for assigned teams (if any)
@@ -695,11 +851,38 @@ public class FamilyController : ControllerBase
             }
         }
 
+        // Prepare set of visible (non-hidden, non-adminOnly) field names for filtering
+        var visibleFieldNames = new HashSet<string>(
+            typedFields
+                .Where(tf => !string.Equals(tf.Visibility, "hidden", StringComparison.OrdinalIgnoreCase)
+                          && !string.Equals(tf.Visibility, "adminOnly", StringComparison.OrdinalIgnoreCase))
+                .Select(tf => tf.Name),
+            StringComparer.OrdinalIgnoreCase);
+
         var regsByUser = regsRaw
             .GroupBy(r => r.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(r => new FamilyPlayerRegistrationDto(
+                g => g.Select(r =>
+                {
+                    var fv = BuildFormValuesDictionary(r, mappedFields);
+                    // Visible-only dictionary for registration working values (authoritative per-registration values)
+                    IReadOnlyDictionary<string, JsonElement>? formFieldValues = null;
+                    if (visibleFieldNames.Count > 0)
+                    {
+                        var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                        foreach (var name in visibleFieldNames)
+                        {
+                            if (fv.TryGetValue(name, out var found))
+                            {
+                                var clone = JsonDocument.Parse(found.GetRawText()).RootElement.Clone();
+                                dict[name] = clone;
+                            }
+                        }
+                        formFieldValues = dict;
+                    }
+
+                    return new FamilyPlayerRegistrationDto(
                         r.RegistrationId,
                         r.BActive == true,
                         new RegistrationFinancialsDto(
@@ -714,8 +897,9 @@ public class FamilyController : ControllerBase
                         ),
                         r.AssignedTeamId,
                         r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) ? teamNameMap[r.AssignedTeamId.Value] : null,
-                        BuildFormValuesDictionary(r, mappedFields)
-                    )).ToList(),
+                        formFieldValues ?? new Dictionary<string, JsonElement>()
+                    );
+                }).ToList(),
                 StringComparer.Ordinal);
 
         // RegSaver details: pick first active registration with policy; else any registration with policy
@@ -760,7 +944,62 @@ public class FamilyController : ControllerBase
         .ThenBy(p => p.FirstName)
         .ToList();
 
-        return Ok(new FamilyPlayersResponseDto(familyUser, players, regSaver));
+        // Enforce: a job must define typed fields; fail loudly instead of accommodating missing metadata
+        if (jobId != null && typedFields.Count == 0)
+        {
+            return StatusCode(500, new { message = "Job profile metadata has no fields; this job must define fields.", jobId, jobPath });
+        }
+
+        // Build JobRegForm (immutable schema) only when we have typedFields
+        JobRegFormDto? jobRegForm = null;
+        if (typedFields.Count > 0)
+        {
+            // Determine constraint type strictly from CoreRegformPlayer (e.g., "PP47|BYGRADYEAR|ALLOWPIF").
+            string? constraintType = null;
+            if (!string.IsNullOrWhiteSpace(metadataJson) && jobId != null)
+            {
+                var job = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId).Select(j => new { j.JsonOptions, j.CoreRegformPlayer }).FirstOrDefaultAsync();
+                string? coreProfile = job?.CoreRegformPlayer;
+                if (string.IsNullOrWhiteSpace(rawJsonOptions)) rawJsonOptions = job?.JsonOptions;
+                if (!string.IsNullOrWhiteSpace(coreProfile) && coreProfile != "0" && coreProfile != "1")
+                {
+                    var parts = coreProfile.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var p in parts)
+                    {
+                        var up = p.ToUpperInvariant();
+                        if (up is "BYGRADYEAR" or "BYAGEGROUP" or "BYAGERANGE" or "BYCLUBNAME")
+                        {
+                            constraintType = up;
+                            break;
+                        }
+                    }
+                }
+                // Compute version token from metadata + options presence (stable-ish)
+                var versionSeed = $"{jobId}-{metadataJson?.Length ?? 0}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";
+                var version = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(versionSeed))).Substring(0, 16);
+                jobRegForm = new JobRegFormDto(
+                    version,
+                    coreProfile,
+                    typedFields.Select(tf => new JobRegFieldDto(
+                        tf.Name,
+                        tf.DbColumn,
+                        string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
+                        string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
+                        tf.DataSource,
+                        tf.Options,
+                        tf.Validation,
+                        tf.Order,
+                        string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
+                        tf.Computed,
+                        tf.ConditionalOn
+                    )).ToList(),
+                    waiverFieldNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    constraintType
+                );
+            }
+        }
+
+        return Ok(new FamilyPlayersResponseDto(familyUser, players, regSaver, jobRegForm));
     }
     // ...existing code...
 }

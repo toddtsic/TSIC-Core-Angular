@@ -71,6 +71,80 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         return !t || t === 'BYCLUBNAME';
     });
 
+    // Family last name for compact badge in the sticky header
+    familyLastName = computed(() => {
+        const fu = this.state.familyUser();
+        const source = (fu?.displayName || fu?.userName || '').trim();
+        if (!source) return '';
+        // Prefer "Last, First" -> take part before comma
+        const commaIdx = source.indexOf(',');
+        if (commaIdx > 0) {
+            return source.slice(0, commaIdx).trim();
+        }
+        // Otherwise use the last token as the last name (handles "First Last" and single-token usernames)
+        const parts = source.split(/\s+/g).filter(Boolean);
+        return parts.length ? parts[parts.length - 1] : source;
+    });
+
+    // Unified top-toolbar navigation state
+    showContinueButton = computed(() => {
+        const step = this.currentStepId();
+        // Hide continue on entry (family-check) and payment (handled by child)
+        return step !== 'family-check' && step !== 'payment';
+    });
+    continueLabel = computed(() => this.currentStepId() === 'review' ? 'Proceed to Payment' : 'Continue');
+    canContinue = computed(() => {
+        const step = this.currentStepId();
+        switch (step) {
+            case 'players':
+                return this.state.selectedPlayerIds().length > 0;
+            case 'eligibility': {
+                // Require a value for each selected, non-locked player when an eligibility constraint exists
+                const type = (this.state.teamConstraintType() || '').toUpperCase();
+                if (!type) return true; // no constraint -> allow
+                const selected = this.state.familyPlayers().filter(p => p.selected || p.registered);
+                const map = this.state.eligibilityByPlayer();
+                for (const p of selected) {
+                    if (p.registered) continue; // locked shows value only
+                    const v = map[p.playerId];
+                    if (!v || String(v).trim() === '') return false;
+                }
+                return true;
+            }
+            case 'teams': {
+                const selected = this.state.familyPlayers().filter(p => p.selected || p.registered);
+                if (selected.length === 0) return false;
+                const map = this.state.selectedTeams();
+                for (const p of selected) {
+                    const val = map[p.playerId] as any;
+                    if (!val || (Array.isArray(val) && val.length === 0)) return false;
+                }
+                return true;
+            }
+            case 'forms':
+                return this.state.areFormsValid();
+            case 'waivers':
+                // Authoritative: gate status as computed by the Waivers component's FormGroup
+                const ok = this.state.waiversGateOk();
+                if (ok) return true;
+                // Fallback: explicit signal reads to ensure recomputation
+                try {
+                    const defs = this.state.waiverDefinitions();
+                    const acc = this.state.waiversAccepted();
+                    const required = defs.filter(d => d.required);
+                    if (required.length === 0) return true;
+                    const allOk = required.every(d => this.state.isWaiverAccepted(d.id));
+                    if (allOk) return true;
+                    const acceptedCount = Object.values(acc).filter(Boolean).length;
+                    return acceptedCount >= required.length;
+                } catch { return false; }
+            case 'review':
+                return true;
+            default:
+                return false;
+        }
+    });
+
     // Only show an account badge when authenticated family user is present (via state.familyUser)
 
     readonly stepLabels: Record<StepId, string> = {
@@ -171,13 +245,23 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         this.currentIndex.update(i => Math.max(0, i - 1));
     }
 
+    onContinue(): void {
+        const step = this.currentStepId();
+        if (step === 'review') {
+            // Special action: preSubmit and route accordingly
+            this.proceedToPayment();
+            return;
+        }
+        this.next();
+    }
+
     // Start step removed; branching handled via Family Check CTAs and direct deep-links
 
     async proceedToPayment() {
         // Call preSubmit before showing payment step
         try {
             const result = await this.state.preSubmitRegistration();
-            if (result.teamResults.some(r => r.isFull)) {
+            if (result.teamResults?.some(r => r.isFull)) {
                 // At least one team is full, go back to Team tab and show message
                 const teamsIdx = this.steps().indexOf('teams');
                 if (teamsIdx >= 0) this.currentIndex.set(teamsIdx);

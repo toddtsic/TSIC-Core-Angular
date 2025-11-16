@@ -3,15 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
 import { FamilyPlayer } from '../family-players.dto';
-import { BottomNavComponent } from '../bottom-nav.component';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
+import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSubmitValidationErrorDto';
 
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, BottomNavComponent],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -34,7 +34,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
           <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
             @for (id of selectedPlayersWithTeams[0]?.teamIds ?? []; track id) {
               <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                {{ nameForTeam(id) }}
+                <span class="name">{{ nameForTeam(id) }}<ng-container *ngIf="priceForTeam(id) != null"> ({{ priceForTeam(id) | currency }})</ng-container></span>
               </li>
             }
             @if (!(selectedPlayersWithTeams[0]?.teamIds?.length)) {
@@ -44,28 +44,48 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
         </div>
       </div>
       <div class="card-body">
-        @for (player of selectedPlayersWithTeams; track trackPlayer($index, player)) {
+        @for (player of selectedPlayersWithTeams; track trackPlayer($index, player); let i = $index) {
           <div class="mb-4">
             <div class="card card-rounded border-0 shadow-sm">
-              <div class="card-header bg-light-subtle border-bottom-0">
+              <div class="card-header border-bottom-0" [ngClass]="colorClassFor(player.userId)">
                 <div class="d-flex align-items-center justify-content-between">
-                  <span class="fw-semibold">{{ player.name }}</span>
-                  @if (isRegistered(player.userId)) {
-                    <span class="badge bg-success ms-2">Registered</span>
-                  }
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">
+                      {{ player.name }}
+                    </span>
+                    @if (isRegistered(player.userId)) {
+                      <span class="badge bg-success">Registered</span>
+                    }
+                  </div>
                   <!-- Remove duplicate team pills here -->
                 </div>
               </div>
-              <div class="card-body">
+              <div class="card-body" [ngClass]="colorClassFor(player.userId)">
+                <!-- Per-player compact required-fields summary -->
+                @if (missingRequiredLabels(player.userId).length > 0) {
+                  <div class="alert alert-warning border-0 py-1 px-2 mb-2 req-mini" role="alert">
+                    <div class="title">Please complete:</div>
+                    <ul>
+                      @for (label of missingRequiredLabels(player.userId); track label) {
+                        <li>{{ label }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
                 
                 <!-- Only show the first USA Lacrosse # field per player -->
                 @let usLaxField = firstUsLaxField();
                 @if (usLaxField) {
                   <div class="mb-3">
                     <div class="uslax-field-group">
+                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, usLaxField.name)">
+                        <span>{{ usLaxField.label || 'USA Lacrosse Number' }}</span>
+                        @if (usLaxField.required) { <span class="badge bg-danger text-white">Required</span> }
+                      </label>
                       <input type="text" class="form-control"
                              #uslax="ngModel"
                              [required]="usLaxField.required"
+                             [id]="helpId(player.userId, usLaxField.name)"
                              [ngModel]="value(player.userId, usLaxField.name)"
                              (ngModelChange)="setValue(player.userId, usLaxField.name, $event)"
                              [usLaxValidator]="player.userId"
@@ -104,11 +124,94 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                     }
                   </div>
                 }
+
+                <!-- Render all other visible, non-waiver fields with labels -->
+                <div class="row g-3">
+                @for (field of schemas(); track trackField($index, field)) {
+                  @if (!isUsLaxField(field) && isFieldVisible(player.userId, field)) {
+                    <div class="col-12 col-md-6">
+                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, field.name)">
+                        <span>{{ field.label }}</span>
+                        @if (field.required) { <span class="badge bg-danger text-white">Required</span> } @else { <span class="badge text-bg-light border">Optional</span> }
+                      </label>
+                      @switch (field.type) {
+                        @case ('text') {
+           <input type="text" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [required]="field.required"
+                                 autocomplete="off"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                        @case ('number') {
+           <input type="number" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [required]="field.required"
+                                 inputmode="numeric"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                        @case ('date') {
+           <input type="date" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [required]="field.required"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                        @case ('select') {
+        <select class="form-select"
+                                  [id]="helpId(player.userId, field.name)"
+                                  [required]="field.required"
+                                  [ngModel]="value(player.userId, field.name)"
+                                  (ngModelChange)="setValue(player.userId, field.name, $event)">
+                            <option [ngValue]="null">-- Select {{ field.label }} --</option>
+                            @for (opt of field.options; track trackOpt($index, opt)) {
+                              <option [ngValue]="opt">{{ opt }}</option>
+                            }
+                          </select>
+                        }
+                        @case ('multiselect') {
+                          <div class="d-flex flex-wrap gap-2">
+                            @for (opt of field.options; track trackOpt($index, opt)) {
+                              <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox"
+                                       [id]="helpId(player.userId, field.name) + '-' + opt"
+                                       [checked]="isMultiChecked(player.userId, field.name, opt)"
+                                       (change)="toggleMulti(player.userId, field.name, opt, $event)" />
+                                <label class="form-check-label" [for]="helpId(player.userId, field.name) + '-' + opt">{{ opt }}</label>
+                              </div>
+                            }
+                          </div>
+                        }
+                        @case ('checkbox') {
+                          <div class="form-check d-flex align-items-center gap-2">
+                            <input class="form-check-input" type="checkbox"
+                                   [id]="helpId(player.userId, field.name)"
+                                   [checked]="!!value(player.userId, field.name)"
+                                   (change)="onCheckboxChange(player.userId, field.name, $event)" />
+                            <label class="form-check-label" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
+                            @if (field.required) { <span class="badge bg-danger text-white">Required</span> }
+                          </div>
+                        }
+                        @default {
+                          <input type="text" class="form-control"
+                                 [id]="helpId(player.userId, field.name)"
+                                 [ngModel]="value(player.userId, field.name)"
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                        }
+                      }
+                      @if (field.helpText) {
+                        <div class="form-text">{{ field.helpText }}</div>
+                      }
+                    </div>
+                  }
+                }
+                </div>
               </div>
             </div>
           </div>
         }
-        <app-rw-bottom-nav (back)="back.emit()" (next)="next.emit()" [nextDisabled]="isNextDisabled()"></app-rw-bottom-nav>
+        
       </div>
     </div>
 
@@ -146,7 +249,16 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
     </div>
   </div>
 }
-  `
+  `,
+  styles: [
+    `
+    /* Compact per-player required list */
+    .req-mini { font-size: .85rem; line-height: 1.1; }
+    .req-mini .title { font-weight: 600; margin-bottom: .15rem; }
+    .req-mini ul { margin: 0; padding-left: 1rem; }
+    .req-mini li { margin: 0; }
+    `
+  ]
 })
 export class PlayerFormsComponent {
   /** Returns selected players (from familyPlayers flags) with teamIds property for pill rendering. */
@@ -207,9 +319,16 @@ export class PlayerFormsComponent {
   selectedPlayers = () => this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
-  cardBgClass(i: number): string {
+  // Deterministic color per player across steps (light/dark friendly using *-subtle variants)
+  colorClassFor(playerId: string): string {
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
-    return palette[i % palette.length];
+    let h = 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) {
+      const cp = playerId.codePointAt(i) ?? 0;
+      h = (h * 31 + cp) >>> 0;
+    }
+    const idx = h % palette.length;
+    return palette[idx];
   }
 
   value(playerId: string, field: string) { return this.state.getPlayerFieldValue(playerId, field); }
@@ -249,11 +368,26 @@ export class PlayerFormsComponent {
   }
   // Server-side validation errors (captured from preSubmit) exposed for template
   serverErrors = () => this.state.getServerValidationErrors();
-  nameForPlayer(playerId: string): string {
-    const p = this.state.familyPlayers().find(fp => fp.playerId === playerId);
-    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : playerId;
+  nameForPlayer(playerId?: string | null): string {
+    const p = this.state.familyPlayers().find(fp => fp.playerId === (playerId ?? ''));
+    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : (playerId ?? '');
   }
-  trackErr = (_: number, e: { playerId: string; field: string; message: string }) => `${e.playerId}|${e.field}`;
+  trackErr = (_: number, e: PreSubmitValidationErrorDto) => `${e.playerId ?? ''}|${e.field ?? ''}`;
+  labelForField(fieldName: string): string {
+    const f = this.schemas().find(s => s.name.toLowerCase() === fieldName.toLowerCase());
+    return f?.label || fieldName;
+  }
+  // Per-player required list
+  missingRequiredLabels(playerId: string): string[] {
+    const errs = this.state.validateAllSelectedPlayers();
+    const row = errs[playerId] || {} as Record<string, string>;
+    const labels: string[] = [];
+    for (const [fname, msg] of Object.entries(row)) {
+      if (msg === 'Required') labels.push(this.labelForField(fname));
+    }
+    // sort by label
+    return labels.sort((a, b) => a.localeCompare(b));
+  }
   // --- Modal state for viewing raw API details ---
   modalOpen = false;
   modalData: any = null;
@@ -361,6 +495,12 @@ export class PlayerFormsComponent {
     const all = this.teams.filterByEligibility(null);
     const t = all.find(x => x.teamId === teamId);
     return t?.teamName || teamId;
+  }
+  priceForTeam(teamId: string): number | null {
+    const all = this.teams.filterByEligibility(null);
+    const t = all.find(x => x.teamId === teamId);
+    const fee = (t as any)?.perRegistrantFee as number | undefined;
+    return fee ?? null;
   }
 
   /**

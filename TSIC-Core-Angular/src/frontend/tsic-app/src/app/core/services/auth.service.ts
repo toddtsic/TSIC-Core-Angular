@@ -62,11 +62,8 @@ export class AuthService {
     return this.http.post<AuthTokenResponse>(`${this.apiUrl}/login`, credentials)
       .pipe(
         tap(response => {
-          // Store both access token and refresh token
-          this.setToken(response.accessToken);
-          if (response.refreshToken) {
-            this.setRefreshToken(response.refreshToken);
-          }
+          this.setToken(response.accessToken!);
+          if (response.refreshToken) this.setRefreshToken(response.refreshToken);
           this.initializeFromToken();
         })
       );
@@ -80,14 +77,15 @@ export class AuthService {
     this.loginError.set(null);
     this.http.post<AuthTokenResponse>(`${this.apiUrl}/login`, credentials).subscribe({
       next: (response) => {
-        this.setToken(response.accessToken);
+        this.setToken(response.accessToken!);
         if (response.refreshToken) this.setRefreshToken(response.refreshToken);
         this.initializeFromToken();
         this.loginLoading.set(false);
       },
       error: (error) => {
         this.loginLoading.set(false);
-        this.loginError.set(error?.error?.message || 'Login failed. Please check your credentials.');
+        const msg = (error as any)?.error?.message || 'Login failed. Please check your credentials.';
+        this.loginError.set(msg);
       }
     });
   }
@@ -98,9 +96,7 @@ export class AuthService {
    */
   getAvailableRegistrations(): Observable<RegistrationRoleDto[]> {
     return this.http.get<LoginResponse>(`${this.apiUrl}/registrations`)
-      .pipe(
-        map(response => response.registrations)
-      );
+      .pipe(map(response => response.registrations ?? []));
   }
 
   /**
@@ -119,7 +115,8 @@ export class AuthService {
       },
       error: (error) => {
         this.registrationsLoading.set(false);
-        this.registrationsError.set(error?.error?.message || 'Failed to load registrations. Please try again.');
+        const msg = (error as any)?.error?.message || 'Failed to load registrations. Please try again.';
+        this.registrationsError.set(msg);
       }
     });
   }
@@ -132,11 +129,8 @@ export class AuthService {
     return this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-registration`, { regId })
       .pipe(
         tap(response => {
-          // Store both tokens
-          this.setToken(response.accessToken);
-          if (response.refreshToken) {
-            this.setRefreshToken(response.refreshToken);
-          }
+          this.setToken(response.accessToken!);
+          if (response.refreshToken) this.setRefreshToken(response.refreshToken);
           this.initializeFromToken();
         })
       );
@@ -151,14 +145,15 @@ export class AuthService {
     this.selectError.set(null);
     this.http.post<AuthTokenResponse>(`${this.apiUrl}/select-registration`, { regId }).subscribe({
       next: (response) => {
-        this.setToken(response.accessToken);
+        this.setToken(response.accessToken!);
         if (response.refreshToken) this.setRefreshToken(response.refreshToken);
         this.initializeFromToken();
         this.selectLoading.set(false);
       },
       error: (error) => {
         this.selectLoading.set(false);
-        this.selectError.set(error?.error?.message || 'Role selection failed. Please try again.');
+        const msg = (error as any)?.error?.message || 'Role selection failed. Please try again.';
+        this.selectError.set(msg);
       }
     });
   }
@@ -171,10 +166,9 @@ export class AuthService {
 
     // Revoke refresh token on server if it exists
     if (refreshToken) {
-      this.http.post(`${this.apiUrl}/revoke`, { refreshToken })
-        .subscribe({
-          error: (err) => { if (!environment.production) console.error('Error revoking token:', err); }
-        });
+      this.http.post(`${this.apiUrl}/revoke`, { refreshToken }).subscribe({
+        error: (err) => { if (!environment.production) console.error('Error revoking token:', err); }
+      });
     }
 
     // Clear local storage
@@ -288,7 +282,7 @@ export class AuthService {
     return this.http.post<AuthTokenResponse>(`${this.apiUrl}/refresh`, { refreshToken })
       .pipe(
         tap(response => {
-          this.setToken(response.accessToken);
+          this.setToken(response.accessToken!);
           if (response.refreshToken) {
             this.setRefreshToken(response.refreshToken);
           }

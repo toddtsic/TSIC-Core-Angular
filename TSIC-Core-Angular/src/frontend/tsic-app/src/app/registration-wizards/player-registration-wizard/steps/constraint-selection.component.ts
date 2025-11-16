@@ -24,30 +24,30 @@ import { JobService, Job } from '../../../core/services/job.service';
         } @else {
           <div class="mb-3">
             <p class="small text-muted mb-2">Select {{ selectLabel().toLowerCase() }} for each player you are registering.</p>
-            <div class="list-group list-group-flush">
+            <div class="vstack gap-3">
               @for (p of selectedPlayers(); track p.userId) {
-                <div class="list-group-item">
-                  <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 justify-content-between">
-                    <div class="fw-semibold d-flex align-items-center gap-2">
-                      <span>{{ p.name }}</span>
+                <div class="card card-rounded border-0 shadow-sm">
+                  <div class="card-header border-bottom-0" [ngClass]="colorClassFor(p.userId)">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">{{ p.name }}</span>
                       @if (isPlayerLocked(p.userId)) {
                         <span class="badge bg-secondary" title="Already registered; eligibility locked">Locked</span>
                       }
                     </div>
-                    <div class="flex-grow-1">
-                      <select class="form-select"
-                              [disabled]="eligibilityDisabled() || isPlayerLocked(p.userId)"
-                              [ngModel]="eligibilityFor(p.userId)"
-                              (ngModelChange)="state.setEligibilityForPlayer(p.userId, $event)">
-                        <option value="" disabled>Select {{ selectLabel().toLowerCase() }}</option>
-                        @if (eligibilityFor(p.userId) && !hasEligibleOption(eligibilityFor(p.userId))) {
-                          <option [value]="eligibilityFor(p.userId)" selected>{{ eligibilityFor(p.userId) }}</option>
-                        }
-                        @for (opt of eligibleOptions(); track opt.value) {
-                          <option [value]="opt.value">{{ opt.label }}</option>
-                        }
-                      </select>
-                    </div>
+                  </div>
+                  <div class="card-body" [ngClass]="colorClassFor(p.userId)">
+                    <select class="form-select"
+                            [disabled]="eligibilityDisabled() || isPlayerLocked(p.userId)"
+                            [ngModel]="eligibilityFor(p.userId)"
+                            (ngModelChange)="state.setEligibilityForPlayer(p.userId, $event)">
+                      <option value="" disabled>Select {{ selectLabel().toLowerCase() }}</option>
+                      @if (eligibilityFor(p.userId) && !hasEligibleOption(eligibilityFor(p.userId))) {
+                        <option [value]="eligibilityFor(p.userId)" selected>{{ eligibilityFor(p.userId) }}</option>
+                      }
+                      @for (opt of eligibleOptions(); track opt.value) {
+                        <option [value]="opt.value">{{ opt.label }}</option>
+                      }
+                    </select>
                   </div>
                 </div>
               }
@@ -57,11 +57,6 @@ import { JobService, Job } from '../../../core/services/job.service';
             }
           </div>
         }
-
-        <div class="rw-bottom-nav d-flex gap-2">
-          <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-          <button type="button" class="btn btn-primary" (click)="handleContinue()" [disabled]="disableContinue()">Continue</button>
-        </div>
       </div>
     </div>
   `
@@ -311,5 +306,13 @@ export class ConstraintSelectionComponent {
     if (!val) return false;
     const opts = this.eligibleOptions();
     return Array.isArray(opts) && opts.some(o => o?.value === val);
+  }
+
+  // Deterministic color per player across steps
+  colorClassFor(playerId: string): string {
+    const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
+    let h = 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
   }
 }

@@ -141,7 +141,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     };
 
     // Save username for future logins
-    localStorage.setItem('last_username', credentials.username);
+    localStorage.setItem('last_username', String(credentials.username ?? ''));
 
     // Signals-driven login; navigation handled via effect below
     this.authService.loginCommand(credentials);

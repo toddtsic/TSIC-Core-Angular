@@ -1,13 +1,22 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <title>TsicApp</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- VerticalInsure embedded offer script: globally available so components can instantiate without dynamic injection -->
+  <script type="module">
+    import VerticalInsure from 'https://cdn.jsdelivr.net/npm/@vertical-insure/embedded-offer@latest/+esm';
+    window.VerticalInsure = VerticalInsure?.default ?? VerticalInsure;
+    console.log('VI SDK loaded?', !!window.VerticalInsure);
+  </script>
 </head>
+
 <body>
   <tsic-root></tsic-root>
 </body>
+
 </html>

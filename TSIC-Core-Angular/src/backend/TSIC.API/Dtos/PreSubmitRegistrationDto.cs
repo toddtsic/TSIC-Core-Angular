@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TSIC.API.Dtos.VerticalInsure;
 
 namespace TSIC.API.Dtos
 {
@@ -43,7 +44,7 @@ namespace TSIC.API.Dtos
     public class PreSubmitInsuranceDto
     {
         public bool Available { get; set; }
-        public object? PlayerObject { get; set; }
+        public VIPlayerObjectResponse? PlayerObject { get; set; }
         public string? Error { get; set; }
         public DateTime? ExpiresUtc { get; set; }
         public string? StateId { get; set; }

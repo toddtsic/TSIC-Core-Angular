@@ -26,6 +26,7 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IFeeResolverService, FeeResolverService>();
 builder.Services.AddScoped<IFeeCalculatorService, FeeCalculatorService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
+builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 
 // Profile Migration Services
 builder.Services.AddHttpClient<GitHubProfileFetcher>();

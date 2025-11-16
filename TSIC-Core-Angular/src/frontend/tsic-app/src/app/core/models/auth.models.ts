@@ -1,27 +1,13 @@
-export interface LoginRequest {
-    username: string;
-    password: string;
-}
-
-export interface RegistrationDto {
-    regId: string;
-    displayText: string;
-    jobLogo: string;
-}
-
-export interface RegistrationRoleDto {
-    roleName: string;
-    roleRegistrations: RegistrationDto[];
-}
-
-export interface LoginResponse {
-    userId: string;
-    registrations: RegistrationRoleDto[];
-}
-
-export interface RoleSelectionRequest {
-    regId: string;
-}
+import type { FamilyUserSummaryDto as FamilyUserSummary } from '../../core/api/models/FamilyUserSummaryDto';
+// Re-export server-generated auth models to avoid duplication
+export type { LoginRequest } from '../../core/api/models/LoginRequest';
+export type { RegistrationDto } from '../../core/api/models/RegistrationDto';
+export type { RegistrationRoleDto } from '../../core/api/models/RegistrationRoleDto';
+export type { RoleSelectionRequest } from '../../core/api/models/RoleSelectionRequest';
+export type { RefreshTokenRequest } from '../../core/api/models/RefreshTokenRequest';
+export type { AuthTokenResponse } from '../../core/api/models/AuthTokenResponse';
+// Keep existing LoginResponse name by aliasing the generated DTO
+export type { LoginResponseDto as LoginResponse } from '../../core/api/models/LoginResponseDto';
 
 export interface AuthenticatedUser {
     username: string;
@@ -35,11 +21,8 @@ export interface AuthenticatedUser {
 }
 
 // Bootstrap payload optionally returned with login to avoid extra API calls.
-export interface FamilyUserSummary {
-    familyUserId: string;
-    displayName: string;
-    avatarUrl?: string;
-}
+// Alias server DTO to existing name
+export type { FamilyUserSummaryDto as FamilyUserSummary } from '../../core/api/models/FamilyUserSummaryDto';
 
 export type RegistrationStatus = 'none' | 'in-progress' | 'complete';
 export type ProfileModel = 'PP' | 'CAC';
@@ -57,14 +40,4 @@ export interface LoginBootstrap {
     jobSummaries?: PlayerJobRegistrationSummary[]; // summaries specific to the jobPath
 }
 
-export interface AuthTokenResponse {
-    accessToken: string;
-    refreshToken?: string;
-    expiresIn?: number;
-    // Optional sidecar payload to prime the wizard without extra calls
-    bootstrap?: LoginBootstrap;
-}
-
-export interface RefreshTokenRequest {
-    refreshToken: string;
-}
+// Extend AuthTokenResponse at usage sites if we attach optional bootstrap locally

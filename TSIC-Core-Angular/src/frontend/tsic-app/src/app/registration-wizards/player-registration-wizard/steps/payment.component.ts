@@ -1,8 +1,10 @@
-import { Component, EventEmitter, Output, computed, inject, AfterViewInit, OnChanges, DoCheck } from '@angular/core';
+import { Component, EventEmitter, Output, computed, inject, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import type { VIPlayerObjectResponse } from '../../../core/api/models/VIPlayerObjectResponse';
+import type { Loadable } from '../../../core/models/state.models';
 import { TeamService } from '../team.service';
 
 declare global {
@@ -17,6 +19,9 @@ interface LineItem {
   amount: number;
 }
 
+// Local aliases to make types obvious without duplicating backend DTOs
+// Types now come from shared core models (see import above).
+
 @Component({
   selector: 'app-rw-payment',
   standalone: true,
@@ -27,8 +32,8 @@ interface LineItem {
         <h5 class="mb-0 fw-semibold">Payment</h5>
       </div>
       <div class="card-body">
-        <!-- RegSaver / VerticalInsure offer region (hidden when no offer object and no policy) -->
-        <div class="mb-3" id="vi-offer-region" *ngIf="showInsuranceRegion()">
+        <!-- RegSaver / VerticalInsure offer region (simple always-present container) -->
+        <div class="mb-3">
           @if (state.regSaverDetails()) {
             <div class="alert alert-info border-0" role="status">
               <div class="d-flex align-items-center gap-2">
@@ -39,26 +44,11 @@ interface LineItem {
                 </div>
               </div>
             </div>
-          } @else if (state.offerPlayerRegSaver() && viOffer().loading) {
-            <div class="alert alert-secondary border-0" role="status">
-              <div class="d-flex align-items-center gap-2">
-                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                <span class="small">Loading insurance offer…</span>
-              </div>
-            </div>
-          } @else if (state.offerPlayerRegSaver() && viOffer().error) {
-            <div class="alert alert-danger border-0" role="alert">
-              Failed to load insurance offer. <button class="btn btn-sm btn-outline-light ms-2" type="button" (click)="reloadVi()">Retry</button>
-            </div>
-          } @else if (state.offerPlayerRegSaver() && viProductCount() > 0) {
-            <div class="border rounded p-3 bg-light-subtle">
-              <div class="fw-semibold mb-1">Optional Registration Insurance</div>
-              <div class="small text-muted mb-2">Protect your registration investment. Select quotes below (powered by VerticalInsure).</div>
-              <!-- Container target for VerticalInsure dynamic widget -->
-              <!-- VerticalInsure mounts itself into this container -->
-              <div id="dVIOffer" class="vi-offer"></div>
-            </div>
           }
+        <div id="dVIOffer" class="g-my-30 text-center">
+        </div>
+        <div id="divVIPayment" class="text-center" style="display:none;">
+            <button type="button" id="btnVIPayment" onclick="submitVIPayment()">Submit Payment</button>
         </div>
 
         <div class="mb-3">
@@ -153,7 +143,7 @@ interface LineItem {
     </div>
   `
 })
-export class PaymentComponent implements AfterViewInit, OnChanges, DoCheck {
+export class PaymentComponent implements AfterViewInit {
   @Output() back = new EventEmitter<void>();
   @Output() submitted = new EventEmitter<void>();
 
@@ -172,87 +162,55 @@ export class PaymentComponent implements AfterViewInit, OnChanges, DoCheck {
   constructor(public state: RegistrationWizardService, private readonly http: HttpClient) { }
 
   // VerticalInsure integration state
-  viOffer = computed(() => this.state.verticalInsureOffer());
-  viProductCount = computed(() => {
-    const data: any = this.viOffer().data;
-    const list = data?.['product_config']?.['registration_cancellation'] || [];
-    return Array.isArray(list) ? list.length : 0;
-  });
-  // Whether to render insurance region: show when policy exists OR loading/error/product data present
-  showInsuranceRegion = () => {
-    if (this.state.regSaverDetails()) return true; // existing policy always shown
-    if (!this.state.offerPlayerRegSaver()) return false; // feature off
-    const offer = this.viOffer();
-    if (offer.loading) return true; // show spinner while loading
-    if (offer.error) return true; // show error block
-    const products = this.viProductCount();
-    if (products > 0) return true; // show widget container
-    // Otherwise hide entirely (no products, not loading, no error)
-    return false;
-  };
-  private viInitialized = false;
   private verticalInsureInstance: any;
-  viHasUserResponse = false;
-  quotes: any[] = [];
+  private quotes: any[] = [];
+  private viHasUserResponse: boolean = false;
+
 
   ngAfterViewInit(): void {
     this.tryInitVerticalInsure();
   }
-  ngOnChanges(): void { this.tryInitVerticalInsure(); }
-  ngDoCheck(): void { this.tryInitVerticalInsure(); }
-
-  reloadVi(): void { this.state.fetchVerticalInsureObject(false); this.viInitialized = false; this.tryInitVerticalInsure(true); }
 
   private tryInitVerticalInsure(force: boolean = false): void {
-    // Conditions: feature offered, data loaded, products > 0, widget not yet initialized or forced
-    const offerEnabled = this.state.offerPlayerRegSaver();
-    const offerDataReady = !this.viOffer().loading && !this.viOffer().error && !!this.viOffer().data;
-    const hasProducts = this.viProductCount() > 0;
-    if (!offerEnabled || !offerDataReady || !hasProducts) return;
-    if (this.viInitialized && !force) return;
+    // Minimal gating: require a response object present
+    const offerEnabled: boolean = this.state.offerPlayerRegSaver();
+    const offer: Loadable<VIPlayerObjectResponse> = this.state.verticalInsureOffer();
+    const offerObj: VIPlayerObjectResponse | null = offer?.data ?? null;
 
-    const offerObj = this.viOffer().data;
-    if (!offerObj) return;
+    if (!offerEnabled || !offerObj) { return };
 
-    const init = () => {
-      try {
-        // Instantiate using provided simplified pattern
-        this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
-          '#dVIOffer',
-          offerObj,
-          (offerState: any) => {
-            this.verticalInsureInstance.validate().then((isValid: boolean) => {
-              this.viHasUserResponse = isValid;
-              this.quotes = offerState?.quotes || [];
-              console.log('[VI] change viHasUserResponse:', this.viHasUserResponse, ' quotes:', this.quotes, ' isValid:', isValid);
-            });
-          },
-          () => {
-            this.verticalInsureInstance.validate().then((isValid: boolean) => {
-              this.viHasUserResponse = isValid;
-              console.log('[VI] ready isValid:', this.viHasUserResponse);
-            });
-          }
-        );
-        this.viInitialized = true;
-      } catch (err) {
-        console.error('[VI] instantiation failed', err);
+    this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
+      '#dVIOffer',
+      offerObj,
+      (offerState: any) => {
+
+        this.verticalInsureInstance.validate()
+          .then((isValid: boolean) => {
+            this.viHasUserResponse = isValid;
+
+            // save quotes in global variable, will never be null hereafter, will be empty array [] if no quotes
+            this.quotes = offerState?.quotes;
+
+            console.log('viHasUserResponse:', this.viHasUserResponse, ' quotes:', this.quotes, 'isValid:', isValid);
+          });
+      },
+      () => {
+        this.verticalInsureInstance.validate()
+          .then((isValid: boolean) => {
+            this.viHasUserResponse = isValid;
+
+            // a failed quotes requests returns isValid TRUE, a successful Request returns false (seems paradoxical, but necessary for prompting for user interaction on payment)
+            // if (viHasUserResponse){
+            //     $("#dVIOffer").hide();
+            // } else {
+            //     $("#dVIOffer").show();
+            // }
+            console.log('offer ready, isValid:', this.viHasUserResponse);
+          });
       }
-    };
-
-    if ((globalThis as any).VerticalInsure) {
-      init();
-      return;
-    }
-
-    // Inject script with single @ path if not loaded
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@vertical-insure/embedded-offer';
-    script.async = true;
-    script.onload = () => init();
-    script.onerror = () => console.error('[VI] script load failed');
-    document.head.appendChild(script);
+    );
   }
+
 
   lineItems = computed(() => {
     const items: LineItem[] = [];

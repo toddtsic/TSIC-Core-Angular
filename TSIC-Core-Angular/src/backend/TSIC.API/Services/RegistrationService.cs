@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using System.Text.Json;
 using TSIC.API.Constants;
@@ -14,6 +15,7 @@ public class RegistrationService : IRegistrationService
     private readonly SqlDbContext _db;
     private readonly IFeeResolverService _feeResolver;
     private readonly IFeeCalculatorService _feeCalculator;
+    private readonly IVerticalInsureService _verticalInsure;
 
     private sealed class PreSubmitContext
     {
@@ -33,12 +35,14 @@ public class RegistrationService : IRegistrationService
         ILogger<RegistrationService> logger,
         SqlDbContext db,
         IFeeResolverService feeResolver,
-        IFeeCalculatorService feeCalculator)
+        IFeeCalculatorService feeCalculator,
+        IVerticalInsureService verticalInsure)
     {
         _logger = logger;
         _db = db;
         _feeResolver = feeResolver;
         _feeCalculator = feeCalculator;
+        _verticalInsure = verticalInsure;
     }
 
     public async Task<PreSubmitRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitRegistrationRequestDto request, string callerUserId)
@@ -46,6 +50,9 @@ public class RegistrationService : IRegistrationService
         if (request == null) throw new ArgumentNullException(nameof(request));
 
         var ctx = await BuildPreSubmitContextAsync(jobId, familyUserId, request);
+
+        // Build prospective changes first inside a transaction; if validation fails, roll back so nothing is saved.
+        using var tx = await _db.Database.BeginTransactionAsync();
 
         var selectionsByPlayer = request.TeamSelections
             .GroupBy(s => s.PlayerId)
@@ -57,15 +64,39 @@ public class RegistrationService : IRegistrationService
             await ProcessPlayerSelectionsAsync(ctx, playerId, selections, teamResults);
         }
 
-        await _db.SaveChangesAsync();
+        // Server-side metadata validation BEFORE saving. If it fails, do not persist any changes.
         var response = new PreSubmitRegistrationResponseDto
         {
             TeamResults = teamResults,
             NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment"
         };
 
-        await ValidateAndAdjustNextTabAsync(ctx.MetadataJson, request.TeamSelections, response);
-        await BuildInsuranceSnapshotAsync(ctx.JobId, ctx.FamilyUserId, response);
+        try
+        {
+            var validationErrors = ValidatePlayerFormValues(ctx.MetadataJson, request.TeamSelections);
+            if (validationErrors.Count > 0)
+            {
+                response.ValidationErrors = validationErrors;
+                if (!response.HasFullTeams)
+                {
+                    response.NextTab = "Forms";
+                }
+                await tx.RollbackAsync(); // ensure nothing persists when validation fails
+                // Build insurance offer even on validation errors (non-persistent) for a consistent response shape
+                response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
+                return response;
+            }
+        }
+        catch (Exception vex)
+        {
+            // If validation throws, treat as non-fatal and proceed without blocking save (maintain prior behavior)
+            _logger.LogWarning(vex, "[PreSubmit] Validation threw unexpectedly; proceeding.");
+        }
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+        // Delegate insurance offer construction to VerticalInsure service.
+        response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
         return response;
     }
 
@@ -374,6 +405,7 @@ public class RegistrationService : IRegistrationService
         }
     }
 
+    // Retained for backward compatibility in other call sites, but not used by PreSubmitAsync anymore.
     private async Task ValidateAndAdjustNextTabAsync(string? metadataJson, List<PreSubmitTeamSelectionDto> selections, PreSubmitRegistrationResponseDto response)
     {
         try
@@ -394,169 +426,19 @@ public class RegistrationService : IRegistrationService
         }
     }
 
-    private async Task BuildInsuranceSnapshotAsync(Guid jobId, string familyUserId, PreSubmitRegistrationResponseDto response)
-    {
-        try
-        {
-            var jobOffer = await _db.Jobs
-                .Where(j => j.JobId == jobId)
-                .Select(j => new { j.JobName, j.BOfferPlayerRegsaverInsurance })
-                .SingleOrDefaultAsync();
-            if (jobOffer == null || !(jobOffer.BOfferPlayerRegsaverInsurance ?? false)) return;
+    // Removed VerticalInsure-specific snapshot logic; now handled by IVerticalInsureService.
 
-            var regs = await GetInsuranceEligibleRegistrationsAsync(jobId, familyUserId);
-            var family = await GetFamilyContactAsync(familyUserId);
-            var director = await GetDirectorContactAsync(jobId);
-            if (regs.Count == 0)
-            {
-                response.Insurance = new PreSubmitInsuranceDto { Available = false, Error = "No eligible registrations for insurance (fee or expiry criteria unmet)." };
-                return;
-            }
-            var products = BuildInsuranceProducts(regs, family, director, jobOffer.JobName);
-            response.Insurance = new PreSubmitInsuranceDto
-            {
-                Available = true,
-                PlayerObject = BuildInsurancePlayerObject(products),
-                ExpiresUtc = DateTime.UtcNow.AddMinutes(10),
-                StateId = $"vi-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "[PreSubmit] Failed to build insurance snapshot.");
-            response.Insurance = new PreSubmitInsuranceDto
-            {
-                Available = false,
-                Error = "Insurance snapshot generation failed"
-            };
-        }
-    }
+    // Removed VerticalInsure-specific eligibility queries (moved to VerticalInsureService).
 
-    private async Task<List<(Guid RegistrationId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)>> GetInsuranceEligibleRegistrationsAsync(Guid jobId, string familyUserId)
-    {
-        var nowPlus1Day = DateTime.Now.AddHours(24);
-        var regs = await _db.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.FeeTotal > 0 && r.RegsaverPolicyId == null && r.AssignedTeam != null && r.AssignedTeam.Expireondate > nowPlus1Day)
-            .Select(r => new
-            {
-                r.RegistrationId,
-                r.Assignment,
-                FirstName = r.User != null ? r.User.FirstName : null,
-                LastName = r.User != null ? r.User.LastName : null,
-                PerRegistrantFee = r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
-                TeamFee = (r.AssignedTeam != null && r.AssignedTeam.Agegroup != null) ? r.AssignedTeam.Agegroup.TeamFee : null,
-                r.FeeTotal
-            })
-            .ToListAsync();
+    // Removed VerticalInsure-specific contact helpers (moved to VerticalInsureService).
 
-        return regs.Select(r => (r.RegistrationId, r.Assignment, r.FirstName, r.LastName, r.PerRegistrantFee, r.TeamFee, r.FeeTotal)).ToList();
-    }
+    // Removed director contact query (moved to VerticalInsureService).
 
-    private async Task<(string? FirstName, string? LastName, string? Email, string? Phone, string? City, string? State, string? Zip)?> GetFamilyContactAsync(string familyUserId)
-    {
-        var f = await _db.Families.AsNoTracking()
-            .Where(x => x.FamilyUserId == familyUserId)
-            .Select(x => new
-            {
-                FirstName = x.MomFirstName,
-                LastName = x.MomLastName,
-                Email = x.MomEmail,
-                Phone = x.MomCellphone,
-                City = x.FamilyUser.City,
-                State = x.FamilyUser.State,
-                Zip = x.FamilyUser.PostalCode
-            })
-            .SingleOrDefaultAsync();
-        if (f == null) return null;
-        return (f.FirstName, f.LastName, f.Email, f.Phone, f.City, f.State, f.Zip);
-    }
+    // Removed product construction (moved to VerticalInsureService).
 
-    private async Task<(string? Email, string? FirstName, string? LastName, string? Cellphone, string? OrgName, bool PaymentPlan)?> GetDirectorContactAsync(Guid jobId)
-    {
-        var d = await _db.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.Role != null && r.Role.Name == "Director" && r.BActive == true)
-            .OrderBy(r => r.RegistrationTs)
-            .Select(r => new
-            {
-                Email = r.User != null ? r.User.Email : null,
-                FirstName = r.User != null ? r.User.FirstName : null,
-                LastName = r.User != null ? r.User.LastName : null,
-                Cellphone = r.User != null ? r.User.Cellphone : null,
-                OrgName = r.Job != null ? r.Job.JobName : null,
-                PaymentPlan = r.Job != null && (r.Job.AdnArb == true)
-            })
-            .FirstOrDefaultAsync();
-        if (d == null) return null;
-        return (d.Email, d.FirstName, d.LastName, d.Cellphone, d.OrgName, d.PaymentPlan);
-    }
+    // Removed player object construction (handled by VerticalInsureService).
 
-    private List<object> BuildInsuranceProducts(List<(Guid RegistrationId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)> regs,
-        (string? FirstName, string? LastName, string? Email, string? Phone, string? City, string? State, string? Zip)? family,
-        (string? Email, string? FirstName, string? LastName, string? Cellphone, string? OrgName, bool PaymentPlan)? director,
-        string? jobName)
-    {
-        var products = new List<object>();
-        var contextName = (jobName ?? string.Empty).Split(':')[0];
-        foreach (var r in regs)
-        {
-            var insurable = ComputeInsurableAmount(r.PerRegistrantFee, r.TeamFee, r.FeeTotal);
-            products.Add(new
-            {
-                customer = new
-                {
-                    email_address = family?.Email ?? string.Empty,
-                    first_name = family?.FirstName ?? string.Empty,
-                    last_name = family?.LastName ?? string.Empty,
-                    city = family?.City,
-                    state = family?.State,
-                    postal_code = family?.Zip,
-                    phone = family?.Phone
-                },
-                metadata = new
-                {
-                    tsic_secondchance = "0",
-                    context_name = contextName,
-                    context_event = jobName ?? contextName,
-                    context_description = r.Assignment,
-                    tsic_registrationid = r.RegistrationId
-                },
-                policy_attributes = new
-                {
-                    event_start_date = DateOnly.FromDateTime(DateTime.Now).AddDays(1),
-                    event_end_date = DateOnly.FromDateTime(DateTime.Now).AddYears(1),
-                    insurable_amount = insurable,
-                    participant = new { first_name = r.FirstName ?? string.Empty, last_name = r.LastName ?? string.Empty },
-                    organization = new
-                    {
-                        org_contact_email = director?.Email,
-                        org_contact_first_name = director?.FirstName,
-                        org_contact_last_name = director?.LastName,
-                        org_contact_phone = director?.Cellphone,
-                        org_name = director?.OrgName,
-                        payment_plan = director?.PaymentPlan ?? false
-                    }
-                }
-            });
-        }
-        return products;
-    }
-
-    private static object BuildInsurancePlayerObject(List<object> products) => new
-    {
-        client_id = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS",
-        payments = new { enabled = false, button = false },
-        theme = new { colors = new { primary = "purple" }, font_family = "Fira Sans" },
-        product_config = new { registration_cancellation = products }
-    };
-
-    private static int ComputeInsurableAmount(decimal? perRegistrantFee, decimal? teamFee, decimal feeTotal)
-    {
-        if ((int?)(perRegistrantFee ?? 0) > 0) return (int)((perRegistrantFee ?? 0) * 100);
-        if ((int?)(teamFee ?? 0) > 0) return (int)((teamFee ?? 0) * 100);
-        return (int)(feeTotal * 100);
-    }
+    // Removed insurable amount computation (handled by VerticalInsureService).
 
     // --- Helpers copied from controller for encapsulation ---
     private static string GetRegistrationMode(string? coreRegformPlayer, string? jsonOptions)
