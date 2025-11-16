@@ -1,15 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using TSIC.API.Dtos;
 using TSIC.Application.Validators;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Application.Services;
 using FluentValidation;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.API.Services.Auth;
 
 namespace TSIC.API.Controllers
 {
@@ -22,19 +21,22 @@ namespace TSIC.API.Controllers
         private readonly IValidator<LoginRequest> _loginValidator;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenService _refreshTokenService;
+    private readonly ITokenService _tokenService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
             IRoleLookupService roleLookupService,
             IValidator<LoginRequest> loginValidator,
             IConfiguration configuration,
-            IRefreshTokenService refreshTokenService)
+            IRefreshTokenService refreshTokenService,
+            ITokenService tokenService)
         {
             _userManager = userManager;
             _roleLookupService = roleLookupService;
             _loginValidator = loginValidator;
             _configuration = configuration;
             _refreshTokenService = refreshTokenService;
+            _tokenService = tokenService;
         }
 
         /// <summary>
@@ -69,7 +71,7 @@ namespace TSIC.API.Controllers
             }
 
             // Generate Phase 1 JWT token with minimal claims (username only)
-            var token = GenerateMinimalJwtToken(user);
+            var token = _tokenService.GenerateMinimalJwtToken(user);
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
@@ -162,90 +164,15 @@ namespace TSIC.API.Controllers
             var jobLogo = selectedReg.JobLogo; // Get the job logo from selected registration
 
             // Generate enriched Phase 2 JWT token with regId, jobPath, jobLogo, and role claims
-            var token = GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo, roleName);
+            var token = _tokenService.GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo, roleName);
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
             return Ok(new AuthTokenResponse(
                 AccessToken: token,
                 RefreshToken: refreshToken,
-                ExpiresIn: expirationMinutes * 60 // Convert to seconds
+                ExpiresIn: expirationMinutes * 60
             ));
-        }
-
-        /// <summary>
-        /// Generate Phase 1 JWT token with minimal claims (username only)
-        /// </summary>
-        private string GenerateMinimalJwtToken(ApplicationUser user)
-        {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
-            var issuer = jwtSettings["Issuer"] ?? "TSIC.API";
-            var audience = jwtSettings["Audience"] ?? "TSIC.Client";
-            var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"] ?? "60");
-
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id), // Store user ID in sub claim
-                new Claim("username", user.UserName ?? ""),      // Also store username for convenience
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        /// <summary>
-        /// Generate Phase 2 JWT token with enriched claims (username, regId, jobPath, jobLogo, role)
-        /// </summary>
-        private string GenerateEnrichedJwtToken(ApplicationUser user, string regId, string jobPath, string? jobLogo, string roleName)
-        {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
-            var issuer = jwtSettings["Issuer"] ?? "TSIC.API";
-            var audience = jwtSettings["Audience"] ?? "TSIC.Client";
-            var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"] ?? "60");
-
-            var claimsList = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                new Claim("username", user.UserName ?? ""),
-                new Claim("regId", regId),
-                new Claim("jobPath", jobPath),
-                new Claim(ClaimTypes.Role, roleName), // Add role claim
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
-            };
-
-            // Add jobLogo claim if available
-            if (!string.IsNullOrWhiteSpace(jobLogo))
-            {
-                claimsList.Add(new Claim("jobLogo", jobLogo));
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
-                claims: claimsList,
-                expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         /// <summary>
@@ -294,12 +221,12 @@ namespace TSIC.API.Controllers
                     .FirstOrDefault(r => r.RoleRegistrations.Any(reg => reg.RegId == mostRecentReg.RegId));
                 var roleName = registrationRole?.RoleName ?? "User";
 
-                newAccessToken = GenerateEnrichedJwtToken(user, mostRecentReg.RegId, mostRecentReg.JobPath, mostRecentReg.JobLogo, roleName);
+                newAccessToken = _tokenService.GenerateEnrichedJwtToken(user, mostRecentReg.RegId, mostRecentReg.JobPath, mostRecentReg.JobLogo, roleName);
             }
             else
             {
                 // No registration found - fall back to minimal token
-                newAccessToken = GenerateMinimalJwtToken(user);
+                newAccessToken = _tokenService.GenerateMinimalJwtToken(user);
             }
 
             var newRefreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);

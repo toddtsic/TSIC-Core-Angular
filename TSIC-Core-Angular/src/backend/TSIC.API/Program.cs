@@ -9,6 +9,7 @@ using TSIC.Infrastructure.Services;
 using TSIC.API.Services;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Validation;
+using TSIC.API.Services.Auth;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -34,6 +35,7 @@ builder.Services.AddScoped<IFamilyService, FamilyService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // US LAX settings and HTTP client
 builder.Services.Configure<UsLaxSettings>(builder.Configuration.GetSection("UsLax"));
