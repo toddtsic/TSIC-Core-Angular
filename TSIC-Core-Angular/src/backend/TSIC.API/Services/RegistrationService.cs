@@ -16,6 +16,7 @@ public class RegistrationService : IRegistrationService
     private readonly IFeeResolverService _feeResolver;
     private readonly IFeeCalculatorService _feeCalculator;
     private readonly IVerticalInsureService _verticalInsure;
+    private readonly ITeamLookupService _teamLookupService;
 
     private sealed class PreSubmitContext
     {
@@ -36,13 +37,15 @@ public class RegistrationService : IRegistrationService
         SqlDbContext db,
         IFeeResolverService feeResolver,
         IFeeCalculatorService feeCalculator,
-        IVerticalInsureService verticalInsure)
+        IVerticalInsureService verticalInsure,
+        ITeamLookupService teamLookupService)
     {
         _logger = logger;
         _db = db;
         _feeResolver = feeResolver;
         _feeCalculator = feeCalculator;
         _verticalInsure = verticalInsure;
+        _teamLookupService = teamLookupService;
     }
 
     public async Task<PreSubmitRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitRegistrationRequestDto request, string callerUserId)
@@ -375,11 +378,18 @@ public class RegistrationService : IRegistrationService
 
     private async Task<decimal> ResolveTeamBaseFeeAsync(Guid teamId)
     {
-        var cached = await _db.Teams.Where(x => x.TeamId == teamId).Select(x => new { x.FeeBase, x.PerRegistrantFee }).FirstOrDefaultAsync();
+        // Prefer centralized TeamLookupService resolver for consistency with team listings.
+        var (fee, _) = await _teamLookupService.ResolvePerRegistrantAsync(teamId);
+        if (fee > 0m) return fee;
+
+        // Fallback to legacy resolver if centralized logic yields zero, for backward compatibility.
+        var cached = await _db.Teams.Where(x => x.TeamId == teamId)
+            .Select(x => new { x.FeeBase, x.PerRegistrantFee })
+            .FirstOrDefaultAsync();
         if (cached != null)
         {
             var v = cached.FeeBase ?? cached.PerRegistrantFee ?? 0m;
-            if (v > 0) return v;
+            if (v > 0m) return v;
         }
         return await _feeResolver.ResolveBaseFeeForTeamAsync(teamId);
     }
@@ -389,6 +399,7 @@ public class RegistrationService : IRegistrationService
         var paid = reg.PaidTotal;
         if (paid > 0m) return;
 
+        // Centralized fee resolution: prefer provided team values, else resolve via TeamLookupService
         var baseFee = teamFeeBase ?? teamPerRegistrantFee ?? 0m;
         if (baseFee <= 0m)
         {

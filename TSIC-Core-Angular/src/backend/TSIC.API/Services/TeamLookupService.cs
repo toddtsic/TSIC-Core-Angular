@@ -7,6 +7,11 @@ namespace TSIC.API.Services;
 public interface ITeamLookupService
 {
     Task<IReadOnlyList<AvailableTeamDto>> GetAvailableTeamsForJobAsync(Guid jobId);
+    /// <summary>
+    /// Resolve the per-registrant fee and deposit for a specific team using the same rules
+    /// as the available teams projection. Returns (Fee, Deposit); zeroes if team not found.
+    /// </summary>
+    Task<(decimal Fee, decimal Deposit)> ResolvePerRegistrantAsync(Guid teamId);
 }
 
 public class TeamLookupService : ITeamLookupService
@@ -112,5 +117,70 @@ public class TeamLookupService : ITeamLookupService
         }).ToList();
 
         return dtos;
+    }
+
+    /// <summary>
+    /// Centralized resolver for per-registrant fee and deposit for a single team.
+    /// Uses the same computation as the team list to ensure a single source of truth.
+    /// </summary>
+    public async Task<(decimal Fee, decimal Deposit)> ResolvePerRegistrantAsync(Guid teamId)
+    {
+        var data = await _context.Teams
+            .AsNoTracking()
+            .Include(t => t.Agegroup)
+            .Where(t => t.TeamId == teamId)
+            .Select(t => new
+            {
+                t.PerRegistrantFee,
+                t.PerRegistrantDeposit,
+                TeamFee = t.Agegroup.TeamFee,
+                RosterFee = t.Agegroup.RosterFee
+            })
+            .SingleOrDefaultAsync();
+
+        if (data == null)
+        {
+            _logger.LogInformation("ResolvePerRegistrantAsync: team {TeamId} not found; returning zeros.", teamId);
+            return (0m, 0m);
+        }
+
+        decimal prFee = data.PerRegistrantFee ?? 0m;
+        decimal prDeposit = data.PerRegistrantDeposit ?? 0m;
+        decimal agTeamFee = data.TeamFee ?? 0m;
+        decimal agRosterFee = data.RosterFee ?? 0m;
+
+        decimal fee;
+        if (prFee > 0m)
+        {
+            fee = prFee;
+        }
+        else if (agTeamFee > 0m && agRosterFee > 0m)
+        {
+            fee = agTeamFee;
+        }
+        else if (agRosterFee > 0m)
+        {
+            fee = agRosterFee;
+        }
+        else
+        {
+            fee = 0m;
+        }
+
+        decimal deposit;
+        if (prDeposit > 0m)
+        {
+            deposit = prDeposit;
+        }
+        else if (agTeamFee > 0m && agRosterFee > 0m)
+        {
+            deposit = agRosterFee;
+        }
+        else
+        {
+            deposit = 0m;
+        }
+
+        return (fee, deposit);
     }
 }

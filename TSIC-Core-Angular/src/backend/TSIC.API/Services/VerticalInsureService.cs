@@ -15,12 +15,14 @@ public sealed class VerticalInsureService : IVerticalInsureService
     private readonly SqlDbContext _db;
     private readonly IHostEnvironment _env;
     private readonly ILogger<VerticalInsureService> _logger;
+    private readonly ITeamLookupService _teamLookupService;
 
-    public VerticalInsureService(SqlDbContext db, IHostEnvironment env, ILogger<VerticalInsureService> logger)
+    public VerticalInsureService(SqlDbContext db, IHostEnvironment env, ILogger<VerticalInsureService> logger, ITeamLookupService teamLookupService)
     {
         _db = db;
         _env = env;
         _logger = logger;
+        _teamLookupService = teamLookupService;
     }
 
     public async Task<PreSubmitInsuranceDto> BuildOfferAsync(Guid jobId, string familyUserId)
@@ -44,7 +46,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
 
             var family = await GetFamilyContactAsync(familyUserId);
             var director = await GetDirectorContactAsync(jobId);
-            var products = BuildProducts(regs, family, director, jobOffer.JobName);
+            var products = await BuildProductsAsync(regs, family, director, jobOffer.JobName);
             var playerObj = BuildPlayerObject(products);
             return new PreSubmitInsuranceDto
             {
@@ -61,7 +63,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
         }
     }
 
-    private async Task<List<(Guid RegistrationId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)>> GetEligibleRegistrationsAsync(Guid jobId, string familyUserId)
+    private async Task<List<(Guid RegistrationId, Guid AssignedTeamId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)>> GetEligibleRegistrationsAsync(Guid jobId, string familyUserId)
     {
         var cutoff = DateTime.Now.AddHours(24);
         var regs = await _db.Registrations
@@ -70,6 +72,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
             .Select(r => new
             {
                 r.RegistrationId,
+                AssignedTeamId = r.AssignedTeamId!.Value,
                 r.Assignment,
                 FirstName = r.User != null ? r.User.FirstName : null,
                 LastName = r.User != null ? r.User.LastName : null,
@@ -78,7 +81,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
                 r.FeeTotal
             })
             .ToListAsync();
-        return regs.Select(r => (r.RegistrationId, r.Assignment, r.FirstName, r.LastName, r.PerRegistrantFee, r.TeamFee, r.FeeTotal)).ToList();
+        return regs.Select(r => (r.RegistrationId, r.AssignedTeamId, r.Assignment, r.FirstName, r.LastName, r.PerRegistrantFee, r.TeamFee, r.FeeTotal)).ToList();
     }
 
     private async Task<(string? FirstName, string? LastName, string? Email, string? Phone, string? City, string? State, string? Zip)?> GetFamilyContactAsync(string familyUserId)
@@ -120,8 +123,8 @@ public sealed class VerticalInsureService : IVerticalInsureService
         return (d.Email, d.FirstName, d.LastName, d.Cellphone, d.OrgName, d.PaymentPlan);
     }
 
-    private List<VIPlayerProductDto> BuildProducts(
-        List<(Guid RegistrationId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)> regs,
+    private async Task<List<VIPlayerProductDto>> BuildProductsAsync(
+        List<(Guid RegistrationId, Guid AssignedTeamId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)> regs,
         (string? FirstName, string? LastName, string? Email, string? Phone, string? City, string? State, string? Zip)? family,
         (string? Email, string? FirstName, string? LastName, string? Cellphone, string? OrgName, bool PaymentPlan)? director,
         string? jobName)
@@ -130,7 +133,9 @@ public sealed class VerticalInsureService : IVerticalInsureService
         var contextName = (jobName ?? string.Empty).Split(':')[0];
         foreach (var r in regs)
         {
-            var insurable = ComputeInsurableAmount(r.PerRegistrantFee, r.TeamFee, r.FeeTotal);
+            // Centralized fee resolution for insurable amount: prefer per-registrant fee from resolver; fallback to fee total.
+            var (fee, _) = await _teamLookupService.ResolvePerRegistrantAsync(r.AssignedTeamId);
+            var insurable = ComputeInsurableAmountFromCentralized(fee, r.PerRegistrantFee, r.TeamFee, r.FeeTotal);
             var product = new VIPlayerProductDto
             {
                 customer = new VICustomerDto
@@ -196,10 +201,14 @@ public sealed class VerticalInsureService : IVerticalInsureService
         };
     }
 
-    private static int ComputeInsurableAmount(decimal? perRegistrantFee, decimal? teamFee, decimal feeTotal)
+    private static int ComputeInsurableAmount(decimal amount)
+        => (int)(amount * 100);
+
+    private static int ComputeInsurableAmountFromCentralized(decimal centralizedFee, decimal? perRegistrantFee, decimal? teamFee, decimal feeTotal)
     {
-        if (perRegistrantFee.HasValue && perRegistrantFee.Value > 0) return (int)(perRegistrantFee.Value * 100);
-        if (teamFee.HasValue && teamFee.Value > 0) return (int)(teamFee.Value * 100);
-        return (int)(feeTotal * 100);
+        if (centralizedFee > 0m) return ComputeInsurableAmount(centralizedFee);
+        if (perRegistrantFee.HasValue && perRegistrantFee.Value > 0) return ComputeInsurableAmount(perRegistrantFee.Value);
+        if (teamFee.HasValue && teamFee.Value > 0) return ComputeInsurableAmount(teamFee.Value);
+        return ComputeInsurableAmount(feeTotal);
     }
 }

@@ -45,7 +45,7 @@ interface LineItem {
               </div>
             </div>
           }
-        <div id="dVIOffer" class="g-my-30 text-center">
+        <div id="dVIOffer" class="pb-3 text-center">
         </div>
         <div id="divVIPayment" class="text-center" style="display:none;">
             <button type="button" id="btnVIPayment" onclick="submitVIPayment()">Submit Payment</button>

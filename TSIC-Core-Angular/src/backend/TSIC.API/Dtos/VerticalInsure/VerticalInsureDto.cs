@@ -28,7 +28,7 @@ public record VIPlayerObjectResponse
 
 public record VIPlayerProductConfigDto
 {
-    [JsonPropertyName("registration_cancellation")]
+    [JsonPropertyName("registration-cancellation")]
     public List<VIPlayerProductDto> registration_cancellation { get; set; } = new();
 }
 
