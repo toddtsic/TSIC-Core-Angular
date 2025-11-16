@@ -51,6 +51,9 @@ public class RegistrationService : IRegistrationService
 
         var ctx = await BuildPreSubmitContextAsync(jobId, familyUserId, request);
 
+        // Build prospective changes first inside a transaction; if validation fails, roll back so nothing is saved.
+        using var tx = await _db.Database.BeginTransactionAsync();
+
         var selectionsByPlayer = request.TeamSelections
             .GroupBy(s => s.PlayerId)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -61,14 +64,37 @@ public class RegistrationService : IRegistrationService
             await ProcessPlayerSelectionsAsync(ctx, playerId, selections, teamResults);
         }
 
-        await _db.SaveChangesAsync();
+        // Server-side metadata validation BEFORE saving. If it fails, do not persist any changes.
         var response = new PreSubmitRegistrationResponseDto
         {
             TeamResults = teamResults,
             NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment"
         };
 
-        await ValidateAndAdjustNextTabAsync(ctx.MetadataJson, request.TeamSelections, response);
+        try
+        {
+            var validationErrors = ValidatePlayerFormValues(ctx.MetadataJson, request.TeamSelections);
+            if (validationErrors.Count > 0)
+            {
+                response.ValidationErrors = validationErrors;
+                if (!response.HasFullTeams)
+                {
+                    response.NextTab = "Forms";
+                }
+                await tx.RollbackAsync(); // ensure nothing persists when validation fails
+                // Build insurance offer even on validation errors (non-persistent) for a consistent response shape
+                response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
+                return response;
+            }
+        }
+        catch (Exception vex)
+        {
+            // If validation throws, treat as non-fatal and proceed without blocking save (maintain prior behavior)
+            _logger.LogWarning(vex, "[PreSubmit] Validation threw unexpectedly; proceeding.");
+        }
+
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
         // Delegate insurance offer construction to VerticalInsure service.
         response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
         return response;
@@ -379,6 +405,7 @@ public class RegistrationService : IRegistrationService
         }
     }
 
+    // Retained for backward compatibility in other call sites, but not used by PreSubmitAsync anymore.
     private async Task ValidateAndAdjustNextTabAsync(string? metadataJson, List<PreSubmitTeamSelectionDto> selections, PreSubmitRegistrationResponseDto response)
     {
         try

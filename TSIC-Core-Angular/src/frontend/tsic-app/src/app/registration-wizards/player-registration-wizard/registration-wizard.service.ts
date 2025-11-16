@@ -976,6 +976,11 @@ export class RegistrationWizardService {
                 familyUserId,
                 teamSelections
             };
+            // Local dev aid: log payload once to help diagnose missing fields like gradYear
+            try {
+                const host = globalThis.location?.host?.toLowerCase?.() ?? '';
+                if (host.startsWith('localhost')) console.debug('[RegWizard] preSubmit payload', payload);
+            } catch { /* ignore */ }
             firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload))
                 .then(resp => {
                     try {
@@ -1031,6 +1036,20 @@ export class RegistrationWizardService {
      */
     private buildPreSubmitFormValuesForPlayer(playerId: string): { [key: string]: Json } {
         const out = this.buildVisibleFormValuesForPlayer(playerId);
+
+        // Inject Eligibility selection as a normal form field so backend validation sees it
+        // We only do this when the field is not already populated in visible values.
+        try {
+            const eligField = this.resolveEligibilityFieldNameFromSchemas();
+            if (eligField) {
+                const existing = out[eligField];
+                const isMissing = existing == null || (typeof existing === 'string' && existing.trim() === '');
+                const selected = this.getEligibilityForPlayer(playerId);
+                if (isMissing && selected != null && String(selected).trim() !== '') {
+                    out[eligField] = String(selected);
+                }
+            }
+        } catch { /* best-effort */ }
         const waiverNames = Array.isArray(this.waiverFieldNames()) ? [...this.waiverFieldNames()] : [];
         if (waiverNames.length === 0) return out;
         // Deduplicate case-insensitively to avoid sending duplicates with different casing
@@ -1055,6 +1074,28 @@ export class RegistrationWizardService {
             for (const name of names) if (this.isWaiverAccepted(name)) out[name] = true;
         }
         return out;
+    }
+
+    /** Determine the schema field name that represents the Eligibility selection (e.g., gradYear). */
+    private resolveEligibilityFieldNameFromSchemas(): string | null {
+        const tctype = (this.teamConstraintType() || '').toUpperCase();
+        const schemas = this.profileFieldSchemas();
+        if (!tctype || !schemas || schemas.length === 0) return null;
+        const visible = schemas.filter(f => (f.visibility ?? 'public') !== 'hidden' && (f.visibility ?? 'public') !== 'adminOnly');
+        const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
+        const byNameOrLabel = (parts: string[]) => visible.find(f => hasAll(f.name.toLowerCase(), parts) || hasAll(f.label.toLowerCase(), parts));
+        switch (tctype) {
+            case 'BYGRADYEAR':
+                return byNameOrLabel(['grad', 'year'])?.name || null;
+            case 'BYAGEGROUP':
+                return byNameOrLabel(['age', 'group'])?.name || null;
+            case 'BYAGERANGE':
+                return byNameOrLabel(['age', 'range'])?.name || null;
+            case 'BYCLUBNAME':
+                return byNameOrLabel(['club'])?.name || null;
+            default:
+                return null;
+        }
     }
 
     // Prefer localhost API when running locally regardless of production flag mismatch.

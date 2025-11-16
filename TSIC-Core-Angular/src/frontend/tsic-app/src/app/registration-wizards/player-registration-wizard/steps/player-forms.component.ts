@@ -7,7 +7,6 @@ import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSubmitValidationErrorDto';
-import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-rw-player-forms',
@@ -45,24 +44,6 @@ import { environment } from '../../../../environments/environment';
         </div>
       </div>
       <div class="card-body">
-        <!-- Client-side required-fields summary (prevents confusion why Continue is disabled) -->
-        @if (clientRequiredErrors().length) {
-          <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
-            <div>
-              <div class="fw-semibold mb-1">Please fill the required fields below:</div>
-              <ul class="mb-0 ps-3">
-                @for (err of clientRequiredErrors(); track trackClientErr($index, err)) {
-                  <li><strong>{{ nameForPlayer(err.playerId) }}</strong> – <span class="text-nowrap">{{ labelForField(err.field) }}</span></li>
-                }
-              </ul>
-            </div>
-            @if (!isProd) {
-              <div class="ms-auto">
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="copyClientErrors()">Copy</button>
-              </div>
-            }
-          </div>
-        }
         @for (player of selectedPlayersWithTeams; track trackPlayer($index, player); let i = $index) {
           <div class="mb-4">
             <div class="card card-rounded border-0 shadow-sm">
@@ -80,6 +61,17 @@ import { environment } from '../../../../environments/environment';
                 </div>
               </div>
               <div class="card-body" [ngClass]="colorClassFor(player.userId)">
+                <!-- Per-player compact required-fields summary -->
+                @if (missingRequiredLabels(player.userId).length > 0) {
+                  <div class="alert alert-warning border-0 py-1 px-2 mb-2 req-mini" role="alert">
+                    <div class="title">Please complete:</div>
+                    <ul>
+                      @for (label of missingRequiredLabels(player.userId); track label) {
+                        <li>{{ label }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
                 
                 <!-- Only show the first USA Lacrosse # field per player -->
                 @let usLaxField = firstUsLaxField();
@@ -257,11 +249,18 @@ import { environment } from '../../../../environments/environment';
     </div>
   </div>
 }
-  `
+  `,
+  styles: [
+    `
+    /* Compact per-player required list */
+    .req-mini { font-size: .85rem; line-height: 1.1; }
+    .req-mini .title { font-weight: 600; margin-bottom: .15rem; }
+    .req-mini ul { margin: 0; padding-left: 1rem; }
+    .req-mini li { margin: 0; }
+    `
+  ]
 })
 export class PlayerFormsComponent {
-  // Environment flag for dev extras
-  isProd = environment.production;
   /** Returns selected players (from familyPlayers flags) with teamIds property for pill rendering. */
   get selectedPlayersWithTeams() {
     const list = this.state.familyPlayers().filter(p => p.selected || p.registered);
@@ -374,38 +373,20 @@ export class PlayerFormsComponent {
     return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : (playerId ?? '');
   }
   trackErr = (_: number, e: PreSubmitValidationErrorDto) => `${e.playerId ?? ''}|${e.field ?? ''}`;
-  // Client-side required-errors summary helpers
-  clientRequiredErrors(): { playerId: string; field: string }[] {
-    const errs = this.state.validateAllSelectedPlayers();
-    const list: { playerId: string; field: string }[] = [];
-    for (const [pid, fields] of Object.entries(errs)) {
-      for (const [fname, msg] of Object.entries(fields)) {
-        if (msg === 'Required') list.push({ playerId: pid, field: fname });
-      }
-    }
-    // Stable sort by player then field label
-    return list.sort((a, b) => {
-      const an = this.nameForPlayer(a.playerId).toLowerCase();
-      const bn = this.nameForPlayer(b.playerId).toLowerCase();
-      if (an !== bn) return an < bn ? -1 : 1;
-      const al = this.labelForField(a.field).toLowerCase();
-      const bl = this.labelForField(b.field).toLowerCase();
-      if (al < bl) return -1;
-      if (al > bl) return 1;
-      return 0;
-    });
-  }
   labelForField(fieldName: string): string {
     const f = this.schemas().find(s => s.name.toLowerCase() === fieldName.toLowerCase());
     return f?.label || fieldName;
   }
-  trackClientErr = (_: number, e: { playerId: string; field: string }) => `${e.playerId}|${e.field}`;
-  copyClientErrors(): void {
-    try {
-      const data = this.clientRequiredErrors().map(e => ({ player: this.nameForPlayer(e.playerId), field: this.labelForField(e.field) }));
-      const txt = JSON.stringify(data, null, 2);
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) navigator.clipboard.writeText(txt);
-    } catch { /* no-op */ }
+  // Per-player required list
+  missingRequiredLabels(playerId: string): string[] {
+    const errs = this.state.validateAllSelectedPlayers();
+    const row = errs[playerId] || {} as Record<string, string>;
+    const labels: string[] = [];
+    for (const [fname, msg] of Object.entries(row)) {
+      if (msg === 'Required') labels.push(this.labelForField(fname));
+    }
+    // sort by label
+    return labels.sort((a, b) => a.localeCompare(b));
   }
   // --- Modal state for viewing raw API details ---
   modalOpen = false;
