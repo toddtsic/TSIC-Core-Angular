@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using TSIC.API.DTOs;
+using TSIC.API.Dtos;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
@@ -172,92 +172,96 @@ public interface IAdnApiService
 
 public class AdnApiService : IAdnApiService
 {
+    private readonly IHostEnvironment _env;
+    private readonly ILogger<AdnApiService> _logger;
+    private readonly IConfiguration _config;
+
+    public AdnApiService(IHostEnvironment env, ILogger<AdnApiService> logger, IConfiguration config)
+    {
+        _env = env;
+        _logger = logger;
+        _config = config;
+    }
+
     public AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false)
     {
-
-#if DEBUG
-        if (bProdOnly)
-        {
-            return AuthorizeNet.Environment.PRODUCTION;
-        }
-        else
+        // Explicit environment gating: Development always sandbox unless caller forces production.
+        if (_env.IsDevelopment() && !bProdOnly)
         {
             return AuthorizeNet.Environment.SANDBOX;
         }
-#else
         return AuthorizeNet.Environment.PRODUCTION;
-#endif
     }
 
     public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(SqlDbContext _context, Guid jobId, bool bProdOnly = false)
     {
-        // Legacy LINQ block removed (commented out) to reduce noise; current logic below handles sandbox vs production.
-
-        bool isDEBUG = false;
-#if DEBUG
-        if (!bProdOnly)
+        var isSandbox = _env.IsDevelopment() && !bProdOnly;
+        if (isSandbox)
         {
-            isDEBUG = true;
-        }
-#endif
-        if (isDEBUG)
-        {
-            //TSIC Sandbox
-            return new AdnCredentialsViewModel()
+            // Prefer configuration / env vars over hard-coded fallbacks.
+            var login = _config["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
+            var key = _config["AuthorizeNet:SandboxTransactionKey"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
+            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(key))
             {
-                AdnLoginId = "4dE5m4WR9ey",
-                AdnTransactionKey = "6zmzD35C47kv45Sn"
-            };
+                _logger.LogWarning("Sandbox Authorize.Net credentials missing; using legacy hard-coded fallback. Configure AuthorizeNet:SandboxLoginId and SandboxTransactionKey.");
+                login = login ?? "4dE5m4WR9ey";
+                key = key ?? "6zmzD35C47kv45Sn";
+            }
+            return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };
+        }
 
-            // Production credential example retained in version control history if needed.
-        }
-        else
+        // Production: fetch from associated customer; fail fast if missing.
+        var creds = await (
+            from j in _context.Jobs
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            where j.JobId == jobId
+            select new AdnCredentialsViewModel
+            {
+                AdnLoginId = c.AdnLoginId,
+                AdnTransactionKey = c.AdnTransactionKey
+            }
+        ).AsNoTracking().SingleOrDefaultAsync();
+
+        if (creds == null || string.IsNullOrWhiteSpace(creds.AdnLoginId) || string.IsNullOrWhiteSpace(creds.AdnTransactionKey))
         {
-            return await (
-                from j in _context.Jobs
-                join c in _context.Customers on j.CustomerId equals c.CustomerId
-                where j.JobId == jobId
-                select new AdnCredentialsViewModel()
-                {
-                    AdnLoginId = c.AdnLoginId,
-                    AdnTransactionKey = c.AdnTransactionKey
-                }
-            )
-            .AsNoTracking()
-            .SingleOrDefaultAsync();
+            _logger.LogError("Production Authorize.Net credentials missing for Job {JobId}.", jobId);
+            throw new InvalidOperationException($"Authorize.Net production credentials not configured for Job {jobId}.");
         }
+        return creds;
     }
 
     public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(SqlDbContext _context, Guid customerId, bool bProdOnly = false)
     {
-        bool isDEBUG = false;
-#if DEBUG
-        if (!bProdOnly)
+        var isSandbox = _env.IsDevelopment() && !bProdOnly;
+        if (isSandbox)
         {
-            isDEBUG = true;
-        }
-#endif
-        if (isDEBUG)
-        {
-            //TSIC Sandbox
-            return new AdnCredentialsViewModel()
+            var login = _config["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
+            var key = _config["AuthorizeNet:SandboxTransactionKey"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
+            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(key))
             {
-                AdnLoginId = "4dE5m4WR9ey",
-                AdnTransactionKey = "6zmzD35C47kv45Sn"
-            };
+                _logger.LogWarning("Sandbox Authorize.Net credentials missing (customer scope). Using legacy fallback.");
+                login = login ?? "4dE5m4WR9ey";
+                key = key ?? "6zmzD35C47kv45Sn";
+            }
+            return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };
         }
-        else
+
+        var creds = await _context.Customers
+            .AsNoTracking()
+            .Where(c => c.CustomerId == customerId)
+            .Select(c => new AdnCredentialsViewModel
+            {
+                AdnLoginId = c.AdnLoginId,
+                AdnTransactionKey = c.AdnTransactionKey
+            })
+            .SingleOrDefaultAsync();
+
+        if (creds == null || string.IsNullOrWhiteSpace(creds.AdnLoginId) || string.IsNullOrWhiteSpace(creds.AdnTransactionKey))
         {
-            return await _context.Customers
-                .AsNoTracking()
-                .Where(c => c.CustomerId == customerId)
-                .Select(c => new AdnCredentialsViewModel()
-                {
-                    AdnLoginId = c.AdnLoginId,
-                    AdnTransactionKey = c.AdnTransactionKey
-                })
-                .SingleOrDefaultAsync();
+            _logger.LogError("Production Authorize.Net credentials missing for Customer {CustomerId}.", customerId);
+            throw new InvalidOperationException($"Authorize.Net production credentials not configured for Customer {customerId}.");
         }
+        return creds;
     }
 
     public createTransactionResponse ADN_AuthorizeCard(
@@ -935,47 +939,40 @@ public class AdnApiService : IAdnApiService
     }
 
     #region helper functions
-    private void UpdateCreateTransactionApiResponse(createTransactionResponse response)
+    private static void UpdateCreateTransactionApiResponse(createTransactionResponse response)
     {
         // validate response
-        if (response != null)
+        if (response == null) return;
+
+        var txn = response.transactionResponse;
+        bool ok = response.messages.resultCode == messageTypeEnum.Ok;
+        if (ok)
         {
-            if (response.messages.resultCode == messageTypeEnum.Ok)
+            if (txn?.messages == null && txn?.errors != null)
             {
-                if (response.transactionResponse.messages != null)
-                {
-                    //success case
-                }
-                else
-                {
-                    if (response.transactionResponse.errors != null)
-                    {
-                        response.transactionResponse.errors[0].errorText = UpdateAdnErrorText(response.transactionResponse.errors[0].errorCode, response.transactionResponse.errors[0].errorText);
-                    }
-                }
+                txn.errors[0].errorText = UpdateAdnErrorText(txn.errors[0].errorCode, txn.errors[0].errorText);
             }
-            else
-            {
-                if (response.transactionResponse != null && response.transactionResponse.errors != null)
-                {
-                    response.transactionResponse.errors[0].errorText = UpdateAdnErrorText(response.transactionResponse.errors[0].errorCode, response.transactionResponse.errors[0].errorText);
-                }
-                else
-                {
-                    response.messages.message[0].text = UpdateAdnMessageText(response.messages.message[0].code, response.messages.message[0].text);
-                }
-            }
+            return;
+        }
+
+        if (txn?.errors != null)
+        {
+            txn.errors[0].errorText = UpdateAdnErrorText(txn.errors[0].errorCode, txn.errors[0].errorText);
+        }
+        else if (response.messages?.message != null && response.messages.message.Length > 0)
+        {
+            response.messages.message[0].text = UpdateAdnMessageText(response.messages.message[0].code, response.messages.message[0].text);
         }
     }
 
-    private string UpdateAdnErrorText(string errorCode, string errorText)
+    private static string UpdateAdnErrorText(string errorCode, string errorText)
     {
         errorText = errorText.Replace(" because of an AVS mismatch.", ".");
 
         switch (errorCode)
         {
             case "2":
-                return "This transaction has been declined. Contact your card issuer to determine the reason."; //This transaction has been declined.;
+                return "This transaction has been declined. Contact your card issuer to determine the reason.";
             case "11":
                 return "This transaction duplicates a transaction submitted within the last 2 minutes and will not be processed."; //A duplicate transaction has been submitted.
             case "45":
@@ -987,7 +984,7 @@ public class AdnApiService : IAdnApiService
         }
     }
 
-    private string UpdateAdnMessageText(string messageCode, string messageText)
+    private static string UpdateAdnMessageText(string messageCode, string messageText)
     {
         switch (messageCode)
         {

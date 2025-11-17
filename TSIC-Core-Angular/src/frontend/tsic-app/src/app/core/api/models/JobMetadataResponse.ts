@@ -20,5 +20,10 @@ export type JobMetadataResponse = {
     playerRegCovid19Waiver?: string | null;
     playerRegRefundPolicy?: string | null;
     offerPlayerRegsaverInsurance?: boolean;
+    allowPayInFull?: boolean;
+    adnArb?: boolean | null;
+    adnArbBillingOccurences?: number | null;
+    adnArbIntervalLength?: number | null;
+    adnArbStartDate?: string | null;
 };
 

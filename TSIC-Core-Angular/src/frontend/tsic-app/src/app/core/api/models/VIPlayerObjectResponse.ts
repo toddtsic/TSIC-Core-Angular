@@ -7,7 +7,7 @@ import type { VIPlayerProductConfigDto } from './VIPlayerProductConfigDto';
 import type { VIThemeDto } from './VIThemeDto';
 export type VIPlayerObjectResponse = {
     client_id?: string | null;
-    theme?: VIThemeDto;
+    theme: VIThemeDto;
     product_config?: VIPlayerProductConfigDto;
     payments?: VIPaymentsDto;
 };

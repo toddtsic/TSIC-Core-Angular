@@ -1,70 +1,74 @@
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 namespace TSIC.API.Dtos.VerticalInsure;
 #region viPlayer
 
 public record RequestVIPlayerRequest
 {
+    [Required]
     public string JobName { get; set; } = string.Empty;
+    [Required]
     public Guid JobId { get; set; }
+    [Required]
     public string FamilyUserId { get; set; } = string.Empty;
 }
 
 public record RequestVITeamRequest
 {
+    [Required]
     public string JobName { get; set; } = string.Empty;
+    [Required]
     public Guid JobId { get; set; }
+    [Required]
     public Guid ClubRepRegId { get; set; }
 }
 
 public record VIPlayerObjectResponse
 {
-    public string client_id { get; set; } = string.Empty;
-    public VIThemeDto theme { get; set; } = new();
-    public VIPlayerProductConfigDto product_config { get; set; } = new();
-    public VIPaymentsDto payments { get; set; } = new();
-
+    [JsonPropertyName("client_id")] public string ClientId { get; set; } = string.Empty;
+    [Required] public VIThemeDto Theme { get; set; } = new();
+    [JsonPropertyName("product_config")] public VIPlayerProductConfigDto ProductConfig { get; set; } = new();
+    public VIPaymentsDto Payments { get; set; } = new();
 }
 
 public record VIPlayerProductConfigDto
 {
     [JsonPropertyName("registration-cancellation")]
-    public List<VIPlayerProductDto> registration_cancellation { get; set; } = new();
+    public List<VIPlayerProductDto> RegistrationCancellation { get; set; } = new();
 }
 
 public record VIPlayerProductDto
 {
-    public VICustomerDto customer { get; set; } = new();
-    public VIPlayerMetadataDto metadata { get; set; } = new();
-
-    public VIPlayerPolicyAttributes policy_attributes { get; set; } = new();
-    public string offer_Id { get; set; } = string.Empty;
-
+    public VICustomerDto Customer { get; set; } = new();
+    public VIPlayerMetadataDto Metadata { get; set; } = new();
+    [JsonPropertyName("policy_attributes")] public VIPlayerPolicyAttributes PolicyAttributes { get; set; } = new();
+    [JsonPropertyName("offer_Id")] public string OfferId { get; set; } = string.Empty;
 }
 
 public record VIPlayerMetadataDto
 {
-    public string context_name { get; set; } = string.Empty;
-    public string context_event { get; set; } = string.Empty;
-    public string context_description { get; set; } = string.Empty;
-    public Guid tsic_registrationid { get; set; }
-    public string tsic_secondchance { get; set; } = string.Empty;
-    public string tsic_customer { get; set; } = string.Empty;
+    [JsonPropertyName("context_name")] public string ContextName { get; set; } = string.Empty;
+    [JsonPropertyName("context_event")] public string ContextEvent { get; set; } = string.Empty;
+    [JsonPropertyName("context_description")] public string ContextDescription { get; set; } = string.Empty;
+    [JsonPropertyName("tsic_registrationid")] public Guid TsicRegistrationId { get; set; }
+    [JsonPropertyName("tsic_secondchance")] public string TsicSecondChance { get; set; } = string.Empty;
+    [JsonPropertyName("tsic_customer")] public string TsicCustomer { get; set; } = string.Empty;
 }
 
 public record VIPlayerPolicyAttributes
 {
-    public DateOnly? event_start_date { get; set; }
-    public DateOnly? event_end_date { get; set; }
-    public int insurable_amount { get; set; }
-    public VIParticipantDto participant { get; set; } = new();
-    public VIOrganizationDto organization { get; set; } = new();
+    [JsonPropertyName("event_start_date")] public DateOnly? EventStartDate { get; set; }
+    [JsonPropertyName("event_end_date")] public DateOnly? EventEndDate { get; set; }
+    [JsonPropertyName("insurable_amount")] public int InsurableAmount { get; set; }
+    [JsonPropertyName("participant")] public VIParticipantDto Participant { get; set; } = new();
+    [JsonPropertyName("organization")] public VIOrganizationDto Organization { get; set; } = new();
 }
 
 public record VIParticipantDto
 {
-    public string first_name { get; set; } = string.Empty;
-    public string last_name { get; set; } = string.Empty;
+    [JsonPropertyName("first_name")] public string FirstName { get; set; } = string.Empty;
+    [JsonPropertyName("last_name")] public string LastName { get; set; } = string.Empty;
 }
 
 #endregion viPlayer
@@ -73,33 +77,31 @@ public record VIParticipantDto
 public record VITeamProductConfigDto
 {
     [JsonPropertyName("team-registration")]
-    public List<VITeamProductDto> team_registration { get; set; } = new();
+    public List<VITeamProductDto> TeamRegistration { get; set; } = new();
 }
 
 public record VITeamProductDto
 {
-    public VICustomerDto customer { get; set; } = new();
-    public VITeamMetadataDto metadata { get; set; } = new();
-
-    public VITeamPolicyAttributes policy_attributes { get; set; } = new();
+    public VICustomerDto Customer { get; set; } = new();
+    public VITeamMetadataDto Metadata { get; set; } = new();
+    [JsonPropertyName("policy_attributes")] public VITeamPolicyAttributes PolicyAttributes { get; set; } = new();
 }
 
 public record VITeamObjectResponse
 {
-    public string client_id { get; set; } = string.Empty;
-    public VIThemeDto theme { get; set; } = new();
-    public VITeamProductConfigDto product_config { get; set; } = new();
-    public VIPaymentsDto payments { get; set; } = new();
+    [JsonPropertyName("client_id")] public string ClientId { get; set; } = string.Empty;
+    public VIThemeDto Theme { get; set; } = new();
+    [JsonPropertyName("product_config")] public VITeamProductConfigDto ProductConfig { get; set; } = new();
+    public VIPaymentsDto Payments { get; set; } = new();
 }
 
 public record VITeamPolicyAttributes
 {
-    public string organization_name { get; set; } = string.Empty;
-    public string organization_contact_name { get; set; } = string.Empty;
-    public string organization_contact_email { get; set; } = string.Empty;
-    public List<VITeamDto> teams { get; set; } = new();
-    [JsonPropertyName("event")]
-    public VIEventDto job_event { get; set; } = new();
+    [JsonPropertyName("organization_name")] public string OrganizationName { get; set; } = string.Empty;
+    [JsonPropertyName("organization_contact_name")] public string OrganizationContactName { get; set; } = string.Empty;
+    [JsonPropertyName("organization_contact_email")] public string OrganizationContactEmail { get; set; } = string.Empty;
+    [JsonPropertyName("teams")] public List<VITeamDto> Teams { get; set; } = new();
+    [JsonPropertyName("event")] public VIEventDto JobEvent { get; set; } = new();
 }
 
 public record VITeamObjectRequest

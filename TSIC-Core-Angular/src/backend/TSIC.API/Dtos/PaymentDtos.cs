@@ -1,4 +1,7 @@
-namespace TSIC.API.DTOs;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
+namespace TSIC.API.Dtos;
 
 public class AdnCredentialsViewModel
 {
@@ -8,15 +11,22 @@ public class AdnCredentialsViewModel
 
 public class PaymentRequestDto
 {
+    [Required, JsonRequired]
     public Guid JobId { get; set; }
+    [Required, JsonRequired]
     public Guid FamilyUserId { get; set; }
+    [Required, JsonRequired]
     public PaymentOption PaymentOption { get; set; }
     public CreditCardInfo? CreditCard { get; set; }
     public string? IdempotencyKey { get; set; }
-    // VerticalInsure (RegSaver) coupling: optional confirmation and policy details
+    // Independent VerticalInsure (RegSaver) policy info: populated only when insurance was purchased separately
     public bool? ViConfirmed { get; set; }
     public string? ViPolicyNumber { get; set; }
     public DateTime? ViPolicyCreateDate { get; set; }
+    // Quote identifiers chosen client-side for independent insurance purchase. Transient only; never stored after payment.
+    public List<string>? ViQuoteIds { get; set; }
+    // Optional token issued by VerticalInsure frontend (vaulted payment method). Mutually exclusive with CreditCard data when invoking insurance purchase.
+    public string? ViToken { get; set; }
 }
 
 public enum PaymentOption

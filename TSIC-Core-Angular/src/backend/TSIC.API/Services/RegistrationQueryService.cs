@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using TSIC.API.DTOs;
+using TSIC.API.Dtos;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 

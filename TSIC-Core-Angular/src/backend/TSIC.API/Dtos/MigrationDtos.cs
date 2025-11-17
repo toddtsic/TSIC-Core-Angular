@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
 namespace TSIC.API.Dtos;
 
 /// <summary>
@@ -20,6 +23,7 @@ public class MigrationReport
 /// </summary>
 public class MigrationResult
 {
+    [Required, JsonRequired]
     public Guid JobId { get; set; }
     public string JobName { get; set; } = string.Empty;
     public string ProfileType { get; set; } = string.Empty;
@@ -35,6 +39,7 @@ public class MigrationResult
 /// </summary>
 public class PreviewMigrationRequest
 {
+    [Required, JsonRequired]
     public Guid JobId { get; set; }
 }
 

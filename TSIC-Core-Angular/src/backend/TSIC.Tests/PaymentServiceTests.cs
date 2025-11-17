@@ -5,7 +5,7 @@ using AuthorizeNet.Api.Contracts.V1;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using TSIC.API.DTOs;
+using TSIC.API.Dtos;
 using TSIC.API.Services;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;

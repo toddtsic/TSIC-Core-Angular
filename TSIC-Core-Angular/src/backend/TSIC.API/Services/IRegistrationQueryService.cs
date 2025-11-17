@@ -1,4 +1,4 @@
-using TSIC.API.DTOs;
+using TSIC.API.Dtos;
 
 namespace TSIC.API.Services;
 

@@ -166,20 +166,17 @@ public class CSharpToMetadataParser
         var hiddenInputPattern = @"<input[^>]*\btype\s*=\s*[""']hidden[""'][^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>|<input[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*\btype\s*=\s*[""']hidden[""'][^>]*>";
         var hiddenMatches = Regex.Matches(viewContent, hiddenInputPattern, RegexOptions.IgnoreCase);
 
-        foreach (Match match in hiddenMatches)
+        foreach (var fieldName in hiddenMatches
+            .Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value)
+            .Select(asp => ExtractFieldName(asp))
+            .Where(fn => !string.IsNullOrEmpty(fn) && seenFields.Add(fn)))
         {
-            var aspForValue = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
-            var fieldName = ExtractFieldName(aspForValue);
-
-            if (!string.IsNullOrEmpty(fieldName) && seenFields.Add(fieldName))
+            fields.Add(new ViewFieldInfo
             {
-                fields.Add(new ViewFieldInfo
-                {
-                    Name = fieldName,
-                    Visibility = "hidden",
-                    InputType = "HIDDEN"
-                });
-            }
+                Name = fieldName,
+                Visibility = "hidden",
+                InputType = "HIDDEN"
+            });
         }
 
         // Pattern 2: @Html.HiddenFor(m => m.FieldName)

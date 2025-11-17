@@ -416,26 +416,7 @@ public class RegistrationService : IRegistrationService
         }
     }
 
-    // Retained for backward compatibility in other call sites, but not used by PreSubmitAsync anymore.
-    private async Task ValidateAndAdjustNextTabAsync(string? metadataJson, List<PreSubmitTeamSelectionDto> selections, PreSubmitRegistrationResponseDto response)
-    {
-        try
-        {
-            var validationErrors = ValidatePlayerFormValues(metadataJson, selections);
-            if (validationErrors.Count > 0)
-            {
-                response.ValidationErrors = validationErrors;
-                if (!response.HasFullTeams)
-                {
-                    response.NextTab = "Forms";
-                }
-            }
-        }
-        catch (Exception vex)
-        {
-            _logger.LogWarning(vex, "[PreSubmit] Server-side metadata validation failed (non-fatal). Skipping.");
-        }
-    }
+    // Removed unused ValidateAndAdjustNextTabAsync method (was retained for backward compatibility).
 
     // Removed VerticalInsure-specific snapshot logic; now handled by IVerticalInsureService.
 

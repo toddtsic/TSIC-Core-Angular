@@ -15,6 +15,52 @@
 			"problemMatcher": "$msCompile"
 		},
 		{
+			"label": "Swagger: wait",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/fetch-swagger.ps1"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Generate Angular API Models",
+			"type": "npm",
+			"script": "generate:api",
+			"options": {
+				"cwd": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Build Angular UI (one-off)",
+			"type": "shell",
+			"command": "npm run build",
+			"options": {
+				"cwd": "${workspaceFolder}/TSIC-Core-Angular/src/frontend/tsic-app"
+			},
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "Refresh Angular API models (one-click)",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"dotnet: run (API)",
+				"Swagger: wait",
+				"Generate Angular API Models",
+				"Build Angular UI (one-off)"
+			],
+			"problemMatcher": []
+		},
+		{
 			"label": "Start Angular Dev Server",
 			"type": "npm",
 			"script": "start",

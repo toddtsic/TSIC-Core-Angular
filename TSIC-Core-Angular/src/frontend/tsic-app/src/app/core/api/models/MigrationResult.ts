@@ -4,7 +4,7 @@
 /* eslint-disable */
 import type { ProfileMetadata } from './ProfileMetadata';
 export type MigrationResult = {
-    jobId?: string;
+    jobId: string;
     jobName?: string | null;
     profileType?: string | null;
     success?: boolean;

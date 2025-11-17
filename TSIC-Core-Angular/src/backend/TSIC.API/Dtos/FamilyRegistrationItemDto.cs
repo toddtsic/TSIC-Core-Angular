@@ -1,4 +1,4 @@
-namespace TSIC.API.DTOs;
+namespace TSIC.API.Dtos;
 
 public sealed class FamilyRegistrationItemDto
 {

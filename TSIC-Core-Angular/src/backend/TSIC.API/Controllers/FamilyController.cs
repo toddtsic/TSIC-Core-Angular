@@ -19,7 +19,6 @@ namespace TSIC.API.Controllers;
 [Route("api/[controller]")]
 public class FamilyController : ControllerBase
 {
-    private readonly UserManager<ApplicationUser> _userManager;
     private readonly SqlDbContext _db;
     private readonly IFamilyService _familyService;
     // DateFormat constant moved into FamilyService
@@ -28,9 +27,8 @@ public class FamilyController : ControllerBase
     // Avoid special-casing (fees, waivers, sportAssnId, etc.) so client can rely on a single source of truth.
     // BuildFormValuesDictionary moved into FamilyService
 
-    public FamilyController(UserManager<ApplicationUser> userManager, SqlDbContext db, IFamilyService familyService)
+    public FamilyController(SqlDbContext db, IFamilyService familyService)
     {
-        _userManager = userManager;
         _db = db;
         _familyService = familyService;
     }

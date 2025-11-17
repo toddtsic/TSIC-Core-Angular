@@ -5,13 +5,15 @@
 import type { CreditCardInfo } from './CreditCardInfo';
 import type { PaymentOption } from './PaymentOption';
 export type PaymentRequestDto = {
-    jobId?: string;
-    familyUserId?: string;
-    paymentOption?: PaymentOption;
+    jobId: string;
+    familyUserId: string;
+    paymentOption: PaymentOption;
     creditCard?: CreditCardInfo;
-    idempotencyKey?: string;
-    viConfirmed?: boolean;
-    viPolicyNumber?: string;
-    viPolicyCreateDate?: string;
+    idempotencyKey?: string | null;
+    viConfirmed?: boolean | null;
+    viPolicyNumber?: string | null;
+    viPolicyCreateDate?: string | null;
+    viQuoteIds?: Array<string> | null;
+    viToken?: string | null;
 };
 

@@ -11,6 +11,7 @@ export type { ChildDto as ChildDtoDto } from './models/ChildDto';
 export type { CloneProfileRequest as CloneProfileRequestDto } from './models/CloneProfileRequest';
 export type { CloneProfileResult as CloneProfileResultDto } from './models/CloneProfileResult';
 export type { CreditCardInfo as CreditCardInfoDto } from './models/CreditCardInfo';
+export type { EmailHealthStatus as EmailHealthStatusDto } from './models/EmailHealthStatus';
 export type { FamilyPlayerDto as FamilyPlayerDtoDto } from './models/FamilyPlayerDto';
 export type { FamilyPlayerRegistrationDto as FamilyPlayerRegistrationDtoDto } from './models/FamilyPlayerRegistrationDto';
 export type { FamilyPlayersResponseDto as FamilyPlayersResponseDtoDto } from './models/FamilyPlayersResponseDto';
@@ -22,6 +23,8 @@ export type { FamilyUpdateRequest as FamilyUpdateRequestDto } from './models/Fam
 export type { FamilyUserSummaryDto as FamilyUserSummaryDtoDto } from './models/FamilyUserSummaryDto';
 export type { FieldCondition as FieldConditionDto } from './models/FieldCondition';
 export type { FieldValidation as FieldValidationDto } from './models/FieldValidation';
+export type { InsurancePurchaseRequestDto as InsurancePurchaseRequestDtoDto } from './models/InsurancePurchaseRequestDto';
+export type { InsurancePurchaseResponseDto as InsurancePurchaseResponseDtoDto } from './models/InsurancePurchaseResponseDto';
 export type { JobMetadataResponse as JobMetadataResponseDto } from './models/JobMetadataResponse';
 export type { JobRegFieldDto as JobRegFieldDtoDto } from './models/JobRegFieldDto';
 export type { JobRegFormDto as JobRegFormDtoDto } from './models/JobRegFormDto';

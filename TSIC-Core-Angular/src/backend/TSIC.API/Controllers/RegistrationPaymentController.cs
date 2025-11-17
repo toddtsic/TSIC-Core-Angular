@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using TSIC.API.DTOs;
+using TSIC.API.Dtos;
 using TSIC.API.Services;
 
 namespace TSIC.API.Controllers;

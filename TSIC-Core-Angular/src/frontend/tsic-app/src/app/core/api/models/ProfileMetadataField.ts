@@ -13,13 +13,9 @@ export type ProfileMetadataField = {
     dataSource?: string | null;
     options?: Array<ProfileFieldOption> | null;
     validation?: FieldValidation;
-    order?: number;
+    order: number;
     visibility?: string | null;
-    /**
-     * @deprecated
-     */
-    adminOnly?: boolean;
-    computed?: boolean;
+    computed: boolean;
     conditionalOn?: FieldCondition;
 };
 

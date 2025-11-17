@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { ViConfirmModalComponent } from '../verticalinsure/vi-confirm-modal.component';
 import type { VIPlayerObjectResponse } from '../../../core/api/models/VIPlayerObjectResponse';
 import type { Loadable } from '../../../core/models/state.models';
 import { TeamService } from '../team.service';
@@ -25,13 +26,23 @@ interface LineItem {
 @Component({
   selector: 'app-rw-payment',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ViConfirmModalComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Payment</h5>
       </div>
       <div class="card-body">
+        <!-- VerticalInsure Modal Host -->
+        @if (state.showVerticalInsureModal()) {
+          <app-vi-confirm-modal
+            [quotes]="quotes"
+            [ready]="viHasUserResponse"
+            [error]="verticalInsureError"
+            (confirmed)="onViConfirmed($event)"
+            (declined)="onViDeclined()"
+            (closed)="onViClosed()" />
+        }
         <!-- RegSaver / VerticalInsure offer region (simple always-present container) -->
         <div class="mb-3">
           @if (state.regSaverDetails()) {
@@ -51,11 +62,28 @@ interface LineItem {
             <button type="button" id="btnVIPayment" onclick="submitVIPayment()">Submit Payment</button>
         </div>
         @if (state.offerPlayerRegSaver()) {
-          <div class="form-check mt-2">
-            <input class="form-check-input" type="checkbox" id="viConfirm" [(ngModel)]="viConfirmChecked">
-            <label class="form-check-label" for="viConfirm">
-              I confirm my RegSaver insurance selection (purchase or decline)
-            </label>
+          <!-- VerticalInsure decision gating: show status or launch modal -->
+          <div class="mt-2 d-flex flex-column gap-2">
+            @if (!state.hasVerticalInsureDecision()) {
+              <button type="button" class="btn btn-outline-info btn-sm align-self-start" (click)="openViModal()">Review RegSaver Insurance Options…</button>
+              <div class="small text-muted">Insurance purchase is optional. You must review and accept or decline before payment.</div>
+            } @else {
+              <div class="alert" [ngClass]="state.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge" [ngClass]="state.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
+                  <div>
+                    @if (state.verticalInsureConfirmed()) {
+                      <div class="fw-semibold mb-0">Insurance Selected</div>
+                      <div class="small text-muted" *ngIf="state.viConsent()?.policyNumber">Policy #: {{ state.viConsent()?.policyNumber }}</div>
+                    } @else {
+                      <div class="fw-semibold mb-0">Insurance Declined</div>
+                      <div class="small text-muted">You chose not to purchase coverage.</div>
+                    }
+                  </div>
+                  <button type="button" class="btn btn-link btn-sm ms-auto" (click)="openViModal()">Change</button>
+                </div>
+              </div>
+            }
           </div>
         }
 
@@ -180,11 +208,12 @@ export class PaymentComponent implements AfterViewInit {
 
   // VerticalInsure integration state
   private verticalInsureInstance: any;
-  private quotes: any[] = [];
-  private viHasUserResponse: boolean = false;
+  quotes: any[] = [];
+  viHasUserResponse: boolean = false;
   private userChangedOption = false;
   submitting = false;
   private lastIdemKey: string | null = null;
+  verticalInsureError: string | null = null;
   private idemStorageKey(): string {
     return `tsic:payidem:${this.state.jobId()}:${this.state.familyUser()?.familyUserId}`;
   }
@@ -202,7 +231,8 @@ export class PaymentComponent implements AfterViewInit {
   private clearStoredIdem(): void {
     try { localStorage.removeItem(this.idemStorageKey()); } catch { /* ignore */ }
   }
-  viConfirmChecked = false;
+  // Legacy checkbox removed; consent now tracked via wizard service signals.
+  viConfirmChecked = false; // retained for backward compatibility (unused gating replaced)
 
 
   ngAfterViewInit(): void {
@@ -260,6 +290,7 @@ export class PaymentComponent implements AfterViewInit {
             this.quotes = offerState?.quotes;
 
             console.log('viHasUserResponse:', this.viHasUserResponse, ' quotes:', this.quotes, 'isValid:', isValid);
+            this.verticalInsureError = null;
           });
       },
       () => {
@@ -337,9 +368,9 @@ export class PaymentComponent implements AfterViewInit {
 
   canSubmit = computed(() => {
     const baseOk = this.lineItems().length > 0 && this.currentTotal() > 0 && !this.submitting;
-    // If RegSaver is offered, require explicit confirmation checkbox
     if (this.state.offerPlayerRegSaver()) {
-      return baseOk && this.viConfirmChecked === true;
+      // Require a decision (confirmed or declined) before enabling payment
+      return baseOk && this.state.hasVerticalInsureDecision();
     }
     return baseOk;
   });
@@ -384,9 +415,10 @@ export class PaymentComponent implements AfterViewInit {
       paymentOption: this.state.paymentOption(),
       creditCard: this.creditCard,
       idempotencyKey: this.lastIdemKey,
-      viConfirmed: this.state.offerPlayerRegSaver() ? this.viConfirmChecked : undefined,
-      viPolicyNumber: rs?.policyNumber || undefined,
-      viPolicyCreateDate: rs?.policyCreateDate || undefined
+      viConfirmed: this.state.offerPlayerRegSaver() ? this.state.verticalInsureConfirmed() : undefined,
+      viDeclined: this.state.offerPlayerRegSaver() ? this.state.verticalInsureDeclined() : undefined,
+      viPolicyNumber: (this.state.verticalInsureConfirmed() ? (rs?.policyNumber || this.state.viConsent()?.policyNumber) : undefined) || undefined,
+      viPolicyCreateDate: (this.state.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.state.viConsent()?.policyCreateDate) : undefined) || undefined
     };
 
     this.http.post('/api/registration/submit-payment', request).subscribe({
@@ -425,4 +457,15 @@ export class PaymentComponent implements AfterViewInit {
       }
     });
   }
+
+  // Launch insurance modal
+  openViModal(): void {
+    this.state.openVerticalInsureModal();
+  }
+
+  onViConfirmed(evt: { policyNumber: string | null; policyCreateDate: string | null; quotes: any[] }): void {
+    this.state.confirmVerticalInsurePurchase(evt.policyNumber, evt.policyCreateDate, evt.quotes);
+  }
+  onViDeclined(): void { this.state.declineVerticalInsurePurchase(); }
+  onViClosed(): void { this.state.showVerticalInsureModal.set(false); }
 }

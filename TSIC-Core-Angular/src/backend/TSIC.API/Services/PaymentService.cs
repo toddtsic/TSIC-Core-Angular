@@ -1,6 +1,6 @@
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.EntityFrameworkCore;
-using TSIC.API.DTOs;
+using TSIC.API.Dtos;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -248,17 +248,15 @@ public class PaymentService : IPaymentService
 
     private async Task<Dictionary<Guid, decimal>> ComputeChargesAsync(IEnumerable<Registrations> registrations, PaymentOption option)
     {
-        var map = new Dictionary<Guid, decimal>();
         if (option == PaymentOption.PIF)
         {
-            foreach (var reg in registrations)
-            {
-                if (reg.RegistrationId != Guid.Empty)
-                    map[reg.RegistrationId] = Math.Max(0, reg.OwedTotal);
-            }
+            return registrations
+                .Where(r => r.RegistrationId != Guid.Empty)
+                .ToDictionary(r => r.RegistrationId, r => Math.Max(0, r.OwedTotal));
         }
         else if (option == PaymentOption.Deposit)
         {
+            var map = new Dictionary<Guid, decimal>();
             foreach (var reg in registrations)
             {
                 var dep = await ResolveDepositForRegAsync(reg);
@@ -266,8 +264,9 @@ public class PaymentService : IPaymentService
                 if (cap > 0 && reg.RegistrationId != Guid.Empty)
                     map[reg.RegistrationId] = cap;
             }
+            return map;
         }
-        return map;
+        return new Dictionary<Guid, decimal>();
     }
 
     private async Task<decimal> ResolveDepositForRegAsync(Registrations reg)

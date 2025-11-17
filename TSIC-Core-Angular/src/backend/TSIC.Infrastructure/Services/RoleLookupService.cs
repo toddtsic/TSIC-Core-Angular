@@ -33,7 +33,7 @@ namespace TSIC.Infrastructure.Services
                     && DateTime.Now < j.ExpiryAdmin
                     && role.Id == RoleConstants.Superuser
                 orderby j.JobName
-                select new RegistrationDto(r.RegistrationId.ToString(), j.JobName, $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}", j.JobPath)
+                select new RegistrationDto(r.RegistrationId.ToString(), j.JobName ?? string.Empty, $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}", j.JobPath)
             ).AsNoTracking().ToListAsync();
 
             if (lSuperUserRoles.Count > 0)
@@ -55,7 +55,7 @@ namespace TSIC.Infrastructure.Services
                 orderby j.JobName
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
-                    j.JobName,
+                    j.JobName ?? string.Empty,
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )
@@ -80,7 +80,7 @@ namespace TSIC.Infrastructure.Services
                 orderby j.JobName
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
-                    j.JobName,
+                    j.JobName ?? string.Empty,
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )
@@ -107,9 +107,8 @@ namespace TSIC.Infrastructure.Services
                     && role.Id == RoleConstants.Player
                 orderby j.JobName
                 select new RegistrationDto(
-
                     r.RegistrationId.ToString(),
-                    $"{j.JobName}:{u.FirstName} {u.LastName}:{ag.AgegroupName}:{t.TeamName}",
+                    $"{(j.JobName ?? string.Empty)}:{u.FirstName} {u.LastName}:{ag.AgegroupName}:{t.TeamName}",
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )
@@ -133,9 +132,8 @@ namespace TSIC.Infrastructure.Services
                     && role.Id == RoleConstants.ClubRep
                 orderby j.JobName
                 select new RegistrationDto(
-
                     r.RegistrationId.ToString(),
-                    j.JobName,
+                    j.JobName ?? string.Empty,
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )
@@ -162,7 +160,7 @@ namespace TSIC.Infrastructure.Services
                 orderby j.JobName
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
-                    $"{j.JobName}:{ag.AgegroupName}:{t.TeamName}",
+                    $"{(j.JobName ?? string.Empty)}:{ag.AgegroupName}:{t.TeamName}",
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )
@@ -187,7 +185,7 @@ namespace TSIC.Infrastructure.Services
                 orderby j.JobName
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
-                    $"{j.JobName}",
+                    j.JobName ?? string.Empty,
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )
@@ -211,9 +209,8 @@ namespace TSIC.Infrastructure.Services
                     && r.RoleId == RoleConstants.RefAssignor
                 orderby j.JobName
                 select new RegistrationDto(
-
                     r.RegistrationId.ToString(),
-                    $"{j.JobName}",
+                    j.JobName ?? string.Empty,
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )
@@ -238,7 +235,7 @@ namespace TSIC.Infrastructure.Services
                 orderby j.JobName
                 select new RegistrationDto(
                     r.RegistrationId.ToString(),
-                    $"{j.JobName}",
+                    j.JobName ?? string.Empty,
                     $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
                     j.JobPath
                 )

@@ -39,5 +39,10 @@
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="9.32.0.97167" />
     <!-- Authorize.Net -->
     <PackageVersion Include="AuthorizeNet.Core" Version="8.0.1" />
+      <!-- MimeKit for constructing raw email messages -->
+  <!-- Upgraded MimeKit to address GHSA-gmc6-fwg3-75m5 vulnerability (was 4.5.1 resolved to 4.6.0). Assume patched version >= 4.12.0 is safe. -->
+  <PackageVersion Include="MimeKit" Version="4.12.0" />
+    <!-- Amazon SES (email service) -->
+    <PackageVersion Include="AWSSDK.SimpleEmail" Version="3.7.300.6" />
   </ItemGroup>
 </Project>

@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
-using TSIC.API.Dtos;
-using TSIC.API.Dtos.VerticalInsure;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using TSIC.API.Dtos; // Unified DTO namespace (PreSubmitInsuranceDto, VerticalInsurePurchaseResult, CreditCardInfo)
+using TSIC.API.Dtos.VerticalInsure; // VI specific DTOs
+using TSIC.Domain.Entities; // Registrations entity
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
@@ -16,13 +20,15 @@ public sealed class VerticalInsureService : IVerticalInsureService
     private readonly IHostEnvironment _env;
     private readonly ILogger<VerticalInsureService> _logger;
     private readonly ITeamLookupService _teamLookupService;
+    private readonly IHttpClientFactory? _httpClientFactory; // optional factory for real purchase
 
-    public VerticalInsureService(SqlDbContext db, IHostEnvironment env, ILogger<VerticalInsureService> logger, ITeamLookupService teamLookupService)
+    public VerticalInsureService(SqlDbContext db, IHostEnvironment env, ILogger<VerticalInsureService> logger, ITeamLookupService teamLookupService, IHttpClientFactory? httpClientFactory = null)
     {
         _db = db;
         _env = env;
         _logger = logger;
         _teamLookupService = teamLookupService;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<PreSubmitInsuranceDto> BuildOfferAsync(Guid jobId, string familyUserId)
@@ -61,6 +67,139 @@ public sealed class VerticalInsureService : IVerticalInsureService
             _logger.LogWarning(ex, "[VerticalInsure] Failed to build snapshot.");
             return new PreSubmitInsuranceDto { Available = false, Error = "Snapshot generation failed." };
         }
+    }
+
+    public async Task<VerticalInsurePurchaseResult> PurchasePoliciesAsync(Guid jobId, string familyUserId, IReadOnlyCollection<Guid> registrationIds, IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card, CancellationToken ct = default)
+    {
+        var result = new VerticalInsurePurchaseResult();
+        try
+        {
+            // 1. Validate & load registrations
+            var regs = await ValidateAndLoadAsync(jobId, familyUserId, registrationIds, quoteIds, result, ct);
+            if (!result.Success) return result; // Early exit on validation failure
+
+            // 2. Execute real purchase if HttpClientFactory available, else stub
+            if (_httpClientFactory != null)
+            {
+                await ExecuteHttpPurchaseAsync(regs, familyUserId, quoteIds, token, card, result, ct);
+            }
+            else
+            {
+                ApplyStubPurchase(regs, familyUserId, result);
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[VerticalInsure] purchase failed.");
+            result.Success = false;
+            result.Error = "Insurance purchase failed.";
+        }
+        return result;
+    }
+
+    private async Task<List<Registrations>> ValidateAndLoadAsync(Guid jobId, string familyUserId, IReadOnlyCollection<Guid> registrationIds, IReadOnlyCollection<string> quoteIds, VerticalInsurePurchaseResult result, CancellationToken ct)
+    {
+        if (registrationIds.Count == 0 || quoteIds.Count == 0)
+        {
+            result.Success = false; result.Error = "No registrations or quotes supplied."; return new();
+        }
+        if (registrationIds.Count != quoteIds.Count)
+        {
+            result.Success = false; result.Error = "Registration / quote count mismatch."; return new();
+        }
+        var regs = await _db.Registrations.Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && registrationIds.Contains(r.RegistrationId)).ToListAsync(ct);
+        if (regs.Count == 0)
+        {
+            result.Success = false; result.Error = "No matching registrations found."; return new();
+        }
+        if (regs.Exists(r => !string.IsNullOrWhiteSpace(r.RegsaverPolicyId)))
+        {
+            result.Success = false; result.Error = "One or more registrations already have a policy."; return new();
+        }
+        result.Success = true; // mark validation success
+        return regs;
+    }
+
+    private async Task ExecuteHttpPurchaseAsync(List<Registrations> regs, string familyUserId, IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card, VerticalInsurePurchaseResult result, CancellationToken ct)
+    {
+        var client = _httpClientFactory!.CreateClient("verticalinsure");
+        var clientId = _env.IsDevelopment() ? "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U" : "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
+        var clientSecret = _env.IsDevelopment() ? (Environment.GetEnvironmentVariable("VI_DEV_SECRET") ?? "dev-secret-not-set") : (Environment.GetEnvironmentVariable("VI_PROD_SECRET") ?? "prod-secret-not-set");
+        var authString = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+
+        var payload = BuildBatchPayload(quoteIds, token, card);
+        var req = new HttpRequestMessage(HttpMethod.Post, "v1/purchase/registration-cancellation/batch")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+        };
+        req.Headers.Add("Authorization", $"Basic {authString}");
+        req.Headers.Add("User-Agent", "TSIC.API HttpClient");
+
+        var response = await client.SendAsync(req, ct);
+        if (!response.IsSuccessStatusCode || !(response.StatusCode == System.Net.HttpStatusCode.Created || response.StatusCode == System.Net.HttpStatusCode.OK))
+        {
+            result.Success = false; result.Error = $"Insurance purchase HTTP error: {(int)response.StatusCode}"; return;
+        }
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var policies = await JsonSerializer.DeserializeAsync<List<VIMakePlayerPaymentResponseDto>>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, ct) ?? new();
+        foreach (var policy in policies)
+        {
+            if (policy.policy_status == "ACTIVE" && !string.IsNullOrWhiteSpace(policy.policy_number))
+            {
+                var reg = regs.Find(r => r.RegistrationId == policy.metadata.TsicRegistrationId);
+                if (reg != null)
+                {
+                    reg.RegsaverPolicyId = policy.policy_number;
+                    reg.RegsaverPolicyIdCreateDate = DateTime.UtcNow;
+                    reg.Modified = DateTime.UtcNow;
+                    reg.LebUserId = familyUserId;
+                    result.Policies[reg.RegistrationId] = policy.policy_number;
+                }
+            }
+        }
+        await _db.SaveChangesAsync(ct);
+        result.Success = true;
+    }
+
+    private static VIMakeTokenBatchCCPaymentDto BuildBatchPayload(IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card)
+    {
+        var dto = new VIMakeTokenBatchCCPaymentDto
+        {
+            quotes = quoteIds.Select(q => new VIMakeTokenBatchQuotesDto { quote_id = q }).ToList(),
+            payment_method = new VIMakeTokenBatchPaymentMethodDto()
+        };
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            dto.payment_method.token = $"stripe:{token}";
+        }
+        else if (card != null)
+        {
+            dto.payment_method.card = new VICreditCardDto
+            {
+                number = card.Number ?? string.Empty,
+                verification = card.Code ?? string.Empty,
+                month = (card.Expiry?.Length >= 2) ? card.Expiry!.Substring(0, 2) : string.Empty,
+                year = (card.Expiry?.Length == 4) ? ("20" + card.Expiry!.Substring(2, 2)) : string.Empty,
+                name = ($"{card.FirstName} {card.LastName}").Trim(),
+                address_postal_code = card.Zip ?? string.Empty
+            };
+        }
+        return dto;
+    }
+
+    private static void ApplyStubPurchase(IEnumerable<Registrations> regs, string familyUserId, VerticalInsurePurchaseResult result)
+    {
+        foreach (var reg in regs)
+        {
+            var policyNo = $"POL-{reg.RegistrationId.ToString("N").Substring(0, 8).ToUpper()}";
+            reg.RegsaverPolicyId = policyNo;
+            reg.RegsaverPolicyIdCreateDate = DateTime.UtcNow;
+            reg.Modified = DateTime.UtcNow;
+            reg.LebUserId = familyUserId;
+            result.Policies[reg.RegistrationId] = policyNo;
+        }
+        result.Success = true;
     }
 
     private async Task<List<(Guid RegistrationId, Guid AssignedTeamId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)>> GetEligibleRegistrationsAsync(Guid jobId, string familyUserId)
@@ -138,7 +277,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
             var insurable = ComputeInsurableAmountFromCentralized(fee, r.PerRegistrantFee, r.TeamFee, r.FeeTotal);
             var product = new VIPlayerProductDto
             {
-                customer = new VICustomerDto
+                Customer = new VICustomerDto
                 {
                     email_address = family?.Email ?? string.Empty,
                     first_name = family?.FirstName ?? string.Empty,
@@ -149,21 +288,21 @@ public sealed class VerticalInsureService : IVerticalInsureService
                     phone = family?.Phone ?? string.Empty,
                     street = string.Empty
                 },
-                metadata = new VIPlayerMetadataDto
+                Metadata = new VIPlayerMetadataDto
                 {
-                    tsic_secondchance = "0",
-                    context_name = contextName,
-                    context_event = jobName ?? contextName,
-                    context_description = r.Assignment ?? string.Empty,
-                    tsic_registrationid = r.RegistrationId
+                    TsicSecondChance = "0",
+                    ContextName = contextName,
+                    ContextEvent = jobName ?? contextName,
+                    ContextDescription = r.Assignment ?? string.Empty,
+                    TsicRegistrationId = r.RegistrationId
                 },
-                policy_attributes = new VIPlayerPolicyAttributes
+                PolicyAttributes = new VIPlayerPolicyAttributes
                 {
-                    event_start_date = DateOnly.FromDateTime(DateTime.Now).AddDays(1),
-                    event_end_date = DateOnly.FromDateTime(DateTime.Now).AddYears(1),
-                    insurable_amount = insurable,
-                    participant = new VIParticipantDto { first_name = r.FirstName ?? string.Empty, last_name = r.LastName ?? string.Empty },
-                    organization = new VIOrganizationDto
+                    EventStartDate = DateOnly.FromDateTime(DateTime.Now).AddDays(1),
+                    EventEndDate = DateOnly.FromDateTime(DateTime.Now).AddYears(1),
+                    InsurableAmount = insurable,
+                    Participant = new VIParticipantDto { FirstName = r.FirstName ?? string.Empty, LastName = r.LastName ?? string.Empty },
+                    Organization = new VIOrganizationDto
                     {
                         org_contact_email = director?.Email ?? string.Empty,
                         org_contact_first_name = director?.FirstName ?? string.Empty,
@@ -186,17 +325,17 @@ public sealed class VerticalInsureService : IVerticalInsureService
             "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
         return new VIPlayerObjectResponse
         {
-            client_id = clientId,
-            payments = new VIPaymentsDto { enabled = false, button = false },
-            theme = new VIThemeDto
+            ClientId = clientId,
+            Payments = new VIPaymentsDto { enabled = false, button = false },
+            Theme = new VIThemeDto
             {
                 colors = new VIColorsDto { primary = "purple" },
                 font_family = "Fira Sans",
                 components = new VIComponentsDto()
             },
-            product_config = new VIPlayerProductConfigDto
+            ProductConfig = new VIPlayerProductConfigDto
             {
-                registration_cancellation = products
+                RegistrationCancellation = products
             }
         };
     }

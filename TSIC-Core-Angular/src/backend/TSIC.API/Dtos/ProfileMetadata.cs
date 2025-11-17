@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 namespace TSIC.API.Dtos;
 
 /// <summary>
@@ -56,6 +58,7 @@ public class ProfileMetadataField
     /// <summary>
     /// Display order (1-based)
     /// </summary>
+    [Required, JsonRequired]
     public int Order { get; set; }
 
     /// <summary>
@@ -64,15 +67,12 @@ public class ProfileMetadataField
     /// </summary>
     public string Visibility { get; set; } = "public";
 
-    /// <summary>
-    /// If true, only admin can see/edit this field (DEPRECATED - use Visibility instead)
-    /// </summary>
-    [Obsolete("Use Visibility property instead")]
-    public bool AdminOnly { get; set; }
+    // Removed deprecated AdminOnly property; use Visibility instead.
 
     /// <summary>
     /// If true, field is computed and not editable
     /// </summary>
+    [Required, JsonRequired]
     public bool Computed { get; set; }
 
     /// <summary>

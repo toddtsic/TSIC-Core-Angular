@@ -10,6 +10,9 @@ using TSIC.API.Services;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Validation;
 using TSIC.API.Services.Auth;
+using TSIC.API.Services.Email;
+using Amazon.SimpleEmail;
+using Amazon;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -31,11 +34,38 @@ builder.Services.AddScoped<IFeeResolverService, FeeResolverService>();
 builder.Services.AddScoped<IFeeCalculatorService, FeeCalculatorService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
+builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
+builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();
+// VerticalInsure named HttpClient registration (base address only; secrets via env vars VI_DEV_SECRET/VI_PROD_SECRET)
+builder.Services.AddHttpClient("verticalinsure", (sp, c) =>
+{
+    // Prefer configuration or env override to satisfy analyzer (S1075)
+    var cfgBase = builder.Configuration.GetValue<string>("VerticalInsure:BaseUrl")
+                  ?? Environment.GetEnvironmentVariable("VI_BASE_URL")
+                  ?? "https://api.verticalinsure.com"; // fallback
+    c.BaseAddress = new Uri(cfgBase);
+    c.DefaultRequestHeaders.Add("User-Agent", "TSIC.API");
+});
 builder.Services.AddScoped<IFamilyService, FamilyService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+// Email (Amazon SES only)
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddSingleton<IAmazonSimpleEmailService>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<EmailSettings>>().Value;
+    // If region specified use it, else default chain.
+    if (!string.IsNullOrWhiteSpace(opts.AwsRegion))
+    {
+        var region = Amazon.RegionEndpoint.GetBySystemName(opts.AwsRegion);
+        return new AmazonSimpleEmailServiceClient(region);
+    }
+    return new AmazonSimpleEmailServiceClient();
+});
+builder.Services.AddSingleton<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailHealthService, EmailHealthService>();
 
 // US LAX settings and HTTP client
 builder.Services.Configure<UsLaxSettings>(builder.Configuration.GetSection("UsLax"));

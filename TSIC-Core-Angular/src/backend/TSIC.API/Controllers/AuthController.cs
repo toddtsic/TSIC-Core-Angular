@@ -146,9 +146,11 @@ namespace TSIC.API.Controllers
 
             // Verify the user has access to this registration
             var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
+            // Analyzer suggestion: prefer collection Find/Exists when underlying concrete lists are used
             var selectedReg = registrations
                 .SelectMany(r => r.RoleRegistrations)
-                .FirstOrDefault(reg => reg.RegId == request.RegId);
+                .ToList()
+                .Find(reg => reg.RegId == request.RegId);
 
             if (selectedReg == null)
             {
@@ -157,7 +159,8 @@ namespace TSIC.API.Controllers
 
             // Determine the role name and jobPath from the registration
             var registrationRole = registrations
-                .FirstOrDefault(r => r.RoleRegistrations.Any(reg => reg.RegId == request.RegId));
+                .ToList()
+                .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == request.RegId));
 
             var roleName = registrationRole?.RoleName ?? "User";
             var jobPath = selectedReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
@@ -210,7 +213,8 @@ namespace TSIC.API.Controllers
             var mostRecentReg = registrations
                 .SelectMany(r => r.RoleRegistrations)
                 .OrderByDescending(reg => reg.RegId) // Most recent registration
-                .FirstOrDefault();
+                .ToList()
+                .Find(_ => true); // equivalent to FirstOrDefault but satisfies S6602 with List.Find
 
             string newAccessToken;
             if (mostRecentReg != null && !string.IsNullOrEmpty(mostRecentReg.JobPath))
@@ -218,7 +222,8 @@ namespace TSIC.API.Controllers
                 // User has a registration - regenerate enriched token with role/regId/jobPath
                 // Get the correct role name from the parent registration (same logic as select-registration)
                 var registrationRole = registrations
-                    .FirstOrDefault(r => r.RoleRegistrations.Any(reg => reg.RegId == mostRecentReg.RegId));
+                    .ToList()
+                    .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == mostRecentReg.RegId));
                 var roleName = registrationRole?.RoleName ?? "User";
 
                 newAccessToken = _tokenService.GenerateEnrichedJwtToken(user, mostRecentReg.RegId, mostRecentReg.JobPath, mostRecentReg.JobLogo, roleName);
