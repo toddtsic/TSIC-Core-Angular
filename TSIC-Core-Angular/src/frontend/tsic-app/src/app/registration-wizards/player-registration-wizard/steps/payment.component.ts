@@ -1,10 +1,12 @@
 import { Component, EventEmitter, Output, computed, inject, AfterViewInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { ViConfirmModalComponent } from '../verticalinsure/vi-confirm-modal.component';
 import type { VIPlayerObjectResponse } from '../../../core/api/models/VIPlayerObjectResponse';
+import type { PaymentResponseDto } from '../../../core/api/models/PaymentResponseDto';
+import { environment } from '../../../../environments/environment';
 import type { Loadable } from '../../../core/models/state.models';
 import { TeamService } from '../team.service';
 
@@ -208,7 +210,7 @@ export class PaymentComponent implements AfterViewInit {
 
   // VerticalInsure integration state
   private verticalInsureInstance: any;
-  quotes: any[] = [];
+  quotes: string[] = [];
   viHasUserResponse: boolean = false;
   private userChangedOption = false;
   submitting = false;
@@ -421,8 +423,8 @@ export class PaymentComponent implements AfterViewInit {
       viPolicyCreateDate: (this.state.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.state.viConsent()?.policyCreateDate) : undefined) || undefined
     };
 
-    this.http.post('/api/registration/submit-payment', request).subscribe({
-      next: (response: any) => {
+    this.http.post<PaymentResponseDto>(`${environment.apiUrl}/registration/submit-payment`, request).subscribe({
+      next: (response) => {
         if (response.success) {
           // Handle success, perhaps navigate to next step
           console.log('Payment successful', response);
@@ -450,8 +452,8 @@ export class PaymentComponent implements AfterViewInit {
           this.submitting = false;
         }
       },
-      error: (error: any) => {
-        console.error('Payment error', error);
+      error: (error: HttpErrorResponse) => {
+        console.error('Payment error', error?.error?.message || error.message || error);
         // Preserve idempotency key for retry
         this.submitting = false;
       }

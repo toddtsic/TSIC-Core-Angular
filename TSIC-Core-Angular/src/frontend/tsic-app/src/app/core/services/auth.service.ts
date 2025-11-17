@@ -1,6 +1,6 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { Roles, RoleName } from '../models/roles.constants';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, throwError } from 'rxjs';
 import { tap, map, catchError } from 'rxjs/operators';
@@ -82,9 +82,9 @@ export class AuthService {
         this.initializeFromToken();
         this.loginLoading.set(false);
       },
-      error: (error) => {
+      error: (error: HttpErrorResponse) => {
         this.loginLoading.set(false);
-        const msg = (error as any)?.error?.message || 'Login failed. Please check your credentials.';
+        const msg = error?.error?.message || error?.message || 'Login failed. Please check your credentials.';
         this.loginError.set(msg);
       }
     });
@@ -113,9 +113,9 @@ export class AuthService {
         this.registrationsLoading.set(false);
         this._registrationsFetched = true;
       },
-      error: (error) => {
+      error: (error: HttpErrorResponse) => {
         this.registrationsLoading.set(false);
-        const msg = (error as any)?.error?.message || 'Failed to load registrations. Please try again.';
+        const msg = error?.error?.message || error?.message || 'Failed to load registrations. Please try again.';
         this.registrationsError.set(msg);
       }
     });
@@ -150,9 +150,9 @@ export class AuthService {
         this.initializeFromToken();
         this.selectLoading.set(false);
       },
-      error: (error) => {
+      error: (error: HttpErrorResponse) => {
         this.selectLoading.set(false);
-        const msg = (error as any)?.error?.message || 'Role selection failed. Please try again.';
+        const msg = error?.error?.message || error?.message || 'Role selection failed. Please try again.';
         this.selectError.set(msg);
       }
     });
@@ -288,7 +288,7 @@ export class AuthService {
           }
           this.initializeFromToken();
         }),
-        catchError(error => {
+        catchError((error: HttpErrorResponse) => {
           // If refresh fails, logout user
           this.logout();
           return throwError(() => error);
