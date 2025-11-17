@@ -9,5 +9,9 @@ export type PaymentRequestDto = {
     familyUserId?: string;
     paymentOption?: PaymentOption;
     creditCard?: CreditCardInfo;
+    idempotencyKey?: string;
+    viConfirmed?: boolean;
+    viPolicyNumber?: string;
+    viPolicyCreateDate?: string;
 };
 

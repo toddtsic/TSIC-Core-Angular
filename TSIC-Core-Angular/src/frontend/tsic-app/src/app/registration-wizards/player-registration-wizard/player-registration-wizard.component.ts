@@ -7,6 +7,7 @@ import { ReviewComponent } from './steps/review.component';
 import { ConstraintSelectionComponent as EligibilitySelectionComponent } from './steps/constraint-selection.component';
 import { PlayerFormsComponent } from './steps/player-forms.component';
 import { PaymentComponent } from './steps/payment.component';
+import { ConfirmationComponent } from './steps/confirmation.component';
 import { WaiversComponent } from './steps/waivers.component';
 import { RegistrationWizardService } from './registration-wizard.service';
 // Start step retired; StartChoiceComponent removed from flow
@@ -15,12 +16,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 
-export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment';
+export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment' | 'confirmation';
 
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
     host: {}
@@ -36,7 +37,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     // Note: 'constraint' may be skipped in a future enhancement if job has no constraint.
     // Start step retired; Family Check now offers CTAs to proceed directly
     // Unified steps (edit lookup removed; flow determined solely by backend flags)
-    private readonly baseSteps: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'waivers', 'review', 'payment'];
+    private readonly baseSteps: StepId[] = ['family-check', 'players', 'eligibility', 'teams', 'forms', 'waivers', 'review', 'payment', 'confirmation'];
 
     // Current index into the computed steps array
     currentIndex = signal(0);
@@ -155,7 +156,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         forms: 'Forms',
         waivers: 'Waivers',
         review: 'Review',
-        payment: 'Payment'
+        payment: 'Payment',
+        confirmation: 'Confirmation'
     };
 
     // Removed existingRegistrationAvailable logic; edit mode concept discarded.

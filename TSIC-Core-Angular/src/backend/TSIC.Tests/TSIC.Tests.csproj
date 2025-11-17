@@ -15,6 +15,7 @@
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Moq" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
@@ -27,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TSIC.API\TSIC.API.csproj" />
     <ProjectReference Include="..\TSIC.Application\TSIC.Application.csproj" />
+    <ProjectReference Include="..\TSIC.Infrastructure\TSIC.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

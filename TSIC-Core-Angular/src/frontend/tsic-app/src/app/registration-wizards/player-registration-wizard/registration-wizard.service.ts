@@ -49,6 +49,12 @@ export class RegistrationWizardService {
     // Job metadata raw JSON snapshots
     jobProfileMetadataJson = signal<string | null>(null);
     jobJsonOptions = signal<string | null>(null);
+    // Payment flags & ARB schedule
+    allowPayInFull = signal<boolean>(false);
+    adnArb = signal<boolean>(false);
+    adnArbBillingOccurences = signal<number | null>(null);
+    adnArbIntervalLength = signal<number | null>(null);
+    adnArbStartDate = signal<string | null>(null);
     // Parsed field schema derived from PlayerProfileMetadataJson
     profileFieldSchemas = signal<PlayerProfileFieldSchema[]>([]);
     // Map of backend db column/property names (PascalCase) -> schema field name used in UI
@@ -98,6 +104,16 @@ export class RegistrationWizardService {
 
     // Payment
     paymentOption = signal<PaymentOption>('PIF');
+    // Last payment summary for Confirmation step
+    lastPayment = signal<{
+        option: PaymentOption;
+        amount: number;
+        transactionId?: string;
+        subscriptionId?: string;
+        viPolicyNumber?: string | null;
+        viPolicyCreateDate?: string | null;
+        message?: string | null;
+    } | null>(null);
 
     reset(): void {
         this.hasFamilyAccount.set(null);
@@ -108,6 +124,7 @@ export class RegistrationWizardService {
         this.selectedTeams.set({});
         this.formData.set({});
         this.paymentOption.set('PIF');
+        this.lastPayment.set(null);
         this.familyUser.set(null);
         this.jobProfileMetadataJson.set(null);
         this.jobJsonOptions.set(null);
@@ -118,6 +135,11 @@ export class RegistrationWizardService {
         this.waiversAccepted.set({});
         this.signatureName.set('');
         this.signatureRole.set('');
+        this.allowPayInFull.set(false);
+        this.adnArb.set(false);
+        this.adnArbBillingOccurences.set(null);
+        this.adnArbIntervalLength.set(null);
+        this.adnArbStartDate.set(null);
     }
 
     /** Seed required waiver acceptance only when ALL selected players are already registered (edit-only scenario).
@@ -360,6 +382,21 @@ export class RegistrationWizardService {
                     this.jobId.set(meta.jobId);
                     this.jobProfileMetadataJson.set(meta.playerProfileMetadataJson || null);
                     this.jobJsonOptions.set(meta.jsonOptions || null);
+                    // Payment flags & schedule from server metadata
+                    try {
+                        const allowPif = (meta as any).AllowPayInFull ?? (meta as any).allowPayInFull ?? false;
+                        const arb = (meta as any).AdnArb ?? (meta as any).adnArb ?? false;
+                        const occ = (meta as any).AdnArbBillingOccurences ?? (meta as any).adnArbBillingOccurences ?? null;
+                        const intLen = (meta as any).AdnArbIntervalLength ?? (meta as any).adnArbIntervalLength ?? null;
+                        const start = (meta as any).AdnArbStartDate ?? (meta as any).adnArbStartDate ?? null;
+                        this.allowPayInFull.set(!!allowPif);
+                        this.adnArb.set(!!arb);
+                        this.adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
+                        this.adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
+                        this.adnArbStartDate.set(start ? String(start) : null);
+                        // Default to ARB when enabled; else to PIF when allowed; else Deposit.
+                        this.paymentOption.set(this.adnArb() ? 'ARB' : (this.allowPayInFull() ? 'PIF' : 'Deposit'));
+                    } catch { /* non-critical */ }
                     // Do not set constraintType from client-side heuristics; rely solely on /family/players response.
                     // Offer flag for RegSaver
                     try {

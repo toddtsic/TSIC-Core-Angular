@@ -20,4 +20,10 @@ public class JobMetadataResponse
     public string? PlayerRegCovid19Waiver { get; set; }
     public string? PlayerRegRefundPolicy { get; set; }
     public bool OfferPlayerRegsaverInsurance { get; set; }
+    // Payment flags and ARB schedule
+    public bool AllowPayInFull { get; set; }
+    public bool? AdnArb { get; set; }
+    public int? AdnArbBillingOccurences { get; set; }
+    public int? AdnArbIntervalLength { get; set; }
+    public DateTime? AdnArbStartDate { get; set; }
 }

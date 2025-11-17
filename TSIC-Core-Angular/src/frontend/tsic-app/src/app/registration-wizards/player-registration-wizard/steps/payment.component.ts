@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, computed, inject, AfterViewInit } from '@angular/core';
+import { Component, EventEmitter, Output, computed, inject, AfterViewInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -50,27 +50,44 @@ interface LineItem {
         <div id="divVIPayment" class="text-center" style="display:none;">
             <button type="button" id="btnVIPayment" onclick="submitVIPayment()">Submit Payment</button>
         </div>
+        @if (state.offerPlayerRegSaver()) {
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="viConfirm" [(ngModel)]="viConfirmChecked">
+            <label class="form-check-label" for="viConfirm">
+              I confirm my RegSaver insurance selection (purchase or decline)
+            </label>
+          </div>
+        }
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Payment Option</label>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" id="pif" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="state.paymentOption.set('PIF')">
-            <label class="form-check-label" for="pif">
-              Pay in Full (PIF) - {{ totalAmount() | currency }}
-            </label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" id="deposit" name="paymentOption" [checked]="state.paymentOption() === 'Deposit'" (change)="state.paymentOption.set('Deposit')">
-            <label class="form-check-label" for="deposit">
-              Deposit Only - {{ depositTotal() | currency }}
-            </label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="state.paymentOption.set('ARB')">
-            <label class="form-check-label" for="arb">
-              Automated Recurring Billing (ARB) - {{ totalAmount() | currency }}
-            </label>
-          </div>
+          @if (state.allowPayInFull() || state.adnArb()) {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="pif" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
+              <label class="form-check-label" for="pif">
+                Pay in Full (PIF) - {{ totalAmount() | currency }}
+              </label>
+            </div>
+          }
+          @if (!state.adnArb()) {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="deposit" name="paymentOption" [checked]="state.paymentOption() === 'Deposit'" (change)="chooseOption('Deposit')">
+              <label class="form-check-label" for="deposit">
+                Deposit Only - {{ depositTotal() | currency }}
+              </label>
+            </div>
+          }
+          @if (state.adnArb()) {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="chooseOption('ARB')">
+              <label class="form-check-label" for="arb">
+                Automated Recurring Billing (ARB) - {{ totalAmount() | currency }}
+                <div class="small text-muted">
+                  {{ arbOccurrences() }} payments of {{ arbPerOccurrence() | currency }} every {{ arbIntervalLength() }} month(s) starting {{ arbStartDate() | date:'mediumDate' }}
+                </div>
+              </label>
+            </div>
+          }
         </div>
 
         <div class="mb-3">
@@ -165,10 +182,61 @@ export class PaymentComponent implements AfterViewInit {
   private verticalInsureInstance: any;
   private quotes: any[] = [];
   private viHasUserResponse: boolean = false;
+  private userChangedOption = false;
+  submitting = false;
+  private lastIdemKey: string | null = null;
+  private idemStorageKey(): string {
+    return `tsic:payidem:${this.state.jobId()}:${this.state.familyUser()?.familyUserId}`;
+  }
+  private loadStoredIdem(): void {
+    try {
+      const k = localStorage.getItem(this.idemStorageKey());
+      if (k) {
+        this.lastIdemKey = k;
+      }
+    } catch { /* ignore storage errors */ }
+  }
+  private persistIdem(key: string): void {
+    try { localStorage.setItem(this.idemStorageKey(), key); } catch { /* ignore */ }
+  }
+  private clearStoredIdem(): void {
+    try { localStorage.removeItem(this.idemStorageKey()); } catch { /* ignore */ }
+  }
+  viConfirmChecked = false;
 
 
   ngAfterViewInit(): void {
+    // Attempt to hydrate any existing idempotency key (previous attempt that failed or was retried)
+    this.loadStoredIdem();
     this.tryInitVerticalInsure();
+    // Auto-select cheapest available option unless user has chosen manually
+    effect(() => {
+      const allowPif = this.state.allowPayInFull();
+      const arb = this.state.adnArb();
+      const deposit = this.depositTotal();
+      const full = this.totalAmount();
+      // available options
+      const opts: string[] = [];
+      if (allowPif || arb) opts.push('PIF');
+      if (!arb) opts.push('Deposit');
+      if (arb) opts.push('ARB');
+      if (this.userChangedOption) return; // don't override user choice
+      // pick cheapest due-now amount among available
+      let pick: 'PIF' | 'Deposit' | 'ARB' | null = null;
+      const dueNow = (opt: string) => opt === 'Deposit' ? deposit : full;
+      let best = Number.POSITIVE_INFINITY;
+      for (const o of opts) {
+        const d = dueNow(o);
+        if (d > 0 && d < best) { best = d; pick = o as any; }
+      }
+      if (pick && this.state.paymentOption() !== pick) {
+        this.state.paymentOption.set(pick);
+      }
+    });
+  }
+  chooseOption(opt: 'PIF' | 'Deposit' | 'ARB') {
+    this.userChangedOption = true;
+    this.state.paymentOption.set(opt);
   }
 
   private tryInitVerticalInsure(force: boolean = false): void {
@@ -242,7 +310,21 @@ export class PaymentComponent implements AfterViewInit {
   });
 
   depositTotal = computed(() => {
-    return this.lineItems().reduce((sum, item) => sum + (item.amount * 0.5), 0); // assume 50% deposit
+    // Sum per-registrant deposit for each selected player's team
+    const selectedPlayers = this.state.familyPlayers()
+      .filter(p => p.selected || p.registered)
+      .map(p => p.playerId);
+    let sum = 0;
+    const map = this.state.selectedTeams();
+    for (const pid of selectedPlayers) {
+      const teamId = map[pid];
+      if (typeof teamId === 'string') {
+        const team = this.teamService.getTeamById(teamId);
+        const dep = Number(team?.perRegistrantDeposit ?? 0);
+        sum += Number.isNaN(dep) ? 0 : dep;
+      }
+    }
+    return sum;
   });
 
   currentTotal = computed(() => {
@@ -254,20 +336,57 @@ export class PaymentComponent implements AfterViewInit {
   });
 
   canSubmit = computed(() => {
-    return this.lineItems().length > 0 && this.currentTotal() > 0;
+    const baseOk = this.lineItems().length > 0 && this.currentTotal() > 0 && !this.submitting;
+    // If RegSaver is offered, require explicit confirmation checkbox
+    if (this.state.offerPlayerRegSaver()) {
+      return baseOk && this.viConfirmChecked === true;
+    }
+    return baseOk;
   });
 
   private getAmountForTeam(team: any): number {
     // Use perRegistrantFee or fallback
-    return team.perRegistrantFee || 100; // default
+    const v = Number(team?.perRegistrantFee ?? 0);
+    return Number.isNaN(v) || v <= 0 ? 100 : v; // default fallback
   }
 
+  // ARB helpers for schedule messaging
+  arbOccurrences = computed(() => {
+    return this.state.adnArbBillingOccurences() || 10;
+  });
+  arbIntervalLength = computed(() => {
+    return this.state.adnArbIntervalLength() || 1;
+  });
+  arbStartDate = computed(() => {
+    const raw = this.state.adnArbStartDate();
+    const d = raw ? new Date(raw) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return d;
+  });
+  arbPerOccurrence = computed(() => {
+    const occ = this.arbOccurrences();
+    const total = this.totalAmount();
+    return occ > 0 ? Math.round((total / occ) * 100) / 100 : total;
+  });
+
   submit(): void {
+    if (this.submitting) return;
+    this.submitting = true;
+    // Reuse existing idempotency key if present; generate and persist if absent
+    if (!this.lastIdemKey) {
+      const newKey = crypto?.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      this.lastIdemKey = newKey;
+      this.persistIdem(newKey);
+    }
+    const rs = this.state.regSaverDetails();
     const request = {
       jobId: this.state.jobId(),
       familyUserId: this.state.familyUser()?.familyUserId,
       paymentOption: this.state.paymentOption(),
-      creditCard: this.creditCard
+      creditCard: this.creditCard,
+      idempotencyKey: this.lastIdemKey,
+      viConfirmed: this.state.offerPlayerRegSaver() ? this.viConfirmChecked : undefined,
+      viPolicyNumber: rs?.policyNumber || undefined,
+      viPolicyCreateDate: rs?.policyCreateDate || undefined
     };
 
     this.http.post('/api/registration/submit-payment', request).subscribe({
@@ -275,14 +394,34 @@ export class PaymentComponent implements AfterViewInit {
         if (response.success) {
           // Handle success, perhaps navigate to next step
           console.log('Payment successful', response);
+          // Clear stored idempotency key on success; future payments should generate a new one
+          this.clearStoredIdem();
+          this.lastIdemKey = null;
+          // Persist summary for Confirmation step
+          try {
+            this.state.lastPayment.set({
+              option: this.state.paymentOption(),
+              amount: this.currentTotal(),
+              transactionId: response.transactionId || undefined,
+              subscriptionId: response.subscriptionId || undefined,
+              viPolicyNumber: rs?.policyNumber ?? null,
+              viPolicyCreateDate: rs?.policyCreateDate ?? null,
+              message: response.message ?? null
+            });
+          } catch { /* ignore */ }
           this.submitted.emit();
+          this.submitting = false;
         } else {
           // Handle error
           console.error('Payment failed', response.message);
+          // Keep idempotency key so user can retry safely
+          this.submitting = false;
         }
       },
       error: (error: any) => {
         console.error('Payment error', error);
+        // Preserve idempotency key for retry
+        this.submitting = false;
       }
     });
   }

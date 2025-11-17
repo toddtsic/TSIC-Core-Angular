@@ -55,7 +55,12 @@ public class JobsController : ControllerBase
             PlayerRegCodeOfConduct = jobMetadata.PlayerRegCodeOfConduct,
             PlayerRegCovid19Waiver = jobMetadata.PlayerRegCovid19Waiver,
             PlayerRegRefundPolicy = jobMetadata.PlayerRegRefundPolicy,
-            OfferPlayerRegsaverInsurance = jobMetadata.OfferPlayerRegsaverInsurance
+            OfferPlayerRegsaverInsurance = jobMetadata.OfferPlayerRegsaverInsurance,
+            AllowPayInFull = jobMetadata.AllowPayInFull,
+            AdnArb = jobMetadata.AdnArb,
+            AdnArbBillingOccurences = jobMetadata.AdnArbBillingOccurences,
+            AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,
+            AdnArbStartDate = jobMetadata.AdnArbStartDate
         };
 
         return Ok(response);

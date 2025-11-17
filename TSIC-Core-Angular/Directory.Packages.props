@@ -19,6 +19,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.9" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite" Version="9.0.9" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.9" />
+  <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
     <!-- AutoMapper -->
     <PackageVersion Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
     <!-- NetTopologySuite -->

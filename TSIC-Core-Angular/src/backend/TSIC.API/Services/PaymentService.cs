@@ -16,16 +16,44 @@ public class PaymentService : IPaymentService
     private readonly SqlDbContext _db;
     private readonly IAdnApiService _adnApiService;
     private readonly IFeeResolverService _feeResolver;
+    private readonly ITeamLookupService _teamLookup;
 
-    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IFeeResolverService feeResolver)
+    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IFeeResolverService feeResolver, ITeamLookupService teamLookup)
     {
         _db = db;
         _adnApiService = adnApiService;
         _feeResolver = feeResolver;
+        _teamLookup = teamLookup;
     }
 
     public async Task<PaymentResponseDto> ProcessPaymentAsync(PaymentRequestDto request, string userId)
     {
+        // Load job flags for gating
+        var job = await _db.Jobs
+            .Where(j => j.JobId == request.JobId)
+            .Select(j => new
+            {
+                j.AdnArb,
+                j.AdnArbbillingOccurences,
+                j.AdnArbintervalLength,
+                j.AdnArbstartDate
+            })
+            .SingleOrDefaultAsync();
+
+        if (job == null)
+        {
+            return new PaymentResponseDto { Success = false, Message = "Invalid job" };
+        }
+
+        var allowPif = await _db.RegForms.Where(rf => rf.JobId == request.JobId).Select(rf => rf.AllowPif).AnyAsync(v => v);
+        var isArb = job.AdnArb == true;
+
+        // Validate requested option vs job flags (extracted)
+        if (!ValidatePaymentOption(request.PaymentOption, allowPif, isArb, out var validationMessage))
+        {
+            return new PaymentResponseDto { Success = false, Message = validationMessage };
+        }
+
         // Get registrations for the family
         var registrations = await _db.Registrations
             .Where(r => r.JobId == request.JobId && r.FamilyUserId == request.FamilyUserId.ToString() && r.UserId != null)
@@ -57,19 +85,17 @@ public class PaymentService : IPaymentService
             }
         }
 
-        // Calculate total amount based on payment option
-        decimal totalAmount = 0;
-        foreach (var reg in registrations)
+        // Calculate per-registration charges and total (non-ARB)
+        Dictionary<Guid, decimal> charges = new();
+        decimal totalAmount = 0m;
+        if (request.PaymentOption != PaymentOption.ARB)
         {
-            if (request.PaymentOption == PaymentOption.PIF)
-            {
-                totalAmount += reg.FeeTotal;
-            }
-            else if (request.PaymentOption == PaymentOption.Deposit)
-            {
-                totalAmount += reg.FeeBase; // Assuming deposit is FeeBase
-            }
-            // For ARB, handle subscription creation
+            charges = await ComputeChargesAsync(registrations, request.PaymentOption);
+            totalAmount = charges.Values.Sum();
+        }
+        if (request.PaymentOption != PaymentOption.ARB && totalAmount <= 0)
+        {
+            return new PaymentResponseDto { Success = false, Message = "Nothing due for selected registrations." };
         }
 
         if (request.PaymentOption == PaymentOption.ARB)
@@ -78,8 +104,12 @@ public class PaymentService : IPaymentService
             var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(_db, request.JobId);
             var env = _adnApiService.GetADNEnvironment();
 
-            // Assume monthly payments, calculate per occurrence
-            decimal perOccurrence = totalAmount / 10; // Example: 10 months
+            // Derive ARB schedule from job settings (extracted)
+            var (occur, intervalLen, start) = BuildArbSchedule(job.AdnArbbillingOccurences, job.AdnArbintervalLength, job.AdnArbstartDate);
+
+            // Per occurrence: divide fee total evenly across occurrences
+            decimal grandTotal = registrations.Sum(r => r.OwedTotal);
+            decimal perOccurrence = Math.Round(grandTotal / occur, 2, MidpointRounding.AwayFromZero);
 
             var response = _adnApiService.ADN_ARB_CreateMonthlySubscription(
                 env: env,
@@ -96,26 +126,15 @@ public class PaymentService : IPaymentService
                 ccInvoiceNumber: Guid.NewGuid().ToString(),
                 ccDescription: "Registration Payment",
                 ccPerIntervalCharge: perOccurrence,
-                adnArbStartDate: DateTime.Now.AddDays(30),
-                adnArbBillingOccurences: 10,
-                adnArbIntervalLength: 1
+                adnArbStartDate: start,
+                adnArbBillingOccurences: occur,
+                adnArbIntervalLength: intervalLen
             );
 
             if (response.messages.resultCode == AuthorizeNet.Api.Contracts.V1.messageTypeEnum.Ok)
             {
                 // Update registrations with subscription ID
-                foreach (var reg in registrations)
-                {
-                    reg.AdnSubscriptionId = response.subscriptionId;
-                    reg.AdnSubscriptionAmountPerOccurence = perOccurrence;
-                    reg.AdnSubscriptionBillingOccurences = 10;
-                    reg.AdnSubscriptionIntervalLength = 1;
-                    reg.AdnSubscriptionStartDate = DateTime.Now.AddDays(30);
-                    reg.AdnSubscriptionStatus = "active";
-                    reg.BActive = true;
-                    reg.Modified = DateTime.Now;
-                    reg.LebUserId = userId;
-                }
+                await UpdateRegistrationsForArbAsync(registrations, response.subscriptionId, perOccurrence, occur, intervalLen, start, userId);
                 await _db.SaveChangesAsync();
 
                 return new PaymentResponseDto
@@ -136,6 +155,21 @@ public class PaymentService : IPaymentService
             var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(_db, request.JobId);
             var env = _adnApiService.GetADNEnvironment();
 
+            // Idempotency pre-check
+            if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                var dup = await _db.RegistrationAccounting
+                    .Join(_db.Registrations, a => a.RegistrationId, r => r.RegistrationId, (a, r) => new { a, r })
+                    .Where(x => x.r.JobId == request.JobId
+                                && x.r.FamilyUserId == request.FamilyUserId.ToString()
+                                && x.a.AdnInvoiceNo == request.IdempotencyKey)
+                    .AnyAsync();
+                if (dup)
+                {
+                    return new PaymentResponseDto { Success = true, Message = "Duplicate prevented (idempotent)." };
+                }
+            }
+
             var response = _adnApiService.ADN_ChargeCard(
                 env: env,
                 adnLoginId: credentials.AdnLoginId!,
@@ -148,38 +182,31 @@ public class PaymentService : IPaymentService
                 ccAddress: request.CreditCard.Address!,
                 ccZip: request.CreditCard.Zip!,
                 ccAmount: totalAmount,
-                invoiceNumber: Guid.NewGuid().ToString(),
+                invoiceNumber: string.IsNullOrWhiteSpace(request.IdempotencyKey) ? Guid.NewGuid().ToString() : request.IdempotencyKey,
                 description: "Registration Payment"
             );
 
             if (response.messages.resultCode == AuthorizeNet.Api.Contracts.V1.messageTypeEnum.Ok)
             {
-                // Update registrations
-                foreach (var reg in registrations)
-                {
-                    reg.PaidTotal = reg.PaidTotal + (request.PaymentOption == PaymentOption.PIF ? reg.FeeTotal : reg.FeeBase);
-                    reg.OwedTotal = reg.OwedTotal - (request.PaymentOption == PaymentOption.PIF ? reg.FeeTotal : reg.FeeBase);
-                    reg.BActive = true;
-                    reg.Modified = DateTime.Now;
-                    reg.LebUserId = userId;
-                }
+                // Update registrations (static helper; no await required)
+                UpdateRegistrationsForCharge(registrations, userId, charges);
 
-                // Add to RegistrationAccounting
-                foreach (var reg in registrations)
+                // Add to RegistrationAccounting (static helper)
+                AddAccountingEntries(registrations, request.PaymentOption, userId, response.transactionResponse.transId, request.IdempotencyKey, charges);
+
+                // Persist VerticalInsure policy details when user confirmed (best-effort; optional)
+                if (request.ViConfirmed == true && !string.IsNullOrWhiteSpace(request.ViPolicyNumber))
                 {
-                    var accounting = new RegistrationAccounting
+                    foreach (var reg in registrations)
                     {
-                        RegistrationId = reg.RegistrationId,
-                        Payamt = request.PaymentOption == PaymentOption.PIF ? reg.FeeTotal : reg.FeeBase,
-                        Paymeth = $"Credit Card Payment - {request.PaymentOption}",
-                        PaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // Assuming CC payment method ID
-                        Active = true,
-                        Createdate = DateTime.Now,
-                        Modified = DateTime.Now,
-                        LebUserId = userId,
-                        AdnTransactionId = response.transactionResponse.transId
-                    };
-                    _db.RegistrationAccounting.Add(accounting);
+                        if (string.IsNullOrWhiteSpace(reg.RegsaverPolicyId))
+                        {
+                            reg.RegsaverPolicyId = request.ViPolicyNumber;
+                            reg.RegsaverPolicyIdCreateDate = request.ViPolicyCreateDate ?? DateTime.Now;
+                            reg.Modified = DateTime.Now;
+                            reg.LebUserId = userId;
+                        }
+                    }
                 }
 
                 await _db.SaveChangesAsync();
@@ -195,6 +222,126 @@ public class PaymentService : IPaymentService
             {
                 return new PaymentResponseDto { Success = false, Message = response.transactionResponse?.errors?[0].errorText ?? "Payment failed" };
             }
+        }
+    }
+
+    private static bool ValidatePaymentOption(PaymentOption option, bool allowPif, bool isArb, out string message)
+    {
+        message = string.Empty;
+        if (option == PaymentOption.PIF && !allowPif && !isArb)
+        {
+            message = "Pay In Full is not allowed for this job.";
+            return false;
+        }
+        if (option == PaymentOption.Deposit && isArb)
+        {
+            message = "Deposit option is not available when ARB is enabled.";
+            return false;
+        }
+        if (option == PaymentOption.ARB && !isArb)
+        {
+            message = "Recurring billing (ARB) is not enabled for this job.";
+            return false;
+        }
+        return true;
+    }
+
+    private async Task<Dictionary<Guid, decimal>> ComputeChargesAsync(IEnumerable<Registrations> registrations, PaymentOption option)
+    {
+        var map = new Dictionary<Guid, decimal>();
+        if (option == PaymentOption.PIF)
+        {
+            foreach (var reg in registrations)
+            {
+                if (reg.RegistrationId != Guid.Empty)
+                    map[reg.RegistrationId] = Math.Max(0, reg.OwedTotal);
+            }
+        }
+        else if (option == PaymentOption.Deposit)
+        {
+            foreach (var reg in registrations)
+            {
+                var dep = await ResolveDepositForRegAsync(reg);
+                var cap = Math.Min(dep, reg.OwedTotal);
+                if (cap > 0 && reg.RegistrationId != Guid.Empty)
+                    map[reg.RegistrationId] = cap;
+            }
+        }
+        return map;
+    }
+
+    private async Task<decimal> ResolveDepositForRegAsync(Registrations reg)
+    {
+        if (reg.AssignedTeamId.HasValue)
+        {
+            var resolved = await _teamLookup.ResolvePerRegistrantAsync(reg.AssignedTeamId.Value);
+            return resolved.Deposit;
+        }
+        return 0m;
+    }
+
+    private static (short occur, short intervalLen, DateTime start) BuildArbSchedule(int? occur, int? intervalLen, DateTime? start)
+    {
+        short o = (short)(occur ?? 10);
+        if (o <= 0) o = 10;
+        short i = (short)(intervalLen ?? 1);
+        if (i <= 0) i = 1;
+        var s = start ?? DateTime.Now.AddDays(1);
+        return (o, i, s);
+    }
+
+    private static void UpdateRegistrationsForCharge(IEnumerable<Registrations> registrations, string userId, IReadOnlyDictionary<Guid, decimal> charges)
+    {
+        // Iterate once; apply all charge deltas. LINQ avoided to minimize allocations.
+        foreach (var reg in registrations)
+        {
+            if (reg.RegistrationId == Guid.Empty) continue;
+            if (!charges.TryGetValue(reg.RegistrationId, out var charge) || charge <= 0) continue;
+            reg.PaidTotal += charge;
+            reg.OwedTotal -= charge;
+            reg.BActive = true;
+            reg.Modified = DateTime.Now;
+            reg.LebUserId = userId;
+        }
+    }
+
+    private static Task UpdateRegistrationsForArbAsync(IEnumerable<Registrations> registrations, string subscriptionId, decimal perOccurrence, short occur, short intervalLen, DateTime start, string userId)
+    {
+        foreach (var reg in registrations)
+        {
+            reg.AdnSubscriptionId = subscriptionId;
+            reg.AdnSubscriptionAmountPerOccurence = perOccurrence;
+            reg.AdnSubscriptionBillingOccurences = occur;
+            reg.AdnSubscriptionIntervalLength = intervalLen;
+            reg.AdnSubscriptionStartDate = start;
+            reg.AdnSubscriptionStatus = "active";
+            reg.BActive = true;
+            reg.Modified = DateTime.Now;
+            reg.LebUserId = userId;
+        }
+        return Task.CompletedTask;
+    }
+
+    private void AddAccountingEntries(IEnumerable<Registrations> registrations, PaymentOption option, string userId, string adnTransactionId, string? idempotencyKey, IReadOnlyDictionary<Guid, decimal> charges)
+    {
+        foreach (var reg in registrations)
+        {
+            if (reg.RegistrationId == Guid.Empty) continue;
+            if (!charges.TryGetValue(reg.RegistrationId, out var payAmt) || payAmt <= 0) continue;
+
+            _db.RegistrationAccounting.Add(new RegistrationAccounting
+            {
+                RegistrationId = reg.RegistrationId,
+                Payamt = payAmt,
+                Paymeth = $"Credit Card Payment - {option}",
+                PaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // CC payment method ID
+                Active = true,
+                Createdate = DateTime.Now,
+                Modified = DateTime.Now,
+                LebUserId = userId,
+                AdnTransactionId = adnTransactionId,
+                AdnInvoiceNo = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey
+            });
         }
     }
 }

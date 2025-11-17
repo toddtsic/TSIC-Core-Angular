@@ -12,6 +12,11 @@ public class PaymentRequestDto
     public Guid FamilyUserId { get; set; }
     public PaymentOption PaymentOption { get; set; }
     public CreditCardInfo? CreditCard { get; set; }
+    public string? IdempotencyKey { get; set; }
+    // VerticalInsure (RegSaver) coupling: optional confirmation and policy details
+    public bool? ViConfirmed { get; set; }
+    public string? ViPolicyNumber { get; set; }
+    public DateTime? ViPolicyCreateDate { get; set; }
 }
 
 public enum PaymentOption

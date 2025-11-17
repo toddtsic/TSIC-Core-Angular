@@ -191,18 +191,7 @@ public class AdnApiService : IAdnApiService
 
     public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(SqlDbContext _context, Guid jobId, bool bProdOnly = false)
     {
-        //return await (
-        //    from j in _context.Jobs
-        //    join c in _context.Customers on j.CustomerId equals c.CustomerId
-        //    where j.JobId == jobId
-        //    select new ADN_Credentials_ViewModel()
-        //    {
-        //        AdnLoginId = c.AdnLoginId,
-        //        AdnTransactionKey = c.AdnTransactionKey
-        //    }
-        //)
-        //.AsNoTracking()
-        //.SingleOrDefaultAsync();
+        // Legacy LINQ block removed (commented out) to reduce noise; current logic below handles sandbox vs production.
 
         bool isDEBUG = false;
 #if DEBUG
@@ -220,12 +209,7 @@ public class AdnApiService : IAdnApiService
                 AdnTransactionKey = "6zmzD35C47kv45Sn"
             };
 
-            //IWLCA Production
-            //return new ADN_Credentials_ViewModel()
-            //{
-            //    AdnLoginId = "533jA8JnS",
-            //    AdnTransactionKey = "98Pdp5Cx4ev8P5wy"
-            //};
+            // Production credential example retained in version control history if needed.
         }
         else
         {
@@ -335,8 +319,7 @@ public class AdnApiService : IAdnApiService
         // get the response from the service (errors contained if any)
         var response = controller.GetApiResponse();
 
-        //return FormatApiResponse_FromCreateTransactionResponse(response);
-        UpdateCreateTransactionApiResponse(response);
+        UpdateCreateTransactionApiResponse(response); // Normalize messages / errors
 
         return response;
     }
@@ -520,8 +503,6 @@ public class AdnApiService : IAdnApiService
         controller.Execute();
 
         var response = controller.GetApiResponse();
-
-        //return FormatApiResponse_FromCreateTransactionResponse(response);
 
         return response;
     }
@@ -815,18 +796,7 @@ public class AdnApiService : IAdnApiService
 
         ARBGetSubscriptionStatusResponse response = controller.GetApiResponse();                   // get the response from the service (errors contained if any)
 
-        //// validate response
-        //if (response != null && response.messages.resultCode == messageTypeEnum.Ok)
-        //{
-        //    if (response != null && response.messages.message != null)
-        //    {
-        //        Console.WriteLine("Success, Subscription Retrieved With RefID : " + response.refId);
-        //    }
-        //}
-        //else
-        //{
-        //    Console.WriteLine("Error: " + response.messages.message[0].code + "  " + response.messages.message[0].text);
-        //}
+        // Validation output suppressed (was previously Console logging) to keep service side-effect free.
 
         return response;
     }

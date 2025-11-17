@@ -75,6 +75,9 @@
             @case ('payment') {
             <app-rw-payment (back)="back()" (submitted)="next()" />
             }
+            @case ('confirmation') {
+            <app-rw-confirmation (completed)="next()" />
+            }
             @default {
             <div class="alert alert-warning" role="note">
                 Unknown step "{{ currentStepId() }}". Please go back and try again.

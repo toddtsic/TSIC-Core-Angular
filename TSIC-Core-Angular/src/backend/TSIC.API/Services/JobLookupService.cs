@@ -31,6 +31,12 @@ public class JobMetadataDto
     public string? PlayerRegRefundPolicy { get; set; }
     // Flags
     public bool OfferPlayerRegsaverInsurance { get; set; }
+    // Payment flags
+    public bool AllowPayInFull { get; set; }
+    public bool? AdnArb { get; set; }
+    public int? AdnArbBillingOccurences { get; set; }
+    public int? AdnArbIntervalLength { get; set; }
+    public DateTime? AdnArbStartDate { get; set; }
 }
 
 public class JobLookupService : IJobLookupService
@@ -93,8 +99,30 @@ public class JobLookupService : IJobLookupService
                 PlayerRegRefundPolicy = jdo.Job.PlayerRegRefundPolicy
                 ,
                 OfferPlayerRegsaverInsurance = (jdo.Job.BOfferPlayerRegsaverInsurance ?? false)
+                ,
+                // ARB schedule directly from Jobs table
+                AdnArb = jdo.Job.AdnArb,
+                AdnArbBillingOccurences = jdo.Job.AdnArbbillingOccurences,
+                AdnArbIntervalLength = jdo.Job.AdnArbintervalLength,
+                AdnArbStartDate = jdo.Job.AdnArbstartDate
             })
             .SingleOrDefaultAsync();
+
+        if (job == null) return null;
+
+        // Compute AllowPayInFull from any RegForms associated with this job
+        try
+        {
+            var allowPif = await _context.RegForms
+                .Where(rf => rf.JobId == job.JobId)
+                .Select(rf => rf.AllowPif)
+                .AnyAsync(v => v);
+            job.AllowPayInFull = allowPif;
+        }
+        catch
+        {
+            job.AllowPayInFull = false;
+        }
 
         return job;
     }
