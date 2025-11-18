@@ -113,9 +113,9 @@ interface LineItem {
           </div>
         }        
 
-        <div class="mb-3">
-          <h6>Payment Summary</h6>
-          <table class="table table-sm">
+        <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-summary-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+          <h6 id="pay-summary-title" class="fw-semibold mb-2">Payment Summary</h6>
+          <table class="table table-sm mb-0">
             <thead>
               <tr>
                 <th>Player</th>
@@ -179,24 +179,19 @@ interface LineItem {
               }
             </tfoot>
           </table>
-        </div>
-        <div class="mb-3">
-          <div class="row g-2 align-items-end mb-2">
-            <div class="col-6 col-sm-4 col-md-2">
-              <label for="discountCode" class="form-label fw-semibold">Discount Code</label>
-              <input id="discountCode" type="text" [(ngModel)]="discountCode" name="discountCode" class="form-control" placeholder="Enter code" [disabled]="discountApplying" />
+        </section>
+        <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-option-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+          <h6 id="pay-option-title" class="fw-semibold mb-3">Payment Option</h6>
+          <div class="mb-3">
+            <label for="discountCode" class="form-label fw-semibold me-2 d-block d-md-inline">Discount Code</label>
+            <div class="input-group input-group-sm w-auto d-inline-flex align-items-center">
+              <input id="discountCode" type="text" [(ngModel)]="discountCode" name="discountCode" class="form-control" placeholder="Enter code" [disabled]="discountApplying" style="min-width: 180px;" />
+              <button type="button" class="btn btn-outline-primary" (click)="applyDiscount()" [disabled]="discountApplying || !discountCode">Apply</button>
             </div>
-            <div class="col-6 col-sm-3 col-md-2">
-              <label class="form-label d-block" style="visibility:hidden">Apply</label>
-              <button type="button" class="btn btn-outline-primary w-100" (click)="applyDiscount()" [disabled]="discountApplying || !discountCode">Apply</button>
-            </div>
+            @if (discountMessage) {
+              <div class="form-text mt-1" [class.text-success]="appliedDiscount > 0" [class.text-danger]="appliedDiscount === 0">{{ discountMessage }}</div>
+            }
           </div>
-          @if (discountMessage) {
-            <div class="small" [class.text-success]="appliedDiscount > 0" [class.text-danger]="appliedDiscount === 0">{{ discountMessage }}</div>
-          }
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Payment Option</label>
           @if (isArbScenario()) {
             <div class="form-check">
               <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="chooseOption('ARB')">
@@ -226,10 +221,10 @@ interface LineItem {
               <label class="form-check-label" for="pifOnly">Pay In Full - {{ totalAmount() | currency }}</label>
             </div>
           }
-        </div>
+        </section>
 
-        <div class="mb-3">
-          <h6>Credit Card Information</h6>
+        <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+          <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
           <div class="row g-2">
             <div class="col-md-6">
               <label for="ccNumber" class="form-label">Card Number</label>
@@ -264,7 +259,7 @@ interface LineItem {
               <input type="text" class="form-control" id="ccZip" [(ngModel)]="creditCard.zip" name="ccZip">
             </div>
           </div>
-        </div>
+        </section>
           <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">Pay Now</button>
         </div>
       </div>

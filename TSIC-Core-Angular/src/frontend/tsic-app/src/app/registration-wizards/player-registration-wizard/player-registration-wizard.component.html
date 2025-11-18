@@ -21,36 +21,9 @@
                     }}%</progress>
                 <!-- Step tabs hidden intentionally to save space; single header badge above provides context -->
 
-                <nav class="rw-toolbar rw-action-bar" aria-label="Wizard actions">
-                    <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2 flex-grow-1">
-                        @if (familyLastName()) {
-                        <div class="text-truncate me-2" title="Family account">
-                            <span
-                                class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
-                                {{ familyLastName() }} Family
-                            </span>
-                        </div>
-                        }
-                        <div class="action-buttons-highlight">
-                            <div class="btn-group btn-group-sm action-buttons">
-                                <button type="button" class="btn btn-secondary d-inline-flex align-items-center gap-2"
-                                    (click)="back()" [disabled]="currentIndex() === 0"
-                                    aria-label="Go back to previous step">
-                                    <span class="dir-icon" aria-hidden="true">‹</span>
-                                    <span>Back</span>
-                                </button>
-                                @if (showContinueButton()) {
-                                <button type="button"
-                                    class="btn btn-primary d-inline-flex align-items-center gap-2 fw-semibold proceed-btn"
-                                    (click)="onContinue()" [disabled]="!canContinue()">
-                                    {{ continueLabel() }}
-                                    <span class="dir-icon" aria-hidden="true">›</span>
-                                </button>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </nav>
+                <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
+                    [canContinue]="canContinue()" [continueLabel]="continueLabel()"
+                    [showContinue]="showContinueButton()" (back)="back()" (continue)="onContinue()" />
             </div>
 
             @switch (currentStepId()) {
@@ -87,6 +60,14 @@
             </div>
             }
             }
+
+            <!-- Bottom action bar copy -->
+            <div class="mt-3 rw-bottom-actions">
+                <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
+                    [canContinue]="canContinue()" [continueLabel]="continueLabel()"
+                    [showContinue]="showContinueButton()" [placement]="'bottom'" (back)="back()"
+                    (continue)="onContinue()" />
+            </div>
         </div>
     </div>
 

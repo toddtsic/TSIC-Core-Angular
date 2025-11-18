@@ -82,3 +82,10 @@
 
     /* attention label removed */
 }
+
+/* Divider and spacing above bottom action bar */
+.rw-bottom-actions {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--bs-border-color-translucent);
+}

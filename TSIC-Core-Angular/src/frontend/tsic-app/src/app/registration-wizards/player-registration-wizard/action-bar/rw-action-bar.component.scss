@@ -1,0 +1,26 @@
+/* Minimal, consistent bar */
+:host {
+    display: block;
+}
+
+.rw-action-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.5rem;
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color-translucent);
+}
+
+:host([placement='bottom']) .rw-action-bar {
+    bottom: 0;
+}
+
+.dir-icon {
+    font-size: 1.2em;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+    transform: translateY(-1px);
+}

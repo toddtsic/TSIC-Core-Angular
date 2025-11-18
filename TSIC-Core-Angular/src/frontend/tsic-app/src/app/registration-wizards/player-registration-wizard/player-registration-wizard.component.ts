@@ -15,13 +15,14 @@ import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '../../core/services/auth.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
+import { RwActionBarComponent } from './action-bar/rw-action-bar.component';
 
 export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment' | 'confirmation';
 
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, WizardThemeDirective, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
+    imports: [CommonModule, RouterModule, WizardThemeDirective, RwActionBarComponent, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
     host: {}
