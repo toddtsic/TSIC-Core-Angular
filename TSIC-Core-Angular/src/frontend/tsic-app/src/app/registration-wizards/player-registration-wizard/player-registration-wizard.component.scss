@@ -29,3 +29,56 @@
     display: flex;
     justify-content: center;
 }
+
+/* Action bar now subtle; highlight moved to buttons container */
+.rw-action-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.5rem;
+    background: var(--bs-secondary-bg);
+    /* match rw-progress track */
+    border: 1px solid var(--bs-border-color-translucent);
+}
+
+/* Buttons container – bare bones */
+.action-buttons-highlight {
+    display: flex;
+    align-items: center;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    border: 0;
+    position: static;
+    isolation: auto;
+}
+
+/* Starburst removed; bold yellow pill only */
+
+
+/* removed attention label styles */
+
+.rw-action-bar .dir-icon {
+    font-size: 1.2em;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+    transform: translateY(-1px);
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+    /* No ambient animations active in this region */
+}
+
+/* Slightly tone down on very small screens */
+@media (max-width: 576px) {
+    .action-buttons-highlight {
+        background: transparent;
+        padding: 0;
+    }
+
+    /* attention label removed */
+}

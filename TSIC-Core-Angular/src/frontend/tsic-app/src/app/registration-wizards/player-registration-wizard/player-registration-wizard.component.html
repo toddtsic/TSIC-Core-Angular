@@ -21,8 +21,8 @@
                     }}%</progress>
                 <!-- Step tabs hidden intentionally to save space; single header badge above provides context -->
 
-                <div class="rw-toolbar">
-                    <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2">
+                <nav class="rw-toolbar rw-action-bar" aria-label="Wizard actions">
+                    <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2 flex-grow-1">
                         @if (familyLastName()) {
                         <div class="text-truncate me-2" title="Family account">
                             <span
@@ -31,23 +31,26 @@
                             </span>
                         </div>
                         }
-                        <div class="btn-group btn-group-sm">
-                            <button type="button"
-                                class="btn btn-outline-secondary d-inline-flex align-items-center gap-1"
-                                (click)="back()" [disabled]="currentIndex() === 0"
-                                aria-label="Go back to previous step">
-                                <i class="bi bi-arrow-left"></i>
-                                <span>Back</span>
-                            </button>
-                            @if (showContinueButton()) {
-                            <button type="button" class="btn btn-primary" (click)="onContinue()"
-                                [disabled]="!canContinue()">
-                                {{ continueLabel() }}
-                            </button>
-                            }
+                        <div class="action-buttons-highlight">
+                            <div class="btn-group btn-group-sm action-buttons">
+                                <button type="button" class="btn btn-secondary d-inline-flex align-items-center gap-2"
+                                    (click)="back()" [disabled]="currentIndex() === 0"
+                                    aria-label="Go back to previous step">
+                                    <span class="dir-icon" aria-hidden="true">‹</span>
+                                    <span>Back</span>
+                                </button>
+                                @if (showContinueButton()) {
+                                <button type="button"
+                                    class="btn btn-primary d-inline-flex align-items-center gap-2 fw-semibold proceed-btn"
+                                    (click)="onContinue()" [disabled]="!canContinue()">
+                                    {{ continueLabel() }}
+                                    <span class="dir-icon" aria-hidden="true">›</span>
+                                </button>
+                                }
+                            </div>
                         </div>
                     </div>
-                </div>
+                </nav>
             </div>
 
             @switch (currentStepId()) {
