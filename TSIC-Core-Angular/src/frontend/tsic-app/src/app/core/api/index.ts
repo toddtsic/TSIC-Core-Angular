@@ -5,6 +5,9 @@
 
 export type { AddressDto as AddressDtoDto } from './models/AddressDto';
 export type { AllowedFieldDomainItem as AllowedFieldDomainItemDto } from './models/AllowedFieldDomainItem';
+export type { ApplyDiscountItemDto as ApplyDiscountItemDtoDto } from './models/ApplyDiscountItemDto';
+export type { ApplyDiscountRequestDto as ApplyDiscountRequestDtoDto } from './models/ApplyDiscountRequestDto';
+export type { ApplyDiscountResponseDto as ApplyDiscountResponseDtoDto } from './models/ApplyDiscountResponseDto';
 export type { AuthTokenResponse as AuthTokenResponseDto } from './models/AuthTokenResponse';
 export type { AvailableTeamDto as AvailableTeamDtoDto } from './models/AvailableTeamDto';
 export type { ChildDto as ChildDtoDto } from './models/ChildDto';

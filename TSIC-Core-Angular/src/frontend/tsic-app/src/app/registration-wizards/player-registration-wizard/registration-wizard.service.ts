@@ -28,8 +28,23 @@ export class RegistrationWizardService {
     // Family players enriched with prior registrations + selection flag
     familyPlayers = signal<FamilyPlayer[]>([]);
     familyPlayersLoading = signal<boolean>(false);
-    // Family user summary (from players endpoint); name fields used for header badge
-    familyUser = signal<{ familyUserId: string; displayName: string; userName: string } | null>(null);
+    // Family user summary (from players endpoint). Includes optional contact fields for convenience defaults on Payment.
+    familyUser = signal<{
+        familyUserId: string;
+        displayName: string;
+        userName: string;
+        // Optional contact fields (when provided by API)
+        firstName?: string;
+        lastName?: string;
+        address?: string;      // consolidated address
+        address1?: string;     // line 1
+        address2?: string;     // line 2
+        city?: string;
+        state?: string;
+        zipCode?: string;      // preferred zip property
+        zip?: string;          // fallback zip property
+        postalCode?: string;   // alternative naming
+    } | null>(null);
     // RegSaver (optional insurance) details for family/job
     regSaverDetails = signal<RegSaverDetails | null>(null);
     // Design Principle: EACH REGISTRATION OWNS ITS OWN SNAPSHOT OF FORM VALUES.
@@ -285,11 +300,33 @@ export class RegistrationWizardService {
                     } catch { /* non-fatal */ }
                     // Normalize familyUser
                     const fu = resp?.familyUser || resp?.FamilyUser || null;
-                    if (fu) this.familyUser.set({
-                        familyUserId: fu.familyUserId ?? fu.FamilyUserId ?? '',
-                        displayName: fu.displayName ?? fu.DisplayName ?? '',
-                        userName: fu.userName ?? fu.UserName ?? ''
-                    });
+                    if (fu) {
+                        // Normalize core + optional contact fields for convenience
+                        const pick = (o: any, keys: string[]): string | undefined => {
+                            for (const k of keys) {
+                                const v = o?.[k];
+                                if (typeof v === 'string' && v.trim()) return String(v).trim();
+                            }
+                            return undefined;
+                        };
+                        const norm = {
+                            familyUserId: fu.familyUserId ?? fu.FamilyUserId ?? '',
+                            displayName: fu.displayName ?? fu.DisplayName ?? '',
+                            userName: fu.userName ?? fu.UserName ?? '',
+                            // Broaden likely mom/guardian/billing field variants
+                            firstName: pick(fu, ['firstName', 'FirstName', 'parentFirstName', 'ParentFirstName', 'motherFirstName', 'MotherFirstName', 'guardianFirstName', 'GuardianFirstName', 'billingFirstName', 'BillingFirstName']),
+                            lastName: pick(fu, ['lastName', 'LastName', 'parentLastName', 'ParentLastName', 'motherLastName', 'MotherLastName', 'guardianLastName', 'GuardianLastName', 'billingLastName', 'BillingLastName']),
+                            address: pick(fu, ['address', 'Address', 'billingAddress', 'BillingAddress', 'street', 'Street', 'street1', 'Street1', 'address1', 'Address1']),
+                            address1: pick(fu, ['address1', 'Address1', 'street1', 'Street1']),
+                            address2: pick(fu, ['address2', 'Address2', 'street2', 'Street2', 'apt', 'Apt', 'aptNumber', 'AptNumber', 'suite', 'Suite']),
+                            city: pick(fu, ['city', 'City']),
+                            state: pick(fu, ['state', 'State', 'stateCode', 'StateCode']),
+                            zipCode: pick(fu, ['zipCode', 'ZipCode', 'zip', 'Zip', 'postalCode', 'PostalCode']),
+                            zip: pick(fu, ['zip', 'Zip']),
+                            postalCode: pick(fu, ['postalCode', 'PostalCode'])
+                        } as const;
+                        this.familyUser.set(norm);
+                    }
                     // Normalize regSaver details
                     const rs = resp?.regSaverDetails || resp?.RegSaverDetails || null;
                     if (rs) {
@@ -384,7 +421,9 @@ export class RegistrationWizardService {
                     this.jobJsonOptions.set(meta.jsonOptions || null);
                     // Payment flags & schedule from server metadata
                     try {
-                        const allowPif = (meta as any).AllowPayInFull ?? (meta as any).allowPayInFull ?? false;
+                        // Derive allowPIF from CoreRegFormPlayer containing "ALLOWPIF" (case-insensitive)
+                        const crfpRaw = (meta as any).CoreRegFormPlayer ?? (meta as any).coreRegFormPlayer ?? '';
+                        const allowPif = typeof crfpRaw === 'string' ? /ALLOWPIF/i.test(crfpRaw) : false;
                         const arb = (meta as any).AdnArb ?? (meta as any).adnArb ?? false;
                         const occ = (meta as any).AdnArbBillingOccurences ?? (meta as any).adnArbBillingOccurences ?? null;
                         const intLen = (meta as any).AdnArbIntervalLength ?? (meta as any).adnArbIntervalLength ?? null;
@@ -394,7 +433,7 @@ export class RegistrationWizardService {
                         this.adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
                         this.adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
                         this.adnArbStartDate.set(start ? String(start) : null);
-                        // Default to ARB when enabled; else to PIF when allowed; else Deposit.
+                        // Default to ARB when enabled; else to Deposit (UI may promote to PIF when no deposit exists); else PIF when allowed.
                         this.paymentOption.set(this.adnArb() ? 'ARB' : (this.allowPayInFull() ? 'PIF' : 'Deposit'));
                     } catch { /* non-critical */ }
                     // Do not set constraintType from client-side heuristics; rely solely on /family/players response.

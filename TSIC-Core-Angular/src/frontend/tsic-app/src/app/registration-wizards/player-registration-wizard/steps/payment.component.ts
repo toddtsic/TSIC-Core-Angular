@@ -9,6 +9,12 @@ import type { PaymentResponseDto } from '../../../core/api/models/PaymentRespons
 import { environment } from '../../../../environments/environment';
 import type { Loadable } from '../../../core/models/state.models';
 import { TeamService } from '../team.service';
+import type { ApplyDiscountRequestDto } from '../../../core/api/models/ApplyDiscountRequestDto';
+import type { ApplyDiscountResponseDto } from '../../../core/api/models/ApplyDiscountResponseDto';
+import type { ApplyDiscountItemDto } from '../../../core/api/models/ApplyDiscountItemDto';
+import type { InsurancePurchaseRequestDto } from '../../../core/api/models/InsurancePurchaseRequestDto';
+import type { InsurancePurchaseResponseDto } from '../../../core/api/models/InsurancePurchaseResponseDto';
+import { ToastService } from '../../../shared/toast.service';
 
 declare global {
   // Allow TypeScript to acknowledge the VerticalInsure constructor on window
@@ -63,62 +69,49 @@ interface LineItem {
         <div id="divVIPayment" class="text-center" style="display:none;">
             <button type="button" id="btnVIPayment" onclick="submitVIPayment()">Submit Payment</button>
         </div>
-        @if (state.offerPlayerRegSaver()) {
-          <!-- VerticalInsure decision gating: show status or launch modal -->
+        @if (state.offerPlayerRegSaver() && state.hasVerticalInsureDecision()) {
+          <!-- VerticalInsure decision status (no standalone review/change button) -->
           <div class="mt-2 d-flex flex-column gap-2">
-            @if (!state.hasVerticalInsureDecision()) {
-              <button type="button" class="btn btn-outline-info btn-sm align-self-start" (click)="openViModal()">Review RegSaver Insurance Options…</button>
-              <div class="small text-muted">Insurance purchase is optional. You must review and accept or decline before payment.</div>
-            } @else {
-              <div class="alert" [ngClass]="state.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
-                <div class="d-flex align-items-center gap-2">
-                  <span class="badge" [ngClass]="state.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
-                  <div>
-                    @if (state.verticalInsureConfirmed()) {
-                      <div class="fw-semibold mb-0">Insurance Selected</div>
-                      <div class="small text-muted" *ngIf="state.viConsent()?.policyNumber">Policy #: {{ state.viConsent()?.policyNumber }}</div>
-                    } @else {
-                      <div class="fw-semibold mb-0">Insurance Declined</div>
-                      <div class="small text-muted">You chose not to purchase coverage.</div>
-                    }
-                  </div>
-                  <button type="button" class="btn btn-link btn-sm ms-auto" (click)="openViModal()">Change</button>
+            <div class="alert" [ngClass]="state.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge" [ngClass]="state.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
+                <div>
+                  @if (state.verticalInsureConfirmed()) {
+                    <div class="fw-semibold mb-0">Insurance Selected</div>
+                    <div class="small text-muted" *ngIf="state.viConsent()?.policyNumber">Policy #: {{ state.viConsent()?.policyNumber }}</div>
+                  } @else {
+                    <div class="fw-semibold mb-0">Insurance Declined</div>
+                    <div class="small text-muted">You chose not to purchase coverage.</div>
+                  }
                 </div>
               </div>
-            }
+            </div>
           </div>
         }
 
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Payment Option</label>
-          @if (state.allowPayInFull() || state.adnArb()) {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="pif" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
-              <label class="form-check-label" for="pif">
-                Pay in Full (PIF) - {{ totalAmount() | currency }}
-              </label>
-            </div>
-          }
-          @if (!state.adnArb()) {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="deposit" name="paymentOption" [checked]="state.paymentOption() === 'Deposit'" (change)="chooseOption('Deposit')">
-              <label class="form-check-label" for="deposit">
-                Deposit Only - {{ depositTotal() | currency }}
-              </label>
-            </div>
-          }
-          @if (state.adnArb()) {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="chooseOption('ARB')">
-              <label class="form-check-label" for="arb">
-                Automated Recurring Billing (ARB) - {{ totalAmount() | currency }}
-                <div class="small text-muted">
-                  {{ arbOccurrences() }} payments of {{ arbPerOccurrence() | currency }} every {{ arbIntervalLength() }} month(s) starting {{ arbStartDate() | date:'mediumDate' }}
+        <!-- RegSaver charge confirmation modal (Bootstrap-style) -->
+        @if (showViChargeConfirm) {
+          <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,0.5)">
+            <div class="modal-dialog" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Confirm Registration Insurance Purchase</h5>
+                  <button type="button" class="btn-close" aria-label="Close" (click)="cancelViConfirm()"></button>
                 </div>
-              </label>
+                <div class="modal-body">
+                  <p>The premium(s) for {{ viQuotedPlayers().join(', ') }} will be charged by <strong>VERTICAL INSURANCE</strong> and not by <strong>TEAMSPORTSINFO.COM</strong>.</p>
+                  <p>The credit card info here will be passed to <strong>VERTICAL INSURANCE</strong> for them to process.</p>
+                  <p>You will receive an email at <strong>{{ viCcEmail() }}</strong> from <strong>VERTICAL INSURANCE</strong> immediately upon processing.</p>
+                  <p class="mb-0"><strong>Total Insurance Premium:</strong> {{ viPremiumTotal() | currency }}</p>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" (click)="cancelViConfirm()">CANCEL</button>
+                  <button type="button" class="btn btn-primary" (click)="confirmViAndContinue()">OK</button>
+                </div>
+              </div>
             </div>
-          }
-        </div>
+          </div>
+        }        
 
         <div class="mb-3">
           <h6>Payment Summary</h6>
@@ -141,11 +134,68 @@ interface LineItem {
             </tbody>
             <tfoot>
               <tr>
-                <th colspan="2">Total</th>
+                <th colspan="2" class="text-end">Subtotal</th>
+                <th>{{ totalAmount() | currency }}</th>
+              </tr>
+              @if (appliedDiscount > 0) {
+                <tr>
+                  <th colspan="2" class="text-end">Discount</th>
+                  <th>-{{ appliedDiscount | currency }}</th>
+                </tr>
+              }
+              <tr>
+                <th colspan="2" class="text-end">Due Now</th>
                 <th>{{ currentTotal() | currency }}</th>
               </tr>
             </tfoot>
           </table>
+        </div>
+        <div class="mb-3">
+          <div class="row g-2 align-items-end mb-2">
+            <div class="col-6 col-sm-4 col-md-2">
+              <label for="discountCode" class="form-label fw-semibold">Discount Code</label>
+              <input id="discountCode" type="text" [(ngModel)]="discountCode" name="discountCode" class="form-control" placeholder="Enter code" [disabled]="discountApplying" />
+            </div>
+            <div class="col-6 col-sm-3 col-md-2">
+              <label class="form-label d-block" style="visibility:hidden">Apply</label>
+              <button type="button" class="btn btn-outline-primary w-100" (click)="applyDiscount()" [disabled]="discountApplying || !discountCode">Apply</button>
+            </div>
+          </div>
+          @if (discountMessage) {
+            <div class="small" [class.text-success]="appliedDiscount > 0" [class.text-danger]="appliedDiscount === 0">{{ discountMessage }}</div>
+          }
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Payment Option</label>
+          @if (shouldShowPif()) {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="pif" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
+              <label class="form-check-label" for="pif">
+                Pay in Full (PIF) - {{ totalAmount() | currency }}
+              </label>
+            </div>
+          }
+          @if (!state.adnArb() && depositTotal() > 0) {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="deposit" name="paymentOption" [checked]="state.paymentOption() === 'Deposit'" (change)="chooseOption('Deposit')">
+              <label class="form-check-label" for="deposit">
+                Deposit Only - {{ depositTotal() | currency }}
+              </label>
+            </div>
+          }
+          @if (state.adnArb()) {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="chooseOption('ARB')">
+              <label class="form-check-label" for="arb">
+                Automated Recurring Billing (ARB) - {{ totalAmount() | currency }}
+                <div class="small text-muted">
+                  {{ arbOccurrences() }} payments of {{ arbPerOccurrence() | currency }} every {{ arbIntervalLength() }} month(s) starting {{ arbStartDate() | date:'mediumDate' }}
+                </div>
+              </label>
+            </div>
+          }
+        </div>
+
         <div class="mb-3">
           <h6>Credit Card Information</h6>
           <div class="row g-2">
@@ -183,7 +233,6 @@ interface LineItem {
             </div>
           </div>
         </div>
-          <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
           <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">Pay Now</button>
         </div>
       </div>
@@ -206,16 +255,24 @@ export class PaymentComponent implements AfterViewInit {
     zip: ''
   };
 
-  constructor(public state: RegistrationWizardService, private readonly http: HttpClient) { }
+  constructor(public state: RegistrationWizardService, private readonly http: HttpClient, private readonly toast: ToastService) { }
 
   // VerticalInsure integration state
   private verticalInsureInstance: any;
-  quotes: string[] = [];
+  quotes: any[] = [];
   viHasUserResponse: boolean = false;
   private userChangedOption = false;
   submitting = false;
   private lastIdemKey: string | null = null;
   verticalInsureError: string | null = null;
+  // Discount UI state
+  discountCode: string = '';
+  discountApplying: boolean = false;
+  appliedDiscount: number = 0;
+  discountMessage: string | null = null;
+  // VI confirmation modal state
+  showViChargeConfirm = false;
+  private pendingSubmitAfterViConfirm = false;
   private idemStorageKey(): string {
     return `tsic:payidem:${this.state.jobId()}:${this.state.familyUser()?.familyUserId}`;
   }
@@ -240,6 +297,15 @@ export class PaymentComponent implements AfterViewInit {
   ngAfterViewInit(): void {
     // Attempt to hydrate any existing idempotency key (previous attempt that failed or was retried)
     this.loadStoredIdem();
+    // Prefill credit card holder info from family user ("mom") when available
+    this.prefillCcFromMom();
+    // Also react to family user becoming available later; only fills empty fields
+    effect(() => {
+      // track familyUser signal to run when it changes
+      this.state.familyUser();
+      // invoke prefill best-effort; won't overwrite non-empty fields
+      this.prefillCcFromMom();
+    });
     this.tryInitVerticalInsure();
     // Auto-select cheapest available option unless user has chosen manually
     effect(() => {
@@ -249,8 +315,10 @@ export class PaymentComponent implements AfterViewInit {
       const full = this.totalAmount();
       // available options
       const opts: string[] = [];
-      if (allowPif || arb) opts.push('PIF');
-      if (!arb) opts.push('Deposit');
+      const forcePif = deposit === 0;
+      // PIF availability must match shouldShowPif(): ALLOWPIF or zero deposit
+      if (allowPif || forcePif) opts.push('PIF');
+      if (!arb && deposit > 0) opts.push('Deposit');
       if (arb) opts.push('ARB');
       if (this.userChangedOption) return; // don't override user choice
       // pick cheapest due-now amount among available
@@ -269,6 +337,9 @@ export class PaymentComponent implements AfterViewInit {
   chooseOption(opt: 'PIF' | 'Deposit' | 'ARB') {
     this.userChangedOption = true;
     this.state.paymentOption.set(opt);
+    // Reset previously applied discount when payment option changes to avoid stale math
+    this.appliedDiscount = 0;
+    this.discountMessage = null;
   }
 
   private tryInitVerticalInsure(force: boolean = false): void {
@@ -362,18 +433,13 @@ export class PaymentComponent implements AfterViewInit {
 
   currentTotal = computed(() => {
     const option = this.state.paymentOption();
-    if (option === 'Deposit') {
-      return this.depositTotal();
-    }
-    return this.totalAmount();
+    const base = option === 'Deposit' ? this.depositTotal() : this.totalAmount();
+    const adjusted = Math.max(0, base - (this.appliedDiscount || 0));
+    return adjusted;
   });
 
   canSubmit = computed(() => {
     const baseOk = this.lineItems().length > 0 && this.currentTotal() > 0 && !this.submitting;
-    if (this.state.offerPlayerRegSaver()) {
-      // Require a decision (confirmed or declined) before enabling payment
-      return baseOk && this.state.hasVerticalInsureDecision();
-    }
     return baseOk;
   });
 
@@ -401,7 +467,31 @@ export class PaymentComponent implements AfterViewInit {
     return occ > 0 ? Math.round((total / occ) * 100) / 100 : total;
   });
 
+  shouldShowPif(): boolean {
+    // PIF is visible when ALLOWPIF is present (job flag) OR when there is no deposit (must pay full)
+    return this.state.allowPayInFull() || this.depositTotal() === 0;
+  }
+
   submit(): void {
+    if (this.submitting) return;
+    // Gate: if RegSaver is offered but no user response yet, require a decision before continuing.
+    if (this.state.offerPlayerRegSaver()) {
+      const noResponse = !this.viHasUserResponse && this.isViOfferVisible();
+      if (noResponse) {
+        this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
+        return;
+      }
+    }
+    // If VI quotes exist (insurance selected), show charge confirmation modal before proceeding.
+    if (this.state.offerPlayerRegSaver() && Array.isArray(this.quotes) && this.quotes.length > 0) {
+      this.pendingSubmitAfterViConfirm = true;
+      this.showViChargeConfirm = true;
+      return;
+    }
+    this.continueSubmit();
+  }
+
+  private continueSubmit(): void {
     if (this.submitting) return;
     this.submitting = true;
     // Reuse existing idempotency key if present; generate and persist if absent
@@ -445,6 +535,10 @@ export class PaymentComponent implements AfterViewInit {
           } catch { /* ignore */ }
           this.submitted.emit();
           this.submitting = false;
+          // After successful TSIC charge, if insurance was offered and quotes exist, purchase RegSaver policies.
+          if (this.state.offerPlayerRegSaver() && Array.isArray(this.quotes) && this.quotes.length > 0) {
+            this.purchaseRegsaverInsurance();
+          }
         } else {
           // Handle error
           console.error('Payment failed', response.message);
@@ -470,4 +564,162 @@ export class PaymentComponent implements AfterViewInit {
   }
   onViDeclined(): void { this.state.declineVerticalInsurePurchase(); }
   onViClosed(): void { this.state.showVerticalInsureModal.set(false); }
+
+  applyDiscount(): void {
+    if (!this.discountCode || this.discountApplying) return;
+    // Build per-line due-now amounts so server can compute fairly
+    const option = this.state.paymentOption();
+    const items: ApplyDiscountItemDto[] = this.lineItems().map(li => ({
+      playerId: li.playerId,
+      amount: option === 'Deposit' ? this.getDepositForPlayer(li.playerId) : li.amount
+    }));
+    this.discountApplying = true;
+    this.discountMessage = null;
+    const req: ApplyDiscountRequestDto = {
+      jobId: this.state.jobId(),
+      familyUserId: this.state.familyUser()?.familyUserId!,
+      code: this.discountCode,
+      items
+    };
+    this.http.post<ApplyDiscountResponseDto>(
+      `${environment.apiUrl}/registration/apply-discount`,
+      req
+    ).subscribe({
+      next: resp => {
+        this.discountApplying = false;
+        const total = resp?.totalDiscount ?? 0;
+        if (resp?.success && total > 0) {
+          this.appliedDiscount = Math.round((total + Number.EPSILON) * 100) / 100;
+          this.discountMessage = `Discount applied: ${this.appliedDiscount.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}`;
+        } else {
+          this.appliedDiscount = 0;
+          this.discountMessage = resp?.message || 'Invalid or ineligible discount code';
+        }
+      },
+      error: err => {
+        this.discountApplying = false;
+        this.appliedDiscount = 0;
+        this.discountMessage = (err?.error?.message || err?.message || 'Failed to apply code');
+      }
+    });
+  }
+
+  private getDepositForPlayer(playerId: string): number {
+    const teamId = this.state.selectedTeams()[playerId];
+    if (typeof teamId === 'string') {
+      const team = this.teamService.getTeamById(teamId);
+      return Number(team?.perRegistrantDeposit ?? 0) || 0;
+    }
+    return 0;
+  }
+
+  // --- VI Confirmation helpers ---
+  viQuotedPlayers(): string[] {
+    if (!Array.isArray(this.quotes)) return [];
+    const names: string[] = [];
+    for (const q of this.quotes) {
+      const fn = q?.policy_attributes?.participant?.first_name?.trim?.() || '';
+      const ln = q?.policy_attributes?.participant?.last_name?.trim?.() || '';
+      const name = `${fn} ${ln}`.trim();
+      if (name) names.push(name + (q?.total ? ` ($${(Number(q.total) / 100).toFixed(2)})` : ''));
+    }
+    return names;
+  }
+  viPremiumTotal(): number {
+    if (!Array.isArray(this.quotes)) return 0;
+    let cents = 0;
+    for (const q of this.quotes) cents += Number(q?.total || 0);
+    return Math.round((cents / 100) * 100) / 100;
+  }
+  viCcEmail(): string {
+    // Prefer family user username if that is an email
+    const u = this.state.familyUser()?.userName || '';
+    return u || '';
+  }
+  cancelViConfirm(): void {
+    this.showViChargeConfirm = false;
+    this.pendingSubmitAfterViConfirm = false;
+  }
+  confirmViAndContinue(): void {
+    this.showViChargeConfirm = false;
+    if (this.pendingSubmitAfterViConfirm) {
+      this.pendingSubmitAfterViConfirm = false;
+      this.continueSubmit();
+    }
+  }
+
+  private prefillCcFromMom(): void {
+    try {
+      const fu = this.state.familyUser();
+      if (!fu) return;
+      const pick = (obj: any, keys: string[]): string | undefined => {
+        for (const k of keys) {
+          const v = obj?.[k];
+          if (typeof v === 'string' && v.trim().length > 0) return v.trim();
+        }
+        return undefined;
+      };
+      if (!this.creditCard.firstName) {
+        const fn = pick(fu, ['firstName']);
+        if (fn) this.creditCard.firstName = fn;
+      }
+      if (!this.creditCard.lastName) {
+        const ln = pick(fu, ['lastName']);
+        if (ln) this.creditCard.lastName = ln;
+      }
+      if (!this.creditCard.address) {
+        const addr = pick(fu, ['address'])
+          || [pick(fu, ['address1']), pick(fu, ['address2'])].filter(Boolean).join(' ').trim();
+        if (addr) this.creditCard.address = addr;
+      }
+      if (!this.creditCard.zip) {
+        const zip = pick(fu, ['zipCode', 'postalCode', 'zip']);
+        if (zip) this.creditCard.zip = zip;
+      }
+    } catch { /* no-op */ }
+  }
+
+  private purchaseRegsaverInsurance(): void {
+    try {
+      const quoteIds: string[] = Array.isArray(this.quotes)
+        ? this.quotes.map((q: any) => String(q?.id ?? q?.quote_id ?? '')).filter((s: string) => !!s)
+        : [];
+      const registrationIds: string[] = Array.isArray(this.quotes)
+        ? this.quotes.map((q: any) => String(q?.metadata?.TsicRegistrationId ?? q?.metadata?.tsicRegistrationId ?? '')).filter((s: string) => !!s)
+        : [];
+      if (quoteIds.length === 0) return; // nothing to purchase
+      const req: InsurancePurchaseRequestDto = {
+        jobId: this.state.jobId(),
+        familyUserId: this.state.familyUser()?.familyUserId!,
+        registrationIds,
+        quoteIds
+      };
+      this.http.post<InsurancePurchaseResponseDto>(`${environment.apiUrl}/insurance/purchase`, req)
+        .subscribe({
+          next: (resp) => {
+            if (resp?.success) {
+              this.toast.show('Processing with Vertical Insurance was SUCCESSFUL', 'success', 3000);
+            } else {
+              console.warn('RegSaver purchase failed:', (resp as any)?.error || resp);
+            }
+          },
+          error: (err) => {
+            console.warn('RegSaver purchase error:', err?.error?.message || err?.message || err);
+            this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
+          }
+        });
+    } catch (e) {
+      console.warn('RegSaver purchase threw exception', e);
+    }
+  }
+
+  private isViOfferVisible(): boolean {
+    try {
+      const el = document.getElementById('dVIOffer');
+      if (!el) return false;
+      const style = getComputedStyle(el);
+      const hasSize = (el.offsetWidth + el.offsetHeight) > 0;
+      return style.display !== 'none' && style.visibility !== 'hidden' && hasSize;
+    } catch { return false; }
+  }
 }
