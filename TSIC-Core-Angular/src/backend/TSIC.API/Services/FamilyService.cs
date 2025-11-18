@@ -8,6 +8,7 @@ using TSIC.API.Constants;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.API.Services.Metadata;
+using Microsoft.Extensions.Configuration;
 
 namespace TSIC.API.Services;
 
@@ -16,13 +17,15 @@ public sealed class FamilyService : IFamilyService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SqlDbContext _db;
     private readonly IProfileMetadataService _profileMeta;
+    private readonly IConfiguration _config;
     private const string DateFormat = "yyyy-MM-dd";
 
-    public FamilyService(UserManager<ApplicationUser> userManager, SqlDbContext db, IProfileMetadataService profileMeta)
+    public FamilyService(UserManager<ApplicationUser> userManager, SqlDbContext db, IProfileMetadataService profileMeta, IConfiguration config)
     {
         _userManager = userManager;
         _db = db;
         _profileMeta = profileMeta;
+        _config = config;
     }
 
     // Generic mapper ported from controller: include ANY dbColumn-backed metadata field present on Registrations.
@@ -81,6 +84,30 @@ public sealed class FamilyService : IFamilyService
             .Where(j => j.JobPath != null && EF.Functions.Collate(j.JobPath!, "SQL_Latin1_General_CP1_CI_AS") == jobPath)
             .Select(j => (Guid?)j.JobId)
             .FirstOrDefaultAsync();
+        // Determine discount code activity and AMEX allowance when job context is known
+        bool jobHasActiveDiscountCodes = false;
+        bool jobUsesAmex = false;
+        if (jobId != null)
+        {
+            var now = DateTime.UtcNow;
+            jobHasActiveDiscountCodes = await _db.JobDiscountCodes
+                .AsNoTracking()
+                .AnyAsync(dc => dc.JobId == jobId && dc.Active && dc.CodeStartDate <= now && dc.CodeEndDate >= now);
+
+            // Pull CustomerId and evaluate against configured client id list for Amex allowance
+            var jobMeta = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId)
+                .Select(j => new { j.CustomerId }).FirstOrDefaultAsync();
+            if (jobMeta != null)
+            {
+                try
+                {
+                    var amexIds = _config.GetSection("PaymentMethods_NonMCVisa_ClientIds:Amex").Get<string[]>() ?? Array.Empty<string>();
+                    var cust = jobMeta.CustomerId.ToString();
+                    jobUsesAmex = amexIds.Any(id => string.Equals(id, cust, StringComparison.OrdinalIgnoreCase));
+                }
+                catch { jobUsesAmex = false; }
+            }
+        }
 
         var linkedChildIds = await _db.FamilyMembers
             .AsNoTracking()
@@ -127,7 +154,7 @@ public sealed class FamilyService : IFamilyService
         var ccInfo = new CcInfoDto(ccFirst, ccLast, ccStreet, ccZip);
 
         if (linkedChildIds.Count == 0)
-            return new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>(), CcInfo: ccInfo);
+            return new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>(), CcInfo: ccInfo, JobHasActiveDiscountCodes: jobHasActiveDiscountCodes, JobUsesAmex: jobUsesAmex);
 
         var regsRaw = jobId == null
             ? new List<TSIC.Domain.Entities.Registrations>()
@@ -302,7 +329,7 @@ public sealed class FamilyService : IFamilyService
             }
         }
 
-        return new FamilyPlayersResponseDto(familyUser, players, regSaver, jobRegForm, ccInfo);
+        return new FamilyPlayersResponseDto(familyUser, players, regSaver, jobRegForm, ccInfo, JobHasActiveDiscountCodes: jobHasActiveDiscountCodes, JobUsesAmex: jobUsesAmex);
     }
 
     public async Task<FamilyProfileResponse?> GetMyFamilyAsync(string userId)

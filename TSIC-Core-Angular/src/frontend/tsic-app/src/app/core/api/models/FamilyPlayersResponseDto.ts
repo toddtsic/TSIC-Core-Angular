@@ -13,5 +13,7 @@ export type FamilyPlayersResponseDto = {
     regSaverDetails?: RegSaverDetailsDto;
     jobRegForm?: JobRegFormDto;
     ccInfo?: CcInfoDto;
+    jobHasActiveDiscountCodes?: boolean;
+    jobUsesAmex?: boolean;
 };
 

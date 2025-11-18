@@ -17,7 +17,7 @@
         {
             "label": "dotnet: run (API)",
             "type": "shell",
-            "command": "dotnet watch run --project TSIC-Core-Angular/src/backend/TSIC.API/TSIC.API.csproj --non-interactive",
+            "command": "dotnet watch run --project TSIC-Core-Angular/src/backend/TSIC.API/TSIC.API.csproj --launch-profile https --non-interactive",
             "problemMatcher": "$msCompile",
             "isBackground": true
         },

@@ -47,7 +47,9 @@ public record FamilyPlayersResponseDto(
     IEnumerable<FamilyPlayerDto> FamilyPlayers,
     RegSaverDetailsDto? RegSaverDetails = null,
     JobRegFormDto? JobRegForm = null,
-    CcInfoDto? CcInfo = null
+    CcInfoDto? CcInfo = null,
+    bool JobHasActiveDiscountCodes = false,
+    bool JobUsesAmex = false
 );
 
 public record CcInfoDto(

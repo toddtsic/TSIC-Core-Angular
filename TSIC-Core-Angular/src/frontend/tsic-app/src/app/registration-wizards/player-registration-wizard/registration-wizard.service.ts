@@ -10,6 +10,7 @@ import type { PreSubmitRegistrationRequestDto } from '../../core/api/models/PreS
 import type { PreSubmitRegistrationResponseDto } from '../../core/api/models/PreSubmitRegistrationResponseDto';
 import type { PreSubmitTeamSelectionDto } from '../../core/api/models/PreSubmitTeamSelectionDto';
 import type { PreSubmitValidationErrorDto } from '../../core/api/models/PreSubmitValidationErrorDto';
+import type { FamilyPlayersResponseDto } from '../../core/api/models/FamilyPlayersResponseDto';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 
@@ -71,6 +72,9 @@ export class RegistrationWizardService {
     // Job metadata raw JSON snapshots
     jobProfileMetadataJson = signal<string | null>(null);
     jobJsonOptions = signal<string | null>(null);
+    // Job payment feature flags
+    jobHasActiveDiscountCodes = signal<boolean>(false);
+    jobUsesAmex = signal<boolean>(false);
     // Payment flags & ARB schedule (ALLOWPIF removed; UI derives options from scenarios only)
     adnArb = signal<boolean>(false);
     adnArbBillingOccurences = signal<number | null>(null);
@@ -160,6 +164,8 @@ export class RegistrationWizardService {
         this.adnArbBillingOccurences.set(null);
         this.adnArbIntervalLength.set(null);
         this.adnArbStartDate.set(null);
+        this.jobHasActiveDiscountCodes.set(false);
+        this.jobUsesAmex.set(false);
     }
 
     /** Seed required waiver acceptance only when ALL selected players are already registered (edit-only scenario).
@@ -283,7 +289,7 @@ export class RegistrationWizardService {
         const base = this.resolveApiBase();
         console.log('[RegWizard] GET family players', { jobPath, base });
         this.familyPlayersLoading.set(true);
-        this.http.get<any>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
+        this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
                     // Set raw debug payload (dev-only panel reads this)
@@ -293,7 +299,7 @@ export class RegistrationWizardService {
                     // If server provided jobRegForm with an explicit constraint type, set it early
                     // so the wizard can decide to show the Eligibility step before fetching /jobs metadata.
                     try {
-                        const jrf = (resp?.jobRegForm ?? resp?.JobRegForm);
+                        const jrf = ((resp as FamilyPlayersResponseDto)?.jobRegForm ?? (resp as any)?.JobRegForm);
                         const rawCt = jrf?.constraintType ?? jrf?.ConstraintType ?? jrf?.teamConstraint ?? jrf?.TeamConstraint ?? null;
                         if (typeof rawCt === 'string' && rawCt.trim().length > 0) {
                             const norm = rawCt.trim().toUpperCase();
@@ -304,7 +310,7 @@ export class RegistrationWizardService {
                         }
                     } catch { /* non-fatal */ }
                     // Normalize familyUser
-                    const fu = resp?.familyUser || resp?.FamilyUser || null;
+                    const fu = (resp as FamilyPlayersResponseDto)?.familyUser || (resp as any)?.FamilyUser || null;
                     if (fu) {
                         // Normalize core + optional contact fields for convenience
                         const pick = (o: any, keys: string[]): string | undefined => {
@@ -331,7 +337,7 @@ export class RegistrationWizardService {
                             postalCode: pick(fu, ['postalCode', 'PostalCode'])
                         } as const;
                         // Map server ccInfo (CcInfo) if present
-                        const rawCc = resp?.ccInfo || resp?.CcInfo || null;
+                        const rawCc = (resp as FamilyPlayersResponseDto)?.ccInfo || (resp as any)?.CcInfo || null;
                         if (rawCc) {
                             (norm as any).ccInfo = {
                                 firstName: pick(rawCc, ['firstName', 'FirstName']),
@@ -343,7 +349,7 @@ export class RegistrationWizardService {
                         this.familyUser.set(norm);
                     }
                     // Normalize regSaver details
-                    const rs = resp?.regSaverDetails || resp?.RegSaverDetails || null;
+                    const rs = (resp as FamilyPlayersResponseDto)?.regSaverDetails || (resp as any)?.RegSaverDetails || null;
                     if (rs) {
                         this.regSaverDetails.set({
                             policyNumber: rs.policyNumber ?? rs.PolicyNumber ?? '',
@@ -353,7 +359,7 @@ export class RegistrationWizardService {
                         this.regSaverDetails.set(null);
                     }
                     // Players list (server property now familyPlayers; fallback to players for backward compatibility)
-                    const rawPlayers: any[] = resp?.familyPlayers || resp?.FamilyPlayers || resp?.players || resp?.Players || [];
+                    const rawPlayers: any[] = (resp as FamilyPlayersResponseDto)?.familyPlayers || (resp as any)?.FamilyPlayers || (resp as any)?.players || (resp as any)?.Players || [];
                     const list: FamilyPlayer[] = rawPlayers.map(p => {
                         const prior: any[] = p.priorRegistrations || p.PriorRegistrations || [];
                         const priorRegs: FamilyPlayerRegistration[] = prior.map(r => ({
@@ -410,6 +416,13 @@ export class RegistrationWizardService {
                     // Keep raw debug payload (already set) so dev panel shows full server snapshot including formFields
                     // Ensure job metadata so forms parse soon after
                     this.ensureJobMetadata(jobPath);
+                    // Payment flags from /family/players (now strongly typed in API models)
+                    try {
+                        const activeCodes = !!(resp as FamilyPlayersResponseDto)?.jobHasActiveDiscountCodes;
+                        const usesAmex = !!(resp as FamilyPlayersResponseDto)?.jobUsesAmex;
+                        this.jobHasActiveDiscountCodes.set(activeCodes);
+                        this.jobUsesAmex.set(usesAmex);
+                    } catch { /* non-critical */ }
                     this.familyPlayersLoading.set(false);
                 },
                 error: err => {

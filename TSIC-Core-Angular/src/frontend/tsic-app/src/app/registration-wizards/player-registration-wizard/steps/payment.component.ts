@@ -182,16 +182,18 @@ interface LineItem {
         </section>
         <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-option-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
           <h6 id="pay-option-title" class="fw-semibold mb-3">Payment Option</h6>
-          <div class="mb-3">
-            <label for="discountCode" class="form-label fw-semibold me-2 d-block d-md-inline">Discount Code</label>
-            <div class="input-group input-group-sm w-auto d-inline-flex align-items-center">
-              <input id="discountCode" type="text" [(ngModel)]="discountCode" name="discountCode" class="form-control" placeholder="Enter code" [disabled]="discountApplying" style="min-width: 180px;" />
-              <button type="button" class="btn btn-outline-primary" (click)="applyDiscount()" [disabled]="discountApplying || !discountCode">Apply</button>
+          @if (state.jobHasActiveDiscountCodes()) {
+            <div class="mb-3">
+              <label for="discountCode" class="form-label fw-semibold me-2 d-block d-md-inline">Discount Code</label>
+              <div class="input-group input-group-sm w-auto d-inline-flex align-items-center">
+                <input id="discountCode" type="text" [(ngModel)]="discountCode" name="discountCode" class="form-control" placeholder="Enter code" [disabled]="discountApplying" style="min-width: 180px;" />
+                <button type="button" class="btn btn-outline-primary" (click)="applyDiscount()" [disabled]="discountApplying || !discountCode">Apply</button>
+              </div>
+              @if (discountMessage) {
+                <div class="form-text mt-1" [class.text-success]="appliedDiscount > 0" [class.text-danger]="appliedDiscount === 0">{{ discountMessage }}</div>
+              }
             </div>
-            @if (discountMessage) {
-              <div class="form-text mt-1" [class.text-success]="appliedDiscount > 0" [class.text-danger]="appliedDiscount === 0">{{ discountMessage }}</div>
-            }
-          </div>
+          }
           @if (isArbScenario()) {
             <div class="form-check">
               <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="chooseOption('ARB')">
@@ -226,7 +228,15 @@ interface LineItem {
         <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
           <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
           <div class="row g-2">
-            <div class="col-md-6">
+            <div class="col-md-3">
+              <label for="ccType" class="form-label">CC Type</label>
+              <select id="ccType" class="form-select" [(ngModel)]="creditCard.type" name="ccType" required>
+                @for (t of ccTypes(); track t) {
+                  <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-md-4">
               <label for="ccNumber" class="form-label">Card Number</label>
               <input type="text" class="form-control" id="ccNumber" [(ngModel)]="creditCard.number" name="ccNumber" placeholder="1234567890123456">
             </div>
@@ -234,7 +244,7 @@ interface LineItem {
               <label for="ccExpiry" class="form-label">Expiry (MMYY)</label>
               <input type="text" class="form-control" id="ccExpiry" [(ngModel)]="creditCard.expiry" name="ccExpiry" placeholder="1225">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <label for="ccCode" class="form-label">CVV</label>
               <input type="text" class="form-control" id="ccCode" [(ngModel)]="creditCard.code" name="ccCode" placeholder="123">
             </div>
@@ -273,6 +283,7 @@ export class PaymentComponent implements AfterViewInit {
   readonly teamService = inject(TeamService);
 
   creditCard = {
+    type: 'MC',
     number: '',
     expiry: '',
     code: '',
@@ -460,6 +471,12 @@ export class PaymentComponent implements AfterViewInit {
       if (!(dep > 0 && fee > 0)) return false;
     }
     return true;
+  });
+
+  // Available CC types: always MC and VISA; optionally AMEX based on job flag
+  ccTypes = computed(() => {
+    const base = ['MC', 'VISA'];
+    return this.state.jobUsesAmex() ? [...base, 'AMEX'] : base;
   });
 
   currentTotal = computed(() => {
