@@ -60,7 +60,6 @@
             "label": "Refresh Angular API models (one-click)",
             "dependsOrder": "sequence",
             "dependsOn": [
-                "dotnet: run (API)",
                 "Swagger: wait",
                 "Generate Angular API Models",
                 "Build Angular UI (one-off)"

@@ -95,14 +95,21 @@ interface LineItem {
             <div class="modal-dialog" role="document">
               <div class="modal-content">
                 <div class="modal-header">
-                  <h5 class="modal-title">Confirm Registration Insurance Purchase</h5>
+                  @if (isViCcOnlyFlow()) {
+                    <h5 class="modal-title">Confirm Insurance Purchase</h5>
+                  } @else {
+                    <h5 class="modal-title">Confirm Registration Payment + Insurance</h5>
+                  }
                   <button type="button" class="btn-close" aria-label="Close" (click)="cancelViConfirm()"></button>
                 </div>
                 <div class="modal-body">
                   <p>The premium(s) for {{ viQuotedPlayers().join(', ') }} will be charged by <strong>VERTICAL INSURANCE</strong> and not by <strong>TEAMSPORTSINFO.COM</strong>.</p>
-                  <p>The credit card info here will be passed to <strong>VERTICAL INSURANCE</strong> for them to process.</p>
                   <p>You will receive an email at <strong>{{ viCcEmail() }}</strong> from <strong>VERTICAL INSURANCE</strong> immediately upon processing.</p>
-                  <p class="mb-0"><strong>Total Insurance Premium:</strong> {{ viPremiumTotal() | currency }}</p>
+                  <p class="mb-2"><strong>Total Insurance Premium:</strong> {{ viPremiumTotal() | currency }}</p>
+                  @if (!isViCcOnlyFlow()) {
+                    <hr class="my-2" />
+                    <p class="mb-0">Your TSIC payment will also be processed as selected.</p>
+                  }
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" (click)="cancelViConfirm()">CANCEL</button>
@@ -224,9 +231,22 @@ interface LineItem {
             </div>
           }
         </section>
+        
+        <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
+        @if (showNoPaymentInfo()) {
+          <div class="alert alert-info border-0" role="status">
+            No payments are due at this time.
+          </div>
+        }
 
+        @if (showCcSection()) {
         <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
           <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
+          @if (isViCcOnlyFlow()) {
+            <div class="alert alert-secondary border-0" role="status">
+              Your TSIC registration balance is $0. The credit card details below are for Vertical Insure only.
+            </div>
+          }
           <div class="row g-2">
             <div class="col-md-3">
               <label for="ccType" class="form-label">CC Type</label>
@@ -270,7 +290,8 @@ interface LineItem {
             </div>
           </div>
         </section>
-          <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">Pay Now</button>
+        }
+          <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">{{ isViCcOnlyFlow() ? 'Send to Vertical Insure' : 'Pay Now' }}</button>
         </div>
       </div>
     </div>
@@ -283,7 +304,7 @@ export class PaymentComponent implements AfterViewInit {
   readonly teamService = inject(TeamService);
 
   creditCard = {
-    type: 'MC',
+    type: '',
     number: '',
     expiry: '',
     code: '',
@@ -473,9 +494,9 @@ export class PaymentComponent implements AfterViewInit {
     return true;
   });
 
-  // Available CC types: always MC and VISA; optionally AMEX based on job flag
+  // Available CC types: include empty default, then MC and VISA; optionally AMEX based on job flag
   ccTypes = computed(() => {
-    const base = ['MC', 'VISA'];
+    const base = ['', 'MC', 'VISA'];
     return this.state.jobUsesAmex() ? [...base, 'AMEX'] : base;
   });
 
@@ -486,9 +507,24 @@ export class PaymentComponent implements AfterViewInit {
     return adjusted;
   });
 
+  // VI-only CC flow: TSIC balance is zero, VI is offered, and user has not confirmed purchase
+  isViCcOnlyFlow = computed(() => {
+    try {
+      return this.currentTotal() === 0 && this.state.offerPlayerRegSaver() && !this.state.verticalInsureConfirmed();
+    } catch { return false; }
+  });
+
+  // Show CC section when there is a TSIC balance OR when VI-only CC entry is needed
+  showCcSection = computed(() => this.currentTotal() > 0 || this.isViCcOnlyFlow());
+
+  // Show info panel when nothing is due and there is no VI-only flow
+  showNoPaymentInfo = computed(() => this.currentTotal() === 0 && !this.isViCcOnlyFlow());
+
   canSubmit = computed(() => {
-    const baseOk = this.lineItems().length > 0 && this.currentTotal() > 0 && !this.submitting;
-    return baseOk;
+    // Allow submit when there is a TSIC balance to charge OR when we are in VI-only flow
+    const tsicCharge = this.lineItems().length > 0 && this.currentTotal() > 0;
+    const viOnly = this.isViCcOnlyFlow();
+    return (tsicCharge || viOnly) && !this.submitting;
   });
 
   private getAmountForTeam(team: any): number {
@@ -527,7 +563,7 @@ export class PaymentComponent implements AfterViewInit {
         return;
       }
     }
-    // If VI quotes exist (insurance selected), show charge confirmation modal before proceeding.
+    // If VI quotes exist (insurance selected), show charge confirmation modal before proceeding (TSIC+VI or VI-only).
     if (this.state.offerPlayerRegSaver() && Array.isArray(this.quotes) && this.quotes.length > 0) {
       this.pendingSubmitAfterViConfirm = true;
       this.showViChargeConfirm = true;
@@ -689,7 +725,12 @@ export class PaymentComponent implements AfterViewInit {
     this.showViChargeConfirm = false;
     if (this.pendingSubmitAfterViConfirm) {
       this.pendingSubmitAfterViConfirm = false;
-      this.continueSubmit();
+      // Reuse the same modal: if VI-only flow (no TSIC balance), purchase insurance directly.
+      if (this.isViCcOnlyFlow()) {
+        this.purchaseRegsaverInsuranceAndFinish();
+      } else {
+        this.continueSubmit();
+      }
     }
   }
 
@@ -732,6 +773,62 @@ export class PaymentComponent implements AfterViewInit {
           }
         });
     } catch (e) {
+      console.warn('RegSaver purchase threw exception', e);
+    }
+  }
+
+  // VI-only helper: purchase insurance and finish the step without TSIC payment.
+  private purchaseRegsaverInsuranceAndFinish(): void {
+    try {
+      const quoteIds: string[] = Array.isArray(this.quotes)
+        ? this.quotes.map((q: any) => String(q?.id ?? q?.quote_id ?? '')).filter((s: string) => !!s)
+        : [];
+      const registrationIds: string[] = Array.isArray(this.quotes)
+        ? this.quotes.map((q: any) => String(q?.metadata?.TsicRegistrationId ?? q?.metadata?.tsicRegistrationId ?? '')).filter((s: string) => !!s)
+        : [];
+      if (quoteIds.length === 0) {
+        this.toast.show('No insurance quotes to purchase', 'danger', 3000);
+        return;
+      }
+      const req: InsurancePurchaseRequestDto = {
+        jobId: this.state.jobId(),
+        familyUserId: this.state.familyUser()?.familyUserId!,
+        registrationIds,
+        quoteIds
+      };
+      this.submitting = true;
+      this.http.post<InsurancePurchaseResponseDto>(`${environment.apiUrl}/insurance/purchase`, req)
+        .subscribe({
+          next: (resp) => {
+            this.submitting = false;
+            if (resp?.success) {
+              this.toast.show('Processing with Vertical Insurance was SUCCESSFUL', 'success', 3000);
+              // Record a minimal confirmation for the finish step
+              try {
+                this.state.lastPayment.set({
+                  option: this.state.paymentOption(),
+                  amount: 0,
+                  transactionId: undefined,
+                  subscriptionId: undefined,
+                  viPolicyNumber: this.state.viConsent()?.policyNumber ?? null,
+                  viPolicyCreateDate: this.state.viConsent()?.policyCreateDate ?? null,
+                  message: 'Insurance processed via Vertical Insure.'
+                });
+              } catch { /* ignore */ }
+              this.submitted.emit();
+            } else {
+              this.toast.show('Vertical Insurance processing failed', 'danger', 4000);
+              console.warn('RegSaver purchase failed:', (resp as any)?.error || resp);
+            }
+          },
+          error: (err) => {
+            this.submitting = false;
+            console.warn('RegSaver purchase error:', err?.error?.message || err?.message || err);
+            this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
+          }
+        });
+    } catch (e) {
+      this.submitting = false;
       console.warn('RegSaver purchase threw exception', e);
     }
   }
