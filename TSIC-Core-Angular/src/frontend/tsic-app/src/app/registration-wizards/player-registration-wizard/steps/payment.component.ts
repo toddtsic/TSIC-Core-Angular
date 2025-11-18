@@ -329,15 +329,9 @@ export class PaymentComponent implements AfterViewInit {
   ngAfterViewInit(): void {
     // Attempt to hydrate any existing idempotency key (previous attempt that failed or was retried)
     this.loadStoredIdem();
-    // Prefill credit card holder info from family user ("mom") when available
-    this.prefillCcFromMom();
-    // Also react to family user becoming available later; only fills empty fields
-    effect(() => {
-      // track familyUser signal to run when it changes
-      this.state.familyUser();
-      // invoke prefill best-effort; won't overwrite non-empty fields
-      this.prefillCcFromMom();
-    });
+    // Simpler: one-shot hydrate + short delayed retry (in case data arrives slightly later)
+    this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo);
+    setTimeout(() => this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo), 300);
     this.tryInitVerticalInsure();
     // Auto-select within the scenario unless user has chosen manually
     effect(() => {
@@ -687,35 +681,13 @@ export class PaymentComponent implements AfterViewInit {
     }
   }
 
-  private prefillCcFromMom(): void {
-    try {
-      const fu = this.state.familyUser();
-      if (!fu) return;
-      const pick = (obj: any, keys: string[]): string | undefined => {
-        for (const k of keys) {
-          const v = obj?.[k];
-          if (typeof v === 'string' && v.trim().length > 0) return v.trim();
-        }
-        return undefined;
-      };
-      if (!this.creditCard.firstName) {
-        const fn = pick(fu, ['firstName']);
-        if (fn) this.creditCard.firstName = fn;
-      }
-      if (!this.creditCard.lastName) {
-        const ln = pick(fu, ['lastName']);
-        if (ln) this.creditCard.lastName = ln;
-      }
-      if (!this.creditCard.address) {
-        const addr = pick(fu, ['address'])
-          || [pick(fu, ['address1']), pick(fu, ['address2'])].filter(Boolean).join(' ').trim();
-        if (addr) this.creditCard.address = addr;
-      }
-      if (!this.creditCard.zip) {
-        const zip = pick(fu, ['zipCode', 'postalCode', 'zip']);
-        if (zip) this.creditCard.zip = zip;
-      }
-    } catch { /* no-op */ }
+  // Removed client-side heuristic CC prefill; data now supplied by server via ccInfo.
+  private simpleHydrateFromCc(cc?: { firstName?: string; lastName?: string; streetAddress?: string; zip?: string; }): void {
+    if (!cc) return;
+    if (!this.creditCard.firstName && cc.firstName) this.creditCard.firstName = cc.firstName.trim();
+    if (!this.creditCard.lastName && cc.lastName) this.creditCard.lastName = cc.lastName.trim();
+    if (!this.creditCard.address && cc.streetAddress) this.creditCard.address = cc.streetAddress.trim();
+    if (!this.creditCard.zip && cc.zip) this.creditCard.zip = cc.zip.trim();
   }
 
   private purchaseRegsaverInsurance(): void {

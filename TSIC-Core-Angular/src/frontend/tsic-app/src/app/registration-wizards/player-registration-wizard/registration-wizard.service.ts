@@ -44,6 +44,13 @@ export class RegistrationWizardService {
         zipCode?: string;      // preferred zip property
         zip?: string;          // fallback zip property
         postalCode?: string;   // alternative naming
+        // Server-provided credit card info (authoritative guardian billing details)
+        ccInfo?: {
+            firstName?: string;
+            lastName?: string;
+            streetAddress?: string;
+            zip?: string;
+        };
     } | null>(null);
     // RegSaver (optional insurance) details for family/job
     regSaverDetails = signal<RegSaverDetails | null>(null);
@@ -323,6 +330,21 @@ export class RegistrationWizardService {
                             zip: pick(fu, ['zip', 'Zip']),
                             postalCode: pick(fu, ['postalCode', 'PostalCode'])
                         } as const;
+                        // Map server ccInfo (CcInfo) if present
+                        const rawCc = resp?.ccInfo || resp?.CcInfo || null;
+                        if (rawCc) {
+                            (norm as any).ccInfo = {
+                                firstName: pick(rawCc, ['firstName', 'FirstName']),
+                                lastName: pick(rawCc, ['lastName', 'LastName']),
+                                streetAddress: pick(rawCc, ['streetAddress', 'StreetAddress', 'address', 'Address']),
+                                zip: pick(rawCc, ['zip', 'Zip', 'zipCode', 'ZipCode', 'postalCode', 'PostalCode'])
+                            };
+                            // Promote into top-level convenience fields if they are still blank
+                            if (!(norm as any).firstName && (norm as any).ccInfo.firstName) (norm as any).firstName = (norm as any).ccInfo.firstName;
+                            if (!(norm as any).lastName && (norm as any).ccInfo.lastName) (norm as any).lastName = (norm as any).ccInfo.lastName;
+                            if (!(norm as any).address && (norm as any).ccInfo.streetAddress) (norm as any).address = (norm as any).ccInfo.streetAddress;
+                            if (!(norm as any).zipCode && (norm as any).ccInfo.zip) (norm as any).zipCode = (norm as any).ccInfo.zip;
+                        }
                         this.familyUser.set(norm);
                     }
                     // Normalize regSaver details

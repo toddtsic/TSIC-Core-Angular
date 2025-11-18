@@ -104,8 +104,30 @@ public sealed class FamilyService : IFamilyService
 
         var familyUser = new FamilyUserSummaryDto(familyUserId, display, asp?.UserName ?? string.Empty);
 
+        // Build credit card info (prefer mom, then dad, then asp user)
+        string? ccFirst = null;
+        string? ccLast = null;
+        if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
+        {
+            ccFirst = fam?.MomFirstName?.Trim();
+            ccLast = fam?.MomLastName?.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(fam?.DadFirstName) || !string.IsNullOrWhiteSpace(fam?.DadLastName))
+        {
+            ccFirst = fam?.DadFirstName?.Trim();
+            ccLast = fam?.DadLastName?.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(asp?.FirstName) || !string.IsNullOrWhiteSpace(asp?.LastName))
+        {
+            ccFirst = asp?.FirstName?.Trim();
+            ccLast = asp?.LastName?.Trim();
+        }
+        var ccStreet = asp?.StreetAddress?.Trim();
+        var ccZip = asp?.PostalCode?.Trim();
+        var ccInfo = new CcInfoDto(ccFirst, ccLast, ccStreet, ccZip);
+
         if (linkedChildIds.Count == 0)
-            return new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>());
+            return new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>(), CcInfo: ccInfo);
 
         var regsRaw = jobId == null
             ? new List<TSIC.Domain.Entities.Registrations>()
@@ -280,7 +302,7 @@ public sealed class FamilyService : IFamilyService
             }
         }
 
-        return new FamilyPlayersResponseDto(familyUser, players, regSaver, jobRegForm);
+        return new FamilyPlayersResponseDto(familyUser, players, regSaver, jobRegForm, ccInfo);
     }
 
     public async Task<FamilyProfileResponse?> GetMyFamilyAsync(string userId)

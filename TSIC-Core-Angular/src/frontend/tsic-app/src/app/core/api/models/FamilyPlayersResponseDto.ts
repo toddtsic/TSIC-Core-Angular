@@ -6,10 +6,12 @@ import type { FamilyPlayerDto } from './FamilyPlayerDto';
 import type { FamilyUserSummaryDto } from './FamilyUserSummaryDto';
 import type { JobRegFormDto } from './JobRegFormDto';
 import type { RegSaverDetailsDto } from './RegSaverDetailsDto';
+import type { CcInfoDto } from './CcInfoDto';
 export type FamilyPlayersResponseDto = {
     familyUser?: FamilyUserSummaryDto;
     familyPlayers?: Array<FamilyPlayerDto> | null;
     regSaverDetails?: RegSaverDetailsDto;
     jobRegForm?: JobRegFormDto;
+    ccInfo?: CcInfoDto;
 };
 

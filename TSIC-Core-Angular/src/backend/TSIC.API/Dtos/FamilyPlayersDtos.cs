@@ -46,7 +46,15 @@ public record FamilyPlayersResponseDto(
     FamilyUserSummaryDto FamilyUser,
     IEnumerable<FamilyPlayerDto> FamilyPlayers,
     RegSaverDetailsDto? RegSaverDetails = null,
-    JobRegFormDto? JobRegForm = null
+    JobRegFormDto? JobRegForm = null,
+    CcInfoDto? CcInfo = null
+);
+
+public record CcInfoDto(
+    string? FirstName,
+    string? LastName,
+    string? StreetAddress,
+    string? Zip
 );
 
 // Typed field definition combined with the current value for a specific registration
