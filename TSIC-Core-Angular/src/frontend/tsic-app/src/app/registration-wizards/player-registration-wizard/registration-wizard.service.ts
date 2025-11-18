@@ -339,11 +339,6 @@ export class RegistrationWizardService {
                                 streetAddress: pick(rawCc, ['streetAddress', 'StreetAddress', 'address', 'Address']),
                                 zip: pick(rawCc, ['zip', 'Zip', 'zipCode', 'ZipCode', 'postalCode', 'PostalCode'])
                             };
-                            // Promote into top-level convenience fields if they are still blank
-                            if (!(norm as any).firstName && (norm as any).ccInfo.firstName) (norm as any).firstName = (norm as any).ccInfo.firstName;
-                            if (!(norm as any).lastName && (norm as any).ccInfo.lastName) (norm as any).lastName = (norm as any).ccInfo.lastName;
-                            if (!(norm as any).address && (norm as any).ccInfo.streetAddress) (norm as any).address = (norm as any).ccInfo.streetAddress;
-                            if (!(norm as any).zipCode && (norm as any).ccInfo.zip) (norm as any).zipCode = (norm as any).ccInfo.zip;
                         }
                         this.familyUser.set(norm);
                     }
