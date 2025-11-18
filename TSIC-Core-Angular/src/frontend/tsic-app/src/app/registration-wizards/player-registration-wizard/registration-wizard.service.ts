@@ -64,8 +64,7 @@ export class RegistrationWizardService {
     // Job metadata raw JSON snapshots
     jobProfileMetadataJson = signal<string | null>(null);
     jobJsonOptions = signal<string | null>(null);
-    // Payment flags & ARB schedule
-    allowPayInFull = signal<boolean>(false);
+    // Payment flags & ARB schedule (ALLOWPIF removed; UI derives options from scenarios only)
     adnArb = signal<boolean>(false);
     adnArbBillingOccurences = signal<number | null>(null);
     adnArbIntervalLength = signal<number | null>(null);
@@ -150,7 +149,6 @@ export class RegistrationWizardService {
         this.waiversAccepted.set({});
         this.signatureName.set('');
         this.signatureRole.set('');
-        this.allowPayInFull.set(false);
         this.adnArb.set(false);
         this.adnArbBillingOccurences.set(null);
         this.adnArbIntervalLength.set(null);
@@ -421,20 +419,16 @@ export class RegistrationWizardService {
                     this.jobJsonOptions.set(meta.jsonOptions || null);
                     // Payment flags & schedule from server metadata
                     try {
-                        // Derive allowPIF from CoreRegFormPlayer containing "ALLOWPIF" (case-insensitive)
-                        const crfpRaw = (meta as any).CoreRegFormPlayer ?? (meta as any).coreRegFormPlayer ?? '';
-                        const allowPif = typeof crfpRaw === 'string' ? /ALLOWPIF/i.test(crfpRaw) : false;
                         const arb = (meta as any).AdnArb ?? (meta as any).adnArb ?? false;
                         const occ = (meta as any).AdnArbBillingOccurences ?? (meta as any).adnArbBillingOccurences ?? null;
                         const intLen = (meta as any).AdnArbIntervalLength ?? (meta as any).adnArbIntervalLength ?? null;
                         const start = (meta as any).AdnArbStartDate ?? (meta as any).adnArbStartDate ?? null;
-                        this.allowPayInFull.set(!!allowPif);
                         this.adnArb.set(!!arb);
                         this.adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
                         this.adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
                         this.adnArbStartDate.set(start ? String(start) : null);
-                        // Default to ARB when enabled; else to Deposit (UI may promote to PIF when no deposit exists); else PIF when allowed.
-                        this.paymentOption.set(this.adnArb() ? 'ARB' : (this.allowPayInFull() ? 'PIF' : 'Deposit'));
+                        // Default to ARB when enabled; else PIF. UI will adjust based on scenario when teams are selected.
+                        this.paymentOption.set(this.adnArb() ? 'ARB' : 'PIF');
                     } catch { /* non-critical */ }
                     // Do not set constraintType from client-side heuristics; rely solely on /family/players response.
                     // Offer flag for RegSaver

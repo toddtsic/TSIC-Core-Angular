@@ -120,7 +120,15 @@ interface LineItem {
               <tr>
                 <th>Player</th>
                 <th>Team</th>
-                <th>Amount</th>
+                @if (isArbScenario()) {
+                  <th>Per Interval</th>
+                  <th>Total</th>
+                } @else if (isDepositScenario()) {
+                  <th>Deposit</th>
+                  <th>Pay In Full</th>
+                } @else {
+                  <th>Amount</th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -128,25 +136,47 @@ interface LineItem {
                 <tr>
                   <td>{{ item.playerName }}</td>
                   <td>{{ item.teamName }}</td>
-                  <td>{{ item.amount | currency }}</td>
+                  @if (isArbScenario()) {
+                    <td>{{ (item.amount / arbOccurrences()) | currency }}</td>
+                    <td>{{ item.amount | currency }}</td>
+                  } @else if (isDepositScenario()) {
+                    <td>{{ getDepositForPlayer(item.playerId) | currency }}</td>
+                    <td>{{ item.amount | currency }}</td>
+                  } @else {
+                    <td>{{ item.amount | currency }}</td>
+                  }
                 </tr>
               }
             </tbody>
             <tfoot>
-              <tr>
-                <th colspan="2" class="text-end">Subtotal</th>
-                <th>{{ totalAmount() | currency }}</th>
-              </tr>
-              @if (appliedDiscount > 0) {
+              @if (isArbScenario()) {
                 <tr>
-                  <th colspan="2" class="text-end">Discount</th>
-                  <th>-{{ appliedDiscount | currency }}</th>
+                  <th colspan="2" class="text-end">Per Interval Total</th>
+                  <th>{{ arbPerOccurrence() | currency }}</th>
+                  <th class="text-muted small">(of {{ totalAmount() | currency }})</th>
+                </tr>
+              } @else if (isDepositScenario()) {
+                <tr>
+                  <th colspan="2" class="text-end">Deposit Total</th>
+                  <th>{{ depositTotal() | currency }}</th>
+                  <th class="text-muted small">Pay In Full: {{ totalAmount() | currency }}</th>
+                </tr>
+              } @else {
+                <tr>
+                  <th colspan="2" class="text-end">Subtotal</th>
+                  <th>{{ totalAmount() | currency }}</th>
+                </tr>
+                @if (appliedDiscount > 0) {
+                  <tr>
+                    <th colspan="2" class="text-end">Discount</th>
+                    <th>-{{ appliedDiscount | currency }}</th>
+                  </tr>
+                }
+                <tr>
+                  <th colspan="2" class="text-end">Due Now</th>
+                  <th>{{ currentTotal() | currency }}</th>
                 </tr>
               }
-              <tr>
-                <th colspan="2" class="text-end">Due Now</th>
-                <th>{{ currentTotal() | currency }}</th>
-              </tr>
             </tfoot>
           </table>
         </div>
@@ -167,31 +197,33 @@ interface LineItem {
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">Payment Option</label>
-          @if (shouldShowPif()) {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="pif" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
-              <label class="form-check-label" for="pif">
-                Pay in Full (PIF) - {{ totalAmount() | currency }}
-              </label>
-            </div>
-          }
-          @if (!state.adnArb() && depositTotal() > 0) {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="deposit" name="paymentOption" [checked]="state.paymentOption() === 'Deposit'" (change)="chooseOption('Deposit')">
-              <label class="form-check-label" for="deposit">
-                Deposit Only - {{ depositTotal() | currency }}
-              </label>
-            </div>
-          }
-          @if (state.adnArb()) {
+          @if (isArbScenario()) {
             <div class="form-check">
               <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="chooseOption('ARB')">
               <label class="form-check-label" for="arb">
-                Automated Recurring Billing (ARB) - {{ totalAmount() | currency }}
+                Automated Recurring Billing (ARB)
                 <div class="small text-muted">
                   {{ arbOccurrences() }} payments of {{ arbPerOccurrence() | currency }} every {{ arbIntervalLength() }} month(s) starting {{ arbStartDate() | date:'mediumDate' }}
                 </div>
               </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="pifArb" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
+              <label class="form-check-label" for="pifArb">Pay In Full - {{ totalAmount() | currency }}</label>
+            </div>
+          } @else if (isDepositScenario()) {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="deposit" name="paymentOption" [checked]="state.paymentOption() === 'Deposit'" (change)="chooseOption('Deposit')">
+              <label class="form-check-label" for="deposit">Deposit Only - {{ depositTotal() | currency }}</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="pifDep" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
+              <label class="form-check-label" for="pifDep">Pay In Full - {{ totalAmount() | currency }}</label>
+            </div>
+          } @else {
+            <div class="form-check">
+              <input class="form-check-input" type="radio" id="pifOnly" name="paymentOption" checked (change)="$event.preventDefault()">
+              <label class="form-check-label" for="pifOnly">Pay In Full - {{ totalAmount() | currency }}</label>
             </div>
           }
         </div>
@@ -307,30 +339,20 @@ export class PaymentComponent implements AfterViewInit {
       this.prefillCcFromMom();
     });
     this.tryInitVerticalInsure();
-    // Auto-select cheapest available option unless user has chosen manually
+    // Auto-select within the scenario unless user has chosen manually
     effect(() => {
-      const allowPif = this.state.allowPayInFull();
-      const arb = this.state.adnArb();
-      const deposit = this.depositTotal();
-      const full = this.totalAmount();
-      // available options
-      const opts: string[] = [];
-      const forcePif = deposit === 0;
-      // PIF availability must match shouldShowPif(): ALLOWPIF or zero deposit
-      if (allowPif || forcePif) opts.push('PIF');
-      if (!arb && deposit > 0) opts.push('Deposit');
-      if (arb) opts.push('ARB');
-      if (this.userChangedOption) return; // don't override user choice
-      // pick cheapest due-now amount among available
-      let pick: 'PIF' | 'Deposit' | 'ARB' | null = null;
-      const dueNow = (opt: string) => opt === 'Deposit' ? deposit : full;
-      let best = Number.POSITIVE_INFINITY;
-      for (const o of opts) {
-        const d = dueNow(o);
-        if (d > 0 && d < best) { best = d; pick = o as any; }
+      if (this.userChangedOption) return;
+      const opts: Array<'ARB' | 'Deposit' | 'PIF'> = [];
+      if (this.isArbScenario()) {
+        opts.push('ARB', 'PIF');
+      } else if (this.isDepositScenario()) {
+        opts.push('Deposit', 'PIF');
+      } else {
+        opts.push('PIF');
       }
-      if (pick && this.state.paymentOption() !== pick) {
-        this.state.paymentOption.set(pick);
+      const current = this.state.paymentOption();
+      if (!opts.includes(current as any)) {
+        this.state.paymentOption.set(opts[0]);
       }
     });
   }
@@ -431,6 +453,26 @@ export class PaymentComponent implements AfterViewInit {
     return sum;
   });
 
+  // Scenario helpers per new strategy
+  isArbScenario = computed(() => !!this.state.adnArb());
+  isDepositScenario = computed(() => {
+    if (this.isArbScenario()) return false;
+    const selectedPlayers = this.state.familyPlayers()
+      .filter(p => p.selected || p.registered)
+      .map(p => p.playerId);
+    if (selectedPlayers.length === 0) return false;
+    const map = this.state.selectedTeams();
+    for (const pid of selectedPlayers) {
+      const teamId = map[pid];
+      if (typeof teamId !== 'string') return false;
+      const team = this.teamService.getTeamById(teamId);
+      const dep = Number(team?.perRegistrantDeposit ?? 0);
+      const fee = Number(team?.perRegistrantFee ?? 0);
+      if (!(dep > 0 && fee > 0)) return false;
+    }
+    return true;
+  });
+
   currentTotal = computed(() => {
     const option = this.state.paymentOption();
     const base = option === 'Deposit' ? this.depositTotal() : this.totalAmount();
@@ -467,10 +509,7 @@ export class PaymentComponent implements AfterViewInit {
     return occ > 0 ? Math.round((total / occ) * 100) / 100 : total;
   });
 
-  shouldShowPif(): boolean {
-    // PIF is visible when ALLOWPIF is present (job flag) OR when there is no deposit (must pay full)
-    return this.state.allowPayInFull() || this.depositTotal() === 0;
-  }
+  // shouldShowPif removed: PIF visibility now determined solely by scenarios
 
   submit(): void {
     if (this.submitting) return;
@@ -604,7 +643,7 @@ export class PaymentComponent implements AfterViewInit {
     });
   }
 
-  private getDepositForPlayer(playerId: string): number {
+  getDepositForPlayer(playerId: string): number {
     const teamId = this.state.selectedTeams()[playerId];
     if (typeof teamId === 'string') {
       const team = this.teamService.getTeamById(teamId);

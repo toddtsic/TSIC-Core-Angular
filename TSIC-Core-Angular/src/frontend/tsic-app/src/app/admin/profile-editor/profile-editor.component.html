@@ -19,9 +19,9 @@
                             <i class="bi bi-plus-lg me-1"></i>
                             <span>New Profile</span>
                         </button>
-                        <a [routerLink]="['/', jobPath(), 'admin', 'profile-migration']" class="btn btn-primary"
+                        <a [routerLink]="['/admin/profile-migration']" class="btn btn-outline-primary"
                             title="Open migration dashboard" aria-label="Open migration dashboard">
-                            <i class="bi bi-database-gear me-1"></i>
+                            <i class="bi bi-diagram-3 me-1"></i>
                             <span class="d-none d-sm-inline">Migration Dashboard</span>
                             <span class="d-inline d-sm-none">Migrate</span>
                         </a>
@@ -79,10 +79,7 @@
                             }
                         </select>
                     </div>
-                    <div class="form-check mt-3">
-                        <input class="form-check-input" id="allowPif" type="checkbox" [(ngModel)]="jobAllowPayInFull">
-                        <label class="form-check-label" for="allowPif">Allow Pay In Full</label>
-                    </div>
+                    <!-- Allow Pay In Full removed: scenarios derive payment options -->
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
                             @if (jobConfigDirty()) { <span class="badge bg-warning text-dark">Unsaved changes</span> }

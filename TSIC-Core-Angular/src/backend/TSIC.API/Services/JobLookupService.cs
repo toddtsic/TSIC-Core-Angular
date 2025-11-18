@@ -31,7 +31,7 @@ public class JobMetadataDto
     public string? PlayerRegRefundPolicy { get; set; }
     // Flags
     public bool OfferPlayerRegsaverInsurance { get; set; }
-    // Payment flags
+    // Legacy payment flag (removed from frontend; retained only for backward compatibility on older clients)
     public bool AllowPayInFull { get; set; }
     public bool? AdnArb { get; set; }
     public int? AdnArbBillingOccurences { get; set; }
@@ -110,19 +110,8 @@ public class JobLookupService : IJobLookupService
 
         if (job == null) return null;
 
-        // Compute AllowPayInFull from any RegForms associated with this job
-        try
-        {
-            var allowPif = await _context.RegForms
-                .Where(rf => rf.JobId == job.JobId)
-                .Select(rf => rf.AllowPif)
-                .AnyAsync(v => v);
-            job.AllowPayInFull = allowPif;
-        }
-        catch
-        {
-            job.AllowPayInFull = false;
-        }
+        // Deprecated: AllowPayInFull no longer used by payment logic (scenario-based in PaymentService)
+        job.AllowPayInFull = false;
 
         return job;
     }

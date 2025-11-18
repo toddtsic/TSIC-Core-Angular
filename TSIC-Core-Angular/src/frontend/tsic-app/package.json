@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:tsic-app": "node dist/tsic-app/server/server.mjs",
-    "generate:api": "openapi -i http://localhost:5022/swagger/v1/swagger.json -o src/app/core/api --client axios --useOptions --useUnionTypes --exportCore false --exportServices false --exportModels true --postfixServices Api --postfixModels Dto"
+    "generate:api": "if not exist tmp mkdir tmp && curl -sS -k https://localhost:7215/swagger/v1/swagger.json -o tmp/swagger.json && openapi -i tmp/swagger.json -o src/app/core/api --client axios --useOptions --useUnionTypes --exportCore false --exportServices false --exportModels true --postfixServices Api --postfixModels Dto"
   },
   "private": true,
   "dependencies": {

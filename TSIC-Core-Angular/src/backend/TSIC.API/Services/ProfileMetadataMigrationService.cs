@@ -1402,68 +1402,62 @@ public class ProfileMetadataMigrationService
     // ----------------------------------------------------------------------------
     // CoreRegformPlayer helpers (compose/decompose)
     // ----------------------------------------------------------------------------
-    private static (string? ProfileType, string? TeamConstraint, bool AllowPayInFull) ParseCoreRegformParts(string? coreRegformPlayer)
+    private static (string? ProfileType, string? TeamConstraint) ParseCoreRegformParts(string? coreRegformPlayer)
     {
         if (string.IsNullOrWhiteSpace(coreRegformPlayer) || coreRegformPlayer == "0" || coreRegformPlayer == "1")
-            return (null, null, false);
+            return (null, null);
 
         var parts = coreRegformPlayer.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
-            return (null, null, false);
+            return (null, null);
 
         static bool IsProfileType(string p) =>
             !string.IsNullOrWhiteSpace(p) && (p.StartsWith("PP", StringComparison.OrdinalIgnoreCase) || p.StartsWith("CAC", StringComparison.OrdinalIgnoreCase));
 
-        static bool IsAllowPif(string p) => p.Equals("ALLOWPIF", StringComparison.OrdinalIgnoreCase) || p.Equals("AllowPIF", StringComparison.OrdinalIgnoreCase);
-
         // Identify profile type as the first PP##/CAC## segment
         string? profileType = parts.FirstOrDefault(IsProfileType);
-
-        // Allow PIF if the token appears anywhere
-        bool allowPif = parts.Any(IsAllowPif);
 
         // Team constraint: first non-empty, non-profileType, non-ALLOWPIF segment
         string? teamConstraint = parts.FirstOrDefault(p =>
             !string.IsNullOrWhiteSpace(p)
             && !IsProfileType(p)
-            && !IsAllowPif(p));
+        );
 
-        return (profileType, teamConstraint, allowPif);
+        return (profileType, teamConstraint);
     }
 
-    private static string BuildCoreRegform(string profileType, string teamConstraint, bool allowPayInFull)
+    private static string BuildCoreRegform(string profileType, string teamConstraint)
     {
         var list = new List<string> { profileType };
         if (!string.IsNullOrWhiteSpace(teamConstraint))
         {
             list.Add(teamConstraint);
         }
-        if (allowPayInFull) list.Add("ALLOWPIF");
         return string.Join('|', list);
     }
 
-    public async Task<(string? ProfileType, string? TeamConstraint, bool AllowPayInFull, string Raw, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
+    public async Task<(string? ProfileType, string? TeamConstraint, string Raw, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
             .SingleOrDefaultAsync(r => r.RegistrationId == regId);
         if (registration?.Job == null)
         {
-            return (null, null, false, string.Empty, null);
+            return (null, null, string.Empty, null);
         }
 
         var raw = registration.Job.CoreRegformPlayer ?? string.Empty;
-        var (pt, constraint, allowPif) = ParseCoreRegformParts(raw);
+        var (pt, constraint) = ParseCoreRegformParts(raw);
         ProfileMetadata? metadata = null;
         if (!string.IsNullOrEmpty(pt))
         {
             metadata = await GetProfileMetadataAsync(pt);
         }
-        return (pt, constraint, allowPif, raw, metadata);
+        return (pt, constraint, raw, metadata);
     }
 
-    public async Task<(string ProfileType, string TeamConstraint, bool AllowPayInFull, string Raw, ProfileMetadata? Metadata)>
-        UpdateCurrentJobProfileConfigAsync(Guid regId, string profileType, string teamConstraint, bool allowPayInFull)
+    public async Task<(string ProfileType, string TeamConstraint, string Raw, ProfileMetadata? Metadata)>
+        UpdateCurrentJobProfileConfigAsync(Guid regId, string profileType, string teamConstraint)
     {
         var registration = await _context.Registrations
             .Include(r => r.Job)
@@ -1474,7 +1468,7 @@ public class ProfileMetadataMigrationService
         }
 
         // Build and persist CoreRegformPlayer
-        var newCore = BuildCoreRegform(profileType, teamConstraint, allowPayInFull);
+        var newCore = BuildCoreRegform(profileType, teamConstraint);
         registration.Job.CoreRegformPlayer = newCore;
 
         // Refresh PlayerProfileMetadataJson to match the selected type
@@ -1488,7 +1482,7 @@ public class ProfileMetadataMigrationService
 
         await _context.SaveChangesAsync();
 
-        return (profileType, teamConstraint, allowPayInFull, newCore, metadata);
+        return (profileType, teamConstraint, newCore, metadata);
     }
 
     /// <summary>

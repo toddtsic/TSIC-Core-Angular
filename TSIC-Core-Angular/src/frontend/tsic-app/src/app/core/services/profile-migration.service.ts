@@ -132,7 +132,6 @@ export interface CurrentJobProfileResponse {
 export interface CurrentJobProfileConfigResponse {
     profileType: string;
     teamConstraint: string | null;
-    allowPayInFull: boolean;
     coreRegform: string;
     metadata: ProfileMetadata | null;
 }
@@ -461,7 +460,6 @@ export class ProfileMigrationService {
     updateCurrentJobProfileConfig(
         profileType: string,
         teamConstraint: string,
-        allowPayInFull: boolean,
         onSuccess: (resp: CurrentJobProfileConfigResponse) => void,
         onError?: (error: any) => void
     ): void {
@@ -469,7 +467,7 @@ export class ProfileMigrationService {
         this._errorMessage.set(null);
 
         this.http.put<CurrentJobProfileConfigResponse>(`${this.apiUrl}/profiles/current/config`, {
-            profileType, teamConstraint, allowPayInFull
+            profileType, teamConstraint
         }).subscribe({
             next: (resp) => { this._isLoading.set(false); this._currentJobProfileConfig.set(resp); if (resp.metadata) { this._currentMetadata.set(resp.metadata); } onSuccess(resp); },
             error: (error) => {

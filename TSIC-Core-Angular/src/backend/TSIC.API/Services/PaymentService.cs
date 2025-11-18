@@ -45,16 +45,8 @@ public class PaymentService : IPaymentService
             return new PaymentResponseDto { Success = false, Message = "Invalid job" };
         }
 
-        var allowPif = await _db.RegForms.Where(rf => rf.JobId == request.JobId).Select(rf => rf.AllowPif).AnyAsync(v => v);
         var isArb = job.AdnArb == true;
-
-        // Validate requested option vs job flags (extracted)
-        if (!ValidatePaymentOption(request.PaymentOption, allowPif, isArb, out var validationMessage))
-        {
-            return new PaymentResponseDto { Success = false, Message = validationMessage };
-        }
-
-        // Get registrations for the family
+        // Get registrations for the family (needed for scenario validation)
         var registrations = await _db.Registrations
             .Where(r => r.JobId == request.JobId && r.FamilyUserId == request.FamilyUserId.ToString() && r.UserId != null)
             .ToListAsync();
@@ -62,6 +54,23 @@ public class PaymentService : IPaymentService
         if (!registrations.Any())
         {
             return new PaymentResponseDto { Success = false, Message = "No registrations found" };
+        }
+
+        // Scenario-based validation (ALLOWPIF removed):
+        // - PIF is always allowed
+        // - ARB allowed only when job has ARB enabled
+        // - Deposit allowed only when every selected team has Fee > 0 and Deposit > 0
+        if (request.PaymentOption == PaymentOption.ARB && !isArb)
+        {
+            return new PaymentResponseDto { Success = false, Message = "Recurring billing (ARB) is not enabled for this job." };
+        }
+        if (request.PaymentOption == PaymentOption.Deposit)
+        {
+            var depositScenario = await IsDepositScenarioAsync(registrations);
+            if (!depositScenario)
+            {
+                return new PaymentResponseDto { Success = false, Message = "Deposit option is not available for the selected teams." };
+            }
         }
 
         // Ensure fees are populated consistently using the centralized resolver
@@ -225,25 +234,23 @@ public class PaymentService : IPaymentService
         }
     }
 
-    private static bool ValidatePaymentOption(PaymentOption option, bool allowPif, bool isArb, out string message)
+    private async Task<bool> IsDepositScenarioAsync(IEnumerable<Registrations> registrations)
     {
-        message = string.Empty;
-        if (option == PaymentOption.PIF && !allowPif && !isArb)
+        // Deposit scenario requires every selected registration to have an assigned team
+        // whose per-registrant Fee > 0 and Deposit > 0.
+        foreach (var reg in registrations)
         {
-            message = "Pay In Full is not allowed for this job.";
-            return false;
+            if (!reg.AssignedTeamId.HasValue)
+            {
+                return false;
+            }
+            var (fee, deposit) = await _teamLookup.ResolvePerRegistrantAsync(reg.AssignedTeamId.Value);
+            if (fee <= 0m || deposit <= 0m)
+            {
+                return false;
+            }
         }
-        if (option == PaymentOption.Deposit && isArb)
-        {
-            message = "Deposit option is not available when ARB is enabled.";
-            return false;
-        }
-        if (option == PaymentOption.ARB && !isArb)
-        {
-            message = "Recurring billing (ARB) is not enabled for this job.";
-            return false;
-        }
-        return true;
+        return registrations.Any();
     }
 
     private async Task<Dictionary<Guid, decimal>> ComputeChargesAsync(IEnumerable<Registrations> registrations, PaymentOption option)

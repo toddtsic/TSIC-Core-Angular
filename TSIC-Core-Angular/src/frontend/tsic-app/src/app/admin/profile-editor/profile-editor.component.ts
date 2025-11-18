@@ -118,7 +118,7 @@ export class ProfileEditorComponent implements OnInit {
     // ========= This Job's Player Profile (CoreRegformPlayer parts) =========
     jobProfileType = signal<string>('');
     jobTeamConstraint = signal<string>(''); // '', 'BYGRADYEAR', 'BYAGEGROUP', 'BYAGERANGE', 'BYCLUBNAME'
-    jobAllowPayInFull = signal<boolean>(false);
+    // Allow Pay In Full removed from admin editor
     readonly teamConstraintOptions = [
         { value: '', label: 'None' },
         { value: 'BYGRADYEAR', label: 'By Graduation Year' },
@@ -131,7 +131,6 @@ export class ProfileEditorComponent implements OnInit {
 
     // Track last-applied job config to detect unsaved changes
     private readonly lastAppliedTeamConstraint = signal<string>('');
-    private readonly lastAppliedAllowPayInFull = signal<boolean>(false);
     private readonly lastSelectedProfileType = signal<string | null>(null);
 
     jobConfigDirty = computed(() => {
@@ -139,11 +138,8 @@ export class ProfileEditorComponent implements OnInit {
         const uiType = (this.jobProfileType() || '').trim();
         const appliedTeam = (this.lastAppliedTeamConstraint() || '').trim();
         const uiTeam = (this.jobTeamConstraint() || '').trim();
-        const appliedAllow = !!this.lastAppliedAllowPayInFull();
-        const uiAllow = !!this.jobAllowPayInFull();
         return (appliedType.toLowerCase() !== uiType.toLowerCase())
-            || (appliedTeam.toLowerCase() !== uiTeam.toLowerCase())
-            || (appliedAllow !== uiAllow);
+            || (appliedTeam.toLowerCase() !== uiTeam.toLowerCase());
     });
 
     // Confirm modal state (Bootstrap-styled, not browser confirm)
@@ -218,10 +214,9 @@ export class ProfileEditorComponent implements OnInit {
             (resp: CurrentJobProfileConfigResponse) => {
                 this.jobProfileType.set(resp.profileType || '');
                 this.jobTeamConstraint.set(resp.teamConstraint || '');
-                this.jobAllowPayInFull.set(!!resp.allowPayInFull);
                 this.jobCoreRegformRaw.set(resp.coreRegform || '');
                 this.lastAppliedTeamConstraint.set(resp.teamConstraint || '');
-                this.lastAppliedAllowPayInFull.set(!!resp.allowPayInFull);
+                // Allow PIF removed; no state to sync
                 // Also ensure active job type is synced
                 if (resp.profileType) {
                     this.activeJobProfileType.set(resp.profileType);
@@ -675,7 +670,6 @@ export class ProfileEditorComponent implements OnInit {
     applyJobProfileConfig() {
         const newType = (this.jobProfileType() || '').trim();
         const team = (this.jobTeamConstraint() || '').trim();
-        const allow = !!this.jobAllowPayInFull();
         if (!newType) return;
 
         this.isSaving.set(true);
@@ -685,7 +679,6 @@ export class ProfileEditorComponent implements OnInit {
         this.migrationService.updateCurrentJobProfileConfig(
             newType,
             team,
-            allow,
             (resp) => {
                 // Update active job profile type and selected profile to stay in sync
                 this.activeJobProfileType.set(resp.profileType);
@@ -696,7 +689,6 @@ export class ProfileEditorComponent implements OnInit {
                 this.jobCoreRegformRaw.set(resp.coreRegform || '');
                 // Commit last-applied values so dirty state clears
                 this.lastAppliedTeamConstraint.set(team);
-                this.lastAppliedAllowPayInFull.set(allow);
                 this.lastSelectedProfileType.set(resp.profileType);
                 // Refresh options for the active job via service (mirrored by OptionsPanel)
                 this.migrationService.getCurrentJobOptionSets(
@@ -719,7 +711,6 @@ export class ProfileEditorComponent implements OnInit {
         // Revert UI values back to last-applied
         this.jobProfileType.set(this.activeJobProfileType() || '');
         this.jobTeamConstraint.set(this.lastAppliedTeamConstraint() || '');
-        this.jobAllowPayInFull.set(!!this.lastAppliedAllowPayInFull());
     }
 
     onSelectedProfileTypeChange(nextType: string | null) {

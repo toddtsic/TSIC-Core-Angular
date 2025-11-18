@@ -570,13 +570,13 @@ public class ProfileMigrationController : ControllerBase
                 return BadRequest(new { error = MissingRegIdMsg });
             }
 
-            var (profileType, teamConstraint, allowPayInFull, raw, metadata) = await _migrationService.GetCurrentJobProfileConfigAsync(regId);
+            var (profileType, teamConstraint, raw, metadata) = await _migrationService.GetCurrentJobProfileConfigAsync(regId);
             if (string.IsNullOrEmpty(profileType))
             {
                 return NotFound(new { error = "Current job profile configuration not found" });
             }
 
-            return Ok(new { profileType, teamConstraint, allowPayInFull, coreRegform = raw, metadata });
+            return Ok(new { profileType, teamConstraint, coreRegform = raw, metadata });
         }
         catch (Exception ex)
         {
@@ -589,7 +589,6 @@ public class ProfileMigrationController : ControllerBase
     {
         public string ProfileType { get; set; } = string.Empty;
         public string TeamConstraint { get; set; } = string.Empty;
-        public bool AllowPayInFull { get; set; }
     }
 
     /// <summary>
@@ -612,10 +611,10 @@ public class ProfileMigrationController : ControllerBase
             }
 
             var team = request.TeamConstraint ?? string.Empty;
-            var (profileType, teamConstraint, allowPayInFull, raw, metadata) =
-                await _migrationService.UpdateCurrentJobProfileConfigAsync(regId, request.ProfileType, team, request.AllowPayInFull);
+            var (profileType, teamConstraint, raw, metadata) =
+                await _migrationService.UpdateCurrentJobProfileConfigAsync(regId, request.ProfileType, team);
 
-            return Ok(new { profileType, teamConstraint, allowPayInFull, coreRegform = raw, metadata });
+            return Ok(new { profileType, teamConstraint, coreRegform = raw, metadata });
         }
         catch (Exception ex)
         {

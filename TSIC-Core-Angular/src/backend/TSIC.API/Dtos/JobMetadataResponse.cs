@@ -20,8 +20,7 @@ public class JobMetadataResponse
     public string? PlayerRegCovid19Waiver { get; set; }
     public string? PlayerRegRefundPolicy { get; set; }
     public bool OfferPlayerRegsaverInsurance { get; set; }
-    // Payment flags and ARB schedule
-    public bool AllowPayInFull { get; set; }
+    // Payment schedule (ALLOWPIF removed; UI derives options from scenarios)
     public bool? AdnArb { get; set; }
     public int? AdnArbBillingOccurences { get; set; }
     public int? AdnArbIntervalLength { get; set; }

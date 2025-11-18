@@ -5,6 +5,5 @@
 export type UpdateCurrentJobProfileConfigRequest = {
     profileType?: string | null;
     teamConstraint?: string | null;
-    allowPayInFull?: boolean;
 };
 
