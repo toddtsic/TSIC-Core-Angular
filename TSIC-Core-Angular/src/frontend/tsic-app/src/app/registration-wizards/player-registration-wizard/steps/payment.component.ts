@@ -1,30 +1,29 @@
-import { Component, EventEmitter, Output, computed, inject, AfterViewInit, effect, ViewChild, ElementRef } from '@angular/core';
+import { Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { PaymentSummaryComponent } from './payment-summary.component';
+import { PaymentOptionSelectorComponent } from './payment-option-selector.component';
+import { CreditCardFormComponent } from './credit-card-form.component';
+import { PaymentService } from '../services/payment.service';
+import { IdempotencyService } from '../services/idempotency.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { InsuranceStateService } from '../services/insurance-state.service';
+import { PaymentStateService } from '../services/payment-state.service';
 import { ViConfirmModalComponent } from '../verticalinsure/vi-confirm-modal.component';
+import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confirm-modal.component';
 import type { PaymentResponseDto } from '../../../core/api/models/PaymentResponseDto';
 import { environment } from '../../../../environments/environment';
 import { TeamService } from '../team.service';
-import type { ApplyDiscountRequestDto } from '../../../core/api/models/ApplyDiscountRequestDto';
-import type { ApplyDiscountResponseDto } from '../../../core/api/models/ApplyDiscountResponseDto';
-import type { ApplyDiscountItemDto } from '../../../core/api/models/ApplyDiscountItemDto';
-import type { InsurancePurchaseRequestDto } from '../../../core/api/models/InsurancePurchaseRequestDto';
-import type { InsurancePurchaseResponseDto } from '../../../core/api/models/InsurancePurchaseResponseDto';
 import { ToastService } from '../../../shared/toast.service';
+import { InsuranceService } from '../services/insurance.service';
 
 declare global {
   // Allow TypeScript to acknowledge the VerticalInsure constructor on window
   interface Window { VerticalInsure?: any; }
 }
 
-interface LineItem {
-  playerId: string;
-  playerName: string;
-  teamName: string;
-  amount: number;
-}
+import type { LineItem } from '../services/payment.service';
 
 // Local aliases to make types obvious without duplicating backend DTOs
 // Types now come from shared core models (see import above).
@@ -32,7 +31,7 @@ interface LineItem {
 @Component({
   selector: 'app-rw-payment',
   standalone: true,
-  imports: [CommonModule, FormsModule, ViConfirmModalComponent],
+  imports: [CommonModule, FormsModule, ViConfirmModalComponent, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -40,11 +39,11 @@ interface LineItem {
       </div>
       <div class="card-body">
         <!-- RegSaver / VerticalInsure region with deferred offer only -->
-        @if (state.showVerticalInsureModal()) {
+        @if (insuranceState.showVerticalInsureModal()) {
           <app-vi-confirm-modal
-            [quotes]="quotes"
-            [ready]="viHasUserResponse"
-            [error]="verticalInsureError"
+            [quotes]="insuranceSvc.quotes()"
+            [ready]="insuranceSvc.hasUserResponse()"
+            [error]="insuranceSvc.error()"
             (confirmed)="onViConfirmed($event)"
             (declined)="onViDeclined()"
             (closed)="onViClosed()" />
@@ -62,15 +61,15 @@ interface LineItem {
             </div>
           }
           <div #viOffer id="dVIOffer" class="pb-3 text-center"></div>
-          @if (state.offerPlayerRegSaver() && state.hasVerticalInsureDecision()) {
+          @if (insuranceState.offerPlayerRegSaver() && insuranceState.hasVerticalInsureDecision()) {
             <div class="mt-2 d-flex flex-column gap-2">
-              <div class="alert" [ngClass]="state.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
+              <div class="alert" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
                 <div class="d-flex align-items-center gap-2">
-                  <span class="badge" [ngClass]="state.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
+                  <span class="badge" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
                   <div>
-                    @if (state.verticalInsureConfirmed()) {
+                    @if (insuranceState.verticalInsureConfirmed()) {
                       <div class="fw-semibold mb-0">Insurance Selected</div>
-                      <div class="small text-muted" *ngIf="state.viConsent()?.policyNumber">Policy #: {{ state.viConsent()?.policyNumber }}</div>
+                      <div class="small text-muted" *ngIf="insuranceState.viConsent()?.policyNumber">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
                     } @else {
                       <div class="fw-semibold mb-0">Insurance Declined</div>
                       <div class="small text-muted">You chose not to purchase coverage.</div>
@@ -84,146 +83,17 @@ interface LineItem {
 
         <!-- RegSaver charge confirmation modal (Bootstrap-style) -->
         @if (showViChargeConfirm) {
-          <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background: rgba(0,0,0,0.5)">
-            <div class="modal-dialog" role="document">
-              <div class="modal-content">
-                <div class="modal-header">
-                  @if (isViCcOnlyFlow()) {
-                    <h5 class="modal-title">Confirm Insurance Purchase</h5>
-                  } @else {
-                    <h5 class="modal-title">Confirm Registration Payment + Insurance</h5>
-                  }
-                  <button type="button" class="btn-close" aria-label="Close" (click)="cancelViConfirm()"></button>
-                </div>
-                <div class="modal-body">
-                  <p>The premium(s) for {{ viQuotedPlayers().join(', ') }} will be charged by <strong>VERTICAL INSURANCE</strong> and not by <strong>TEAMSPORTSINFO.COM</strong>.</p>
-                  <p>You will receive an email at <strong>{{ viCcEmail() }}</strong> from <strong>VERTICAL INSURANCE</strong> immediately upon processing.</p>
-                  <p class="mb-2"><strong>Total Insurance Premium:</strong> {{ viPremiumTotal() | currency }}</p>
-                  @if (!isViCcOnlyFlow()) {
-                    <hr class="my-2" />
-                    <p class="mb-0">Your TSIC payment will also be processed as selected.</p>
-                  }
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" (click)="cancelViConfirm()">CANCEL</button>
-                  <button type="button" class="btn btn-primary" (click)="confirmViAndContinue()">OK</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        }        
+          <app-vi-charge-confirm-modal
+            [quotedPlayers]="viQuotedPlayers()"
+            [premiumTotal]="viPremiumTotal()"
+            [email]="viCcEmail()"
+            [viCcOnlyFlow]="isViCcOnlyFlow()"
+            (cancelled)="cancelViConfirm()"
+            (confirmed)="confirmViAndContinue()" />
+        }
 
-        <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-summary-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-          <h6 id="pay-summary-title" class="fw-semibold mb-2">Payment Summary</h6>
-          <table class="table table-sm mb-0">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Team</th>
-                @if (isArbScenario()) {
-                  <th>Per Interval</th>
-                  <th>Total</th>
-                } @else if (isDepositScenario()) {
-                  <th>Deposit</th>
-                  <th>Pay In Full</th>
-                } @else {
-                  <th>Amount</th>
-                }
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of lineItems(); track item.playerId) {
-                <tr>
-                  <td>{{ item.playerName }}</td>
-                  <td>{{ item.teamName }}</td>
-                  @if (isArbScenario()) {
-                    <td>{{ (item.amount / arbOccurrences()) | currency }}</td>
-                    <td>{{ item.amount | currency }}</td>
-                  } @else if (isDepositScenario()) {
-                    <td>{{ getDepositForPlayer(item.playerId) | currency }}</td>
-                    <td>{{ item.amount | currency }}</td>
-                  } @else {
-                    <td>{{ item.amount | currency }}</td>
-                  }
-                </tr>
-              }
-            </tbody>
-            <tfoot>
-              @if (isArbScenario()) {
-                <tr>
-                  <th colspan="2" class="text-end">Per Interval Total</th>
-                  <th>{{ arbPerOccurrence() | currency }}</th>
-                  <th class="text-muted small">(of {{ totalAmount() | currency }})</th>
-                </tr>
-              } @else if (isDepositScenario()) {
-                <tr>
-                  <th colspan="2" class="text-end">Deposit Total</th>
-                  <th>{{ depositTotal() | currency }}</th>
-                  <th class="text-muted small">Pay In Full: {{ totalAmount() | currency }}</th>
-                </tr>
-              } @else {
-                <tr>
-                  <th colspan="2" class="text-end">Subtotal</th>
-                  <th>{{ totalAmount() | currency }}</th>
-                </tr>
-                @if (appliedDiscount > 0) {
-                  <tr>
-                    <th colspan="2" class="text-end">Discount</th>
-                    <th>-{{ appliedDiscount | currency }}</th>
-                  </tr>
-                }
-                <tr>
-                  <th colspan="2" class="text-end">Due Now</th>
-                  <th>{{ currentTotal() | currency }}</th>
-                </tr>
-              }
-            </tfoot>
-          </table>
-        </section>
-        <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-option-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-          <h6 id="pay-option-title" class="fw-semibold mb-3">Payment Option</h6>
-          @if (state.jobHasActiveDiscountCodes()) {
-            <div class="mb-3">
-              <label for="discountCode" class="form-label fw-semibold me-2 d-block d-md-inline">Discount Code</label>
-              <div class="input-group input-group-sm w-auto d-inline-flex align-items-center">
-                <input id="discountCode" type="text" [(ngModel)]="discountCode" name="discountCode" class="form-control" placeholder="Enter code" [disabled]="discountApplying" style="min-width: 180px;" />
-                <button type="button" class="btn btn-outline-primary" (click)="applyDiscount()" [disabled]="discountApplying || !discountCode">Apply</button>
-              </div>
-              @if (discountMessage) {
-                <div class="form-text mt-1" [class.text-success]="appliedDiscount > 0" [class.text-danger]="appliedDiscount === 0">{{ discountMessage }}</div>
-              }
-            </div>
-          }
-          @if (isArbScenario()) {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="arb" name="paymentOption" [checked]="state.paymentOption() === 'ARB'" (change)="chooseOption('ARB')">
-              <label class="form-check-label" for="arb">
-                Automated Recurring Billing (ARB)
-                <div class="small text-muted">
-                  {{ arbOccurrences() }} payments of {{ arbPerOccurrence() | currency }} every {{ arbIntervalLength() }} {{ monthLabel() }} starting {{ arbStartDate() | date:'mediumDate' }}
-                </div>
-              </label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="pifArb" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
-              <label class="form-check-label" for="pifArb">Pay In Full - {{ totalAmount() | currency }}</label>
-            </div>
-          } @else if (isDepositScenario()) {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="deposit" name="paymentOption" [checked]="state.paymentOption() === 'Deposit'" (change)="chooseOption('Deposit')">
-              <label class="form-check-label" for="deposit">Deposit Only - {{ depositTotal() | currency }}</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="pifDep" name="paymentOption" [checked]="state.paymentOption() === 'PIF'" (change)="chooseOption('PIF')">
-              <label class="form-check-label" for="pifDep">Pay In Full - {{ totalAmount() | currency }}</label>
-            </div>
-          } @else {
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="pifOnly" name="paymentOption" checked (change)="$event.preventDefault()">
-              <label class="form-check-label" for="pifOnly">Pay In Full - {{ totalAmount() | currency }}</label>
-            </div>
-          }
-        </section>
+        <app-payment-summary></app-payment-summary>
+        <app-payment-option-selector></app-payment-option-selector>
         
         <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
         @if (showNoPaymentInfo()) {
@@ -233,64 +103,15 @@ interface LineItem {
         }
 
         @if (showCcSection()) {
-        <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-          <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
-          @if (isViCcOnlyFlow()) {
-            <div class="alert alert-secondary border-0" role="status">
-              Your TSIC registration balance is $0. The credit card details below are for Vertical Insure only.
-            </div>
-          }
-          <div class="row g-2">
-            <div class="col-md-3">
-              <label for="ccType" class="form-label">CC Type</label>
-              <select id="ccType" class="form-select" [(ngModel)]="creditCard.type" name="ccType" required (blur)="markTouched('type')">
-                @for (t of ccTypes(); track t) {
-                  <option [value]="t">{{ t }}</option>
-                }
-              </select>
-              <div class="form-text text-danger" *ngIf="fieldError('type')">{{ fieldError('type') }}</div>
-            </div>
-            <div class="col-md-4">
-              <label for="ccNumber" class="form-label">Card Number</label>
-              <input type="text" class="form-control" id="ccNumber" [(ngModel)]="creditCard.number" name="ccNumber" placeholder="1234567890123456" (input)="onCcNumberInput($event)" (keydown)="digitKeydown($event)" (blur)="markTouched('number')">
-              <div class="form-text text-danger" *ngIf="fieldError('number')">{{ fieldError('number') }}</div>
-            </div>
-            <div class="col-md-3">
-              <label for="ccExpiry" class="form-label">Expiry (MMYY)</label>
-              <input type="text" class="form-control" id="ccExpiry" [(ngModel)]="creditCard.expiry" name="ccExpiry" placeholder="1225" (input)="onCcExpiryInput($event)" (keydown)="digitKeydown($event)" (blur)="markTouched('expiry')">
-              <div class="form-text text-danger" *ngIf="fieldError('expiry')">{{ fieldError('expiry') }}</div>
-            </div>
-            <div class="col-md-2">
-              <label for="ccCode" class="form-label">CVV</label>
-              <input type="text" class="form-control" id="ccCode" [(ngModel)]="creditCard.code" name="ccCode" placeholder="123" (input)="onCcCvvInput($event)" (keydown)="digitKeydown($event)" (blur)="markTouched('code')">
-              <div class="form-text text-danger" *ngIf="fieldError('code')">{{ fieldError('code') }}</div>
-            </div>
-          </div>
-          <div class="row g-2 mt-2">
-            <div class="col-md-6">
-              <label for="ccFirstName" class="form-label">First Name</label>
-              <input type="text" class="form-control" id="ccFirstName" [(ngModel)]="creditCard.firstName" name="ccFirstName" (blur)="markTouched('firstName')">
-              <div class="form-text text-danger" *ngIf="fieldError('firstName')">{{ fieldError('firstName') }}</div>
-            </div>
-            <div class="col-md-6">
-              <label for="ccLastName" class="form-label">Last Name</label>
-              <input type="text" class="form-control" id="ccLastName" [(ngModel)]="creditCard.lastName" name="ccLastName" (blur)="markTouched('lastName')">
-              <div class="form-text text-danger" *ngIf="fieldError('lastName')">{{ fieldError('lastName') }}</div>
-            </div>
-          </div>
-          <div class="row g-2 mt-2">
-            <div class="col-md-8">
-              <label for="ccAddress" class="form-label">Address</label>
-              <input type="text" class="form-control" id="ccAddress" [(ngModel)]="creditCard.address" name="ccAddress" (blur)="markTouched('address')">
-              <div class="form-text text-danger" *ngIf="fieldError('address')">{{ fieldError('address') }}</div>
-            </div>
-            <div class="col-md-4">
-              <label for="ccZip" class="form-label">Zip Code</label>
-              <input type="text" class="form-control" id="ccZip" [(ngModel)]="creditCard.zip" name="ccZip" (blur)="markTouched('zip')">
-              <div class="form-text text-danger" *ngIf="fieldError('zip')">{{ fieldError('zip') }}</div>
-            </div>
-          </div>
-        </section>
+          <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+            <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
+            @if (isViCcOnlyFlow()) {
+              <div class="alert alert-secondary border-0" role="status">
+                Your TSIC registration balance is $0. The credit card details below are for Vertical Insure only.
+              </div>
+            }
+            <app-credit-card-form (validChange)="onCcValidChange($event)" (valueChange)="onCcValueChange($event)"></app-credit-card-form>
+          </section>
         }
           <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">{{ isViCcOnlyFlow() ? 'Send to Vertical Insure' : 'Pay Now' }}</button>
       </div>
@@ -314,62 +135,41 @@ export class PaymentComponent implements AfterViewInit {
     address: '',
     zip: ''
   };
+  ccValid = false;
 
   constructor(public state: RegistrationWizardService, private readonly http: HttpClient, private readonly toast: ToastService) { }
 
-  // VerticalInsure integration state
-  private verticalInsureInstance: any;
-  quotes: any[] = [];
-  viHasUserResponse: boolean = false;
-  private userChangedOption = false;
+  // VerticalInsure legacy instance removed; handled by InsuranceService
+  // quotes & user response now supplied by insuranceSvc signals
+  // Flag retained for potential future auto-selection logic; currently unused.
+  private readonly userChangedOption = false;
   submitting = false;
   private lastIdemKey: string | null = null;
+  private readonly idemSvc = inject(IdempotencyService);
   verticalInsureError: string | null = null;
-  // Discount UI state
-  discountCode: string = '';
-  discountApplying: boolean = false;
-  appliedDiscount: number = 0;
-  discountMessage: string | null = null;
+  // Discount handled by PaymentService now; local UI state removed
   // VI confirmation modal state
   showViChargeConfirm = false;
   private pendingSubmitAfterViConfirm = false;
-  private idemStorageKey(): string {
-    return `tsic:payidem:${this.state.jobId()}:${this.state.familyUser()?.familyUserId}`;
-  }
   private loadStoredIdem(): void {
-    try {
-      const k = localStorage.getItem(this.idemStorageKey());
-      if (k) {
-        this.lastIdemKey = k;
-      }
-    } catch { /* ignore storage errors */ }
+    this.lastIdemKey = this.idemSvc.load(this.state.jobId(), this.state.familyUser()?.familyUserId) || null;
   }
   private persistIdem(key: string): void {
-    try { localStorage.setItem(this.idemStorageKey(), key); } catch { /* ignore */ }
+    this.idemSvc.persist(this.state.jobId(), this.state.familyUser()?.familyUserId, key);
   }
   private clearStoredIdem(): void {
-    try { localStorage.removeItem(this.idemStorageKey()); } catch { /* ignore */ }
+    this.idemSvc.clear(this.state.jobId(), this.state.familyUser()?.familyUserId);
   }
   // Legacy checkbox removed; consent now tracked via wizard service signals.
   viConfirmChecked = false; // retained for backward compatibility (unused gating replaced)
 
   // Effect to auto-select a valid payment option based on current scenario.
   // Moved from ngAfterViewInit to a field initializer to ensure a proper injection context (fixes NG0203).
-  private readonly _autoSelectOptionEffect = effect(() => {
-    if (this.userChangedOption) return;
-    const opts: Array<'ARB' | 'Deposit' | 'PIF'> = [];
-    if (this.isArbScenario()) {
-      opts.push('ARB', 'PIF');
-    } else if (this.isDepositScenario()) {
-      opts.push('Deposit', 'PIF');
-    } else {
-      opts.push('PIF');
-    }
-    const current = this.state.paymentOption();
-    if (!opts.includes(current as any)) {
-      this.state.paymentOption.set(opts[0]);
-    }
-  });
+  private readonly paySvc = inject(PaymentService);
+  // Added InsuranceService delegation property
+  readonly insuranceSvc = inject(InsuranceService);
+  readonly insuranceState = inject(InsuranceStateService);
+  readonly paymentState = inject(PaymentStateService);
 
 
   ngAfterViewInit(): void {
@@ -381,192 +181,49 @@ export class PaymentComponent implements AfterViewInit {
     // Initialize VerticalInsure (simple retry if offer data not yet present)
     setTimeout(() => this.tryInitVerticalInsure(), 0);
   }
-  chooseOption(opt: 'PIF' | 'Deposit' | 'ARB') {
-    this.userChangedOption = true;
-    this.state.paymentOption.set(opt);
-    // Reset previously applied discount when payment option changes to avoid stale math
-    this.appliedDiscount = 0;
-    this.discountMessage = null;
-  }
+  // Payment option selection now delegated to PaymentOptionSelectorComponent
 
   private tryInitVerticalInsure(): void {
-    if (this.verticalInsureInstance) return;
-    const hostEl = this.viOffer?.nativeElement;
-    if (!hostEl) { setTimeout(() => this.tryInitVerticalInsure(), 50); return; }
-    if (!this.state.offerPlayerRegSaver()) return;
-    const offerObj = this.state.verticalInsureOffer().data;
+    if (!this.insuranceState.offerPlayerRegSaver()) return;
+    const offerObj = this.insuranceState.verticalInsureOffer().data;
     if (!offerObj) { setTimeout(() => this.tryInitVerticalInsure(), 150); return; }
-    try {
-      this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
-        '#dVIOffer',
-        offerObj,
-        (offerState: any) => {
-          this.verticalInsureInstance.validate().then((isValid: boolean) => {
-            this.viHasUserResponse = isValid;
-            this.quotes = offerState?.quotes || [];
-            this.verticalInsureError = null;
-          });
-        },
-        () => {
-          this.verticalInsureInstance.validate().then((isValid: boolean) => {
-            this.viHasUserResponse = isValid;
-          });
-        }
-      );
-    } catch (e) {
-      this.verticalInsureError = 'Vertical Insure initialization failed';
-    }
+    this.insuranceSvc.initWidget('#dVIOffer', offerObj);
   }
 
 
-  lineItems = computed(() => {
-    const items: LineItem[] = [];
-    const selectedPlayers = this.state.familyPlayers()
-      .filter(p => p.selected || p.registered)
-      .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
-    const selectedTeams = this.state.selectedTeams();
-
-    for (const player of selectedPlayers) {
-      const teamId = selectedTeams[player.userId];
-      if (typeof teamId === 'string') {
-        const team = this.teamService.getTeamById(teamId);
-        if (team) {
-          const amount = this.getAmountForTeam(team);
-          items.push({
-            playerId: player.userId,
-            playerName: player.name,
-            teamName: team.teamName,
-            amount
-          });
-        }
-      }
-    }
-    return items;
-  });
-
-  totalAmount = computed(() => {
-    return this.lineItems().reduce((sum, item) => sum + item.amount, 0);
-  });
-
-  depositTotal = computed(() => {
-    // Sum per-registrant deposit for each selected player's team
-    const selectedPlayers = this.state.familyPlayers()
-      .filter(p => p.selected || p.registered)
-      .map(p => p.playerId);
-    let sum = 0;
-    const map = this.state.selectedTeams();
-    for (const pid of selectedPlayers) {
-      const teamId = map[pid];
-      if (typeof teamId === 'string') {
-        const team = this.teamService.getTeamById(teamId);
-        const dep = Number(team?.perRegistrantDeposit ?? 0);
-        sum += Number.isNaN(dep) ? 0 : dep;
-      }
-    }
-    return sum;
-  });
-
-  // Scenario helpers per new strategy
-  isArbScenario = computed(() => !!this.state.adnArb());
-  isDepositScenario = computed(() => {
-    if (this.isArbScenario()) return false;
-    const selectedPlayers = this.state.familyPlayers()
-      .filter(p => p.selected || p.registered)
-      .map(p => p.playerId);
-    if (selectedPlayers.length === 0) return false;
-    const map = this.state.selectedTeams();
-    for (const pid of selectedPlayers) {
-      const teamId = map[pid];
-      if (typeof teamId !== 'string') return false;
-      const team = this.teamService.getTeamById(teamId);
-      const dep = Number(team?.perRegistrantDeposit ?? 0);
-      const fee = Number(team?.perRegistrantFee ?? 0);
-      if (!(dep > 0 && fee > 0)) return false;
-    }
-    return true;
-  });
-
-  // Available CC types: include empty default, then MC and VISA; optionally AMEX based on job flag
-  ccTypes = computed(() => {
-    const base = ['', 'MC', 'VISA'];
-    return this.state.jobUsesAmex() ? [...base, 'AMEX'] : base;
-  });
-
-  currentTotal = computed(() => {
-    const option = this.state.paymentOption();
-    const base = option === 'Deposit' ? this.depositTotal() : this.totalAmount();
-    const adjusted = Math.max(0, base - (this.appliedDiscount || 0));
-    return adjusted;
-  });
-
-  // VI-only CC flow: TSIC balance is zero, VI is offered, and user has not confirmed purchase
-  isViCcOnlyFlow = computed(() => {
-    try {
-      return this.currentTotal() === 0 && this.state.offerPlayerRegSaver() && !this.state.verticalInsureConfirmed();
-    } catch { return false; }
-  });
-
-  // Show CC section when there is a TSIC balance OR when VI-only CC entry is needed
-  showCcSection = computed(() => this.currentTotal() > 0 || this.isViCcOnlyFlow());
-
-  // Show info panel when nothing is due and there is no VI-only flow
-  showNoPaymentInfo = computed(() => this.currentTotal() === 0 && !this.isViCcOnlyFlow());
-
-  canSubmit = computed(() => {
-    // Allow submit when there is a TSIC balance to charge OR when we are in VI-only flow
+  // --- Delegated getters wrapping PaymentService signals ---
+  lineItems(): LineItem[] { return this.paySvc.lineItems(); }
+  currentTotal(): number { return this.paySvc.currentTotal(); }
+  isViCcOnlyFlow(): boolean {
+    return this.currentTotal() === 0 && this.insuranceState.offerPlayerRegSaver() && !this.insuranceState.verticalInsureConfirmed();
+  }
+  showCcSection(): boolean { return this.currentTotal() > 0 || this.isViCcOnlyFlow(); }
+  showNoPaymentInfo(): boolean { return this.currentTotal() === 0 && !this.isViCcOnlyFlow(); }
+  canSubmit(): boolean {
     const tsicCharge = this.lineItems().length > 0 && this.currentTotal() > 0;
     const viOnly = this.isViCcOnlyFlow();
     const ccNeeded = this.showCcSection();
-    // If CC section is shown, require card fields to be valid
-    const ccOk = !ccNeeded || this.creditCardValid();
+    const ccOk = !ccNeeded || this.ccValid;
     return (tsicCharge || viOnly) && ccOk && !this.submitting;
-  });
-
-  private getAmountForTeam(team: any): number {
-    // Use perRegistrantFee or fallback
-    const v = Number(team?.perRegistrantFee ?? 0);
-    return Number.isNaN(v) || v <= 0 ? 100 : v; // default fallback
   }
-
-  // ARB helpers for schedule messaging
-  arbOccurrences = computed(() => {
-    return this.state.adnArbBillingOccurences() || 10;
-  });
-  arbIntervalLength = computed(() => {
-    return this.state.adnArbIntervalLength() || 1;
-  });
-  arbStartDate = computed(() => {
-    const raw = this.state.adnArbStartDate();
-    const d = raw ? new Date(raw) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-    return d;
-  });
-  arbPerOccurrence = computed(() => {
-    const occ = this.arbOccurrences();
-    const total = this.totalAmount();
-    return occ > 0 ? Math.round((total / occ) * 100) / 100 : total;
-  });
-
-  // shouldShowPif removed: PIF visibility now determined solely by scenarios
 
   submit(): void {
     if (this.submitting) return;
     // Gate: if RegSaver is offered but no user response yet, require a decision before continuing.
-    if (this.state.offerPlayerRegSaver()) {
-      const noResponse = !this.viHasUserResponse && this.isViOfferVisible();
+    if (this.insuranceState.offerPlayerRegSaver()) {
+      const noResponse = !this.insuranceSvc.hasUserResponse() && this.isViOfferVisible();
       if (noResponse) {
         this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
         return;
       }
     }
     // Frontend CC validation hard stop (defensive against accidental blank submits)
-    if (this.showCcSection() && !this.creditCardValid()) {
-      // Mark all fields touched so errors display
-      this.markAllCcTouched();
-      this.toast.show('Please correct credit card fields before submitting.', 'danger', 3000);
+    if (this.showCcSection() && !this.ccValid) {
+      this.toast.show('Credit card form is invalid.', 'danger', 3000);
       return;
     }
     // If VI quotes exist (insurance selected), show charge confirmation modal before proceeding (TSIC+VI or VI-only).
-    if (this.state.offerPlayerRegSaver() && Array.isArray(this.quotes) && this.quotes.length > 0) {
+    if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
       this.pendingSubmitAfterViConfirm = true;
       this.showViChargeConfirm = true;
       return;
@@ -583,17 +240,17 @@ export class PaymentComponent implements AfterViewInit {
       this.lastIdemKey = newKey;
       this.persistIdem(newKey);
     }
-    const rs = this.state.regSaverDetails();
+    const rs = this.insuranceState.regSaverDetails();
     const request = {
       jobId: this.state.jobId(),
       familyUserId: this.state.familyUser()?.familyUserId,
-      paymentOption: this.state.paymentOption(),
+      paymentOption: this.paymentState.paymentOption(),
       creditCard: this.creditCard,
       idempotencyKey: this.lastIdemKey,
-      viConfirmed: this.state.offerPlayerRegSaver() ? this.state.verticalInsureConfirmed() : undefined,
-      viDeclined: this.state.offerPlayerRegSaver() ? this.state.verticalInsureDeclined() : undefined,
-      viPolicyNumber: (this.state.verticalInsureConfirmed() ? (rs?.policyNumber || this.state.viConsent()?.policyNumber) : undefined) || undefined,
-      viPolicyCreateDate: (this.state.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.state.viConsent()?.policyCreateDate) : undefined) || undefined
+      viConfirmed: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureConfirmed() : undefined,
+      viDeclined: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureDeclined() : undefined,
+      viPolicyNumber: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
+      viPolicyCreateDate: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.insuranceState.viConsent()?.policyCreateDate) : undefined) || undefined
     };
 
     this.http.post<PaymentResponseDto>(`${environment.apiUrl}/registration/submit-payment`, request).subscribe({
@@ -606,8 +263,8 @@ export class PaymentComponent implements AfterViewInit {
           this.lastIdemKey = null;
           // Persist summary for Confirmation step
           try {
-            this.state.lastPayment.set({
-              option: this.state.paymentOption(),
+            this.paymentState.setLastPayment({
+              option: this.paymentState.paymentOption(),
               amount: this.currentTotal(),
               transactionId: response.transactionId || undefined,
               subscriptionId: response.subscriptionId || undefined,
@@ -619,8 +276,8 @@ export class PaymentComponent implements AfterViewInit {
           this.submitted.emit();
           this.submitting = false;
           // After successful TSIC charge, if insurance was offered and quotes exist, purchase RegSaver policies.
-          if (this.state.offerPlayerRegSaver() && Array.isArray(this.quotes) && this.quotes.length > 0) {
-            this.purchaseRegsaverInsurance();
+          if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
+            this.insuranceSvc.purchaseInsurance();
           }
         } else {
           // Handle error
@@ -639,81 +296,22 @@ export class PaymentComponent implements AfterViewInit {
 
   // Launch insurance modal
   openViModal(): void {
-    this.state.openVerticalInsureModal();
+    this.insuranceState.openVerticalInsureModal();
   }
 
   onViConfirmed(evt: { policyNumber: string | null; policyCreateDate: string | null; quotes: any[] }): void {
-    this.state.confirmVerticalInsurePurchase(evt.policyNumber, evt.policyCreateDate, evt.quotes);
+    this.insuranceState.confirmVerticalInsurePurchase(evt.policyNumber, evt.policyCreateDate, evt.quotes);
   }
-  onViDeclined(): void { this.state.declineVerticalInsurePurchase(); }
-  onViClosed(): void { this.state.showVerticalInsureModal.set(false); }
+  onViDeclined(): void { this.insuranceState.declineVerticalInsurePurchase(); }
+  onViClosed(): void { this.insuranceState.closeVerticalInsureModal(); }
 
-  applyDiscount(): void {
-    if (!this.discountCode || this.discountApplying) return;
-    // Build per-line due-now amounts so server can compute fairly
-    const option = this.state.paymentOption();
-    const items: ApplyDiscountItemDto[] = this.lineItems().map(li => ({
-      playerId: li.playerId,
-      amount: option === 'Deposit' ? this.getDepositForPlayer(li.playerId) : li.amount
-    }));
-    this.discountApplying = true;
-    this.discountMessage = null;
-    const req: ApplyDiscountRequestDto = {
-      jobId: this.state.jobId(),
-      familyUserId: this.state.familyUser()?.familyUserId!,
-      code: this.discountCode,
-      items
-    };
-    this.http.post<ApplyDiscountResponseDto>(
-      `${environment.apiUrl}/registration/apply-discount`,
-      req
-    ).subscribe({
-      next: resp => {
-        this.discountApplying = false;
-        const total = resp?.totalDiscount ?? 0;
-        if (resp?.success && total > 0) {
-          this.appliedDiscount = Math.round((total + Number.EPSILON) * 100) / 100;
-          this.discountMessage = `Discount applied: ${this.appliedDiscount.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}`;
-        } else {
-          this.appliedDiscount = 0;
-          this.discountMessage = resp?.message || 'Invalid or ineligible discount code';
-        }
-      },
-      error: err => {
-        this.discountApplying = false;
-        this.appliedDiscount = 0;
-        this.discountMessage = (err?.error?.message || err?.message || 'Failed to apply code');
-      }
-    });
-  }
-
-  getDepositForPlayer(playerId: string): number {
-    const teamId = this.state.selectedTeams()[playerId];
-    if (typeof teamId === 'string') {
-      const team = this.teamService.getTeamById(teamId);
-      return Number(team?.perRegistrantDeposit ?? 0) || 0;
-    }
-    return 0;
-  }
+  // Discount application now performed via PaymentOptionSelectorComponent + PaymentService.
+  // Deposit helper provided directly by PaymentService; wrapper retained if template needs it later.
+  getDepositForPlayer(playerId: string): number { return this.paySvc.getDepositForPlayer(playerId); }
 
   // --- VI Confirmation helpers ---
-  viQuotedPlayers(): string[] {
-    if (!Array.isArray(this.quotes)) return [];
-    const names: string[] = [];
-    for (const q of this.quotes) {
-      const fn = q?.policy_attributes?.participant?.first_name?.trim?.() || '';
-      const ln = q?.policy_attributes?.participant?.last_name?.trim?.() || '';
-      const name = `${fn} ${ln}`.trim();
-      if (name) names.push(name + (q?.total ? ` ($${(Number(q.total) / 100).toFixed(2)})` : ''));
-    }
-    return names;
-  }
-  viPremiumTotal(): number {
-    if (!Array.isArray(this.quotes)) return 0;
-    let cents = 0;
-    for (const q of this.quotes) cents += Number(q?.total || 0);
-    return Math.round((cents / 100) * 100) / 100;
-  }
+  viQuotedPlayers(): string[] { return this.insuranceSvc.quotedPlayers(); }
+  viPremiumTotal(): number { return this.insuranceSvc.premiumTotal(); }
   viCcEmail(): string {
     // Prefer family user username if that is an email
     const u = this.state.familyUser()?.userName || '';
@@ -729,7 +327,20 @@ export class PaymentComponent implements AfterViewInit {
       this.pendingSubmitAfterViConfirm = false;
       // Reuse the same modal: if VI-only flow (no TSIC balance), purchase insurance directly.
       if (this.isViCcOnlyFlow()) {
-        this.purchaseRegsaverInsuranceAndFinish();
+        this.insuranceSvc.purchaseInsuranceAndFinish(msg => {
+          try {
+            this.paymentState.setLastPayment({
+              option: this.paymentState.paymentOption(),
+              amount: 0,
+              transactionId: undefined,
+              subscriptionId: undefined,
+              viPolicyNumber: this.insuranceState.viConsent()?.policyNumber ?? null,
+              viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
+              message: msg
+            });
+          } catch { }
+          this.submitted.emit();
+        });
       } else {
         this.continueSubmit();
       }
@@ -745,95 +356,7 @@ export class PaymentComponent implements AfterViewInit {
     if (!this.creditCard.zip && cc.zip) this.creditCard.zip = cc.zip.trim();
   }
 
-  private purchaseRegsaverInsurance(): void {
-    try {
-      const quoteIds: string[] = Array.isArray(this.quotes)
-        ? this.quotes.map((q: any) => String(q?.id ?? q?.quote_id ?? '')).filter((s: string) => !!s)
-        : [];
-      const registrationIds: string[] = Array.isArray(this.quotes)
-        ? this.quotes.map((q: any) => String(q?.metadata?.TsicRegistrationId ?? q?.metadata?.tsicRegistrationId ?? '')).filter((s: string) => !!s)
-        : [];
-      if (quoteIds.length === 0) return; // nothing to purchase
-      const req: InsurancePurchaseRequestDto = {
-        jobId: this.state.jobId(),
-        familyUserId: this.state.familyUser()?.familyUserId!,
-        registrationIds,
-        quoteIds
-      };
-      this.http.post<InsurancePurchaseResponseDto>(`${environment.apiUrl}/insurance/purchase`, req)
-        .subscribe({
-          next: (resp) => {
-            if (resp?.success) {
-              this.toast.show('Processing with Vertical Insurance was SUCCESSFUL', 'success', 3000);
-            } else {
-              console.warn('RegSaver purchase failed:', (resp as any)?.error || resp);
-            }
-          },
-          error: (err) => {
-            console.warn('RegSaver purchase error:', err?.error?.message || err?.message || err);
-            this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
-          }
-        });
-    } catch (e) {
-      console.warn('RegSaver purchase threw exception', e);
-    }
-  }
-
-  // VI-only helper: purchase insurance and finish the step without TSIC payment.
-  private purchaseRegsaverInsuranceAndFinish(): void {
-    try {
-      const quoteIds: string[] = Array.isArray(this.quotes)
-        ? this.quotes.map((q: any) => String(q?.id ?? q?.quote_id ?? '')).filter((s: string) => !!s)
-        : [];
-      const registrationIds: string[] = Array.isArray(this.quotes)
-        ? this.quotes.map((q: any) => String(q?.metadata?.TsicRegistrationId ?? q?.metadata?.tsicRegistrationId ?? '')).filter((s: string) => !!s)
-        : [];
-      if (quoteIds.length === 0) {
-        this.toast.show('No insurance quotes to purchase', 'danger', 3000);
-        return;
-      }
-      const req: InsurancePurchaseRequestDto = {
-        jobId: this.state.jobId(),
-        familyUserId: this.state.familyUser()?.familyUserId!,
-        registrationIds,
-        quoteIds
-      };
-      this.submitting = true;
-      this.http.post<InsurancePurchaseResponseDto>(`${environment.apiUrl}/insurance/purchase`, req)
-        .subscribe({
-          next: (resp) => {
-            this.submitting = false;
-            if (resp?.success) {
-              this.toast.show('Processing with Vertical Insurance was SUCCESSFUL', 'success', 3000);
-              // Record a minimal confirmation for the finish step
-              try {
-                this.state.lastPayment.set({
-                  option: this.state.paymentOption(),
-                  amount: 0,
-                  transactionId: undefined,
-                  subscriptionId: undefined,
-                  viPolicyNumber: this.state.viConsent()?.policyNumber ?? null,
-                  viPolicyCreateDate: this.state.viConsent()?.policyCreateDate ?? null,
-                  message: 'Insurance processed via Vertical Insure.'
-                });
-              } catch { /* ignore */ }
-              this.submitted.emit();
-            } else {
-              this.toast.show('Vertical Insurance processing failed', 'danger', 4000);
-              console.warn('RegSaver purchase failed:', (resp as any)?.error || resp);
-            }
-          },
-          error: (err) => {
-            this.submitting = false;
-            console.warn('RegSaver purchase error:', err?.error?.message || err?.message || err);
-            this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
-          }
-        });
-    } catch (e) {
-      this.submitting = false;
-      console.warn('RegSaver purchase threw exception', e);
-    }
-  }
+  // (Legacy insurance purchase methods removed; handled by InsuranceService.)
 
   private isViOfferVisible(): boolean {
     try {
@@ -844,98 +367,10 @@ export class PaymentComponent implements AfterViewInit {
       return style.display !== 'none' && style.visibility !== 'hidden' && hasSize;
     } catch { return false; }
   }
-
-  // --- Lightweight client-side credit card validation (non-invasive, pre-authorize.net) ---
-  creditCardValid(): boolean {
-    const errs = this.getCcErrors();
-    return Object.keys(errs).length === 0;
+  // Receive credit card form changes from child component
+  onCcValueChange(val: { type?: string; number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; address?: string; zip?: string; }): void {
+    this.creditCard = { ...this.creditCard, ...val };
   }
-  getCcErrors(): Record<string, string> {
-    const e: Record<string, string> = {};
-    if (!this.showCcSection()) return e; // no CC required
-    const type = (this.creditCard.type || '').toUpperCase();
-    const numRaw = (this.creditCard.number || '').replace(/[^0-9]/g, '');
-    const expRaw = (this.creditCard.expiry || '').trim();
-    const codeRaw = (this.creditCard.code || '').trim();
-    // Type
-    if (!type) e['type'] = 'Select card type';
-    // Number length + Luhn (basic)
-    if (!numRaw) e['number'] = 'Card number required';
-    else {
-      const lenOk = (type === 'AMEX') ? numRaw.length === 15 : (numRaw.length >= 13 && numRaw.length <= 16);
-      if (!lenOk) e['number'] = 'Invalid length';
-      else if (!this.luhnValid(numRaw)) e['number'] = 'Failed Luhn check';
-    }
-    // Expiry MMYY
-    if (!expRaw) e['expiry'] = 'Expiry required';
-    else if (!/^\d{4}$/.test(expRaw)) e['expiry'] = 'Use MMYY';
-    else {
-      const mm = parseInt(expRaw.slice(0, 2), 10);
-      const yy = parseInt('20' + expRaw.slice(2), 10);
-      if (mm < 1 || mm > 12) e['expiry'] = 'Invalid month';
-      else {
-        const lastDay = new Date(yy, mm, 0); // end of month
-        if (lastDay < new Date()) e['expiry'] = 'Card expired';
-      }
-    }
-    // CVV
-    if (!codeRaw) e['code'] = 'CVV required';
-    else {
-      const cvvLenOk = (type === 'AMEX') ? codeRaw.length === 4 : codeRaw.length === 3;
-      if (!cvvLenOk) e['code'] = 'Invalid CVV length';
-      if (!/^[0-9]+$/.test(codeRaw)) e['code'] = 'CVV digits only';
-    }
-    // Name/address minimal presence when charging (skip if VI-only and amount 0 but still collecting for insurance) => always require names
-    if (!this.creditCard.firstName) e['firstName'] = 'First name required';
-    if (!this.creditCard.lastName) e['lastName'] = 'Last name required';
-    if (!this.creditCard.address) e['address'] = 'Address required';
-    if (!this.creditCard.zip) e['zip'] = 'Zip required';
-    else if (!/^[0-9A-Za-z -]{3,10}$/.test(this.creditCard.zip)) e['zip'] = 'Zip format';
-    return e;
-  }
-  luhnValid(num: string): boolean {
-    let sum = 0; let alt = false;
-    for (let i = num.length - 1; i >= 0; i--) {
-      let n = parseInt(num.charAt(i), 10);
-      if (alt) {
-        n *= 2; if (n > 9) n -= 9;
-      }
-      sum += n; alt = !alt;
-    }
-    return (sum % 10) === 0;
-  }
-
-  // --- Inline error + input handling additions ---
-  ccTouched: Record<string, boolean> = {
-    type: false, number: false, expiry: false, code: false,
-    firstName: false, lastName: false, address: false, zip: false
-  };
-  fieldError(field: string): string | null {
-    const errs = this.getCcErrors();
-    return (this.ccTouched[field] && errs[field]) ? errs[field] : null;
-  }
-  markTouched(field: string): void { this.ccTouched[field] = true; }
-  markAllCcTouched(): void { Object.keys(this.ccTouched).forEach(k => this.ccTouched[k] = true); }
-  digitKeydown(ev: KeyboardEvent): void {
-    const allowed = ['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End'];
-    if (allowed.includes(ev.key)) return;
-    if (!/^[0-9]$/.test(ev.key)) ev.preventDefault();
-  }
-  onCcNumberInput(ev: Event): void {
-    const el = ev.target as HTMLInputElement;
-    const digits = el.value.replace(/\D+/g, '').slice(0, 16);
-    this.creditCard.number = digits;
-  }
-  onCcExpiryInput(ev: Event): void {
-    const el = ev.target as HTMLInputElement;
-    const digits = el.value.replace(/\D+/g, '').slice(0, 4);
-    this.creditCard.expiry = digits;
-  }
-  onCcCvvInput(ev: Event): void {
-    const el = ev.target as HTMLInputElement;
-    const digits = el.value.replace(/\D+/g, '');
-    const maxLen = (this.creditCard.type || '').toUpperCase() === 'AMEX' ? 4 : 3;
-    this.creditCard.code = digits.slice(0, maxLen);
-  }
-  monthLabel(): string { return this.arbIntervalLength() === 1 ? 'month' : 'months'; }
+  onCcValidChange(valid: any): void { this.ccValid = !!valid; }
+  monthLabel(): string { return this.paySvc.monthLabel(); }
 }

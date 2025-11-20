@@ -1,6 +1,6 @@
 import { Component, inject, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RegistrationWizardService } from '../registration-wizard.service';
+import { InsuranceStateService } from '../services/insurance-state.service';
 
 /**
  * VerticalInsure Confirmation Modal
@@ -45,7 +45,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
   `
 })
 export class ViConfirmModalComponent {
-    readonly wizard = inject(RegistrationWizardService);
+  readonly insuranceState = inject(InsuranceStateService);
 
     @Input() quotes: any[] | null = null;
     @Input() ready: boolean = false;
@@ -57,12 +57,12 @@ export class ViConfirmModalComponent {
     canConfirm(): boolean {
         // For MVP require at least one quote OR valid verticalInsure widget indicating user selected purchase.
         // This will be refined when we integrate deep widget state querying.
-        return (this.quotes?.length ?? 0) > 0 || this.wizard.verticalInsureConfirmed();
+        return (this.quotes?.length ?? 0) > 0 || this.insuranceState.verticalInsureConfirmed();
     }
 
     confirm(): void {
         // Policy number will be populated later by purchase flow; we pass placeholders now.
-        this.confirmed.emit({ policyNumber: this.wizard.viConsent()?.policyNumber ?? null, policyCreateDate: this.wizard.viConsent()?.policyCreateDate ?? null, quotes: this.quotes || [] });
+        this.confirmed.emit({ policyNumber: this.insuranceState.viConsent()?.policyNumber ?? null, policyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null, quotes: this.quotes || [] });
     }
 
     decline(): void {

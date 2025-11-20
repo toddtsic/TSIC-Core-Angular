@@ -20,10 +20,5 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('tsic-app');
   });
 
-  it('should render title', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, tsic-app');
-  });
+  // Removed obsolete DOM title assertion (template no longer renders <h1>)
 });

@@ -565,34 +565,8 @@ export class RegistrationWizardService {
     }
     // RegSaver offer flag (job-level)
     private _offerPlayerRegSaver = false;
-    // VerticalInsure offer state
+    // VerticalInsure offer state retained (widget/playerObject payload) for preSubmit response integration
     verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
-    // VerticalInsure explicit user consent modal state
-    showVerticalInsureModal = signal<boolean>(false);
-    // viConsent captures explicit user decision (confirmed purchase or explicit decline)
-    viConsent = signal<{ confirmed: boolean; declined: boolean; policyNumber?: string | null; policyCreateDate?: string | null; quotes?: any[]; decidedUtc?: string } | null>(null);
-
-    openVerticalInsureModal(): void {
-        if (!this.offerPlayerRegSaver()) return;
-        // Reset previous transient errors but keep prior consent if any
-        if (!this.viConsent()) this.viConsent.set(null);
-        this.showVerticalInsureModal.set(true);
-    }
-
-    confirmVerticalInsurePurchase(policyNumber: string | null, policyCreateDate: string | null, quotes: any[] = []): void {
-        this.viConsent.set({ confirmed: true, declined: false, policyNumber, policyCreateDate, quotes, decidedUtc: new Date().toISOString() });
-        this.showVerticalInsureModal.set(false);
-    }
-
-    declineVerticalInsurePurchase(): void {
-        this.viConsent.set({ confirmed: false, declined: true, decidedUtc: new Date().toISOString() });
-        this.showVerticalInsureModal.set(false);
-    }
-
-    hasVerticalInsureDecision(): boolean { return !!this.viConsent(); }
-    verticalInsureConfirmed(): boolean { return !!this.viConsent()?.confirmed; }
-    verticalInsureDeclined(): boolean { return !!this.viConsent()?.declined; }
-
     /** Whether the job offers player RegSaver insurance */
     offerPlayerRegSaver(): boolean { return this._offerPlayerRegSaver; }
 
