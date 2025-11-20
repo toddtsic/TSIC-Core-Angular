@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output, computed, inject, CUSTOM_ELEMEN
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { PlayerStateService } from '../services/player-state.service';
 import { ProfileMigrationService } from '../../../core/services/profile-migration.service';
 import { TeamService } from '../team.service';
 import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent } from '@syncfusion/ej2-angular-dropdowns';
@@ -216,6 +217,7 @@ export class TeamSelectionComponent {
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
   private readonly wizard: RegistrationWizardService = inject(RegistrationWizardService);
+  private readonly playerState: PlayerStateService = inject(PlayerStateService);
   private readonly teamService: TeamService = inject(TeamService);
   private readonly profileMigration = inject(ProfileMigrationService);
   @ViewChildren('ddRef') private readonly ddLists!: QueryList<DropDownListComponent>;
@@ -226,7 +228,7 @@ export class TeamSelectionComponent {
   loading = this.teamService.loading;
   error = this.teamService.error;
   selectedPlayers = () => this.wizard.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
-  selectedTeams = this.wizard.selectedTeams;
+  selectedTeams = () => this.playerState.selectedTeams();
   // readonly mode removed; selection is locked only for players with prior registrations
   // Syncfusion field mapping (disable selection for FULL teams)
   syncFields = { text: 'teamName', value: 'teamId', disabled: 'rosterIsFull' } as any;
@@ -296,7 +298,7 @@ export class TeamSelectionComponent {
   });
 
   filteredTeamsFor(playerId: string) {
-    const elig = this.wizard.getEligibilityForPlayer(playerId);
+    const elig = this.playerState.getEligibilityForPlayer(playerId);
     return this.teamService.filterByEligibility(elig);
   }
   private tryOpenFirstUnassigned() {
@@ -377,17 +379,17 @@ export class TeamSelectionComponent {
     const val = (value == null || value === '') ? '' : String(value);
     const current = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (val) current[playerId] = val; else delete current[playerId];
-    this.wizard.selectedTeams.set(current);
+    this.playerState.setSelectedTeams(current);
   }
   eligibilityFor(playerId: string) {
-    return this.wizard.getEligibilityForPlayer(playerId);
+    return this.playerState.getEligibilityForPlayer(playerId);
   }
   onSyncSingleChange(playerId: string, e: any) {
     // no readonly mode; only registered players are locked via isRegistered
     const val = e?.itemData?.teamId || e?.value || '';
     const current = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (val) current[playerId] = String(val); else delete current[playerId];
-    this.wizard.selectedTeams.set(current);
+    this.playerState.setSelectedTeams(current);
   }
   // Adapter for native select change
   onSingleChange(playerId: string, value: any) { /* legacy adapter unused in template */ }
@@ -415,7 +417,7 @@ export class TeamSelectionComponent {
     if (same) return; // avoid redundant state updates that can trigger loops
     const map = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (filtered.length === 0) delete map[playerId]; else map[playerId] = filtered;
-    this.wizard.selectedTeams.set(map as any);
+    this.playerState.setSelectedTeams(map as any);
   }
   onFiltering(e: any) {
     // No-op: using Syncfusion default filtering
@@ -538,7 +540,7 @@ export class TeamSelectionComponent {
           changed = true;
         }
       }
-      if (changed) this.wizard.selectedTeams.set(map as any);
+      if (changed) this.playerState.setSelectedTeams(map as any);
     } catch { /* no-op */ }
   }
   wouldExceedCapacity(playerId: string, team: { teamId: string; maxRosterSize: number; rosterIsFull?: boolean }): boolean {
