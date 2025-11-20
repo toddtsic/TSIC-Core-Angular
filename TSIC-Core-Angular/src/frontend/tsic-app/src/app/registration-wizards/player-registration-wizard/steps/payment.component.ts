@@ -1,13 +1,11 @@
-import { Component, EventEmitter, Output, computed, inject, AfterViewInit, effect } from '@angular/core';
+import { Component, EventEmitter, Output, computed, inject, AfterViewInit, effect, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { ViConfirmModalComponent } from '../verticalinsure/vi-confirm-modal.component';
-import type { VIPlayerObjectResponse } from '../../../core/api/models/VIPlayerObjectResponse';
 import type { PaymentResponseDto } from '../../../core/api/models/PaymentResponseDto';
 import { environment } from '../../../../environments/environment';
-import type { Loadable } from '../../../core/models/state.models';
 import { TeamService } from '../team.service';
 import type { ApplyDiscountRequestDto } from '../../../core/api/models/ApplyDiscountRequestDto';
 import type { ApplyDiscountResponseDto } from '../../../core/api/models/ApplyDiscountResponseDto';
@@ -41,7 +39,7 @@ interface LineItem {
         <h5 class="mb-0 fw-semibold">Payment</h5>
       </div>
       <div class="card-body">
-        <!-- VerticalInsure Modal Host -->
+        <!-- RegSaver / VerticalInsure region with deferred offer only -->
         @if (state.showVerticalInsureModal()) {
           <app-vi-confirm-modal
             [quotes]="quotes"
@@ -51,7 +49,6 @@ interface LineItem {
             (declined)="onViDeclined()"
             (closed)="onViClosed()" />
         }
-        <!-- RegSaver / VerticalInsure offer region (simple always-present container) -->
         <div class="mb-3">
           @if (state.regSaverDetails()) {
             <div class="alert alert-info border-0" role="status">
@@ -64,30 +61,26 @@ interface LineItem {
               </div>
             </div>
           }
-        <div id="dVIOffer" class="pb-3 text-center">
-        </div>
-        <div id="divVIPayment" class="text-center" style="display:none;">
-            <button type="button" id="btnVIPayment" onclick="submitVIPayment()">Submit Payment</button>
-        </div>
-        @if (state.offerPlayerRegSaver() && state.hasVerticalInsureDecision()) {
-          <!-- VerticalInsure decision status (no standalone review/change button) -->
-          <div class="mt-2 d-flex flex-column gap-2">
-            <div class="alert" [ngClass]="state.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
-              <div class="d-flex align-items-center gap-2">
-                <span class="badge" [ngClass]="state.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
-                <div>
-                  @if (state.verticalInsureConfirmed()) {
-                    <div class="fw-semibold mb-0">Insurance Selected</div>
-                    <div class="small text-muted" *ngIf="state.viConsent()?.policyNumber">Policy #: {{ state.viConsent()?.policyNumber }}</div>
-                  } @else {
-                    <div class="fw-semibold mb-0">Insurance Declined</div>
-                    <div class="small text-muted">You chose not to purchase coverage.</div>
-                  }
+          <div #viOffer id="dVIOffer" class="pb-3 text-center"></div>
+          @if (state.offerPlayerRegSaver() && state.hasVerticalInsureDecision()) {
+            <div class="mt-2 d-flex flex-column gap-2">
+              <div class="alert" [ngClass]="state.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge" [ngClass]="state.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
+                  <div>
+                    @if (state.verticalInsureConfirmed()) {
+                      <div class="fw-semibold mb-0">Insurance Selected</div>
+                      <div class="small text-muted" *ngIf="state.viConsent()?.policyNumber">Policy #: {{ state.viConsent()?.policyNumber }}</div>
+                    } @else {
+                      <div class="fw-semibold mb-0">Insurance Declined</div>
+                      <div class="small text-muted">You chose not to purchase coverage.</div>
+                    }
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        }
+          }
+        </div>
 
         <!-- RegSaver charge confirmation modal (Bootstrap-style) -->
         @if (showViChargeConfirm) {
@@ -207,7 +200,7 @@ interface LineItem {
               <label class="form-check-label" for="arb">
                 Automated Recurring Billing (ARB)
                 <div class="small text-muted">
-                  {{ arbOccurrences() }} payments of {{ arbPerOccurrence() | currency }} every {{ arbIntervalLength() }} month(s) starting {{ arbStartDate() | date:'mediumDate' }}
+                  {{ arbOccurrences() }} payments of {{ arbPerOccurrence() | currency }} every {{ arbIntervalLength() }} {{ monthLabel() }} starting {{ arbStartDate() | date:'mediumDate' }}
                 </div>
               </label>
             </div>
@@ -250,54 +243,62 @@ interface LineItem {
           <div class="row g-2">
             <div class="col-md-3">
               <label for="ccType" class="form-label">CC Type</label>
-              <select id="ccType" class="form-select" [(ngModel)]="creditCard.type" name="ccType" required>
+              <select id="ccType" class="form-select" [(ngModel)]="creditCard.type" name="ccType" required (blur)="markTouched('type')">
                 @for (t of ccTypes(); track t) {
                   <option [value]="t">{{ t }}</option>
                 }
               </select>
+              <div class="form-text text-danger" *ngIf="fieldError('type')">{{ fieldError('type') }}</div>
             </div>
             <div class="col-md-4">
               <label for="ccNumber" class="form-label">Card Number</label>
-              <input type="text" class="form-control" id="ccNumber" [(ngModel)]="creditCard.number" name="ccNumber" placeholder="1234567890123456">
+              <input type="text" class="form-control" id="ccNumber" [(ngModel)]="creditCard.number" name="ccNumber" placeholder="1234567890123456" (input)="onCcNumberInput($event)" (keydown)="digitKeydown($event)" (blur)="markTouched('number')">
+              <div class="form-text text-danger" *ngIf="fieldError('number')">{{ fieldError('number') }}</div>
             </div>
             <div class="col-md-3">
               <label for="ccExpiry" class="form-label">Expiry (MMYY)</label>
-              <input type="text" class="form-control" id="ccExpiry" [(ngModel)]="creditCard.expiry" name="ccExpiry" placeholder="1225">
+              <input type="text" class="form-control" id="ccExpiry" [(ngModel)]="creditCard.expiry" name="ccExpiry" placeholder="1225" (input)="onCcExpiryInput($event)" (keydown)="digitKeydown($event)" (blur)="markTouched('expiry')">
+              <div class="form-text text-danger" *ngIf="fieldError('expiry')">{{ fieldError('expiry') }}</div>
             </div>
             <div class="col-md-2">
               <label for="ccCode" class="form-label">CVV</label>
-              <input type="text" class="form-control" id="ccCode" [(ngModel)]="creditCard.code" name="ccCode" placeholder="123">
+              <input type="text" class="form-control" id="ccCode" [(ngModel)]="creditCard.code" name="ccCode" placeholder="123" (input)="onCcCvvInput($event)" (keydown)="digitKeydown($event)" (blur)="markTouched('code')">
+              <div class="form-text text-danger" *ngIf="fieldError('code')">{{ fieldError('code') }}</div>
             </div>
           </div>
           <div class="row g-2 mt-2">
             <div class="col-md-6">
               <label for="ccFirstName" class="form-label">First Name</label>
-              <input type="text" class="form-control" id="ccFirstName" [(ngModel)]="creditCard.firstName" name="ccFirstName">
+              <input type="text" class="form-control" id="ccFirstName" [(ngModel)]="creditCard.firstName" name="ccFirstName" (blur)="markTouched('firstName')">
+              <div class="form-text text-danger" *ngIf="fieldError('firstName')">{{ fieldError('firstName') }}</div>
             </div>
             <div class="col-md-6">
               <label for="ccLastName" class="form-label">Last Name</label>
-              <input type="text" class="form-control" id="ccLastName" [(ngModel)]="creditCard.lastName" name="ccLastName">
+              <input type="text" class="form-control" id="ccLastName" [(ngModel)]="creditCard.lastName" name="ccLastName" (blur)="markTouched('lastName')">
+              <div class="form-text text-danger" *ngIf="fieldError('lastName')">{{ fieldError('lastName') }}</div>
             </div>
           </div>
           <div class="row g-2 mt-2">
             <div class="col-md-8">
               <label for="ccAddress" class="form-label">Address</label>
-              <input type="text" class="form-control" id="ccAddress" [(ngModel)]="creditCard.address" name="ccAddress">
+              <input type="text" class="form-control" id="ccAddress" [(ngModel)]="creditCard.address" name="ccAddress" (blur)="markTouched('address')">
+              <div class="form-text text-danger" *ngIf="fieldError('address')">{{ fieldError('address') }}</div>
             </div>
             <div class="col-md-4">
               <label for="ccZip" class="form-label">Zip Code</label>
-              <input type="text" class="form-control" id="ccZip" [(ngModel)]="creditCard.zip" name="ccZip">
+              <input type="text" class="form-control" id="ccZip" [(ngModel)]="creditCard.zip" name="ccZip" (blur)="markTouched('zip')">
+              <div class="form-text text-danger" *ngIf="fieldError('zip')">{{ fieldError('zip') }}</div>
             </div>
           </div>
         </section>
         }
           <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">{{ isViCcOnlyFlow() ? 'Send to Vertical Insure' : 'Pay Now' }}</button>
-        </div>
       </div>
     </div>
   `
 })
 export class PaymentComponent implements AfterViewInit {
+  @ViewChild('viOffer') viOffer?: ElementRef<HTMLDivElement>;
   @Output() back = new EventEmitter<void>();
   @Output() submitted = new EventEmitter<void>();
 
@@ -352,6 +353,24 @@ export class PaymentComponent implements AfterViewInit {
   // Legacy checkbox removed; consent now tracked via wizard service signals.
   viConfirmChecked = false; // retained for backward compatibility (unused gating replaced)
 
+  // Effect to auto-select a valid payment option based on current scenario.
+  // Moved from ngAfterViewInit to a field initializer to ensure a proper injection context (fixes NG0203).
+  private readonly _autoSelectOptionEffect = effect(() => {
+    if (this.userChangedOption) return;
+    const opts: Array<'ARB' | 'Deposit' | 'PIF'> = [];
+    if (this.isArbScenario()) {
+      opts.push('ARB', 'PIF');
+    } else if (this.isDepositScenario()) {
+      opts.push('Deposit', 'PIF');
+    } else {
+      opts.push('PIF');
+    }
+    const current = this.state.paymentOption();
+    if (!opts.includes(current as any)) {
+      this.state.paymentOption.set(opts[0]);
+    }
+  });
+
 
   ngAfterViewInit(): void {
     // Attempt to hydrate any existing idempotency key (previous attempt that failed or was retried)
@@ -359,23 +378,8 @@ export class PaymentComponent implements AfterViewInit {
     // Simpler: one-shot hydrate + short delayed retry (in case data arrives slightly later)
     this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo);
     setTimeout(() => this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo), 300);
-    this.tryInitVerticalInsure();
-    // Auto-select within the scenario unless user has chosen manually
-    effect(() => {
-      if (this.userChangedOption) return;
-      const opts: Array<'ARB' | 'Deposit' | 'PIF'> = [];
-      if (this.isArbScenario()) {
-        opts.push('ARB', 'PIF');
-      } else if (this.isDepositScenario()) {
-        opts.push('Deposit', 'PIF');
-      } else {
-        opts.push('PIF');
-      }
-      const current = this.state.paymentOption();
-      if (!opts.includes(current as any)) {
-        this.state.paymentOption.set(opts[0]);
-      }
-    });
+    // Initialize VerticalInsure (simple retry if offer data not yet present)
+    setTimeout(() => this.tryInitVerticalInsure(), 0);
   }
   chooseOption(opt: 'PIF' | 'Deposit' | 'ARB') {
     this.userChangedOption = true;
@@ -385,45 +389,33 @@ export class PaymentComponent implements AfterViewInit {
     this.discountMessage = null;
   }
 
-  private tryInitVerticalInsure(force: boolean = false): void {
-    // Minimal gating: require a response object present
-    const offerEnabled: boolean = this.state.offerPlayerRegSaver();
-    const offer: Loadable<VIPlayerObjectResponse> = this.state.verticalInsureOffer();
-    const offerObj: VIPlayerObjectResponse | null = offer?.data ?? null;
-
-    if (!offerEnabled || !offerObj) { return };
-
-    this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
-      '#dVIOffer',
-      offerObj,
-      (offerState: any) => {
-
-        this.verticalInsureInstance.validate()
-          .then((isValid: boolean) => {
+  private tryInitVerticalInsure(): void {
+    if (this.verticalInsureInstance) return;
+    const hostEl = this.viOffer?.nativeElement;
+    if (!hostEl) { setTimeout(() => this.tryInitVerticalInsure(), 50); return; }
+    if (!this.state.offerPlayerRegSaver()) return;
+    const offerObj = this.state.verticalInsureOffer().data;
+    if (!offerObj) { setTimeout(() => this.tryInitVerticalInsure(), 150); return; }
+    try {
+      this.verticalInsureInstance = new (globalThis as any).VerticalInsure(
+        '#dVIOffer',
+        offerObj,
+        (offerState: any) => {
+          this.verticalInsureInstance.validate().then((isValid: boolean) => {
             this.viHasUserResponse = isValid;
-
-            // save quotes in global variable, will never be null hereafter, will be empty array [] if no quotes
-            this.quotes = offerState?.quotes;
-
-            console.log('viHasUserResponse:', this.viHasUserResponse, ' quotes:', this.quotes, 'isValid:', isValid);
+            this.quotes = offerState?.quotes || [];
             this.verticalInsureError = null;
           });
-      },
-      () => {
-        this.verticalInsureInstance.validate()
-          .then((isValid: boolean) => {
+        },
+        () => {
+          this.verticalInsureInstance.validate().then((isValid: boolean) => {
             this.viHasUserResponse = isValid;
-
-            // a failed quotes requests returns isValid TRUE, a successful Request returns false (seems paradoxical, but necessary for prompting for user interaction on payment)
-            // if (viHasUserResponse){
-            //     $("#dVIOffer").hide();
-            // } else {
-            //     $("#dVIOffer").show();
-            // }
-            console.log('offer ready, isValid:', this.viHasUserResponse);
           });
-      }
-    );
+        }
+      );
+    } catch (e) {
+      this.verticalInsureError = 'Vertical Insure initialization failed';
+    }
   }
 
 
@@ -524,7 +516,10 @@ export class PaymentComponent implements AfterViewInit {
     // Allow submit when there is a TSIC balance to charge OR when we are in VI-only flow
     const tsicCharge = this.lineItems().length > 0 && this.currentTotal() > 0;
     const viOnly = this.isViCcOnlyFlow();
-    return (tsicCharge || viOnly) && !this.submitting;
+    const ccNeeded = this.showCcSection();
+    // If CC section is shown, require card fields to be valid
+    const ccOk = !ccNeeded || this.creditCardValid();
+    return (tsicCharge || viOnly) && ccOk && !this.submitting;
   });
 
   private getAmountForTeam(team: any): number {
@@ -562,6 +557,13 @@ export class PaymentComponent implements AfterViewInit {
         this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
         return;
       }
+    }
+    // Frontend CC validation hard stop (defensive against accidental blank submits)
+    if (this.showCcSection() && !this.creditCardValid()) {
+      // Mark all fields touched so errors display
+      this.markAllCcTouched();
+      this.toast.show('Please correct credit card fields before submitting.', 'danger', 3000);
+      return;
     }
     // If VI quotes exist (insurance selected), show charge confirmation modal before proceeding (TSIC+VI or VI-only).
     if (this.state.offerPlayerRegSaver() && Array.isArray(this.quotes) && this.quotes.length > 0) {
@@ -842,4 +844,98 @@ export class PaymentComponent implements AfterViewInit {
       return style.display !== 'none' && style.visibility !== 'hidden' && hasSize;
     } catch { return false; }
   }
+
+  // --- Lightweight client-side credit card validation (non-invasive, pre-authorize.net) ---
+  creditCardValid(): boolean {
+    const errs = this.getCcErrors();
+    return Object.keys(errs).length === 0;
+  }
+  getCcErrors(): Record<string, string> {
+    const e: Record<string, string> = {};
+    if (!this.showCcSection()) return e; // no CC required
+    const type = (this.creditCard.type || '').toUpperCase();
+    const numRaw = (this.creditCard.number || '').replace(/[^0-9]/g, '');
+    const expRaw = (this.creditCard.expiry || '').trim();
+    const codeRaw = (this.creditCard.code || '').trim();
+    // Type
+    if (!type) e['type'] = 'Select card type';
+    // Number length + Luhn (basic)
+    if (!numRaw) e['number'] = 'Card number required';
+    else {
+      const lenOk = (type === 'AMEX') ? numRaw.length === 15 : (numRaw.length >= 13 && numRaw.length <= 16);
+      if (!lenOk) e['number'] = 'Invalid length';
+      else if (!this.luhnValid(numRaw)) e['number'] = 'Failed Luhn check';
+    }
+    // Expiry MMYY
+    if (!expRaw) e['expiry'] = 'Expiry required';
+    else if (!/^\d{4}$/.test(expRaw)) e['expiry'] = 'Use MMYY';
+    else {
+      const mm = parseInt(expRaw.slice(0, 2), 10);
+      const yy = parseInt('20' + expRaw.slice(2), 10);
+      if (mm < 1 || mm > 12) e['expiry'] = 'Invalid month';
+      else {
+        const lastDay = new Date(yy, mm, 0); // end of month
+        if (lastDay < new Date()) e['expiry'] = 'Card expired';
+      }
+    }
+    // CVV
+    if (!codeRaw) e['code'] = 'CVV required';
+    else {
+      const cvvLenOk = (type === 'AMEX') ? codeRaw.length === 4 : codeRaw.length === 3;
+      if (!cvvLenOk) e['code'] = 'Invalid CVV length';
+      if (!/^[0-9]+$/.test(codeRaw)) e['code'] = 'CVV digits only';
+    }
+    // Name/address minimal presence when charging (skip if VI-only and amount 0 but still collecting for insurance) => always require names
+    if (!this.creditCard.firstName) e['firstName'] = 'First name required';
+    if (!this.creditCard.lastName) e['lastName'] = 'Last name required';
+    if (!this.creditCard.address) e['address'] = 'Address required';
+    if (!this.creditCard.zip) e['zip'] = 'Zip required';
+    else if (!/^[0-9A-Za-z -]{3,10}$/.test(this.creditCard.zip)) e['zip'] = 'Zip format';
+    return e;
+  }
+  luhnValid(num: string): boolean {
+    let sum = 0; let alt = false;
+    for (let i = num.length - 1; i >= 0; i--) {
+      let n = parseInt(num.charAt(i), 10);
+      if (alt) {
+        n *= 2; if (n > 9) n -= 9;
+      }
+      sum += n; alt = !alt;
+    }
+    return (sum % 10) === 0;
+  }
+
+  // --- Inline error + input handling additions ---
+  ccTouched: Record<string, boolean> = {
+    type: false, number: false, expiry: false, code: false,
+    firstName: false, lastName: false, address: false, zip: false
+  };
+  fieldError(field: string): string | null {
+    const errs = this.getCcErrors();
+    return (this.ccTouched[field] && errs[field]) ? errs[field] : null;
+  }
+  markTouched(field: string): void { this.ccTouched[field] = true; }
+  markAllCcTouched(): void { Object.keys(this.ccTouched).forEach(k => this.ccTouched[k] = true); }
+  digitKeydown(ev: KeyboardEvent): void {
+    const allowed = ['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Home', 'End'];
+    if (allowed.includes(ev.key)) return;
+    if (!/^[0-9]$/.test(ev.key)) ev.preventDefault();
+  }
+  onCcNumberInput(ev: Event): void {
+    const el = ev.target as HTMLInputElement;
+    const digits = el.value.replace(/\D+/g, '').slice(0, 16);
+    this.creditCard.number = digits;
+  }
+  onCcExpiryInput(ev: Event): void {
+    const el = ev.target as HTMLInputElement;
+    const digits = el.value.replace(/\D+/g, '').slice(0, 4);
+    this.creditCard.expiry = digits;
+  }
+  onCcCvvInput(ev: Event): void {
+    const el = ev.target as HTMLInputElement;
+    const digits = el.value.replace(/\D+/g, '');
+    const maxLen = (this.creditCard.type || '').toUpperCase() === 'AMEX' ? 4 : 3;
+    this.creditCard.code = digits.slice(0, maxLen);
+  }
+  monthLabel(): string { return this.arbIntervalLength() === 1 ? 'month' : 'months'; }
 }

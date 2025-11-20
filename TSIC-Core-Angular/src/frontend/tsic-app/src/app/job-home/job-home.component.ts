@@ -32,7 +32,7 @@ export class JobHomeComponent implements OnInit {
     this.registrationStatuses.set(statuses);
     this.loading.set(isLoading);
     this.error.set(err);
-  }, { allowSignalWrites: true });
+  });
 
   ngOnInit() {
     // Get jobPath from route - check parent if on /home child route

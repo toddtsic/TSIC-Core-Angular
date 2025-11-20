@@ -66,7 +66,7 @@ export class OptionsPanelComponent {
             this.optionSets.set(this.migrationService.currentOptionSets());
             this.optionsLoading.set(this.migrationService.optionsLoading());
             this.optionsError.set(this.migrationService.optionsError());
-        }, { allowSignalWrites: true });
+        });
     }
 
     // API calls

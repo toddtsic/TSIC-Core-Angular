@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output, computed, inject, CUSTOM_ELEMEN
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { ProfileMigrationService } from '../../../core/services/profile-migration.service';
 import { TeamService } from '../team.service';
 import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent } from '@syncfusion/ej2-angular-dropdowns';
 
@@ -95,42 +96,55 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                     </div>
                     <div class="flex-grow-1">
                       @if (!multiSelect) {
-                        <ejs-dropdownlist #ddRef [dataSource]="filteredTeamsFor(p.userId)"
-                                          [fields]="syncFields"
-                                          [placeholder]="'Search and select team...'"
-                                          [allowFiltering]="true"
-                                          [filterBarPlaceholder]="'Type to search teams...'"
-                                          [filterType]="'Contains'"
-                                          [popupHeight]="'320px'"
-                                          [popupWidth]="'100%'"
-                                          [zIndex]="1200"
-                                          [cssClass]="'rw-teams-single'"
-                                          [enabled]="!((showEligibilityBadge() && !eligibilityFor(p.userId)) || filteredTeamsFor(p.userId).length===0)"
-                                          [value]="selectedTeams()[p.userId] || null"
-                                          (change)="onSyncSingleChange(p.userId, $event)">
-                          <!-- Selected value template to also display price when present -->
-                          <ng-template #valueTemplate let-data>
-                            <span class="rw-item">
-                              <span class="name">{{ data?.teamName }}<ng-container *ngIf="data?.perRegistrantFee != null"> ({{ data?.perRegistrantFee | currency }})</ng-container></span>
-                            </span>
-                          </ng-template>
-                          <ng-template #itemTemplate let-data>
-                            <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
-                              <span class="name"
-                                    [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
-                                    [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}<ng-container *ngIf="data.perRegistrantFee != null"> ({{ data.perRegistrantFee | currency }})</ng-container></span>
-                              <span class="capacity-badge badge rounded-pill"
-                                    [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
-                                                  'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
-                                @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
-                                @else {
-                                  @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left }
-                                }
+                        @if (isCAC()) {
+                          <ejs-dropdownlist #ddRef [dataSource]="filteredTeamsFor(p.userId)"
+                                            [fields]="syncFields"
+                                            [placeholder]="'Search and select team...'"
+                                            [allowFiltering]="true"
+                                            [filterBarPlaceholder]="'Type to search teams...'"
+                                            [filterType]="'Contains'"
+                                            [popupHeight]="'320px'"
+                                            [popupWidth]="'100%'"
+                                            [zIndex]="1200"
+                                            [cssClass]="'rw-teams-single'"
+                                            [enabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId)) && filteredTeamsFor(p.userId).length>0 && !(isRegistered(p.userId) && !hasAlternativeOpenTeam(p.userId))"
+                                            [value]="selectedTeams()[p.userId] || null"
+                                            (change)="onSyncSingleChange(p.userId, $event)">
+                            <ng-template #valueTemplate let-data>
+                              <span class="rw-item">
+                                <span class="name">{{ data?.teamName }}<ng-container *ngIf="data?.perRegistrantFee != null"> ({{ data?.perRegistrantFee | currency }})</ng-container></span>
                               </span>
-                              @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { <span class="text-danger ms-2 small">(Cannot select)</span> }
-                            </span>
-                          </ng-template>
-                        </ejs-dropdownlist>
+                            </ng-template>
+                            <ng-template #itemTemplate let-data>
+                              <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
+                                <span class="name"
+                                      [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
+                                      [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}<ng-container *ngIf="data.perRegistrantFee != null"> ({{ data.perRegistrantFee | currency }})</ng-container></span>
+                                <span class="capacity-badge badge rounded-pill"
+                                      [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
+                                                    'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
+                                  @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
+                                  @else {
+                                    @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left }
+                                  }
+                                </span>
+                                @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { <span class="text-danger ms-2 small">(Cannot select)</span> }
+                              </span>
+                            </ng-template>
+                          </ejs-dropdownlist>
+                        } @else {
+                          <!-- PP fallback: native select without typeahead -->
+                          <select class="form-select" [ngModel]="selectedTeams()[p.userId] || ''"
+                                  (ngModelChange)="onNativeSingleChange(p.userId, $event)"
+                                  [disabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId)) && filteredTeamsFor(p.userId).length>0 && !(isRegistered(p.userId) && !hasAlternativeOpenTeam(p.userId)) ? false : true">
+                            <option value="" disabled>Select team...</option>
+                            <option *ngFor="let t of filteredTeamsFor(p.userId)" [value]="t.teamId" [disabled]="t.rosterIsFull || baseRemaining(t.teamId)===0">
+                              {{ t.teamName }}
+                              <ng-container *ngIf="t.perRegistrantFee != null"> ({{ t.perRegistrantFee | currency }})</ng-container>
+                              <ng-container *ngIf="t.rosterIsFull || baseRemaining(t.teamId)===0"> - FULL</ng-container>
+                            </option>
+                          </select>
+                        }
                       }
                       @if (filteredTeamsFor(p.userId).length===0 && eligibilityFor(p.userId) && showEligibilityBadge()) {
                         <div class="form-text">No teams match eligibility.</div>
@@ -158,7 +172,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                        (beforeSelect)="onMsBeforeSelect(p.userId, $event)"
                                        (select)="onMsSelect(p.userId, $event)"
                                        (removed)="onMsRemoved(p.userId, $event)"
-                                       [enabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId))"
+                                       [enabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId)) && !(isRegistered(p.userId) && !hasAlternativeOpenTeam(p.userId))"
                                        [value]="selectedArrayFor(p.userId)"
                                        (change)="onSyncMultiChange(p.userId, $event)">
                         <!-- Selected chip/value template to also display price when present -->
@@ -203,6 +217,7 @@ export class TeamSelectionComponent {
   @Output() back = new EventEmitter<void>();
   private readonly wizard: RegistrationWizardService = inject(RegistrationWizardService);
   private readonly teamService: TeamService = inject(TeamService);
+  private readonly profileMigration = inject(ProfileMigrationService);
   @ViewChildren('ddRef') private readonly ddLists!: QueryList<DropDownListComponent>;
   @ViewChildren('msRef') private readonly msLists!: QueryList<MultiSelectComponent>;
   private didAutoOpen = false;
@@ -230,6 +245,13 @@ export class TeamSelectionComponent {
       if (this.didAutoOpen) return;
       // Small timeout to allow view children to render after data arrives
       queueMicrotask(() => this.tryOpenFirstUnassigned());
+    });
+    // Attempt to load current job profile config (to detect CAC vs PP) if not already loaded.
+    effect(() => {
+      const cfg = this.profileMigration.currentJobProfileConfig();
+      if (!cfg) {
+        try { this.profileMigration.getCurrentJobProfileConfig(() => { /* no-op */ }); } catch { /* ignore */ }
+      }
     });
   }
 
@@ -342,6 +364,21 @@ export class TeamSelectionComponent {
       ? "Assign a team to each player. Lists are filtered by the player's eligibility. Type to search by team name or year."
       : 'Assign a team to each player. Type to search by team name or year.';
   }
+  // Determine registration model: prefer server profileType prefix (CAC*), fallback to multiSelect heuristic
+  isCAC = computed(() => {
+    try {
+      const pt = this.profileMigration.currentJobProfileConfig()?.profileType || '';
+      if (pt) return pt.toUpperCase().startsWith('CAC');
+      return !!this.multiSelect; // heuristic fallback
+    } catch { return !!this.multiSelect; }
+  });
+  // Native select fallback for PP (non-CAC) single-select mode
+  onNativeSingleChange(playerId: string, value: any) {
+    const val = (value == null || value === '') ? '' : String(value);
+    const current = { ...this.selectedTeams() } as Record<string, string | string[]>;
+    if (val) current[playerId] = val; else delete current[playerId];
+    this.wizard.selectedTeams.set(current);
+  }
   eligibilityFor(playerId: string) {
     return this.wizard.getEligibilityForPlayer(playerId);
   }
@@ -440,6 +477,26 @@ export class TeamSelectionComponent {
   baseMax(teamId: string): number {
     const all = this.teamService.filterByEligibility(null);
     return all.find(t => t.teamId === teamId)?.maxRosterSize || 0;
+  }
+  /** Determine if there is any alternative team (same age group) with remaining capacity besides the player's current selection. */
+  hasAlternativeOpenTeam(playerId: string): boolean {
+    try {
+      // Derive the player's current team (single-select scenario) from selectedArrayFor
+      const currentIds = this.selectedArrayFor(playerId);
+      const currentId = currentIds.length > 0 ? currentIds[0] : null;
+      if (!currentId) return false; // No current selection → treat as locked when registered
+      const allEligible = this.filteredTeamsFor(playerId) || [];
+      const currentTeam = allEligible.find(t => t.teamId === currentId);
+      if (!currentTeam) return false;
+      // Look for another team in same age group with capacity
+      for (const t of allEligible) {
+        if (t.teamId === currentId) continue; // skip current
+        if (t.agegroupId !== currentTeam.agegroupId) continue; // must match age group
+        if (t.rosterIsFull || this.baseRemaining(t.teamId) === 0) continue; // must have capacity
+        return true; // Found an alternative open team
+      }
+      return false; // none found
+    } catch { return false; }
   }
   nameForTeam(id: string): string {
     const all = this.teamService.filterByEligibility(null);

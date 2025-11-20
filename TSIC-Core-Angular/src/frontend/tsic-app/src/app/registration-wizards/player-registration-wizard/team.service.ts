@@ -135,7 +135,7 @@ export class TeamService {
             } else {
                 this._teams.set(null);
             }
-        }, { allowSignalWrites: true });
+        });
     }
 
     refresh(): void {

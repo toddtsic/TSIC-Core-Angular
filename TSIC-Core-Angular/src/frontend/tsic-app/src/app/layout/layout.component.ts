@@ -551,13 +551,13 @@ export class LayoutComponent {
       this.roleName.set(r);
       this.showRoleMenu.set(!!u?.regId);
       this.isAuthenticated.set(!!u);
-    }, { allowSignalWrites: true });
+    });
 
     // Reactively update header whenever the current job changes
     effect(() => {
       const job = this.jobService.currentJob();
       this.applyJobInfo(job);
-    }, { allowSignalWrites: true });
+    });
 
     // Proactively load job metadata when navigating anonymously (or before metadata arrives)
     // Ensures we can show the proper job name + logo even for first-time / unauth hits.
@@ -569,7 +569,7 @@ export class LayoutComponent {
         requestedJobPaths.add(jp);
         this.jobService.loadJobMetadata(jp);
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   private applyJobInfo(job: Job | null) {

@@ -28,7 +28,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this.registrations.set(this.authService.registrations());
     this.isLoading.set(this.authService.registrationsLoading());
     this.errorMessage.set(this.authService.registrationsError());
-  }, { allowSignalWrites: true });
+  });
 
   ngOnInit(): void {
     // Trigger fetch

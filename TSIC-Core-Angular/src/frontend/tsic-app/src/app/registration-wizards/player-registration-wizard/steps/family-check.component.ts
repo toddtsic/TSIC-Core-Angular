@@ -170,24 +170,15 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   }
 
   private initialize(): void {
-    // Initialize: if authenticated with Family role, preselect 'yes' and auto-advance.
-    // Otherwise leave radio unselected; do NOT use localStorage fallbacks.
-    if (this.state.hasFamilyAccount() == null) {
-      const user = this.auth.getCurrentUser();
-      const roles = user?.roles || (user?.role ? [user.role] : []);
-      if (roles.includes(Roles.Family)) {
-        this.state.hasFamilyAccount.set('yes');
-        // Auto-advance: already authenticated as Family
-        this.next.emit();
-        return;
-      }
-      // Leave as null when unauthenticated; user will choose explicitly.
-    } else {
-      // If user has logged out since last visit (no auth token now) but residual state remained, clear it.
-      const userNow = this.auth.getCurrentUser();
-      if (!userNow && this.state.hasFamilyAccount() === 'yes') {
-        this.state.hasFamilyAccount.set(null);
-      }
+    if (this.shouldAutoAdvanceFamily()) {
+      this.state.hasFamilyAccount.set('yes');
+      this.next.emit();
+      return;
+    }
+    // If user logged out but state still says 'yes', clear it.
+    const currentUser = this.auth.getCurrentUser();
+    if (!currentUser && this.state.hasFamilyAccount() === 'yes') {
+      this.state.hasFamilyAccount.set(null);
     }
 
     // Prefill last successful username if present and user not already authenticated
@@ -200,6 +191,15 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
 
     // If panel already visible (hasAccount === 'yes') attempt to focus immediately.
     this.attemptFocusPassword();
+  }
+
+  private shouldAutoAdvanceFamily(): boolean {
+    if (this.state.hasFamilyAccount() != null) return false;
+    // Auto advance if wizard already has familyUser context.
+    if (this.state.familyUser()?.familyUserId) return true;
+    const user = this.auth.getCurrentUser();
+    const roles = user?.roles || (user?.role ? [user.role] : []);
+    return roles.includes(Roles.Family);
   }
 
   // Use centralized login screen with theming and a safe returnUrl back to this wizard

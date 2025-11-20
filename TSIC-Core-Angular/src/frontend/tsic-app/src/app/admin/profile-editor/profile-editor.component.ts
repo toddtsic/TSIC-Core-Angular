@@ -249,7 +249,7 @@ export class ProfileEditorComponent implements OnInit {
         if (this.availableProfiles().length === 0) {
             this.availableProfiles.set(mapped);
         }
-    }, { allowSignalWrites: true });
+    });
 
     private formatProfileDisplayType(type: string): string {
         return type
@@ -267,7 +267,7 @@ export class ProfileEditorComponent implements OnInit {
         if (this.activeTab() === 'options' && !this.showJobOptionsTab()) {
             this.activeTab.set('fields');
         }
-    }, { allowSignalWrites: true });
+    });
 
     // copySource removed – Available Sources UI removed
 

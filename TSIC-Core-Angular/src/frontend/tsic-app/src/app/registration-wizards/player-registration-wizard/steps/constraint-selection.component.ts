@@ -138,7 +138,7 @@ export class ConstraintSelectionComponent {
       console.error('[Eligibility] Parse failure', e);
       this.loading.set(false);
     }
-  }, { allowSignalWrites: true });
+  });
 
   // Heuristic detection (temporary until backend-configured type exposed)
   private detectConstraintType(job: Job): string {

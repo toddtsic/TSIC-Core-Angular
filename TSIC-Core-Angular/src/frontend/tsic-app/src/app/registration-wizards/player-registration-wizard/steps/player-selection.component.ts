@@ -88,7 +88,7 @@ export class PlayerSelectionComponent {
       this.requestedOnce = true;
       this.state.loadFamilyPlayers(jp);
     }
-  }, { allowSignalWrites: true });
+  });
 
   isSelected(id: string): boolean {
     try {
