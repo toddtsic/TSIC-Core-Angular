@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, effect } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import type { Loadable } from '../../../core/models/state.models';
 import type { VIPlayerObjectResponse } from '../../../core/api/models/VIPlayerObjectResponse';
@@ -15,7 +15,21 @@ export class InsuranceStateService {
     // Job-level offer flag still sourced from wizard (avoids cycle)
     offerPlayerRegSaver(): boolean { return this.reg.offerPlayerRegSaver(); }
     regSaverDetails(): any { return this.reg.regSaverDetails(); }
-    verticalInsureOffer(): Loadable<VIPlayerObjectResponse> { return this.reg.verticalInsureOffer(); }
+    // Migrated offer payload signal (initially synchronized from wizard for backward compatibility)
+    private readonly _verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
+    verticalInsureOffer(): Loadable<VIPlayerObjectResponse> { return this._verticalInsureOffer(); }
+    setVerticalInsureOffer(value: Loadable<VIPlayerObjectResponse>): void { this._verticalInsureOffer.set(value); }
+    // Temporary synchronization effect while wizard still owns original signal; will be removed once fully migrated.
+    private readonly _offerSync = effect(() => {
+        try {
+            const offer = this.reg.verticalInsureOffer();
+            // Only overwrite local when data or error changes (avoid needless writes)
+            const cur = this._verticalInsureOffer();
+            if (cur.data !== offer.data || cur.error !== offer.error || cur.loading !== offer.loading) {
+                this._verticalInsureOffer.set(offer);
+            }
+        } catch { /* ignore */ }
+    });
 
     // Localized signals migrated from wizard ---------------------------------
     private readonly _showVerticalInsureModal = signal<boolean>(false);
