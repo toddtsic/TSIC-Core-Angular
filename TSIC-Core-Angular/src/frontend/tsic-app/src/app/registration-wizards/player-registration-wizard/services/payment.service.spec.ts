@@ -60,6 +60,9 @@ describe('PaymentService', () => {
         service = TestBed.inject(PaymentService);
         httpMock = TestBed.inject(HttpTestingController);
         wizard = TestBed.inject(RegistrationWizardService) as any;
+        // Seed PlayerStateService with initial selected teams since it is now authoritative
+        const ps = TestBed.inject(PlayerStateService);
+        ps.setSelectedTeams(wizard.selectedTeams());
     });
 
     afterEach(() => httpMock.verify());

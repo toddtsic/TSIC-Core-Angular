@@ -1,4 +1,5 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
+import { PlayerStateService } from './services/player-state.service';
 import type { Loadable } from '../../core/models/state.models';
 import type { VIPlayerObjectResponse } from '../../core/api/models/VIPlayerObjectResponse';
 import { HttpClient } from '@angular/common/http';
@@ -17,6 +18,7 @@ export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 @Injectable({ providedIn: 'root' })
 export class RegistrationWizardService {
     private readonly http = inject(HttpClient);
+    private readonly playerState = inject(PlayerStateService);
     // Job context
     jobPath = signal<string>('');
     jobId = signal<string>('');
@@ -65,10 +67,7 @@ export class RegistrationWizardService {
     teamConstraintType = signal<string | null>(null); // e.g., BYGRADYEAR
     // Deprecated: legacy single eligibility value (kept for backward compatibility where needed)
     teamConstraintValue = signal<string | null>(null); // e.g., 2027
-    // New: per-player eligibility selection map (playerId -> value)
-    eligibilityByPlayer = signal<Record<string, string>>({});
-    // Team selection per player. Supports single selection (string) or multi (string[])
-    selectedTeams = signal<Record<string, string | string[]>>({}); // playerId -> teamId | teamIds
+    // (migrated) eligibility & selectedTeams now owned by PlayerStateService
     // Job metadata raw JSON snapshots
     jobProfileMetadataJson = signal<string | null>(null);
     jobJsonOptions = signal<string | null>(null);
@@ -145,8 +144,6 @@ export class RegistrationWizardService {
         this.familyPlayers.set([]);
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
-        this.eligibilityByPlayer.set({});
-        this.selectedTeams.set({});
         this.formData.set({});
         this.paymentOption.set('PIF');
         this.lastPayment.set(null);
@@ -399,7 +396,7 @@ export class RegistrationWizardService {
 
                     // Prefill selectedTeams for registered players using prior registrations.
                     // Strategy: collect all assignedTeamIds from priorRegistrations; if one -> store string, if >1 -> store array.
-                    const teamMap: Record<string, string | string[]> = { ...this.selectedTeams() };
+                    const teamMap: Record<string, string | string[]> = { ...this.playerState.selectedTeams() };
                     for (const fp of list) {
                         if (!fp.registered) continue; // only prefill for locked/registered
                         const teamIds = fp.priorRegistrations
@@ -412,7 +409,7 @@ export class RegistrationWizardService {
                         if (unique.length === 1) teamMap[fp.playerId] = unique[0];
                         else if (unique.length > 1) teamMap[fp.playerId] = unique; // multi-assignment history
                     }
-                    this.selectedTeams.set(teamMap);
+                    this.playerState.setSelectedTeams(teamMap);
                     // Keep raw debug payload (already set) so dev panel shows full server snapshot including formFields
                     // Ensure job metadata so forms parse soon after
                     this.ensureJobMetadata(jobPath);
@@ -952,7 +949,7 @@ export class RegistrationWizardService {
                 };
                 const eligField = pickEligibilityField();
                 if (eligField) {
-                    const map = { ...this.eligibilityByPlayer() } as Record<string, string>;
+                    const map = { ...this.playerState.eligibilityByPlayer() } as Record<string, string>;
                     const players = this.familyPlayers();
                     for (const p of players) {
                         if (!p.registered) continue; // only seed for locked players
@@ -963,7 +960,7 @@ export class RegistrationWizardService {
                     }
                     // If we seeded anything, persist and set global value when unanimous
                     if (Object.keys(map).length > 0) {
-                        this.eligibilityByPlayer.set(map);
+                        for (const [pid,val] of Object.entries(map)) this.playerState.setEligibilityForPlayer(pid, val);
                         const selected = this.selectedPlayerIds();
                         const values = selected.map(id => map[id]).filter(v => !!v) as string[];
                         const unique = Array.from(new Set(values));
@@ -1009,7 +1006,7 @@ export class RegistrationWizardService {
     pruneDeselectedPlayers(): void {
         const selectedIds = new Set(this.selectedPlayerIds());
         const forms = { ...this.playerFormValues() };
-        const teams = { ...this.selectedTeams() };
+        const teams = { ...this.playerState.selectedTeams() };
         for (const pid of Object.keys(forms)) {
             if (!selectedIds.has(pid)) delete forms[pid];
         }
@@ -1017,7 +1014,7 @@ export class RegistrationWizardService {
             if (!selectedIds.has(pid)) delete teams[pid];
         }
         this.playerFormValues.set(forms);
-        this.selectedTeams.set(teams);
+        this.playerState.setSelectedTeams(teams);
     }
 
     // Removed unified context loader & snapshot apply; future: implement server-side context if needed.
@@ -1039,7 +1036,7 @@ export class RegistrationWizardService {
             const teamSelections: PreSubmitTeamSelectionDto[] = [];
             const selectedIds = this.selectedPlayerIds();
             for (const pid of selectedIds) {
-                const teamId = this.selectedTeams()[pid];
+                const teamId = this.playerState.selectedTeams()[pid];
                 if (!teamId) continue;
                 // Build visible-only form values for this player
                 const formValues = this.buildPreSubmitFormValuesForPlayer(pid);
@@ -1275,17 +1272,11 @@ export class RegistrationWizardService {
     // Deprecated adapters removed: components now derive directly from familyPlayers/familyUser.
 
     setEligibilityForPlayer(playerId: string, value: string | null | undefined): void {
-        const map = { ...this.eligibilityByPlayer() };
-        if (value == null || value === '') {
-            delete map[playerId];
-        } else {
-            map[playerId] = String(value);
-        }
-        this.eligibilityByPlayer.set(map);
+        this.playerState.setEligibilityForPlayer(playerId, value);
     }
 
     getEligibilityForPlayer(playerId: string): string | undefined {
-        return this.eligibilityByPlayer()[playerId];
+        return this.playerState.getEligibilityForPlayer(playerId);
     }
 
     setUsLaxValidating(playerId: string): void {
