@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PaymentService } from './payment.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
@@ -15,16 +16,22 @@ class RegistrationWizardStub {
     // Simulate selected players
     familyPlayers = () => [
         { playerId: 'P1', firstName: 'Alice', lastName: 'A', selected: true, registered: false },
-        { playerId: 'P2', firstName: 'Bob', lastName: 'B', selected: true, registered: false },
+        { playerId: 'P2', firstName: 'Bob', lastName: 'B', selected: true, registered: false }
     ];
-    // Map player to team
-    selectedTeams = () => ({ P1: 'T1', P2: 'T1' });
+    private _selectedTeams: Record<string, string | string[]> = { P1: 'T1', P2: 'T1' };
+    // Will be replaced in constructor with a function carrying a .set method
+    selectedTeams: any;
     adnArb: any = () => null;
     adnArbBillingOccurences = () => 0;
     adnArbIntervalLength = () => 1;
     adnArbStartDate = () => null;
     verticalInsureConfirmed = () => false;
     verticalInsureDeclined = () => false;
+    constructor() {
+        const fn: any = () => this._selectedTeams;
+        fn.set = (v: Record<string, string | string[]>) => { this._selectedTeams = { ...v }; };
+        this.selectedTeams = fn;
+    }
 }
 class TeamServiceStub {
     getTeamById(id: string) {
@@ -44,6 +51,7 @@ describe('PaymentService', () => {
             providers: [
                 PaymentService,
                 { provide: RegistrationWizardService, useClass: RegistrationWizardStub },
+                PlayerStateService,
                 { provide: TeamService, useClass: TeamServiceStub },
                 provideHttpClient(),
                 provideHttpClientTesting()
@@ -104,8 +112,9 @@ describe('PaymentService', () => {
     });
 
     it('rounds arbPerOccurrence to 2 decimals', () => {
-        // Use team T2 for players to create non-terminating decimal division
-        wizard.selectedTeams = () => ({ P1: 'T2', P2: 'T2' });
+        // Use team T2 for players to create non-terminating decimal division (through PlayerStateService)
+        const ps = TestBed.inject(PlayerStateService);
+        ps.setSelectedTeams({ P1: 'T2', P2: 'T2' });
         wizard.adnArb = () => ({ enabled: true });
         wizard.adnArbBillingOccurences = () => 7; // total 333 / 7 = 47.5714 -> 47.57
         expect(service.totalAmount()).toBe(333);

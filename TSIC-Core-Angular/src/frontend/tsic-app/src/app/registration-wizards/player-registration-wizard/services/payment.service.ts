@@ -1,5 +1,6 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import type { ApplyDiscountItemDto } from '../../../core/api/models/ApplyDiscountItemDto';
@@ -17,6 +18,7 @@ export interface LineItem {
 @Injectable({ providedIn: 'root' })
 export class PaymentService {
     private readonly state = inject(RegistrationWizardService);
+    private readonly playerState = inject(PlayerStateService);
     private readonly teams = inject(TeamService);
     private readonly http = inject(HttpClient);
 
@@ -29,7 +31,7 @@ export class PaymentService {
         const players = this.state.familyPlayers()
             .filter(p => p.selected || p.registered)
             .map(p => ({ id: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
-        const selTeams = this.state.selectedTeams();
+        const selTeams = this.playerState.selectedTeams();
         for (const p of players) {
             const teamId = selTeams[p.id];
             if (!teamId || typeof teamId !== 'string') continue; // multi-team not supported in summary yet
@@ -48,7 +50,7 @@ export class PaymentService {
     totalAmount = computed(() => this.lineItems().reduce((s, i) => s + i.amount, 0));
 
     depositTotal = computed(() => {
-        const selTeams = this.state.selectedTeams();
+        const selTeams = this.playerState.selectedTeams();
         let sum = 0;
         for (const li of this.lineItems()) {
             const teamId = selTeams[li.playerId];
@@ -63,7 +65,7 @@ export class PaymentService {
         if (this.isArbScenario()) return false;
         if (this.lineItems().length === 0) return false;
         return this.lineItems().every(li => {
-            const team = this.teams.getTeamById(this.state.selectedTeams()[li.playerId] as string);
+            const team = this.teams.getTeamById(this.playerState.selectedTeams()[li.playerId] as string);
             return (Number(team?.perRegistrantDeposit) > 0 && Number(team?.perRegistrantFee) > 0);
         });
     });
@@ -136,7 +138,7 @@ export class PaymentService {
     }
 
     getDepositForPlayer(playerId: string): number {
-        const teamId = this.state.selectedTeams()[playerId];
+        const teamId = this.playerState.selectedTeams()[playerId];
         const team = this.teams.getTeamById(teamId as string);
         return Number(team?.perRegistrantDeposit ?? 0) || 0;
     }

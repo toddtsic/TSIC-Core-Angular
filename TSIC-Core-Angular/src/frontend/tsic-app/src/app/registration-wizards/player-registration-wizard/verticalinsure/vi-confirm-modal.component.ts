@@ -8,10 +8,10 @@ import { InsuranceStateService } from '../services/insurance-state.service';
  * Purchase flow is decoupled from fee payment; we only gather user intent here.
  */
 @Component({
-    selector: 'app-vi-confirm-modal',
-    standalone: true,
-    imports: [CommonModule],
-    template: `
+  selector: 'app-vi-confirm-modal',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
     <div class="modal-backdrop fade show" (click)="close(false)"></div>
     <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true">
       <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -47,29 +47,29 @@ import { InsuranceStateService } from '../services/insurance-state.service';
 export class ViConfirmModalComponent {
   readonly insuranceState = inject(InsuranceStateService);
 
-    @Input() quotes: any[] | null = null;
-    @Input() ready: boolean = false;
-    @Input() error: string | null = null;
-    @Output() confirmed = new EventEmitter<{ policyNumber: string | null; policyCreateDate: string | null; quotes: any[] }>();
-    @Output() declined = new EventEmitter<void>();
-    @Output() closed = new EventEmitter<void>();
+  @Input() quotes: any[] | null = null;
+  @Input() ready: boolean = false;
+  @Input() error: string | null = null;
+  @Output() confirmed = new EventEmitter<{ policyNumber: string | null; policyCreateDate: string | null; quotes: any[] }>();
+  @Output() declined = new EventEmitter<void>();
+  @Output() closed = new EventEmitter<void>();
 
-    canConfirm(): boolean {
-        // For MVP require at least one quote OR valid verticalInsure widget indicating user selected purchase.
-        // This will be refined when we integrate deep widget state querying.
-        return (this.quotes?.length ?? 0) > 0 || this.insuranceState.verticalInsureConfirmed();
-    }
+  canConfirm(): boolean {
+    // For MVP require at least one quote OR valid verticalInsure widget indicating user selected purchase.
+    // This will be refined when we integrate deep widget state querying.
+    return (this.quotes?.length ?? 0) > 0 || this.insuranceState.verticalInsureConfirmed();
+  }
 
-    confirm(): void {
-        // Policy number will be populated later by purchase flow; we pass placeholders now.
-        this.confirmed.emit({ policyNumber: this.insuranceState.viConsent()?.policyNumber ?? null, policyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null, quotes: this.quotes || [] });
-    }
+  confirm(): void {
+    // Policy number will be populated later by purchase flow; we pass placeholders now.
+    this.confirmed.emit({ policyNumber: this.insuranceState.viConsent()?.policyNumber ?? null, policyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null, quotes: this.quotes || [] });
+  }
 
-    decline(): void {
-        this.declined.emit();
-    }
+  decline(): void {
+    this.declined.emit();
+  }
 
-    close(emitted: boolean): void {
-        if (!emitted) this.closed.emit();
-    }
+  close(emitted: boolean): void {
+    if (!emitted) this.closed.emit();
+  }
 }
