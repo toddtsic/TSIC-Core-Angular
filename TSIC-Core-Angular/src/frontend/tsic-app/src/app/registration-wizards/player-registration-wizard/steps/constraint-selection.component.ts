@@ -293,7 +293,6 @@ export class ConstraintSelectionComponent {
   missingEligibilityNames() {
     return this.missingEligibility().map(p => p.name).join(', ');
   }
-  trackPlayer = (_: number, p: { userId: string }) => p.userId;
 
   selectedPlayers() {
     return this.state.familyPlayers()

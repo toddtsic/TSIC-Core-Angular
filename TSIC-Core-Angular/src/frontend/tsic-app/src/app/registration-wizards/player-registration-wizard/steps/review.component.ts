@@ -16,7 +16,6 @@ export class ReviewComponent {
   private readonly jobService = inject(JobService);
   constructor(public state: RegistrationWizardService, public teamService: TeamService) { }
 
-  trackPlayer = (_: number, p: { userId: string }) => p.userId;
 
   selectedPlayers() {
     return this.state.familyPlayers()

@@ -44,7 +44,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
         </div>
       </div>
       <div class="card-body">
-        @for (player of selectedPlayersWithTeams; track trackPlayer($index, player); let i = $index) {
+        @for (player of selectedPlayersWithTeams; track player.userId; let i = $index) {
           <div class="mb-4">
             <div class="card card-rounded border-0 shadow-sm">
               <div class="card-header border-bottom-0" [ngClass]="colorClassFor(player.userId)">
@@ -352,7 +352,6 @@ export class PlayerFormsComponent {
     const target = ev.target as HTMLInputElement | null;
     this.setValue(playerId, field, !!target?.checked);
   }
-  trackPlayer = (_: number, p: { userId: string }) => p.userId;
   trackField = (_: number, f: PlayerProfileFieldSchema) => f.name;
   trackOpt = (_: number, o: string) => o;
   isUsLaxField(field: PlayerProfileFieldSchema): boolean {

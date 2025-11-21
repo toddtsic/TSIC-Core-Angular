@@ -40,7 +40,7 @@ import { environment } from '../../../../environments/environment';
           <div class="alert alert-info">No players found for your family. You can add players in your Family Account.</div>
         } @else {
           <ul class="list-group list-group-flush mb-3" [class.opacity-50]="state.familyPlayersLoading()">
-            @for (p of state.familyPlayers(); track trackPlayer($index, p)) {
+            @for (p of state.familyPlayers(); track p.playerId) {
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div class="d-flex align-items-center gap-3">
       <input type="checkbox"
@@ -96,5 +96,4 @@ export class PlayerSelectionComponent implements OnInit {
     } catch { return false; }
   }
 
-  trackPlayer = (_: number, p: { playerId: string }) => p.playerId;
 }

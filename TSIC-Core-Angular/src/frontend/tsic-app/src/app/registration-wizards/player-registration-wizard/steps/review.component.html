@@ -21,7 +21,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @for (player of selectedPlayers(); track trackPlayer($index, player)) {
+                        @for (player of selectedPlayers(); track player.userId) {
                         <tr>
                             <td class="fw-semibold">{{ player.name }}</td>
                             <td>
