@@ -2,6 +2,7 @@ import { Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit 
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { WaiverStateService } from '../services/waiver-state.service';
 
 @Component({
   selector: 'app-rw-waivers',
@@ -90,8 +91,9 @@ export class WaiversComponent implements OnInit, AfterViewInit {
   @Output() back = new EventEmitter<void>();
 
   private readonly state = inject(RegistrationWizardService);
+  private readonly waiverState = inject(WaiverStateService);
 
-  waivers = () => this.state.waiverDefinitions();
+  waivers = () => this.waiverState.waiverDefinitions();
   players = () => this.state.familyPlayers()
     .filter(p => p.selected || p.registered)
     .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
@@ -135,7 +137,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
       for (const [key, val] of Object.entries(v)) {
         if (!this.lockedIds.has(key)) {
           // Keys are field names; set acceptance normalized in service
-          this.state.setWaiverAccepted(key, !!val);
+          this.waiverState.setWaiverAccepted(key, !!val);
         }
       }
       // Detect newly accepted waiver and open next unchecked
@@ -157,7 +159,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
 
   private buildForm(): void {
     const defs = this.waivers();
-    const svcMap = this.state.waiversAccepted();
+    const svcMap = this.waiverState.waiversAccepted();
     const editing = this.isEditingMode();
     const group: Record<string, FormControl> = {};
     // Track previous values so we can detect newly accepted waivers for auto-open UX
@@ -173,7 +175,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         this.lockedIds.add(key);
         // Ensure service map reflects locked acceptance so Continue can enable
         // Use definition id for stable keying; setter records both def id and field name
-        if (d.required) this.state.setWaiverAccepted(d.id, true);
+        if (d.required) this.waiverState.setWaiverAccepted(d.id, true);
       }
       group[key] = control;
       this._prevValues[key] = initialAccepted; // seed previous snapshot
@@ -196,7 +198,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
     // Auto-seed acceptance if edit-only scenario and none accepted yet
     if (this.isEditingMode() && this.waivers().length > 0 && !this.waivers().some(w => this.isAccepted(w.id))) {
       for (const w of this.waivers()) {
-        if (w.required) this.state.setWaiverAccepted(this.bindingKey(w.id), true);
+        if (w.required) this.waiverState.setWaiverAccepted(this.bindingKey(w.id), true);
       }
     }
     // Re-evaluate gate after any programmatic seeding
@@ -280,11 +282,11 @@ export class WaiversComponent implements OnInit, AfterViewInit {
 
   // --- Binding helpers between waiver definition ID and schema field name ---
   bindingKey(defId: string): string {
-    const map = this.state.waiverIdToField();
+    const map = this.waiverState.waiverIdToField();
     return map[defId] || defId; // fallback to id if mapping not found
   }
   reverseBind(fieldName: string): string | null {
-    const map = this.state.waiverIdToField();
+    const map = this.waiverState.waiverIdToField();
     for (const [id, fname] of Object.entries(map)) {
       if (fname === fieldName) return id;
     }
@@ -295,7 +297,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
   private pushGate(): void {
     try {
       const allow = !this.disableContinue();
-      this.state.waiversGateOk.set(allow);
+      this.waiverState.waiversGateOk.set(allow);
     } catch {
       // no-op
     }

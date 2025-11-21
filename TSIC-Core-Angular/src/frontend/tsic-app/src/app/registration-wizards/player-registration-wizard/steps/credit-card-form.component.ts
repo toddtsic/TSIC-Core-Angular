@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Output, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
 
 @Component({
     selector: 'app-credit-card-form',
@@ -76,18 +76,20 @@ export class CreditCardFormComponent implements OnInit {
     @Output() ccValidChange = new EventEmitter<boolean>();
     @Output() ccValueChange = new EventEmitter<any>();
 
-    form = this.fb.group({
-        type: ['', Validators.required],
-        number: ['', [Validators.required, this.numberValidator.bind(this)]],
-        expiry: ['', [Validators.required, this.expiryValidator]],
-        code: ['', [Validators.required, this.cvvValidator.bind(this)]],
-        firstName: ['', Validators.required],
-        lastName: ['', Validators.required],
-        address: ['', Validators.required],
-        zip: ['', [Validators.required, this.zipValidator]]
-    });
+    form!: FormGroup;
 
-    constructor(private readonly fb: FormBuilder) { }
+    constructor(private readonly fb: FormBuilder) {
+        this.form = this.fb.group({
+            type: ['', Validators.required],
+            number: ['', [Validators.required, this.numberValidator.bind(this)]],
+            expiry: ['', [Validators.required, this.expiryValidator]],
+            code: ['', [Validators.required, this.cvvValidator.bind(this)]],
+            firstName: ['', Validators.required],
+            lastName: ['', Validators.required],
+            address: ['', Validators.required],
+            zip: ['', [Validators.required, this.zipValidator]]
+        });
+    }
     ngOnInit(): void {
         this.form.valueChanges.subscribe(v => {
             this.ccValidChange.emit(this.form.valid);
@@ -113,13 +115,13 @@ export class CreditCardFormComponent implements OnInit {
     formatNumber() {
         const ctrl = this.form.get('number');
         if (!ctrl) return;
-        const digits = (ctrl.value || '').replace(/\D+/g, '').slice(0, 16);
+        const digits = (ctrl.value || '').split(/\D+/).join('').slice(0, 16);
         ctrl.setValue(digits, { emitEvent: true });
     }
     formatExpiry() {
         const ctrl = this.form.get('expiry');
         if (!ctrl) return;
-        const digits = (ctrl.value || '').replace(/\D+/g, '').slice(0, 4);
+        const digits = (ctrl.value || '').split(/\D+/).join('').slice(0, 4);
         ctrl.setValue(digits, { emitEvent: true });
     }
     formatCvv() {
@@ -127,13 +129,13 @@ export class CreditCardFormComponent implements OnInit {
         const ctrl = this.form.get('code');
         if (!ctrl) return;
         const maxLen = type === 'AMEX' ? 4 : 3;
-        const digits = (ctrl.value || '').replace(/\D+/g, '').slice(0, maxLen);
+        const digits = (ctrl.value || '').split(/\D+/).join('').slice(0, maxLen);
         ctrl.setValue(digits, { emitEvent: true });
     }
 
     // Validators
     numberValidator(control: AbstractControl): ValidationErrors | null {
-        const raw = String(control.value || '').replace(/\D+/g, '');
+        const raw = String(control.value || '').split(/\D+/).join('');
         if (!raw) return { required: true };
         const type = (this.form?.get('type')?.value || '').toUpperCase();
         const lenOk = type === 'AMEX' ? raw.length === 15 : (raw.length >= 13 && raw.length <= 16);

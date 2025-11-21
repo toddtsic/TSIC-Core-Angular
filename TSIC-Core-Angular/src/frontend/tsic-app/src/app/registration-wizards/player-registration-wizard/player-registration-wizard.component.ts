@@ -10,6 +10,7 @@ import { PaymentComponent } from './steps/payment.component';
 import { ConfirmationComponent } from './steps/confirmation.component';
 import { WaiversComponent } from './steps/waivers.component';
 import { RegistrationWizardService } from './registration-wizard.service';
+import { WaiverStateService } from './services/waiver-state.service';
 // Start step retired; StartChoiceComponent removed from flow
 import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '../../core/services/auth.service';
@@ -31,6 +32,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     readonly state = inject(RegistrationWizardService);
+    private readonly waiverState = inject(WaiverStateService);
     private readonly auth = inject(AuthService);
     private readonly jobContext = inject(JobContextService);
 
@@ -45,7 +47,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
 
     steps = computed<StepId[]>(() => {
         try {
-            const hasWaivers = ((this.state.waiverDefinitions()?.length ?? 0) > 0) || ((this.state.waiverFieldNames()?.length ?? 0) > 0);
+            const hasWaivers = ((this.waiverState.waiverDefinitions()?.length ?? 0) > 0) || ((this.waiverState.waiverFieldNames()?.length ?? 0) > 0);
             const hasEligibility = !!this.state.teamConstraintType();
             let stepsBase = this.baseSteps;
             // If no eligibility constraint configured, drop that step entirely
@@ -127,15 +129,15 @@ export class PlayerRegistrationWizardComponent implements OnInit {
                 return this.state.areFormsValid();
             case 'waivers':
                 // Authoritative: gate status as computed by the Waivers component's FormGroup
-                const ok = this.state.waiversGateOk();
+                const ok = this.waiverState.waiversGateOk();
                 if (ok) return true;
                 // Fallback: explicit signal reads to ensure recomputation
                 try {
-                    const defs = this.state.waiverDefinitions();
-                    const acc = this.state.waiversAccepted();
+                    const defs = this.waiverState.waiverDefinitions();
+                    const acc = this.waiverState.waiversAccepted();
                     const required = defs.filter(d => d.required);
                     if (required.length === 0) return true;
-                    const allOk = required.every(d => this.state.isWaiverAccepted(d.id));
+                    const allOk = required.every(d => this.waiverState.isWaiverAccepted(d.id));
                     if (allOk) return true;
                     const acceptedCount = Object.values(acc).filter(Boolean).length;
                     return acceptedCount >= required.length;
@@ -186,8 +188,10 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         }
         this.state.jobPath.set(jobPath);
 
-        // If already authenticated, proactively load family players for this job
-        if (!!this.auth.currentUser() && !!jobPath) {
+        // Load family players as soon as we have a jobPath.
+        // Phase 1 (minimal) token does not include jobPath claim, but backend still authorizes via sub user id.
+        // Previous gating required an enriched token, causing family user badge to disappear when only minimal token present.
+        if (jobPath) {
             this.state.loadFamilyPlayers(jobPath);
         }
 

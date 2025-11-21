@@ -513,7 +513,7 @@ export class PlayerFormsComponent {
     let arr = Array.isArray(sel) ? [...sel] : [sel];
     arr = arr.filter(id => id !== teamId);
     map[playerId] = arr;
-    this.state.selectedTeams.set(map);
+    this.state.setSelectedTeams(map);
   }
 
   // Inline team selection (only active when Teams step skipped). For simplicity support single team selection here.

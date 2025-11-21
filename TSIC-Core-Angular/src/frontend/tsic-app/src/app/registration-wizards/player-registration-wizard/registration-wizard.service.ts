@@ -1,5 +1,7 @@
-import { Injectable, inject, signal, effect } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { PlayerStateService } from './services/player-state.service';
+import { WaiverStateService } from './services/waiver-state.service';
+import { FormSchemaService } from './services/form-schema.service';
 import type { Loadable } from '../../core/models/state.models';
 import type { VIPlayerObjectResponse } from '../../core/api/models/VIPlayerObjectResponse';
 import { HttpClient } from '@angular/common/http';
@@ -19,6 +21,9 @@ export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 export class RegistrationWizardService {
     private readonly http = inject(HttpClient);
     private readonly playerState = inject(PlayerStateService);
+    // Delegated services (extracted logic)
+    private readonly waiverState = inject(WaiverStateService);
+    private readonly formSchema = inject(FormSchemaService);
     // Job context
     jobPath = signal<string>('');
     jobId = signal<string>('');
@@ -67,6 +72,13 @@ export class RegistrationWizardService {
     teamConstraintType = signal<string | null>(null); // e.g., BYGRADYEAR
     // Deprecated: legacy single eligibility value (kept for backward compatibility where needed)
     teamConstraintValue = signal<string | null>(null); // e.g., 2027
+    // Backward-compatible facade methods for selectedTeams
+    selectedTeams(): Record<string, string | string[]> { return this.playerState.selectedTeams(); }
+    setSelectedTeams(map: Record<string, string | string[]>): void { this.playerState.setSelectedTeams(map); }
+    // Eligibility facades
+    eligibilityByPlayer(): Record<string, string> { return this.playerState.eligibilityByPlayer(); }
+    setEligibilityForPlayer(playerId: string, value: string | null | undefined): void { this.playerState.setEligibilityForPlayer(playerId, value); }
+    getEligibilityForPlayer(playerId: string): string | undefined { return this.playerState.getEligibilityForPlayer(playerId); }
     // (migrated) eligibility & selectedTeams now owned by PlayerStateService
     // Job metadata raw JSON snapshots
     jobProfileMetadataJson = signal<string | null>(null);
@@ -85,35 +97,23 @@ export class RegistrationWizardService {
     aliasFieldMap = signal<Record<string, string>>({});
     // Per-player form values (fieldName -> value)
     playerFormValues = signal<Record<string, Record<string, any>>>({});
-    // Waiver text blocks (extracted from job meta properties like PlayerRegReleaseOfLiability)
+    // Waiver text HTML blocks (job-level). Structured waiver state lives in WaiverStateService.
     jobWaivers = signal<Record<string, string>>({});
-    // Structured waivers for dedicated step
-    waiverDefinitions = signal<WaiverDefinition[]>([]);
-    // Map waiver definition id -> schema field name (checkbox) for acceptance
-    waiverIdToField = signal<Record<string, string>>({});
-    // Acceptance map stored by schema field name to align with formFieldValues keys in preSubmit
-    waiversAccepted = signal<Record<string, boolean>>({}); // fieldName -> accepted
-    // Waivers step gate computed by the step component (authoritative, based on FormGroup state)
-    waiversGateOk = signal<boolean>(false);
-    signatureName = signal<string>('');
-    signatureRole = signal<'Parent/Guardian' | 'Adult Player' | ''>('');
-    // When waiver acceptance checkboxes are present as form fields, we'll detect and hide them from Forms
-    // and render them in the dedicated Waivers step instead.
-    waiverFieldNames = signal<string[]>([]);
+    // Waiver delegating accessors (maintain existing call sites that invoke like signals)
+    waiverDefinitions(): WaiverDefinition[] { return this.waiverState.waiverDefinitions(); }
+    waiverIdToField(): Record<string, string> { return this.waiverState.waiverIdToField(); }
+    waiversAccepted(): Record<string, boolean> { return this.waiverState.waiversAccepted(); }
+    waiverFieldNames(): string[] { return this.waiverState.waiverFieldNames(); }
+    waiversGateOk(): boolean { return this.waiverState.waiversGateOk(); }
+    setWaiversGateOk(v: boolean): void { this.waiverState.waiversGateOk.set(v); }
+    signatureName(): string { return this.waiverState.signatureName(); }
+    setSignatureName(v: string): void { this.waiverState.signatureName.set(v); }
+    signatureRole(): 'Parent/Guardian' | 'Adult Player' | '' { return this.waiverState.signatureRole(); }
+    setSignatureRole(v: 'Parent/Guardian' | 'Adult Player' | ''): void { this.waiverState.signatureRole.set(v); }
     // Dev-only: capture a normalized snapshot of GET /family/players for the debug panel on Players step
     debugFamilyPlayersResp = signal<any>(null);
 
-    // Effect: whenever players list or waiver definitions change, re-evaluate waiver acceptance rules.
-    // This catches scenarios where a new unregistered player is added AFTER waivers were previously accepted
-    // for a sibling, forcing re-attestation.
-    private readonly waiverSelectionWatcher = effect(() => {
-        // read dependencies
-        const _players = this.familyPlayers(); // trigger on list change
-        const _defs = this.waiverDefinitions(); // trigger after definitions loaded
-        if (!_defs || _defs.length === 0) return; // nothing to evaluate yet
-        // Recompute acceptance (logic internally no-ops if there are no selections)
-        this.recomputeWaiverAcceptanceOnSelectionChange();
-    });
+    // Waiver selection/reactivity handled inside WaiverStateService; no local effect needed.
 
     // Forms data per player (dynamic fields later)
     formData = signal<Record<string, any>>({}); // playerId -> { fieldName: value }
@@ -153,10 +153,7 @@ export class RegistrationWizardService {
         this.profileFieldSchemas.set([]);
         this.playerFormValues.set({});
         this.jobWaivers.set({});
-        this.waiverDefinitions.set([]);
-        this.waiversAccepted.set({});
-        this.signatureName.set('');
-        this.signatureRole.set('');
+        // Waiver state reset handled by WaiverStateService automatically (no local reset needed)
         this.adnArb.set(false);
         this.adnArbBillingOccurences.set(null);
         this.adnArbIntervalLength.set(null);
@@ -165,120 +162,24 @@ export class RegistrationWizardService {
         this.jobUsesAmex.set(false);
     }
 
-    /** Seed required waiver acceptance only when ALL selected players are already registered (edit-only scenario).
-     * If any new player is being added, do NOT pre-accept to force re-attestation. */
-    private seedAcceptedWaiversIfReadOnly(): void {
-        try {
-            const defs = this.waiverDefinitions();
-            if (!defs || defs.length === 0) return;
-            // If already have any accepted entries, don't overwrite (user may have interacted in a new flow)
-            if (Object.keys(this.waiversAccepted()).length > 0) return;
-            const selectedIds = new Set(this.selectedPlayerIds());
-            if (selectedIds.size === 0) return;
-            const selectedPlayers = this.familyPlayers().filter(p => selectedIds.has(p.playerId));
-            const allSelectedRegistered = selectedPlayers.every(p => p.registered);
-            if (!allSelectedRegistered) return;
-            const accepted: Record<string, boolean> = {};
-            for (const d of defs) {
-                if (!d.required) continue;
-                const field = this.waiverIdToField()[d.id] || d.id;
-                accepted[field] = true;
-            }
-            this.waiversAccepted.set(accepted);
-        } catch (e) {
-            console.debug('[RegWizard] seedAcceptedWaiversIfReadOnly failed', e);
-        }
-    }
+    /** Seed required waiver acceptance only when ALL selected players are already registered (delegated). */
+    // Waiver acceptance seeding delegated to WaiverStateService
 
-    /** Recompute waiver acceptance when player selection changes. Clears acceptance and signature
-     * when any unregistered player is selected; pre-seeds only when all selected are registered. */
+    // Recompute waiver acceptance via WaiverStateService (after selection changes)
     private recomputeWaiverAcceptanceOnSelectionChange(): void {
         try {
-            const defs = this.waiverDefinitions();
-            const selectedIds = new Set(this.selectedPlayerIds());
-            if (!defs || defs.length === 0 || selectedIds.size === 0) {
-                // Nothing to enforce
-                return;
-            }
-            const selectedPlayers = this.familyPlayers().filter(p => selectedIds.has(p.playerId));
-            const allSelectedRegistered = selectedPlayers.every(p => p.registered);
-            if (allSelectedRegistered) {
-                // If user hasn't explicitly interacted with waivers this session, ensure accepted
-                if (Object.keys(this.waiversAccepted()).length === 0) {
-                    const accepted: Record<string, boolean> = {};
-                    const map = this.waiverIdToField();
-                    for (const d of defs) {
-                        if (!d.required) continue;
-                        const field = map[d.id] || d.id;
-                        accepted[field] = true;
-                    }
-                    this.waiversAccepted.set(accepted);
-                }
-            } else {
-                // Require re-attestation: clear acceptance and signature since new players are being added
-                if (Object.keys(this.waiversAccepted()).length > 0) this.waiversAccepted.set({});
-                if (this.signatureName()) this.signatureName.set('');
-                if (this.signatureRole()) this.signatureRole.set('');
-            }
-        } catch (e) {
-            console.debug('[RegWizard] recomputeWaiverAcceptanceOnSelectionChange failed', e);
-        }
+            this.waiverState.recomputeWaiverAcceptanceOnSelectionChange(this.selectedPlayerIds(), this.familyPlayers());
+        } catch { /* ignore */ }
     }
 
     // --- Waiver helpers ---
-    setWaiverAccepted(idOrField: string, accepted: boolean): void {
-        const map = { ...this.waiversAccepted() } as Record<string, boolean>;
-        const bindings = this.waiverIdToField();
-        // Resolve field name and definition id regardless of which was passed
-        const field = bindings[idOrField] || idOrField;
-        let defId: string | undefined = undefined;
-        for (const [k, v] of Object.entries(bindings)) {
-            if (v === field) { defId = k; break; }
-        }
-        if (accepted) {
-            map[field] = true;
-            if (defId) map[defId] = true; else map[idOrField] = true; // record by def id if known, else original key
-        } else {
-            delete map[field];
-            if (defId) delete map[defId]; else delete map[idOrField];
-        }
-        this.waiversAccepted.set(map);
-    }
+    setWaiverAccepted(idOrField: string, accepted: boolean): void { this.waiverState.setWaiverAccepted(idOrField, accepted); }
 
-    isWaiverAccepted(key: string): boolean {
-        // Accept either a definition id or a field name
-        const bindings = this.waiverIdToField();
-        const field = bindings[key] || key;
-        const map = this.waiversAccepted();
-        // Prefer mapped field name, but also allow legacy entries keyed by definition id
-        if (map[field]) return true;
-        if (map[key]) return true;
-        return false;
-    }
+    isWaiverAccepted(key: string): boolean { return this.waiverState.isWaiverAccepted(key); }
 
-    allRequiredWaiversAccepted(): boolean {
-        const defs = this.waiverDefinitions();
-        if (!defs.length) return true; // nothing required
-        // Primary: per-definition check using tolerant lookup
-        let allOk = true;
-        for (const d of defs) {
-            if (!d.required) continue;
-            if (!this.isWaiverAccepted(d.id)) { allOk = false; break; }
-        }
-        if (allOk) return true;
-        // Fallback: if mapping is momentarily unavailable, compare counts of accepted flags vs required defs
-        try {
-            const requiredCount = defs.filter(d => d.required).length;
-            const acceptedCount = Object.values(this.waiversAccepted()).filter(Boolean).length;
-            if (acceptedCount >= requiredCount) return true;
-        } catch { /* ignore */ }
-        return false;
-    }
+    allRequiredWaiversAccepted(): boolean { return this.waiverState.allRequiredWaiversAccepted(); }
 
-    requireSignature(): boolean {
-        // Simple rule: if any required waiver exists, capture signature.
-        return this.waiverDefinitions().some(w => w.required);
-    }
+    requireSignature(): boolean { return this.waiverState.requireSignature(); }
 
     /** Loader: returns family user summary + family players (registered + server-selected flag) + optional RegSaver details. */
     loadFamilyPlayers(jobPath: string): void {
@@ -289,137 +190,15 @@ export class RegistrationWizardService {
         this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
-                    // Set raw debug payload (dev-only panel reads this)
-                    try {
-                        this.debugFamilyPlayersResp.set(resp);
-                    } catch { /* ignore */ }
-                    // If server provided jobRegForm with an explicit constraint type, set it early
-                    // so the wizard can decide to show the Eligibility step before fetching /jobs metadata.
-                    try {
-                        const jrf = ((resp as FamilyPlayersResponseDto)?.jobRegForm ?? (resp as any)?.JobRegForm);
-                        const rawCt = jrf?.constraintType ?? jrf?.ConstraintType ?? jrf?.teamConstraint ?? jrf?.TeamConstraint ?? null;
-                        if (typeof rawCt === 'string' && rawCt.trim().length > 0) {
-                            const norm = rawCt.trim().toUpperCase();
-                            this.teamConstraintType.set(norm);
-                            try { console.debug('[RegWizard] constraintType from /family/players:', norm); } catch { /* no-op */ }
-                        } else {
-                            try { console.warn('[RegWizard] constraintType not present in /family/players response; Eligibility step will be hidden.'); } catch { /* no-op */ }
-                        }
-                    } catch { /* non-fatal */ }
-                    // Normalize familyUser
-                    const fu = (resp as FamilyPlayersResponseDto)?.familyUser || (resp as any)?.FamilyUser || null;
-                    if (fu) {
-                        // Normalize core + optional contact fields for convenience
-                        const pick = (o: any, keys: string[]): string | undefined => {
-                            for (const k of keys) {
-                                const v = o?.[k];
-                                if (typeof v === 'string' && v.trim()) return String(v).trim();
-                            }
-                            return undefined;
-                        };
-                        const norm = {
-                            familyUserId: fu.familyUserId ?? fu.FamilyUserId ?? '',
-                            displayName: fu.displayName ?? fu.DisplayName ?? '',
-                            userName: fu.userName ?? fu.UserName ?? '',
-                            // Broaden likely mom/guardian/billing field variants
-                            firstName: pick(fu, ['firstName', 'FirstName', 'parentFirstName', 'ParentFirstName', 'motherFirstName', 'MotherFirstName', 'guardianFirstName', 'GuardianFirstName', 'billingFirstName', 'BillingFirstName']),
-                            lastName: pick(fu, ['lastName', 'LastName', 'parentLastName', 'ParentLastName', 'motherLastName', 'MotherLastName', 'guardianLastName', 'GuardianLastName', 'billingLastName', 'BillingLastName']),
-                            address: pick(fu, ['address', 'Address', 'billingAddress', 'BillingAddress', 'street', 'Street', 'street1', 'Street1', 'address1', 'Address1']),
-                            address1: pick(fu, ['address1', 'Address1', 'street1', 'Street1']),
-                            address2: pick(fu, ['address2', 'Address2', 'street2', 'Street2', 'apt', 'Apt', 'aptNumber', 'AptNumber', 'suite', 'Suite']),
-                            city: pick(fu, ['city', 'City']),
-                            state: pick(fu, ['state', 'State', 'stateCode', 'StateCode']),
-                            zipCode: pick(fu, ['zipCode', 'ZipCode', 'zip', 'Zip', 'postalCode', 'PostalCode']),
-                            zip: pick(fu, ['zip', 'Zip']),
-                            postalCode: pick(fu, ['postalCode', 'PostalCode'])
-                        } as const;
-                        // Map server ccInfo (CcInfo) if present
-                        const rawCc = (resp as FamilyPlayersResponseDto)?.ccInfo || (resp as any)?.CcInfo || null;
-                        if (rawCc) {
-                            (norm as any).ccInfo = {
-                                firstName: pick(rawCc, ['firstName', 'FirstName']),
-                                lastName: pick(rawCc, ['lastName', 'LastName']),
-                                streetAddress: pick(rawCc, ['streetAddress', 'StreetAddress', 'address', 'Address']),
-                                zip: pick(rawCc, ['zip', 'Zip', 'zipCode', 'ZipCode', 'postalCode', 'PostalCode'])
-                            };
-                        }
-                        this.familyUser.set(norm);
-                    }
-                    // Normalize regSaver details
-                    const rs = (resp as FamilyPlayersResponseDto)?.regSaverDetails || (resp as any)?.RegSaverDetails || null;
-                    if (rs) {
-                        this.regSaverDetails.set({
-                            policyNumber: rs.policyNumber ?? rs.PolicyNumber ?? '',
-                            policyCreateDate: rs.policyCreateDate ?? rs.PolicyCreateDate ?? ''
-                        });
-                    } else {
-                        this.regSaverDetails.set(null);
-                    }
-                    // Players list (server property now familyPlayers; fallback to players for backward compatibility)
-                    const rawPlayers: any[] = (resp as FamilyPlayersResponseDto)?.familyPlayers || (resp as any)?.FamilyPlayers || (resp as any)?.players || (resp as any)?.Players || [];
-                    const list: FamilyPlayer[] = rawPlayers.map(p => {
-                        const prior: any[] = p.priorRegistrations || p.PriorRegistrations || [];
-                        const priorRegs: FamilyPlayerRegistration[] = prior.map(r => ({
-                            registrationId: r.registrationId ?? r.RegistrationId ?? '',
-                            active: !!(r.active ?? r.Active),
-                            financials: {
-                                feeBase: +(r.financials?.feeBase ?? r.financials?.FeeBase ?? 0),
-                                feeProcessing: +(r.financials?.feeProcessing ?? r.financials?.FeeProcessing ?? 0),
-                                feeDiscount: +(r.financials?.feeDiscount ?? r.financials?.FeeDiscount ?? 0),
-                                feeDonation: +(r.financials?.feeDonation ?? r.financials?.FeeDonation ?? 0),
-                                feeLateFee: +(r.financials?.feeLateFee ?? r.financials?.FeeLateFee ?? 0),
-                                feeTotal: +(r.financials?.feeTotal ?? r.financials?.FeeTotal ?? 0),
-                                owedTotal: +(r.financials?.owedTotal ?? r.financials?.OwedTotal ?? 0),
-                                paidTotal: +(r.financials?.paidTotal ?? r.financials?.PaidTotal ?? 0)
-                            },
-                            assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? null,
-                            assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? null,
-                            // Surface top-level membership / association number directly for edit seeding.
-                            sportAssnId: r.sportAssnId ?? r.SportAssnId ?? null,
-                            // Normalize into client-side formValues from whichever server field exists (preferring visible-only FormFieldValues)
-                            formValues: normalizeFormValues(
-                                r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues
-                            )
-                        }));
-                        return {
-                            playerId: p.playerId ?? p.PlayerId ?? '',
-                            firstName: p.firstName ?? p.FirstName ?? '',
-                            lastName: p.lastName ?? p.LastName ?? '',
-                            gender: p.gender ?? p.Gender ?? '',
-                            dob: p.dob ?? p.Dob ?? undefined,
-                            registered: !!(p.registered ?? p.Registered),
-                            selected: !!(p.selected ?? p.Selected ?? (p.registered ?? p.Registered)),
-                            priorRegistrations: priorRegs
-                        } as FamilyPlayer;
-                    });
-                    this.familyPlayers.set(list);
-
-                    // Prefill selectedTeams for registered players using prior registrations.
-                    // Strategy: collect all assignedTeamIds from priorRegistrations; if one -> store string, if >1 -> store array.
-                    const teamMap: Record<string, string | string[]> = { ...this.playerState.selectedTeams() };
-                    for (const fp of list) {
-                        if (!fp.registered) continue; // only prefill for locked/registered
-                        const teamIds = fp.priorRegistrations
-                            .map(r => r.assignedTeamId)
-                            .filter((id: any): id is string => typeof id === 'string' && !!id);
-                        if (teamIds.length === 0) continue; // no assignment history
-                        // Deduplicate while preserving order (earlier = older registrations)
-                        const unique: string[] = [];
-                        for (const t of teamIds) if (!unique.includes(t)) unique.push(t);
-                        if (unique.length === 1) teamMap[fp.playerId] = unique[0];
-                        else if (unique.length > 1) teamMap[fp.playerId] = unique; // multi-assignment history
-                    }
-                    this.playerState.setSelectedTeams(teamMap);
-                    // Keep raw debug payload (already set) so dev panel shows full server snapshot including formFields
-                    // Ensure job metadata so forms parse soon after
+                    this.debugFamilyPlayersResp.set(resp);
+                    this.extractConstraintType(resp);
+                    this.applyFamilyUser(resp);
+                    this.applyRegSaverDetails(resp);
+                    const players = this.buildFamilyPlayersList(resp);
+                    this.familyPlayers.set(players);
+                    this.prefillTeamsFromPriorRegistrations(players);
                     this.ensureJobMetadata(jobPath);
-                    // Payment flags from /family/players (now strongly typed in API models)
-                    try {
-                        const activeCodes = !!(resp as FamilyPlayersResponseDto)?.jobHasActiveDiscountCodes;
-                        const usesAmex = !!(resp as FamilyPlayersResponseDto)?.jobUsesAmex;
-                        this.jobHasActiveDiscountCodes.set(activeCodes);
-                        this.jobUsesAmex.set(usesAmex);
-                    } catch { /* non-critical */ }
+                    this.applyPaymentFlags(resp);
                     this.familyPlayersLoading.set(false);
                 },
                 error: err => {
@@ -431,6 +210,126 @@ export class RegistrationWizardService {
                     this.familyPlayersLoading.set(false);
                 }
             });
+    }
+
+    private extractConstraintType(resp: FamilyPlayersResponseDto): void {
+        try {
+            const jrf = resp.jobRegForm || (resp as any).JobRegForm;
+            const rawCt = jrf?.constraintType ?? jrf?.ConstraintType ?? jrf?.teamConstraint ?? jrf?.TeamConstraint ?? null;
+            if (typeof rawCt === 'string' && rawCt.trim()) {
+                const norm = rawCt.trim().toUpperCase();
+                this.teamConstraintType.set(norm);
+                try { console.debug('[RegWizard] constraintType from /family/players:', norm); } catch { /* no-op */ }
+            } else {
+                try { console.warn('[RegWizard] constraintType not present in /family/players response; Eligibility step may be hidden.'); } catch { /* no-op */ }
+            }
+        } catch { /* ignore */ }
+    }
+
+    private applyFamilyUser(resp: FamilyPlayersResponseDto): void {
+        const fu = resp.familyUser || (resp as any).FamilyUser || null;
+        if (!fu) { this.familyUser.set(null); return; }
+        const pick = (o: any, keys: string[]): string | undefined => {
+            for (const k of keys) {
+                const v = o?.[k];
+                if (typeof v === 'string' && v.trim()) return String(v).trim();
+            }
+            return undefined;
+        };
+        const norm: any = {
+            familyUserId: fu.familyUserId ?? fu.FamilyUserId ?? '',
+            displayName: fu.displayName ?? fu.DisplayName ?? '',
+            userName: fu.userName ?? fu.UserName ?? '',
+            firstName: pick(fu, ['firstName', 'FirstName', 'parentFirstName', 'ParentFirstName', 'motherFirstName', 'MotherFirstName', 'guardianFirstName', 'GuardianFirstName', 'billingFirstName', 'BillingFirstName']),
+            lastName: pick(fu, ['lastName', 'LastName', 'parentLastName', 'ParentLastName', 'motherLastName', 'MotherLastName', 'guardianLastName', 'GuardianLastName', 'billingLastName', 'BillingLastName']),
+            address: pick(fu, ['address', 'Address', 'billingAddress', 'BillingAddress', 'street', 'Street', 'street1', 'Street1', 'address1', 'Address1']),
+            address1: pick(fu, ['address1', 'Address1', 'street1', 'Street1']),
+            address2: pick(fu, ['address2', 'Address2', 'street2', 'Street2', 'apt', 'Apt', 'aptNumber', 'AptNumber', 'suite', 'Suite']),
+            city: pick(fu, ['city', 'City']),
+            state: pick(fu, ['state', 'State', 'stateCode', 'StateCode']),
+            zipCode: pick(fu, ['zipCode', 'ZipCode', 'zip', 'Zip', 'postalCode', 'PostalCode']),
+            zip: pick(fu, ['zip', 'Zip']),
+            postalCode: pick(fu, ['postalCode', 'PostalCode'])
+        };
+        const rawCc = resp.ccInfo || (resp as any).CcInfo || null;
+        if (rawCc) {
+            norm.ccInfo = {
+                firstName: pick(rawCc, ['firstName', 'FirstName']),
+                lastName: pick(rawCc, ['lastName', 'LastName']),
+                streetAddress: pick(rawCc, ['streetAddress', 'StreetAddress', 'address', 'Address']),
+                zip: pick(rawCc, ['zip', 'Zip', 'zipCode', 'ZipCode', 'postalCode', 'PostalCode'])
+            };
+        }
+        this.familyUser.set(norm);
+    }
+
+    private applyRegSaverDetails(resp: FamilyPlayersResponseDto): void {
+        const rs = resp.regSaverDetails || (resp as any).RegSaverDetails || null;
+        if (!rs) { this.regSaverDetails.set(null); return; }
+        this.regSaverDetails.set({
+            policyNumber: rs.policyNumber ?? rs.PolicyNumber ?? '',
+            policyCreateDate: rs.policyCreateDate ?? rs.PolicyCreateDate ?? ''
+        });
+    }
+
+    private buildFamilyPlayersList(resp: FamilyPlayersResponseDto): FamilyPlayer[] {
+        const rawPlayers: any[] = resp.familyPlayers || (resp as any).FamilyPlayers || (resp as any).players || (resp as any).Players || [];
+        return rawPlayers.map(p => {
+            const prior: any[] = p.priorRegistrations || p.PriorRegistrations || [];
+            const priorRegs: FamilyPlayerRegistration[] = prior.map(r => ({
+                registrationId: r.registrationId ?? r.RegistrationId ?? '',
+                active: !!(r.active ?? r.Active),
+                financials: {
+                    feeBase: +(r.financials?.feeBase ?? r.financials?.FeeBase ?? 0),
+                    feeProcessing: +(r.financials?.feeProcessing ?? r.financials?.FeeProcessing ?? 0),
+                    feeDiscount: +(r.financials?.feeDiscount ?? r.financials?.FeeDiscount ?? 0),
+                    feeDonation: +(r.financials?.feeDonation ?? r.financials?.FeeDonation ?? 0),
+                    feeLateFee: +(r.financials?.feeLateFee ?? r.financials?.FeeLateFee ?? 0),
+                    feeTotal: +(r.financials?.feeTotal ?? r.financials?.FeeTotal ?? 0),
+                    owedTotal: +(r.financials?.owedTotal ?? r.financials?.OwedTotal ?? 0),
+                    paidTotal: +(r.financials?.paidTotal ?? r.financials?.PaidTotal ?? 0)
+                },
+                assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? null,
+                assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? null,
+                sportAssnId: r.sportAssnId ?? r.SportAssnId ?? null,
+                formValues: normalizeFormValues(
+                    r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues
+                )
+            }));
+            return {
+                playerId: p.playerId ?? p.PlayerId ?? '',
+                firstName: p.firstName ?? p.FirstName ?? '',
+                lastName: p.lastName ?? p.LastName ?? '',
+                gender: p.gender ?? p.Gender ?? '',
+                dob: p.dob ?? p.Dob ?? undefined,
+                registered: !!(p.registered ?? p.Registered),
+                selected: !!(p.selected ?? p.Selected ?? (p.registered ?? p.Registered)),
+                priorRegistrations: priorRegs
+            } as FamilyPlayer;
+        });
+    }
+
+    private prefillTeamsFromPriorRegistrations(players: FamilyPlayer[]): void {
+        const teamMap: Record<string, string | string[]> = { ...this.playerState.selectedTeams() };
+        for (const fp of players) {
+            if (!fp.registered) continue;
+            const teamIds = fp.priorRegistrations
+                .map(r => r.assignedTeamId)
+                .filter((id: any): id is string => typeof id === 'string' && !!id);
+            if (!teamIds.length) continue;
+            const unique: string[] = [];
+            for (const t of teamIds) if (!unique.includes(t)) unique.push(t);
+            if (unique.length === 1) teamMap[fp.playerId] = unique[0];
+            else if (unique.length > 1) teamMap[fp.playerId] = unique;
+        }
+        this.playerState.setSelectedTeams(teamMap);
+    }
+
+    private applyPaymentFlags(resp: FamilyPlayersResponseDto): void {
+        try {
+            this.jobHasActiveDiscountCodes.set(!!resp.jobHasActiveDiscountCodes);
+            this.jobUsesAmex.set(!!resp.jobUsesAmex);
+        } catch { /* ignore */ }
     }
 
     /** Fetch job metadata if not already loaded so we can parse PlayerProfileMetadataJson & JsonOptions. */
@@ -498,8 +397,8 @@ export class RegistrationWizardService {
                             let fields: any[] = [];
                             if (Array.isArray(parsed)) {
                                 fields = parsed;
-                            } else if (parsed && Array.isArray((parsed as any).fields)) {
-                                fields = (parsed as any).fields;
+                            } else if (parsed && Array.isArray(parsed.fields)) {
+                                fields = parsed.fields;
                             }
                             for (const f of fields) {
                                 const name = String(f?.name || f?.dbColumn || f?.field || '').toLowerCase();
@@ -550,9 +449,9 @@ export class RegistrationWizardService {
                             defs.push({ id, title: friendlyWaiverTitle(id), html, required: true, version: String(html.length) });
                         }
                     }
-                    this.waiverDefinitions.set(defs);
-                    // After we have definitions, seed acceptance for read-only scenarios (edit/prior-registration)
-                    this.seedAcceptedWaiversIfReadOnly();
+                    // Delegate waiver definitions to WaiverStateService
+                    this.waiverState.setDefinitions(defs);
+                    this.waiverState.seedAcceptedWaiversIfReadOnly(this.selectedPlayerIds(), this.familyPlayers());
                     this.parseProfileMetadata();
                 },
                 error: err => {
@@ -568,412 +467,117 @@ export class RegistrationWizardService {
     offerPlayerRegSaver(): boolean { return this._offerPlayerRegSaver; }
 
     // Removed direct fetch of VerticalInsure player-object; preSubmit response is now the single source of truth.
-
-    /** Schema parsing for PlayerProfileMetadataJson (simplified MVP). */
+    /** Delegated schema + waiver processing via extracted services. */
     private parseProfileMetadata(): void {
-        const raw = this.jobProfileMetadataJson();
-        if (!raw) {
-            this.profileFieldSchemas.set([]);
-            this.waiverFieldNames.set([]);
-            return;
+        const rawMeta = this.jobProfileMetadataJson();
+        const rawOpts = this.jobJsonOptions();
+        this.formSchema.parse(rawMeta, rawOpts);
+        const schemas = this.formSchema.profileFieldSchemas();
+        this.profileFieldSchemas.set(schemas);
+        this.aliasFieldMap.set(this.formSchema.aliasFieldMap());
+        this.bindWaiversToSchemas(schemas);
+        this.initializeFormValuesForSelectedPlayers(schemas);
+        this.seedPlayerValuesFromPriorRegistrations(schemas);
+        this.applyAliasBackfill();
+        this.seedEligibilityFromSchemas(schemas);
+    }
+
+    private bindWaiversToSchemas(schemas: PlayerProfileFieldSchema[]): void {
+        this.waiverState.processSchemasAndBindWaivers(
+            this.waiverState.waiverDefinitions(),
+            schemas.map(s => ({ name: s.name, label: s.label, type: s.type, required: s.required, visibility: s.visibility })),
+            this.selectedPlayerIds(),
+            this.familyPlayers()
+        );
+    }
+
+    private initializeFormValuesForSelectedPlayers(schemas: PlayerProfileFieldSchema[]): void {
+        const selectedIds = this.selectedPlayerIds();
+        const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+        for (const pid of selectedIds) {
+            if (!current[pid]) current[pid] = {};
+            for (const f of schemas) if (!(f.name in current[pid])) current[pid][f.name] = null;
         }
+        this.playerFormValues.set(current);
+    }
+
+    private seedPlayerValuesFromPriorRegistrations(schemas: PlayerProfileFieldSchema[]): void {
         try {
-            const json = JSON.parse(raw);
-            // Expect either an array of field defs or an object with fields array.
-            let fields: any[] = [];
-            if (Array.isArray(json)) {
-                fields = json;
-            } else if (json && Array.isArray(json.fields)) {
-                fields = json.fields;
-            }
-            // Parse job-level JsonOptions (option sets) if present so we can override dropdown values.
-            let optionSets: Record<string, any> | null = null;
-            const rawOpts = this.jobJsonOptions();
-            if (rawOpts) {
-                try {
-                    const parsed = JSON.parse(rawOpts);
-                    if (parsed && typeof parsed === 'object') optionSets = parsed;
-                } catch (e) {
-                    console.warn('[RegWizard] Failed to parse jobJsonOptions for option overrides', e);
-                }
-            }
-            const getOptionSetInsensitive = (key: string): any[] | null => {
-                if (!optionSets || !key) return null;
-                const found = Object.keys(optionSets).find(k => k.toLowerCase() === key.toLowerCase());
-                return found ? optionSets[found] : null;
-            };
-            const getMappedOptionSetKey = (name: string, label: string): string | null => {
-                const l = (label || name || '').toLowerCase();
-                if (!l) return null;
-                if (l.includes('kilt')) return 'ListSizes_Kilt';
-                if (l.includes('jersey')) return 'ListSizes_Jersey';
-                if (l.includes('short')) return 'ListSizes_Shorts';
-                if (l.includes('t-shirt') || l.includes('tshirt') || l.includes('long sleeve')) return 'ListSizes_Tshirt';
-                if (l.includes('reversible')) return 'ListSizes_Reversible';
-                if (l.includes('position')) return 'List_Positions';
-                if (l.includes('grad') && l.includes('year')) return 'List_GradYears';
-                return null;
-            };
-            const aliasMapLocal: Record<string, string> = {};
-            const schemas: PlayerProfileFieldSchema[] = fields.map(f => {
-                const name = String(f.name || f.dbColumn || f.field || '');
-                if (!name) return null;
-                let label = String(f.label || f.displayName || f.display || f.name || name);
-                // Global normalization: strip legacy informational suffix from labels
-                const _suffix = /(\s*\(will not be verified at this time\))$/i;
-                if (_suffix.test(label)) {
-                    label = label.replace(_suffix, '').trim();
-                }
-                // If metadata provides a dbColumn (typically PascalCase backend property) and it's different from the schema field name,
-                // register a precise alias to bridge backend -> UI without guessing.
-                const dbCol = typeof f.dbColumn === 'string' ? f.dbColumn : null;
-                if (dbCol && dbCol !== name) {
-                    aliasMapLocal[dbCol] = name;
-                }
-                let type = mapFieldType(f.type || f.inputType);
-                // Force US Lacrosse number (sportassnid) to text regardless of metadata type/options
-                if (name.toLowerCase() === 'sportassnid' || name.toLowerCase() === 'uslax' || label.toLowerCase().includes('lacrosse')) {
-                    type = 'text';
-                }
-                const required = !!(f.required || f?.validation?.required || f?.validation?.requiredTrue);
-                const dsKey = String(f.dataSource || f.optionsSource || f.optionSet || '').trim();
-                const options = (() => {
-                    // Priority 1: explicit field.options (array of primitives or {value,label})
-                    const direct = Array.isArray(f.options) ? f.options : [];
-                    let mapped = direct.map((o: any) => String(o?.value ?? o?.Value ?? o?.label ?? o?.Text ?? o));
-                    // Priority 2: job option set key via dataSource
-                    if ((!mapped || mapped.length === 0) && optionSets && dsKey) {
-                        const setVal = optionSets[dsKey] ?? getOptionSetInsensitive(dsKey) ?? null;
-                        if (Array.isArray(setVal)) {
-                            mapped = setVal.map(v => {
-                                if (v && typeof v === 'object') {
-                                    const val = v.value ?? v.Value ?? v.id ?? v.Id ?? v.code ?? v.Code ?? v.year ?? v.Year ?? v;
-                                    return String(val);
-                                }
-                                return String(v);
-                            });
-                        }
+            const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+            const players = this.familyPlayers();
+            const schemaNameByLower: Record<string, string> = {};
+            for (const s of schemas) schemaNameByLower[s.name.toLowerCase()] = s.name;
+            for (const p of players) {
+                if (!p.registered || !p.priorRegistrations?.length) continue;
+                const pid = p.playerId;
+                if (!current[pid]) continue;
+                const source = p.priorRegistrations.at(-1);
+                const fv = source?.formValues || {};
+                for (const [rawK, rawV] of Object.entries(fv)) {
+                    if (rawV == null || rawV === '') continue;
+                    const kLower = rawK.toLowerCase();
+                    let targetName = schemaNameByLower[kLower];
+                    if (!targetName) {
+                        const alias = this.formSchema.aliasFieldMap();
+                        const foundAlias = Object.keys(alias).find(a => a.toLowerCase() === kLower);
+                        if (foundAlias) targetName = alias[foundAlias];
                     }
-                    // Priority 3: explicit label/name -> option set mapping for known apparel/position lists
-                    if ((!mapped || mapped.length === 0) && optionSets) {
-                        const key = getMappedOptionSetKey(name, label);
-                        const setVal = key ? getOptionSetInsensitive(key) : null;
-                        if (Array.isArray(setVal)) {
-                            mapped = setVal.map(v => (v && typeof v === 'object') ? String(v.value ?? v.Value ?? v) : String(v));
-                        }
-                    }
-                    // Priority 4: option set matching field name (fallback)
-                    if ((!mapped || mapped.length === 0) && optionSets && name) {
-                        const key = Object.keys(optionSets).find(k => k.toLowerCase() === name.toLowerCase());
-                        const setVal = key ? optionSets[key] : null;
-                        if (Array.isArray(setVal)) {
-                            mapped = setVal.map(v => (v && typeof v === 'object') ? String(v.value ?? v.Value ?? v) : String(v));
-                        }
-                    }
-                    // Priority 5: targeted substring catch-all for Kilt sizes (legacy data)
-                    if ((!mapped || mapped.length === 0) && optionSets && (type === 'select' || type === 'multiselect')) {
-                        const lname = (label || name).toLowerCase();
-                        if (lname.includes('kilt')) {
-                            const k = Object.keys(optionSets).find(x => x.toLowerCase().includes('kilt') && (x.toLowerCase().includes('size') || true));
-                            const setVal = k ? optionSets[k] : null;
-                            if (Array.isArray(setVal)) {
-                                mapped = setVal.map(v => (v && typeof v === 'object') ? String(v.value ?? v.Value ?? v) : String(v));
-                            }
-                            // Dev-only: warn if kilt size options unresolved
-                            try {
-                                const host = globalThis.location?.host?.toLowerCase?.() ?? '';
-                                if ((!mapped || mapped.length === 0) && (host.startsWith('localhost') || host.startsWith('127.0.0.1'))) {
-                                    console.warn('[RegWizard] No options resolved for kilt size field', { field: name, label, optionSetKeys: Object.keys(optionSets) });
-                                }
-                            } catch { /* ignore */ }
-                        }
-                    }
-                    return mapped;
-                })();
-                const helpText = f.helpText || f.help || f.placeholder || null;
-                const visibility = ((): 'public' | 'adminOnly' | 'hidden' | undefined => {
-                    const vis = f.visibility || f.adminOnly; // adminOnly legacy
-                    if (typeof vis === 'string') {
-                        const lower = vis.toLowerCase();
-                        if (lower === 'adminonly') return 'adminOnly';
-                        if (lower === 'hidden') return 'hidden';
-                        return 'public';
-                    }
-                    if (vis === true) return 'adminOnly';
-                    return undefined;
-                })();
-                const condition = ((): { field: string; value: any; operator?: string } | null => {
-                    const c = f.condition;
-                    if (c && typeof c === 'object' && c.field) {
-                        return { field: String(c.field), value: c.value, operator: c.operator ? String(c.operator) : undefined };
-                    }
-                    return null;
-                })();
-                return { name, label, type, required, options, helpText, visibility, condition } as PlayerProfileFieldSchema;
-            }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
-            this.profileFieldSchemas.set(schemas);
-            this.aliasFieldMap.set(aliasMapLocal);
-            // Detect waiver checkbox fields so we can hide them from Forms UI.
-            // Prioritize explicit requiredTrue on checkbox; also include label/name heuristics and dbColumn aliases (e.g., BWaiverSigned1/3).
-            const detectedWaiverFields: string[] = [];
-            const detectedWaiverLabels: string[] = [];
-            const containsAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
-            // First pass: explicit requiredTrue check on raw metadata objects (ensures accurate capture)
-            for (const raw of fields) {
-                try {
-                    const name = String(raw?.name || raw?.dbColumn || raw?.field || '');
-                    if (!name) continue;
-                    const type = String(raw?.type || raw?.inputType || '').toLowerCase();
-                    const isCheckbox = type.includes('checkbox') || type === 'bool' || type === 'boolean';
-                    const validation = raw?.validation || {};
-                    const requiredTrue = !!(validation?.requiredTrue === true);
-                    if (isCheckbox && requiredTrue) {
-                        detectedWaiverFields.push(name);
-                        const label = String(raw?.label || raw?.displayName || raw?.display || name);
-                        if (label) detectedWaiverLabels.push(label);
-                    }
-                } catch { /* ignore malformed entries */ }
-            }
-            // Second pass: heuristic label/name detection for historical data
-            for (const field of schemas) {
-                const lname = field.name.toLowerCase();
-                const llabel = field.label.toLowerCase();
-                const isCheckbox = field.type === 'checkbox';
-                const looksLikeWaiver = isCheckbox && (
-                    llabel.startsWith('i agree') ||
-                    llabel.includes('waiver') || llabel.includes('release') ||
-                    containsAll(llabel, ['code', 'conduct']) ||
-                    llabel.includes('refund') || containsAll(llabel, ['terms', 'conditions'])
-                );
-                if (looksLikeWaiver || lname.includes('waiver') || lname.includes('codeofconduct') || lname.includes('refund')) {
-                    detectedWaiverFields.push(field.name);
-                    detectedWaiverLabels.push(field.label);
-                }
-            }
-            // Include dbColumn names for waiver-like fields (ensures server property names are injected if schema name differs)
-            for (const f of fields) {
-                try {
-                    const name = String(f?.name || '');
-                    const label = String(f?.label || f?.displayName || f?.display || name || '').toLowerCase();
-                    const dbCol = typeof f?.dbColumn === 'string' ? String(f.dbColumn) : '';
-                    const type = String(f?.type || f?.inputType || '').toLowerCase();
-                    const isCheckbox = type.includes('checkbox');
-                    const lname = (name || '').toLowerCase();
-                    const dbLower = dbCol.toLowerCase();
-                    const looksLikeWaiver = isCheckbox && (
-                        label.startsWith('i agree') || label.includes('waiver') || label.includes('release') ||
-                        containsAll(label, ['code', 'conduct']) || label.includes('refund') || containsAll(label, ['terms', 'conditions'])
-                    );
-                    if (looksLikeWaiver || lname.includes('waiver') || dbLower.includes('waiver') || dbLower.includes('codeofconduct') || dbLower.includes('refund')) {
-                        if (name) detectedWaiverFields.push(name);
-                        if (dbCol) detectedWaiverFields.push(dbCol);
-                        if (label) detectedWaiverLabels.push(String(f?.label || ''));
-                    }
-                } catch { /* ignore malformed entries */ }
-            }
-            // De-duplicate detected fields (case-insensitive, keep first encountered variant)
-            {
-                const seen = new Set<string>();
-                const uniqCI: string[] = [];
-                for (const f of detectedWaiverFields) {
-                    if (!f) continue;
-                    const key = f.toLowerCase();
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    uniqCI.push(f);
-                }
-                detectedWaiverFields.length = 0;
-                detectedWaiverFields.push(...uniqCI);
-            }
-            this.waiverFieldNames.set(detectedWaiverFields);
-
-            // Build bindings from waiver definition ids to schema field names (checkbox acceptances)
-            try {
-                const defs = this.waiverDefinitions();
-                const bindings: Record<string, string> = {};
-                const checkboxFields = schemas.filter(s => s.type === 'checkbox');
-                const toWords = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2);
-                const score = (title: string, label: string) => {
-                    const a = new Set(toWords(title));
-                    const b = new Set(toWords(label));
-                    let m = 0; for (const w of a) if (b.has(w)) m++;
-                    return m;
-                };
-                const pickByHeuristic = (def: WaiverDefinition): string | null => {
-                    // Strong keyword mapping first
-                    const idL = def.id.toLowerCase();
-                    const titleL = def.title.toLowerCase();
-                    const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
-                    let candidates = checkboxFields;
-                    // Filter candidates by thematic keywords
-                    if (idL.includes('codeofconduct') || hasAll(titleL, ['code', 'conduct'])) {
-                        candidates = candidates.filter(f => hasAll(f.label.toLowerCase(), ['code', 'conduct']) || hasAll(f.name.toLowerCase(), ['code', 'conduct']));
-                    } else if (idL.includes('refund') || hasAll(titleL, ['terms', 'conditions']) || titleL.includes('refund')) {
-                        candidates = candidates.filter(f => f.label.toLowerCase().includes('refund') || hasAll(f.label.toLowerCase(), ['terms', 'conditions']) || f.name.toLowerCase().includes('refund'));
-                    } else if (idL.includes('covid') || titleL.includes('covid')) {
-                        candidates = candidates.filter(f => f.label.toLowerCase().includes('covid') || f.name.toLowerCase().includes('covid'));
-                    } else if (titleL.includes('waiver') || titleL.includes('release') || idL.includes('waiver') || idL.includes('release')) {
-                        candidates = candidates.filter(f => f.label.toLowerCase().includes('waiver') || f.label.toLowerCase().includes('release') || f.name.toLowerCase().includes('waiver'));
-                    }
-                    if (candidates.length === 0) candidates = checkboxFields;
-                    // Score by token overlap with title; break ties by order in schemas
-                    let best: { f: PlayerProfileFieldSchema; s: number } | null = null;
-                    for (const f of candidates) {
-                        const s = score(def.title, f.label) + score(def.id, f.label);
-                        if (!best || s > best.s) best = { f, s };
-                    }
-                    return best?.f?.name || null;
-                };
-                for (const d of defs) {
-                    // If there is an exact field name match in detected list, prefer it
-                    const exact = detectedWaiverFields.find(n => n.toLowerCase() === d.id.toLowerCase());
-                    const chosen = exact || pickByHeuristic(d);
-                    if (chosen) bindings[d.id] = chosen;
-                }
-                this.waiverIdToField.set(bindings);
-                // Migrate any acceptance entries keyed by definition id -> field name
-                const current = { ...this.waiversAccepted() } as Record<string, boolean>;
-                let changed = false;
-                for (const [id, field] of Object.entries(bindings)) {
-                    if (current[id] !== undefined && current[field] === undefined) {
-                        current[field] = current[id];
-                        delete current[id];
-                        changed = true;
-                    }
-                }
-                if (changed) this.waiversAccepted.set(current);
-                // If still empty and in edit-only scenario, seed acceptance using field names now that mapping exists
-                if (Object.keys(this.waiversAccepted()).length === 0) {
-                    this.seedAcceptedWaiversIfReadOnly();
-                }
-            } catch { /* mapping best-effort */ }
-
-            // If no job-level waiver definitions were populated, synthesize minimal ones from detected fields
-            if ((this.waiverDefinitions()?.length ?? 0) === 0 && detectedWaiverLabels.length > 0) {
-                const synthDefs: WaiverDefinition[] = [];
-                const addUnique = (id: string, title: string) => {
-                    if (!synthDefs.some(d => d.id === id)) synthDefs.push({ id, title, html: '', required: true, version: '1' });
-                };
-                for (const label of detectedWaiverLabels) {
-                    const l = label.toLowerCase();
-                    if (l.includes('code of conduct')) addUnique('PlayerRegCodeOfConduct', 'Code of Conduct');
-                    else if (l.includes('refund')) addUnique('PlayerRegRefundTerms', 'Refund Terms and Conditions');
-                    else if (l.includes('waiver') || l.includes('release')) addUnique('PlayerRegReleaseOfLiability', 'Player Waiver');
-                    else {
-                        // Fallback: derive a title from the label by removing common prefixes
-                        const title = label
-                            .replace(/^i\s+agree\s+(with|to)\s+the\s+/i, '')
-                            .replace(/\s*terms?\s+and\s+conditions\s*$/i, '')
-                            .trim() || 'Agreement';
-                        const id = 'PlayerReg' + title.replaceAll(/[^a-z0-9]+/gi, '');
-                        addUnique(id, title);
-                    }
-                }
-                this.waiverDefinitions.set(synthDefs);
-            }
-            // Initialize per-player form values lazily
-            const selectedIds = this.selectedPlayerIds();
-            const current = { ...this.playerFormValues() };
-            for (const pid of selectedIds) {
-                if (!current[pid]) current[pid] = {};
-                for (const field of schemas) {
-                    if (!(field.name in current[pid])) current[pid][field.name] = null;
-                }
-            }
-            // Seed existing persisted registration form values for registered players using ONLY the most recent prior registration.
-            // (Design Principle enforcement: no cross-registration merging.)
-            try {
-                const players = this.familyPlayers();
-                const schemaNameByLower: Record<string, string> = {};
-                for (const s of schemas) schemaNameByLower[s.name.toLowerCase()] = s.name;
-                for (const p of players) {
-                    if (!p.registered || !p.priorRegistrations?.length) continue;
-                    const pid = p.playerId;
-                    if (!current[pid]) continue;
-                    // Pick the most recent registration (last in array) as the source snapshot.
-                    const source = p.priorRegistrations[p.priorRegistrations.length - 1];
-                    const fv = source?.formValues || {};
-                    for (const [rawK, rawV] of Object.entries(fv)) {
-                        if (rawV == null || rawV === '') continue;
-                        const kLower = rawK.toLowerCase();
-                        let targetName = schemaNameByLower[kLower];
-                        if (!targetName) {
-                            const foundAlias = Object.keys(aliasMapLocal).find(a => a.toLowerCase() === kLower);
-                            if (foundAlias) targetName = aliasMapLocal[foundAlias];
-                        }
-                        if (!targetName) continue;
-                        current[pid][targetName] = rawV; // overwrite (single snapshot source)
-                    }
-                }
-            } catch (e) {
-                console.debug('[RegWizard] Prior registration single-snapshot seed failed (non-fatal)', e);
-            }
-            // Precise alias normalization using dbColumn mapping: migrate values from backend property to schema field name
-            const alias = this.aliasFieldMap();
-            if (alias && Object.keys(alias).length) {
-                for (const [, vals] of Object.entries(current)) {
-                    for (const [from, to] of Object.entries(alias)) {
-                        if (from in vals && !(to in vals)) {
-                            vals[to] = vals[from];
-                        }
-                    }
+                    if (!targetName) continue;
+                    current[pid][targetName] = rawV;
                 }
             }
             this.playerFormValues.set(current);
-
-            // Seed Eligibility select values for locked (already registered) players using their latest registration snapshot.
-            try {
-                const tctype = (this.teamConstraintType() || '').toUpperCase();
-                const pickEligibilityField = (): string | null => {
-                    if (!tctype || !schemas || schemas.length === 0) return null;
-                    const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
-                    const candidates = schemas.filter(f => (f.visibility ?? 'public') !== 'hidden' && (f.visibility ?? 'public') !== 'adminOnly');
-                    const byName = (parts: string[]) => candidates.find(f => hasAll(f.name.toLowerCase(), parts) || hasAll(f.label.toLowerCase(), parts));
-                    if (tctype === 'BYGRADYEAR') {
-                        const f = byName(['grad', 'year']);
-                        return f?.name || null;
-                    }
-                    if (tctype === 'BYAGEGROUP') {
-                        const f = byName(['age', 'group']);
-                        return f?.name || null;
-                    }
-                    if (tctype === 'BYAGERANGE') {
-                        const f = byName(['age', 'range']);
-                        return f?.name || null;
-                    }
-                    if (tctype === 'BYCLUBNAME') {
-                        const f = byName(['club']);
-                        return f?.name || null;
-                    }
-                    return null;
-                };
-                const eligField = pickEligibilityField();
-                if (eligField) {
-                    const map = { ...this.playerState.eligibilityByPlayer() } as Record<string, string>;
-                    const players = this.familyPlayers();
-                    for (const p of players) {
-                        if (!p.registered) continue; // only seed for locked players
-                        const v = (this.playerFormValues()[p.playerId] || {})[eligField];
-                        if (v !== undefined && v !== null && String(v).trim() !== '') {
-                            map[p.playerId] = String(v);
-                        }
-                    }
-                    // If we seeded anything, persist and set global value when unanimous
-                    if (Object.keys(map).length > 0) {
-                        for (const [pid,val] of Object.entries(map)) this.playerState.setEligibilityForPlayer(pid, val);
-                        const selected = this.selectedPlayerIds();
-                        const values = selected.map(id => map[id]).filter(v => !!v) as string[];
-                        const unique = Array.from(new Set(values));
-                        if (unique.length === 1) this.teamConstraintValue.set(unique[0]);
-                    }
-                }
-            } catch { /* best-effort; non-fatal */ }
-
-            // Do not infer Eligibility constraint type from field schemas; server is the source of truth.
-        } catch (err) {
-            console.error('[RegWizard] Failed to parse PlayerProfileMetadataJson', err);
-            this.profileFieldSchemas.set([]);
+        } catch (e) {
+            console.debug('[RegWizard] Prior registration seed failed', e);
         }
+    }
+
+    private applyAliasBackfill(): void {
+        try {
+            const alias = this.formSchema.aliasFieldMap();
+            if (!alias || !Object.keys(alias).length) return;
+            const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+            for (const [, vals] of Object.entries(current)) {
+                for (const [from, to] of Object.entries(alias)) {
+                    if (from in vals && !(to in vals)) vals[to] = vals[from];
+                }
+            }
+            this.playerFormValues.set(current);
+        } catch (e) {
+            console.debug('[RegWizard] Alias backfill failed', e);
+        }
+    }
+
+    private seedEligibilityFromSchemas(schemas: PlayerProfileFieldSchema[]): void {
+        try {
+            const eligField = this.determineEligibilityField(schemas);
+            if (!eligField) return;
+            const map = { ...this.playerState.eligibilityByPlayer() } as Record<string, string>;
+            for (const p of this.familyPlayers()) {
+                if (!p.registered) continue;
+                const v = this.playerFormValues()[p.playerId]?.[eligField];
+                if (v != null && String(v).trim() !== '') map[p.playerId] = String(v);
+            }
+            if (!Object.keys(map).length) return;
+            for (const [pid, val] of Object.entries(map)) this.playerState.setEligibilityForPlayer(pid, val);
+            const selected = this.selectedPlayerIds();
+            const values = selected.map(id => map[id]).filter(v => !!v);
+            const unique = Array.from(new Set(values));
+            if (unique.length === 1) this.teamConstraintValue.set(unique[0]);
+        } catch { /* ignore */ }
+    }
+
+    private determineEligibilityField(schemas: PlayerProfileFieldSchema[]): string | null {
+        const tctype = (this.teamConstraintType() || '').toUpperCase();
+        if (!tctype || !schemas.length) return null;
+        const candidates = schemas.filter(f => (f.visibility ?? 'public') !== 'hidden' && (f.visibility ?? 'public') !== 'adminOnly');
+        const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
+        const byName = (parts: string[]) => candidates.find(f => hasAll(f.name.toLowerCase(), parts) || hasAll(f.label.toLowerCase(), parts));
+        if (tctype === 'BYGRADYEAR') return byName(['grad', 'year'])?.name || null;
+        if (tctype === 'BYAGEGROUP') return byName(['age', 'group'])?.name || null;
+        if (tctype === 'BYAGERANGE') return byName(['age', 'range'])?.name || null;
+        if (tctype === 'BYCLUBNAME') return byName(['club'])?.name || null;
+        return null;
     }
 
     /** Update a single player's field value */
@@ -1002,6 +606,8 @@ export class RegistrationWizardService {
         return this.playerFormValues()[playerId]?.[fieldName];
     }
 
+    // Removed signal sync shim; direct delegation methods reduce complexity
+
     /** Remove form values & team selections for players no longer selected (call after deselect) */
     pruneDeselectedPlayers(): void {
         const selectedIds = new Set(this.selectedPlayerIds());
@@ -1024,83 +630,79 @@ export class RegistrationWizardService {
      * Returns per-team results and next tab to show.
      */
     preSubmitRegistration(): Promise<PreSubmitRegistrationResponseDto> {
-        const base = this.resolveApiBase();
         const jobPath = this.jobPath();
         const familyUserId = this.familyUser()?.familyUserId;
-        return new Promise<PreSubmitRegistrationResponseDto>((resolve, reject) => {
-            if (!jobPath || !familyUserId) {
-                reject(new Error('Missing jobPath or familyUserId'));
-                return;
+        try { this.ensurePreSubmitPrerequisites(jobPath, familyUserId); } catch (e) {
+            return Promise.reject(e);
+        }
+        // At this point non-null asserted by ensurePreSubmitPrerequisites
+        const payload = this.buildPreSubmitPayload(jobPath!, familyUserId!);
+        this.logPreSubmitPayloadIfLocal(payload);
+        const base = this.resolveApiBase();
+        return firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload))
+            .then(resp => {
+                this.captureServerValidationErrors(resp);
+                this.processInsuranceOffer(resp);
+                if (!resp) throw new Error('No response from preSubmit API');
+                return resp;
+            });
+    }
+
+    private ensurePreSubmitPrerequisites(jobPath: string | null, familyUserId: string | undefined): void {
+        if (!jobPath || !familyUserId) throw new Error('Missing jobPath or familyUserId');
+    }
+
+    private buildPreSubmitPayload(jobPath: string, familyUserId: string): PreSubmitRegistrationRequestDto {
+        const teamSelections: PreSubmitTeamSelectionDto[] = [];
+        for (const pid of this.selectedPlayerIds()) {
+            const teamId = this.playerState.selectedTeams()[pid];
+            if (!teamId) continue;
+            const formValues = this.buildPreSubmitFormValuesForPlayer(pid);
+            this.injectRequiredTeamFieldIfNeeded(formValues, teamId);
+            if (Array.isArray(teamId)) {
+                for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid, formValues });
+            } else {
+                teamSelections.push({ playerId: pid, teamId, formValues });
             }
-            // Gather selected teams per player
-            const teamSelections: PreSubmitTeamSelectionDto[] = [];
-            const selectedIds = this.selectedPlayerIds();
-            for (const pid of selectedIds) {
-                const teamId = this.playerState.selectedTeams()[pid];
-                if (!teamId) continue;
-                // Build visible-only form values for this player
-                const formValues = this.buildPreSubmitFormValuesForPlayer(pid);
-                // Inject teamId into formValues when schema includes a required team field but we hide legacy team inputs on the Forms step.
-                // Root cause of redirect: server metadata marks teamId required; blank value triggered ValidationErrors forcing NextTab="Forms".
-                // For PP jobs (single team) and CAC (multi-team) we map selection(s) separately; still we satisfy validation by populating the field here.
-                const needsTeamField = (() => {
-                    // Heuristic: if any schema has name 'teamId' and it's required (tracked in profileFieldSchemas), but current value missing/blank.
-                    const schema = this.profileFieldSchemas().find(s => s.name.toLowerCase() === 'teamid');
-                    if (!schema) return false;
-                    if (!schema.required) return false;
-                    // If already truthy guid present skip.
-                    const cur = Object.entries(formValues).find(([k]) => k.toLowerCase() === 'teamid');
-                    if (cur && typeof cur[1] === 'string' && cur[1].trim().length > 0) return false;
-                    return true;
-                })();
-                if (needsTeamField) {
-                    // Single team selection
-                    if (typeof teamId === 'string') {
-                        formValues['teamId'] = teamId;
-                    } else if (Array.isArray(teamId) && teamId.length === 1 && typeof teamId[0] === 'string') {
-                        formValues['teamId'] = teamId[0];
-                    }
-                }
-                if (Array.isArray(teamId)) {
-                    for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid, formValues });
-                } else {
-                    teamSelections.push({ playerId: pid, teamId, formValues });
-                }
+        }
+        return { jobPath, familyUserId, teamSelections };
+    }
+
+    private injectRequiredTeamFieldIfNeeded(formValues: { [key: string]: Json }, teamId: string | string[]): void {
+        // Only inject if required teamId schema exists and value missing.
+        const schema = this.profileFieldSchemas().find(s => s.name.toLowerCase() === 'teamid');
+        if (!schema?.required) return;
+        const existing = Object.entries(formValues).find(([k]) => k.toLowerCase() === 'teamid');
+        if (existing && typeof existing[1] === 'string' && existing[1].trim()) return;
+        if (typeof teamId === 'string') formValues['teamId'] = teamId;
+        else if (Array.isArray(teamId) && teamId.length === 1 && typeof teamId[0] === 'string') formValues['teamId'] = teamId[0];
+    }
+
+    private logPreSubmitPayloadIfLocal(payload: PreSubmitRegistrationRequestDto): void {
+        try {
+            const host = globalThis.location?.host?.toLowerCase?.() ?? '';
+            if (host.startsWith('localhost')) console.debug('[RegWizard] preSubmit payload', payload);
+        } catch { /* ignore */ }
+    }
+
+    private captureServerValidationErrors(resp: PreSubmitRegistrationResponseDto): void {
+        try {
+            const ve = (resp as any)?.validationErrors as PreSubmitValidationErrorDto[] | undefined;
+            this._serverValidationErrors = (ve && Array.isArray(ve) && ve.length) ? ve : [];
+        } catch { this._serverValidationErrors = []; }
+    }
+
+    private processInsuranceOffer(resp: PreSubmitRegistrationResponseDto): void {
+        try {
+            const ins: any = (resp as any)?.insurance;
+            if (ins?.available && ins?.playerObject) {
+                this.verticalInsureOffer.set({ loading: false, data: ins.playerObject, error: null });
+            } else if (ins?.error) {
+                this.verticalInsureOffer.set({ loading: false, data: null, error: String(ins.error) });
+            } else {
+                this.verticalInsureOffer.set({ loading: false, data: null, error: null });
             }
-            const payload: PreSubmitRegistrationRequestDto = {
-                jobPath,
-                familyUserId,
-                teamSelections
-            };
-            // Local dev aid: log payload once to help diagnose missing fields like gradYear
-            try {
-                const host = globalThis.location?.host?.toLowerCase?.() ?? '';
-                if (host.startsWith('localhost')) console.debug('[RegWizard] preSubmit payload', payload);
-            } catch { /* ignore */ }
-            firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload))
-                .then(resp => {
-                    try {
-                        // Capture server-side validation errors (metadata enforced). Store for UI consumption.
-                        const ve = (resp as any)?.validationErrors as PreSubmitValidationErrorDto[] | undefined;
-                        if (ve && Array.isArray(ve) && ve.length) {
-                            this._serverValidationErrors = ve;
-                        } else {
-                            this._serverValidationErrors = [];
-                        }
-                        const ins: any = (resp as any)?.insurance;
-                        if (ins?.available && ins?.playerObject) {
-                            this.verticalInsureOffer.set({ loading: false, data: ins.playerObject, error: null });
-                        } else if (ins && ins.error) {
-                            this.verticalInsureOffer.set({ loading: false, data: null, error: String(ins.error) });
-                        } else {
-                            this.verticalInsureOffer.set({ loading: false, data: null, error: null });
-                        }
-                    } catch { /* ignore */ }
-                    if (resp) resolve(resp);
-                    else reject(new Error('No response from preSubmit API'));
-                })
-                .catch(err => reject(err instanceof Error ? err : new Error(String(err))));
-        });
+        } catch { /* ignore */ }
     }
 
     /** Build a dictionary of visible (non-hidden, non-adminOnly) form fields for a given player, using the parsed field schemas. */
@@ -1152,7 +754,11 @@ export class RegistrationWizardService {
         const seen = new Set<string>();
         const names = waiverNames.filter(n => {
             const k = String(n || '').toLowerCase();
-            if (!k || seen.has(k)) return false; seen.add(k); return true;
+            if (!k || seen.has(k)) {
+                return false;
+            }
+            seen.add(k);
+            return true;
         });
         const gateOk = !!this.waiversGateOk();
         try {
@@ -1160,9 +766,9 @@ export class RegistrationWizardService {
                 if (gateOk) {
                     // The Waivers form is valid (all required accepted). Send true for all waiver fields.
                     out[name] = true;
-                } else {
+                } else if (this.isWaiverAccepted(name)) {
                     // Best-effort injection: include only accepted as true; omit otherwise (server will validate).
-                    if (this.isWaiverAccepted(name)) out[name] = true;
+                    out[name] = true;
                 }
             }
         } catch (e) {
@@ -1271,13 +877,6 @@ export class RegistrationWizardService {
 
     // Deprecated adapters removed: components now derive directly from familyPlayers/familyUser.
 
-    setEligibilityForPlayer(playerId: string, value: string | null | undefined): void {
-        this.playerState.setEligibilityForPlayer(playerId, value);
-    }
-
-    getEligibilityForPlayer(playerId: string): string | undefined {
-        return this.playerState.getEligibilityForPlayer(playerId);
-    }
 
     setUsLaxValidating(playerId: string): void {
         const m = { ...this.usLaxStatus() }; const cur = m[playerId] || { value: '', status: 'idle' };
@@ -1326,63 +925,61 @@ export class RegistrationWizardService {
 
     /** Validate a single field for a player. Returns null if valid, else a message string. */
     private validateFieldForPlayer(playerId: string, field: PlayerProfileFieldSchema): string | null {
-        if (!this.isFieldVisibleForPlayer(playerId, field)) return null; // invisible fields ignored
-        // Registered (edit/readonly) players are not required to re-validate
-        if (this.isPlayerLocked(playerId)) return null;
+        if (!this.isFieldVisibleForPlayer(playerId, field) || this.isPlayerLocked(playerId)) return null;
         const raw = this.getPlayerFieldValue(playerId, field.name);
         const str = raw == null ? '' : String(raw).trim();
-        const isEmpty = str.length === 0;
+        if (this.isRequiredInvalid(field, raw, str)) return 'Required';
+        const typeError = this.validateBasicType(field, raw, str);
+        if (typeError) return typeError;
+        if (this.isUsLaxSchemaField(field)) return this.validateUsLaxField(playerId, field, str);
+        return null;
+    }
 
-        // Required check (checkbox must be true; text/date/number must be non-empty)
-        if (field.required) {
-            if (field.type === 'checkbox') {
-                if (raw !== true) return 'Required';
-            } else if (isEmpty) {
-                return 'Required';
-            }
+    private isRequiredInvalid(field: PlayerProfileFieldSchema, raw: any, str: string): boolean {
+        if (!field.required) return false;
+        if (field.type === 'checkbox') return raw !== true;
+        if (field.type === 'multiselect') {
+            return !Array.isArray(raw) || raw.length === 0;
         }
+        return str.length === 0;
+    }
 
-        // Type-specific sanity (lightweight)
-        if (!isEmpty) {
-            if (field.type === 'number') {
-                if (Number.isNaN(Number(str))) return 'Must be a number';
-            } else if (field.type === 'date') {
-                const dt = new Date(str);
-                if (Number.isNaN(dt.getTime())) return 'Invalid date';
-            } else if (field.type === 'select') {
-                if (field.options?.length && !field.options.includes(str)) return 'Invalid option';
-            } else if (field.type === 'multiselect') {
-                if (Array.isArray(raw)) {
-                    const arr = raw;
-                    if (field.options?.length && arr.some(v => !field.options.includes(String(v)))) return 'Invalid option';
-                    if (field.required && arr.length === 0) return 'Required';
-                } else if (field.required) {
-                    return 'Required';
-                }
-            }
-        }
-
-        // USA Lacrosse async validator integration: if field is US Lax field and value present, require usLaxStatus valid
-        if (this.isUsLaxSchemaField(field)) {
-            const statusEntry = this.usLaxStatus()[playerId];
-            const status = statusEntry?.status || 'idle';
-            const rawVal = this.getPlayerFieldValue(playerId, field.name);
-            const strVal = rawVal == null ? '' : String(rawVal).trim();
-            // Dev/test bypass: allow the well-known test number regardless of async validator state
-            if (strVal === '424242424242') {
+    private validateBasicType(field: PlayerProfileFieldSchema, raw: any, str: string): string | null {
+        if (str.length === 0 && field.type !== 'multiselect') return null; // empty non-required handled earlier
+        switch (field.type) {
+            case 'number':
+                if (str.length && Number.isNaN(Number(str))) return 'Must be a number';
                 return null;
-            }
-            if (field.required) {
-                if (isEmpty) return 'Required';
-                if (status === 'validating') return 'Validating…';
-                if (status === 'invalid') return statusEntry?.message || 'Invalid membership';
-                if (status !== 'valid') return 'Membership not validated';
-            } else if (!isEmpty) {
-                if (status === 'validating') return 'Validating…';
-                if (status === 'invalid') return statusEntry?.message || 'Invalid membership';
-                if (status !== 'valid') return 'Membership not validated';
-            }
+            case 'date':
+                if (str.length) {
+                    const dt = new Date(str);
+                    if (Number.isNaN(dt.getTime())) return 'Invalid date';
+                }
+                return null;
+            case 'select':
+                if (field.options?.length && str.length && !field.options.includes(str)) return 'Invalid option';
+                return null;
+            case 'multiselect':
+                if (!Array.isArray(raw)) return field.required ? 'Required' : null;
+                if (field.options?.length && raw.some(v => !field.options.includes(String(v)))) return 'Invalid option';
+                if (field.required && raw.length === 0) return 'Required';
+                return null;
+            default:
+                return null;
         }
+    }
+
+    private validateUsLaxField(playerId: string, field: PlayerProfileFieldSchema, strVal: string): string | null {
+        const statusEntry = this.usLaxStatus()[playerId];
+        const status = statusEntry?.status || 'idle';
+        if (strVal === '424242424242') return null; // test bypass
+        const required = field.required;
+        const isEmpty = strVal.length === 0;
+        if (required && isEmpty) return 'Required';
+        if (!required && isEmpty) return null;
+        if (status === 'validating') return 'Validating…';
+        if (status === 'invalid') return statusEntry?.message || 'Invalid membership';
+        if (status !== 'valid') return 'Membership not validated';
         return null;
     }
 
