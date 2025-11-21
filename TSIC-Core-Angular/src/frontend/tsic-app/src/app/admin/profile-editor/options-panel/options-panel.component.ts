@@ -215,6 +215,4 @@ export class OptionsPanelComponent {
     }
 
     // Template helpers
-    trackByIndex(i: number) { return i; }
-    trackByKey(_i: number, item: OptionSet) { return item.key; }
 }
