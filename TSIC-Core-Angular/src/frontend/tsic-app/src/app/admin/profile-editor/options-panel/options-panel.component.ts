@@ -1,8 +1,9 @@
-import { Component, Input, computed, effect, inject, signal } from '@angular/core';
+import { Component, Input, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ProfileMigrationService, ProfileMetadata, OptionSet, ProfileFieldOption } from '../../../core/services/profile-migration.service';
+import { ProfileMigrationService } from '../../../core/services/profile-migration.service';
+import { ProfileMetadata, OptionSet, ProfileFieldOption } from '../../../core/models/profile-migration.models';
 import { ToastService } from '../../../shared/toast.service';
 import { TsicDialogComponent } from '../../../shared/components/tsic-dialog/tsic-dialog.component';
 
@@ -18,9 +19,7 @@ export class OptionsPanelComponent {
 
     @Input({ required: true }) metadata: ProfileMetadata | null = null;
 
-    // Mirror service signals
-    optionSets = signal<OptionSet[]>([]);
-    optionsLoading = signal(false);
+    // Local-only error state (service has its own optionsError signal)
     optionsError = signal<string | null>(null);
 
     // Create Option Set state
@@ -60,25 +59,21 @@ export class OptionsPanelComponent {
         return sets.filter(s => used.has(s.key.toLowerCase()));
     });
 
-    constructor() {
-        // Mirror service state
-        effect(() => {
-            this.optionSets.set(this.migrationService.currentOptionSets());
-            this.optionsLoading.set(this.migrationService.optionsLoading());
-            this.optionsError.set(this.migrationService.optionsError());
-        });
-    }
+    // Accessors to service signals (avoid mirror effect)
+    optionSets() { return this.migrationService.currentOptionSets(); }
+    optionsLoading() { return this.migrationService.optionsLoading(); }
+    serviceOptionsError() { return this.migrationService.optionsError(); }
+    aggregatedOptionsError = computed(() => this.optionsError() || this.serviceOptionsError());
+
+    // Template will now call aggregatedOptionsError() instead of optionsError()
+    constructor() {}
 
     // API calls
     loadOptionSets() {
-        this.optionsLoading.set(true);
         this.optionsError.set(null);
         this.migrationService.getCurrentJobOptionSets(
-            () => this.optionsLoading.set(false),
-            (err) => {
-                this.optionsLoading.set(false);
-                this.optionsError.set(err?.error?.message || 'Failed to load option sets');
-            }
+            () => { /* service signals update automatically */ },
+            (err) => { this.optionsError.set(err?.error?.message || 'Failed to load option sets'); }
         );
     }
 

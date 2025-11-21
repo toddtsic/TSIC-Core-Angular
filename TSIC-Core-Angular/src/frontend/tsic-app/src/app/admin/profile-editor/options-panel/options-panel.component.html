@@ -20,9 +20,9 @@
             </div>
         </tsic-dialog>
 
-        @if (optionsError()) {
+        @if (aggregatedOptionsError()) {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ optionsError() }}
+            {{ aggregatedOptionsError() }}
             <button type="button" class="btn-close" (click)="optionsError.set(null)"></button>
         </div>
         }

@@ -1,9 +1,10 @@
-import { Component, signal, computed, inject, OnInit, effect, HostListener } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ProfileMigrationService, ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '../../core/services/profile-migration.service';
+import { ProfileMigrationService } from '../../core/services/profile-migration.service';
+import { ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '../../core/models/profile-migration.models';
 import { ToastService } from '../../shared/toast.service';
 import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-dialog.component';
 import { OptionsPanelComponent } from './options-panel/options-panel.component';
@@ -236,20 +237,19 @@ export class ProfileEditorComponent implements OnInit {
         }
     }
 
-    // Fallback: keep availableProfiles in sync with profile summaries when used
-    private readonly summariesSync = effect(() => {
+    // Fallback derivation of availableProfiles from summaries (pure derivation without effect)
+    private readonly derivedProfiles = computed(() => {
+        if (this.availableProfiles().length > 0) return this.availableProfiles();
         const summaries = this.migrationService.profileSummaries();
-        if (!summaries || summaries.length === 0) return;
+        if (!summaries || summaries.length === 0) return [];
         const all = summaries
             .map(s => s.profileType)
             .filter(t => t && (t.startsWith('PP') || t.startsWith('CAC')))
             .sort((a, b) => a.localeCompare(b));
-        const mapped = all.map(t => ({ type: t, display: this.formatProfileDisplayType(t) }));
-        // Only set if we don't already have a known list (prefer known types endpoint)
-        if (this.availableProfiles().length === 0) {
-            this.availableProfiles.set(mapped);
-        }
+        return all.map(t => ({ type: t, display: this.formatProfileDisplayType(t) }));
     });
+    // Exposed getter to use in template if needed
+    get effectiveAvailableProfiles() { return this.derivedProfiles(); }
 
     private formatProfileDisplayType(type: string): string {
         return type
@@ -262,12 +262,11 @@ export class ProfileEditorComponent implements OnInit {
             .trim();
     }
 
-    // Ensure we never remain on the Job Options tab when it's not applicable
-    private readonly guardOptionsTab = effect(() => {
-        if (this.activeTab() === 'options' && !this.showJobOptionsTab()) {
-            this.activeTab.set('fields');
-        }
-    });
+    // Helper to normalize activeTab without side-effecting via an effect
+    get effectiveActiveTab(): 'fields' | 'options' {
+        const tab = this.activeTab();
+        return (tab === 'options' && !this.showJobOptionsTab()) ? 'fields' : tab;
+    }
 
     // copySource removed – Available Sources UI removed
 

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, effect, computed } from '@angular/core';
+import { Component, EventEmitter, Output, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { FormsModule } from '@angular/forms';
@@ -63,10 +63,9 @@ import { environment } from '../../../../environments/environment';
     </div>
   `
 })
-export class PlayerSelectionComponent {
+export class PlayerSelectionComponent implements OnInit {
   @Output() next = new EventEmitter<void>();
   state = inject(RegistrationWizardService);
-  private requestedOnce = false;
   // Prefer Angular environment flag; fallback to hostname heuristics if needed
   showDebug = computed(() => {
     try {
@@ -80,15 +79,14 @@ export class PlayerSelectionComponent {
     } catch { return false; }
   });
 
-  // Create the reactive loader in an injection context (field initializer),
-  // and allow controlled signal writes inside the effect.
-  private readonly autoLoad = effect(() => {
+  ngOnInit(): void {
+    // One-shot initial load; if jobPath arrives later via routing async,
+    // caller should invoke loadFamilyPlayers explicitly.
     const jp = this.state.jobPath();
-    if (jp && !this.requestedOnce) {
-      this.requestedOnce = true;
+    if (jp && this.state.familyPlayers().length === 0) {
       this.state.loadFamilyPlayers(jp);
     }
-  });
+  }
 
   isSelected(id: string): boolean {
     try {

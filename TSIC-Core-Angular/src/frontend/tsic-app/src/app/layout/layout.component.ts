@@ -559,17 +559,12 @@ export class LayoutComponent {
       this.applyJobInfo(job);
     });
 
-    // Proactively load job metadata when navigating anonymously (or before metadata arrives)
-    // Ensures we can show the proper job name + logo even for first-time / unauth hits.
-    const requestedJobPaths = new Set<string>();
-    effect(() => {
-      const jp = this.jobContext.jobPath();
-      const current = this.jobService.currentJob();
-      if (jp && !current && !requestedJobPaths.has(jp)) {
-        requestedJobPaths.add(jp);
-        this.jobService.loadJobMetadata(jp);
-      }
-    });
+    // One-shot attempt to load job metadata early; later changes to jobPath after init
+    // (e.g. async routing) should be handled elsewhere (kept minimal to reduce effect count).
+    const jp = this.jobContext.jobPath();
+    if (jp && !this.jobService.currentJob()) {
+      this.jobService.loadJobMetadata(jp);
+    }
   }
 
   private applyJobInfo(job: Job | null) {
