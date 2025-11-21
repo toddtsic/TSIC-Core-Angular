@@ -66,7 +66,7 @@ export class OptionsPanelComponent {
     aggregatedOptionsError = computed(() => this.optionsError() || this.serviceOptionsError());
 
     // Template will now call aggregatedOptionsError() instead of optionsError()
-    constructor() {}
+    constructor() { }
 
     // API calls
     loadOptionSets() {
