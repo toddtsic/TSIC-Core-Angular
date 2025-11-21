@@ -1,18 +1,19 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class LoginService {
   private readonly http = inject(HttpClient);
 
   validateCredentials(username: string, password: string): Observable<any> {
-    // Replace with actual API endpoint
-    return this.http.post<any>('/api/auth/login', { username, password });
+    const base = environment.apiUrl;
+    return this.http.post<any>(`${base}/auth/login`, { username, password });
   }
 
   getJwtToken(username: string, regId: string): Observable<any> {
-    // Replace with actual API endpoint
-    return this.http.post<any>('/api/auth/token', { username, regId });
+    const base = environment.apiUrl;
+    return this.http.post<any>(`${base}/auth/token`, { username, regId });
   }
 }

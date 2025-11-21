@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 import { RegistrationWizardService } from './registration-wizard.service';
 
 // Shared model (aligns with backend AvailableTeamDto)
@@ -157,7 +158,7 @@ export class TeamService {
         if (!jobPath) return;
         this.loading.set(true);
         this.error.set(null);
-        const base = this.resolveApiBase();
+        const base = environment.apiUrl;
         this.http.get<AvailableTeam[]>(`${base}/jobs/${encodeURIComponent(jobPath)}/available-teams`)
             .subscribe({
                 next: data => {
@@ -174,17 +175,5 @@ export class TeamService {
                     }
                 }
             });
-    }
-
-    // Mirror logic in RegistrationWizardService for consistency
-    private resolveApiBase(): string {
-        try {
-            const host = globalThis.location?.host?.toLowerCase?.() ?? '';
-            if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
-                return 'https://localhost:7215/api';
-            }
-        } catch { /* SSR or no window */ }
-        // Fallback: relative /api (assumes reverse proxy or same-origin deployment)
-        return '/api';
     }
 }
