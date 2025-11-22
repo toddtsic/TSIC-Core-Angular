@@ -238,6 +238,8 @@ public sealed class FamilyService : IFamilyService
                         ),
                         r.AssignedTeamId,
                         r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) ? teamNameMap[r.AssignedTeamId.Value] : null,
+                        r.AdnSubscriptionId,
+                        r.AdnSubscriptionStatus,
                         formFieldValues ?? new Dictionary<string, JsonElement>()
                     );
                 }).ToList(),

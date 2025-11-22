@@ -312,6 +312,8 @@ export class RegistrationWizardService {
                 assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? null,
                 assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? null,
                 sportAssnId: r.sportAssnId ?? r.SportAssnId ?? null,
+                adnSubscriptionId: r.adnSubscriptionId ?? r.AdnSubscriptionId ?? null,
+                adnSubscriptionStatus: r.adnSubscriptionStatus ?? r.AdnSubscriptionStatus ?? null,
                 formValues: normalizeFormValues(
                     r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues
                 )

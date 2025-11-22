@@ -23,6 +23,8 @@ public record FamilyPlayerRegistrationDto(
     RegistrationFinancialsDto Financials,
     Guid? AssignedTeamId,
     string? AssignedTeamName,
+    string? AdnSubscriptionId,
+    string? AdnSubscriptionStatus,
     IReadOnlyDictionary<string, JsonElement> FormFieldValues
 );
 

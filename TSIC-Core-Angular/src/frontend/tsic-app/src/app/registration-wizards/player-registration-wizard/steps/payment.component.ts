@@ -49,7 +49,19 @@ import type { LineItem } from '../services/payment.service';
         }
 
         <app-payment-summary></app-payment-summary>
-        <app-payment-option-selector></app-payment-option-selector>
+        <!-- ARB subscription state messaging / option gating -->
+        @if (arbAllActive()) {
+          <div class="alert alert-success border-0" role="status">
+            Automated Recurring Billing subscription is active for your registration(s). No further payment action is required.
+          </div>
+        } @else if (arbProblemAny()) {
+          <div class="alert alert-danger border-0" role="alert">
+            There is a problem with your Automated Recurring Billing. Please contact your club immediately.
+          </div>
+          <app-payment-option-selector></app-payment-option-selector>
+        } @else {
+          <app-payment-option-selector></app-payment-option-selector>
+        }
         <!-- RegSaver / VerticalInsure region with deferred offer only -->
         @if (insuranceState.showVerticalInsureModal()) {
           <app-vi-confirm-modal
@@ -228,6 +240,8 @@ export class PaymentComponent implements AfterViewInit {
   showCcSection(): boolean { return this.currentTotal() > 0 || this.isViCcOnlyFlow(); }
   showNoPaymentInfo(): boolean { return this.currentTotal() === 0 && !this.isViCcOnlyFlow(); }
   canSubmit(): boolean {
+    // Hide submit when all ARB subs active (nothing to do)
+    if (this.arbAllActive()) return false;
     const tsicCharge = this.lineItems().length > 0 && this.currentTotal() > 0;
     const viOnly = this.isViCcOnlyFlow();
     const ccNeeded = this.showCcSection();
@@ -441,4 +455,24 @@ export class PaymentComponent implements AfterViewInit {
   // Removed original simple onCcValidChange; replaced with version that also prompts insurance decision.
   onCcValidChange(valid: any): void { this.ccValid = !!valid; }
   monthLabel(): string { return this.paySvc.monthLabel(); }
+  // --- ARB subscription helpers ---
+  private priorRegs() {
+    return this.state.familyPlayers().flatMap(p => p.priorRegistrations || []);
+  }
+  private relevantRegs() {
+    // Consider registrations tied to selected or already registered players
+    const playerIds = new Set(this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId));
+    return this.state.familyPlayers().filter(p => playerIds.has(p.playerId)).flatMap(p => p.priorRegistrations || []);
+  }
+  arbAllActive(): boolean {
+    const regs = this.relevantRegs();
+    if (!regs.length) return false;
+    // Every registration must have an active subscription
+    return regs.every(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
+  }
+  arbProblemAny(): boolean {
+    const regs = this.relevantRegs();
+    // Any registration with a subscription id but non-active status
+    return regs.some(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() !== 'active');
+  }
 }
