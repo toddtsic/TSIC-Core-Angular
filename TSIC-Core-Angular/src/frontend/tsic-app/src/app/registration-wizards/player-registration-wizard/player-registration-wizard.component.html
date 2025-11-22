@@ -9,7 +9,8 @@
                             class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 text-nowrap shadow-sm d-inline-flex align-items-center gap-2"
                             aria-live="polite">
                             <i class="bi bi-question-circle" aria-hidden="true"></i>
-                            <span class="fw-bold">{{ stepLabels[steps()[currentIndex()]] }}</span>
+                            <!-- Dynamic Payment label mirrors Payment component; conditional insurance label -->
+                            <span class="fw-bold">{{ steps()[currentIndex()] === 'payment' && state.offerPlayerRegSaver() ? 'Payment/Insurance' : stepLabels[steps()[currentIndex()]] }}</span>
                             <span class="opacity-75">(Step {{ currentIndex() + 1 }} of {{ steps().length }})</span>
                         </span>
                     </div>

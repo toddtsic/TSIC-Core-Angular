@@ -35,7 +35,7 @@ import type { LineItem } from '../services/payment.service';
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Payment</h5>
+        <h5 class="mb-0 fw-semibold">{{ insuranceState.offerPlayerRegSaver() ? 'Payment/Insurance' : 'Payment' }}</h5>
       </div>
       <div class="card-body">
         @if (lastError) {
