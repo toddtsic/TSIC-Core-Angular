@@ -10,7 +10,9 @@
                             aria-live="polite">
                             <i class="bi bi-question-circle" aria-hidden="true"></i>
                             <!-- Dynamic Payment label mirrors Payment component; conditional insurance label -->
-                            <span class="fw-bold">{{ steps()[currentIndex()] === 'payment' && state.offerPlayerRegSaver() ? 'Payment/Insurance' : stepLabels[steps()[currentIndex()]] }}</span>
+                            <span class="fw-bold">{{ steps()[currentIndex()] === 'payment' &&
+                                state.offerPlayerRegSaver() ? 'Payment/Insurance' : stepLabels[steps()[currentIndex()]]
+                                }}</span>
                             <span class="opacity-75">(Step {{ currentIndex() + 1 }} of {{ steps().length }})</span>
                         </span>
                     </div>
