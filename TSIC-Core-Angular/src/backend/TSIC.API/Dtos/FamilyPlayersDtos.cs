@@ -56,7 +56,9 @@ public record CcInfoDto(
     string? FirstName,
     string? LastName,
     string? StreetAddress,
-    string? Zip
+    string? Zip,
+    string? Email,
+    string? Phone
 );
 
 // Typed field definition combined with the current value for a specific registration

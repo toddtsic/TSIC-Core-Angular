@@ -111,7 +111,7 @@ public class VerticalInsureServiceCardTokenTests
             Content = new StringContent(JsonSerializer.Serialize(new[] { new VIMakePlayerPaymentResponseDto { policy_status = "ACTIVE", policy_number = "POL-456", metadata = new VIPlayerMetadataDto { TsicRegistrationId = reg.RegistrationId } } }), Encoding.UTF8, "application/json")
         };
         var svc = BuildService(db, env.Object, handler);
-        var card = new CreditCardInfo { Number = "4111111111111111", Expiry = "0129", Code = "123", FirstName = "A", LastName = "B", Zip = "99999" };
+        var card = new CreditCardInfo { Number = "4111111111111111", Expiry = "0129", Code = "123", FirstName = "A", LastName = "B", Zip = "99999", Email = "a.b@test.local", Phone = "5551234567" };
         var res = await svc.PurchasePoliciesAsync(jobId, familyId, new[] { reg.RegistrationId }, new[] { "Q-1" }, token: null, card: card, ct: CancellationToken.None);
         res.Success.Should().BeTrue();
         var body = await handler.LastRequest!.Content!.ReadAsStringAsync();

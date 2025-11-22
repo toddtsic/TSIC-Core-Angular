@@ -25,6 +25,12 @@ export const tokenRefreshInterceptor: HttpInterceptorFn = (req, next) => {
                 return throwError(() => error);
             }
 
+            // Attempt to refresh the token only if we actually possess a refresh token
+            const hasRefresh = !!authService.getRefreshToken();
+            if (!hasRefresh) {
+                // Propagate original 401; upstream guards can redirect. Avoid noisy 'No refresh token' error.
+                return throwError(() => error);
+            }
             // Attempt to refresh the token
             return authService.refreshAccessToken().pipe(
                 switchMap(() => {

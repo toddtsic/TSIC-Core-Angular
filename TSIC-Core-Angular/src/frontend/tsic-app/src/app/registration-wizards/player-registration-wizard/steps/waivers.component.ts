@@ -59,7 +59,6 @@ import { WaiverStateService } from '../services/waiver-state.service';
        <input class="form-check-input" type="checkbox"
          [formControlName]="bindingKey(w.id)"
          [id]="'waiver-' + w.id"
-         [disabled]="isLocked(w.id)"
          [class.is-invalid]="submitted() && w.required && controlInvalid(w.id)"
          [attr.aria-invalid]="submitted() && w.required && controlInvalid(w.id)" />
                       <label class="form-check-label" [for]="'waiver-' + w.id">

@@ -11,6 +11,7 @@ import { switchMap, catchError } from 'rxjs';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const authService = inject(AuthService);
     const token = authService.getToken();
+    const refreshToken = authService.getRefreshToken();
 
     // Skip auth header only for endpoints that must not include it
     // - login: authenticates with credentials
@@ -32,6 +33,17 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const isExpired = isTokenExpired(token);
 
     if (isExpired) {
+        // If we have no refresh token, do not attempt refresh; proceed and allow 401 handling / guards to redirect.
+        if (!refreshToken) {
+            if (token) {
+                req = req.clone({
+                    setHeaders: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+            }
+            return next(req);
+        }
         if (!environment.production) {
             console.log('Token expired, refreshing before request...');
         }

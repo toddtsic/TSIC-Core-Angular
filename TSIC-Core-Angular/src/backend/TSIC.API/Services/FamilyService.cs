@@ -151,7 +151,9 @@ public sealed class FamilyService : IFamilyService
         }
         var ccStreet = asp?.StreetAddress?.Trim();
         var ccZip = asp?.PostalCode?.Trim();
-        var ccInfo = new CcInfoDto(ccFirst, ccLast, ccStreet, ccZip);
+        var ccEmail = !string.IsNullOrWhiteSpace(fam?.MomEmail) ? fam!.MomEmail!.Trim() : (asp?.Email?.Trim());
+        var ccPhone = !string.IsNullOrWhiteSpace(fam?.MomCellphone) ? fam!.MomCellphone!.Trim() : (asp?.Cellphone?.Trim() ?? asp?.Phone?.Trim());
+        var ccInfo = new CcInfoDto(ccFirst, ccLast, ccStreet, ccZip, ccEmail, ccPhone);
 
         if (linkedChildIds.Count == 0)
             return new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>(), CcInfo: ccInfo, JobHasActiveDiscountCodes: jobHasActiveDiscountCodes, JobUsesAmex: jobUsesAmex);

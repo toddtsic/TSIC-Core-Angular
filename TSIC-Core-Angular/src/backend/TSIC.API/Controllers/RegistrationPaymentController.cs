@@ -41,9 +41,14 @@ public class RegistrationPaymentController : ControllerBase
         }
 
         var result = await _paymentService.ProcessPaymentAsync(request, callerId);
-        return result.Success
-            ? Ok(result)
-            : BadRequest(new { message = result.Message });
+
+        // Always return structured PaymentResponseDto to client (200) so UI can display message
+        // rather than treating gateway / ARB failures as transport errors (400).
+        if (!result.Success)
+        {
+            return Ok(result); // Success=false with Message populated
+        }
+        return Ok(result);
     }
 
     [HttpPost("apply-discount")]

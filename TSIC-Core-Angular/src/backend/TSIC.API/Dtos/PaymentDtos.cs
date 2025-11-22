@@ -45,12 +45,22 @@ public class CreditCardInfo
     public string? LastName { get; set; }
     public string? Address { get; set; }
     public string? Zip { get; set; }
+    public string? Email { get; set; }
+    public string? Phone { get; set; }
 }
 
 public class PaymentResponseDto
 {
     public bool Success { get; set; }
     public string? Message { get; set; }
+    // Machine-readable error code for client handling (e.g., display, retry logic)
+    public string? ErrorCode { get; set; }
     public string? TransactionId { get; set; }
     public string? SubscriptionId { get; set; }
+    // When multiple registrations create distinct subscriptions, this map is populated instead of SubscriptionId.
+    public Dictionary<Guid, string>? SubscriptionIds { get; set; }
+    // Registrations that failed subscription creation in multi-subscription ARB flow.
+    public List<Guid>? FailedSubscriptionIds { get; set; }
+    // Indicates that at least one subscription succeeded while others failed.
+    public bool PartialSuccess => SubscriptionIds != null && SubscriptionIds.Count > 0 && FailedSubscriptionIds != null && FailedSubscriptionIds.Count > 0;
 }

@@ -10,6 +10,106 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
 
+// ARB request/response record types (namespace scope so interface can reference them)
+public record AdnArbCreateRequest(
+    AuthorizeNet.Environment Env,
+    string LoginId,
+    string TransactionKey,
+    string CardNumber,
+    string CardCode,
+    string Expiry,
+    string FirstName,
+    string LastName,
+    string Address,
+    string Zip,
+    string Email,
+    string Phone,
+    string InvoiceNumber,
+    string Description,
+    decimal PerIntervalCharge,
+    DateTime? StartDate,
+    short BillingOccurrences,
+    short IntervalLength
+);
+
+public record AdnAuthorizeRequest(
+    AuthorizeNet.Environment Env,
+    string LoginId,
+    string TransactionKey,
+    string CardNumber,
+    string CardCode,
+    string Expiry,
+    string FirstName,
+    string LastName,
+    string Address,
+    string Zip,
+    decimal Amount
+);
+
+public record AdnChargeRequest(
+    AuthorizeNet.Environment Env,
+    string LoginId,
+    string TransactionKey,
+    string CardNumber,
+    string CardCode,
+    string Expiry,
+    string FirstName,
+    string LastName,
+    string Address,
+    string Zip,
+    string Email,
+    string Phone,
+    decimal Amount,
+    string InvoiceNumber,
+    string Description
+);
+
+public record AdnRefundRequest(
+    AuthorizeNet.Environment Env,
+    string LoginId,
+    string TransactionKey,
+    string CardNumberLast4,
+    string Expiry,
+    string TransactionId,
+    decimal Amount,
+    string InvoiceNumber
+);
+
+public record AdnVoidRequest(
+    AuthorizeNet.Environment Env,
+    string LoginId,
+    string TransactionKey,
+    string TransactionId
+);
+
+public record AdnArbUpdateRequest(
+    AuthorizeNet.Environment Env,
+    string LoginId,
+    string TransactionKey,
+    string SubscriptionId,
+    decimal ChargePerOccurrence,
+    string CardNumber,
+    string ExpirationDate,
+    string CardCode,
+    string FirstName,
+    string LastName,
+    string Address,
+    string Zip,
+    string Email
+);
+
+public record AdnArbCreateResult(
+    bool Success,
+    string? SubscriptionId,
+    string? TransactionId,
+    string? AuthCode,
+    string? ResponseCode,
+    string? RawGatewayCode,
+    string MessageForUser,
+    string GatewayMessage,
+    string? CardLast4
+);
+
 public interface IAdnApiService
 {
     AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false);
@@ -32,35 +132,8 @@ public interface IAdnApiService
         String transactionId
     );
 
-    createTransactionResponse ADN_AuthorizeCard(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumber,
-        String ccCode,
-        String ccExpiryDate,
-        String ccFirstName,
-        String ccLastName,
-        String ccAddress,
-        String ccZip,
-        Decimal ccAmount
-    );
-
-    createTransactionResponse ADN_ChargeCard(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumber,
-        String ccCode,
-        String ccExpiryDate,
-        String ccFirstName,
-        String ccLastName,
-        String ccAddress,
-        String ccZip,
-        Decimal ccAmount,
-        String invoiceNumber,
-        String description
-    );
+    createTransactionResponse ADN_Authorize(AdnAuthorizeRequest request);
+    createTransactionResponse ADN_Charge(AdnChargeRequest request);
 
     createTransactionResponse ADN_ChargeCustomerProfile(
         AuthorizeNet.Environment env,
@@ -72,43 +145,11 @@ public interface IAdnApiService
         String description
     );
 
-    createTransactionResponse ADN_RefundCard(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumberLast4,
-        String ccExpiryDate,
-        String transactionId,
-        Decimal ccAmount,
-        String invoiceNumber
-    );
+    createTransactionResponse ADN_Refund(AdnRefundRequest request);
+    createTransactionResponse ADN_Void(AdnVoidRequest request);
 
-    createTransactionResponse ADN_VoidTransaction(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String transactionId
-    );
-
-    ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumber,
-        String ccCode,
-        String ccExpiryDate,
-        String ccFirstName,
-        String ccLastName,
-        String ccAddress,
-        String ccZip,
-        String ccEmail,
-        String ccInvoiceNumber,
-        String ccDescription,
-        Decimal ccPerIntervalCharge,
-        DateTime? adnArbStartDate,
-        short adnArbBillingOccurences,
-        short adnArbIntervalLength
-    );
+    ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(AdnArbCreateRequest request);
+    AdnArbCreateResult ADN_ARB_CreateMonthlySubscription_Result(AdnArbCreateRequest request);
 
     getSettledBatchListResponse GetSettleBatchList_FromDateRange(
         AuthorizeNet.Environment env,
@@ -146,21 +187,7 @@ public interface IAdnApiService
         String subscriptionId
     );
 
-    ARBUpdateSubscriptionResponse ADN_UpdateSubscription(
-        AuthorizeNet.Environment env,
-        string adnLoginId,
-        string adnTransactionKey,
-        string subscriptionId,
-        decimal chargePerOccurence,
-        string cardNumber,
-        string expirationDate,
-        string cardCode,
-        string firstName,
-        string lastName,
-        string address,
-        string zip,
-        string email
-    );
+    ARBUpdateSubscriptionResponse ADN_UpdateSubscription(AdnArbUpdateRequest request);
 
     ARBGetSubscriptionListResponse ARBGetSubscriptionListRequest(
         AuthorizeNet.Environment env,
@@ -264,69 +291,7 @@ public class AdnApiService : IAdnApiService
         return creds;
     }
 
-    public createTransactionResponse ADN_AuthorizeCard(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumber,
-        String ccCode,
-        String ccExpiryDate,
-        String ccFirstName,
-        String ccLastName,
-        String ccAddress,
-        String ccZip,
-        Decimal ccAmount
-    )
-    {
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = env;
-
-        // define the merchant information (authentication / transaction id)
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
-        {
-            name = adnLoginId,
-            ItemElementName = ItemChoiceType.transactionKey,
-            Item = adnTransactionKey,
-        };
-
-        var creditCard = new creditCardType
-        {
-            cardNumber = ccNumber,
-            expirationDate = ccExpiryDate,
-            cardCode = ccCode
-        };
-
-        var billingAddress = new customerAddressType
-        {
-            firstName = ccFirstName,
-            lastName = ccLastName,
-            address = ccAddress,
-            zip = ccZip
-        };
-
-        //standard api call to retrieve response
-        var paymentType = new paymentType { Item = creditCard };
-
-        var transactionRequest = new transactionRequestType
-        {
-            transactionType = transactionTypeEnum.authOnlyTransaction.ToString(),    // authorize only
-            amount = ccAmount,
-            payment = paymentType,
-            billTo = billingAddress
-        };
-
-        var request = new createTransactionRequest { transactionRequest = transactionRequest };
-
-        // instantiate the controller that will call the service
-        var controller = new createTransactionController(request);
-        controller.Execute();
-
-        // get the response from the service (errors contained if any)
-        var response = controller.GetApiResponse();
-
-        UpdateCreateTransactionApiResponse(response); // Normalize messages / errors
-
-        return response;
-    }
+    // Legacy authorize method removed; request-based wrapper used instead.
 
     public createTransactionResponse ADN_ChargeCustomerProfile(
         AuthorizeNet.Environment env,
@@ -382,169 +347,11 @@ public class AdnApiService : IAdnApiService
         return response;
     }
 
-    public createTransactionResponse ADN_ChargeCard(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumber,
-        String ccCode,
-        String ccExpiryDate,
-        String ccFirstName,
-        String ccLastName,
-        String ccAddress,
-        String ccZip,
-        Decimal ccAmount,
-        String invoiceNumber,
-        String description
-    )
-    {
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = env;
+    // Legacy charge method removed; request-based wrapper used instead.
 
-        // define the merchant information (authentication / transaction id)
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
-        {
-            name = adnLoginId,
-            ItemElementName = ItemChoiceType.transactionKey,
-            Item = adnTransactionKey,
-        };
+    // Legacy refund method removed; request-based wrapper used instead.
 
-        var creditCard = new creditCardType
-        {
-            cardNumber = ccNumber,
-            expirationDate = ccExpiryDate,
-            cardCode = ccCode
-        };
-
-        var billingAddress = new customerAddressType
-        {
-            firstName = ccFirstName.Trim(),
-            lastName = ccLastName.Trim(),
-            address = ccAddress.Trim(),
-            zip = ccZip
-        };
-
-        //standard api call to retrieve response
-        var paymentType = new paymentType { Item = creditCard };
-
-        orderType orderInfo = new orderType()
-        {
-            invoiceNumber = invoiceNumber,
-            description = description.Trim()
-        };
-
-        var transactionRequest = new transactionRequestType
-        {
-            transactionType = transactionTypeEnum.authCaptureTransaction.ToString(),    // charge the card
-            amount = ccAmount,
-            payment = paymentType,
-            billTo = billingAddress,
-            order = orderInfo
-        };
-
-        var request = new createTransactionRequest { transactionRequest = transactionRequest };
-
-        // instantiate the controller that will call the service
-        var controller = new createTransactionController(request);
-        controller.Execute();
-
-        // get the response from the service (errors contained if any)
-        var response = controller.GetApiResponse();
-
-        UpdateCreateTransactionApiResponse(response);
-
-        return response;
-    }
-
-    public createTransactionResponse ADN_RefundCard(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumberLast4,
-        String ccExpiryDate,
-        String transactionId,
-        Decimal ccAmount,
-        String invoiceNumber
-    )
-    {
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = env;
-
-        // define the merchant information (authentication / transaction id)
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
-        {
-            name = adnLoginId,
-            ItemElementName = ItemChoiceType.transactionKey,
-            Item = adnTransactionKey,
-        };
-
-        var creditCard = new creditCardType
-        {
-            cardNumber = ccNumberLast4,
-            expirationDate = ccExpiryDate
-        };
-
-        //standard api call to retrieve response
-        var paymentType = new paymentType { Item = creditCard };
-
-        orderType orderInfo = new orderType()
-        {
-            invoiceNumber = invoiceNumber,
-            description = "Credit Card Credit"
-        };
-
-        var transactionRequest = new transactionRequestType
-        {
-            transactionType = transactionTypeEnum.refundTransaction.ToString(),    // refund type
-            payment = paymentType,
-            amount = ccAmount,
-            refTransId = transactionId,
-            order = orderInfo
-        };
-
-        var request = new createTransactionRequest { transactionRequest = transactionRequest };
-
-        // instantiate the controller that will call the service
-        var controller = new createTransactionController(request);
-        controller.Execute();
-
-        var response = controller.GetApiResponse();
-
-        return response;
-    }
-
-    public createTransactionResponse ADN_VoidTransaction(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String transactionId
-    )
-    {
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = env;
-
-        // define the merchant information (authentication / transaction id)
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
-        {
-            name = adnLoginId,
-            ItemElementName = ItemChoiceType.transactionKey,
-            Item = adnTransactionKey
-        };
-
-        var transactionRequest = new transactionRequestType
-        {
-            transactionType = transactionTypeEnum.voidTransaction.ToString(),    // refund type
-            refTransId = transactionId
-        };
-
-        var request = new createTransactionRequest { transactionRequest = transactionRequest };
-
-        // instantiate the controller that will call the service
-        var controller = new createTransactionController(request);
-        controller.Execute();
-
-        // get the response from the service (errors contained if any)
-        var response = controller.GetApiResponse();
-
-        return response;
-    }
+    // Legacy void method removed; request-based wrapper used instead.
 
 
     public getTransactionDetailsResponse ADN_GetTransactionDetails(
@@ -579,100 +386,7 @@ public class AdnApiService : IAdnApiService
         return response;
     }
 
-    public ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(
-        AuthorizeNet.Environment env,
-        String adnLoginId,
-        String adnTransactionKey,
-        String ccNumber,
-        String ccCode,
-        String ccExpiryDate,
-        String ccFirstName,
-        String ccLastName,
-        String ccAddress,
-        String ccZip,
-        String ccEmail,
-        String ccInvoiceNumber,
-        String ccDescription,
-        Decimal ccPerIntervalCharge,
-        DateTime? adnArbStartDate,
-        short adnArbBillingOccurences,
-        short adnArbIntervalLength
-    )
-    {
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = env;
-
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
-        {
-            name = adnLoginId,
-            ItemElementName = ItemChoiceType.transactionKey,
-            Item = adnTransactionKey,
-        };
-
-        paymentScheduleTypeInterval interval = new paymentScheduleTypeInterval
-        {
-            length = adnArbIntervalLength,    // months can be indicated between 1 and 12
-            unit = ARBSubscriptionUnitEnum.months
-        };
-
-        paymentScheduleType schedule = new paymentScheduleType
-        {
-            interval = interval,
-            startDate = (adnArbStartDate != null) ? (DateTime)adnArbStartDate : DateTime.Now.AddDays(1),   // start date should be tomorrow if adnArbStartDate is null
-            totalOccurrences = adnArbBillingOccurences, // 999 indicates no end date
-            trialOccurrences = 0
-        };
-
-        #region Payment Information
-        var creditCard = new creditCardType
-        {
-            cardNumber = ccNumber,
-            expirationDate = ccExpiryDate,
-            cardCode = ccCode
-        };
-
-        //standard api call to retrieve response
-        paymentType cc = new paymentType { Item = creditCard };
-        #endregion
-
-        customerType customerInfo = new customerType()
-        {
-            email = ccEmail
-        };
-
-        nameAndAddressType addressInfo = new nameAndAddressType()
-        {
-            firstName = ccFirstName,
-            lastName = ccLastName,
-            address = ccAddress,
-            zip = ccZip
-        };
-
-        orderType orderInfo = new orderType()
-        {
-            invoiceNumber = ccInvoiceNumber,
-            description = ccDescription
-        };
-
-        ARBSubscriptionType subscriptionType = new ARBSubscriptionType()
-        {
-            amount = ccPerIntervalCharge,
-            trialAmount = 0.00m,
-            paymentSchedule = schedule,
-            billTo = addressInfo,
-            payment = cc,
-            order = orderInfo,
-            customer = customerInfo
-        };
-
-        var request = new ARBCreateSubscriptionRequest { subscription = subscriptionType };
-
-        var controller = new ARBCreateSubscriptionController(request);          // instantiate the controller that will call the service
-        controller.Execute();
-
-        ARBCreateSubscriptionResponse response = controller.GetApiResponse();   // get the response from the service (errors contained if any)
-
-        return response;
-    }
+    // Legacy ARB create method removed; request-based wrapper used instead.
 
     public getSettledBatchListResponse GetSettleBatchList_FromDateRange(
         AuthorizeNet.Environment env,
@@ -831,114 +545,320 @@ public class AdnApiService : IAdnApiService
         return controller.GetApiResponse();   // get the response from the service (errors contained if any)
     }
 
-    public ARBUpdateSubscriptionResponse ADN_UpdateSubscription(
-        AuthorizeNet.Environment env,
-        string adnLoginId,
-        string adnTransactionKey,
-        string subscriptionId,
-        decimal chargePerOccurence,
-        string cardNumber,
-        string expirationDate,
-        string cardCode,
-        string firstName,
-        string lastName,
-        string address,
-        string zip,
-        string email
-    )
-    {
-        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = env;
+    // Legacy update subscription method removed; request-based wrapper used instead.
 
-        // define the merchant information (authentication / transaction id)
+    private static AdnArbCreateResult ParseArbCreateResponse(ARBCreateSubscriptionResponse resp, string cardNumber)
+    {
+        if (resp == null)
+        {
+            return new AdnArbCreateResult(false, null, null, null, null, "NULLRESP", "No response from gateway.", "No response from gateway.", null);
+        }
+        var success = resp.messages?.resultCode == messageTypeEnum.Ok && !string.IsNullOrWhiteSpace(resp.subscriptionId);
+        string userMsg;
+        string gwMsg;
+        string? gwCode = null;
+        if (success)
+        {
+            userMsg = "Subscription created.";
+            gwMsg = resp.messages?.message?.FirstOrDefault()?.text ?? "OK";
+            gwCode = resp.messages?.message?.FirstOrDefault()?.code;
+        }
+        else
+        {
+            if (resp.messages?.message != null && resp.messages.message.Length > 0)
+            {
+                gwCode = resp.messages.message[0].code;
+                gwMsg = resp.messages.message[0].text;
+            }
+            else
+            {
+                gwMsg = "Subscription create failed.";
+            }
+            userMsg = gwMsg;
+        }
+        string? last4 = !string.IsNullOrWhiteSpace(cardNumber) && cardNumber.Length >= 4 ? cardNumber[^4..] : null;
+        return new AdnArbCreateResult(success, resp.subscriptionId, null, null, null, gwCode, userMsg, gwMsg, last4);
+    }
+
+    public ARBUpdateSubscriptionResponse ADN_UpdateSubscription(AdnArbUpdateRequest request)
+    {
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = request.Env;
         ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
         {
-            name = adnLoginId,
+            name = request.LoginId,
             ItemElementName = ItemChoiceType.transactionKey,
-            Item = adnTransactionKey
+            Item = request.TransactionKey
         };
 
-        #region Payment Information
-        var creditCard = new creditCardType
+        var subscription = new ARBSubscriptionType
         {
-            cardNumber = cardNumber,
-            expirationDate = expirationDate,
-            cardCode = cardCode
+            amount = request.ChargePerOccurrence
         };
 
-        //standard api call to retrieve response
-        paymentType cc = new paymentType { Item = creditCard };
-        #endregion
-
-        customerType customerInfo = new customerType()
+        if (!string.IsNullOrWhiteSpace(request.CardNumber) && !string.IsNullOrWhiteSpace(request.ExpirationDate))
         {
-            email = email
-        };
+            var cardNum = request.Env == AuthorizeNet.Environment.SANDBOX ? MapSandboxTestCard(request.CardNumber) : request.CardNumber;
+            var normalizedExpiry = NormalizeExpiry(request.ExpirationDate);
+            var creditCard = new creditCardType { cardNumber = cardNum, expirationDate = normalizedExpiry, cardCode = request.CardCode };
+            subscription.payment = new paymentType { Item = creditCard };
+        }
 
-        nameAndAddressType addressInfo = new nameAndAddressType()
-        {
-            firstName = firstName,
-            lastName = lastName,
-            address = address,
-            zip = zip
-        };
-
-        ARBSubscriptionType subscriptionType = new ARBSubscriptionType()
-        {
-            amount = chargePerOccurence,
-            billTo = addressInfo,
-            payment = cc,
-            customer = customerInfo
-        };
-
-        //Please change the subscriptionId according to your request
-        var request = new ARBUpdateSubscriptionRequest { subscription = subscriptionType, subscriptionId = subscriptionId };
-        var controller = new ARBUpdateSubscriptionController(request);
+        var apiReq = new ARBUpdateSubscriptionRequest { subscriptionId = request.SubscriptionId, subscription = subscription };
+        var controller = new ARBUpdateSubscriptionController(apiReq);
         controller.Execute();
-
-        ARBUpdateSubscriptionResponse response = controller.GetApiResponse();
-        return response;
+        return controller.GetApiResponse();
     }
 
     public ARBGetSubscriptionListResponse ARBGetSubscriptionListRequest(
         AuthorizeNet.Environment env,
         string adnLoginId,
         string adnTransactionKey,
-        ARBGetSubscriptionListSearchTypeEnum searchType
-    )
+        ARBGetSubscriptionListSearchTypeEnum searchType)
     {
         try
         {
             ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = env;
-
-            // define the merchant information (authentication / transaction id)
             ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
             {
                 name = adnLoginId,
                 ItemElementName = ItemChoiceType.transactionKey,
                 Item = adnTransactionKey
             };
-
-            var request = new ARBGetSubscriptionListRequest
-            {
-                searchType = searchType
-            };
-
-            var controller = new ARBGetSubscriptionListController(request);          // instantiate the controller that will call the service
+            var request = new ARBGetSubscriptionListRequest { searchType = searchType };
+            var controller = new ARBGetSubscriptionListController(request);
             controller.Execute();
-
-            ARBGetSubscriptionListResponse response = controller.GetApiResponse();   // get the response from the service (errors contained if any)
-
-            return response;
-
+            return controller.GetApiResponse();
         }
         catch
         {
             return null;
         }
-
     }
 
     #region helper functions
+    // Common internal helpers to reduce duplication and align with API reference:
+    // https://developer.authorize.net/api/reference/index.html#payment-transactions-charge-a-credit-card
+    private static void SetupMerchantAuth(string loginId, string transactionKey)
+    {
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType
+        {
+            name = loginId,
+            ItemElementName = ItemChoiceType.transactionKey,
+            Item = transactionKey
+        };
+    }
+
+    private static creditCardType BuildCreditCard(AuthorizeNet.Environment env, string cardNumber, string cardCode, string expiry)
+    {
+        var num = env == AuthorizeNet.Environment.SANDBOX ? MapSandboxTestCard(cardNumber) : cardNumber;
+        var normalizedExpiry = NormalizeExpiry(expiry);
+        return new creditCardType { cardNumber = num, expirationDate = normalizedExpiry, cardCode = cardCode };
+    }
+
+    private sealed record ExecTxnArgs(
+        AuthorizeNet.Environment Env,
+        string LoginId,
+        string TransactionKey,
+        transactionTypeEnum TxnType,
+        decimal? Amount = null,
+        creditCardType? CreditCard = null,
+        customerAddressType? BillTo = null,
+        orderType? OrderInfo = null,
+        string? RefTransId = null,
+        Action<transactionRequestType>? Configure = null);
+
+    private static createTransactionResponse ExecuteTransaction(ExecTxnArgs a)
+    {
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = a.Env;
+        SetupMerchantAuth(a.LoginId, a.TransactionKey);
+
+        var txnReq = new transactionRequestType
+        {
+            transactionType = a.TxnType.ToString(),
+            payment = a.CreditCard != null ? new paymentType { Item = a.CreditCard } : null,
+            billTo = a.BillTo,
+            order = a.OrderInfo,
+            refTransId = a.RefTransId
+        };
+        if (a.Amount.HasValue)
+        {
+            txnReq.amount = a.Amount.Value;
+        }
+
+        // Apply standard duplicate window (2 min) for charge/authorize to prevent accidental resubmits.
+        if (a.TxnType == transactionTypeEnum.authCaptureTransaction || a.TxnType == transactionTypeEnum.authOnlyTransaction)
+        {
+            txnReq.transactionSettings = new settingType[]
+            {
+                new settingType { settingName = "duplicateWindow", settingValue = "120" }
+            };
+        }
+
+        a.Configure?.Invoke(txnReq);
+
+        var apiReq = new createTransactionRequest { transactionRequest = txnReq };
+        var controller = new createTransactionController(apiReq);
+        controller.Execute();
+        var resp = controller.GetApiResponse();
+        if (resp == null)
+        {
+            return new createTransactionResponse
+            {
+                messages = new messagesType
+                {
+                    resultCode = messageTypeEnum.Error,
+                    message = new[] { new messagesTypeMessage { code = "NULLRESP", text = "Authorize.Net returned no transaction response." } }
+                }
+            };
+        }
+        UpdateCreateTransactionApiResponse(resp);
+        return resp;
+    }
+    // New public request-based wrappers
+    public createTransactionResponse ADN_Authorize(AdnAuthorizeRequest request)
+    {
+        var cc = BuildCreditCard(request.Env, request.CardNumber, request.CardCode, request.Expiry);
+        var addr = new customerAddressType { firstName = request.FirstName, lastName = request.LastName, address = request.Address, zip = request.Zip };
+        return ExecuteTransaction(new ExecTxnArgs(request.Env, request.LoginId, request.TransactionKey, transactionTypeEnum.authOnlyTransaction, request.Amount, cc, addr));
+    }
+
+    public createTransactionResponse ADN_Charge(AdnChargeRequest request)
+    {
+        var cc = BuildCreditCard(request.Env, request.CardNumber, request.CardCode, request.Expiry);
+        var addr = new customerAddressType { firstName = request.FirstName.Trim(), lastName = request.LastName.Trim(), address = request.Address.Trim(), zip = request.Zip };
+        var order = new orderType { invoiceNumber = request.InvoiceNumber, description = request.Description.Trim() };
+        return ExecuteTransaction(new ExecTxnArgs(request.Env, request.LoginId, request.TransactionKey, transactionTypeEnum.authCaptureTransaction, request.Amount, cc, addr, order, null, txn =>
+        {
+            if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                txn.customer = new customerDataType { email = request.Email };
+            }
+        }));
+    }
+
+    public createTransactionResponse ADN_Refund(AdnRefundRequest request)
+    {
+        // Refund: gateway requires last4 + matching prior transaction id & amount.
+        var normalizedExpiry = NormalizeExpiry(request.Expiry); // Keep direct normalization (no remap of last4)
+        var creditCard = new creditCardType { cardNumber = request.CardNumberLast4, expirationDate = normalizedExpiry };
+        var order = new orderType { invoiceNumber = request.InvoiceNumber, description = "Credit Card Credit" };
+        return ExecuteTransaction(new ExecTxnArgs(request.Env, request.LoginId, request.TransactionKey, transactionTypeEnum.refundTransaction, request.Amount, creditCard, null, order, request.TransactionId));
+    }
+
+    public createTransactionResponse ADN_Void(AdnVoidRequest request)
+    {
+        return ExecuteTransaction(new ExecTxnArgs(request.Env, request.LoginId, request.TransactionKey, transactionTypeEnum.voidTransaction, null, null, null, null, request.TransactionId));
+    }
+
+    public ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(AdnArbCreateRequest request)
+    {
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = request.Env;
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+        {
+            name = request.LoginId,
+            ItemElementName = ItemChoiceType.transactionKey,
+            Item = request.TransactionKey,
+        };
+        var interval = new paymentScheduleTypeInterval { length = request.IntervalLength, unit = ARBSubscriptionUnitEnum.months };
+        var schedule = new paymentScheduleType { interval = interval, startDate = request.StartDate ?? DateTime.Now.AddDays(1), totalOccurrences = request.BillingOccurrences, trialOccurrences = 0 };
+        var cardNumber = request.CardNumber;
+        if (request.Env == AuthorizeNet.Environment.SANDBOX)
+            cardNumber = MapSandboxTestCard(cardNumber);
+        var normalizedExpiry = NormalizeExpiry(request.Expiry);
+        // ARB Create does not require/accept CVV in many cases; omit cardCode to avoid schema/validation issues.
+        // Include cardCode again (CCV) for card-not-present security when supplied.
+        var creditCard = new creditCardType { cardNumber = cardNumber, expirationDate = normalizedExpiry, cardCode = string.IsNullOrWhiteSpace(request.CardCode) ? null : request.CardCode };
+        var payment = new paymentType { Item = creditCard };
+        var customerInfo = new customerType { email = request.Email };
+        var addressInfo = new nameAndAddressType { firstName = request.FirstName, lastName = request.LastName, address = request.Address, zip = request.Zip };
+        // Authorize.Net limits invoiceNumber to 20 chars. Trim and sanitize to be safe.
+        var safeInvoice = (request.InvoiceNumber ?? string.Empty).Trim();
+        if (safeInvoice.Length > 20) safeInvoice = safeInvoice.Substring(0, 20);
+        var orderInfo = new orderType { invoiceNumber = safeInvoice, description = request.Description };
+        var subscriptionType = new ARBSubscriptionType { amount = request.PerIntervalCharge, trialAmount = 0.00m, paymentSchedule = schedule, billTo = addressInfo, payment = payment, order = orderInfo, customer = customerInfo };
+        var apiReq = new ARBCreateSubscriptionRequest { subscription = subscriptionType };
+        try
+        {
+            var controller = new ARBCreateSubscriptionController(apiReq);
+            controller.Execute();
+            var response = controller.GetApiResponse();
+            if (response == null)
+            {
+                // Attempt to extract a structured error from the controller if available
+                var err = controller.GetErrorResponse();
+                if (err != null)
+                {
+                    return new ARBCreateSubscriptionResponse
+                    {
+                        messages = new messagesType
+                        {
+                            resultCode = err.messages?.resultCode ?? messageTypeEnum.Error,
+                            message = err.messages?.message != null && err.messages.message.Length > 0
+                                ? err.messages.message
+                                : new[] { new messagesTypeMessage { code = "NULLRESP", text = "Authorize.Net returned no subscription response." } }
+                        }
+                    };
+                }
+                return new ARBCreateSubscriptionResponse
+                {
+                    messages = new messagesType
+                    {
+                        resultCode = messageTypeEnum.Error,
+                        message = new[] { new messagesTypeMessage { code = "NULLRESP", text = "Authorize.Net returned no subscription response." } }
+                    }
+                };
+            }
+            return response;
+        }
+        catch (Exception ex)
+        {
+            return new ARBCreateSubscriptionResponse
+            {
+                messages = new messagesType
+                {
+                    resultCode = messageTypeEnum.Error,
+                    message = new[] { new messagesTypeMessage { code = "EX", text = "Authorize.Net ARB create failed: " + ex.Message } }
+                }
+            };
+        }
+    }
+    public AdnArbCreateResult ADN_ARB_CreateMonthlySubscription_Result(AdnArbCreateRequest request)
+    {
+        var raw = ADN_ARB_CreateMonthlySubscription(request);
+        return ParseArbCreateResponse(raw, request.CardNumber);
+    }
+    private static string MapSandboxTestCard(string cardNumber)
+    {
+        if (string.IsNullOrWhiteSpace(cardNumber)) return cardNumber;
+        // Only remap our local generic test Visa to Authorize.Net's accepted sandbox Visa.
+        if (cardNumber == "4242424242424242")
+            return "4111111111111111"; // Authorize.Net sandbox Visa
+        return cardNumber;
+    }
+
+    private static string NormalizeExpiry(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return raw;
+        raw = raw.Trim();
+        // Already YYYY-MM
+        if (System.Text.RegularExpressions.Regex.IsMatch(raw, @"^\d{4}-\d{2}$")) return raw;
+        // MMYY (4 digits)
+        if (System.Text.RegularExpressions.Regex.IsMatch(raw, @"^\d{4}$"))
+        {
+            var mm = raw.Substring(0, 2);
+            var yy = raw.Substring(2, 2);
+            return $"20{yy}-{mm}";
+        }
+        // MM/YY or MM - YY variants
+        var match = System.Text.RegularExpressions.Regex.Match(raw, @"^(?<mm>\d{2})\s*[/\-]\s*(?<yy>\d{2})$");
+        if (match.Success)
+        {
+            var mm = match.Groups["mm"].Value;
+            var yy = match.Groups["yy"].Value;
+            return $"20{yy}-{mm}";
+        }
+        return raw; // Fallback; gateway will validate
+    }
     private static void UpdateCreateTransactionApiResponse(createTransactionResponse response)
     {
         // validate response
@@ -979,6 +899,18 @@ public class AdnApiService : IAdnApiService
                 return "This transaction has been declined. Please check your inputs and try again."; // This transaction has been declined.
             case "65":
                 return "This transaction has been declined. Please re-enter the card number and card code (CVV)."; // This transaction has been declined.
+            case "6":
+                return "The transaction was declined by the issuer.";
+            case "7":
+                return "Card number is invalid or does not pass Luhn check.";
+            case "8":
+                return "Expiration date is invalid.";
+            case "9":
+                return "Routing number is invalid.";
+            case "16":
+                return "Transaction declined. Card code verification failed.";
+            case "E00027":
+                return "The transaction was unsuccessful. Please verify details and try again.";
             default:
                 return errorText;
         }
@@ -990,6 +922,8 @@ public class AdnApiService : IAdnApiService
         {
             case "2":
                 return "new text here";
+            case "E00003":
+                return "Validation failed on the gateway.";
             default:
                 return messageText;
         }

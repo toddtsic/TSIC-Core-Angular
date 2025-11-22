@@ -5,6 +5,8 @@ using AuthorizeNet.Api.Contracts.V1;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using TSIC.API.Dtos;
 using TSIC.API.Services;
 using TSIC.Domain.Entities;
@@ -44,7 +46,8 @@ public class PaymentServiceTests
         // Fee resolver is consulted to ensure OwedTotal is set when FeeTotal > 0 and PaidTotal == 0
         feeResolver.Setup(f => f.ResolveBaseFeeForTeamAsync(It.IsAny<Guid>())).ReturnsAsync(0m);
 
-        return new PaymentService(db, adn.Object, feeResolver.Object, teamLookup.Object);
+        var logger = NullLogger<PaymentService>.Instance;
+        return new PaymentService(db, adn.Object, feeResolver.Object, teamLookup.Object, logger);
     }
 
     private static void SeedRegistration(SqlDbContext db, Guid jobId, Guid familyId, Guid? teamId = null, decimal owed = 200m)
@@ -97,14 +100,8 @@ public class PaymentServiceTests
 
         var svc = BuildService(db, out var adn, out _, out var team);
 
-        // ChargeCard returns OK with transId
-        adn.Setup(a => a.ADN_ChargeCard(
-                It.IsAny<AuthorizeNet.Environment>(),
-                "login",
-                "key",
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
+        // Charge returns OK with transId
+        adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
             .Returns(new createTransactionResponse
             {
                 messages = new messagesType
@@ -123,7 +120,7 @@ public class PaymentServiceTests
             JobId = jobId,
             FamilyUserId = familyId,
             PaymentOption = PaymentOption.PIF,
-            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111" },
+            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111", Email = "a.b@test.local", Phone = "5551234567" },
             IdempotencyKey = Guid.NewGuid().ToString(),
             ViConfirmed = true,
             ViPolicyNumber = "POL-999",
@@ -155,12 +152,7 @@ public class PaymentServiceTests
         var svc = BuildService(db, out var adn, out _, out var team);
 
         // Capture amount and count invocations
-        adn.Setup(a => a.ADN_ChargeCard(
-            It.IsAny<AuthorizeNet.Environment>(),
-            It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
+        adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
                 .Returns(new createTransactionResponse
                 {
                     messages = new messagesType { resultCode = messageTypeEnum.Ok, message = new[] { new messagesTypeMessage { code = "I00001", text = "OK" } } },
@@ -174,7 +166,7 @@ public class PaymentServiceTests
             JobId = jobId,
             FamilyUserId = familyId,
             PaymentOption = PaymentOption.PIF,
-            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111" },
+            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111", Email = "a.b@test.local", Phone = "5551234567" },
             IdempotencyKey = idem
         };
 
@@ -186,12 +178,7 @@ public class PaymentServiceTests
         var r2 = await svc.ProcessPaymentAsync(req, "tester");
         r2.Success.Should().BeFalse();
         r2.Message.Should().Contain("Nothing due");
-        adn.Verify(a => a.ADN_ChargeCard(
-            It.IsAny<AuthorizeNet.Environment>(),
-            It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+        adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Once);
 
         var acctCount = await db.RegistrationAccounting.CountAsync();
         acctCount.Should().Be(1);
@@ -214,10 +201,7 @@ public class PaymentServiceTests
         // Deposit resolver returns 120, but owed is 80, so cap to 80
         team.Setup(t => t.ResolvePerRegistrantAsync(teamId)).ReturnsAsync((Fee: 200m, Deposit: 120m));
 
-        adn.Setup(a => a.ADN_ChargeCard(
-            It.IsAny<AuthorizeNet.Environment>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
+        adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
                 .Returns(new createTransactionResponse
                 {
                     messages = new messagesType { resultCode = messageTypeEnum.Ok, message = new[] { new messagesTypeMessage { code = "I00001", text = "OK" } } },
@@ -229,7 +213,7 @@ public class PaymentServiceTests
             JobId = jobId,
             FamilyUserId = familyId,
             PaymentOption = PaymentOption.Deposit,
-            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111" },
+            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111", Email = "a.b@test.local", Phone = "5551234567" },
             IdempotencyKey = Guid.NewGuid().ToString()
         };
 
@@ -274,12 +258,7 @@ public class PaymentServiceTests
         var svc = BuildService(db, out var adn, out _, out _);
 
         // Mock subscription creation
-        adn.Setup(a => a.ADN_ARB_CreateMonthlySubscription(
-            It.IsAny<AuthorizeNet.Environment>(),
-            It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<DateTime?>(), It.IsAny<short>(), It.IsAny<short>()))
+        adn.Setup(a => a.ADN_ARB_CreateMonthlySubscription(It.IsAny<AdnArbCreateRequest>()))
             .Returns(new ARBCreateSubscriptionResponse
             {
                 messages = new messagesType { resultCode = messageTypeEnum.Ok, message = new[] { new messagesTypeMessage { code = "I00001", text = "OK" } } },
@@ -291,7 +270,7 @@ public class PaymentServiceTests
             JobId = jobId,
             FamilyUserId = familyId,
             PaymentOption = PaymentOption.ARB,
-            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "Jane", LastName = "Doe", Address = "1", Zip = "11111" },
+            CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "Jane", LastName = "Doe", Address = "1", Zip = "11111", Email = "jane.doe@test.local", Phone = "5559876543" },
             IdempotencyKey = Guid.NewGuid().ToString()
         };
 
@@ -309,4 +288,5 @@ public class PaymentServiceTests
         reg.AdnSubscriptionAmountPerOccurence.Should().Be(50.00m);
         reg.AdnSubscriptionStatus.Should().Be("active");
     }
+
 }

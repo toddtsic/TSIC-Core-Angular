@@ -38,6 +38,18 @@ import type { LineItem } from '../services/payment.service';
         <h5 class="mb-0 fw-semibold">Payment</h5>
       </div>
       <div class="card-body">
+        @if (lastError) {
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+            <div class="flex-grow-1">
+              <div class="fw-semibold mb-1">Payment Error</div>
+              <div class="small">{{ lastError.message || 'An error occurred.' }}</div>
+            </div>
+            @if (lastError.errorCode) { <span class="badge bg-danger-subtle text-dark border">{{ lastError.errorCode }}</span> }
+          </div>
+        }
+
+        <app-payment-summary></app-payment-summary>
+        <app-payment-option-selector></app-payment-option-selector>
         <!-- RegSaver / VerticalInsure region with deferred offer only -->
         @if (insuranceState.showVerticalInsureModal()) {
           <app-vi-confirm-modal
@@ -91,9 +103,6 @@ import type { LineItem } from '../services/payment.service';
             (cancelled)="cancelViConfirm()"
             (confirmed)="confirmViAndContinue()" />
         }
-
-        <app-payment-summary></app-payment-summary>
-        <app-payment-option-selector></app-payment-option-selector>
         
         <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
         @if (showNoPaymentInfo()) {
@@ -110,7 +119,16 @@ import type { LineItem } from '../services/payment.service';
                 Your TSIC registration balance is $0. The credit card details below are for Vertical Insure only.
               </div>
             }
-            <app-credit-card-form (validChange)="onCcValidChange($event)" (valueChange)="onCcValueChange($event)"></app-credit-card-form>
+            <app-credit-card-form
+              (validChange)="onCcValidChange($event)"
+              (valueChange)="onCcValueChange($event)"
+              [defaultFirstName]="state.familyUser()?.firstName || state.familyUser()?.ccInfo?.firstName || null"
+              [defaultLastName]="state.familyUser()?.lastName || state.familyUser()?.ccInfo?.lastName || null"
+              [defaultAddress]="state.familyUser()?.address || state.familyUser()?.ccInfo?.streetAddress || null"
+              [defaultZip]="state.familyUser()?.zipCode || state.familyUser()?.zip || state.familyUser()?.ccInfo?.zip || null"
+              [defaultEmail]="state.familyUser()?.ccInfo?.email || state.familyUser()?.email || (state.familyUser()?.userName?.includes('@') ? (state.familyUser()?.userName || null) : null)"
+              [defaultPhone]="state.familyUser()?.ccInfo?.phone || state.familyUser()?.phone || null"
+            ></app-credit-card-form>
           </section>
         }
           <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">{{ isViCcOnlyFlow() ? 'Send to Vertical Insure' : 'Pay Now' }}</button>
@@ -133,7 +151,9 @@ export class PaymentComponent implements AfterViewInit {
     firstName: '',
     lastName: '',
     address: '',
-    zip: ''
+    zip: '',
+    email: '',
+    phone: ''
   };
   ccValid = false;
 
@@ -144,6 +164,7 @@ export class PaymentComponent implements AfterViewInit {
   // Flag retained for potential future auto-selection logic; currently unused.
   private readonly userChangedOption = false;
   submitting = false;
+  lastError: { message: string | null; errorCode: string | null } | null = null;
   private lastIdemKey: string | null = null;
   private readonly idemSvc = inject(IdempotencyService);
   verticalInsureError: string | null = null;
@@ -178,6 +199,13 @@ export class PaymentComponent implements AfterViewInit {
     // Simpler: one-shot hydrate + short delayed retry (in case data arrives slightly later)
     this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo);
     setTimeout(() => this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo), 300);
+    // Hydrate email/phone from familyUser if blank
+    const fu = this.state.familyUser();
+    if (fu) {
+      if (!this.creditCard.email && fu.email?.includes('@')) this.creditCard.email = fu.email;
+      if (!this.creditCard.email && fu.userName?.includes('@')) this.creditCard.email = fu.userName;
+      if (!this.creditCard.phone && fu.phone) this.creditCard.phone = fu.phone;
+    }
     // Initialize VerticalInsure (simple retry if offer data not yet present)
     setTimeout(() => this.tryInitVerticalInsure(), 0);
   }
@@ -204,6 +232,7 @@ export class PaymentComponent implements AfterViewInit {
     const viOnly = this.isViCcOnlyFlow();
     const ccNeeded = this.showCcSection();
     const ccOk = !ccNeeded || this.ccValid;
+    // Button enabled as soon as payment option + card fields valid; insurance decision checked at click time.
     return (tsicCharge || viOnly) && ccOk && !this.submitting;
   }
 
@@ -241,21 +270,50 @@ export class PaymentComponent implements AfterViewInit {
       this.persistIdem(newKey);
     }
     const rs = this.insuranceState.regSaverDetails();
-    const request = {
-      jobId: this.state.jobId(),
-      familyUserId: this.state.familyUser()?.familyUserId,
-      paymentOption: this.paymentState.paymentOption(),
-      creditCard: this.creditCard,
-      idempotencyKey: this.lastIdemKey,
-      viConfirmed: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureConfirmed() : undefined,
-      viDeclined: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureDeclined() : undefined,
-      viPolicyNumber: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
-      viPolicyCreateDate: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.insuranceState.viConsent()?.policyCreateDate) : undefined) || undefined
+    // Map client PaymentOption string ('PIF' | 'Deposit' | 'ARB') to backend enum numeric (0=PIF,1=Deposit,2=ARB)
+    const mapPaymentOption = (opt: string): number => {
+      switch (opt) {
+        case 'Deposit': return 1;
+        case 'ARB': return 2;
+        case 'PIF':
+        default: return 0;
+      }
     };
-
+    // Sanitize expiry to MMYY (remove all non-digits and ensure length 4)
+    const sanitizeExpiry = (raw: string): string => {
+      const digits = String(raw || '').replaceAll(/\D+/g, '').slice(0, 4);
+      if (digits.length === 3) { // if user somehow produced MYY -> pad
+        return '0' + digits;
+      }
+      return digits;
+    };
+    const sanitizePhone = (raw: string): string => String(raw || '').replaceAll(/\D+/g, '').slice(0, 15);
+    const creditCardPayload = this.showCcSection() ? {
+      Number: this.creditCard.number?.trim() || null,
+      Expiry: sanitizeExpiry(this.creditCard.expiry),
+      Code: this.creditCard.code?.trim() || null,
+      FirstName: this.creditCard.firstName?.trim() || null,
+      LastName: this.creditCard.lastName?.trim() || null,
+      Address: this.creditCard.address?.trim() || null,
+      Zip: this.creditCard.zip?.trim() || null,
+      Email: (this.creditCard.email || this.state.familyUser()?.userName || '').trim() || null,
+      Phone: sanitizePhone(this.creditCard.phone)
+    } : null;
+    const request = {
+      JobId: this.state.jobId(),
+      FamilyUserId: this.state.familyUser()?.familyUserId,
+      PaymentOption: mapPaymentOption(this.paymentState.paymentOption()),
+      CreditCard: creditCardPayload,
+      IdempotencyKey: this.lastIdemKey,
+      ViConfirmed: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureConfirmed() : undefined,
+      ViPolicyNumber: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
+      ViPolicyCreateDate: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.insuranceState.viConsent()?.policyCreateDate) : undefined) || undefined
+    };
+    // POST using keys matching backend DTO property casing (case-insensitive but explicit for clarity)
     this.http.post<PaymentResponseDto>(`${environment.apiUrl}/registration/submit-payment`, request).subscribe({
       next: (response) => {
         if (response.success) {
+          this.lastError = null;
           // Handle success, perhaps navigate to next step
           console.log('Payment successful', response);
           // Clear stored idempotency key on success; future payments should generate a new one
@@ -284,12 +342,19 @@ export class PaymentComponent implements AfterViewInit {
           console.error('Payment failed', response.message);
           // Keep idempotency key so user can retry safely
           this.submitting = false;
+          this.lastError = { message: response.message || null, errorCode: response.errorCode || null };
+          const msg = `[${response.errorCode || 'ERROR'}] ${response.message || 'Payment failed.'}`;
+          this.toast.show(msg, 'danger', 6000);
         }
       },
       error: (error: HttpErrorResponse) => {
         console.error('Payment error', error?.error?.message || error.message || error);
         // Preserve idempotency key for retry
         this.submitting = false;
+        const apiMsg = (error.error && typeof error.error === 'object') ? (error.error.message || JSON.stringify(error.error)) : (error.message || 'Network error');
+        const apiCode = (error.error && typeof error.error === 'object') ? (error.error.errorCode || null) : null;
+        this.lastError = { message: apiMsg, errorCode: apiCode };
+        this.toast.show(`[${apiCode || 'NETWORK'}] ${apiMsg}`, 'danger', 6000);
       }
     });
   }
@@ -348,12 +413,14 @@ export class PaymentComponent implements AfterViewInit {
   }
 
   // Removed client-side heuristic CC prefill; data now supplied by server via ccInfo.
-  private simpleHydrateFromCc(cc?: { firstName?: string; lastName?: string; streetAddress?: string; zip?: string; }): void {
+  private simpleHydrateFromCc(cc?: { firstName?: string; lastName?: string; streetAddress?: string; zip?: string; email?: string; phone?: string; }): void {
     if (!cc) return;
     if (!this.creditCard.firstName && cc.firstName) this.creditCard.firstName = cc.firstName.trim();
     if (!this.creditCard.lastName && cc.lastName) this.creditCard.lastName = cc.lastName.trim();
     if (!this.creditCard.address && cc.streetAddress) this.creditCard.address = cc.streetAddress.trim();
     if (!this.creditCard.zip && cc.zip) this.creditCard.zip = cc.zip.trim();
+    if (!this.creditCard.email && cc.email?.includes('@')) this.creditCard.email = cc.email.trim();
+    if (!this.creditCard.phone && cc.phone) this.creditCard.phone = cc.phone.replaceAll(/\D+/g, '');
   }
 
   // (Legacy insurance purchase methods removed; handled by InsuranceService.)
@@ -368,9 +435,10 @@ export class PaymentComponent implements AfterViewInit {
     } catch { return false; }
   }
   // Receive credit card form changes from child component
-  onCcValueChange(val: { type?: string; number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; address?: string; zip?: string; }): void {
+  onCcValueChange(val: { type?: string; number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; address?: string; zip?: string; email?: string; phone?: string; }): void {
     this.creditCard = { ...this.creditCard, ...val };
   }
+  // Removed original simple onCcValidChange; replaced with version that also prompts insurance decision.
   onCcValidChange(valid: any): void { this.ccValid = !!valid; }
   monthLabel(): string { return this.paySvc.monthLabel(); }
 }

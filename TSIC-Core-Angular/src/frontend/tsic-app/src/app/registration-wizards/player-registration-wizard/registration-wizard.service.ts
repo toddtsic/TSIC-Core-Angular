@@ -52,12 +52,16 @@ export class RegistrationWizardService {
         zipCode?: string;      // preferred zip property
         zip?: string;          // fallback zip property
         postalCode?: string;   // alternative naming
+        email?: string;        // derived guardian email
+        phone?: string;        // derived guardian phone (digits only)
         // Server-provided credit card info (authoritative guardian billing details)
         ccInfo?: {
             firstName?: string;
             lastName?: string;
             streetAddress?: string;
             zip?: string;
+            email?: string;
+            phone?: string;
         };
     } | null>(null);
     // RegSaver (optional insurance) details for family/job
@@ -181,11 +185,17 @@ export class RegistrationWizardService {
 
     requireSignature(): boolean { return this.waiverState.requireSignature(); }
 
-    /** Loader: returns family user summary + family players (registered + server-selected flag) + optional RegSaver details. */
+    /** Loader: returns family user summary + family players (registered + server-selected flag) + optional RegSaver details.
+     * Minimal auth gating: skip call if no stored access token (prevents expected 401 on hard refresh deep-link).
+     */
     loadFamilyPlayers(jobPath: string): void {
         if (!jobPath) return;
+        if (!localStorage.getItem('auth_token')) {
+            try { console.debug('[RegWizard] loadFamilyPlayers skipped (no auth token)'); } catch { /* no-op */ }
+            return;
+        }
         const base = this.resolveApiBase();
-        console.log('[RegWizard] GET family players', { jobPath, base });
+        try { console.debug('[RegWizard] GET family players', { jobPath, base }); } catch { /* no-op */ }
         this.familyPlayersLoading.set(true);
         this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
@@ -202,7 +212,7 @@ export class RegistrationWizardService {
                     this.familyPlayersLoading.set(false);
                 },
                 error: err => {
-                    console.error('[RegWizard] Failed to load family players', err);
+                    try { console.warn('[RegWizard] Failed to load family players', err); } catch { /* no-op */ }
                     this.familyPlayers.set([]);
                     this.familyUser.set(null);
                     this.regSaverDetails.set(null);
@@ -249,7 +259,12 @@ export class RegistrationWizardService {
             state: pick(fu, ['state', 'State', 'stateCode', 'StateCode']),
             zipCode: pick(fu, ['zipCode', 'ZipCode', 'zip', 'Zip', 'postalCode', 'PostalCode']),
             zip: pick(fu, ['zip', 'Zip']),
-            postalCode: pick(fu, ['postalCode', 'PostalCode'])
+            postalCode: pick(fu, ['postalCode', 'PostalCode']),
+            email: pick(fu, ['email', 'Email', 'parentEmail', 'ParentEmail', 'motherEmail', 'MotherEmail', 'guardianEmail', 'GuardianEmail', 'billingEmail', 'BillingEmail', 'userName', 'UserName']),
+            phone: (() => {
+                const raw = pick(fu, ['phone', 'Phone', 'parentPhone', 'ParentPhone', 'motherPhone', 'MotherPhone', 'guardianPhone', 'GuardianPhone', 'billingPhone', 'BillingPhone', 'phoneNumber', 'PhoneNumber', 'cellPhone', 'CellPhone', 'mobile', 'Mobile']);
+                return raw ? raw.replace(/\D+/g, '') : undefined;
+            })()
         };
         const rawCc = resp.ccInfo || (resp as any).CcInfo || null;
         if (rawCc) {
@@ -257,7 +272,12 @@ export class RegistrationWizardService {
                 firstName: pick(rawCc, ['firstName', 'FirstName']),
                 lastName: pick(rawCc, ['lastName', 'LastName']),
                 streetAddress: pick(rawCc, ['streetAddress', 'StreetAddress', 'address', 'Address']),
-                zip: pick(rawCc, ['zip', 'Zip', 'zipCode', 'ZipCode', 'postalCode', 'PostalCode'])
+                zip: pick(rawCc, ['zip', 'Zip', 'zipCode', 'ZipCode', 'postalCode', 'PostalCode']),
+                email: pick(rawCc, ['email', 'Email']),
+                phone: (() => {
+                    const raw = pick(rawCc, ['phone', 'Phone']);
+                    return raw ? raw.replaceAll(/\D+/g, '') : undefined;
+                })()
             };
         }
         this.familyUser.set(norm);

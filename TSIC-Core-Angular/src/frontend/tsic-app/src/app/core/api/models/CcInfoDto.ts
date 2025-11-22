@@ -7,4 +7,6 @@ export type CcInfoDto = {
     lastName?: string | null;
     streetAddress?: string | null;
     zip?: string | null;
+    email?: string | null;
+    phone?: string | null;
 };

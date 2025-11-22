@@ -248,13 +248,6 @@ export class TeamSelectionComponent {
       // Small timeout to allow view children to render after data arrives
       queueMicrotask(() => this.tryOpenFirstUnassigned());
     });
-    // Attempt to load current job profile config (to detect CAC vs PP) if not already loaded.
-    effect(() => {
-      const cfg = this.profileMigration.currentJobProfileConfig();
-      if (!cfg) {
-        try { this.profileMigration.getCurrentJobProfileConfig(() => { /* no-op */ }); } catch { /* ignore */ }
-      }
-    });
   }
 
   isRegistered(playerId: string): boolean {
