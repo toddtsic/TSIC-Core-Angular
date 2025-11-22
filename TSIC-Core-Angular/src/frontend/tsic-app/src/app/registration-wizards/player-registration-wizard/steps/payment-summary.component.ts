@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { RegistrationWizardService } from '../registration-wizard.service';
 import { CommonModule } from '@angular/common';
 import { PaymentService } from '../services/payment.service';
 
@@ -15,7 +16,7 @@ import { PaymentService } from '../services/payment.service';
         <tr>
           <th>Player</th>
           <th>Team</th>
-          @if (svc.isArbScenario()) { <th>Per Interval</th><th>Total</th> }
+          @if (svc.isArbScenario()) { <th>Active ARB</th><th>Subscription ID</th><th>Next Bill</th><th>Per Interval</th><th>Total</th> }
           @else if (svc.isDepositScenario()) { <th>Deposit</th><th>Pay In Full</th> }
           @else { <th>Amount</th> }
         </tr>
@@ -26,6 +27,17 @@ import { PaymentService } from '../services/payment.service';
             <td>{{ li.playerName }}</td>
             <td>{{ li.teamName }}</td>
             @if (svc.isArbScenario()) {
+              <td>
+                @if (activeArb(li.playerId)) {
+                  <span class="text-success" aria-label="Active subscription" title="Active subscription">&#10003;</span>
+                } @else if (hasSub(li.playerId)) {
+                  <span class="text-warning" aria-label="Subscription issue" title="Subscription issue">&#9888;</span>
+                } @else {
+                  <span class="text-muted" aria-label="No subscription" title="No subscription">&ndash;</span>
+                }
+              </td>
+              <td>{{ subscriptionId(li.playerId) || '-' }}</td>
+              <td>{{ nextBillDate(li.playerId) }}</td>
               <td>{{ (li.amount / svc.arbOccurrences()) | currency }}</td>
               <td>{{ li.amount | currency }}</td>
             } @else if (svc.isDepositScenario()) {
@@ -39,9 +51,9 @@ import { PaymentService } from '../services/payment.service';
         </tbody>
         <tfoot>
         @if (svc.isArbScenario()) {
-          <tr><th colspan="2" class="text-end">Per Interval Total</th>
-              <th>{{ svc.arbPerOccurrence() | currency }}</th>
-              <th class="text-muted small">(of {{ svc.totalAmount() | currency }})</th></tr>
+              <tr><th colspan="5" class="text-end">Per Interval Total</th>
+                <th>{{ svc.arbPerOccurrence() | currency }}</th>
+                <th class="text-muted small">(of {{ svc.totalAmount() | currency }})</th></tr>
         } @else if (svc.isDepositScenario()) {
           <tr><th colspan="2" class="text-end">Deposit Total</th>
               <th>{{ svc.depositTotal() | currency }}</th>
@@ -59,5 +71,44 @@ import { PaymentService } from '../services/payment.service';
   `
 })
 export class PaymentSummaryComponent {
-    constructor(public svc: PaymentService) { }
+  constructor(public svc: PaymentService, private readonly wizard: RegistrationWizardService) { }
+  activeArb(playerId: string): boolean {
+    const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
+    if (!p) return false;
+    return p.priorRegistrations.some(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
+  }
+  hasSub(playerId: string): boolean {
+    const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
+    if (!p) return false;
+    return p.priorRegistrations.some(r => !!r.adnSubscriptionId);
+  }
+  subscriptionId(playerId: string): string | null {
+    const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
+    if (!p) return null;
+    const reg = p.priorRegistrations.find(r => !!r.adnSubscriptionId);
+    return reg?.adnSubscriptionId ?? null;
+  }
+  nextBillDate(playerId: string): string {
+    const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
+    if (!p) return '-';
+    const reg = p.priorRegistrations.find(r => !!r.adnSubscriptionId);
+    if (!reg) return '-';
+    if ((reg.adnSubscriptionStatus || '').toLowerCase() !== 'active') return 'Issue';
+    const startRaw = reg.adnSubscriptionStartDate;
+    const interval = reg.adnSubscriptionIntervalLength || 1;
+    const occur = reg.adnSubscriptionBillingOccurences || 0;
+    if (!startRaw) return '-';
+    const start = new Date(startRaw);
+    if (Number.isNaN(start.getTime())) return '-';
+    const today = new Date();
+    // Generate schedule dates until we find next >= today
+    for (let i = 0; i < occur; i++) {
+      const d = new Date(start);
+      d.setMonth(d.getMonth() + interval * i);
+      if (d >= today) {
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    }
+    return 'Completed';
+  }
 }

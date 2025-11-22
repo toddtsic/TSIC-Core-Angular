@@ -25,6 +25,10 @@ public record FamilyPlayerRegistrationDto(
     string? AssignedTeamName,
     string? AdnSubscriptionId,
     string? AdnSubscriptionStatus,
+    decimal? AdnSubscriptionAmountPerOccurence,
+    short? AdnSubscriptionBillingOccurences,
+    short? AdnSubscriptionIntervalLength,
+    DateTime? AdnSubscriptionStartDate,
     IReadOnlyDictionary<string, JsonElement> FormFieldValues
 );
 

@@ -19,6 +19,10 @@ export interface FamilyPlayerRegistration {
     assignedTeamName?: string | null;
     adnSubscriptionId?: string | null;
     adnSubscriptionStatus?: string | null;
+    adnSubscriptionAmountPerOccurence?: number | null;
+    adnSubscriptionBillingOccurences?: number | null;
+    adnSubscriptionIntervalLength?: number | null;
+    adnSubscriptionStartDate?: string | null;
     // Server now sends visible-only values as formFieldValues; keep formValues as client-normalized alias
     formValues: Record<string, any>;
     formFieldValues?: Record<string, any>;

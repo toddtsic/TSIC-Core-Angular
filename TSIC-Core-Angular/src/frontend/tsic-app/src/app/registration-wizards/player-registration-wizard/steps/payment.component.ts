@@ -50,9 +50,9 @@ import type { LineItem } from '../services/payment.service';
 
         <app-payment-summary></app-payment-summary>
         <!-- ARB subscription state messaging / option gating -->
-        @if (arbAllActive()) {
-          <div class="alert alert-success border-0" role="status">
-            Automated Recurring Billing subscription is active for your registration(s). No further payment action is required.
+        @if (arbHideAllOptions()) {
+          <div class=\"alert alert-success border-0\" role=\"status\">
+            All selected registrations have an active Automated Recurring Billing subscription. No payment action is required.
           </div>
         } @else if (arbProblemAny()) {
           <div class="alert alert-danger border-0" role="alert">
@@ -241,7 +241,7 @@ export class PaymentComponent implements AfterViewInit {
   showNoPaymentInfo(): boolean { return this.currentTotal() === 0 && !this.isViCcOnlyFlow(); }
   canSubmit(): boolean {
     // Hide submit when all ARB subs active (nothing to do)
-    if (this.arbAllActive()) return false;
+    if (this.arbHideAllOptions()) return false;
     const tsicCharge = this.lineItems().length > 0 && this.currentTotal() > 0;
     const viOnly = this.isViCcOnlyFlow();
     const ccNeeded = this.showCcSection();
@@ -347,6 +347,46 @@ export class PaymentComponent implements AfterViewInit {
           } catch { /* ignore */ }
           this.submitted.emit();
           this.submitting = false;
+          // If ARB subscriptions were created, patch local priorRegistrations so UI reflects active status immediately.
+          if (this.paymentState.paymentOption() === 'ARB' && response.subscriptionIds) {
+            try {
+              const map = response.subscriptionIds;
+              const famPlayers = this.state.familyPlayers();
+              const updated = famPlayers.map(fp => {
+                if (!fp.priorRegistrations?.length) return fp;
+                const prior = fp.priorRegistrations.map(r => {
+                  const subId = map[r.registrationId];
+                  if (subId) {
+                    return {
+                      ...r,
+                      adnSubscriptionId: subId,
+                      adnSubscriptionStatus: 'active'
+                    };
+                  }
+                  return r;
+                });
+                return { ...fp, priorRegistrations: prior };
+              });
+              this.state.familyPlayers.set(updated);
+            } catch { /* ignore */ }
+          } else if (this.paymentState.paymentOption() === 'ARB' && response.subscriptionId) {
+            // Single subscription case
+            try {
+              const famPlayers = this.state.familyPlayers();
+              const updated = famPlayers.map(fp => {
+                if (!fp.priorRegistrations?.length) return fp;
+                // Apply to first prior registration lacking a subscription id
+                const prior = fp.priorRegistrations.map(r => {
+                  if (!r.adnSubscriptionId) {
+                    return { ...r, adnSubscriptionId: response.subscriptionId!, adnSubscriptionStatus: 'active' };
+                  }
+                  return r;
+                });
+                return { ...fp, priorRegistrations: prior };
+              });
+              this.state.familyPlayers.set(updated);
+            } catch { /* ignore */ }
+          }
           // After successful TSIC charge, if insurance was offered and quotes exist, purchase RegSaver policies.
           if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
             this.insuranceSvc.purchaseInsurance();
@@ -464,10 +504,10 @@ export class PaymentComponent implements AfterViewInit {
     const playerIds = new Set(this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId));
     return this.state.familyPlayers().filter(p => playerIds.has(p.playerId)).flatMap(p => p.priorRegistrations || []);
   }
-  arbAllActive(): boolean {
+  // Hide payment options when ALL relevant registrations have an active subscription (future billing handled automatically).
+  arbHideAllOptions(): boolean {
     const regs = this.relevantRegs();
     if (!regs.length) return false;
-    // Every registration must have an active subscription
     return regs.every(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
   }
   arbProblemAny(): boolean {

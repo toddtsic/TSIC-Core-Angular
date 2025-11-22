@@ -314,6 +314,10 @@ export class RegistrationWizardService {
                 sportAssnId: r.sportAssnId ?? r.SportAssnId ?? null,
                 adnSubscriptionId: r.adnSubscriptionId ?? r.AdnSubscriptionId ?? null,
                 adnSubscriptionStatus: r.adnSubscriptionStatus ?? r.AdnSubscriptionStatus ?? null,
+                adnSubscriptionAmountPerOccurence: r.adnSubscriptionAmountPerOccurence ?? r.AdnSubscriptionAmountPerOccurence ?? null,
+                adnSubscriptionBillingOccurences: r.adnSubscriptionBillingOccurences ?? r.AdnSubscriptionBillingOccurences ?? null,
+                adnSubscriptionIntervalLength: r.adnSubscriptionIntervalLength ?? r.AdnSubscriptionIntervalLength ?? null,
+                adnSubscriptionStartDate: r.adnSubscriptionStartDate ?? r.AdnSubscriptionStartDate ?? null,
                 formValues: normalizeFormValues(
                     r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues
                 )
