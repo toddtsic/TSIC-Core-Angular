@@ -5,6 +5,7 @@ using TSIC.API.Dtos;
 using TSIC.API.Services;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using Microsoft.Extensions.Logging;
 
 namespace TSIC.API.Controllers;
 
@@ -14,11 +15,13 @@ public class RegistrationPaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
     private readonly SqlDbContext _db;
+    private readonly ILogger<RegistrationPaymentController> _logger;
 
-    public RegistrationPaymentController(IPaymentService paymentService, SqlDbContext db)
+    public RegistrationPaymentController(IPaymentService paymentService, SqlDbContext db, ILogger<RegistrationPaymentController> logger)
     {
         _paymentService = paymentService;
         _db = db;
+        _logger = logger;
     }
 
     [HttpPost("submit-payment")]
@@ -28,6 +31,7 @@ public class RegistrationPaymentController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> SubmitPayment([FromBody] PaymentRequestDto request)
     {
+        _logger.LogInformation("SubmitPayment invoked: jobId={JobId} familyUserId={FamilyUserId} option={Option}", request?.JobId, request?.FamilyUserId, request?.PaymentOption);
         if (request == null || request.CreditCard == null)
         {
             return BadRequest(new { message = "Invalid payment request" });
@@ -41,6 +45,7 @@ public class RegistrationPaymentController : ControllerBase
         }
 
         var result = await _paymentService.ProcessPaymentAsync(request, callerId);
+        _logger.LogInformation("SubmitPayment completed: success={Success} errorCode={ErrorCode} txn={Txn} subId={SubId}", result.Success, result.ErrorCode, result.TransactionId, result.SubscriptionId);
 
         // Always return structured PaymentResponseDto to client (200) so UI can display message
         // rather than treating gateway / ARB failures as transport errors (400).
@@ -58,6 +63,7 @@ public class RegistrationPaymentController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> ApplyDiscount([FromBody] ApplyDiscountRequestDto request)
     {
+        _logger.LogInformation("ApplyDiscount invoked: jobId={JobId} familyUserId={FamilyUserId} code={Code} items={ItemCount}", request?.JobId, request?.FamilyUserId, request?.Code, request?.Items?.Count);
         if (request == null || string.IsNullOrWhiteSpace(request.Code) || request.Items == null)
         {
             return BadRequest(new { message = "Invalid request" });
@@ -157,6 +163,7 @@ public class RegistrationPaymentController : ControllerBase
         response.TotalDiscount = totalDiscount;
         response.PerPlayer = perPlayer;
         response.Message = response.Success ? "Discount applied" : "No discount applicable";
+        _logger.LogInformation("ApplyDiscount completed: success={Success} totalDiscount={TotalDiscount} players={PlayerCount}", response.Success, response.TotalDiscount, response.PerPlayer?.Count);
         return Ok(response);
     }
 }

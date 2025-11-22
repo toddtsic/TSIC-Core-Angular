@@ -4,10 +4,10 @@ import { CommonModule } from '@angular/common';
 import { PaymentService } from '../services/payment.service';
 
 @Component({
-    selector: 'app-payment-summary',
-    standalone: true,
-    imports: [CommonModule],
-    template: `
+  selector: 'app-payment-summary',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="pay-summary-title" class="fw-semibold mb-2">Payment Summary</h6>
@@ -16,7 +16,7 @@ import { PaymentService } from '../services/payment.service';
         <tr>
           <th>Player</th>
           <th>Team</th>
-          @if (svc.isArbScenario()) { <th>Active ARB</th><th>Subscription ID</th><th>Next Bill</th><th>Per Interval</th><th>Total</th> }
+          @if (svc.isArbScenario()) { <th>Active ARB</th><th>Subscription ID</th><th>Next Bill (Progress)</th><th>Per Interval</th><th>Total</th> }
           @else if (svc.isDepositScenario()) { <th>Deposit</th><th>Pay In Full</th> }
           @else { <th>Amount</th> }
         </tr>
@@ -37,7 +37,16 @@ import { PaymentService } from '../services/payment.service';
                 }
               </td>
               <td>{{ subscriptionId(li.playerId) || '-' }}</td>
-              <td>{{ nextBillDate(li.playerId) }}</td>
+              <td [title]="scheduleTooltip(li.playerId)">
+                <ng-container *ngIf="arbProgress(li.playerId) as prog">
+                  <ng-container [ngSwitch]="prog.state">
+                    <span *ngSwitchCase="'issue'" class="text-warning">Issue</span>
+                    <span *ngSwitchCase="'pending'">{{ prog.nextDate | date:'MMM d, y'}} ({{ prog.nextIndex + 1 }}/{{ prog.total }})</span>
+                    <span *ngSwitchCase="'completed'" class="badge bg-success-subtle text-success border">Completed</span>
+                    <span *ngSwitchDefault>-</span>
+                  </ng-container>
+                </ng-container>
+              </td>
               <td>{{ (li.amount / svc.arbOccurrences()) | currency }}</td>
               <td>{{ li.amount | currency }}</td>
             } @else if (svc.isDepositScenario()) {
@@ -88,27 +97,42 @@ export class PaymentSummaryComponent {
     const reg = p.priorRegistrations.find(r => !!r.adnSubscriptionId);
     return reg?.adnSubscriptionId ?? null;
   }
-  nextBillDate(playerId: string): string {
+  arbProgress(playerId: string): { state: 'none' | 'issue' | 'pending' | 'completed'; nextDate?: Date; nextIndex: number; total: number; } {
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
-    if (!p) return '-';
+    if (!p) return { state: 'none', nextIndex: -1, total: 0 };
     const reg = p.priorRegistrations.find(r => !!r.adnSubscriptionId);
-    if (!reg) return '-';
-    if ((reg.adnSubscriptionStatus || '').toLowerCase() !== 'active') return 'Issue';
+    if (!reg) return { state: 'none', nextIndex: -1, total: 0 };
+    const status = (reg.adnSubscriptionStatus || '').toLowerCase();
+    if (status !== 'active') return { state: 'issue', nextIndex: -1, total: reg.adnSubscriptionBillingOccurences || 0 };
     const startRaw = reg.adnSubscriptionStartDate;
     const interval = reg.adnSubscriptionIntervalLength || 1;
     const occur = reg.adnSubscriptionBillingOccurences || 0;
-    if (!startRaw) return '-';
-    const start = new Date(startRaw);
-    if (Number.isNaN(start.getTime())) return '-';
+    if (!startRaw || occur <= 0) return { state: 'none', nextIndex: -1, total: occur };
+    const start = new Date(startRaw); if (Number.isNaN(start.getTime())) return { state: 'none', nextIndex: -1, total: occur };
     const today = new Date();
-    // Generate schedule dates until we find next >= today
+    let nextDate: Date | undefined;
+    let nextIndex = -1;
     for (let i = 0; i < occur; i++) {
       const d = new Date(start);
       d.setMonth(d.getMonth() + interval * i);
-      if (d >= today) {
-        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      }
+      if (d >= today) { nextDate = d; nextIndex = i; break; }
     }
-    return 'Completed';
+    if (!nextDate) return { state: 'completed', nextIndex: occur, total: occur };
+    return { state: 'pending', nextDate, nextIndex, total: occur };
+  }
+  scheduleTooltip(playerId: string): string {
+    const prog = this.arbProgress(playerId);
+    if (prog.state === 'none') return 'No subscription';
+    if (prog.state === 'issue') return 'Subscription issue – contact club';
+    const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
+    const reg = p?.priorRegistrations.find(r => !!r.adnSubscriptionId);
+    if (!reg) return 'No subscription';
+    const startRaw = reg.adnSubscriptionStartDate; const interval = reg.adnSubscriptionIntervalLength || 1; const occur = reg.adnSubscriptionBillingOccurences || 0;
+    if (!startRaw || occur <= 0) return 'Subscription scheduled';
+    const start = new Date(startRaw); if (Number.isNaN(start.getTime())) return 'Subscription scheduled';
+    const end = new Date(start); end.setMonth(end.getMonth() + interval * (occur - 1));
+    if (prog.state === 'completed') return `Completed (${occur} of ${occur}) schedule ended ${end.toLocaleDateString()}`;
+    const nextHuman = prog.nextDate ? prog.nextDate.toLocaleDateString() : 'Unknown';
+    return `Billing ${occur} intervals starting ${start.toLocaleDateString()} ending ${end.toLocaleDateString()} • Next: ${nextHuman} (${prog.nextIndex + 1}/${occur})`;
   }
 }

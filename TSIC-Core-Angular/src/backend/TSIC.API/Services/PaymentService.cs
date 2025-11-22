@@ -49,10 +49,12 @@ public class PaymentService : IPaymentService
     private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, CreditCardInfo? Card)> ValidatePaymentRequestAsync(PaymentRequestDto request)
     {
         if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null);
-        var job = await _db.Jobs.Where(j => j.JobId == request.JobId)
-            .Select(j => new JobInfo(j.AdnArb, j.AdnArbbillingOccurences, j.AdnArbintervalLength, j.AdnArbstartDate)).SingleOrDefaultAsync();
+        var jobQuery = _db.Jobs.Where(j => j.JobId == request.JobId)
+            .Select(j => new JobInfo(j.AdnArb, j.AdnArbbillingOccurences, j.AdnArbintervalLength, j.AdnArbstartDate));
+        var job = await jobQuery.SingleOrDefaultAsync();
         if (job == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
-        var registrations = await _db.Registrations.Where(r => r.JobId == request.JobId && r.FamilyUserId == request.FamilyUserId.ToString() && r.UserId != null).ToListAsync();
+        var regsQuery = _db.Registrations.Where(r => r.JobId == request.JobId && r.FamilyUserId == request.FamilyUserId.ToString() && r.UserId != null);
+        var registrations = await regsQuery.ToListAsync();
         if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
         if (request.PaymentOption == PaymentOption.ARB && job.AdnArb != true) return (Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED"), null, null, null);
         if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
@@ -74,6 +76,17 @@ public class PaymentService : IPaymentService
 
     private async Task<PaymentResponseDto> ProcessArbAsync(PaymentRequestDto request, string userId, List<Registrations> registrations, JobInfo job, CreditCardInfo cc)
     {
+        // Early exit: if every registration already has an active ARB subscription, avoid duplicate gateway calls
+        if (registrations.All(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId) && string.Equals(r.AdnSubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase)))
+        {
+            return new PaymentResponseDto
+            {
+                Success = false,
+                Message = "All selected registrations already have active subscriptions.",
+                ErrorCode = "ARB_ALREADY_ACTIVE",
+                SubscriptionIds = registrations.Where(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId)).ToDictionary(r => r.RegistrationId, r => r.AdnSubscriptionId!)
+            };
+        }
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(_db, request.JobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
         {
@@ -101,7 +114,7 @@ public class PaymentService : IPaymentService
         if (!string.IsNullOrWhiteSpace(request.IdempotencyKey) && await IsDuplicateAsync(request))
             return new PaymentResponseDto { Success = true, Message = "Duplicate prevented (idempotent).", ErrorCode = "DUPLICATE_PREVENTED" };
         // Build deterministic invoice number using first registration (pattern: customerAI_jobAI_registrationAI)
-        var invoiceReg = registrations.First();
+        var invoiceReg = registrations[0];
         var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(request.JobId, invoiceReg.RegistrationId);
         var response = _adnApiService.ADN_Charge(new AdnChargeRequest(
             Env: env,
@@ -388,12 +401,12 @@ public class PaymentService : IPaymentService
     {
         try
         {
-            var data = await _db.Registrations
+            var q = _db.Registrations
                 .Where(r => r.RegistrationId == registrationId && r.JobId == jobId)
                 .Join(_db.Jobs, r => r.JobId, j => j.JobId, (r, j) => new { r, j })
                 .Join(_db.Customers, x => x.j.CustomerId, c => c.CustomerId, (x, c) => new { x.r, x.j, c })
-                .Select(x => new { x.c.CustomerAi, x.j.JobAi, x.r.RegistrationAi })
-                .SingleOrDefaultAsync();
+                .Select(x => new { x.c.CustomerAi, x.j.JobAi, x.r.RegistrationAi });
+            var data = await q.SingleOrDefaultAsync();
             if (data == null)
             {
                 _logger.LogWarning("Invoice build fallback (missing entities) for registration {RegistrationId} job {JobId}.", registrationId, jobId);
@@ -422,11 +435,11 @@ public class PaymentService : IPaymentService
         try
         {
             // Player + Job info
-            var pj = await _db.Registrations
+            var pjQuery = _db.Registrations
                 .Where(r => r.RegistrationId == reg.RegistrationId)
                 .Join(_db.Jobs, r => r.JobId, j => j.JobId, (r, j) => new { r, j })
-                .Join(_db.AspNetUsers, x => x.r.UserId, u => u.Id, (x, u) => new { x.r, x.j.JobName, u.FirstName, u.LastName, u.UserName })
-                .SingleOrDefaultAsync();
+                .Join(_db.AspNetUsers, x => x.r.UserId, u => u.Id, (x, u) => new { x.r, x.j.JobName, u.FirstName, u.LastName, u.UserName });
+            var pj = await pjQuery.SingleOrDefaultAsync();
             string playerFirst = pj?.FirstName?.Trim() ?? "Player";
             string playerLast = pj?.LastName?.Trim() ?? pj?.UserName?.Trim() ?? reg.RegistrationAi.ToString();
             string jobName = pj?.JobName?.Trim() ?? "Registration";
@@ -435,10 +448,10 @@ public class PaymentService : IPaymentService
             string? agegroupName = null;
             if (reg.AssignedTeamId.HasValue)
             {
-                var ta = await _db.Teams
+                var taQuery = _db.Teams
                     .Where(t => t.TeamId == reg.AssignedTeamId.Value)
-                    .Select(t => new { t.TeamName, AgegroupName = t.Agegroup.AgegroupName })
-                    .SingleOrDefaultAsync();
+                    .Select(t => new { t.TeamName, AgegroupName = t.Agegroup.AgegroupName });
+                var ta = await taQuery.SingleOrDefaultAsync();
                 if (ta != null)
                 {
                     teamName = ta.TeamName;

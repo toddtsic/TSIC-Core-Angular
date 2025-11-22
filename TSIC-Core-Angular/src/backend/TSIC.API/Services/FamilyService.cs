@@ -158,26 +158,37 @@ public sealed class FamilyService : IFamilyService
         if (linkedChildIds.Count == 0)
             return new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>(), CcInfo: ccInfo, JobHasActiveDiscountCodes: jobHasActiveDiscountCodes, JobUsesAmex: jobUsesAmex);
 
-        var regsRaw = jobId == null
-            ? new List<TSIC.Domain.Entities.Registrations>()
-            : await _db.Registrations
+        // Capture registrations query separately so we can emit SQL for diagnostics (Dev only)
+        List<TSIC.Domain.Entities.Registrations> regsRaw;
+        if (jobId == null)
+        {
+            regsRaw = new List<TSIC.Domain.Entities.Registrations>();
+        }
+        else
+        {
+            var regsQuery = _db.Registrations
                 .AsNoTracking()
-                .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && linkedChildIds.Contains(r.UserId))
-                .ToListAsync();
+                .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && linkedChildIds.Contains(r.UserId));
+            regsRaw = await regsQuery.ToListAsync();
+        }
 
         var regSet = regsRaw.Select(x => x.UserId!).Distinct().ToHashSet(StringComparer.Ordinal);
 
-        var metadataJson = jobId == null ? null : await _db.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.PlayerProfileMetadataJson)
-            .SingleOrDefaultAsync();
-
-        string? rawJsonOptions = jobId == null ? null : await _db.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.JsonOptions)
-            .SingleOrDefaultAsync();
+        string? metadataJson = null;
+        string? rawJsonOptions = null;
+        if (jobId != null)
+        {
+            metadataJson = await _db.Jobs
+                .AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => j.PlayerProfileMetadataJson)
+                .SingleOrDefaultAsync();
+            rawJsonOptions = await _db.Jobs
+                .AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => j.JsonOptions)
+                .SingleOrDefaultAsync();
+        }
 
         // Parse metadata/options via reusable service
         var parsed = _profileMeta.Parse(metadataJson, rawJsonOptions);
@@ -241,8 +252,8 @@ public sealed class FamilyService : IFamilyService
                         r.AdnSubscriptionId,
                         r.AdnSubscriptionStatus,
                         r.AdnSubscriptionAmountPerOccurence,
-                        r.AdnSubscriptionBillingOccurences,
-                        r.AdnSubscriptionIntervalLength,
+                        r.AdnSubscriptionBillingOccurences.HasValue ? (short?)r.AdnSubscriptionBillingOccurences.Value : null,
+                        r.AdnSubscriptionIntervalLength.HasValue ? (short?)r.AdnSubscriptionIntervalLength.Value : null,
                         r.AdnSubscriptionStartDate,
                         formFieldValues ?? new Dictionary<string, JsonElement>()
                     );
