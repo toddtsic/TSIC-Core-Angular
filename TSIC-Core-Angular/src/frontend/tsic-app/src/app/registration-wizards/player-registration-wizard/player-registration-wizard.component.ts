@@ -340,13 +340,16 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             this.toast.show('Insurance premium requires credit card submission. Use "Proceed with Insurance Processing" after entering card details.', 'danger', 5000);
             return;
         }
+        // Treat existing stored policy (regSaverDetails) as a confirmed decision even if viConsent signal not set (persistence from earlier session)
+        const policyOnFile = !!this.insuranceState.regSaverDetails();
         if (!this.insuranceState.offerPlayerRegSaver()) { this.advanceToConfirmation(); return; }
-        if (!this.insuranceState.hasVerticalInsureDecision()) {
-            this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
+        const noDecisionYet = !policyOnFile && !this.insuranceState.hasVerticalInsureDecision();
+        if (noDecisionYet) {
+            this.toast.show('Insurance is optional. Please Confirm Purchase or Decline to continue.', 'danger', 4000);
             return;
         }
         if (this.insuranceState.verticalInsureDeclined()) { this.advanceToConfirmation(); return; }
-        if (this.insuranceState.verticalInsureConfirmed()) { this.advanceToConfirmation(); }
+        if (this.insuranceState.verticalInsureConfirmed() || policyOnFile) { this.advanceToConfirmation(); }
     }
     private advanceToConfirmation(): void {
         const confIdx = this.steps().indexOf('confirmation');

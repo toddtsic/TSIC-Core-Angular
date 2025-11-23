@@ -143,6 +143,9 @@ export class RegistrationWizardService {
         message?: string | null;
     } | null>(null);
 
+    // Confirmation DTO from backend (Finish tab)
+    confirmation = signal<PlayerRegConfirmationDto | null>(null);
+
     reset(): void {
         this.hasFamilyAccount.set(null);
         this.familyPlayers.set([]);
@@ -151,6 +154,7 @@ export class RegistrationWizardService {
         this.formData.set({});
         this.paymentOption.set('PIF');
         this.lastPayment.set(null);
+        this.confirmation.set(null);
         this.familyUser.set(null);
         this.jobProfileMetadataJson.set(null);
         this.jobJsonOptions.set(null);
@@ -837,6 +841,22 @@ export class RegistrationWizardService {
         } catch { /* SSR or no window */ }
         return environment.apiUrl.endsWith('/api') ? environment.apiUrl : `${environment.apiUrl}/api`;
     }
+
+    /** Load confirmation summary (financial + insurance + substituted HTML) after payment/insurance flows complete. */
+    loadConfirmation(): void {
+        const jobId = this.jobId();
+        const familyUserId = this.familyUser()?.familyUserId;
+        if (!jobId || !familyUserId) return;
+        const base = this.resolveApiBase();
+        this.http.get<PlayerRegConfirmationDto>(`${base}/registration/confirmation`, { params: { jobId, familyUserId } })
+            .subscribe({
+                next: dto => this.confirmation.set(dto),
+                error: err => {
+                    try { console.warn('[RegWizard] Confirmation fetch failed', err); } catch { /* no-op */ }
+                    this.confirmation.set(null);
+                }
+            });
+    }
     private parsedJobOptions: Json | null | undefined;
     private getJobOptionsObject(): Json | null {
         if (this.parsedJobOptions !== undefined) return this.parsedJobOptions;
@@ -1150,4 +1170,44 @@ function deriveConstraintTypeFromJsonOptions(raw: string | null | undefined): st
     } catch {
         return null;
     }
+}
+
+// --- Confirmation DTO interfaces (backend parity) ---
+export interface PlayerRegFinancialLineDto {
+    registrationId: string;
+    playerName: string;
+    teamName: string;
+    feeTotal: number;
+    discountCodes: string[];
+}
+export interface PlayerRegTsicFinancialDto {
+    wasImmediateCharge: boolean;
+    wasArb: boolean;
+    amountCharged: number;
+    currency: string;
+    transactionId?: string;
+    paymentMethodMasked?: string;
+    nextArbBillDate?: string | null;
+    totalOriginal: number;
+    totalDiscounts: number;
+    totalNet: number;
+    lines: PlayerRegFinancialLineDto[];
+}
+export interface PlayerRegPolicyDto {
+    registrationId: string;
+    policyNumber: string;
+    issuedUtc: string;
+    insurableAmountCents: number;
+}
+export interface PlayerRegInsuranceStatusDto {
+    offered: boolean;
+    selected: boolean;
+    declined: boolean;
+    purchaseSucceeded: boolean;
+    policies: PlayerRegPolicyDto[];
+}
+export interface PlayerRegConfirmationDto {
+    tsic: PlayerRegTsicFinancialDto;
+    insurance: PlayerRegInsuranceStatusDto;
+    confirmationHtml: string;
 }

@@ -36,6 +36,7 @@ builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();
+builder.Services.AddScoped<IPlayerRegConfirmationService, PlayerRegConfirmationService>();
 // VerticalInsure named HttpClient registration (base address only; secrets via env vars VI_DEV_SECRET/VI_PROD_SECRET)
 builder.Services.AddHttpClient("verticalinsure", (sp, c) =>
 {

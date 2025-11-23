@@ -16,7 +16,7 @@ import { PaymentService } from '../services/payment.service';
         <tr>
           <th>Player</th>
           <th>Team</th>
-          @if (svc.isArbScenario()) { <th>Active ARB</th><th>Subscription ID</th><th>Next Bill (Progress)</th><th>Per Interval</th><th>Total</th> }
+          @if (svc.isArbScenario()) { <th>Active ARB</th><th>Subscription ID</th><th>Next Bill (Progress)</th><th># Intervals</th><th>Per Interval</th><th>Total</th> }
           @else if (svc.isDepositScenario()) { <th>Deposit</th><th>Pay In Full</th> }
           @else { <th>Amount</th> }
         </tr>
@@ -42,8 +42,16 @@ import { PaymentService } from '../services/payment.service';
                   <ng-container [ngSwitch]="prog.state">
                     <span *ngSwitchCase="'issue'" class="text-warning">Issue</span>
                     <span *ngSwitchCase="'pending'">{{ prog.nextDate | date:'MMM d, y'}} ({{ prog.nextIndex + 1 }}/{{ prog.total }})</span>
-                    <span *ngSwitchCase="'completed'" class="badge bg-success-subtle text-success border">Completed</span>
+                    <span *ngSwitchCase="'completed'" class="badge bg-secondary-subtle text-dark border" title="No further scheduled billing dates">No more due</span>
                     <span *ngSwitchDefault>-</span>
+                  </ng-container>
+                </ng-container>
+              </td>
+              <td>
+                <ng-container *ngIf="arbProgress(li.playerId) as prog">
+                  <ng-container [ngSwitch]="prog.state">
+                    <span *ngSwitchCase="'issue'" class="text-warning">Issue</span>
+                    <span *ngSwitchDefault>{{ prog.total || '-' }}</span>
                   </ng-container>
                 </ng-container>
               </td>
@@ -60,9 +68,9 @@ import { PaymentService } from '../services/payment.service';
         </tbody>
         <tfoot>
         @if (svc.isArbScenario()) {
-              <tr><th colspan="5" class="text-end">Per Interval Total</th>
+              <tr><th colspan="6" class="text-end">Total</th>
                 <th>{{ svc.arbPerOccurrence() | currency }}</th>
-                <th class="text-muted small">(of {{ svc.totalAmount() | currency }})</th></tr>
+                <th>{{ svc.totalAmount() | currency }}</th></tr>
         } @else if (svc.isDepositScenario()) {
           <tr><th colspan="2" class="text-end">Deposit Total</th>
               <th>{{ svc.depositTotal() | currency }}</th>
@@ -131,7 +139,7 @@ export class PaymentSummaryComponent {
     if (!startRaw || occur <= 0) return 'Subscription scheduled';
     const start = new Date(startRaw); if (Number.isNaN(start.getTime())) return 'Subscription scheduled';
     const end = new Date(start); end.setMonth(end.getMonth() + interval * (occur - 1));
-    if (prog.state === 'completed') return `Completed (${occur} of ${occur}) schedule ended ${end.toLocaleDateString()}`;
+    if (prog.state === 'completed') return `Schedule ended ${end.toLocaleDateString()} (${occur} intervals)`;
     const nextHuman = prog.nextDate ? prog.nextDate.toLocaleDateString() : 'Unknown';
     return `Billing ${occur} intervals starting ${start.toLocaleDateString()} ending ${end.toLocaleDateString()} • Next: ${nextHuman} (${prog.nextIndex + 1}/${occur})`;
   }

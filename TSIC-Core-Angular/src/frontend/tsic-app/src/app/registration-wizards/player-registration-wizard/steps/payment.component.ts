@@ -61,44 +61,35 @@ import type { LineItem } from '../services/payment.service';
         } @else {
           <app-payment-option-selector></app-payment-option-selector>
         }
-        <!-- RegSaver / VerticalInsure region with deferred offer only -->
-        <div class="mb-3">
-          @if (state.regSaverDetails()) {
-            <div class="alert alert-info border-0" role="status">
-              <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-info-subtle text-dark border">RegSaver</span>
-                <div>
-                  <div class="fw-semibold">RegSaver policy on file</div>
-                  <div class="small text-muted">Policy #: {{ state.regSaverDetails()!.policyNumber }} • Created: {{ state.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}</div>
-                </div>
+        <!-- RegSaver / VerticalInsure region (render only if offer is active and policy not already on file to avoid blank spacing) -->
+        @if (insuranceState.offerPlayerRegSaver() && !state.regSaverDetails()) {
+          <div class="mb-3">
+            <div #viOffer id="dVIOffer" class="text-center"></div>
+            @if (!insuranceState.hasVerticalInsureDecision()) {
+              <div class="alert alert-secondary border-0 py-2 small" role="alert">
+                Insurance is optional. Choose <strong>Confirm Purchase</strong> or <strong>Decline Insurance</strong> to continue.
               </div>
-            </div>
-          }
-          <div #viOffer id="dVIOffer" class="pb-3 text-center"></div>
-          @if (insuranceState.offerPlayerRegSaver() && !insuranceState.hasVerticalInsureDecision()) {
-            <div class="alert alert-secondary border-0 py-2 small" role="alert">
-              Please review the insurance details above and choose Confirm Purchase or Decline Insurance to continue.
-            </div>
-          }
-          @if (insuranceState.offerPlayerRegSaver() && insuranceState.hasVerticalInsureDecision()) {
-            <div class="mt-2 d-flex flex-column gap-2">
-              <div class="alert" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
-                <div class="d-flex align-items-center gap-2">
-                  <span class="badge" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
-                  <div>
-                    @if (insuranceState.verticalInsureConfirmed()) {
-                      <div class="fw-semibold mb-0">Insurance Selected</div>
-                      <div class="small text-muted" *ngIf="insuranceState.viConsent()?.policyNumber">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
-                    } @else {
-                      <div class="fw-semibold mb-0">Insurance Declined</div>
-                      <div class="small text-muted">You chose not to purchase coverage.</div>
-                    }
+            }
+            @if (insuranceState.hasVerticalInsureDecision()) {
+              <div class="mt-2 d-flex flex-column gap-2">
+                <div class="alert" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
+                    <div>
+                      @if (insuranceState.verticalInsureConfirmed()) {
+                        <div class="fw-semibold mb-0">Insurance Selected</div>
+                        <div class="small text-muted" *ngIf="insuranceState.viConsent()?.policyNumber">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
+                      } @else {
+                        <div class="fw-semibold mb-0">Insurance Declined</div>
+                        <div class="small text-muted">You chose not to purchase coverage.</div>
+                      }
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          }
-        </div>
+            }
+          </div>
+        }
 
         <!-- RegSaver charge confirmation modal (Bootstrap-style) -->
         @if (showViChargeConfirm) {
@@ -113,8 +104,19 @@ import type { LineItem } from '../services/payment.service';
         
         <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
         @if (showNoPaymentInfo()) {
-          <div class="alert alert-info border-0" role="status">
+          <div class="alert alert-info border-0 mb-3" role="status">
             No payments are due at this time.
+          </div>
+        }
+        @if (state.regSaverDetails()) {
+          <div class="alert alert-info border-0 mb-3" role="status">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-info-subtle text-dark border">RegSaver</span>
+              <div>
+                <div class="fw-semibold">RegSaver policy on file</div>
+                <div class="small text-muted">Policy #: {{ state.regSaverDetails()!.policyNumber }} • Created: {{ state.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}</div>
+              </div>
+            </div>
           </div>
         }
 
@@ -298,13 +300,14 @@ export class PaymentComponent implements AfterViewInit {
 
   submit(): void {
     if (this.submitting) return;
-    // Gate: if RegSaver is offered but no user response yet, require a decision before continuing.
-    if (this.insuranceState.offerPlayerRegSaver()) {
-      const noResponse = !this.insuranceSvc.hasUserResponse() && this.isViOfferVisible();
-      if (noResponse) {
-        this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
-        return;
-      }
+    // Gate: require insurance decision ONLY if offered AND user has not confirmed nor declined AND no existing stored policy.
+    const needInsuranceDecision = this.insuranceState.offerPlayerRegSaver()
+      && !this.insuranceState.verticalInsureConfirmed()
+      && !this.insuranceState.verticalInsureDeclined()
+      && !this.state.regSaverDetails();
+    if (needInsuranceDecision && this.isViOfferVisible()) {
+      this.toast.show('Insurance is optional. Please Confirm Purchase or Decline to continue.', 'danger', 4000);
+      return;
     }
     // Frontend CC validation hard stop (defensive against accidental blank submits)
     if (this.showCcSection() && !this.ccValid) {
