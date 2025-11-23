@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TSIC.API.Dtos;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -16,6 +11,22 @@ public interface IPlayerRegConfirmationService
 
 public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
 {
+    private sealed record RegRow(
+        Guid RegistrationId,
+        string PlayerFirst,
+        string PlayerLast,
+        string TeamName,
+        decimal FeeTotal,
+        decimal PaidTotal,
+        decimal OwedTotal,
+        string? RegsaverPolicyId,
+        DateTime? RegsaverPolicyIdCreateDate,
+        string? AdnSubscriptionId,
+        string? AdnSubscriptionStatus,
+        DateTime? AdnSubscriptionStartDate,
+        int? AdnSubscriptionIntervalLength,
+        int? AdnSubscriptionBillingOccurences,
+        decimal? AdnSubscriptionAmountPerOccurence);
     private readonly SqlDbContext _db;
     private readonly ITextSubstitutionService _subs;
     private readonly ILogger<PlayerRegConfirmationService> _logger;
@@ -35,32 +46,35 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
             _logger.LogWarning("Confirmation build: job {JobId} not found", jobId);
             return EmptyDto();
         }
+        // Deconstruct tuple to avoid nullable tuple member access issues.
+        var (_, _, jobPath, _, confirmationTemplate) = job.Value; // jobName unused; confirmationTemplate may be null
+
         var regs = await LoadRegistrationsAsync(jobId, familyUserId, ct);
         var tsic = await BuildTsicFinancialAsync(regs, ct);
         var insurance = BuildInsuranceStatus(regs);
-        var html = await BuildConfirmationHtmlAsync(job.JobPath, job.PlayerRegConfirmationOnScreen, familyUserId);
+        var html = await BuildConfirmationHtmlAsync(jobPath, confirmationTemplate, familyUserId);
         return new PlayerRegConfirmationDto(tsic, insurance, html);
     }
 
-    private Task<(Guid JobId, string JobName, string JobPath, bool? AdnArb, string? PlayerRegConfirmationOnScreen, int? Arbrecurintervalnumber, int? Arbrecurinterval)?> LoadJobAsync(Guid jobId, CancellationToken ct)
+    private async Task<(Guid JobId, string? JobName, string JobPath, bool? AdnArb, string? PlayerRegConfirmationOnScreen)?> LoadJobAsync(Guid jobId, CancellationToken ct)
     {
-        return _db.Jobs.AsNoTracking()
+        var x = await _db.Jobs.AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationOnScreen, j.Arbrecurintervalnumber, j.Arbrecurinterval })
-            .Select(x => (x.JobId, x.JobName, x.JobPath, x.AdnArb, x.PlayerRegConfirmationOnScreen, x.Arbrecurintervalnumber, x.Arbrecurinterval))
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationOnScreen })
             .FirstOrDefaultAsync(ct);
+        if (x == null) return null;
+        return (x.JobId, x.JobName, x.JobPath, x.AdnArb, x.PlayerRegConfirmationOnScreen);
     }
 
-    private Task<List<dynamic>> LoadRegistrationsAsync(Guid jobId, string familyUserId, CancellationToken ct)
+    private Task<List<RegRow>> LoadRegistrationsAsync(Guid jobId, string familyUserId, CancellationToken ct)
     {
         return _db.Registrations.AsNoTracking()
             .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
-            .Select(r => new
-            {
+            .Select(r => new RegRow(
                 r.RegistrationId,
-                PlayerFirst = r.User != null ? r.User.FirstName : string.Empty,
-                PlayerLast = r.User != null ? r.User.LastName : string.Empty,
-                TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : string.Empty,
+                (r.User != null ? r.User.FirstName : string.Empty) ?? string.Empty,
+                (r.User != null ? r.User.LastName : string.Empty) ?? string.Empty,
+                (r.AssignedTeam != null ? r.AssignedTeam.TeamName : string.Empty) ?? string.Empty,
                 r.FeeTotal,
                 r.PaidTotal,
                 r.OwedTotal,
@@ -71,22 +85,21 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
                 r.AdnSubscriptionStartDate,
                 r.AdnSubscriptionIntervalLength,
                 r.AdnSubscriptionBillingOccurences,
-                r.AdnSubscriptionAmountPerOccurence
-            })
-            .Cast<dynamic>()
+                r.AdnSubscriptionAmountPerOccurence))
             .ToListAsync(ct);
     }
 
-    private async Task<PlayerRegTsicFinancialDto> BuildTsicFinancialAsync(List<dynamic> regs, CancellationToken ct)
+    private async Task<PlayerRegTsicFinancialDto> BuildTsicFinancialAsync(List<RegRow> regs, CancellationToken ct)
     {
-        var totalOriginal = regs.Sum(r => (decimal)r.FeeTotal);
+        var totalOriginal = regs.Sum(r => r.FeeTotal);
         var totalDiscounts = 0m;
         var totalNet = totalOriginal - totalDiscounts;
-        bool wasArb = regs.Any(r => !string.IsNullOrWhiteSpace((string?)r.AdnSubscriptionId) && string.Equals((string?)r.AdnSubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase));
-        decimal amountCharged = regs.Sum(r => (decimal)(r.PaidTotal ?? 0m));
+        bool wasArb = regs.Exists(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId) && string.Equals(r.AdnSubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase));
+        decimal amountCharged = regs.Sum(r => r.PaidTotal);
         bool wasImmediateCharge = amountCharged > 0m && !wasArb;
+        var regIds = regs.Select(r => r.RegistrationId).ToHashSet();
         string? transactionId = await _db.RegistrationAccounting.AsNoTracking()
-            .Where(a => regs.Select(r => (Guid)r.RegistrationId).Contains(a.RegistrationId) && !string.IsNullOrWhiteSpace(a.AdnTransactionId))
+            .Where(a => a.RegistrationId != null && regIds.Contains(a.RegistrationId.Value) && !string.IsNullOrWhiteSpace(a.AdnTransactionId))
             .OrderByDescending(a => a.Createdate)
             .Select(a => a.AdnTransactionId)
             .FirstOrDefaultAsync(ct);
@@ -94,8 +107,8 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         if (wasArb)
         {
             var firstSub = regs.Where(r => r.AdnSubscriptionStartDate != null && r.AdnSubscriptionIntervalLength != null)
-                .OrderBy(r => r.AdnSubscriptionStartDate)
-                .FirstOrDefault();
+            .OrderBy(r => r.AdnSubscriptionStartDate)
+            .FirstOrDefault();
             if (firstSub != null)
             {
                 try
@@ -109,19 +122,22 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
                 }
             }
         }
-        var lines = regs.Select(r => new PlayerRegFinancialLineDto(
-            (Guid)r.RegistrationId,
-            ($"{r.PlayerFirst} {r.PlayerLast}").Trim(),
-            (string)r.TeamName,
-            (decimal)r.FeeTotal,
-            new List<string>())).ToList();
+        var lines = regs
+            .Select(r => new PlayerRegFinancialLineDto(
+                r.RegistrationId,
+                ($"{r.PlayerFirst} {r.PlayerLast}").Trim(),
+                r.TeamName,
+                r.FeeTotal,
+                new List<string>()))
+            .ToList();
         return new PlayerRegTsicFinancialDto(wasImmediateCharge, wasArb, amountCharged, "USD", transactionId, null, nextArbBillDate, totalOriginal, totalDiscounts, totalNet, lines);
     }
 
-    private static PlayerRegInsuranceStatusDto BuildInsuranceStatus(List<dynamic> regs)
+    private static PlayerRegInsuranceStatusDto BuildInsuranceStatus(List<RegRow> regs)
     {
-        var policies = regs.Where(r => !string.IsNullOrWhiteSpace((string?)r.RegsaverPolicyId))
-            .Select(r => new PlayerRegPolicyDto((Guid)r.RegistrationId, (string)r.RegsaverPolicyId!, (DateTime?)(r.RegsaverPolicyIdCreateDate ?? DateTime.UtcNow) ?? DateTime.UtcNow, 0))
+        var policies = regs
+            .Where(r => !string.IsNullOrWhiteSpace(r.RegsaverPolicyId))
+            .Select(r => new PlayerRegPolicyDto(r.RegistrationId, r.RegsaverPolicyId!, r.RegsaverPolicyIdCreateDate ?? DateTime.UtcNow, 0))
             .ToList();
         return new PlayerRegInsuranceStatusDto(regs.Count > 0, policies.Count > 0, policies.Count == 0 && regs.Count > 0, policies.Count > 0, policies);
     }
