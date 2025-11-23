@@ -10,6 +10,8 @@ import { PaymentComponent } from './steps/payment.component';
 import { ConfirmationComponent } from './steps/confirmation.component';
 import { WaiversComponent } from './steps/waivers.component';
 import { RegistrationWizardService } from './registration-wizard.service';
+import { InsuranceStateService } from './services/insurance-state.service';
+import { PaymentService } from './services/payment.service';
 import { WaiverStateService } from './services/waiver-state.service';
 // Start step retired; StartChoiceComponent removed from flow
 import { FamilyCheckStepComponent } from './steps/family-check.component';
@@ -17,6 +19,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 import { RwActionBarComponent } from './action-bar/rw-action-bar.component';
+import { ToastService } from '../../shared/toast.service';
 
 export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment' | 'confirmation';
 
@@ -87,67 +90,105 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         }
         // Otherwise use the last token as the last name (handles "First Last" and single-token usernames)
         const parts = source.split(/\s+/g).filter(Boolean);
-        return parts.length ? parts[parts.length - 1] : source;
+        return parts.length ? (parts.at(-1) || '') : source;
     });
 
-    // Unified top-toolbar navigation state
+    private readonly insuranceState = inject(InsuranceStateService);
+    private readonly paymentSvc = inject(PaymentService);
+    private readonly toast = inject(ToastService);
+
+    // Helper: registrations relevant for ARB active determination
+    private relevantRegs() {
+        const playerIds = new Set(this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId));
+        return this.state.familyPlayers().filter(p => playerIds.has(p.playerId)).flatMap(p => p.priorRegistrations || []);
+    }
+    private arbAllActive(): boolean {
+        const regs = this.relevantRegs();
+        if (!regs.length) return false;
+        return regs.every(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
+    }
+    private viCcOnlyFlow(): boolean {
+        return this.paymentSvc.currentTotal() === 0 && this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureConfirmed();
+    }
+    private tsicChargeDue(): boolean {
+        if (this.arbAllActive()) return false;
+        return this.paymentSvc.currentTotal() > 0;
+    }
+
+    // Unified action bar state (includes payment step logic)
     showContinueButton = computed(() => {
         const step = this.currentStepId();
-        // Hide continue on entry (family-check) and payment (handled by child)
-        return step !== 'family-check' && step !== 'payment';
+        if (step === 'family-check') return false;
+        if (step === 'payment') {
+            // Show when no TSIC payment due and not insurance-only charge flow
+            return !this.tsicChargeDue() && !this.viCcOnlyFlow();
+        }
+        if (step === 'confirmation') return false; // end of flow
+        return true;
     });
-    continueLabel = computed(() => this.currentStepId() === 'review' ? 'Proceed to Payment' : 'Continue');
+    continueLabel = computed(() => {
+        const step = this.currentStepId();
+        if (step === 'review') return 'Proceed to Payment';
+        return 'Continue';
+    });
     canContinue = computed(() => {
         const step = this.currentStepId();
-        switch (step) {
-            case 'players':
-                return this.state.selectedPlayerIds().length > 0;
-            case 'eligibility': {
-                // Require a value for each selected, non-locked player when an eligibility constraint exists
-                const type = (this.state.teamConstraintType() || '').toUpperCase();
-                if (!type) return true; // no constraint -> allow
-                const selected = this.state.familyPlayers().filter(p => p.selected || p.registered);
-                const map = this.state.eligibilityByPlayer();
-                for (const p of selected) {
-                    if (p.registered) continue; // locked shows value only
-                    const v = map[p.playerId];
-                    if (!v || String(v).trim() === '') return false;
-                }
-                return true;
-            }
-            case 'teams': {
-                const selected = this.state.familyPlayers().filter(p => p.selected || p.registered);
-                if (selected.length === 0) return false;
-                const map = this.state.selectedTeams();
-                for (const p of selected) {
-                    const val = map[p.playerId] as any;
-                    if (!val || (Array.isArray(val) && val.length === 0)) return false;
-                }
-                return true;
-            }
-            case 'forms':
-                return this.state.areFormsValid();
-            case 'waivers':
-                // Authoritative: gate status as computed by the Waivers component's FormGroup
-                const ok = this.waiverState.waiversGateOk();
-                if (ok) return true;
-                // Fallback: explicit signal reads to ensure recomputation
-                try {
-                    const defs = this.waiverState.waiverDefinitions();
-                    const acc = this.waiverState.waiversAccepted();
-                    const required = defs.filter(d => d.required);
-                    if (required.length === 0) return true;
-                    const allOk = required.every(d => this.waiverState.isWaiverAccepted(d.id));
-                    if (allOk) return true;
-                    const acceptedCount = Object.values(acc).filter(Boolean).length;
-                    return acceptedCount >= required.length;
-                } catch { return false; }
-            case 'review':
-                return true;
-            default:
-                return false;
-        }
+        if (step === 'players') return this.canContinuePlayers();
+        if (step === 'eligibility') return this.canContinueEligibility();
+        if (step === 'teams') return this.canContinueTeams();
+        if (step === 'forms') return this.canContinueForms();
+        if (step === 'waivers') return this.canContinueWaivers();
+        if (step === 'review') return true;
+        if (step === 'payment') return this.canContinuePayment();
+        return false;
     });
+
+    private canContinuePlayers(): boolean { return this.state.selectedPlayerIds().length > 0; }
+    private canContinueEligibility(): boolean {
+        const type = (this.state.teamConstraintType() || '').toUpperCase();
+        if (!type) return true;
+        const selected = this.state.familyPlayers().filter(p => p.selected || p.registered);
+        const map = this.state.eligibilityByPlayer();
+        for (const p of selected) {
+            if (p.registered) continue;
+            const v = map[p.playerId];
+            if (!v || String(v).trim() === '') return false;
+        }
+        return true;
+    }
+    private canContinueTeams(): boolean {
+        const selected = this.state.familyPlayers().filter(p => p.selected || p.registered);
+        if (selected.length === 0) return false;
+        const map = this.state.selectedTeams();
+        for (const p of selected) {
+            const val = map[p.playerId] as any;
+            if (!val || (Array.isArray(val) && val.length === 0)) return false;
+        }
+        return true;
+    }
+    private canContinueForms(): boolean { return this.state.areFormsValid(); }
+    private canContinueWaivers(): boolean {
+        const ok = this.waiverState.waiversGateOk();
+        if (ok) return true;
+        try {
+            const defs = this.waiverState.waiverDefinitions();
+            const acc = this.waiverState.waiversAccepted();
+            const required = defs.filter(d => d.required);
+            if (required.length === 0) return true;
+            const allOk = required.every(d => this.waiverState.isWaiverAccepted(d.id));
+            if (allOk) return true;
+            const acceptedCount = Object.values(acc).filter(Boolean).length;
+            return acceptedCount >= required.length;
+        } catch { return false; }
+    }
+    private canContinuePayment(): boolean {
+        if (!this.showContinueButton()) return false;
+        if (this.insuranceState.offerPlayerRegSaver() && !this.insuranceState.hasVerticalInsureDecision()) return true;
+        if (this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureDeclined()) return true;
+        if (!this.insuranceState.offerPlayerRegSaver()) return true;
+        if (this.insuranceState.verticalInsureConfirmed()) return !this.viCcOnlyFlow();
+        return false;
+    }
 
     // Only show an account badge when authenticated family user is present (via state.familyUser)
 
@@ -167,64 +208,51 @@ export class PlayerRegistrationWizardComponent implements OnInit {
 
     // Context is simplified: players and job metadata are loaded directly when jobPath is known.
 
-    ngOnInit(): void {
-        // Ensure a clean wizard state each time this route is entered (does not affect auth)
-        this.state.reset();
-        // Derive canonical jobPath from JobContextService (URL is source of truth).
-        // Ensure service is initialized; then fall back to route params if needed.
-        try { this.jobContext.init(); } catch { /* no-op */ }
-        let jobPath = this.jobContext.jobPath() || '';
-        if (!jobPath) {
-            const qpParam = this.route.snapshot.paramMap.get('jobPath')
-                || this.route.parent?.snapshot.paramMap.get('jobPath')
-                || this.route.root.firstChild?.snapshot.paramMap.get('jobPath')
-                || '';
-            jobPath = qpParam || '';
-        }
-        if (jobPath) {
-            console.debug('[PRW] jobPath:', jobPath);
-        } else {
-            console.warn('[PRW] jobPath was not found in URL; wizard may not load data.');
-        }
+    ngOnInit(): void { this.initializeWizard(); }
+
+    private initializeWizard(): void {
+        this.resetWizardState();
+        const jobPath = this.resolveJobPath();
         this.state.jobPath.set(jobPath);
-
-        // Load family players as soon as we have a jobPath.
-        // Phase 1 (minimal) token does not include jobPath claim, but backend still authorizes via sub user id.
-        // Previous gating required an enriched token, causing family user badge to disappear when only minimal token present.
-        if (jobPath) {
-            this.state.loadFamilyPlayers(jobPath);
-        }
-
-        // No localStorage fallback: unauthenticated users must choose explicitly on Family Check.
-
-        // Apply query params (mode + step)
-        // Mode parameter deprecated; ignore if present.
+        this.loadPlayers(jobPath);
+        const hadStep = this.applyQueryStep();
+        this.autoAdvanceIfAuthenticated(hadStep);
+        this.ensureFamilyCheckStart();
+        this.debugUnauthenticated();
+    }
+    private resetWizardState(): void { this.state.reset(); try { this.jobContext.init(); } catch { /* ignore */ } }
+    private resolveJobPath(): string {
+        const existing = this.jobContext.jobPath();
+        if (existing) { console.debug('[PRW] jobPath:', existing); return existing; }
+        const qpParam = this.route.snapshot.paramMap.get('jobPath')
+            || this.route.parent?.snapshot.paramMap.get('jobPath')
+            || this.route.root.firstChild?.snapshot.paramMap.get('jobPath')
+            || '';
+        if (qpParam) console.debug('[PRW] jobPath:', qpParam);
+        else console.warn('[PRW] jobPath was not found in URL; wizard may not load data.');
+        return qpParam;
+    }
+    private loadPlayers(jobPath: string): void { if (jobPath) this.state.loadFamilyPlayers(jobPath); }
+    private applyQueryStep(): boolean {
         const qpStep = this.route.snapshot.queryParamMap.get('step');
-        let hadStepFromQuery = false;
-        if (qpStep) {
-            // case-insensitive & guard unauthenticated deep-link to players
-            const qpLower = qpStep.toLowerCase();
-            const desired: StepId = (!this.auth.currentUser() && qpLower === 'players') ? 'family-check' : (qpLower as StepId);
-            const targetIndex = this.steps().indexOf(desired);
-            if (targetIndex >= 0) {
-                this.currentIndex.set(targetIndex);
-                hadStepFromQuery = true;
-            }
-        }
-
-        // If authenticated, optionally auto-advance to players
-        if (!hadStepFromQuery && !!this.auth.currentUser()) {
-            const playersIdx = this.steps().indexOf('players');
-            if (playersIdx >= 0) this.currentIndex.set(playersIdx);
-        }
-
-        // Hard baseline for unauthenticated sessions: always start at family-check
-        if (!this.auth.currentUser()) {
-            const famIdx = this.steps().indexOf('family-check');
-            if (famIdx >= 0) this.currentIndex.set(famIdx);
-        }
-
-        // Debug logging (temporary) to trace blank-step issue
+        if (!qpStep) return false;
+        const qpLower = qpStep.toLowerCase();
+        const desired: StepId = (!this.auth.currentUser() && qpLower === 'players') ? 'family-check' : (qpLower as StepId);
+        const idx = this.steps().indexOf(desired);
+        if (idx >= 0) this.currentIndex.set(idx);
+        return idx >= 0;
+    }
+    private autoAdvanceIfAuthenticated(hadStepFromQuery: boolean): void {
+        if (hadStepFromQuery || !this.auth.currentUser()) return;
+        const playersIdx = this.steps().indexOf('players');
+        if (playersIdx >= 0) this.currentIndex.set(playersIdx);
+    }
+    private ensureFamilyCheckStart(): void {
+        if (this.auth.currentUser()) return;
+        const famIdx = this.steps().indexOf('family-check');
+        if (famIdx >= 0) this.currentIndex.set(famIdx);
+    }
+    private debugUnauthenticated(): void {
         if (!this.auth.currentUser()) {
             console.debug('[PRW] Init unauth user: steps=', this.steps(), 'currentStepId=', this.currentStepId(), 'hasFamilyAccount=', this.state.hasFamilyAccount());
         }
@@ -259,6 +287,10 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             this.proceedToPayment();
             return;
         }
+        if (step === 'payment') {
+            this.handlePaymentContinue();
+            return;
+        }
         this.next();
     }
 
@@ -282,5 +314,20 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         } catch (err) {
             alert('Error checking team availability: ' + err);
         }
+    }
+
+    private handlePaymentContinue(): void {
+        if (this.tsicChargeDue() || this.viCcOnlyFlow()) return; // guard: continue not visible then
+        if (!this.insuranceState.offerPlayerRegSaver()) { this.advanceToConfirmation(); return; }
+        if (!this.insuranceState.hasVerticalInsureDecision()) {
+            this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
+            return;
+        }
+        if (this.insuranceState.verticalInsureDeclined()) { this.advanceToConfirmation(); return; }
+        if (this.insuranceState.verticalInsureConfirmed() && !this.viCcOnlyFlow()) { this.advanceToConfirmation(); }
+    }
+    private advanceToConfirmation(): void {
+        const confIdx = this.steps().indexOf('confirmation');
+        if (confIdx >= 0) this.currentIndex.set(confIdx);
     }
 }

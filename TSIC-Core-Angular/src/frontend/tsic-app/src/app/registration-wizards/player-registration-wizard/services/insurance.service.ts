@@ -36,14 +36,33 @@ export class InsuranceService {
                 (st: any) => {
                     instance.validate().then((valid: boolean) => {
                         this.hasUserResponse.set(valid);
-                        this.quotes.set(st?.quotes || []);
+                        const quotes = st?.quotes || [];
+                        this.quotes.set(quotes);
                         this.error.set(null);
                         this.widgetInitialized.set(true);
+                        // Map widget state to decision signals: quotes -> confirmed, none -> declined
+                        if (valid) {
+                            if (quotes.length > 0) {
+                                this.insuranceState.confirmVerticalInsurePurchase(null, null, quotes);
+                            } else {
+                                this.insuranceState.declineVerticalInsurePurchase();
+                            }
+                        }
                     });
                 },
-                () => {
+                (st: any) => {
                     instance.validate().then((valid: boolean) => {
                         this.hasUserResponse.set(valid);
+                        const quotes = st?.quotes || [];
+                        this.quotes.set(quotes);
+                        // Update decision on subsequent changes as well
+                        if (valid) {
+                            if (quotes.length > 0) {
+                                this.insuranceState.confirmVerticalInsurePurchase(null, null, quotes);
+                            } else {
+                                this.insuranceState.declineVerticalInsurePurchase();
+                            }
+                        }
                     });
                 }
             );

@@ -10,7 +10,6 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from '../services/insurance-state.service';
 import { PaymentStateService } from '../services/payment-state.service';
-import { ViConfirmModalComponent } from '../verticalinsure/vi-confirm-modal.component';
 import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confirm-modal.component';
 import type { PaymentResponseDto } from '../../../core/api/models/PaymentResponseDto';
 import { environment } from '../../../../environments/environment';
@@ -31,7 +30,7 @@ import type { LineItem } from '../services/payment.service';
 @Component({
   selector: 'app-rw-payment',
   standalone: true,
-  imports: [CommonModule, FormsModule, ViConfirmModalComponent, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
+  imports: [CommonModule, FormsModule, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -51,7 +50,7 @@ import type { LineItem } from '../services/payment.service';
         <app-payment-summary></app-payment-summary>
         <!-- ARB subscription state messaging / option gating -->
         @if (arbHideAllOptions()) {
-          <div class=\"alert alert-success border-0\" role=\"status\">
+          <div class="alert alert-success border-0" role="status">
             All selected registrations have an active Automated Recurring Billing subscription. No payment action is required.
           </div>
         } @else if (arbProblemAny()) {
@@ -63,15 +62,6 @@ import type { LineItem } from '../services/payment.service';
           <app-payment-option-selector></app-payment-option-selector>
         }
         <!-- RegSaver / VerticalInsure region with deferred offer only -->
-        @if (insuranceState.showVerticalInsureModal()) {
-          <app-vi-confirm-modal
-            [quotes]="insuranceSvc.quotes()"
-            [ready]="insuranceSvc.hasUserResponse()"
-            [error]="insuranceSvc.error()"
-            (confirmed)="onViConfirmed($event)"
-            (declined)="onViDeclined()"
-            (closed)="onViClosed()" />
-        }
         <div class="mb-3">
           @if (state.regSaverDetails()) {
             <div class="alert alert-info border-0" role="status">
@@ -85,6 +75,11 @@ import type { LineItem } from '../services/payment.service';
             </div>
           }
           <div #viOffer id="dVIOffer" class="pb-3 text-center"></div>
+          @if (insuranceState.offerPlayerRegSaver() && !insuranceState.hasVerticalInsureDecision()) {
+            <div class="alert alert-secondary border-0 py-2 small" role="alert">
+              Please review the insurance details above and choose Confirm Purchase or Decline Insurance to continue.
+            </div>
+          }
           @if (insuranceState.offerPlayerRegSaver() && insuranceState.hasVerticalInsureDecision()) {
             <div class="mt-2 d-flex flex-column gap-2">
               <div class="alert" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
@@ -143,7 +138,20 @@ import type { LineItem } from '../services/payment.service';
             ></app-credit-card-form>
           </section>
         }
-          <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">{{ isViCcOnlyFlow() ? 'Send to Vertical Insure' : 'Pay Now' }}</button>
+          <!-- Zero-balance Continue button: always shown when there is no TSIC balance and we are NOT in an insurance-only (VI CC) flow.
+               If insurance decision missing, clicking will open the insurance modal; if declined, it advances; if confirmed & still zero (edge), falls back to submit logic. -->
+            @if (arbHideAllOptions() && !isViCcOnlyFlow()) {
+              <!-- Continue button removed; logic relocated to global action bar -->
+            }
+            @if (isViCcOnlyFlow()) {
+              <button type="button" class="btn btn-primary me-2" (click)="submitInsuranceOnly()" [disabled]="!canInsuranceOnlySubmit()">
+                Proceed with Insurance Processing
+              </button>
+            } @else {
+              <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">
+                Pay Now
+              </button>
+            }
       </div>
     </div>
   `
@@ -235,19 +243,46 @@ export class PaymentComponent implements AfterViewInit {
   lineItems(): LineItem[] { return this.paySvc.lineItems(); }
   currentTotal(): number { return this.paySvc.currentTotal(); }
   isViCcOnlyFlow(): boolean {
-    return this.currentTotal() === 0 && this.insuranceState.offerPlayerRegSaver() && !this.insuranceState.verticalInsureConfirmed();
+    // Insurance-only flow: no TSIC balance and insurance selected (confirmed)
+    return this.currentTotal() === 0 && this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureConfirmed();
   }
-  showCcSection(): boolean { return this.currentTotal() > 0 || this.isViCcOnlyFlow(); }
+  showCcSection(): boolean {
+    // Hide CC when all registrations are covered by active ARB (no TSIC payment due) and not in VI-only flow.
+    if (this.arbHideAllOptions() && !this.isViCcOnlyFlow()) return false;
+    // Show CC when there is a TSIC balance or an insurance-only (VI) charge flow.
+    return this.currentTotal() > 0 || this.isViCcOnlyFlow();
+  }
   showNoPaymentInfo(): boolean { return this.currentTotal() === 0 && !this.isViCcOnlyFlow(); }
   canSubmit(): boolean {
     // Hide submit when all ARB subs active (nothing to do)
     if (this.arbHideAllOptions()) return false;
     const tsicCharge = this.lineItems().length > 0 && this.currentTotal() > 0;
-    const viOnly = this.isViCcOnlyFlow();
     const ccNeeded = this.showCcSection();
     const ccOk = !ccNeeded || this.ccValid;
-    // Button enabled as soon as payment option + card fields valid; insurance decision checked at click time.
-    return (tsicCharge || viOnly) && ccOk && !this.submitting;
+    // For TSIC payment only (insurance-only handled by separate button)
+    return tsicCharge && ccOk && !this.submitting;
+  }
+
+  canInsuranceOnlySubmit(): boolean {
+    if (!this.isViCcOnlyFlow()) return false;
+    const ccNeeded = this.showCcSection();
+    const ccOk = !ccNeeded || this.ccValid;
+    return ccOk && !this.submitting;
+  }
+
+  // Progression handler for ARB-covered or no-payment scenarios.
+  continueArbOrZero(): void {
+    // Only valid when all registration payments are handled by ARB (no TSIC payment action) and not VI-only flow.
+    if (!this.arbHideAllOptions()) return;
+    if (this.isViCcOnlyFlow()) { this.submit(); return; }
+    if (this.insuranceState.offerPlayerRegSaver()) {
+      if (!this.insuranceState.hasVerticalInsureDecision()) { this.openViModal(); return; }
+      if (!this.insuranceState.verticalInsureConfirmed()) { this.submitted.emit(); return; }
+      // Confirmed with quotes -> defer to submit flow (will show charge confirm modal if needed)
+      this.submit();
+      return;
+    }
+    this.submitted.emit();
   }
 
   submit(): void {
@@ -272,6 +307,46 @@ export class PaymentComponent implements AfterViewInit {
       return;
     }
     this.continueSubmit();
+  }
+
+  // Insurance-only submission path (no TSIC payment). Performs CC validation and processes VI purchase directly.
+  submitInsuranceOnly(): void {
+    if (!this.canInsuranceOnlySubmit()) return;
+    if (this.submitting) return;
+    // Gate: insurance decision must be confirmed (isViCcOnlyFlow implies confirmed + offer)
+    if (!this.insuranceState.verticalInsureConfirmed()) return;
+    // CC validation defensive check
+    if (this.showCcSection() && !this.ccValid) {
+      this.toast.show('Credit card form is invalid.', 'danger', 3000);
+      return;
+    }
+    // If quotes require confirmation, show modal (reusing existing confirmation flow)
+    if (this.insuranceSvc.quotes().length > 0) {
+      this.pendingSubmitAfterViConfirm = true;
+      this.showViChargeConfirm = true;
+      return;
+    }
+    // No quotes/premium -> finalize immediately
+    this.processInsuranceOnlyFinish('Insurance request submitted.');
+  }
+
+  private processInsuranceOnlyFinish(msg: string): void {
+    this.submitting = true;
+    this.insuranceSvc.purchaseInsuranceAndFinish(doneMsg => {
+      try {
+        this.paymentState.setLastPayment({
+          option: this.paymentState.paymentOption(),
+          amount: 0,
+          transactionId: undefined,
+          subscriptionId: undefined,
+          viPolicyNumber: this.insuranceState.viConsent()?.policyNumber ?? null,
+          viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
+          message: doneMsg || msg
+        });
+      } catch { }
+      this.submitting = false;
+      this.submitted.emit();
+    });
   }
 
   private continueSubmit(): void {
@@ -325,92 +400,84 @@ export class PaymentComponent implements AfterViewInit {
     };
     // POST using keys matching backend DTO property casing (case-insensitive but explicit for clarity)
     this.http.post<PaymentResponseDto>(`${environment.apiUrl}/registration/submit-payment`, request).subscribe({
-      next: (response) => {
-        if (response.success) {
-          this.lastError = null;
-          // Handle success, perhaps navigate to next step
-          console.log('Payment successful', response);
-          // Clear stored idempotency key on success; future payments should generate a new one
-          this.clearStoredIdem();
-          this.lastIdemKey = null;
-          // Persist summary for Confirmation step
-          try {
-            this.paymentState.setLastPayment({
-              option: this.paymentState.paymentOption(),
-              amount: this.currentTotal(),
-              transactionId: response.transactionId || undefined,
-              subscriptionId: response.subscriptionId || undefined,
-              viPolicyNumber: rs?.policyNumber ?? null,
-              viPolicyCreateDate: rs?.policyCreateDate ?? null,
-              message: response.message ?? null
-            });
-          } catch { /* ignore */ }
-          this.submitted.emit();
-          this.submitting = false;
-          // If ARB subscriptions were created, patch local priorRegistrations so UI reflects active status immediately.
-          if (this.paymentState.paymentOption() === 'ARB' && response.subscriptionIds) {
-            try {
-              const map = response.subscriptionIds;
-              const famPlayers = this.state.familyPlayers();
-              const updated = famPlayers.map(fp => {
-                if (!fp.priorRegistrations?.length) return fp;
-                const prior = fp.priorRegistrations.map(r => {
-                  const subId = map[r.registrationId];
-                  if (subId) {
-                    return {
-                      ...r,
-                      adnSubscriptionId: subId,
-                      adnSubscriptionStatus: 'active'
-                    };
-                  }
-                  return r;
-                });
-                return { ...fp, priorRegistrations: prior };
-              });
-              this.state.familyPlayers.set(updated);
-            } catch { /* ignore */ }
-          } else if (this.paymentState.paymentOption() === 'ARB' && response.subscriptionId) {
-            // Single subscription case
-            try {
-              const famPlayers = this.state.familyPlayers();
-              const updated = famPlayers.map(fp => {
-                if (!fp.priorRegistrations?.length) return fp;
-                // Apply to first prior registration lacking a subscription id
-                const prior = fp.priorRegistrations.map(r => {
-                  if (!r.adnSubscriptionId) {
-                    return { ...r, adnSubscriptionId: response.subscriptionId!, adnSubscriptionStatus: 'active' };
-                  }
-                  return r;
-                });
-                return { ...fp, priorRegistrations: prior };
-              });
-              this.state.familyPlayers.set(updated);
-            } catch { /* ignore */ }
-          }
-          // After successful TSIC charge, if insurance was offered and quotes exist, purchase RegSaver policies.
-          if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
-            this.insuranceSvc.purchaseInsurance();
-          }
-        } else {
-          // Handle error
-          console.error('Payment failed', response.message);
-          // Keep idempotency key so user can retry safely
-          this.submitting = false;
-          this.lastError = { message: response.message || null, errorCode: response.errorCode || null };
-          const msg = `[${response.errorCode || 'ERROR'}] ${response.message || 'Payment failed.'}`;
-          this.toast.show(msg, 'danger', 6000);
-        }
-      },
-      error: (error: HttpErrorResponse) => {
-        console.error('Payment error', error?.error?.message || error.message || error);
-        // Preserve idempotency key for retry
-        this.submitting = false;
-        const apiMsg = (error.error && typeof error.error === 'object') ? (error.error.message || JSON.stringify(error.error)) : (error.message || 'Network error');
-        const apiCode = (error.error && typeof error.error === 'object') ? (error.error.errorCode || null) : null;
-        this.lastError = { message: apiMsg, errorCode: apiCode };
-        this.toast.show(`[${apiCode || 'NETWORK'}] ${apiMsg}`, 'danger', 6000);
-      }
+      next: (response) => this.handlePaymentResponse(response, rs),
+      error: (error: HttpErrorResponse) => this.handlePaymentHttpError(error)
     });
+  }
+
+  // --- Extracted handlers to reduce cognitive complexity ---
+  private handlePaymentResponse(response: PaymentResponseDto, rs: any): void {
+    if (response.success) {
+      this.handlePaymentSuccess(response, rs);
+    } else {
+      this.handlePaymentFailure(response);
+    }
+  }
+
+  private handlePaymentSuccess(response: PaymentResponseDto, rs: any): void {
+    this.lastError = null;
+    console.log('Payment successful', response);
+    this.clearStoredIdem();
+    this.lastIdemKey = null;
+    try {
+      this.paymentState.setLastPayment({
+        option: this.paymentState.paymentOption(),
+        amount: this.currentTotal(),
+        transactionId: response.transactionId || undefined,
+        subscriptionId: response.subscriptionId || undefined,
+        viPolicyNumber: rs?.policyNumber ?? null,
+        viPolicyCreateDate: rs?.policyCreateDate ?? null,
+        message: response.message ?? null
+      });
+    } catch { /* ignore */ }
+    this.submitted.emit();
+    this.submitting = false;
+    if (this.paymentState.paymentOption() === 'ARB') {
+      this.patchArbSubscriptions(response);
+    }
+    if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
+      this.insuranceSvc.purchaseInsurance();
+    }
+  }
+
+  private handlePaymentFailure(response: PaymentResponseDto): void {
+    console.error('Payment failed', response.message);
+    this.submitting = false;
+    this.lastError = { message: response.message || null, errorCode: response.errorCode || null };
+    const msg = `[${response.errorCode || 'ERROR'}] ${response.message || 'Payment failed.'}`;
+    this.toast.show(msg, 'danger', 6000);
+  }
+
+  private handlePaymentHttpError(error: HttpErrorResponse): void {
+    console.error('Payment error', error?.error?.message || error.message || error);
+    this.submitting = false;
+    const apiMsg = (error.error && typeof error.error === 'object') ? (error.error.message || JSON.stringify(error.error)) : (error.message || 'Network error');
+    const apiCode = (error.error && typeof error.error === 'object') ? (error.error.errorCode || null) : null;
+    this.lastError = { message: apiMsg, errorCode: apiCode };
+    this.toast.show(`[${apiCode || 'NETWORK'}] ${apiMsg}`, 'danger', 6000);
+  }
+
+  private patchArbSubscriptions(response: PaymentResponseDto): void {
+    if (!response.subscriptionIds && !response.subscriptionId) return;
+    try {
+      const famPlayers = this.state.familyPlayers();
+      const map = response.subscriptionIds;
+      const updated = famPlayers.map(fp => {
+        if (!fp.priorRegistrations?.length) return fp;
+        const prior = fp.priorRegistrations.map(r => {
+          const mappedId = map?.[r.registrationId];
+          if (mappedId) {
+            return { ...r, adnSubscriptionId: mappedId, adnSubscriptionStatus: 'active' };
+          }
+          if (!map && response.subscriptionId && !r.adnSubscriptionId) {
+            return { ...r, adnSubscriptionId: response.subscriptionId, adnSubscriptionStatus: 'active' };
+          }
+          return r;
+        });
+        return { ...fp, priorRegistrations: prior };
+      });
+      this.state.familyPlayers.set(updated);
+    } catch { /* ignore */ }
   }
 
   // Launch insurance modal
@@ -418,11 +485,6 @@ export class PaymentComponent implements AfterViewInit {
     this.insuranceState.openVerticalInsureModal();
   }
 
-  onViConfirmed(evt: { policyNumber: string | null; policyCreateDate: string | null; quotes: any[] }): void {
-    this.insuranceState.confirmVerticalInsurePurchase(evt.policyNumber, evt.policyCreateDate, evt.quotes);
-  }
-  onViDeclined(): void { this.insuranceState.declineVerticalInsurePurchase(); }
-  onViClosed(): void { this.insuranceState.closeVerticalInsureModal(); }
 
   // Discount application now performed via PaymentOptionSelectorComponent + PaymentService.
   // Deposit helper provided directly by PaymentService; wrapper retained if template needs it later.
