@@ -19,7 +19,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         <div class="row g-2">
           <div class="col-md-3">
             <label class="form-label">CC Type</label>
-            <select class="form-select" formControlName="type">
+            <select class="form-select" formControlName="type" required aria-required="true">
               <option value=""></option>
               <option value="MC">MC</option>
               <option value="VISA">VISA</option>

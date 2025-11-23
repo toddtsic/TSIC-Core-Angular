@@ -100,9 +100,17 @@ public sealed class VerticalInsureService : IVerticalInsureService
 
     private async Task<List<Registrations>> ValidateAndLoadAsync(Guid jobId, string familyUserId, IReadOnlyCollection<Guid> registrationIds, IReadOnlyCollection<string> quoteIds, VerticalInsurePurchaseResult result, CancellationToken ct)
     {
-        if (registrationIds.Count == 0 || quoteIds.Count == 0)
+        if (registrationIds.Count == 0 && quoteIds.Count == 0)
         {
-            result.Success = false; result.Error = "No registrations or quotes supplied."; return new();
+            result.Success = false; result.Error = "No registrations and no quotes supplied."; return new();
+        }
+        if (registrationIds.Count == 0)
+        {
+            result.Success = false; result.Error = "No registration IDs supplied."; return new();
+        }
+        if (quoteIds.Count == 0)
+        {
+            result.Success = false; result.Error = "No insurance quote IDs supplied."; return new();
         }
         if (registrationIds.Count != quoteIds.Count)
         {
@@ -124,8 +132,14 @@ public sealed class VerticalInsureService : IVerticalInsureService
     private async Task ExecuteHttpPurchaseAsync(List<Registrations> regs, string familyUserId, IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card, VerticalInsurePurchaseResult result, CancellationToken ct)
     {
         var client = _httpClientFactory!.CreateClient("verticalinsure");
-        var clientId = _env.IsDevelopment() ? "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U" : "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
-        var clientSecret = _env.IsDevelopment() ? (Environment.GetEnvironmentVariable("VI_DEV_SECRET") ?? "dev-secret-not-set") : (Environment.GetEnvironmentVariable("VI_PROD_SECRET") ?? "prod-secret-not-set");
+        // Hard-coded credentials per instruction (dev vs prod selected by environment).
+        // NOTE: Replace with secure secret management before release.
+        const string DEV_CLIENT_ID = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U";
+        const string DEV_SECRET = "test_JtlEEBkFNNybGLyOwCCFUeQq9j3zK9dUEJfJMeyqPMRjMsWfzUk0JRqoHypxofZJqeH5nuK0042Yd5TpXMZOf8yVj9X9YDFi7LW50ADsVXDyzuiiq9HLVopbwaNXwqWI"; // provided dev secret
+        const string PROD_CLIENT_ID = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
+        const string PROD_SECRET = "live_PP6xn8fImrpBNj4YqTU8vlAwaqQ7Q8oSRxcVQkf419saU4OuQVCXQSuP4yUNyBMCwilStIsWDaaZnMlfJ1HqVJPBWydR5qE3yNr4HxBVr7rCYxl4ofgIesZbsAS0TfED";
+        var clientId = _env.IsDevelopment() ? DEV_CLIENT_ID : PROD_CLIENT_ID;
+        var clientSecret = _env.IsDevelopment() ? DEV_SECRET : PROD_SECRET;
         var authString = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
 
         var payload = BuildBatchPayload(quoteIds, token, card);
@@ -320,9 +334,10 @@ public sealed class VerticalInsureService : IVerticalInsureService
 
     private VIPlayerObjectResponse BuildPlayerObject(List<VIPlayerProductDto> products)
     {
-        var clientId = _env.IsDevelopment() ?
-            "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U" :
-            "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
+        // Hard-coded client id selection (dev vs prod)
+        const string DEV_CLIENT_ID = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U";
+        const string PROD_CLIENT_ID = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
+        var clientId = _env.IsDevelopment() ? DEV_CLIENT_ID : PROD_CLIENT_ID;
         return new VIPlayerObjectResponse
         {
             ClientId = clientId,

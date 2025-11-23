@@ -12,6 +12,7 @@ import { WaiversComponent } from './steps/waivers.component';
 import { RegistrationWizardService } from './registration-wizard.service';
 import { InsuranceStateService } from './services/insurance-state.service';
 import { PaymentService } from './services/payment.service';
+import { InsuranceService } from './services/insurance.service';
 import { WaiverStateService } from './services/waiver-state.service';
 // Start step retired; StartChoiceComponent removed from flow
 import { FamilyCheckStepComponent } from './steps/family-check.component';
@@ -95,6 +96,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
 
     private readonly insuranceState = inject(InsuranceStateService);
     private readonly paymentSvc = inject(PaymentService);
+    private readonly insuranceSvc = inject(InsuranceService);
     private readonly toast = inject(ToastService);
 
     // Helper: registrations relevant for ARB active determination
@@ -108,7 +110,11 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         return regs.every(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
     }
     private viCcOnlyFlow(): boolean {
-        return this.paymentSvc.currentTotal() === 0 && this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureConfirmed();
+        // Premium-only insurance flow (no TSIC balance, insurance confirmed, quotes present)
+        return this.paymentSvc.currentTotal() === 0
+            && this.insuranceState.offerPlayerRegSaver()
+            && this.insuranceState.verticalInsureConfirmed()
+            && this.insuranceSvc.quotes().length > 0;
     }
     private tsicChargeDue(): boolean {
         if (this.arbAllActive()) return false;
@@ -120,8 +126,13 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         const step = this.currentStepId();
         if (step === 'family-check') return false;
         if (step === 'payment') {
-            // Show when no TSIC payment due and not insurance-only charge flow
-            return !this.tsicChargeDue() && !this.viCcOnlyFlow();
+            // Hide when TSIC charge due.
+            if (this.tsicChargeDue()) return false;
+            // Hide when insurance confirmed and quotes present (must use insurance submit button).
+            if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) return false;
+            // Hide when insurance-only flow (confirmed, zero TSIC balance) -> uses insurance submit button.
+            if (this.viCcOnlyFlow()) return false;
+            return true;
         }
         if (step === 'confirmation') return false; // end of flow
         return true;
@@ -183,10 +194,16 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     }
     private canContinuePayment(): boolean {
         if (!this.showContinueButton()) return false;
+        // Allow prior to decision (toast will gate) when no TSIC or VI premium yet.
         if (this.insuranceState.offerPlayerRegSaver() && !this.insuranceState.hasVerticalInsureDecision()) return true;
-        if (this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureDeclined()) return true;
+        // Declined -> can continue.
+        if (this.insuranceState.verticalInsureDeclined()) return true;
+        // No insurance offered -> can continue.
         if (!this.insuranceState.offerPlayerRegSaver()) return true;
-        if (this.insuranceState.verticalInsureConfirmed()) return !this.viCcOnlyFlow();
+        // Confirmed with quotes (premium) -> must NOT use continue (button hidden earlier, defensive false).
+        if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) return false;
+        // Confirmed with no quotes (zero premium scenario) -> can continue.
+        if (this.insuranceState.verticalInsureConfirmed()) return true;
         return false;
     }
 
@@ -317,14 +334,19 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     }
 
     private handlePaymentContinue(): void {
-        if (this.tsicChargeDue() || this.viCcOnlyFlow()) return; // guard: continue not visible then
+        if (this.tsicChargeDue()) return; // guard
+        // If insurance confirmed AND quotes present (premium due) OR insurance-only flow -> block and instruct.
+        if ((this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) || this.viCcOnlyFlow()) {
+            this.toast.show('Insurance premium requires credit card submission. Use "Proceed with Insurance Processing" after entering card details.', 'danger', 5000);
+            return;
+        }
         if (!this.insuranceState.offerPlayerRegSaver()) { this.advanceToConfirmation(); return; }
         if (!this.insuranceState.hasVerticalInsureDecision()) {
             this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
             return;
         }
         if (this.insuranceState.verticalInsureDeclined()) { this.advanceToConfirmation(); return; }
-        if (this.insuranceState.verticalInsureConfirmed() && !this.viCcOnlyFlow()) { this.advanceToConfirmation(); }
+        if (this.insuranceState.verticalInsureConfirmed()) { this.advanceToConfirmation(); }
     }
     private advanceToConfirmation(): void {
         const confIdx = this.steps().indexOf('confirmation');

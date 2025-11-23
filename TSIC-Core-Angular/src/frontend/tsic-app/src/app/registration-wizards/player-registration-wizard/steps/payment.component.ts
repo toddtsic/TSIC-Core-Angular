@@ -119,16 +119,18 @@ import type { LineItem } from '../services/payment.service';
         }
 
         @if (showCcSection()) {
-          <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+          <section #ccSection class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
             <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
             @if (isViCcOnlyFlow()) {
-              <div class="alert alert-secondary border-0" role="status">
-                Your TSIC registration balance is $0. The credit card details below are for Vertical Insure only.
+              <div class="alert alert-warning border-0" role="status">
+                <span class="badge bg-warning-subtle text-dark border me-1">Insurance Premium</span>
+                A registration balance is not due, but an insurance premium is. Enter card details and click <strong>Proceed with Insurance Processing</strong>.
               </div>
             }
             <app-credit-card-form
               (validChange)="onCcValidChange($event)"
               (valueChange)="onCcValueChange($event)"
+              [viOnly]="isViCcOnlyFlow()"
               [defaultFirstName]="state.familyUser()?.firstName || state.familyUser()?.ccInfo?.firstName || null"
               [defaultLastName]="state.familyUser()?.lastName || state.familyUser()?.ccInfo?.lastName || null"
               [defaultAddress]="state.familyUser()?.address || state.familyUser()?.ccInfo?.streetAddress || null"
@@ -147,7 +149,8 @@ import type { LineItem } from '../services/payment.service';
               <button type="button" class="btn btn-primary me-2" (click)="submitInsuranceOnly()" [disabled]="!canInsuranceOnlySubmit()">
                 Proceed with Insurance Processing
               </button>
-            } @else {
+            }
+            @if (showPayNowButton()) {
               <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">
                 Pay Now
               </button>
@@ -158,6 +161,7 @@ import type { LineItem } from '../services/payment.service';
 })
 export class PaymentComponent implements AfterViewInit {
   @ViewChild('viOffer') viOffer?: ElementRef<HTMLDivElement>;
+  @ViewChild('ccSection') ccSection?: ElementRef<HTMLElement>;
   @Output() back = new EventEmitter<void>();
   @Output() submitted = new EventEmitter<void>();
 
@@ -243,20 +247,27 @@ export class PaymentComponent implements AfterViewInit {
   lineItems(): LineItem[] { return this.paySvc.lineItems(); }
   currentTotal(): number { return this.paySvc.currentTotal(); }
   isViCcOnlyFlow(): boolean {
-    // Insurance-only flow: no TSIC balance and insurance selected (confirmed)
-    return this.currentTotal() === 0 && this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureConfirmed();
+    // Insurance premium-only flow: no immediate TSIC charge due (either zero balance OR all ARB active), insurance confirmed, and quotes (premium) present.
+    return !this.tsicChargeDueNow() && this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0;
+  }
+  private tsicChargeDueNow(): boolean {
+    // Immediate TSIC payment is due only when balance > 0 and not fully covered by active ARB subscriptions.
+    if (this.arbHideAllOptions()) return false;
+    return this.currentTotal() > 0;
+  }
+  showPayNowButton(): boolean {
+    // Pay Now should only be visible if a TSIC charge is actually due.
+    return this.tsicChargeDueNow();
   }
   showCcSection(): boolean {
-    // Hide CC when all registrations are covered by active ARB (no TSIC payment due) and not in VI-only flow.
-    if (this.arbHideAllOptions() && !this.isViCcOnlyFlow()) return false;
-    // Show CC when there is a TSIC balance or an insurance-only (VI) charge flow.
-    return this.currentTotal() > 0 || this.isViCcOnlyFlow();
+    // Show CC when TSIC charge due OR insurance quotes (premium) present (even before confirmation) to allow early form completion.
+    return this.tsicChargeDueNow() || (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0);
   }
-  showNoPaymentInfo(): boolean { return this.currentTotal() === 0 && !this.isViCcOnlyFlow(); }
+  showNoPaymentInfo(): boolean { return !this.tsicChargeDueNow() && !this.isViCcOnlyFlow(); }
   canSubmit(): boolean {
     // Hide submit when all ARB subs active (nothing to do)
     if (this.arbHideAllOptions()) return false;
-    const tsicCharge = this.lineItems().length > 0 && this.currentTotal() > 0;
+    const tsicCharge = this.tsicChargeDueNow();
     const ccNeeded = this.showCcSection();
     const ccOk = !ccNeeded || this.ccValid;
     // For TSIC payment only (insurance-only handled by separate button)
@@ -346,7 +357,7 @@ export class PaymentComponent implements AfterViewInit {
       } catch { }
       this.submitting = false;
       this.submitted.emit();
-    });
+    }, this.creditCard);
   }
 
   private continueSubmit(): void {
@@ -436,7 +447,7 @@ export class PaymentComponent implements AfterViewInit {
       this.patchArbSubscriptions(response);
     }
     if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
-      this.insuranceSvc.purchaseInsurance();
+      this.insuranceSvc.purchaseInsurance(this.creditCard);
     }
   }
 
@@ -521,7 +532,7 @@ export class PaymentComponent implements AfterViewInit {
             });
           } catch { }
           this.submitted.emit();
-        });
+        }, this.creditCard);
       } else {
         this.continueSubmit();
       }
@@ -556,6 +567,7 @@ export class PaymentComponent implements AfterViewInit {
   }
   // Removed original simple onCcValidChange; replaced with version that also prompts insurance decision.
   onCcValidChange(valid: any): void { this.ccValid = !!valid; }
+  // Autofocus logic removed per request
   monthLabel(): string { return this.paySvc.monthLabel(); }
   // --- ARB subscription helpers ---
   private priorRegs() {

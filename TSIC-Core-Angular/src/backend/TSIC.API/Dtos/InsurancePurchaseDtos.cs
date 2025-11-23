@@ -18,6 +18,10 @@ public class InsurancePurchaseRequestDto
     public List<Guid> RegistrationIds { get; set; } = new();
     [Required, JsonRequired]
     public List<string> QuoteIds { get; set; } = new();
+    /// <summary>
+    /// Optional credit card information for direct VerticalInsure batch purchase when a Stripe token is not supplied.
+    /// </summary>
+    public CreditCardInfo? CreditCard { get; set; }
 }
 
 /// <summary>

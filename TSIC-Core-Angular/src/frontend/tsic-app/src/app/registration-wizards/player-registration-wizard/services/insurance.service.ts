@@ -88,16 +88,39 @@ export class InsuranceService {
         }).filter(Boolean);
     }
 
-    purchaseInsurance(): void {
+    purchaseInsurance(card?: {
+        number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; zip?: string; email?: string; phone?: string; address?: string;
+    }): void {
         if (this.purchasing()) return;
-        const quoteIds: string[] = this.quotes().map(q => String(q?.id ?? q?.quote_id ?? '')).filter(s => !!s);
-        const registrationIds: string[] = this.quotes().map(q => String(q?.metadata?.TsicRegistrationId ?? q?.metadata?.tsicRegistrationId ?? '')).filter(s => !!s);
+        // Prefer explicit VerticalInsure quote identifier; avoid using generic id which may be a registration GUID.
+        const quoteIds = this.quotes().map(q => String(q?.quote_id ?? q?.quoteId ?? '')).filter(Boolean);
+        const registrationIds = this.quotes().map(q => this.extractRegistrationId(q)).filter(Boolean);
+        if (quoteIds.length === 0 || registrationIds.length === 0) {
+            console.warn('[InsuranceService] Missing quoteIds or registrationIds before purchase', { quoteCount: quoteIds.length, regCount: registrationIds.length, rawQuotes: this.quotes() });
+        }
         if (quoteIds.length === 0) return; // nothing to purchase
+        if (registrationIds.length !== quoteIds.length) {
+            this.toast.show('Insurance quote / registration mismatch. Please retry.', 'danger', 4000);
+            console.warn('[InsuranceService] Mismatch lengths', { quoteIds, registrationIds });
+            return;
+        }
+        const creditCardPayload = card ? {
+            Number: card.number?.trim() || null,
+            Expiry: this.sanitizeExpiry(card.expiry),
+            Code: card.code?.trim() || null,
+            FirstName: card.firstName?.trim() || null,
+            LastName: card.lastName?.trim() || null,
+            Zip: card.zip?.trim() || null,
+            Email: card.email?.trim() || null,
+            Phone: (card.phone || '').replaceAll(/\D+/g, '').slice(0, 15) || null,
+            Address: card.address?.trim() || null
+        } : null;
         const req: InsurancePurchaseRequestDto = {
             jobId: this.state.jobId(),
             familyUserId: this.state.familyUser()?.familyUserId!,
             registrationIds,
-            quoteIds
+            quoteIds,
+            creditCard: creditCardPayload
         };
         this.purchasing.set(true);
         this.http.post<InsurancePurchaseResponseDto>(`${environment.apiUrl}/insurance/purchase`, req)
@@ -119,19 +142,41 @@ export class InsuranceService {
             });
     }
 
-    purchaseInsuranceAndFinish(onFinish: (message: string) => void): void {
+    purchaseInsuranceAndFinish(onFinish: (message: string) => void, card?: {
+        number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; zip?: string; email?: string; phone?: string; address?: string;
+    }): void {
         if (this.purchasing()) return;
-        const quoteIds: string[] = this.quotes().map(q => String(q?.id ?? q?.quote_id ?? '')).filter(s => !!s);
-        const registrationIds: string[] = this.quotes().map(q => String(q?.metadata?.TsicRegistrationId ?? q?.metadata?.tsicRegistrationId ?? '')).filter(s => !!s);
+        const quoteIds = this.quotes().map(q => String(q?.quote_id ?? q?.quoteId ?? '')).filter(Boolean);
+        const registrationIds = this.quotes().map(q => this.extractRegistrationId(q)).filter(Boolean);
+        if (quoteIds.length === 0 || registrationIds.length === 0) {
+            console.warn('[InsuranceService] Missing quoteIds or registrationIds before purchaseAndFinish', { quoteCount: quoteIds.length, regCount: registrationIds.length, rawQuotes: this.quotes() });
+        }
         if (quoteIds.length === 0) {
             this.toast.show('No insurance quotes to purchase', 'danger', 3000);
             return;
         }
+        if (registrationIds.length !== quoteIds.length) {
+            this.toast.show('Insurance quote / registration mismatch. Please retry.', 'danger', 4000);
+            console.warn('[InsuranceService] Mismatch lengths', { quoteIds, registrationIds });
+            return;
+        }
+        const creditCardPayload = card ? {
+            Number: card.number?.trim() || null,
+            Expiry: this.sanitizeExpiry(card.expiry),
+            Code: card.code?.trim() || null,
+            FirstName: card.firstName?.trim() || null,
+            LastName: card.lastName?.trim() || null,
+            Zip: card.zip?.trim() || null,
+            Email: card.email?.trim() || null,
+            Phone: (card.phone || '').replaceAll(/\D+/g, '').slice(0, 15) || null,
+            Address: card.address?.trim() || null
+        } : null;
         const req: InsurancePurchaseRequestDto = {
             jobId: this.state.jobId(),
             familyUserId: this.state.familyUser()?.familyUserId!,
             registrationIds,
-            quoteIds
+            quoteIds,
+            creditCard: creditCardPayload
         };
         this.purchasing.set(true);
         this.http.post<InsurancePurchaseResponseDto>(`${environment.apiUrl}/insurance/purchase`, req)
@@ -152,5 +197,46 @@ export class InsuranceService {
                     console.warn('Insurance purchase error', err?.error?.message || err.message || err);
                 }
             });
+    }
+    private extractRegistrationId(q: any): string {
+        const idFromMeta = this.extractRegistrationIdFromMeta(q?.metadata);
+        if (idFromMeta) return idFromMeta;
+        return this.inferRegistrationIdFromParticipant(q);
+    }
+
+    private sanitizeExpiry(raw?: string): string | null {
+        const digits = String(raw || '').replaceAll(/\D+/g, '').slice(0, 4);
+        if (digits.length === 3) return ('0' + digits);
+        return digits.length === 4 ? digits : null;
+    }
+
+    private extractRegistrationIdFromMeta(meta: any): string {
+        if (!meta) return '';
+        const direct = meta.TsicRegistrationId ?? meta.tsicRegistrationId ?? meta.tsic_registration_id;
+        if (direct) return String(direct);
+        for (const k of Object.keys(meta)) {
+            if (/registration.?id/i.test(k)) {
+                const v = meta[k];
+                if (v) return String(v);
+            }
+        }
+        return '';
+    }
+
+    private inferRegistrationIdFromParticipant(q: any): string {
+        const fn = q?.policy_attributes?.participant?.first_name?.trim?.() || '';
+        const ln = q?.policy_attributes?.participant?.last_name?.trim?.() || '';
+        const participant = (fn + ' ' + ln).trim().toLowerCase();
+        if (!participant) return '';
+        try {
+            for (const p of this.state.familyPlayers()) {
+                const playerName = (p.firstName + ' ' + p.lastName).trim().toLowerCase();
+                if (playerName === participant) {
+                    const lastReg = p.priorRegistrations?.at(-1);
+                    if (lastReg?.registrationId) return String(lastReg.registrationId);
+                }
+            }
+        } catch { /* ignore */ }
+        return '';
     }
 }

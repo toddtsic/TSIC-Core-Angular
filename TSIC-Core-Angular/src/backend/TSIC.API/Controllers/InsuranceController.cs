@@ -38,7 +38,7 @@ public class InsuranceController : ControllerBase
             return Forbid();
         }
 
-        var res = await _viService.PurchasePoliciesAsync(request.JobId, request.FamilyUserId.ToString(), request.RegistrationIds, request.QuoteIds, token: null, card: null, ct: ct);
+        var res = await _viService.PurchasePoliciesAsync(request.JobId, request.FamilyUserId.ToString(), request.RegistrationIds, request.QuoteIds, token: null, card: request.CreditCard, ct: ct);
         if (!res.Success)
         {
             return BadRequest(new InsurancePurchaseResponseDto { Success = false, Error = res.Error });
