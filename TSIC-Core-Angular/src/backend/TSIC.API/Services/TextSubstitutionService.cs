@@ -94,6 +94,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     {
         if (string.IsNullOrWhiteSpace(template)) return template;
 
+        // Detect email mode token. If present, strip it and render inline email-safe tables.
+        var emailMode = template.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase);
+        if (emailMode)
+        {
+            template = template.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+
         var job = await _context.Jobs.AsNoTracking().Where(j => j.JobPath == jobSegment)
             .Select(j => new { j.JobId, j.JobName }).SingleOrDefaultAsync();
         if (job == null) return template; // Unknown job segment
@@ -106,7 +113,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         // Build token dictionary (simple tokens + complex HTML sections)
         var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         AddSimpleTokens(tokens, first, jobSegment);
-        await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, template);
+        await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, template, emailMode);
 
         // Perform replacements
         var result = ReplaceTokens(template, tokens);
@@ -274,28 +281,39 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         List<FixedFields> list,
         Guid paymentMethodCreditCardId,
         Guid? registrationId,
-        string template)
+        string template,
+        bool emailMode)
     {
         if (template.Contains("!F-DISPLAYINACTIVEPLAYERS", StringComparison.OrdinalIgnoreCase))
             tokens["!F-DISPLAYINACTIVEPLAYERS"] = BuildInactivePlayersHtml(list);
 
         if (template.Contains("!F-PLAYERS", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-PLAYERS"] = BuildPlayersTableHtml(list);
+            tokens["!F-PLAYERS"] = BuildPlayersTableHtml(list, emailMode);
 
         if (template.Contains("!F-ADN-ARB", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-ADN-ARB"] = BuildArbTableHtml(list);
+            tokens["!F-ADN-ARB"] = BuildArbTableHtml(list, emailMode);
 
-        if (template.Contains("!F-ACCOUNTING", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-ACCOUNTING"] = await BuildAccountingTableHtmlAsync(registrationId.Value, paymentMethodCreditCardId);
+        if (template.Contains("!F-ACCOUNTING", StringComparison.OrdinalIgnoreCase))
+        {
+            if (registrationId.HasValue)
+            {
+                tokens["!F-ACCOUNTING"] = await BuildAccountingTableHtmlAsync(registrationId.Value, paymentMethodCreditCardId, emailMode);
+            }
+            else
+            {
+                // Ensure token removed from output when no registration context
+                tokens["!F-ACCOUNTING"] = string.Empty;
+            }
+        }
 
         // Newly added tokens to match production parity
         var first = list[0];
 
         if (template.Contains("!F-NOACCOUNTINGPLAYERS", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-NOACCOUNTINGPLAYERS"] = await BuildNoAccountingPlayersAsync(list);
+            tokens["!F-NOACCOUNTINGPLAYERS"] = await BuildNoAccountingPlayersAsync(list, emailMode);
 
         if (template.Contains("!J-CONTACTBLOCK", StringComparison.OrdinalIgnoreCase))
-            tokens["!J-CONTACTBLOCK"] = await BuildContactBlockAsync(first.JobId);
+            tokens["!J-CONTACTBLOCK"] = await BuildContactBlockAsync(first.JobId, emailMode);
 
         if (template.Contains("!FAMILYUSERNAME", StringComparison.OrdinalIgnoreCase))
             tokens["!FAMILYUSERNAME"] = await ResolveFamilyUserNameAsync(first.FamilyUserId);
@@ -313,16 +331,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!LEAGUENAME"] = await ResolveLeagueNameAsync(first.AssignedTeamId);
 
         if (template.Contains("!A-ACCOUNTING", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!A-ACCOUNTING"] = await BuildAccountingAHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName);
+            tokens["!A-ACCOUNTING"] = await BuildAccountingAHtmlAsync(registrationId.Value, paymentMethodCreditCardId, first.JobName, emailMode);
 
         if (template.Contains("!F-ACCOUNTING-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId);
+            tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, emailMode);
 
         if (template.Contains("!F-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-TEAMS"] = await BuildTeamsSummaryHtmlAsync(registrationId.Value);
+            tokens["!F-TEAMS"] = await BuildTeamsSummaryHtmlAsync(registrationId.Value, emailMode);
 
         if (template.Contains("!F-NO-MONEY-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-NO-MONEY-TEAMS"] = await BuildNoMoneyTeamsHtmlAsync(registrationId.Value);
+            tokens["!F-NO-MONEY-TEAMS"] = await BuildNoMoneyTeamsHtmlAsync(registrationId.Value, emailMode);
 
         if (template.Contains("!F-REFUND-PLAYER-WAIVER", StringComparison.OrdinalIgnoreCase))
             tokens["!F-REFUND-PLAYER-WAIVER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegRefundPolicy, "Refund Policy:");
@@ -343,7 +361,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!F-STAFFCHOICES"] = await BuildStaffChoicesAsync(registrationId.Value);
 
         if (template.Contains("!F-COACHFULLTEAMNAMECHOICES", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-COACHFULLTEAMNAMECHOICES"] = await BuildCoachFullTeamNameChoicesAsync(registrationId.Value);
+            tokens["!F-COACHFULLTEAMNAMECHOICES"] = await BuildCoachFullTeamNameChoicesAsync(registrationId.Value, emailMode);
     }
 
     private static string BuildInactivePlayersHtml(List<FixedFields> list)
@@ -360,45 +378,71 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return html.ToString();
     }
 
-    private static string BuildPlayersTableHtml(List<FixedFields> list)
+    private static string BuildPlayersTableHtml(List<FixedFields> list, bool emailMode)
     {
         if (list.Count == 0) return string.Empty;
-        var html = new StringBuilder("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>")
-            .Append("<caption style='caption-side:top;'>Family Players</caption>")
-            .Append("<tr><th>Player</th><th>Status</th><th>Assignment</th><th>Fees$</th><th>Paid$</th><th>Owes$</th></tr>");
+        var sb = new StringBuilder();
+        StartTable(sb, emailMode);
+        AddCaption(sb, "Family Players", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "Player", "Status", "Assignment", "Fees$", "Paid$", "Owes$");
+        EndHeadStartBody(sb);
+        decimal feesSum = 0m, paidSum = 0m, owesSum = 0m;
         foreach (var q in list)
         {
             var status = (string.IsNullOrEmpty(q.AdnSubscriptionId) && q.Active != true) ? "INACTIVE" : "ACTIVE";
-            html.AppendFormat("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td><td>{5}</td></tr>",
-                WebUtility.HtmlEncode(q.Person), status, WebUtility.HtmlEncode(q.Assignment), q.FeeTotal?.ToString("C"), q.PaidTotal?.ToString("C"), q.OwedTotal?.ToString("C"));
+            var fees = q.FeeTotal ?? 0m;
+            var paid = q.PaidTotal ?? 0m;
+            var owes = q.OwedTotal ?? 0m;
+            feesSum += fees; paidSum += paid; owesSum += owes;
+            AddRow(sb,
+                WebUtility.HtmlEncode(q.Person ?? string.Empty),
+                status,
+                WebUtility.HtmlEncode(q.Assignment ?? string.Empty),
+                FormatCurrency(fees),
+                FormatCurrency(paid),
+                FormatCurrency(owes));
         }
-        html.Append("</table>");
-        return html.ToString();
+        EndBodyStartFoot(sb);
+        AddFooterRow(sb, "Totals", string.Empty, string.Empty, FormatCurrency(feesSum), FormatCurrency(paidSum), FormatCurrency(owesSum));
+        EndFootEndTable(sb);
+        return sb.ToString();
     }
 
-    private static string BuildArbTableHtml(List<FixedFields> list)
+    private static string BuildArbTableHtml(List<FixedFields> list, bool emailMode)
     {
         if (list.Count == 0) return string.Empty;
         var first = list[0];
         if (first.AdnSubscriptionAmountPerOccurence is not > 0) return string.Empty;
-        var html = new StringBuilder("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>")
-            .Append("<caption style='caption-side:top;'>Automated Recurring Billing</caption>")
-            .Append("<tr><th>Player</th><th>Sub. Id</th><th>Status</th><th>Starting</th><th>#Billings</th><th>Frequency</th><th>Charge/Billing</th><th>Total Charges</th></tr>");
+        var sb = new StringBuilder();
+        StartTable(sb, emailMode);
+        AddCaption(sb, "Automated Recurring Billing", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "Player", "Sub. Id", "Status", "Starting", "#Billings", "Frequency", "Charge/Billing", "Total Charges");
+        EndHeadStartBody(sb);
+        decimal totalAll = 0m;
         foreach (var q in list)
         {
             var intervalLabel = (q.AdnSubscriptionIntervalLength ?? 0) > 1 ? "months" : "month";
             var totalCharges = (q.AdnSubscriptionAmountPerOccurence ?? 0m) * (q.AdnSubscriptionBillingOccurences ?? 0);
-            html.AppendFormat("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td><td>every {5} {6}</td><td>{7}</td><td>{8}</td></tr>",
-                WebUtility.HtmlEncode(q.Person), q.AdnSubscriptionId, q.AdnSubscriptionStatus,
-                q.AdnSubscriptionStartDate?.ToString("d"), q.AdnSubscriptionBillingOccurences,
-                q.AdnSubscriptionIntervalLength, intervalLabel,
-                q.AdnSubscriptionAmountPerOccurence?.ToString("C"), totalCharges.ToString("C"));
+            totalAll += totalCharges;
+            AddRow(sb,
+                WebUtility.HtmlEncode(q.Person ?? string.Empty),
+                q.AdnSubscriptionId ?? string.Empty,
+                q.AdnSubscriptionStatus ?? string.Empty,
+                q.AdnSubscriptionStartDate?.ToString("d") ?? string.Empty,
+                (q.AdnSubscriptionBillingOccurences ?? 0).ToString(),
+                $"every {q.AdnSubscriptionIntervalLength} {intervalLabel}",
+                FormatCurrency(q.AdnSubscriptionAmountPerOccurence ?? 0m),
+                FormatCurrency(totalCharges));
         }
-        html.Append("</table>");
-        return html.ToString();
+        EndBodyStartFoot(sb);
+        AddFooterRow(sb, "Total", string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, FormatCurrency(totalAll));
+        EndFootEndTable(sb);
+        return sb.ToString();
     }
 
-    private async Task<string> BuildAccountingTableHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId)
+    private async Task<string> BuildAccountingTableHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
     {
         var rows = await (from ra in _context.RegistrationAccounting
                           join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
@@ -416,25 +460,35 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                               ra.DiscountCodeAi,
                               ra.PaymentMethodId
                           }).ToListAsync();
-
         if (rows.Count == 0) return string.Empty;
-        var html = new StringBuilder()
-            .Append("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>")
-            .Append("<caption style='caption-side:top;'>Most Recent Transaction(s)</caption>")
-            .Append("<tr><th>ID</th><th>Player</th><th>Method</th><th>Date</th><th>Paid$</th></tr>");
+        var sb = new StringBuilder();
+        StartTable(sb, emailMode);
+        AddCaption(sb, "Most Recent Transaction(s)", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "ID", "Player", "Method", "Date", "Paid$");
+        EndHeadStartBody(sb);
+        decimal paidSum = 0m;
         foreach (var row in rows)
         {
             if (row.Payamt.HasValue && row.Payamt > 0 && row.PaymentMethodId == paymentMethodCreditCardId && row.DiscountCodeAi.HasValue)
             {
                 _ = await _discountEvaluator.EvaluateAsync(row.DiscountCodeAi.Value, row.Payamt.Value);
             }
-            html.AppendFormat("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3:g}</td><td>{4}</td></tr>", row.AId, WebUtility.HtmlEncode(row.RegistrantName), row.PaymentMethod, row.Createdate, row.Payamt?.ToString("C"));
+            var paid = row.Payamt ?? 0m; paidSum += paid;
+            AddRow(sb,
+                row.AId.ToString(),
+                WebUtility.HtmlEncode(row.RegistrantName ?? string.Empty),
+                row.PaymentMethod ?? string.Empty,
+                row.Createdate?.ToString("g") ?? string.Empty,
+                FormatCurrency(paid));
         }
-        html.Append("</table>");
-        return html.ToString();
+        EndBodyStartFoot(sb);
+        AddFooterRow(sb, "Total", string.Empty, string.Empty, string.Empty, FormatCurrency(paidSum));
+        EndFootEndTable(sb);
+        return sb.ToString();
     }
 
-    private async Task<string> BuildNoAccountingPlayersAsync(List<FixedFields> list)
+    private async Task<string> BuildNoAccountingPlayersAsync(List<FixedFields> list, bool emailMode)
     {
         if (list.Count == 0) return string.Empty;
         var regIds = list.Select(x => x.RegistrationId).ToList();
@@ -444,9 +498,12 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                                    where regIds.Contains(r.RegistrationId)
                                    select new { r.RegistrationId, rCR.ClubName }).ToListAsync();
         var clubByReg = teamClubNames.ToDictionary(x => x.RegistrationId, x => x.ClubName);
-        var sb = new StringBuilder("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>")
-            .Append("<caption style='caption-side:top;'>Registered Family Players</caption>")
-            .Append("<tr><th>Player</th><th>Status</th><th>Assignment</th></tr>");
+        var sb = new StringBuilder();
+        StartTable(sb, emailMode);
+        AddCaption(sb, "Registered Family Players", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "Player", "Status", "Assignment");
+        EndHeadStartBody(sb);
         foreach (var q in list)
         {
             var assignment = q.Assignment ?? string.Empty;
@@ -455,13 +512,17 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 assignment = $"{club}:{assignment}";
             }
             var status = (q.Active != true) ? "INACTIVE" : "ACTIVE";
-            sb.AppendFormat("<tr><td>{0}</td><td>{1}</td><td>{2}</td></tr>", WebUtility.HtmlEncode(q.Person), status, WebUtility.HtmlEncode(assignment));
+            AddRow(sb,
+                WebUtility.HtmlEncode(q.Person ?? string.Empty),
+                status,
+                WebUtility.HtmlEncode(assignment));
         }
-        sb.Append("</table>");
+        EndBodyOnly(sb);
+        EndTableOnly(sb);
         return sb.ToString();
     }
 
-    private async Task<string> BuildContactBlockAsync(Guid jobId)
+    private async Task<string> BuildContactBlockAsync(Guid jobId, bool emailMode)
     {
         var director = await (from r in _context.Registrations
                               join roles in _context.AspNetRoles on r.RoleId equals roles.Id
@@ -470,12 +531,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                               orderby r.RegistrationTs
                               select new { Name = u.FirstName + " " + u.LastName, u.Email }).FirstOrDefaultAsync();
         if (director == null) return string.Empty;
-        var sb = new StringBuilder("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>")
-            .Append("<caption style='caption-side:top;'>Contacts</caption>")
-            .Append("<tr><th>Role</th><th>Contact</th></tr>")
-            .AppendFormat("<tr><td>{0}</td><td><a href='mailto:{1}'>{2}: {1}</a></td></tr>", "Main Contact", director.Email, WebUtility.HtmlEncode(director.Name))
-            .Append("<tr><td>Technical Support (software)</td><td><a href='mailto:support@teamsportsinfo.com'>support@teamsportsinfo.com</a></td></tr>")
-            .Append("</table>");
+        var sb = new StringBuilder();
+        StartTable(sb, emailMode);
+        AddCaption(sb, "Contacts", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "Role", "Contact");
+        EndHeadStartBody(sb);
+        AddRow(sb, "Main Contact", $"<a href='mailto:{director.Email}'>{WebUtility.HtmlEncode(director.Name)}: {director.Email}</a>");
+        AddRow(sb, "Technical Support (software)", "<a href='mailto:support@teamsportsinfo.com'>support@teamsportsinfo.com</a>");
+        EndBodyOnly(sb);
+        EndTableOnly(sb);
         return sb.ToString();
     }
 
@@ -529,7 +594,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return name ?? string.Empty;
     }
 
-    private async Task<string> BuildAccountingAHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, string jobName)
+    private async Task<string> BuildAccountingAHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, string jobName, bool emailMode)
     {
         var rows = await (from ra in _context.RegistrationAccounting
                           join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
@@ -550,9 +615,12 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                               ra.PaymentMethodId
                           }).ToListAsync();
         var sb = new StringBuilder();
-        sb.Append("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>");
-        sb.AppendFormat("<caption style='caption-side:top;'>{0}:Most Recent Transaction(s)</caption>", WebUtility.HtmlEncode(jobName));
-        sb.Append("<tr><th>ID</th><th>Player</th><th>Method</th><th>Fees$</th><th>Discount$</th><th>Paid$</th><th>Owes$</th></tr>");
+        StartTable(sb, emailMode);
+        AddCaption(sb, $"{WebUtility.HtmlEncode(jobName)}:Most Recent Transaction(s)", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "ID", "Player", "Method", "Fees$", "Discount$", "Paid$", "Owes$");
+        EndHeadStartBody(sb);
+        decimal feesSum = 0m, discountSum = 0m, paidSum = 0m, owesSum = 0m;
         foreach (var r in rows)
         {
             decimal discount = 0m;
@@ -561,20 +629,23 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 discount = await _discountEvaluator.EvaluateAsync(r.DiscountCodeAi.Value, r.Payamt.Value);
             }
             var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
-            sb.AppendFormat("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td><td>{5}</td><td>{6}</td></tr>",
-                r.AId,
-                WebUtility.HtmlEncode(r.RegistrantName),
-                r.PaymentMethod,
-                (r.Dueamt ?? 0m).ToString("C"),
-                discount.ToString("C"),
-                (r.Payamt ?? 0m).ToString("C"),
-                owes.ToString("C"));
+            feesSum += (r.Dueamt ?? 0m); discountSum += discount; paidSum += (r.Payamt ?? 0m); owesSum += owes;
+            AddRow(sb,
+                r.AId.ToString(),
+                WebUtility.HtmlEncode(r.RegistrantName ?? string.Empty),
+                r.PaymentMethod ?? string.Empty,
+                FormatCurrency(r.Dueamt ?? 0m),
+                FormatCurrency(discount),
+                FormatCurrency(r.Payamt ?? 0m),
+                FormatCurrency(owes));
         }
-        sb.Append("</table>");
+        EndBodyStartFoot(sb);
+        AddFooterRow(sb, "Totals", string.Empty, string.Empty, FormatCurrency(feesSum), FormatCurrency(discountSum), FormatCurrency(paidSum), FormatCurrency(owesSum));
+        EndFootEndTable(sb);
         return sb.ToString();
     }
 
-    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId)
+    private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
     {
         var clubName = await _context.Registrations.Where(r => r.RegistrationId == registrationId).Select(r => r.ClubName).SingleOrDefaultAsync() ?? string.Empty;
         var teams = await (from t in _context.Teams
@@ -582,9 +653,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                            where t.ClubrepRegistrationid == registrationId && ag.AgegroupName != "Dropped Teams" && t.TeamName != "Club Teams"
                            select new { t.TeamId, TeamName = ag.AgegroupName + " " + t.TeamName }).ToListAsync();
         var sb = new StringBuilder();
-        sb.Append("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>");
-        sb.AppendFormat("<caption style='caption-side:top;'>{0}:Most Recent Transaction(s)</caption>", WebUtility.HtmlEncode(clubName));
-        sb.Append("<tr><th>Active</th><th>ID</th><th>Team</th><th>Method</th><th>Fees$</th><th>Paid$</th><th>Date</th><th>Owes$</th><th>Comment</th></tr>");
+        StartTable(sb, emailMode);
+        AddCaption(sb, $"{WebUtility.HtmlEncode(clubName)}:Most Recent Transaction(s)", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "Active", "ID", "Team", "Method", "Fees$", "Paid$", "Date", "Owes$", "Comment");
+        EndHeadStartBody(sb);
         foreach (var t in teams)
         {
             var rows = await (from ra in _context.RegistrationAccounting
@@ -604,23 +677,24 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 }
                 var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
                 var activeChecked = (r.Active ?? false) ? "checked" : string.Empty;
-                sb.AppendFormat("<tr><td><input type='checkbox' disabled {0}></td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td><td>{5}</td><td>{6:g}</td><td>{7}</td><td>{8}</td></tr>",
-                    activeChecked,
-                    r.AId,
+                AddRow(sb,
+                    $"<input type='checkbox' disabled {activeChecked}>",
+                    r.AId.ToString(),
                     WebUtility.HtmlEncode(t.TeamName),
-                    r.PaymentMethod,
-                    (r.Dueamt ?? 0m).ToString("C"),
-                    (r.Payamt ?? 0m).ToString("C"),
-                    r.Createdate,
-                    owes.ToString("C"),
+                    r.PaymentMethod ?? string.Empty,
+                    FormatCurrency(r.Dueamt ?? 0m),
+                    FormatCurrency(r.Payamt ?? 0m),
+                    r.Createdate?.ToString("g") ?? string.Empty,
+                    FormatCurrency(owes),
                     WebUtility.HtmlEncode(r.Comment ?? string.Empty));
             }
         }
-        sb.Append("</table>");
+        EndBodyOnly(sb);
+        EndTableOnly(sb);
         return sb.ToString();
     }
 
-    private async Task<string> BuildTeamsSummaryHtmlAsync(Guid registrationId)
+    private async Task<string> BuildTeamsSummaryHtmlAsync(Guid registrationId, bool emailMode)
     {
         var teams = await (from t in _context.Teams
                            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
@@ -640,30 +714,37 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                            }).ToListAsync();
         if (teams.Count == 0) return string.Empty;
         var sb = new StringBuilder();
-        sb.Append("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>");
-        sb.AppendFormat("<caption style='caption-side:top;'>{0}:Registered Teams SUMMARY</caption>", WebUtility.HtmlEncode(teams[0].ClubName ?? string.Empty));
-        sb.Append("<tr><th></th><th>Team</th><th>Deposit Fee</th><th>Additional Fees</th><th>Processing Fee</th><th>Paid$</th><th>Owes$</th></tr>");
+        StartTable(sb, emailMode);
+        AddCaption(sb, $"{WebUtility.HtmlEncode(teams[0].ClubName ?? string.Empty)}:Registered Teams SUMMARY", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, string.Empty, "Team", "Deposit Fee", "Additional Fees", "Processing Fee", "Paid$", "Owes$");
+        EndHeadStartBody(sb);
         int i = 1;
-        decimal? sumOwed = 0m;
+        decimal sumOwed = 0m; decimal sumPaid = 0m; decimal sumDeposit = 0m; decimal sumAdditional = 0m; decimal sumProcessing = 0m;
         foreach (var t in teams)
         {
             var owedRow = (t.OwedTotal == 0 && (t.PaidTotal >= (t.RosterFee + t.AdditionalFees))) ? 0m : ((t.RosterFee ?? 0m) + (t.AdditionalFees ?? 0m) + (t.ProcessingFees ?? 0m) - (t.PaidTotal ?? 0m));
-            sb.AppendFormat("<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td><td>{5}</td><td>{6}</td></tr>",
-                i++,
-                WebUtility.HtmlEncode(t.TeamName),
-                (t.RosterFee ?? 0m).ToString("C"),
-                (t.AdditionalFees ?? 0m).ToString("C"),
-                (t.ProcessingFees ?? 0m).ToString("C"),
-                (t.PaidTotal ?? 0m).ToString("C"),
-                owedRow.ToString("C"));
             sumOwed += owedRow;
+            sumPaid += (t.PaidTotal ?? 0m);
+            sumDeposit += (t.RosterFee ?? 0m);
+            sumAdditional += (t.AdditionalFees ?? 0m);
+            sumProcessing += (t.ProcessingFees ?? 0m);
+            AddRow(sb,
+                i++.ToString(),
+                WebUtility.HtmlEncode(t.TeamName),
+                FormatCurrency(t.RosterFee ?? 0m),
+                FormatCurrency(t.AdditionalFees ?? 0m),
+                FormatCurrency(t.ProcessingFees ?? 0m),
+                FormatCurrency(t.PaidTotal ?? 0m),
+                FormatCurrency(owedRow));
         }
-        sb.AppendFormat("<tr><th></th><th>Total Owed:</th><th></th><th></th><th></th><th></th><th>{0}</th></tr>", (sumOwed ?? 0m).ToString("C"));
-        sb.Append("</table>");
+        EndBodyStartFoot(sb);
+        AddFooterRow(sb, "Totals", string.Empty, FormatCurrency(sumDeposit), FormatCurrency(sumAdditional), FormatCurrency(sumProcessing), FormatCurrency(sumPaid), FormatCurrency(sumOwed));
+        EndFootEndTable(sb);
         return sb.ToString();
     }
 
-    private async Task<string> BuildNoMoneyTeamsHtmlAsync(Guid registrationId)
+    private async Task<string> BuildNoMoneyTeamsHtmlAsync(Guid registrationId, bool emailMode)
     {
         var teams = await (from t in _context.Teams
                            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
@@ -672,15 +753,18 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                            select new { TeamName = ag.AgegroupName + " " + t.TeamName, ClubName = r.ClubName }).ToListAsync();
         if (teams.Count == 0) return string.Empty;
         var sb = new StringBuilder();
-        sb.Append("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>");
-        sb.AppendFormat("<caption style='caption-side:top;'>{0}:Registered Teams SUMMARY</caption>", WebUtility.HtmlEncode(teams[0].ClubName ?? string.Empty));
-        sb.Append("<tr><th></th><th>Club Team</th></tr>");
+        StartTable(sb, emailMode);
+        AddCaption(sb, $"{WebUtility.HtmlEncode(teams[0].ClubName ?? string.Empty)}:Registered Teams SUMMARY", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, string.Empty, "Club Team");
+        EndHeadStartBody(sb);
         int i = 1;
         foreach (var t in teams)
         {
-            sb.AppendFormat("<tr><td>{0}</td><td>{1}</td></tr>", i++, WebUtility.HtmlEncode(t.TeamName));
+            AddRow(sb, i++.ToString(), WebUtility.HtmlEncode(t.TeamName));
         }
-        sb.Append("</table>");
+        EndBodyOnly(sb);
+        EndTableOnly(sb);
         return sb.ToString();
     }
 
@@ -710,7 +794,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return sb.ToString();
     }
 
-    private async Task<string> BuildCoachFullTeamNameChoicesAsync(Guid registrationId)
+    private async Task<string> BuildCoachFullTeamNameChoicesAsync(Guid registrationId, bool emailMode)
     {
         var keys = await _context.Registrations.Where(r => r.RegistrationId == registrationId)
             .Select(r => new { r.UserId, r.JobId }).SingleOrDefaultAsync();
@@ -723,14 +807,79 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                              where r.JobId == keys.JobId && r.UserId == keys.UserId && roles.Name == "Staff"
                              orderby ag.AgegroupName, t.TeamName
                              select new { Club = rCR.ClubName, Age = ag.AgegroupName, Team = t.TeamName }).ToListAsync();
-        var sb = new StringBuilder("<table style='border:1px solid;border-collapse:separate;border-spacing:10px'>");
-        sb.Append("<caption style='caption-side:top;'>Coach Team Selections</caption>");
-        sb.Append("<tr><th>Club</th><th>Age Group</th><th>Team</th></tr>");
+        var sb = new StringBuilder();
+        StartTable(sb, emailMode);
+        AddCaption(sb, "Coach Team Selections", emailMode);
+        StartHead(sb);
+        AddHeaderRow(sb, "Club", "Age Group", "Team");
+        EndHeadStartBody(sb);
         foreach (var c in choices)
         {
-            sb.AppendFormat("<tr><td>{0}</td><td>{1}</td><td>{2}</td></tr>", WebUtility.HtmlEncode(c.Club ?? string.Empty), WebUtility.HtmlEncode(c.Age ?? string.Empty), WebUtility.HtmlEncode(c.Team ?? string.Empty));
+            AddRow(sb,
+                WebUtility.HtmlEncode(c.Club ?? string.Empty),
+                WebUtility.HtmlEncode(c.Age ?? string.Empty),
+                WebUtility.HtmlEncode(c.Team ?? string.Empty));
         }
-        sb.Append("</table>");
+        EndBodyOnly(sb);
+        EndTableOnly(sb);
         return sb.ToString();
     }
+
+    // Helper methods for uniform table construction.
+    // Unified email-safe styling: rely purely on inline CSS (most widely preserved) for consistent
+    // rendering across web UI and email clients. Use collapsed borders and per-cell borders for full grid.
+    // Dual-mode helpers: email mode uses full inline styling; screen mode uses CSS classes.
+    private static void StartTable(StringBuilder sb, bool emailMode)
+    {
+        if (emailMode)
+            sb.Append("<table border='1' cellpadding='4' cellspacing='0' style='border:1px solid #000;border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif;font-size:12px;' role='table'>");
+        else
+            sb.Append("<table class='tsic-grid' role='table'>");
+    }
+    private static void AddCaption(StringBuilder sb, string caption, bool emailMode)
+    {
+        var safe = WebUtility.HtmlEncode(caption);
+        if (emailMode)
+        {
+            sb.AppendFormat("<div style='font-weight:600;margin:4px 0;'>{0}</div>", safe); // redundancy for email clients
+            sb.AppendFormat("<caption style='caption-side:top;text-align:left;font-weight:600;padding:4px 6px;'>{0}</caption>", safe);
+        }
+        else
+        {
+            sb.AppendFormat("<caption class='tsic-caption'>{0}</caption>", safe);
+        }
+    }
+    private static void StartHead(StringBuilder sb) => sb.Append("<thead>");
+    private static void AddHeaderRow(StringBuilder sb, params string[] headers)
+    {
+        sb.Append("<tr>");
+        foreach (var h in headers)
+            sb.AppendFormat("<th scope='col' {0}>{1}</th>",
+                // Apply inline style only when not using class-based mode (class-based mode handled by .tsic-grid CSS) - we detect by absence of tsic-grid earlier
+                "class='tsic-grid-header'",
+                WebUtility.HtmlEncode(h));
+        sb.Append("</tr>");
+    }
+    private static void EndHeadStartBody(StringBuilder sb) => sb.Append("</thead><tbody>");
+    private static void AddRow(StringBuilder sb, params string?[] cells)
+    {
+        sb.Append("<tr>");
+        foreach (var c in cells)
+            sb.AppendFormat("<td class='tsic-grid-cell'>{0}</td>", c ?? string.Empty);
+        sb.Append("</tr>");
+    }
+    private static void EndBodyStartFoot(StringBuilder sb) => sb.Append("</tbody><tfoot>");
+    private static void AddFooterRow(StringBuilder sb, params string[] cells)
+    {
+        if (cells.Length == 0) return;
+        sb.Append("<tr>");
+        sb.AppendFormat("<th scope='row' class='tsic-grid-footer-header'>{0}</th>", cells[0]);
+        for (int i = 1; i < cells.Length; i++)
+            sb.AppendFormat("<td class='tsic-grid-footer-cell'>{0}</td>", cells[i]);
+        sb.Append("</tr>");
+    }
+    private static void EndFootEndTable(StringBuilder sb) => sb.Append("</tfoot></table>");
+    private static void EndBodyOnly(StringBuilder sb) => sb.Append("</tbody>");
+    private static void EndTableOnly(StringBuilder sb) => sb.Append("</table>");
+    private static string FormatCurrency(decimal value) => value.ToString("C");
 }

@@ -52,7 +52,8 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         var regs = await LoadRegistrationsAsync(jobId, familyUserId, ct);
         var tsic = await BuildTsicFinancialAsync(regs, ct);
         var insurance = BuildInsuranceStatus(regs);
-        var html = await BuildConfirmationHtmlAsync(jobPath, confirmationTemplate, familyUserId);
+        Guid? firstRegistrationId = regs.FirstOrDefault()?.RegistrationId;
+        var html = await BuildConfirmationHtmlAsync(jobPath, confirmationTemplate, familyUserId, firstRegistrationId);
         return new PlayerRegConfirmationDto(tsic, insurance, html);
     }
 
@@ -142,13 +143,13 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         return new PlayerRegInsuranceStatusDto(regs.Count > 0, policies.Count > 0, policies.Count == 0 && regs.Count > 0, policies.Count > 0, policies);
     }
 
-    private async Task<string> BuildConfirmationHtmlAsync(string jobPath, string? template, string familyUserId)
+    private async Task<string> BuildConfirmationHtmlAsync(string jobPath, string? template, string familyUserId, Guid? registrationId)
     {
         if (string.IsNullOrWhiteSpace(template)) return string.Empty;
         try
         {
             Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-            return await _subs.SubstituteAsync(jobPath, ccPaymentMethodId, null, familyUserId, template);
+            return await _subs.SubstituteAsync(jobPath, ccPaymentMethodId, registrationId, familyUserId, template);
         }
         catch (Exception ex)
         {

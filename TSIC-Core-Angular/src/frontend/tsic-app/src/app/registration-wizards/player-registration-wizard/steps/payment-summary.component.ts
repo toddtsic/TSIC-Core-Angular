@@ -38,22 +38,22 @@ import { PaymentService } from '../services/payment.service';
               </td>
               <td>{{ subscriptionId(li.playerId) || '-' }}</td>
               <td [title]="scheduleTooltip(li.playerId)">
-                <ng-container *ngIf="arbProgress(li.playerId) as prog">
-                  <ng-container [ngSwitch]="prog.state">
-                    <span *ngSwitchCase="'issue'" class="text-warning">Issue</span>
-                    <span *ngSwitchCase="'pending'">{{ prog.nextDate | date:'MMM d, y'}} ({{ prog.nextIndex + 1 }}/{{ prog.total }})</span>
-                    <span *ngSwitchCase="'completed'" class="badge bg-secondary-subtle text-dark border" title="No further scheduled billing dates">No more due</span>
-                    <span *ngSwitchDefault>-</span>
-                  </ng-container>
-                </ng-container>
+                @if (arbProgress(li.playerId); as prog) {
+                  @switch (prog.state) {
+                    @case ('issue') { <span class="text-warning">Issue</span> }
+                    @case ('pending') { <span>{{ prog.nextDate | date:'MMM d, y'}} ({{ prog.nextIndex + 1 }}/{{ prog.total }})</span> }
+                    @case ('completed') { <span class="badge bg-secondary-subtle text-dark border" title="No further scheduled billing dates">No more due</span> }
+                    @default { <span>-</span> }
+                  }
+                }
               </td>
               <td>
-                <ng-container *ngIf="arbProgress(li.playerId) as prog">
-                  <ng-container [ngSwitch]="prog.state">
-                    <span *ngSwitchCase="'issue'" class="text-warning">Issue</span>
-                    <span *ngSwitchDefault>{{ prog.total || '-' }}</span>
-                  </ng-container>
-                </ng-container>
+                @if (arbProgress(li.playerId); as prog) {
+                  @switch (prog.state) {
+                    @case ('issue') { <span class="text-warning">Issue</span> }
+                    @default { <span>{{ prog.total || '-' }}</span> }
+                  }
+                }
               </td>
               <td>{{ (li.amount / svc.arbOccurrences()) | currency }}</td>
               <td>{{ li.amount | currency }}</td>

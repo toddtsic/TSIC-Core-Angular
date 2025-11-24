@@ -80,7 +80,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                         <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
                           @for (id of selectedArrayFor(p.userId); track id) {
                             <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                              <span class="name">{{ nameForTeam(id) }}<ng-container *ngIf="priceForTeam(id) != null"> ({{ priceForTeam(id) | currency }})</ng-container></span>
+                              <span class="name">{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</span>
                               @if (canRemoveTeam(p.userId, id)) {
                                 <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
                                         (click)="removeTeam(p.userId, id)">
@@ -113,14 +113,14 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                             (change)="onSyncSingleChange(p.userId, $event)">
                             <ng-template #valueTemplate let-data>
                               <span class="rw-item">
-                                <span class="name">{{ data?.teamName }}<ng-container *ngIf="data?.perRegistrantFee != null"> ({{ data?.perRegistrantFee | currency }})</ng-container></span>
+                                <span class="name">{{ data?.teamName }} @if (data?.perRegistrantFee != null) { ({{ data?.perRegistrantFee | currency }}) }</span>
                               </span>
                             </ng-template>
                             <ng-template #itemTemplate let-data>
                               <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
                                 <span class="name"
                                       [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
-                                      [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}<ng-container *ngIf="data.perRegistrantFee != null"> ({{ data.perRegistrantFee | currency }})</ng-container></span>
+                                      [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }} @if (data.perRegistrantFee != null) { ({{ data.perRegistrantFee | currency }}) }</span>
                                 <span class="capacity-badge badge rounded-pill"
                                       [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
                                                     'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
@@ -139,11 +139,13 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                   (ngModelChange)="onNativeSingleChange(p.userId, $event)"
                                   [disabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId)) && filteredTeamsFor(p.userId).length>0 && !(isRegistered(p.userId) && !hasAlternativeOpenTeam(p.userId)) ? false : true">
                             <option value="" disabled>Select team...</option>
-                            <option *ngFor="let t of filteredTeamsFor(p.userId)" [value]="t.teamId" [disabled]="t.rosterIsFull || baseRemaining(t.teamId)===0">
-                              {{ t.teamName }}
-                              <ng-container *ngIf="t.perRegistrantFee != null"> ({{ t.perRegistrantFee | currency }})</ng-container>
-                              <ng-container *ngIf="t.rosterIsFull || baseRemaining(t.teamId)===0"> - FULL</ng-container>
-                            </option>
+                            @for (t of filteredTeamsFor(p.userId); track t.teamId) {
+                              <option [value]="t.teamId" [disabled]="t.rosterIsFull || baseRemaining(t.teamId)===0">
+                                {{ t.teamName }}
+                                @if (t.perRegistrantFee != null) { ({{ t.perRegistrantFee | currency }}) }
+                                @if (t.rosterIsFull || baseRemaining(t.teamId)===0) { - FULL }
+                              </option>
+                            }
                           </select>
                         }
                       }
@@ -178,13 +180,13 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                        (change)="onSyncMultiChange(p.userId, $event)">
                         <!-- Selected chip/value template to also display price when present -->
                         <ng-template #valueTemplate let-data>
-                          <span class="name">{{ data?.teamName }}<ng-container *ngIf="data?.perRegistrantFee != null"> ({{ data?.perRegistrantFee | currency }})</ng-container></span>
+                          <span class="name">{{ data?.teamName }} @if (data?.perRegistrantFee != null) { ({{ data?.perRegistrantFee | currency }}) }</span>
                         </ng-template>
                         <ng-template #itemTemplate let-data>
                           <span class="rw-item">
                             <span class="name"
                                   [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
-                                  [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }}<ng-container *ngIf="data.perRegistrantFee != null"> ({{ data.perRegistrantFee | currency }})</ng-container></span>
+                                  [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }} @if (data.perRegistrantFee != null) { ({{ data.perRegistrantFee | currency }}) }</span>
                             <span class="capacity-badge badge rounded-pill"
                                   [ngStyle]="{ marginLeft: '.35rem', paddingLeft: '.35rem', paddingRight: '.35rem' }"
                                   [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),

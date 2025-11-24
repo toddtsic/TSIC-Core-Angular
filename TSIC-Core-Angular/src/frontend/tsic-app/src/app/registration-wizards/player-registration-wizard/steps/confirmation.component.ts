@@ -16,24 +16,33 @@ import { TeamService } from '../team.service';
         @if (!confirmationLoaded()) {
           <p class="text-muted">Loading confirmation summary…</p>
         } @else {
-          <ng-container [ngSwitch]="bannerType()">
-            <div *ngSwitchCase="'payment-success'" class="alert alert-success border-0 py-2 mb-3">
-              Payment processed: {{ conf()!.tsic.amountCharged | currency:conf()!.tsic.currency }}
-              <span *ngIf="conf()!.tsic.transactionId"> (Txn: {{ conf()!.tsic.transactionId }})</span>
-            </div>
-            <div *ngSwitchCase="'insurance-only'" class="alert alert-info border-0 py-2 mb-3">
-              Insurance purchase completed; no TSIC payment today.
-            </div>
-            <div *ngSwitchCase="'arb-active'" class="alert alert-info border-0 py-2 mb-3">
-              Subscription active. Next billing: {{ conf()!.tsic.nextArbBillDate || 'TBD' }}
-            </div>
-            <div *ngSwitchDefault class="alert alert-secondary border-0 py-2 mb-3">
-              Registration completed.
-            </div>
-          </ng-container>
+          <!-- @switch (bannerType()) {
+            @case ('payment-success') {
+              <div class="alert alert-success border-0 py-2 mb-3">
+                Payment processed: {{ conf()!.tsic.amountCharged | currency:conf()!.tsic.currency }}
+                @if (conf()!.tsic.transactionId) { <span> (Txn: {{ conf()!.tsic.transactionId }})</span> }
+              </div>
+            }
+            @case ('insurance-only') {
+              <div class="alert alert-info border-0 py-2 mb-3">
+                Insurance purchase completed; no TSIC payment today.
+              </div>
+            }
+            @case ('arb-active') {
+              <div class="alert alert-info border-0 py-2 mb-3">
+                Subscription active. Next billing: {{ conf()!.tsic.nextArbBillDate || 'TBD' }}
+              </div>
+            }
+            @default {
+              <div class="alert alert-secondary border-0 py-2 mb-3">
+                Registration completed.
+              </div>
+            }
+          }
 
-          <h6 class="fw-semibold">Registrations</h6>
-          <table class="table table-sm align-middle mb-3" *ngIf="conf()!.tsic.lines.length; else noRegs">
+          <h6 class="fw-semibold">Registrations</h6> -->
+          <!-- @if (conf()!.tsic.lines.length) {
+          <table class="table table-sm align-middle mb-3">
             <thead>
               <tr>
                 <th>Player</th>
@@ -43,12 +52,14 @@ import { TeamService } from '../team.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let r of conf()!.tsic.lines">
+              @for (r of conf()!.tsic.lines; track r.registrationId) {
+              <tr>
                 <td>{{ r.playerName }}</td>
                 <td>{{ r.teamName || '-' }}</td>
                 <td class="text-end">{{ r.feeTotal | currency:conf()!.tsic.currency }}</td>
                 <td>{{ policyFor(r.registrationId) || '-' }}</td>
               </tr>
+              }
             </tbody>
             <tfoot>
               <tr class="table-light">
@@ -58,15 +69,21 @@ import { TeamService } from '../team.service';
               </tr>
             </tfoot>
           </table>
-          <ng-template #noRegs><p class="text-muted">No registrations found.</p></ng-template>
+          } @else {
+            <p class="text-muted">No registrations found.</p>
+          } -->
 
-          <div *ngIf="conf()!.insurance.purchaseSucceeded" class="mb-3">
+          <!-- @if (conf()!.insurance.purchaseSucceeded) {
+          <div class="mb-3">
             <h6 class="fw-semibold">Insurance Policies</h6>
             <ul class="mb-0">
-              <li *ngFor="let p of conf()!.insurance.policies">{{ p.policyNumber }} (Issued {{ p.issuedUtc | date:'yyyy-MM-dd' }})</li>
+              @for (p of conf()!.insurance.policies; track p.policyNumber) {
+              <li>{{ p.policyNumber }} (Issued {{ p.issuedUtc | date:'yyyy-MM-dd' }})</li>
+              }
             </ul>
           </div>
-          <p *ngIf="conf()!.insurance.declined" class="text-muted">Insurance declined.</p>
+          }
+          @if (conf()!.insurance.declined) { <p class="text-muted">Insurance declined.</p> } -->
 
           <div class="mt-3" [innerHTML]="conf()!.confirmationHtml"></div>
 
