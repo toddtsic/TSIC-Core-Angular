@@ -260,6 +260,18 @@ public sealed class FamilyService : IFamilyService
                 }).ToList(),
                 StringComparer.Ordinal);
 
+        // For players not yet registered in this job, compute latest defaults across ALL jobs.
+        // Load all registrations for linked children ordered by Modified desc (most recent first).
+        var allRegsForChildren = await _db.Registrations
+            .AsNoTracking()
+            .Where(r => r.UserId != null && linkedChildIds.Contains(r.UserId))
+            .OrderByDescending(r => r.Modified)
+            .ThenByDescending(r => r.RegistrationTs)
+            .ToListAsync();
+        var allRegsByUser = allRegsForChildren
+            .GroupBy(r => r.UserId!)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+
         RegSaverDetailsDto? regSaver = null;
         var regSaverRaw = jobId == null ? null : await _db.Registrations
             .AsNoTracking()
@@ -282,6 +294,18 @@ public sealed class FamilyService : IFamilyService
         {
             var prior = regsByUser.TryGetValue(c.Id, out var list) ? (IReadOnlyList<FamilyPlayerRegistrationDto>)list : Array.Empty<FamilyPlayerRegistrationDto>();
             var registered = regSet.Contains(c.Id);
+            IReadOnlyDictionary<string, JsonElement>? defaults = null;
+            if (!registered && jobId != null && mappedFields.Count > 0 && visibleFieldNames.Count > 0)
+            {
+                if (allRegsByUser.TryGetValue(c.Id, out var history) && history.Count > 0)
+                {
+                    defaults = BuildLatestVisibleFieldValues(history, mappedFields, visibleFieldNames);
+                }
+                else
+                {
+                    defaults = new Dictionary<string, JsonElement>();
+                }
+            }
             return new FamilyPlayerDto(
                 c.Id,
                 c.FirstName ?? string.Empty,
@@ -290,7 +314,8 @@ public sealed class FamilyService : IFamilyService
                 c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
                 registered,
                 registered,
-                prior
+                prior,
+                defaults
             );
         })
         .OrderBy(p => p.LastName)
@@ -349,6 +374,54 @@ public sealed class FamilyService : IFamilyService
         }
 
         return new FamilyPlayersResponseDto(familyUser, players, regSaver, jobRegForm, ccInfo, JobHasActiveDiscountCodes: jobHasActiveDiscountCodes, JobUsesAmex: jobUsesAmex);
+    }
+
+    // Build a dictionary of latest non-null values per visible field from a user's registration history (most-recent-first list)
+    private static IReadOnlyDictionary<string, JsonElement> BuildLatestVisibleFieldValues(
+        List<TSIC.Domain.Entities.Registrations> history,
+        List<(string Name, string DbColumn)> mapped,
+        IEnumerable<string> visibleFieldNames)
+    {
+        var result = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        if (history.Count == 0 || mapped.Count == 0 || !visibleFieldNames.Any()) return result;
+
+        var regType = typeof(TSIC.Domain.Entities.Registrations);
+        // Prepare property map for visible fields only
+        var props = new List<(string Name, System.Reflection.PropertyInfo Prop)>();
+        var visible = new HashSet<string>(visibleFieldNames, StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, dbCol) in mapped)
+        {
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(dbCol)) continue;
+            if (!visible.Contains(name)) continue;
+            var pi = regType.GetProperty(dbCol, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            if (pi != null) props.Add((name, pi));
+        }
+
+        foreach (var (name, pi) in props)
+        {
+            foreach (var reg in history)
+            {
+                var val = pi.GetValue(reg);
+                if (val == null) continue;
+                JsonElement cloned;
+                switch (val)
+                {
+                    case DateTime dt:
+                        var normalized = dt.TimeOfDay == TimeSpan.Zero ? dt.ToString("yyyy-MM-dd") : dt.ToString("O");
+                        cloned = JsonDocument.Parse(JsonSerializer.Serialize(normalized)).RootElement.Clone();
+                        break;
+                    case DateTimeOffset dto:
+                        cloned = JsonDocument.Parse(JsonSerializer.Serialize(dto.ToString("O"))).RootElement.Clone();
+                        break;
+                    default:
+                        cloned = JsonDocument.Parse(JsonSerializer.Serialize(val)).RootElement.Clone();
+                        break;
+                }
+                result[name] = cloned;
+                break; // move to next field once first non-null found
+            }
+        }
+        return result;
     }
 
     public async Task<FamilyProfileResponse?> GetMyFamilyAsync(string userId)

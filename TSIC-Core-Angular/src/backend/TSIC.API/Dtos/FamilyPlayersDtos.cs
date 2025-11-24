@@ -40,7 +40,8 @@ public record FamilyPlayerDto(
     string? Dob,
     bool Registered,
     bool Selected,
-    IReadOnlyList<FamilyPlayerRegistrationDto> PriorRegistrations
+    IReadOnlyList<FamilyPlayerRegistrationDto> PriorRegistrations,
+    IReadOnlyDictionary<string, JsonElement>? DefaultFieldValues = null
 );
 
 public record RegSaverDetailsDto(
