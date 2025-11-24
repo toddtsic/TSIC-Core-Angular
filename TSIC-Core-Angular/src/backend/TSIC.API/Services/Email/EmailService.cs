@@ -5,6 +5,7 @@ using MimeKit;
 using System.Net;
 using System.IO;
 using System.Linq;
+using TSIC.API.Constants;
 
 namespace TSIC.API.Services.Email;
 
@@ -45,11 +46,11 @@ public sealed class EmailService : IEmailService
             return true;
         }
 
-        if (_env.IsDevelopment() && !sendInDevelopment)
-        {
-            _logger.LogInformation("Development environment and sendInDevelopment flag false; skipping SES transmission.");
-            return true;
-        }
+        // if (_env.IsDevelopment() && !sendInDevelopment)
+        // {
+        //     _logger.LogInformation("Development environment and sendInDevelopment flag false; skipping SES transmission.");
+        //     return true;
+        // }
 
         try
         {
@@ -107,9 +108,9 @@ public sealed class EmailService : IEmailService
 
     private void NormalizeFromHeader(MimeMessage message)
     {
-        if (message.From.Count == 0 && !string.IsNullOrWhiteSpace(_settings.SupportEmail))
+        if (message.From.Count == 0)
         {
-            message.From.Add(new MailboxAddress("TEAMSPORTSINFO.COM", _settings.SupportEmail));
+            message.From.Add(new MailboxAddress("TEAMSPORTSINFO.COM", TSIC.Domain.Constants.TsicConstants.SupportEmail));
             return;
         }
         var originalMailbox = message.From.Mailboxes.FirstOrDefault();

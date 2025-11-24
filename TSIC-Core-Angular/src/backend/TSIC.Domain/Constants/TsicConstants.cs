@@ -9,5 +9,6 @@ namespace TSIC.Domain.Constants
         public const string BaseUrlCrystalReports = "https://cr2025.teamsportsinfo.com/api/";
 #pragma warning restore S1075
         public const string SuperUserId = "71765055-647D-432E-AFB6-0F84218D0247";
+        public const string SupportEmail = "support@teamsportsinfo.com";
     }
 }

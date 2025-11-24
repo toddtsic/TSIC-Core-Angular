@@ -13,5 +13,6 @@ namespace TSIC.API.Constants
             System.Environment.GetEnvironmentVariable("TSIC_BASEURL_CR") ?? "https://cr2025.teamsportsinfo.com/api/";
 
         public const string SuperUserId = "71765055-647D-432E-AFB6-0F84218D0247";
+        public const string SupportEmail = "support@teamsportsinfo.com";
     }
 }

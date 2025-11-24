@@ -7,6 +7,7 @@ namespace TSIC.API.Services;
 public interface IPlayerRegConfirmationService
 {
     Task<PlayerRegConfirmationDto> BuildAsync(Guid jobId, string familyUserId, CancellationToken ct);
+    Task<(string Subject, string Html)> BuildEmailAsync(Guid jobId, string familyUserId, CancellationToken ct);
 }
 
 public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
@@ -57,6 +58,39 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         return new PlayerRegConfirmationDto(tsic, insurance, html);
     }
 
+    public async Task<(string Subject, string Html)> BuildEmailAsync(Guid jobId, string familyUserId, CancellationToken ct)
+    {
+        // For email, use the Job.PlayerRegConfirmationEmail template (not the on-screen variant)
+        var job = await LoadJobEmailAsync(jobId, ct);
+        if (job == null)
+        {
+            _logger.LogWarning("Email confirmation build: job {JobId} not found", jobId);
+            return (string.Empty, string.Empty);
+        }
+        var (_, jobName, jobPath, _, confirmationTemplate) = job.Value;
+        var regs = await LoadRegistrationsAsync(jobId, familyUserId, ct);
+        Guid? firstRegistrationId = regs.FirstOrDefault()?.RegistrationId;
+        string subject = string.IsNullOrWhiteSpace(jobName) ? "Registration Confirmation" : $"{jobName} Registration Confirmation";
+        string? template = confirmationTemplate;
+        if (string.IsNullOrWhiteSpace(template)) return (subject, string.Empty);
+        // Ensure email mode token present for inline-styled email output
+        if (!template.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase))
+        {
+            template = "!EMAILMODE " + template;
+        }
+        try
+        {
+            Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+            var html = await _subs.SubstituteAsync(jobPath, ccPaymentMethodId, firstRegistrationId, familyUserId, template);
+            return (subject, html);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Email substitution failed for jobPath {JobPath}", jobPath);
+            return (subject, string.Empty);
+        }
+    }
+
     private async Task<(Guid JobId, string? JobName, string JobPath, bool? AdnArb, string? PlayerRegConfirmationOnScreen)?> LoadJobAsync(Guid jobId, CancellationToken ct)
     {
         var x = await _db.Jobs.AsNoTracking()
@@ -65,6 +99,16 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
             .FirstOrDefaultAsync(ct);
         if (x == null) return null;
         return (x.JobId, x.JobName, x.JobPath, x.AdnArb, x.PlayerRegConfirmationOnScreen);
+    }
+
+    private async Task<(Guid JobId, string? JobName, string JobPath, bool? AdnArb, string? PlayerRegConfirmationEmail)?> LoadJobEmailAsync(Guid jobId, CancellationToken ct)
+    {
+        var x = await _db.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationEmail })
+            .FirstOrDefaultAsync(ct);
+        if (x == null) return null;
+        return (x.JobId, x.JobName, x.JobPath, x.AdnArb, x.PlayerRegConfirmationEmail);
     }
 
     private Task<List<RegRow>> LoadRegistrationsAsync(Guid jobId, string familyUserId, CancellationToken ct)

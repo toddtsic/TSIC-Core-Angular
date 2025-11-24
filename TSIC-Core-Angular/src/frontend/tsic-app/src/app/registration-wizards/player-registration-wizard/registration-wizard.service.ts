@@ -857,6 +857,20 @@ export class RegistrationWizardService {
                 }
             });
     }
+
+    /** Trigger server to re-send the confirmation email to the family user's email address. */
+    resendConfirmationEmail(): Promise<boolean> {
+        const jobId = this.jobId();
+        const familyUserId = this.familyUser()?.familyUserId;
+        if (!jobId || !familyUserId) return Promise.resolve(false);
+        const base = this.resolveApiBase();
+        return firstValueFrom(this.http.post(`${base}/registration/confirmation/resend`, null, { params: { jobId, familyUserId } }))
+            .then(() => true)
+            .catch(err => {
+                try { console.warn('[RegWizard] Resend confirmation failed', err); } catch { /* no-op */ }
+                return false;
+            });
+    }
     private parsedJobOptions: Json | null | undefined;
     private getJobOptionsObject(): Json | null {
         if (this.parsedJobOptions !== undefined) return this.parsedJobOptions;
