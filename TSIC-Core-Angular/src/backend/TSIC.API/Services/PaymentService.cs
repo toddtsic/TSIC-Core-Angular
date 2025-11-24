@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.API.Dtos;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.API.Services.Email;
+using MimeKit;
 
 namespace TSIC.API.Services;
 
@@ -18,6 +20,8 @@ public class PaymentService : IPaymentService
     private readonly IFeeResolverService _feeResolver;
     private readonly ITeamLookupService _teamLookup;
     private readonly ILogger<PaymentService> _logger;
+    private readonly IPlayerRegConfirmationService? _confirmation;
+    private readonly IEmailService? _email;
 
     private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate);
 
@@ -28,6 +32,14 @@ public class PaymentService : IPaymentService
         _feeResolver = feeResolver;
         _teamLookup = teamLookup;
         _logger = logger;
+    }
+
+    // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
+    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
+        : this(db, adnApiService, feeResolver, teamLookup, logger)
+    {
+        _confirmation = confirmation;
+        _email = email;
     }
 
     public async Task<PaymentResponseDto> ProcessPaymentAsync(PaymentRequestDto request, string userId)
@@ -100,7 +112,13 @@ public class PaymentService : IPaymentService
         var args = new ArbSubArgs(env, credentials.AdnLoginId!, credentials.AdnTransactionKey!, occur, intervalLen, start, cc, userId);
         var (subs, failed) = await CreateArbSubscriptionsAsync(registrations, args);
         await _db.SaveChangesAsync();
-        return BuildArbResponse(subs, failed);
+        var response = BuildArbResponse(subs, failed);
+        // Always attempt confirmation email after any successful subscription creation.
+        if (response.Success && subs.Count > 0)
+        {
+            await TrySendConfirmationEmailAsync(request.JobId, request.FamilyUserId.ToString(), userId);
+        }
+        return response;
     }
 
     private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal totalAmount)
@@ -152,6 +170,8 @@ public class PaymentService : IPaymentService
                 }
             }
             await _db.SaveChangesAsync();
+            // Attempt confirmation email after successful charge (always send, never gated by prior sends)
+            await TrySendConfirmationEmailAsync(request.JobId, request.FamilyUserId.ToString(), userId);
             return new PaymentResponseDto
             {
                 Success = true,
@@ -476,5 +496,88 @@ public class PaymentService : IPaymentService
             _logger.LogError(ex, "ARB description build error for registration {RegistrationId}", reg.RegistrationId);
             return "Registration Payment"; // Fallback to prior static description
         }
+    }
+
+    // Builds and sends the registration confirmation email, then marks BConfirmationSent=true for any registrations not yet flagged.
+    // This never suppresses sending; flag is purely informational. Guarded against missing optional services.
+    private async Task TrySendConfirmationEmailAsync(Guid jobId, string familyUserId, string userId)
+    {
+        if (_confirmation == null || _email == null) return; // Backward compatibility.
+        try
+        {
+            var toList = await BuildConfirmationRecipientsAsync(jobId, familyUserId);
+            if (toList.Count == 0)
+            {
+                _logger.LogInformation("[ConfirmationEmail] No recipient emails found jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
+                return;
+            }
+            var message = await BuildConfirmationMessageAsync(jobId, familyUserId, toList);
+            if (message == null)
+            {
+                _logger.LogWarning("[ConfirmationEmail] No HTML content jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
+                return;
+            }
+            var sent = await _email.SendAsync(message, sendInDevelopment: false, CancellationToken.None);
+            if (!sent)
+            {
+                _logger.LogWarning("[ConfirmationEmail] Send failed jobId={JobId} familyUserId={FamilyUserId} recipients={Count}", jobId, familyUserId, toList.Count);
+                return;
+            }
+            await FlagRegistrationsAsync(jobId, familyUserId, userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ConfirmationEmail] Exception during send jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
+        }
+    }
+
+    private async Task<List<string>> BuildConfirmationRecipientsAsync(Guid jobId, string familyUserId)
+    {
+        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fam = await _db.Families.AsNoTracking().FirstOrDefaultAsync(f => f.FamilyUserId == familyUserId);
+        if (!string.IsNullOrWhiteSpace(fam?.MomEmail)) recipients.Add(fam!.MomEmail!.Trim());
+        if (!string.IsNullOrWhiteSpace(fam?.DadEmail)) recipients.Add(fam!.DadEmail!.Trim());
+        var playerRegs = await _db.Registrations.AsNoTracking().Include(r => r.User)
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
+            .Select(r => r.User!.Email)
+            .ToListAsync();
+        foreach (var e in playerRegs)
+        {
+            var norm = e?.Trim();
+            if (!string.IsNullOrWhiteSpace(norm)) recipients.Add(norm!);
+        }
+        return recipients.Select(x => x.Trim()).Where(x => x.Contains('@')).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private async Task<MimeMessage?> BuildConfirmationMessageAsync(Guid jobId, string familyUserId, List<string> toList)
+    {
+        var (subject, html) = await _confirmation!.BuildEmailAsync(jobId, familyUserId, CancellationToken.None);
+        if (string.IsNullOrWhiteSpace(html)) return null;
+        var message = new MimeMessage();
+        foreach (var addr in toList) message.To.Add(MailboxAddress.Parse(addr));
+        message.Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject;
+        var builder = new BodyBuilder { HtmlBody = html };
+        message.Body = builder.ToMessageBody();
+        return message;
+    }
+
+    private async Task FlagRegistrationsAsync(Guid jobId, string familyUserId, string userId)
+    {
+        var regsToFlag = await _db.Registrations
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && !r.BConfirmationSent)
+            .ToListAsync();
+        if (regsToFlag.Count == 0)
+        {
+            _logger.LogDebug("[ConfirmationEmail] All registrations already flagged jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
+            return;
+        }
+        foreach (var reg in regsToFlag)
+        {
+            reg.BConfirmationSent = true;
+            reg.Modified = DateTime.Now;
+            reg.LebUserId = userId;
+        }
+        await _db.SaveChangesAsync();
+        _logger.LogInformation("[ConfirmationEmail] Flagged {Count} registrations jobId={JobId} familyUserId={FamilyUserId}", regsToFlag.Count, jobId, familyUserId);
     }
 }
