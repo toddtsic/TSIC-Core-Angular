@@ -13,8 +13,8 @@ public class RegistrationService : IRegistrationService
 {
     private readonly ILogger<RegistrationService> _logger;
     private readonly SqlDbContext _db;
-    private readonly IFeeResolverService _feeResolver;
-    private readonly IFeeCalculatorService _feeCalculator;
+    private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
+    private readonly IRegistrationRecordFeeCalculatorService _feeCalculator;
     private readonly IVerticalInsureService _verticalInsure;
     private readonly ITeamLookupService _teamLookupService;
 
@@ -35,8 +35,8 @@ public class RegistrationService : IRegistrationService
     public RegistrationService(
         ILogger<RegistrationService> logger,
         SqlDbContext db,
-        IFeeResolverService feeResolver,
-        IFeeCalculatorService feeCalculator,
+        IPlayerBaseTeamFeeResolverService feeResolver,
+        IRegistrationRecordFeeCalculatorService feeCalculator,
         IVerticalInsureService verticalInsure,
         ITeamLookupService teamLookupService)
     {

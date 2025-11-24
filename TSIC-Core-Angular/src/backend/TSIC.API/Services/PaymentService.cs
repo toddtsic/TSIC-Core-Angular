@@ -17,7 +17,7 @@ public class PaymentService : IPaymentService
 {
     private readonly SqlDbContext _db;
     private readonly IAdnApiService _adnApiService;
-    private readonly IFeeResolverService _feeResolver;
+    private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
     private readonly ITeamLookupService _teamLookup;
     private readonly ILogger<PaymentService> _logger;
     private readonly IPlayerRegConfirmationService? _confirmation;
@@ -25,7 +25,7 @@ public class PaymentService : IPaymentService
 
     private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate);
 
-    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
+    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
     {
         _db = db;
         _adnApiService = adnApiService;
@@ -35,7 +35,7 @@ public class PaymentService : IPaymentService
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
+    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
         : this(db, adnApiService, feeResolver, teamLookup, logger)
     {
         _confirmation = confirmation;

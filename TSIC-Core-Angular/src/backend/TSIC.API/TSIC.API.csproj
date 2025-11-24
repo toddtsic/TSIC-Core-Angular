@@ -35,4 +35,9 @@
     <ProjectReference Include="..\TSIC.Infrastructure\TSIC.Infrastructure.csproj" />
   </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="Services\IFeeCalculatorService.cs" />
+      <Compile Remove="Services\FeeCalculatorService.cs" />
+    </ItemGroup>
+
 </Project>

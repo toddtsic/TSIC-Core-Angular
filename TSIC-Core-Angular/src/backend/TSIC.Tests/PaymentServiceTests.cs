@@ -30,11 +30,11 @@ public class PaymentServiceTests
 
     private static PaymentService BuildService(SqlDbContext db,
         out Mock<IAdnApiService> adn,
-        out Mock<IFeeResolverService> feeResolver,
+        out Mock<IPlayerBaseTeamFeeResolverService> feeResolver,
         out Mock<ITeamLookupService> teamLookup)
     {
         adn = new Mock<IAdnApiService>(MockBehavior.Strict);
-        feeResolver = new Mock<IFeeResolverService>(MockBehavior.Strict);
+        feeResolver = new Mock<IPlayerBaseTeamFeeResolverService>(MockBehavior.Strict);
         teamLookup = new Mock<ITeamLookupService>(MockBehavior.Strict);
 
         // Common mocks

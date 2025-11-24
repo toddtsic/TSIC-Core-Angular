@@ -5,7 +5,7 @@ This document summarizes the current payment processing flow in `PaymentService`
 
 ### High-Level Flow
 1. Validate the requested `PaymentOption` (PIF, Deposit, ARB) against job flags.
-2. Load family registrations for the job and normalize fee fields (base, total, owed) via `IFeeResolverService`.
+2. Load family registrations for the job and normalize fee fields (base, total, owed) via `IPlayerBaseTeamFeeResolverService`.
 3. Branch:
    - ARB: Build schedule from job metadata; compute per-occurrence charge; create subscription via Authorize.Net; persist subscription metadata onto each registration.
    - PIF/Deposit: Compute per-registration charge map; perform early idempotency check (prevents duplicate charges by invoice key); send charge request to Authorize.Net; update registrations and accounting entries; optionally persist RegSaver (VerticalInsure) policy identifiers.
@@ -40,6 +40,7 @@ If the request sets `ViConfirmed` and supplies a new `ViPolicyNumber`, registrat
 * Deleted placeholder `Class1.cs` files to remove empty class warnings.
 * Removed obsolete commented-out code from `AdnApiService`.
 * Added pragma suppression for hard-coded external URIs in `TsicConstants` (documented justification).
+* Renamed fee services: `FeeResolverService` -> `PlayerBaseTeamFeeResolverService`; `FeeCalculatorService` -> `RegistrationRecordFeeCalculatorService` (legacy shims removed).
 
 ### Test Coverage
 `PaymentServiceTests` currently validate:
