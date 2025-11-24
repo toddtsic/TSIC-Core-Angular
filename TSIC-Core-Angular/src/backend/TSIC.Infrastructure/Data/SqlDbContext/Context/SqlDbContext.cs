@@ -4176,6 +4176,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BUseWaitlists).HasColumnName("bUseWaitlists");
             entity.Property(e => e.Balancedueaspercent).HasColumnName("balancedueaspercent");
             entity.Property(e => e.BannerFile).HasColumnName("bannerFile");
+            entity.Property(e => e.BenableStp).HasColumnName("BEnableSTP");
             entity.Property(e => e.BillingTypeId).HasColumnName("BillingTypeID");
             entity.Property(e => e.CoreRegformPlayer).IsUnicode(false);
             entity.Property(e => e.CustomerId).HasColumnName("customerID");
@@ -4388,6 +4389,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Modified)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("modified");
+            entity.Property(e => e.PlayerFeeOverride).HasColumnType("money");
             entity.Property(e => e.RescheduleEmailsToAddon).HasColumnName("rescheduleEmailsToAddon");
             entity.Property(e => e.SportId).HasColumnName("sportID");
             entity.Property(e => e.StrGradYears).HasColumnName("strGradYears");

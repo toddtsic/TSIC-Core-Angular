@@ -1,7 +1,7 @@
 # Player Registration Wizard Flow (Interim Spec)
 
-**Date**: November 7, 2025  
-**Status**: In Progress — documents currently implemented routing/auth patterns and upcoming steps.
+**Date**: November 7, 2025 (original) / Updated: November 24, 2025  
+**Status**: Active — core flow implemented; recent enhancements (defaults, waivers isolation, payment refactor, auto confirmation email) appended below.
 
 ---
 
@@ -145,13 +145,13 @@ Normalization Rules:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Family user list retrieval | Pending | Requires endpoint & service wiring |
-| Registration summary check | Pending | Decide shape (`exists`, `status`, `regId`) |
-| Token enrichment timing | Pending | Implement after creation/selection step |
-| Dynamic form prefill | Pending | Map existing registration fields → form controls |
-| Team filtering integration | Pending | Endpoint spec ready, not implemented |
-| USLax async validation | Pending | Service contract outlined in architecture doc |
-| Edge case surfaces (waitlist/full) | Pending | Add UI states & backend flags |
+| Family user list retrieval | Partial | Basic family players endpoint supplies player set; dedicated user list deferred |
+| Registration summary check | Deferred | Current flow infers existing vs new from `registered` flag in players payload |
+| Token enrichment timing | In Progress | Phase 2 enrichment occurs post successful payment (confirmation load) |
+| Dynamic form prefill | Implemented | Historical latest registration snapshot + new `defaultFieldValues` for unregistered players |
+| Team filtering integration | Implemented | Constraint → team gating; full-team UI states present |
+| USLax async validation | Implemented | Field detection + status signals + validation messages |
+| Edge case surfaces (waitlist/full) | Partial | Full teams disabled; waitlist messaging TBD |
 
 ---
 
@@ -187,6 +187,49 @@ Initial increment (focused on deterministic return + user selection):
 - [ ] Registration summary fetch logic
 - [ ] Create-or-resume branching
 - [ ] Token enrichment after selection
+### Post-Nov 20 Enhancements (Current)
+- [x] Dedicated Waivers step (removed waiver checkboxes from Forms)
+- [x] Historical field defaults (`defaultFieldValues`) merged into blank form controls for newly selected, unregistered players
+- [x] Eligibility auto-seed from defaults (when constraint active)
+- [x] Payment step refactor (see `payment-refactor-summary.md`)
+- [x] Automatic confirmation email on every successful payment (CC or ARB) with advisory `BConfirmationSent` flag update
+- [x] Re-send confirmation email endpoint + UI button
+- [x] Finish button navigates back to job home (`/{jobPath}`) instead of cycling wizard
+- [ ] Waitlist UI/flag integration
+- [ ] Registration summary consolidation endpoint (single source for status)
+- [ ] Multi-player batch eligibility optimization (current per-player pass is adequate at scale < 200)
+
+---
+
+## 11. Historical Field Defaults & Prefill (New)
+Unregistered players now receive per-field defaults derived from the most recent value across ANY prior registration (job-agnostic). Backend supplies a `defaultFieldValues` dictionary (visible-only fields). Frontend merge rules:
+1. Apply only when player is newly selected and not yet registered in current job.
+2. Only fill controls that are blank (`null`, empty string, or empty array).
+3. Preserve values seeded from prior registration snapshot if player is already registered.
+4. Honor alias field mapping (PascalCase db columns → UI schema names).
+5. Eligibility constraint value auto-seeded if corresponding field is defaulted.
+
+Benefits:
+- Reduces repetitive data entry across seasonal jobs.
+- Maintains immutability of historical registrations (no retroactive writes).
+- Keeps advisory nature: user can overwrite any prefilled value immediately.
+
+## 12. Confirmation Email Automation (New)
+Each successful payment (one-time charge or ARB subscription create) triggers an immediate confirmation email send. Design details:
+- No suppression: email always sent; existing `BConfirmationSent` flags only updated from false → true.
+- Environment short-circuit: in Development, send is skipped unless `sendInDevelopment=true` passed (see `EmailService.SendAsync`).
+- Resend endpoint allows manual re-send without affecting original send semantics.
+- Token substitution service now normalizes From header brand formatting.
+
+## 13. Finish Navigation Behavior (New)
+The Finish button on the Confirmation step now exits the wizard and navigates directly to the job home (`/{jobPath}`) for a clean post-registration return path.
+
+## 14. Future Documentation Targets
+- Consolidated "Registration Context" doc (will merge remaining pending items: family user explicit selection, summary endpoint schema).
+- Waitlist lifecycle & UI semantics.
+- Performance notes for large family rosters (signal update batching).
+
+**Last Updated By**: GitHub Copilot (Automated Assistant)
 
 Subsequent increments add form metadata rendering, team filtering, payment, USLax validation.
 

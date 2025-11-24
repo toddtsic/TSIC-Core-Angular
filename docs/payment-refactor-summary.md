@@ -64,3 +64,24 @@
 
 ---
 Refactor completed: architecture now aligns with separation of concerns, improves testability, and reduces coupling between UI and business logic.
+
+## Addendum (Nov 24, 2025): Payment-Adjacent Enhancements
+
+### Automatic Confirmation Emails
+Every successful payment or ARB subscription creation now triggers an immediate confirmation email send. Re-sends are always allowed; the advisory flag `BConfirmationSent` is only flipped from false → true when the first successful send occurs. No suppression logic is applied on subsequent payments.
+
+Key behavior:
+- Email dispatch is non-blocking; payment success is not rolled back if email send fails.
+- Development environment short-circuit unless `sendInDevelopment` explicitly enabled.
+- Re-send endpoint surfaces in Confirmation step (Finish tab).
+
+### Historical Field Defaults Impact
+Historical `defaultFieldValues` (recent cross-job field values) are merged before payment and do not alter payment calculations directly—fees still derive from pending registrations created during `preSubmit`.
+
+### Finish Navigation
+Wizard Finish button now returns the user to the job home (`/{jobPath}`) for a clean post-registration exit instead of advancing a non-existent next step.
+
+### Planned Follow-Ups
+- Correlate confirmation email with idempotency key for audit.
+- Surface email send result (success/failure icon) in payment summary.
+- Batch resend capability for multi-player payments.

@@ -39,6 +39,8 @@ public partial class Leagues
 
     public int? StandingsSortProfileId { get; set; }
 
+    public decimal? PlayerFeeOverride { get; set; }
+
     public virtual ICollection<Agegroups> Agegroups { get; set; } = new List<Agegroups>();
 
     public virtual ICollection<FieldOverridesStartTimeMaxMinGames> FieldOverridesStartTimeMaxMinGames { get; set; } = new List<FieldOverridesStartTimeMaxMinGames>();
