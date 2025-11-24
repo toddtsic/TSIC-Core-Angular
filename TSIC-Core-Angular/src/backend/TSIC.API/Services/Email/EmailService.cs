@@ -46,11 +46,11 @@ public sealed class EmailService : IEmailService
             return true;
         }
 
-        // if (_env.IsDevelopment() && !sendInDevelopment)
-        // {
-        //     _logger.LogInformation("Development environment and sendInDevelopment flag false; skipping SES transmission.");
-        //     return true;
-        // }
+        if (_env.IsDevelopment() && !sendInDevelopment)
+        {
+            _logger.LogInformation("Development environment and sendInDevelopment flag false; skipping SES transmission.");
+            return true;
+        }
 
         try
         {

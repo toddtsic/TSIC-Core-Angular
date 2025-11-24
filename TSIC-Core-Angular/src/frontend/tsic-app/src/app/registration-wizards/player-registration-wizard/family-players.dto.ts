@@ -38,6 +38,8 @@ export interface FamilyPlayer {
     registered: boolean;
     selected: boolean;
     priorRegistrations: FamilyPlayerRegistration[];
+    // Server-provided latest visible values across ANY prior registrations (only when player NOT yet registered in current job)
+    defaultFieldValues?: Record<string, any> | null;
 }
 
 export interface RegSaverDetails {

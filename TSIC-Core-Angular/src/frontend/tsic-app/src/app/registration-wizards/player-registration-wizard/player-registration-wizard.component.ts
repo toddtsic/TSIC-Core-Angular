@@ -355,4 +355,14 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         const confIdx = this.steps().indexOf('confirmation');
         if (confIdx >= 0) this.currentIndex.set(confIdx);
     }
+
+    // Navigate back to job home after Finish on confirmation tab
+    finishToJobHome(): void {
+        const jp = this.state.jobPath();
+        if (jp) {
+            try { this.router.navigate(['/', jp]); } catch { /* ignore */ }
+        } else {
+            try { this.router.navigate(['/tsic']); } catch { /* ignore */ }
+        }
+    }
 }

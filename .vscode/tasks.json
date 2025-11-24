@@ -258,6 +258,39 @@
 			],
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"TSIC-Core-Angular.sln"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"TSIC-Core-Angular.sln"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"build",
+				"TSIC-Core-Angular.sln"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

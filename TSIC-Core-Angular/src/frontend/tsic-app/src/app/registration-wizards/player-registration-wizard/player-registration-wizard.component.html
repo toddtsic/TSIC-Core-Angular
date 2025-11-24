@@ -55,7 +55,7 @@
             <app-rw-payment (back)="back()" (submitted)="next()" />
             }
             @case ('confirmation') {
-            <app-rw-confirmation (completed)="next()" />
+            <app-rw-confirmation (completed)="finishToJobHome()" />
             }
             @default {
             <div class="alert alert-warning" role="note">

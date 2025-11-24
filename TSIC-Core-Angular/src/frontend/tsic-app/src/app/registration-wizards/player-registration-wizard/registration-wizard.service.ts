@@ -326,6 +326,7 @@ export class RegistrationWizardService {
                     r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues
                 )
             }));
+            const defaultsRaw = p.defaultFieldValues || p.DefaultFieldValues || null;
             return {
                 playerId: p.playerId ?? p.PlayerId ?? '',
                 firstName: p.firstName ?? p.FirstName ?? '',
@@ -334,7 +335,8 @@ export class RegistrationWizardService {
                 dob: p.dob ?? p.Dob ?? undefined,
                 registered: !!(p.registered ?? p.Registered),
                 selected: !!(p.selected ?? p.Selected ?? (p.registered ?? p.Registered)),
-                priorRegistrations: priorRegs
+                priorRegistrations: priorRegs,
+                defaultFieldValues: defaultsRaw ? normalizeFormValues(defaultsRaw) : null
             } as FamilyPlayer;
         });
     }
@@ -508,6 +510,7 @@ export class RegistrationWizardService {
         this.bindWaiversToSchemas(schemas);
         this.initializeFormValuesForSelectedPlayers(schemas);
         this.seedPlayerValuesFromPriorRegistrations(schemas);
+        this.seedPlayerValuesFromDefaults(schemas); // merge defaults for unregistered players
         this.applyAliasBackfill();
         this.seedEligibilityFromSchemas(schemas);
     }
@@ -562,6 +565,39 @@ export class RegistrationWizardService {
         }
     }
 
+    private seedPlayerValuesFromDefaults(schemas: PlayerProfileFieldSchema[]): void {
+        try {
+            const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+            const players = this.familyPlayers();
+            const schemaNameByLower: Record<string, string> = {};
+            for (const s of schemas) schemaNameByLower[s.name.toLowerCase()] = s.name;
+            for (const p of players) {
+                if (p.registered) continue; // only for not-yet-registered players
+                if (!p.selected) continue; // only apply to currently selected players
+                const pid = p.playerId;
+                if (!current[pid]) continue;
+                const df = p.defaultFieldValues || {};
+                for (const [rawK, rawV] of Object.entries(df)) {
+                    if (rawV == null || rawV === '') continue;
+                    const kLower = rawK.toLowerCase();
+                    let targetName = schemaNameByLower[kLower];
+                    if (!targetName) {
+                        const alias = this.formSchema.aliasFieldMap();
+                        const foundAlias = Object.keys(alias).find(a => a.toLowerCase() === kLower);
+                        if (foundAlias) targetName = alias[foundAlias];
+                    }
+                    if (!targetName) continue;
+                    const existing = current[pid][targetName];
+                    const isBlank = existing == null || (typeof existing === 'string' && existing.trim() === '') || (Array.isArray(existing) && existing.length === 0);
+                    if (isBlank) current[pid][targetName] = rawV;
+                }
+            }
+            this.playerFormValues.set(current);
+        } catch (e) {
+            console.debug('[RegWizard] Default values seed failed', e);
+        }
+    }
+
     private applyAliasBackfill(): void {
         try {
             const alias = this.formSchema.aliasFieldMap();
@@ -583,10 +619,16 @@ export class RegistrationWizardService {
             const eligField = this.determineEligibilityField(schemas);
             if (!eligField) return;
             const map = { ...this.playerState.eligibilityByPlayer() } as Record<string, string>;
-            for (const p of this.familyPlayers()) {
-                if (!p.registered) continue;
+            const players = this.familyPlayers();
+            for (const p of players) {
+                // Include: registered players (locked) OR currently selected unregistered players
+                if (!p.registered && !p.selected) continue;
                 const v = this.playerFormValues()[p.playerId]?.[eligField];
-                if (v != null && String(v).trim() !== '') map[p.playerId] = String(v);
+                if (v != null && String(v).trim() !== '') {
+                    // Do not overwrite an existing eligibility selection unless blank
+                    const existing = map[p.playerId];
+                    if (!existing || String(existing).trim() === '') map[p.playerId] = String(v).trim();
+                }
             }
             if (!Object.keys(map).length) return;
             for (const [pid, val] of Object.entries(map)) this.playerState.setEligibilityForPlayer(pid, val);
@@ -922,13 +964,69 @@ export class RegistrationWizardService {
         const playerId = typeof player === 'string' ? player : player?.playerId;
         if (!playerId) return;
         const list = this.familyPlayers();
+        let becameSelected = false;
         this.familyPlayers.set(list.map(p => {
             if (p.playerId !== playerId) return p;
             if (p.registered) return p; // locked
-            return { ...p, selected: !p.selected };
+            const nextSelected = !p.selected;
+            if (nextSelected && !p.selected) becameSelected = true;
+            return { ...p, selected: nextSelected };
         }));
         // Re-evaluate waiver acceptance state based on current selection
         this.recomputeWaiverAcceptanceOnSelectionChange();
+        // If an unregistered player was just selected after schemas loaded, seed defaults
+        if (becameSelected && this.profileFieldSchemas().length) {
+            try {
+                // Initialize fields for this player if missing
+                const schemas = this.profileFieldSchemas();
+                const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+                if (!current[playerId]) current[playerId] = {};
+                for (const f of schemas) if (!(f.name in current[playerId])) current[playerId][f.name] = null;
+                this.playerFormValues.set(current);
+                // Apply defaults only for that player
+                const fam = this.familyPlayers().find(p => p.playerId === playerId);
+                if (fam && !fam.registered && fam.defaultFieldValues) {
+                    const df = fam.defaultFieldValues;
+                    const schemaNameByLower: Record<string, string> = {};
+                    for (const s of schemas) schemaNameByLower[s.name.toLowerCase()] = s.name;
+                    const alias = this.formSchema.aliasFieldMap();
+                    const curVals = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+                    const target = curVals[playerId];
+                    for (const [rawK, rawV] of Object.entries(df)) {
+                        if (rawV == null || rawV === '') continue;
+                        const kLower = rawK.toLowerCase();
+                        let targetName = schemaNameByLower[kLower];
+                        if (!targetName) {
+                            const foundAlias = Object.keys(alias).find(a => a.toLowerCase() === kLower);
+                            if (foundAlias) targetName = alias[foundAlias];
+                        }
+                        if (!targetName) continue;
+                        const existing = target[targetName];
+                        const isBlank = existing == null || (typeof existing === 'string' && existing.trim() === '') || (Array.isArray(existing) && existing.length === 0);
+                        if (isBlank) target[targetName] = rawV;
+                    }
+                    this.playerFormValues.set(curVals);
+                    // Eligibility auto-select from default if available
+                    try {
+                        const eligField = this.determineEligibilityField(schemas) || this.resolveEligibilityFieldNameFromSchemas();
+                        if (eligField) {
+                            const rawElig = curVals[playerId]?.[eligField];
+                            if (rawElig != null && String(rawElig).trim() !== '') {
+                                const existingElig = this.getEligibilityForPlayer(playerId);
+                                if (!existingElig || String(existingElig).trim() === '') {
+                                    this.playerState.setEligibilityForPlayer(playerId, String(rawElig).trim());
+                                    // Recompute unified teamConstraintValue if all selected share same eligibility
+                                    const selectedIds = this.selectedPlayerIds();
+                                    const eligValues = selectedIds.map(id => this.getEligibilityForPlayer(id)).filter(v => !!v);
+                                    const uniq = Array.from(new Set(eligValues));
+                                    if (uniq.length === 1) this.teamConstraintValue.set(uniq[0]!);
+                                }
+                            }
+                        }
+                    } catch { /* ignore */ }
+                }
+            } catch { /* ignore */ }
+        }
     }
 
     selectedPlayerIds(): string[] {
