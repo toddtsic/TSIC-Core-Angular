@@ -12,49 +12,30 @@
         method="post" action="/" novalidate>
 
         <div class="mb-4">
-          <label for="username" class="form-label fw-semibold">Username</label>
-          <input #usernameInput id="username" name="username" type="text" class="form-control form-control-lg border-2"
-            formControlName="username" placeholder="Enter your username" autocomplete="username" aria-label="Username"
-            [class.is-invalid]="submitted() && form.get('username')?.invalid">
-          @if (submitted() && form.get('username')?.invalid) {
-          <div class="invalid-feedback">
-            Username is required
-          </div>
-          }
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Username</mat-label>
+            <input #usernameInput matInput id="username" name="username" type="text" formControlName="username"
+              placeholder="Enter your username" autocomplete="username" aria-label="Username">
+            @if (submitted() && form.get('username')?.invalid) { <mat-error>Username is required</mat-error> }
+          </mat-form-field>
         </div>
 
         <div class="mb-4">
-          <label for="password" class="form-label fw-semibold">Password</label>
-          <div class="position-relative">
-            <input #passwordInput id="password" name="password" [type]="showPassword() ? 'text' : 'password'"
-              class="form-control form-control-lg border-2 pe-5" formControlName="password"
-              placeholder="Enter your password" [attr.autocomplete]="'current-password'" autocapitalize="none"
-              spellcheck="false" aria-label="Password"
-              [class.is-invalid]="submitted() && form.get('password')?.invalid">
-            <button type="button"
-              class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary p-0 border-0"
-              style="width: 40px; height: 40px;" (click)="toggleShowPassword()"
-              [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
+          <mat-form-field appearance="outline" class="w-100">
+            <mat-label>Password</mat-label>
+            <input #passwordInput matInput id="password" name="password" [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password" placeholder="Enter your password" [attr.autocomplete]="'current-password'"
+              autocapitalize="none" spellcheck="false" aria-label="Password">
+            <button mat-icon-button matSuffix type="button" (click)="toggleShowPassword()"
+              [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
               @if (!showPassword()) {
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <mat-icon fontIcon="visibility"></mat-icon>
               } @else {
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path
-                  d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.76 20.76 0 0 1 5.06-6.94m3.1-1.62A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a20.76 20.76 0 0 1-4.87 6.82M1 1l22 22" />
-              </svg>
+              <mat-icon fontIcon="visibility_off"></mat-icon>
               }
             </button>
-          </div>
-          @if (submitted() && form.get('password')?.invalid) {
-          <div class="invalid-feedback d-block">
-            Password is required
-          </div>
-          }
+            @if (submitted() && form.get('password')?.invalid) { <mat-error>Password is required</mat-error> }
+          </mat-form-field>
         </div>
 
         @if (auth.loginError()) {

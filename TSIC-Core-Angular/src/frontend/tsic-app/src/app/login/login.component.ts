@@ -3,6 +3,9 @@ import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angula
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../core/services/auth.service';
 import { LoginRequest } from '../core/models/auth.models';
 import { AutofillMonitor } from '@angular/cdk/text-field';
@@ -13,7 +16,7 @@ import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule, RouterModule, MatButtonModule],
+  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule, RouterModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatIconModule],
   styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {

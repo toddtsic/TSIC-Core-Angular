@@ -5,6 +5,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule, MatCheckboxChange } from '@angular/material/checkbox';
+import { MatListModule, MatSelectionListChange } from '@angular/material/list';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
 import { FamilyPlayer } from '../family-players.dto';
 import { UsLaxService } from '../uslax.service';
@@ -15,7 +17,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatCheckboxModule, MatListModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -182,27 +184,22 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                       <ng-template #complexField>
                         @switch (field.type) {
                           @case ('multiselect') {
-                            <div class="d-flex flex-wrap gap-2">
+                            <mat-selection-list [multiple]="true" (selectionChange)="onMultiSelectionChange(player.userId, field.name, $event)">
                               @for (opt of field.options; track trackOpt($index, opt)) {
-                                <div class="form-check me-3">
-                                  <input class="form-check-input" type="checkbox"
-                                         [id]="helpId(player.userId, field.name) + '-' + opt"
-                                         [checked]="isMultiChecked(player.userId, field.name, opt)"
-                                         (change)="toggleMulti(player.userId, field.name, opt, $event)" />
-                                  <label class="form-check-label" [for]="helpId(player.userId, field.name) + '-' + opt">{{ opt }}</label>
-                                </div>
+                                <mat-list-option [value]="opt" [selected]="isMultiChecked(player.userId, field.name, opt)">{{ opt }}</mat-list-option>
                               }
-                            </div>
+                            </mat-selection-list>
+                            @if (field.helpText) { <div class="form-text mt-1">{{ field.helpText }}</div> }
                           }
                           @case ('checkbox') {
-                            <div class="form-check d-flex align-items-center gap-2">
-                              <input class="form-check-input" type="checkbox"
-                                     [id]="helpId(player.userId, field.name)"
-                                     [checked]="!!value(player.userId, field.name)"
-                                     (change)="onCheckboxChange(player.userId, field.name, $event)" />
-                              <label class="form-check-label" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
-                              @if (field.required) { <span class="badge bg-danger text-white">Required</span> }
-                            </div>
+                            <mat-checkbox
+                              [id]="helpId(player.userId, field.name)"
+                              [checked]="!!value(player.userId, field.name)"
+                              (change)="onMatCheckboxChange(player.userId, field.name, $event)">
+                              {{ field.label }}
+                            </mat-checkbox>
+                            @if (field.required) { <div class="small text-muted">Required</div> }
+                            @if (field.helpText) { <div class="form-text">{{ field.helpText }}</div> }
                           }
                           @default {
                             <mat-form-field appearance="outline" class="w-100">
@@ -365,6 +362,15 @@ export class PlayerFormsComponent {
   onCheckboxChange(playerId: string, field: string, ev: Event) {
     const target = ev.target as HTMLInputElement | null;
     this.setValue(playerId, field, !!target?.checked);
+  }
+  /** Material selection list multi-select handler */
+  onMultiSelectionChange(playerId: string, field: string, ev: MatSelectionListChange) {
+    const selectedValues = ev.source.selectedOptions.selected.map(o => o.value as string);
+    this.setValue(playerId, field, selectedValues);
+  }
+  /** Material checkbox change handler */
+  onMatCheckboxChange(playerId: string, field: string, ev: MatCheckboxChange) {
+    this.setValue(playerId, field, ev.checked);
   }
   trackField = (_: number, f: PlayerProfileFieldSchema) => f.name;
   trackOpt = (_: number, o: string) => o;
