@@ -1,11 +1,15 @@
 import { Component, EventEmitter, Output, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-credit-card-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
@@ -18,69 +22,88 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
       <form [formGroup]="form" (ngSubmit)="noop()">
         <div class="row g-2">
           <div class="col-md-3">
-            <label class="form-label">CC Type</label>
-            <select class="form-select" formControlName="type" required aria-required="true">
-              <option value=""></option>
-              <option value="MC">MC</option>
-              <option value="VISA">VISA</option>
-              <option value="AMEX">AMEX</option>
-            </select>
-            <div class="form-text text-danger" *ngIf="err('type')">{{ err('type') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>CC Type</mat-label>
+              <mat-select formControlName="type" required>
+                <mat-option value=""></mat-option>
+                <mat-option value="MC">MC</mat-option>
+                <mat-option value="VISA">VISA</mat-option>
+                <mat-option value="AMEX">AMEX</mat-option>
+              </mat-select>
+              @if (err('type')) { <mat-error>{{ err('type') }}</mat-error> }
+            </mat-form-field>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Card Number</label>
-            <input class="form-control" formControlName="number" (input)="formatNumber()">
-            <div class="form-text text-danger" *ngIf="err('number')">{{ err('number') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Card Number</mat-label>
+              <input matInput formControlName="number" (input)="formatNumber()" autocomplete="cc-number" />
+              @if (err('number')) { <mat-error>{{ err('number') }}</mat-error> }
+            </mat-form-field>
           </div>
           <div class="col-md-3">
-            <label class="form-label" for="cc-expiry">Expiry (MM / YY)</label>
-            <input id="cc-expiry" class="form-control" formControlName="expiry"
-                   (input)="formatExpiry($event)" (blur)="forceMonthLeadingZero()"
-                   placeholder="MM / YY" inputmode="numeric" autocomplete="cc-exp"
-                   aria-describedby="cc-expiry-help">
-            <div id="cc-expiry-help" class="form-text" *ngIf="!err('expiry')">Enter month and year, e.g. 04 / 27</div>
-            <div class="form-text text-danger" *ngIf="err('expiry')">{{ err('expiry') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Expiry (MM / YY)</mat-label>
+              <input matInput id="cc-expiry" formControlName="expiry"
+                     (input)="formatExpiry($event)" (blur)="forceMonthLeadingZero()"
+                     placeholder="MM / YY" inputmode="numeric" autocomplete="cc-exp" aria-describedby="cc-expiry-help" />
+              @if (!err('expiry')) { <mat-hint id="cc-expiry-help">Enter month and year, e.g. 04 / 27</mat-hint> }
+              @if (err('expiry')) { <mat-error>{{ err('expiry') }}</mat-error> }
+            </mat-form-field>
           </div>
           <div class="col-md-2">
-            <label class="form-label">CVV</label>
-            <input class="form-control" formControlName="code" (input)="formatCvv()">
-            <div class="form-text text-danger" *ngIf="err('code')">{{ err('code') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>CVV</mat-label>
+              <input matInput formControlName="code" (input)="formatCvv()" autocomplete="cc-csc" />
+              @if (err('code')) { <mat-error>{{ err('code') }}</mat-error> }
+            </mat-form-field>
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-6">
-            <label class="form-label">First Name</label>
-            <input class="form-control" formControlName="firstName">
-            <div class="form-text text-danger" *ngIf="err('firstName')">{{ err('firstName') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>First Name</mat-label>
+              <input matInput formControlName="firstName" autocomplete="given-name" />
+              @if (err('firstName')) { <mat-error>{{ err('firstName') }}</mat-error> }
+            </mat-form-field>
           </div>
           <div class="col-md-6">
-            <label class="form-label">Last Name</label>
-            <input class="form-control" formControlName="lastName">
-            <div class="form-text text-danger" *ngIf="err('lastName')">{{ err('lastName') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Last Name</mat-label>
+              <input matInput formControlName="lastName" autocomplete="family-name" />
+              @if (err('lastName')) { <mat-error>{{ err('lastName') }}</mat-error> }
+            </mat-form-field>
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-8">
-            <label class="form-label">Address</label>
-            <input class="form-control" formControlName="address">
-            <div class="form-text text-danger" *ngIf="err('address')">{{ err('address') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Address</mat-label>
+              <input matInput formControlName="address" autocomplete="address-line1" />
+              @if (err('address')) { <mat-error>{{ err('address') }}</mat-error> }
+            </mat-form-field>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Zip Code</label>
-            <input class="form-control" formControlName="zip">
-            <div class="form-text text-danger" *ngIf="err('zip')">{{ err('zip') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Zip Code</mat-label>
+              <input matInput formControlName="zip" autocomplete="postal-code" />
+              @if (err('zip')) { <mat-error>{{ err('zip') }}</mat-error> }
+            </mat-form-field>
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-6">
-            <label class="form-label">Email</label>
-            <input class="form-control" formControlName="email" autocomplete="email">
-            <div class="form-text text-danger" *ngIf="err('email')">{{ err('email') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Email</mat-label>
+              <input matInput formControlName="email" autocomplete="email" />
+              @if (err('email')) { <mat-error>{{ err('email') }}</mat-error> }
+            </mat-form-field>
           </div>
           <div class="col-md-6">
-            <label class="form-label">Phone</label>
-            <input class="form-control" formControlName="phone" (input)="formatPhone()" autocomplete="tel">
-            <div class="form-text text-danger" *ngIf="err('phone')">{{ err('phone') }}</div>
+            <mat-form-field appearance="outline" class="w-100">
+              <mat-label>Phone</mat-label>
+              <input matInput formControlName="phone" (input)="formatPhone()" autocomplete="tel" />
+              @if (err('phone')) { <mat-error>{{ err('phone') }}</mat-error> }
+            </mat-form-field>
           </div>
         </div>
       </form>
