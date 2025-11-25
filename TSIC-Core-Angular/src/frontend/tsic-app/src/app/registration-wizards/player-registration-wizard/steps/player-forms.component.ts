@@ -1,6 +1,10 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
 import { FamilyPlayer } from '../family-players.dto';
 import { UsLaxService } from '../uslax.service';
@@ -11,7 +15,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -78,18 +82,23 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                 @if (usLaxField) {
                   <div class="mb-3">
                     <div class="uslax-field-group">
-                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, usLaxField.name)">
-                        <span>{{ usLaxField.label || 'USA Lacrosse Number' }}</span>
-                        @if (usLaxField.required) { <span class="badge bg-danger text-white">Required</span> }
-                      </label>
-                      <input type="text" class="form-control"
-                             #uslax="ngModel"
-                             [required]="usLaxField.required"
-                             [id]="helpId(player.userId, usLaxField.name)"
-                             [ngModel]="value(player.userId, usLaxField.name)"
-                             (ngModelChange)="setValue(player.userId, usLaxField.name, $event)"
-                             [usLaxValidator]="player.userId"
-                             placeholder="Enter USA Lacrosse #" />
+                      <mat-form-field appearance="outline" class="w-100">
+                        <mat-label>{{ usLaxField.label || 'USA Lacrosse Number' }}</mat-label>
+                        <input matInput type="text"
+                               #uslax="ngModel"
+                               [required]="usLaxField.required"
+                               [id]="helpId(player.userId, usLaxField.name)"
+                               [ngModel]="value(player.userId, usLaxField.name)"
+                               (ngModelChange)="setValue(player.userId, usLaxField.name, $event)"
+                               [usLaxValidator]="player.userId"
+                               placeholder="Enter USA Lacrosse #" />
+                        @if (usLaxField.required) { <mat-hint align="end">Required</mat-hint> }
+                        @if (uslax?.invalid && (uslax?.dirty || uslax?.touched)) {
+                          <mat-error>
+                            <span [innerHTML]="uslax?.errors?.['uslax']?.message || 'Invalid number'"></span>
+                          </mat-error>
+                        }
+                      </mat-form-field>
                       <div class="mt-1 small">
                         @if (uslax?.pending) {
                           <span class="text-muted">Validating...</span>
@@ -130,79 +139,84 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                 @for (field of schemas(); track trackField($index, field)) {
                   @if (!isUsLaxField(field) && isFieldVisible(player.userId, field)) {
                     <div class="col-12 col-md-6">
-                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, field.name)">
-                        <span>{{ field.label }}</span>
-                        @if (field.required) { <span class="badge bg-danger text-white">Required</span> } @else { <span class="badge text-bg-light border">Optional</span> }
-                      </label>
-                      @switch (field.type) {
-                        @case ('text') {
-           <input type="text" class="form-control"
+                      <mat-form-field appearance="outline" class="w-100" *ngIf="field.type !== 'multiselect' && field.type !== 'checkbox'; else complexField">
+                        <mat-label>{{ field.label }}</mat-label>
+                        @if (field.type === 'text') {
+                          <input matInput type="text"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  autocomplete="off"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
-                        @case ('number') {
-           <input type="number" class="form-control"
+                        @if (field.type === 'number') {
+                          <input matInput type="number"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  inputmode="numeric"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
-                        @case ('date') {
-           <input type="date" class="form-control"
+                        @if (field.type === 'date') {
+                          <input matInput type="date"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
-                        @case ('select') {
-        <select class="form-select"
-                                  [id]="helpId(player.userId, field.name)"
-                                  [required]="field.required"
-                                  [ngModel]="value(player.userId, field.name)"
-                                  (ngModelChange)="setValue(player.userId, field.name, $event)">
-                            <option [ngValue]="null">-- Select {{ field.label }} --</option>
-                            @for (opt of field.options; track trackOpt($index, opt)) {
-                              <option [ngValue]="opt">{{ opt }}</option>
-                            }
-                          </select>
-                        }
-                        @case ('multiselect') {
-                          <div class="d-flex flex-wrap gap-2">
-                            @for (opt of field.options; track trackOpt($index, opt)) {
-                              <div class="form-check me-3">
-                                <input class="form-check-input" type="checkbox"
-                                       [id]="helpId(player.userId, field.name) + '-' + opt"
-                                       [checked]="isMultiChecked(player.userId, field.name, opt)"
-                                       (change)="toggleMulti(player.userId, field.name, opt, $event)" />
-                                <label class="form-check-label" [for]="helpId(player.userId, field.name) + '-' + opt">{{ opt }}</label>
-                              </div>
-                            }
-                          </div>
-                        }
-                        @case ('checkbox') {
-                          <div class="form-check d-flex align-items-center gap-2">
-                            <input class="form-check-input" type="checkbox"
-                                   [id]="helpId(player.userId, field.name)"
-                                   [checked]="!!value(player.userId, field.name)"
-                                   (change)="onCheckboxChange(player.userId, field.name, $event)" />
-                            <label class="form-check-label" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
-                            @if (field.required) { <span class="badge bg-danger text-white">Required</span> }
-                          </div>
-                        }
-                        @default {
-                          <input type="text" class="form-control"
+                        @if (field.type === 'select') {
+                          <mat-select
                                  [id]="helpId(player.userId, field.name)"
+                                 [required]="field.required"
                                  [ngModel]="value(player.userId, field.name)"
-                                 (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                                 (ngModelChange)="setValue(player.userId, field.name, $event)">
+                            <mat-option [value]="null">-- Select {{ field.label }} --</mat-option>
+                            @for (opt of field.options; track trackOpt($index, opt)) {
+                              <mat-option [value]="opt">{{ opt }}</mat-option>
+                            }
+                          </mat-select>
                         }
-                      }
-                      @if (field.helpText) {
-                        <div class="form-text">{{ field.helpText }}</div>
-                      }
+                        @if (field.helpText) { <mat-hint>{{ field.helpText }}</mat-hint> }
+                        @if (field.required) { <mat-hint align="end">Required</mat-hint> } @else { <mat-hint align="end">Optional</mat-hint> }
+                      </mat-form-field>
+                      <ng-template #complexField>
+                        @switch (field.type) {
+                          @case ('multiselect') {
+                            <div class="d-flex flex-wrap gap-2">
+                              @for (opt of field.options; track trackOpt($index, opt)) {
+                                <div class="form-check me-3">
+                                  <input class="form-check-input" type="checkbox"
+                                         [id]="helpId(player.userId, field.name) + '-' + opt"
+                                         [checked]="isMultiChecked(player.userId, field.name, opt)"
+                                         (change)="toggleMulti(player.userId, field.name, opt, $event)" />
+                                  <label class="form-check-label" [for]="helpId(player.userId, field.name) + '-' + opt">{{ opt }}</label>
+                                </div>
+                              }
+                            </div>
+                          }
+                          @case ('checkbox') {
+                            <div class="form-check d-flex align-items-center gap-2">
+                              <input class="form-check-input" type="checkbox"
+                                     [id]="helpId(player.userId, field.name)"
+                                     [checked]="!!value(player.userId, field.name)"
+                                     (change)="onCheckboxChange(player.userId, field.name, $event)" />
+                              <label class="form-check-label" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
+                              @if (field.required) { <span class="badge bg-danger text-white">Required</span> }
+                            </div>
+                          }
+                          @default {
+                            <mat-form-field appearance="outline" class="w-100">
+                              <mat-label>{{ field.label }}</mat-label>
+                              <input matInput type="text"
+                                     [id]="helpId(player.userId, field.name)"
+                                     [ngModel]="value(player.userId, field.name)"
+                                     (ngModelChange)="setValue(player.userId, field.name, $event)" />
+                            </mat-form-field>
+                          }
+                        }
+                        @if (field.helpText) { <div class="form-text">{{ field.helpText }}</div> }
+                      </ng-template>
+                      
                     </div>
                   }
                 }
