@@ -4,13 +4,10 @@
         class="hero-section flex-grow-1 d-flex flex-column justify-content-center align-items-center text-center px-4 py-5">
         <h1 class="display-3 fw-bold mb-4">Welcome to TeamSportsInfo.com</h1>
         <p class="lead fs-2 mb-5 opacity-90">Your Complete Team Management Solution</p>
-        <button type="button" class="btn btn-light btn-lg rounded-pill px-5 py-3 shadow-lg" (click)="navigateToLogin()">
+        <button type="button" mat-raised-button color="primary" class="rounded-pill px-5 py-3"
+            (click)="navigateToLogin()">
             Get Started
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="ms-2"
-                viewBox="0 0 16 16">
-                <path fill-rule="evenodd"
-                    d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z" />
-            </svg>
+            <mat-icon class="ms-2" fontIcon="arrow_forward"></mat-icon>
         </button>
     </div>
 

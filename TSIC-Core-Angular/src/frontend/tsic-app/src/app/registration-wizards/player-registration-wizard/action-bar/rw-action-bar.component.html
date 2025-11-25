@@ -9,20 +9,16 @@
         </div>
         }
 
-        <div class="btn-group btn-group-sm action-buttons">
+        <div class="action-buttons d-inline-flex align-items-center gap-2">
             @if (canBack) {
-            <button type="button" class="btn btn-secondary d-inline-flex align-items-center gap-2" (click)="back.emit()"
-                aria-label="Go back to previous step">
-                <span class="dir-icon" aria-hidden="true">‹</span>
-                <span>Back</span>
+            <button type="button" mat-stroked-button (click)="back.emit()">
+                ‹ Back
             </button>
             }
 
             @if (showContinue) {
-            <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 fw-semibold"
-                (click)="continue.emit()" [disabled]="!canContinue">
-                {{ continueLabel }}
-                <span class="dir-icon" aria-hidden="true">›</span>
+            <button type="button" mat-raised-button color="primary" (click)="continue.emit()" [disabled]="!canContinue">
+                {{ continueLabel }} ›
             </button>
             }
         </div>

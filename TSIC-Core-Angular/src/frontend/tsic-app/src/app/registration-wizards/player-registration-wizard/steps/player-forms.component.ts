@@ -107,9 +107,9 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                         } @else if (uslax?.invalid && (uslax?.dirty || uslax?.touched)) {
                           @if (usLaxStatus(player.userId).membership !== undefined) {
                             <button type="button"
-                                    class="btn btn-warning btn-sm fw-semibold mt-2 mb-2 pt-1 pb-1 px-3 me-2"
-                                    (click)="openUsLaxDetails(player.userId)"
-                                    style="box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.1);">
+                                    mat-stroked-button color="warn"
+                                    class="mt-2 mb-2 px-3 me-2"
+                                    (click)="openUsLaxDetails(player.userId)">
                               Click here for error details
                             </button>
                           }
@@ -232,7 +232,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
   <div class="position-fixed top-50 start-50 translate-middle bg-white rounded shadow border w-100" style="max-width: 720px; z-index: 1060;" role="dialog" aria-modal="true" aria-label="USA Lacrosse API Details">
     <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
       <h6 class="mb-0">USA Lacrosse API Details</h6>
-      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeModal()">Close</button>
+      <button type="button" mat-stroked-button (click)="closeModal()">Close</button>
     </div>
     <div class="p-3">
       <p class="small text-muted mb-2">Your membership didn’t validate. Recommend calling USA Lacrosse at call 410-235-6882. Please share the following information with them.</p>
@@ -250,8 +250,8 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
           </table>
         </div>
         <div class="mb-2 d-flex gap-2">
-          <button type="button" class="btn btn-sm btn-outline-primary" (click)="copyModalJson()">Copy JSON</button>
-          <a class="btn btn-sm btn-link" href="#" (click)="$event.preventDefault(); closeModal()">Done</a>
+          <button type="button" mat-stroked-button color="primary" (click)="copyModalJson()">Copy JSON</button>
+          <button type="button" mat-button (click)="closeModal()">Done</button>
         </div>
         <pre class="bg-light border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
       } @else {

@@ -6,12 +6,15 @@ import { PlayerStateService } from '../services/player-state.service';
 import { ProfileMigrationService } from '../../../core/services/profile-migration.service';
 import { TeamService } from '../team.service';
 import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent } from '@syncfusion/ej2-angular-dropdowns';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
   selector: 'app-rw-team-selection',
   standalone: true,
   // Use Syncfusion components for typeahead and checkbox MultiSelect UX
-  imports: [CommonModule, FormsModule, DropDownListModule, MultiSelectModule],
+  imports: [CommonModule, FormsModule, DropDownListModule, MultiSelectModule, MatButtonModule, MatCardModule, MatChipsModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [CheckBoxSelectionService],
   styles: [`
@@ -49,9 +52,9 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
         @if (loading()) {
           <div class="text-muted small">Loading teams...</div>
         } @else {
-          @if (error()) { <div class="alert alert-danger py-2 px-3">{{ error() }}</div> }
+          @if (error()) { <mat-card appearance="outlined" class="mb-2" role="alert">{{ error() }}</mat-card> }
           @if (selectedPlayers().length === 0) {
-            <div class="alert alert-info">Select players first to assign teams.</div>
+            <mat-card appearance="outlined" role="note">Select players first to assign teams.</mat-card>
           }
           @if (selectedPlayers().length > 0) {
             <div class="vstack gap-3">
@@ -60,7 +63,9 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                   <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                     <div class="flex-grow-1">
                       <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
-                        <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">{{ p.name }}</span>
+                        <mat-chip-set>
+                          <mat-chip>{{ p.name }}</mat-chip>
+                        </mat-chip-set>
                         @if (isPlayerFullyLocked(p.userId)) {
                           <span class="badge bg-secondary" title="All prior registrations are paid; team changes may be limited by the director">Locked</span>
                         }
@@ -69,8 +74,11 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                         @if (!eligibilityFor(p.userId)) {
                           <div class="small text-muted">Eligibility not selected; go back to set it.</div>
                         } @else {
-                          <div class="small">
-                            Eligibility: <span class="badge bg-primary-subtle text-dark">{{ eligibilityFor(p.userId) }}</span>
+                          <div class="small d-flex align-items-center gap-2">
+                            <span>Eligibility:</span>
+                            <mat-chip-set>
+                              <mat-chip>{{ eligibilityFor(p.userId) }}</mat-chip>
+                            </mat-chip-set>
                           </div>
                         }
                       }
@@ -79,14 +87,15 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                         <div class="fw-semibold mb-1">Selected teams</div>
                         <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
                           @for (id of selectedArrayFor(p.userId); track id) {
-                            <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                              <span class="name">{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</span>
-                              @if (canRemoveTeam(p.userId, id)) {
-                                <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
-                                        (click)="removeTeam(p.userId, id)">
-                                  ×
-                                </button>
-                              }
+                            <li>
+                              <mat-chip-set>
+                                <mat-chip>
+                                  <span class="name">{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</span>
+                                  @if (canRemoveTeam(p.userId, id)) {
+                                    <button type="button" mat-button class="ms-1 p-0 align-baseline" (click)="removeTeam(p.userId, id)">×</button>
+                                  }
+                                </mat-chip>
+                              </mat-chip-set>
                             </li>
                           }
                           @if (selectedArrayFor(p.userId).length === 0) {
@@ -121,14 +130,14 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                 <span class="name"
                                       [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
                                       [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }} @if (data.perRegistrantFee != null) { ({{ data.perRegistrantFee | currency }}) }</span>
-                                <span class="capacity-badge badge rounded-pill"
-                                      [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
-                                                    'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
-                                  @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
-                                  @else {
-                                    @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left }
-                                  }
-                                </span>
+                                <mat-chip-set>
+                                  <mat-chip class="capacity-badge">
+                                    @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
+                                    @else {
+                                      @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left }
+                                    }
+                                  </mat-chip>
+                                </mat-chip-set>
                                 @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { <span class="text-danger ms-2 small">(Cannot select)</span> }
                               </span>
                             </ng-template>
@@ -187,13 +196,12 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                             <span class="name"
                                   [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
                                   [style.opacity]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 0.6 : null">{{ data.teamName }} @if (data.perRegistrantFee != null) { ({{ data.perRegistrantFee | currency }}) }</span>
-                            <span class="capacity-badge badge rounded-pill"
-                                  [ngStyle]="{ marginLeft: '.35rem', paddingLeft: '.35rem', paddingRight: '.35rem' }"
-                                  [ngClass]="{ 'bg-danger-subtle text-danger-emphasis border border-danger-subtle': (data.rosterIsFull || baseRemaining(data.teamId) === 0),
-                                                'bg-warning-subtle text-warning-emphasis border border-warning-subtle': !(data.rosterIsFull || baseRemaining(data.teamId) === 0) }">
-                              @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
-                              @else { @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left } }
-                            </span>
+                            <mat-chip-set>
+                              <mat-chip class="capacity-badge" [ngStyle]="{ marginLeft: '.35rem' }">
+                                @if (data.rosterIsFull || baseRemaining(data.teamId) === 0) { FULL }
+                                @else { @if (showRemaining(data.teamId)) { {{ baseRemaining(data.teamId) }} spots left } }
+                              </mat-chip>
+                            </mat-chip-set>
                           </span>
                         </ng-template>
                       </ejs-multiselect>

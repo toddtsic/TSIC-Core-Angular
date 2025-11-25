@@ -6,6 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../core/services/auth.service';
 import { LoginRequest } from '../core/models/auth.models';
 import { AutofillMonitor } from '@angular/cdk/text-field';
@@ -16,7 +18,7 @@ import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule, RouterModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatIconModule],
+  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule, RouterModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatIconModule, MatCardModule, MatProgressSpinnerModule],
   styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {

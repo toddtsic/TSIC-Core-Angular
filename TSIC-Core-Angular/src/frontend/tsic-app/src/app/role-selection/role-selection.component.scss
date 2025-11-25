@@ -53,3 +53,9 @@
     object-fit: contain;
   }
 }
+
+// Lightweight error styling for the Material alert card
+.error-card {
+  border-left: 4px solid #f44336; // Material Red 500
+  background: rgba(244, 67, 54, 0.08);
+}

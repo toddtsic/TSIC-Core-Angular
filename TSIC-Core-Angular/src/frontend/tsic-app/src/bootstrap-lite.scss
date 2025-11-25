@@ -25,14 +25,15 @@ $spacers: (
 
 // Generate margin/padding utilities we actively use (t, b, y, x, s, e)
 @mixin space-utils($prop, $abbr) {
+
     // Root CSS variable shims for commonly-used Bootstrap vars
     :root {
-      --bs-primary: #3f51b5;
-      --bs-indigo: #6610f2;
-      --bs-body-bg: #ffffff;
-      --bs-secondary-bg: #f2f3f5;
-      --bs-border-color-translucent: rgba(0,0,0,.12);
-      --bs-secondary-color: #6c757d;
+        --bs-primary: #3f51b5;
+        --bs-indigo: #6610f2;
+        --bs-body-bg: #ffffff;
+        --bs-secondary-bg: #f2f3f5;
+        --bs-border-color-translucent: rgba(0, 0, 0, .12);
+        --bs-secondary-color: #6c757d;
     }
 
     @each $i, $val in $spacers {
@@ -114,13 +115,44 @@ $spacers: (
     gap: spacer(4) !important;
 }
 
-    // Minimal modal shims used by confirmation dialogs
-    .modal-backdrop { position: fixed; inset: 0; background-color: rgba(0,0,0,.5); }
-    .modal { position: fixed; inset: 0; display: block; overflow-y: auto; }
-    .modal-dialog { margin: 1rem auto; max-width: 600px; }
-    .modal-content { background: #fff; border-radius: .5rem; box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.25); overflow: hidden; }
-    .modal-header, .modal-footer { padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
-    .modal-body { padding: 1rem 1.25rem; background: var(--bs-body-bg); }
+// Minimal modal shims used by confirmation dialogs
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, .5);
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    display: block;
+    overflow-y: auto;
+}
+
+.modal-dialog {
+    margin: 1rem auto;
+    max-width: 600px;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: .5rem;
+    box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .25);
+    overflow: hidden;
+}
+
+.modal-header,
+.modal-footer {
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-body {
+    padding: 1rem 1.25rem;
+    background: var(--bs-body-bg);
+}
 
 // Width + text helpers
 .w-100 {
@@ -132,10 +164,21 @@ $spacers: (
 }
 
 // Text/color helpers
-.text-secondary { color: var(--bs-secondary-color) !important; }
-.text-muted { color: rgba(0,0,0,.6) !important; }
-.text-warning-emphasis { color: #664d03 !important; }
-.text-nowrap { white-space: nowrap !important; }
+.text-secondary {
+    color: var(--bs-secondary-color) !important;
+}
+
+.text-muted {
+    color: rgba(0, 0, 0, .6) !important;
+}
+
+.text-warning-emphasis {
+    color: #664d03 !important;
+}
+
+.text-nowrap {
+    white-space: nowrap !important;
+}
 
 // Visibility helper (Bootstrap's visually-hidden)
 .visually-hidden {
@@ -159,8 +202,13 @@ $spacers: (
     border-top: 1px solid var(--mat-divider-color, rgba(0, 0, 0, .12)) !important;
 }
 
-.border-0 { border: 0 !important; }
-.border-warning-subtle { border-color: #ffecb5 !important; }
+.border-0 {
+    border: 0 !important;
+}
+
+.border-warning-subtle {
+    border-color: #ffecb5 !important;
+}
 
 .rounded {
     border-radius: .375rem !important;
@@ -183,10 +231,21 @@ $spacers: (
     opacity: .75 !important;
 }
 
-.rounded-pill { border-radius: 50rem !important; }
-.shadow-sm { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075) !important; }
-.shadow { box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important; }
-.shadow-lg { box-shadow: 0 1rem 3rem rgba(0,0,0,.175) !important; }
+.rounded-pill {
+    border-radius: 50rem !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075) !important;
+}
+
+.shadow {
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15) !important;
+}
+
+.shadow-lg {
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175) !important;
+}
 
 // Placeholder card/alert minimal wrappers (non-invasive). Real replacements will move to Material components.
 .card {

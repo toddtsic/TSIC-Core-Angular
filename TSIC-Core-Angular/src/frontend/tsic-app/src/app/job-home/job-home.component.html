@@ -30,8 +30,8 @@
                                     </svg>
                                     <h5 class="card-title fw-bold mb-3">Profile Migration Dashboard</h5>
                                     <p class="text-muted mb-3">Migrate profile metadata from GitHub POCOs</p>
-                                    <a [routerLink]="['/', jobPath(), 'admin', 'profile-migration']"
-                                        class="btn btn-primary w-100 mt-auto">
+                                    <a [routerLink]="['/', jobPath(), 'admin', 'profile-migration']" mat-raised-button
+                                        color="primary" class="w-100 mt-auto">
                                         Open Migration
                                     </a>
                                 </div>
@@ -49,8 +49,8 @@
                                     </svg>
                                     <h5 class="card-title fw-bold mb-3">Profile Metadata Editor</h5>
                                     <p class="text-muted mb-3">Edit registration form fields and validation</p>
-                                    <a [routerLink]="['/', jobPath(), 'admin', 'profile-editor']"
-                                        class="btn btn-primary w-100 mt-auto">
+                                    <a [routerLink]="['/', jobPath(), 'admin', 'profile-editor']" mat-raised-button
+                                        color="primary" class="w-100 mt-auto">
                                         Open Editor
                                     </a>
                                 </div>
@@ -68,8 +68,8 @@
                                     </svg>
                                     <h5 class="card-title fw-bold mb-3">Theme Editor</h5>
                                     <p class="text-muted mb-3">Adjust this job's palette and gradients</p>
-                                    <a [routerLink]="['/', jobPath(), 'admin', 'theme']"
-                                        class="btn btn-primary w-100 mt-auto">
+                                    <a [routerLink]="['/', jobPath(), 'admin', 'theme']" mat-raised-button
+                                        color="primary" class="w-100 mt-auto">
                                         Open Theme Editor
                                     </a>
                                 </div>
@@ -96,9 +96,9 @@
                         <p class="text-muted mt-3">Loading registration information...</p>
                     </div>
                     } @else if (error()) {
-                    <div class="alert alert-danger" role="alert">
-                        <strong>Error:</strong> {{ error() }}
-                    </div>
+                    <mat-card appearance="outlined" class="mb-3" role="alert" style="border-color:#f44336;">
+                        <div class="text-danger"><strong>Error:</strong> {{ error() }}</div>
+                    </mat-card>
                     } @else {
                     <div class="row g-3">
                         <!-- Start Family Registration: force logout to avoid cross-user context -->
@@ -112,7 +112,7 @@
                                     </svg>
                                     <h5 class="card-title fw-bold mb-2">Start Family Registration</h5>
                                     <p class="text-muted mb-3">Create a new Family Account to begin</p>
-                                    <button type="button" class="btn btn-success w-100 mt-auto"
+                                    <button type="button" mat-raised-button color="accent" class="w-100 mt-auto"
                                         (click)="startFamilyRegistration()">
                                         Start Family Registration
                                     </button>
@@ -132,7 +132,7 @@
                                     <p class="text-muted mb-3">Review or update your family and children</p>
                                     <a [routerLink]="['/tsic','family-account']"
                                         [queryParams]="{ mode: 'edit', returnUrl: '/' + jobPath() + '/home' }"
-                                        class="btn btn-success w-100">
+                                        mat-raised-button color="accent" class="w-100">
                                         Open Family Account
                                     </a>
                                 </div>
@@ -156,14 +156,14 @@
                                     <p class="text-muted mb-3">Registration is open</p>
                                     <!-- Primary: In-app Registration Wizard for Player registrations -->
                                     @if (status.registrationType === 'Player') {
-                                    <button type="button" class="btn btn-success w-100 mb-2"
+                                    <button type="button" mat-raised-button color="accent" class="w-100 mb-2"
                                         (click)="startPlayerRegistration()">
                                         Start Registration Wizard
                                     </button>
                                     }
                                     <!-- Secondary: External/legacy registration URL when provided -->
                                     @if (status.registrationUrl) {
-                                    <a [href]="status.registrationUrl" class="btn btn-outline-success w-100">
+                                    <a [href]="status.registrationUrl" mat-stroked-button color="accent" class="w-100">
                                         Open Registration Page
                                     </a>
                                     }

@@ -5,12 +5,13 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoginComponent } from '../../../login/login.component';
 import { FamilyService, FamilyRegistrationRequest, FamilyUpdateRequest } from '../../../core/services/family.service';
+import { MatButtonModule } from '@angular/material/button';
 import { JobService } from '../../../core/services/job.service';
 
 @Component({
   selector: 'app-fam-account-step-review',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoginComponent],
+  imports: [CommonModule, FormsModule, LoginComponent, MatButtonModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -58,7 +59,7 @@ import { JobService } from '../../../core/services/job.service';
           @if (!creating && createSuccess) { <span class="text-success small">Family account saved.</span> }
           @if (!creating && createError) {
             <span class="text-danger small">{{ createError }}</span>
-            <button type="button" class="btn btn-sm btn-outline-danger" (click)="autoSave()">Retry</button>
+            <button type="button" mat-stroked-button color="warn" (click)="autoSave()">Retry</button>
           }
         </div>
 
@@ -96,9 +97,9 @@ import { JobService } from '../../../core/services/job.service';
         <!-- Bottom navigation for edit mode: allow returning to home or back to Player Registration when applicable -->
         @if (state.mode() === 'edit') {
           <div class="rw-bottom-nav d-flex gap-2 mt-3">
-            <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
+            <button type="button" mat-stroked-button (click)="completed.emit('home')">Return home</button>
             @if (showReturnToRegistration) {
-              <button type="button" class="btn btn-primary" (click)="completed.emit('register')">Return to Player Registration</button>
+              <button type="button" mat-raised-button color="primary" (click)="completed.emit('register')">Return to Player Registration</button>
             }
           </div>
         }
@@ -115,7 +116,7 @@ import { JobService } from '../../../core/services/job.service';
                 [returnUrl]="loginReturnUrl()"
               />
               <div class="d-flex gap-2 mt-3">
-                <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
+                <button type="button" mat-stroked-button (click)="completed.emit('home')">Return home</button>
               </div>
             </div>
           </div>

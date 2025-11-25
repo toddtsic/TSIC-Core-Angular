@@ -11,18 +11,20 @@
         </div>
 
         @if (errorMessage()) {
-        <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
-          <strong>Error:</strong> {{ errorMessage() }}
-        </div>
+        <mat-card appearance="outlined" class="mb-4 error-card" role="alert" aria-live="polite">
+          <div class="d-flex align-items-center">
+            <mat-icon color="warn" fontIcon="error" class="me-2"></mat-icon>
+            <div><strong>Error:</strong> {{ errorMessage() }}</div>
+          </div>
+        </mat-card>
         }
 
         @if (isLoading() && !registrations().length) {
         <div class="card shadow border-0 card-rounded">
           <div class="card-body text-center py-5">
             <output class="d-block" aria-live="polite">
-              <div class="spinner-border text-primary mb-3" aria-label="Loading registrations">
-                <span class="visually-hidden">Loading...</span>
-              </div>
+              <mat-progress-spinner mode="indeterminate" diameter="36" class="mb-3"
+                aria-label="Loading registrations"></mat-progress-spinner>
               <p class="text-secondary mb-0">Loading your registrations...</p>
             </output>
           </div>
@@ -69,15 +71,9 @@
         }
 
         <div class="text-center mt-4">
-          <button type="button" class="btn btn-outline-danger rounded-pill px-4" (click)="logout()"
+          <button type="button" mat-stroked-button color="warn" class="rounded-pill px-4" (click)="logout()"
             [disabled]="isLoading()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2"
-              viewBox="0 0 16 16">
-              <path fill-rule="evenodd"
-                d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z" />
-              <path fill-rule="evenodd"
-                d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z" />
-            </svg>
+            <mat-icon class="me-2" fontIcon="logout"></mat-icon>
             Logout
           </button>
         </div>

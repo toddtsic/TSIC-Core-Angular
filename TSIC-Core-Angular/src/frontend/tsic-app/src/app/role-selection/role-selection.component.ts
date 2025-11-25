@@ -5,11 +5,15 @@ import { AuthService } from '../core/services/auth.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [CommonModule, DropDownListModule, WizardThemeDirective],
+  imports: [CommonModule, DropDownListModule, WizardThemeDirective, MatButtonModule, MatIconModule, MatCardModule, MatProgressSpinnerModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']

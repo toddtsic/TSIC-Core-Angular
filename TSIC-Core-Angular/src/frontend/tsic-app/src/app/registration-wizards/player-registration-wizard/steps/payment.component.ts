@@ -1,6 +1,9 @@
 import { Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryComponent } from './payment-summary.component';
 import { PaymentOptionSelectorComponent } from './payment-option-selector.component';
@@ -31,7 +34,7 @@ import type { LineItem } from '../services/payment.service';
 @Component({
   selector: 'app-rw-payment',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatCardModule, MatProgressSpinnerModule, MatChipsModule, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -39,25 +42,31 @@ import type { LineItem } from '../services/payment.service';
       </div>
       <div class="card-body">
         @if (lastError) {
-          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
-            <div class="flex-grow-1">
-              <div class="fw-semibold mb-1">Payment Error</div>
-              <div class="small">{{ lastError.message || 'An error occurred.' }}</div>
+          <mat-card appearance="outlined" class="mb-3" role="alert" aria-live="polite">
+            <div class="d-flex align-items-start gap-2">
+              <div class="flex-grow-1">
+                <div class="fw-semibold mb-1">Payment Error</div>
+                <div class="small">{{ lastError.message || 'An error occurred.' }}</div>
+              </div>
+              @if (lastError.errorCode) {
+                <mat-chip-set>
+                  <mat-chip>{{ lastError.errorCode }}</mat-chip>
+                </mat-chip-set>
+              }
             </div>
-            @if (lastError.errorCode) { <span class="badge bg-danger-subtle text-dark border">{{ lastError.errorCode }}</span> }
-          </div>
+          </mat-card>
         }
 
         <app-payment-summary></app-payment-summary>
         <!-- ARB subscription state messaging / option gating -->
         @if (arbHideAllOptions()) {
-          <div class="alert alert-success border-0" role="status">
+          <mat-card appearance="outlined" class="mb-3" role="status">
             All selected registrations have an active Automated Recurring Billing subscription. No payment action is required.
-          </div>
+          </mat-card>
         } @else if (arbProblemAny()) {
-          <div class="alert alert-danger border-0" role="alert">
+          <mat-card appearance="outlined" class="mb-3" role="alert">
             There is a problem with your Automated Recurring Billing. Please contact your club immediately.
-          </div>
+          </mat-card>
           <app-payment-option-selector></app-payment-option-selector>
         } @else {
           <app-payment-option-selector></app-payment-option-selector>
@@ -67,15 +76,17 @@ import type { LineItem } from '../services/payment.service';
           <div class="mb-3">
             <div #viOffer id="dVIOffer" class="text-center"></div>
             @if (!insuranceState.hasVerticalInsureDecision()) {
-              <div class="alert alert-secondary border-0 py-2 small" role="alert">
+              <mat-card appearance="outlined" class="mb-2 small" role="status">
                 Insurance is optional. Choose <strong>Confirm Purchase</strong> or <strong>Decline Insurance</strong> to continue.
-              </div>
+              </mat-card>
             }
             @if (insuranceState.hasVerticalInsureDecision()) {
               <div class="mt-2 d-flex flex-column gap-2">
-                <div class="alert" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
+                <mat-card appearance="outlined" class="mb-0" role="status">
                   <div class="d-flex align-items-center gap-2">
-                    <span class="badge" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
+                    <mat-chip-set>
+                      <mat-chip>RegSaver</mat-chip>
+                    </mat-chip-set>
                     <div>
                       @if (insuranceState.verticalInsureConfirmed()) {
                         <div class="fw-semibold mb-0">Insurance Selected</div>
@@ -86,7 +97,7 @@ import type { LineItem } from '../services/payment.service';
                       }
                     </div>
                   </div>
-                </div>
+                </mat-card>
               </div>
             }
           </div>
@@ -105,30 +116,32 @@ import type { LineItem } from '../services/payment.service';
         
         <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
         @if (showNoPaymentInfo()) {
-          <div class="alert alert-info border-0 mb-3" role="status">
-            No payments are due at this time.
-          </div>
+          <mat-card appearance="outlined" class="mb-3" role="status">No payments are due at this time.</mat-card>
         }
         @if (state.regSaverDetails()) {
-          <div class="alert alert-info border-0 mb-3" role="status">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-info-subtle text-dark border">RegSaver</span>
+          <mat-card appearance="outlined" class="mb-3" role="status">
+              <div class="d-flex align-items-center gap-2">
+              <mat-chip-set>
+                <mat-chip>RegSaver</mat-chip>
+              </mat-chip-set>
               <div>
                 <div class="fw-semibold">RegSaver policy on file</div>
                 <div class="small text-muted">Policy #: {{ state.regSaverDetails()!.policyNumber }} • Created: {{ state.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}</div>
               </div>
             </div>
-          </div>
+          </mat-card>
         }
 
         @if (showCcSection()) {
           <section #ccSection class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
             <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
             @if (isViCcOnlyFlow()) {
-              <div class="alert alert-warning border-0" role="status">
-                <span class="badge bg-warning-subtle text-dark border me-1">Insurance Premium</span>
+              <mat-card appearance="outlined" class="mb-3" role="status">
+                <mat-chip-set class="me-1">
+                  <mat-chip>Insurance Premium</mat-chip>
+                </mat-chip-set>
                 A registration balance is not due, but an insurance premium is. Enter card details and click <strong>Proceed with Insurance Processing</strong>.
-              </div>
+              </mat-card>
             }
             <app-credit-card-form
               (validChange)="onCcValidChange($event)"

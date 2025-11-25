@@ -39,9 +39,12 @@
         </div>
 
         @if (auth.loginError()) {
-        <div class="alert alert-danger border-0 shadow-sm mb-4">
-          {{ auth.loginError() }}
-        </div>
+        <mat-card appearance="outlined" class="mb-4 error-card" role="alert" aria-live="polite">
+          <div class="d-flex align-items-center">
+            <mat-icon color="warn" fontIcon="error" class="me-2"></mat-icon>
+            <div>{{ auth.loginError() }}</div>
+          </div>
+        </mat-card>
         }
 
         <button type="submit" mat-raised-button color="primary" style="width:100%"
@@ -50,7 +53,8 @@
           <span>Sign In</span>
           } @else {
           <span>
-            <span class="spinner-border spinner-border-sm me-2"></span>
+            <mat-progress-spinner mode="indeterminate" [diameter]="18" [strokeWidth]="3"
+              class="me-2"></mat-progress-spinner>
             Signing in...
           </span>
           }

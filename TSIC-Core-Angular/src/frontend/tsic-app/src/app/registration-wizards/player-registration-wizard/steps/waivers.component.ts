@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { WaiverStateService } from '../services/waiver-state.service';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
   selector: 'app-rw-waivers',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatCardModule, MatChipsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -15,20 +17,22 @@ import { WaiverStateService } from '../services/waiver-state.service';
       </div>
       <div class="card-body">
         @if (waivers().length === 0) {
-          <div class="alert alert-info">No waivers are required for this registration. You can continue.</div>
+          <mat-card appearance="outlined" class="mb-3" role="status">No waivers are required for this registration. You can continue.</mat-card>
         } @else {
           <form [formGroup]="waiverForm" novalidate>
           <!-- Prominent banner explaining scope -->
-          <div class="alert alert-warning mb-4" role="alert">
+          <mat-card appearance="outlined" class="mb-4" role="alert">
             <div class="fw-semibold mb-1">Waivers must be agreed to in order for players to participate.</div>
             <div class="small mb-2">You (the parent/guardian or adult participant) are agreeing to all waivers for the following players:</div>
             <div class="d-flex flex-wrap gap-2 mb-2">
               @for (p of players(); track p.userId) {
-                <span class="badge bg-primary-subtle text-primary-emphasis px-2 py-1">{{ p.name }}</span>
+                <mat-chip-set>
+                  <mat-chip>{{ p.name }}</mat-chip>
+                </mat-chip-set>
               }
             </div>
             <div class="small text-muted">Review each accordion section below. Acceptance status is shown and locked if already on file.</div>
-          </div>
+          </mat-card>
 
           <!-- Bootstrap-like accordion (exclusive open) -->
           <div class="accordion" id="waiverAccordion">
@@ -52,7 +56,7 @@ import { WaiverStateService } from '../services/waiver-state.service';
                       @if (w.html && w.html.trim().length) {
                         <div [innerHTML]="w.html"></div>
                       } @else {
-                        <div class="alert alert-light border small mb-0">No content provided for this waiver.</div>
+                        <mat-card appearance="outlined" class="mb-0" role="note"><span class="small">No content provided for this waiver.</span></mat-card>
                       }
                     </div>
                     <div class="form-check">
@@ -65,7 +69,9 @@ import { WaiverStateService } from '../services/waiver-state.service';
                         I have read and agree to the {{ w.title.toLowerCase() }}
                       </label>
                       @if (isAccepted(w.id) && isLocked(w.id)) {
-                        <span class="badge bg-secondary ms-2" title="Previously accepted and locked">Locked</span>
+                        <mat-chip-set class="ms-2">
+                          <mat-chip>Locked</mat-chip>
+                        </mat-chip-set>
                       }
                       @if (submitted() && w.required && controlInvalid(w.id)) {
                         <div class="invalid-feedback d-block mt-1">Please accept this waiver to continue.</div>

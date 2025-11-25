@@ -1,9 +1,10 @@
 import { Component, EventEmitter, Input, Output, HostBinding } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
     selector: 'app-rw-action-bar',
     standalone: true,
-    imports: [],
+    imports: [MatButtonModule],
     templateUrl: './rw-action-bar.component.html',
     styleUrls: ['./rw-action-bar.component.scss']
 })

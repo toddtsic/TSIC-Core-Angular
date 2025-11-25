@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobService, RegistrationStatusResponse } from '../core/services/job.service';
 import { AuthService } from '../core/services/auth.service';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 
 @Component({
   selector: 'app-job-home',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, MatButtonModule, MatCardModule],
   templateUrl: './job-home.component.html',
   styleUrl: './job-home.component.scss'
 })

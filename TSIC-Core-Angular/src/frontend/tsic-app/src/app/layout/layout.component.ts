@@ -6,11 +6,12 @@ import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
 import { JobContextService } from '../core/services/job-context.service';
 import { ThemeService } from '../core/services/theme.service';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink],
+  imports: [CommonModule, RouterOutlet, RouterLink, MatButtonModule],
   template: `
     <!-- Header -->
     <header class="tsic-header">
@@ -20,11 +21,11 @@ import { ThemeService } from '../core/services/theme.service';
           <div class="col-auto">
             <!-- Button group on mobile -->
             <div class="btn-group d-md-none">
-              <button type="button" class="btn btn-sm btn-outline-secondary p-2" style="border-color: rgba(0,0,0,0.175);">
+              <button type="button" mat-stroked-button class="p-2">
                 <img src="images/tsic-notext-logo.png" alt="TSIC" style="height: 24px; display: block;" />
               </button>
               @if (jobLogoPath()) {
-                <button type="button" class="btn btn-sm btn-outline-secondary p-2" style="border-color: rgba(0,0,0,0.175);">
+                <button type="button" mat-stroked-button class="p-2">
                   <img [src]="jobLogoPath()" alt="Job Logo" style="height: 24px; display: block;" />
                 </button>
               }
@@ -43,7 +44,7 @@ import { ThemeService } from '../core/services/theme.service';
               <!-- Job Info Container (logo + name pill) -->
               <div class="job-brand-container d-flex align-items-center gap-2 flex-md-grow-1">
                 @if (jobName()) {
-                  <button type="button" class="btn btn-sm btn-outline-secondary job-button d-inline-flex align-items-center gap-2 px-2 py-1" (click)="goHome()" [title]="jobName()">
+                  <button type="button" mat-stroked-button class="job-button d-inline-flex align-items-center gap-2 px-2 py-1" (click)="goHome()" [title]="jobName()">
                     @if (jobLogoPath()) {
                       <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo-inline" />
                     }
@@ -80,7 +81,7 @@ import { ThemeService } from '../core/services/theme.service';
                 <!-- Home -->
                 <button 
                   type="button" 
-                  class="btn btn-sm btn-outline-primary" 
+                  mat-stroked-button color="primary"
                   (click)="goHome()"
                   title="Home">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -90,7 +91,7 @@ import { ThemeService } from '../core/services/theme.service';
                 @if (showRoleMenu()) {
                   <a 
                     role="button"
-                    class="btn btn-sm btn-outline-success" 
+                    mat-stroked-button color="accent"
                     [routerLink]="['/tsic/role-selection']"
                     (click)="onSwitchRole($event)"
                     title="Switch Role">
@@ -102,7 +103,7 @@ import { ThemeService } from '../core/services/theme.service';
                 }
                 <button 
                   type="button" 
-                  class="btn btn-sm btn-outline-secondary" 
+                  mat-stroked-button
                   (click)="toggleTheme()"
                   title="Toggle Theme">
                   @if (themeService.theme() === 'light') {
@@ -118,7 +119,7 @@ import { ThemeService } from '../core/services/theme.service';
                 @if (isAuthenticated()) {
                   <button 
                     type="button" 
-                    class="btn btn-sm btn-outline-danger" 
+                    mat-stroked-button color="warn"
                     (click)="logout()"
                     title="Logout">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -129,7 +130,7 @@ import { ThemeService } from '../core/services/theme.service';
                 } @else {
                   <button 
                     type="button" 
-                    class="btn btn-sm btn-outline-success" 
+                    mat-stroked-button color="accent"
                     (click)="login()"
                     title="Login">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -143,7 +144,7 @@ import { ThemeService } from '../core/services/theme.service';
               <!-- Separate buttons on desktop -->
               <button 
                 type="button" 
-                class="btn btn-sm btn-outline-primary d-none d-md-inline-flex" 
+                mat-stroked-button color="primary" class="d-none d-md-inline-flex" 
                 (click)="goHome()"
                 title="Home">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -153,7 +154,7 @@ import { ThemeService } from '../core/services/theme.service';
               @if (showRoleMenu()) {
                 <a 
                   role="button"
-                  class="btn btn-sm btn-outline-success d-none d-md-inline-flex" 
+                  mat-stroked-button color="accent" class="d-none d-md-inline-flex" 
                   [routerLink]="['/tsic/role-selection']"
                   (click)="onSwitchRole($event)"
                   title="Switch Role">
@@ -165,7 +166,7 @@ import { ThemeService } from '../core/services/theme.service';
               }
               <button 
                 type="button" 
-                class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" 
+                mat-stroked-button class="d-none d-md-inline-flex" 
                 (click)="toggleTheme()"
                 title="Toggle Theme">
                 @if (themeService.theme() === 'light') {
@@ -181,7 +182,7 @@ import { ThemeService } from '../core/services/theme.service';
               @if (isAuthenticated()) {
                 <button 
                   type="button" 
-                  class="btn btn-sm btn-outline-danger d-none d-md-inline-flex" 
+                  mat-stroked-button color="warn" class="d-none d-md-inline-flex" 
                   (click)="logout()"
                   title="Logout">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -192,7 +193,7 @@ import { ThemeService } from '../core/services/theme.service';
               } @else {
                 <button 
                   type="button" 
-                  class="btn btn-sm btn-outline-success d-none d-md-inline-flex" 
+                  mat-stroked-button color="accent" class="d-none d-md-inline-flex" 
                   (click)="login()"
                   title="Login">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">

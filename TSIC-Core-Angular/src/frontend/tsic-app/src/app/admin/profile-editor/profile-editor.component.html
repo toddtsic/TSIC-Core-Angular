@@ -8,18 +8,18 @@
                 <h2 class="mb-0 text-center text-md-start">Profile Metadata Editor</h2>
                 <div class="d-flex justify-content-center justify-content-md-end">
                     <div class="btn-group btn-group-sm" aria-label="Page actions">
-                        <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary"
-                            title="Go to job home" aria-label="Go to job home">
+                        <a [routerLink]="['/', jobPath(), 'home']" mat-stroked-button title="Go to job home"
+                            aria-label="Go to job home">
                             <i class="bi bi-house-door me-1"></i>
                             <span class="d-none d-sm-inline">Home</span>
                             <span class="d-inline d-sm-none">Home</span>
                         </a>
-                        <button class="btn btn-success" type="button" title="Create new profile"
+                        <button mat-raised-button color="primary" type="button" title="Create new profile"
                             aria-label="Create new profile" (click)="openCreateModal()">
                             <i class="bi bi-plus-lg me-1"></i>
                             <span>New Profile</span>
                         </button>
-                        <a [routerLink]="['/admin/profile-migration']" class="btn btn-outline-primary"
+                        <a [routerLink]="['/admin/profile-migration']" mat-raised-button color="primary"
                             title="Open migration dashboard" aria-label="Open migration dashboard">
                             <i class="bi bi-diagram-3 me-1"></i>
                             <span class="d-none d-sm-inline">Migration Dashboard</span>
@@ -34,19 +34,27 @@
 
     <!-- Alert Messages -->
     @if (errorMessage()) {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        {{ errorMessage() }}
-        <button type="button" class="btn-close" (click)="errorMessage.set(null)"></button>
-    </div>
+    <mat-card appearance="outlined" class="mb-3" role="alert" aria-live="polite">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div class="flex-grow-1">{{ errorMessage() }}</div>
+            <button mat-icon-button type="button" (click)="errorMessage.set(null)" aria-label="Dismiss">
+                <mat-icon fontIcon="close"></mat-icon>
+            </button>
+        </div>
+    </mat-card>
     }
 
     @if (successMessage()) {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle-fill me-2"></i>
-        {{ successMessage() }}
-        <button type="button" class="btn-close" (click)="successMessage.set(null)"></button>
-    </div>
+    <mat-card appearance="outlined" class="mb-3" aria-live="polite">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <div class="flex-grow-1">{{ successMessage() }}</div>
+            <button mat-icon-button type="button" (click)="successMessage.set(null)" aria-label="Dismiss">
+                <mat-icon fontIcon="close"></mat-icon>
+            </button>
+        </div>
+    </mat-card>
     }
 
     <!-- Profile Selector + Job Profile Panel -->
@@ -85,14 +93,10 @@
                             @if (jobConfigDirty()) { <span class="badge bg-warning text-dark">Unsaved changes</span> }
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-outline-secondary" (click)="onResetJobProfileConfig()"
+                            <button mat-stroked-button (click)="onResetJobProfileConfig()"
                                 [disabled]="!jobConfigDirty()">Reset</button>
-                            <button class="btn apply-button" [ngClass]="{
-                                    'btn-primary': jobConfigDirty() && !isSaving(),
-                                    'pulsing-button': jobConfigDirty() && !isSaving(),
-                                    'apply-pulse': jobConfigDirty() && !isSaving(),
-                                    'btn-secondary': !jobConfigDirty() || isSaving()
-                                }" (click)="applyJobProfileConfig()"
+                            <button mat-raised-button color="primary" class="apply-button"
+                                (click)="applyJobProfileConfig()"
                                 [disabled]="isSaving() || !jobProfileType() || !jobConfigDirty()">
                                 @if (isSaving()) {<span class="spinner-border spinner-border-sm me-1"></span>}Apply
                             </button>
@@ -177,10 +181,10 @@
                     </button>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info py-2 px-3 small d-xl-none" role="note">
+                    <mat-card appearance="outlined" class="py-2 px-3 small d-xl-none mb-3" role="note">
                         Edits here affect all jobs using the selected profile type. For job-specific dropdown values,
                         use <strong>Job Options</strong>.
-                    </div>
+                    </mat-card>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -356,8 +360,8 @@
             <p class="mb-0">{{ confirmModalMessage() }}</p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeConfirm()">Cancel</button>
-            <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
+            <button type="button" mat-stroked-button (click)="closeConfirm()">Cancel</button>
+            <button type="button" mat-raised-button color="primary" (click)="confirmAction()">OK</button>
         </div>
     </div>
 </tsic-dialog>
@@ -385,7 +389,7 @@
                 }
             </div>
             @if (selectedNewField()) {
-            <div class="alert alert-secondary py-2">
+            <mat-card appearance="outlined" class="py-2">
                 <div class="mb-2"><strong>Default Type:</strong> {{ addFieldPlacement() === 'hidden' ? 'HIDDEN' :
                     selectedNewField()!.inputType }}</div>
                 <div class="row g-2 align-items-center">
@@ -401,12 +405,12 @@
                 @if (addFieldPlacement() === 'hidden') {
                 <div class="text-muted small mt-2">Hidden fields are always type HIDDEN.</div>
                 }
-            </div>
+            </mat-card>
             }
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeAddFieldModal()">Cancel</button>
-            <button type="button" class="btn btn-success" (click)="confirmAddSelectedField()"
+            <button type="button" mat-stroked-button (click)="closeAddFieldModal()">Cancel</button>
+            <button type="button" mat-raised-button color="primary" (click)="confirmAddSelectedField()"
                 [disabled]="!selectedNewFieldName()">
                 Add
             </button>
@@ -499,7 +503,7 @@
 
                 @if (!field.validation) {
                 <div class="col-12">
-                    <button class="btn btn-sm btn-outline-secondary" (click)="field.validation = {}">
+                    <button mat-stroked-button (click)="field.validation = {}">
                         <i class="bi bi-plus-circle me-1"></i> Add Validation
                     </button>
                 </div>
@@ -565,8 +569,8 @@
             }
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
-            <button type="button" class="btn btn-primary" (click)="saveFieldEdit()" [disabled]="isSaving()">
+            <button type="button" mat-stroked-button (click)="closeEditModal()">Cancel</button>
+            <button type="button" mat-raised-button color="primary" (click)="saveFieldEdit()" [disabled]="isSaving()">
                 @if (isSaving()) {
                 <span class="spinner-border spinner-border-sm me-1"></span>
                 }
@@ -652,7 +656,7 @@
             </button>
 
             @if (testResult()) {
-            <div class="alert" [ngClass]="testResult()!.isValid ? 'alert-success' : 'alert-danger'">
+            <mat-card appearance="outlined">
                 <h6>
                     @if (testResult()!.isValid) {
                     <i class="bi bi-check-circle-fill me-1"></i> Valid
@@ -667,7 +671,7 @@
                     }
                 </ul>
                 }
-            </div>
+            </mat-card>
             }
         </div>
         <div class="modal-footer">

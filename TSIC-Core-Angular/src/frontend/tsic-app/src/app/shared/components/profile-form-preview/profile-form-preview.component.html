@@ -12,15 +12,21 @@
                     <!-- Field Label with Order Number -->
                     <label [for]="field.name" class="form-label">
                         @if (showFieldNumbers) {
-                        <span class="badge bg-secondary me-2">{{ field.order }}</span>
+                        <mat-chip-set class="me-2">
+                            <mat-chip>{{ field.order }}</mat-chip>
+                        </mat-chip-set>
                         }
                         <i class="bi {{ getFieldIcon(field) }} me-1"></i>
                         {{ field.displayName }}
                         @if (getVisibilityBadge(field); as badge) {
-                        <span class="badge ms-2" [ngClass]="badge.class">{{ badge.label }}</span>
+                        <mat-chip-set class="ms-2">
+                            <mat-chip>{{ badge.label }}</mat-chip>
+                        </mat-chip-set>
                         }
                         @if (field.computed) {
-                        <span class="badge bg-info ms-2">Computed</span>
+                        <mat-chip-set class="ms-2">
+                            <mat-chip>Computed</mat-chip>
+                        </mat-chip-set>
                         }
                     </label>
 

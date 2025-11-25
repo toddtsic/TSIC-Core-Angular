@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ProfileMetadata, ProfileMetadataField } from '../../../core/models/profile-migration.models';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
     selector: 'app-profile-form-preview',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule],
+    imports: [CommonModule, ReactiveFormsModule, MatChipsModule],
     templateUrl: './profile-form-preview.component.html',
     styleUrls: ['./profile-form-preview.component.scss']
 })
@@ -215,12 +216,12 @@ export class ProfileFormPreviewComponent {
         return field.visibility === 'hidden' || field.inputType === 'HIDDEN';
     }
 
-    getVisibilityBadge(field: ProfileMetadataField): { class: string; label: string } | null {
+    getVisibilityBadge(field: ProfileMetadataField): { color?: 'primary' | 'accent' | 'warn'; appearance?: 'outlined' | 'filled'; label: string } | null {
         switch (field.visibility) {
             case 'hidden':
-                return { class: 'bg-dark', label: 'Hidden' };
+                return { appearance: 'outlined', label: 'Hidden' };
             case 'adminOnly':
-                return { class: 'bg-warning text-dark', label: 'Admin Only' };
+                return { color: 'warn', appearance: 'outlined', label: 'Admin Only' };
             default:
                 return null; // No badge for public fields
         }

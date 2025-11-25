@@ -7,11 +7,13 @@ import { ProfileSummary } from '../../core/models/profile-migration.models';
 import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-dialog.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ProfileFormPreviewComponent } from '../../shared/components/profile-form-preview/profile-form-preview.component';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 
 @Component({
     selector: 'app-profile-migration',
     standalone: true,
-    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent],
+    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent, MatButtonModule, MatCardModule],
     templateUrl: './profile-migration.component.html',
     styleUrls: ['./profile-migration.component.scss']
 })

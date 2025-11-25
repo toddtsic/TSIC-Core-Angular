@@ -116,7 +116,7 @@ import { AuthService } from '../../../core/services/auth.service';
                   <i class="bi bi-person-plus-fill rw-accent-icon-neutral" aria-hidden="true"></i>
                   <div class="flex-grow-1">
                     <div class="text-muted small mb-2">We'll guide you through a quick setup. Takes about 1–2 minutes.</div>
-                    <button type="button" class="btn btn-primary pulsing-button apply-pulse" (click)="createAccount()">OK, Let's create a FAMILY ACCOUNT for you</button>
+                    <button type="button" mat-raised-button color="primary" class="pulsing-button apply-pulse" (click)="createAccount()">OK, Let's create a FAMILY ACCOUNT for you</button>
                   </div>
                 </div>
               </div>

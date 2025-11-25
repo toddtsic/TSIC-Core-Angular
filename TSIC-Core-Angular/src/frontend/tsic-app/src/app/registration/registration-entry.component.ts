@@ -5,12 +5,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
 import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';
+import { MatButtonModule } from '@angular/material/button';
 import { LoginComponent } from '../login/login.component';
 
 @Component({
   selector: 'app-registration-entry',
   standalone: true,
-  imports: [CommonModule, WizardThemeDirective, LoginComponent],
+  imports: [CommonModule, WizardThemeDirective, LoginComponent, MatButtonModule],
   host: {},
   template: `
   <div class="container py-4" [wizardTheme]="'player'">
@@ -36,8 +37,8 @@ import { LoginComponent } from '../login/login.component';
             <h5 class="fw-semibold mb-2">What would you like to do?</h5>
             <p class="text-secondary small mb-3">You can go straight to Player Registration or review/update your Family Account first.</p>
             <div class="d-flex flex-column flex-sm-row gap-2">
-              <button type="button" class="btn btn-success" (click)="goRegister()">Continue to Player Registration</button>
-              <button type="button" class="btn btn-outline-primary" (click)="goFamilyReview()">Review/Update Family Account</button>
+              <button type="button" mat-raised-button color="primary" (click)="goRegister()">Continue to Player Registration</button>
+              <button type="button" mat-stroked-button color="primary" (click)="goFamilyReview()">Review/Update Family Account</button>
             </div>
           </div>
         </div>

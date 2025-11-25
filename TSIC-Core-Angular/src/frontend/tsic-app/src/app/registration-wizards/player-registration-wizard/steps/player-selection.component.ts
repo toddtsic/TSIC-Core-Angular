@@ -1,13 +1,16 @@
 import { Component, EventEmitter, Output, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-rw-player-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatCardModule, MatProgressSpinnerModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -16,20 +19,20 @@ import { environment } from '../../../../environments/environment';
       <div class="card-body position-relative">
         <!-- Temporary debug panel showing raw GetFamilyPlayers response (dev-only) -->
         @if (showDebug() && state.debugFamilyPlayersResp()) {
-          <div class="alert alert-secondary mb-3" role="region" aria-label="Family players raw response">
+          <mat-card appearance="outlined" class="mb-3" role="region" aria-label="Family players raw response">
             <div class="d-flex justify-content-between align-items-start mb-2">
               <strong class="me-2">Debug: Raw GetFamilyPlayers Response <span class="badge bg-warning text-dark ms-2">dev only</span></strong>
-              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="state.debugFamilyPlayersResp.set(null)">Hide</button>
+              <button type="button" mat-stroked-button (click)="state.debugFamilyPlayersResp.set(null)">Hide</button>
             </div>
             <pre class="small mb-0" style="max-height:240px; overflow:auto;">
 {{ state.debugFamilyPlayersResp() | json }}
             </pre>
-          </div>
+          </mat-card>
         }
         <!-- Loading overlay -->
         @if (state.familyPlayersLoading()) {
         <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 10;">
-          <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+          <mat-progress-spinner mode="indeterminate" [diameter]="32" class="mb-3" aria-label="Loading Family Players"></mat-progress-spinner>
           <div class="fw-semibold">Loading Family Players...</div>
         </div>
         }
@@ -37,7 +40,7 @@ import { environment } from '../../../../environments/environment';
 
         <!-- Fallback to classic *ngIf / *ngFor for widest compatibility -->
         @if (!state.familyPlayersLoading() && state.familyPlayers().length === 0) {
-          <div class="alert alert-info">No players found for your family. You can add players in your Family Account.</div>
+          <mat-card appearance="outlined" role="status">No players found for your family. You can add players in your Family Account.</mat-card>
         } @else {
           <ul class="list-group list-group-flush mb-3" [class.opacity-50]="state.familyPlayersLoading()">
             @for (p of state.familyPlayers(); track p.playerId) {

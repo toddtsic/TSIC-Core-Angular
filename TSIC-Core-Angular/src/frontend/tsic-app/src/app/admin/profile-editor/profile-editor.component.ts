@@ -10,13 +10,16 @@ import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-di
 import { OptionsPanelComponent } from './options-panel/options-panel.component';
 import { ALLOWED_PROFILE_FIELDS, AllowedField } from './allowed-fields';
 import { AuthService } from '../../core/services/auth.service';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
 
 type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO' | 'HIDDEN';
 
 @Component({
     selector: 'app-profile-editor',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, DragDropModule, TsicDialogComponent, OptionsPanelComponent],
+    imports: [CommonModule, FormsModule, RouterLink, DragDropModule, TsicDialogComponent, OptionsPanelComponent, MatButtonModule, MatCardModule, MatIconModule],
     templateUrl: './profile-editor.component.html',
     styleUrl: './profile-editor.component.scss'
 })
