@@ -2,6 +2,9 @@ import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef,
 import { Roles } from '../../../core/models/roles.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -9,7 +12,7 @@ import { AuthService } from '../../../core/services/auth.service';
 @Component({
   selector: 'app-rw-family-check',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
   template: `
   <div class="card shadow border-0 card-rounded allow-overflow">
     <div class="card-header gradient-header border-0 py-4 text-center text-white">
@@ -39,12 +42,16 @@ import { AuthService } from '../../../core/services/auth.service';
                   <div class="flex-grow-1">
                     <div class="row g-2 align-items-end mb-2">
                       <div class="col-12 col-md-5">
-                        <label for="famUsername" class="form-label small text-muted">Family username</label>
-                        <input id="famUsername" name="famUsername" class="form-control" type="text" [(ngModel)]="username" autocomplete="username" (keyup.enter)="signInThenProceed()" />
+                        <mat-form-field appearance="outline" class="w-100">
+                          <mat-label>Family username</mat-label>
+                          <input id="famUsername" matInput name="famUsername" type="text" [(ngModel)]="username" autocomplete="username" (keyup.enter)="signInThenProceed()" />
+                        </mat-form-field>
                       </div>
                       <div class="col-12 col-md-5">
-                        <label for="famPassword" class="form-label small text-muted">Password</label>
-                        <input #famPasswordInput id="famPassword" name="famPassword" class="form-control" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
+                        <mat-form-field appearance="outline" class="w-100">
+                          <mat-label>Password</mat-label>
+                          <input #famPasswordInput id="famPassword" matInput name="famPassword" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
+                        </mat-form-field>
                       </div>
                     </div>
                     @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
@@ -62,8 +69,8 @@ import { AuthService } from '../../../core/services/auth.service';
                   <div class="d-flex align-items-start gap-3">
                     <i class="bi bi-play-fill rw-accent-icon" aria-hidden="true"></i>
                     <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
-                      <button type="button"
-                              class="btn btn-primary"
+                            <button type="button"
+                              mat-raised-button color="primary"
                               [disabled]="submitting || !username || !password"
                               (click)="signInThenProceed()">
                         @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
@@ -79,8 +86,8 @@ import { AuthService } from '../../../core/services/auth.service';
                   <div class="d-flex align-items-start gap-3">
                     <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
                     <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
-                      <button type="button"
-                              class="btn btn-success"
+                            <button type="button"
+                              mat-raised-button color="primary"
                               [disabled]="submitting || !username || !password"
                               (click)="signInThenGoFamilyAccount()">
                         @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
