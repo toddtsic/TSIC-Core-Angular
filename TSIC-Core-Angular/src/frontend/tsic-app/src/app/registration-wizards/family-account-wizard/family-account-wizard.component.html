@@ -1,6 +1,5 @@
-<main class="container py-4" aria-labelledby="fam-title" [wizardTheme]="'family'">
-    <div class="row justify-content-center">
-        <div class="col-lg-9 col-xl-8">
+<main class="layout-container py-4" aria-labelledby="fam-title" [wizardTheme]="'family'">
+    <div class="layout-center-col">
             <div class="card shadow-lg border-0 card-rounded mb-4">
                 <div class="card-header gradient-header text-center py-4 border-0">
                     <h2 id="fam-title" class="mb-0 fw-bold">Family Account</h2>
@@ -52,6 +51,5 @@
             @case (4) { <app-fam-account-step-review (back)="back()" (completed)="finish($event)" /> }
             }
             }
-        </div>
     </div>
 </main>
