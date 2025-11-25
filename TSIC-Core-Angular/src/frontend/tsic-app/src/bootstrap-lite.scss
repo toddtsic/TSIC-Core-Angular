@@ -5,6 +5,9 @@
 // NOTE: Does NOT include full reboot, grid, alerts, badges, cards, buttons, forms.
 // Keep surface area intentionally tiny.
 
+@use 'sass:map';
+@use 'sass:math';
+
 // Spacing scale (match Bootstrap defaults)
 $spacer: 1rem;
 $spacers: (
@@ -16,9 +19,7 @@ $spacers: (
     5: $spacer * 3
 );
 
-@function spacer($i) {
-    @return map-get($spacers, $i);
-}
+@function spacer($i) { @return map.get($spacers, $i); }
 
 // Generate margin/padding utilities we actively use (t, b, y, x, s, e)
 @mixin space-utils($prop, $abbr) {
@@ -312,3 +313,45 @@ $spacers: (
 .grid { display: grid; gap: 1rem; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
 .grid.cols-3 { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+
+// --- Minimal grid shim for Bootstrap-like row/col classes ---
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0; /* use g-* helpers for spacing */
+}
+
+// Gutters via gap helpers
+.g-0 { gap: 0 !important; }
+.g-1 { gap: spacer(1) !important; }
+.g-2 { gap: spacer(2) !important; }
+.g-3 { gap: spacer(3) !important; }
+.g-4 { gap: spacer(4) !important; }
+
+// Base column padding kept minimal; using gap for gutters
+[class^="col-"], [class*=" col-"] { box-sizing: border-box; }
+
+@mixin make-col($n) { flex: 0 0 auto; width: math.div(100% * $n, 12); }
+@mixin cols($prefix: '') {
+    .#{$prefix}col-1 { @include make-col(1); }
+    .#{$prefix}col-2 { @include make-col(2); }
+    .#{$prefix}col-3 { @include make-col(3); }
+    .#{$prefix}col-4 { @include make-col(4); }
+    .#{$prefix}col-5 { @include make-col(5); }
+    .#{$prefix}col-6 { @include make-col(6); }
+    .#{$prefix}col-7 { @include make-col(7); }
+    .#{$prefix}col-8 { @include make-col(8); }
+    .#{$prefix}col-9 { @include make-col(9); }
+    .#{$prefix}col-10 { @include make-col(10); }
+    .#{$prefix}col-11 { @include make-col(11); }
+    .#{$prefix}col-12 { @include make-col(12); }
+}
+
+// Default columns
+@include cols();
+
+// Responsive columns (subset of breakpoints)
+@media (min-width: 576px) { @include cols('sm-'); }
+@media (min-width: 768px) { @include cols('md-'); }
+@media (min-width: 992px) { @include cols('lg-'); }
+@media (min-width: 1200px) { @include cols('xl-'); }
