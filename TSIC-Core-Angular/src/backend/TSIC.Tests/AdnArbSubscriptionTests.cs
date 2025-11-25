@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Xunit;
 using TSIC.API.Services;
+using TSIC.API.Dtos;
 
 namespace TSIC.Tests;
 
@@ -24,10 +25,10 @@ public sealed class AdnArbSubscriptionTests
         // Arrange sandbox creds (override with env vars if present)
         var login = Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID") ?? "4dE5m4WR9ey";
         var key = Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY") ?? "6zmzD35C47kv45Sn";
-        var inMemory = new[]
+        var inMemory = new List<KeyValuePair<string, string?>>
         {
-            new KeyValuePair<string,string>("AuthorizeNet:SandboxLoginId", login),
-            new KeyValuePair<string,string>("AuthorizeNet:SandboxTransactionKey", key)
+            new("AuthorizeNet:SandboxLoginId", login),
+            new("AuthorizeNet:SandboxTransactionKey", key)
         };
         var config = new ConfigurationBuilder().AddInMemoryCollection(inMemory).Build();
         var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AdnApiService>();

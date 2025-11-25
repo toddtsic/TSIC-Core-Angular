@@ -4,12 +4,6 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
 
-public interface ITeamLookupService
-{
-    Task<IReadOnlyList<AvailableTeamDto>> GetAvailableTeamsForJobAsync(Guid jobId);
-    Task<(decimal Fee, decimal Deposit)> ResolvePerRegistrantAsync(Guid teamId);
-}
-
 public class TeamLookupService : ITeamLookupService
 {
     private readonly SqlDbContext _context;

@@ -3,15 +3,6 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
 
-public interface IPlayerBaseTeamFeeResolverService
-{
-    /// <summary>
-    /// Resolve the "base" fee for a team using hierarchical fallbacks: Team > AgeGroup > League.
-    /// Returns 0 when no fee can be determined.
-    /// </summary>
-    Task<decimal> ResolveBaseFeeForTeamAsync(Guid teamId);
-}
-
 public class PlayerBaseTeamFeeResolverService : IPlayerBaseTeamFeeResolverService
 {
     private readonly SqlDbContext _db;

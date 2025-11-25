@@ -3,13 +3,6 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
 
-public interface IJobLookupService
-{
-    Task<Guid?> GetJobIdByPathAsync(string jobPath);
-    Task<bool> IsPlayerRegistrationActiveAsync(Guid jobId);
-    Task<JobMetadataDto?> GetJobMetadataAsync(string jobPath);
-}
-
 public class JobMetadataDto
 {
     public Guid JobId { get; set; }

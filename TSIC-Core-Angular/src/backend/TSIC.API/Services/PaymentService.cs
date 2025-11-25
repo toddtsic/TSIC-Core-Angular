@@ -8,11 +8,6 @@ using MimeKit;
 
 namespace TSIC.API.Services;
 
-public interface IPaymentService
-{
-    Task<PaymentResponseDto> ProcessPaymentAsync(PaymentRequestDto request, string userId);
-}
-
 public class PaymentService : IPaymentService
 {
     private readonly SqlDbContext _db;

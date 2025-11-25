@@ -9,16 +9,6 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
 
-public interface ITextSubstitutionService
-{
-    Task<string> SubstituteAsync(
-        string jobSegment,
-        Guid paymentMethodCreditCardId,
-        Guid? registrationId,
-        string familyUserId,
-        string template);
-}
-
 /// <summary>
 /// Rewritten version of legacy TextSubstitutionService.
 /// Responsibilities:

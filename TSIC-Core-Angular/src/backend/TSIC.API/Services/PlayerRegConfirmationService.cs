@@ -4,12 +4,6 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services;
 
-public interface IPlayerRegConfirmationService
-{
-    Task<PlayerRegConfirmationDto> BuildAsync(Guid jobId, string familyUserId, CancellationToken ct);
-    Task<(string Subject, string Html)> BuildEmailAsync(Guid jobId, string familyUserId, CancellationToken ct);
-}
-
 public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
 {
     private sealed record RegRow(

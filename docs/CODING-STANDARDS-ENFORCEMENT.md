@@ -9,6 +9,17 @@ This document outlines automated and manual strategies to enforce our coding sta
 
 ---
 
+## Interfaces & Services
+
+- Convention: Place public service interfaces in separate files named `I*.cs` alongside their implementations within `TSIC.API/Services`.
+- Scope: Applies to outward-facing services used via DI. Internal helpers and local DTO records may remain co-located.
+- Rationale: Improves discoverability, testing/mocking, and keeps diffs focused (interface vs implementation changes).
+- Examples: `IPaymentService.cs`, `IPlayerBaseTeamFeeResolverService.cs`, `ITeamLookupService.cs`, `IAccountingService.cs`, `IJobLookupService.cs`, `ITextSubstitutionService.cs`, `IPlayerRegConfirmationService.cs`, `IAdnApiService.cs`.
+
+This convention is now enforced for new services; legacy services should be brought in line opportunistically during refactors.
+
+---
+
 ## 1. Code Review Checklist
 
 ### Pre-Commit Checklist

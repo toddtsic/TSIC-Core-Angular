@@ -7,11 +7,6 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services;
 
-public interface IAccountingService
-{
-    Task<decimal?> CalculateDiscountFromAccountingRecordAsync(SqlDbContext context, int discountCodeAi, decimal payAmount);
-}
-
 /// <summary>
 /// Minimal accounting service extracted from legacy production code. Responsible only for discount calculation.
 /// </summary>
