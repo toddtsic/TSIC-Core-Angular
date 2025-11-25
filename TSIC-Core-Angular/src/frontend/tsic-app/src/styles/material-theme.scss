@@ -1,0 +1,29 @@
+@use '@angular/material' as mat;
+
+// Define palettes
+$primary: mat.define-palette(mat.$indigo-palette, 600, 300, 800);
+$accent:  mat.define-palette(mat.$pink-palette, 500);
+$warn:    mat.define-palette(mat.$red-palette);
+
+// Define the light theme
+$theme: mat.define-light-theme((
+  color: (
+    primary: $primary,
+    accent: $accent,
+    warn: $warn,
+  ),
+  typography: mat.define-typography-config(),
+  density: 0,
+));
+
+// Material core styles and component themes
+@include mat.core();
+@include mat.all-component-themes($theme);
+
+// Optional: CSS custom properties for spacing tokens to complement Material density
+:root {
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+}
