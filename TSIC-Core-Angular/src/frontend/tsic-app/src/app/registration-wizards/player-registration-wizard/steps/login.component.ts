@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { LoginComponent } from '../../../login/login.component';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-rw-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoginComponent],
+  imports: [CommonModule, FormsModule, LoginComponent, MatButtonModule],
   template: `
   <div class="card shadow border-0 card-rounded">
     <div class="card-header card-header-subtle border-0 py-3">
@@ -24,13 +25,13 @@ import { LoginComponent } from '../../../login/login.component';
       />
 
       <div class="d-flex gap-2 mt-3">
-        <button type="button" class="btn btn-outline-secondary" (click)="skip.emit()">Back</button>
+        <button type="button" mat-stroked-button (click)="skip.emit()">Back</button>
       </div>
 
       <hr class="my-4" />
       <div>
         <p class="mb-2">Don't have a Family Account?</p>
-        <button type="button" class="btn btn-link px-0" (click)="createAccount()">Create a Family Account</button>
+        <button type="button" mat-button (click)="createAccount()">Create a Family Account</button>
       </div>
     </div>
   </div>
