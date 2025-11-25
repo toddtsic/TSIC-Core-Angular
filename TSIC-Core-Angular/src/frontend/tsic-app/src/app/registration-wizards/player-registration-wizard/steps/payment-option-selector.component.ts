@@ -1,28 +1,30 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
 import { PaymentService } from '../services/payment.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
 
 @Component({
     selector: 'app-payment-option-selector',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
     template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-option-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="pay-option-title" class="fw-semibold mb-3">Payment Option</h6>
 
       @if (state.jobHasActiveDiscountCodes()) {
-        <div class="mb-3">
-          <label for="discountCode" class="form-label fw-semibold me-2 d-block d-md-inline">Discount Code</label>
-          <div class="input-group input-group-sm w-auto d-inline-flex align-items-center">
-            <input id="discountCode" type="text" [(ngModel)]="code" class="form-control" placeholder="Enter code"
-                   [disabled]="svc.discountApplying()" style="min-width: 180px;">
-            <button type="button" class="btn btn-outline-primary" (click)="apply()" [disabled]="svc.discountApplying() || !code">Apply</button>
-          </div>
+        <div class="mb-3 d-inline-flex flex-column flex-sm-row align-items-start gap-2">
+          <mat-form-field appearance="outline" class="discount-field">
+            <mat-label>Discount Code</mat-label>
+            <input id="discountCode" matInput type="text" [(ngModel)]="code" placeholder="Enter code" [disabled]="svc.discountApplying()">
+            <button mat-stroked-button color="primary" matSuffix type="button" (click)="apply()" [disabled]="svc.discountApplying() || !code">Apply</button>
+          </mat-form-field>
           @if (svc.discountMessage()) {
-            <div class="form-text mt-1"
+            <div class="small mt-1"
                  [class.text-success]="svc.appliedDiscount() > 0"
                  [class.text-danger]="svc.appliedDiscount() === 0">{{ svc.discountMessage() }}</div>
           }
