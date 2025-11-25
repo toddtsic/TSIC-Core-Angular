@@ -1,13 +1,14 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
 @Component({
   selector: 'app-fam-account-step-children',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatButtonModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -32,7 +33,7 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
                       @if (c.email) { <div class="text-secondary small">Email: {{ c.email }}</div> }
                       @if (c.phone) { <div class="text-secondary small">Cell: {{ c.phone }}</div> }
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove($index)">Remove</button>
+                    <button type="button" mat-stroked-button color="warn" (click)="remove($index)">Remove</button>
                   </li>
                 }
               </ul>
@@ -88,14 +89,14 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
             @if (submitted && form.controls.phone.errors?.['pattern']) { <div class="invalid-feedback">Numbers only</div> }
           </div>
           <div class="col-12">
-            <button type="submit" class="btn btn-outline-primary">Add child</button>
+            <button type="submit" mat-stroked-button color="primary">Add child</button>
           </div>
             </form>
           </div>
         </div>
         <div class="rw-bottom-nav d-flex gap-2">
-          <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-          <button type="button" class="btn btn-primary" (click)="next.emit()" [disabled]="state.children().length === 0">Continue</button>
+          <button type="button" mat-stroked-button color="primary" (click)="back.emit()">Back</button>
+          <button type="button" mat-raised-button color="primary" (click)="next.emit()" [disabled]="state.children().length === 0">Continue</button>
         </div>
       </div>
     </div>

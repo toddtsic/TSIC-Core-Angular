@@ -1,11 +1,12 @@
 import { Component, EventEmitter, Output, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
 import { RegistrationWizardService } from '../registration-wizard.service';
 
 @Component({
   selector: 'app-rw-confirmation',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MatButtonModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -15,13 +16,13 @@ import { RegistrationWizardService } from '../registration-wizard.service';
         @if (!confirmationLoaded()) {
           <p class="text-muted">Loading confirmation summary…</p>
         } @else {
-          <button type="button" class="btn btn-outline-primary mb-3" [disabled]="resending()" (click)="onResendClick()">
+          <button type="button" mat-stroked-button color="primary" class="mb-3" [disabled]="resending()" (click)="onResendClick()">
             {{ resending() ? 'Sending…' : 'Re-Send Confirmation Email' }}
           </button>
           @if (resendMessage()) { <div class="small text-muted mb-2">{{ resendMessage() }}</div> }
           <div class="mt-3" [innerHTML]="conf()!.confirmationHtml"></div>
 
-          <button type="button" class="btn btn-primary mt-3" (click)="completed.emit()">Finish</button>
+          <button type="button" mat-raised-button color="primary" class="mt-3" (click)="completed.emit()">Finish</button>
         }
       </div>
     </div>

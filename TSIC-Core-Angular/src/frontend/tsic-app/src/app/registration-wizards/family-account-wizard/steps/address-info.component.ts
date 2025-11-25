@@ -1,13 +1,14 @@
 import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
 @Component({
   selector: 'app-fam-account-step-address',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatButtonModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -44,8 +45,8 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           </div>
 
           <div class="rw-bottom-nav d-flex gap-2">
-            <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">Back</button>
-            <button type="submit" class="btn btn-primary">Continue</button>
+            <button type="button" mat-stroked-button color="primary" (click)="back.emit()">Back</button>
+            <button type="submit" mat-raised-button color="primary">Continue</button>
           </div>
         </form>
       </div>

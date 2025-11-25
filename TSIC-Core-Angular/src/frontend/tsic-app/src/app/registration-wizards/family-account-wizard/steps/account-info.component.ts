@@ -1,13 +1,14 @@
 import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidationErrors, AbstractControl, FormGroup } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { JobService } from '../../../core/services/job.service';
 
 @Component({
   selector: 'app-fam-account-step-account',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, MatButtonModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -123,7 +124,7 @@ import { JobService } from '../../../core/services/job.service';
           </div>
 
           <div class="rw-bottom-nav d-flex gap-2">
-            <button type="submit" class="btn btn-primary">Continue</button>
+            <button type="submit" mat-raised-button color="primary">Continue</button>
           </div>
         </form>
       </div>

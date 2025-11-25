@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryComponent } from './payment-summary.component';
 import { PaymentOptionSelectorComponent } from './payment-option-selector.component';
@@ -30,7 +31,7 @@ import type { LineItem } from '../services/payment.service';
 @Component({
   selector: 'app-rw-payment',
   standalone: true,
-  imports: [CommonModule, FormsModule, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
+  imports: [CommonModule, FormsModule, MatButtonModule, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -148,12 +149,12 @@ import type { LineItem } from '../services/payment.service';
               <!-- Continue button removed; logic relocated to global action bar -->
             }
             @if (isViCcOnlyFlow()) {
-              <button type="button" class="btn btn-primary me-2" (click)="submitInsuranceOnly()" [disabled]="!canInsuranceOnlySubmit()">
+              <button type="button" mat-raised-button color="primary" class="me-2" (click)="submitInsuranceOnly()" [disabled]="!canInsuranceOnlySubmit()">
                 Proceed with Insurance Processing
               </button>
             }
             @if (showPayNowButton()) {
-              <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">
+              <button type="button" mat-raised-button color="primary" (click)="submit()" [disabled]="!canSubmit()">
                 Pay Now
               </button>
             }
