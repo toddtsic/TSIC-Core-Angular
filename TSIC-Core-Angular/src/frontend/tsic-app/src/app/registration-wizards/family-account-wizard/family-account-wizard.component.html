@@ -1,55 +1,55 @@
 <main class="layout-container py-4" aria-labelledby="fam-title" [wizardTheme]="'family'">
     <div class="layout-center-col">
-            <div class="card shadow-lg border-0 card-rounded mb-4">
-                <div class="card-header gradient-header text-center py-4 border-0">
-                    <h2 id="fam-title" class="mb-0 fw-bold">Family Account</h2>
-                    <p class="mb-0 mt-2 opacity-75 small">Step {{ currentStep() }} of {{ totalSteps() }}</p>
+        <div class="card shadow-lg border-0 card-rounded mb-4">
+            <div class="card-header gradient-header text-center py-4 border-0">
+                <h2 id="fam-title" class="mb-0 fw-bold">Family Account</h2>
+                <p class="mb-0 mt-2 opacity-75 small">Step {{ currentStep() }} of {{ totalSteps() }}</p>
+            </div>
+        </div>
+
+        <div class="rw-sticky-header mb-4">
+            <progress class="w-100 mb-2 rw-progress" [value]="progressPercent()" max="100">{{ progressPercent()
+                }}%</progress>
+
+            <nav class="rw-steps mb-3" aria-label="Family account steps">
+                <ol class="rw-steps-list">
+                    @for (label of stepLabels(); track label; let i = $index) {
+                    <li class="rw-step" [class.active]="i === currentIndex()" [class.completed]="i < currentIndex()"
+                        [attr.aria-current]="i === currentIndex() ? 'step' : null">
+                        <span class="rw-step-index">{{ i + 1 }}</span>
+                        <span class="rw-step-label">{{ label }}</span>
+                    </li>
+                    }
+                </ol>
+            </nav>
+
+            <div class="rw-toolbar d-flex justify-content-between align-items-center">
+                <button type="button" mat-stroked-button color="primary" (click)="back()"
+                    [disabled]="currentIndex() === 0" aria-label="Go back to previous step">
+                    Back
+                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-secondary small">Current:</span>
+                    <span class="text-muted small">{{ stepLabels()[currentIndex()] }}</span>
                 </div>
             </div>
+        </div>
 
-            <div class="rw-sticky-header mb-4">
-                <progress class="w-100 mb-2 rw-progress" [value]="progressPercent()" max="100">{{ progressPercent()
-                    }}%</progress>
-
-                <nav class="rw-steps mb-3" aria-label="Family account steps">
-                    <ol class="rw-steps-list">
-                        @for (label of stepLabels(); track label; let i = $index) {
-                        <li class="rw-step" [class.active]="i === currentIndex()" [class.completed]="i < currentIndex()"
-                            [attr.aria-current]="i === currentIndex() ? 'step' : null">
-                            <span class="rw-step-index">{{ i + 1 }}</span>
-                            <span class="rw-step-label">{{ label }}</span>
-                        </li>
-                        }
-                    </ol>
-                </nav>
-
-                <div class="rw-toolbar d-flex justify-content-between align-items-center">
-                    <button type="button" mat-stroked-button color="primary" (click)="back()"
-                        [disabled]="currentIndex() === 0" aria-label="Go back to previous step">
-                        Back
-                    </button>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="text-secondary small">Current:</span>
-                        <span class="text-muted small">{{ stepLabels()[currentIndex()] }}</span>
-                    </div>
-                </div>
-            </div>
-
-            @if (state.mode() === 'create') {
-            @switch (currentStep()) {
-            @case (1) { <app-fam-account-step-credentials (next)="next()" /> }
-            @case (2) { <app-fam-account-step-account (next)="next()" /> }
-            @case (3) { <app-fam-account-step-address (back)="back()" (next)="next()" /> }
-            @case (4) { <app-fam-account-step-children (back)="back()" (next)="next()" /> }
-            @case (5) { <app-fam-account-step-review (back)="back()" (completed)="finish($event)" /> }
-            }
-            } @else {
-            @switch (currentStep()) {
-            @case (1) { <app-fam-account-step-account (next)="next()" /> }
-            @case (2) { <app-fam-account-step-address (back)="back()" (next)="next()" /> }
-            @case (3) { <app-fam-account-step-children (back)="back()" (next)="next()" /> }
-            @case (4) { <app-fam-account-step-review (back)="back()" (completed)="finish($event)" /> }
-            }
-            }
+        @if (state.mode() === 'create') {
+        @switch (currentStep()) {
+        @case (1) { <app-fam-account-step-credentials (next)="next()" /> }
+        @case (2) { <app-fam-account-step-account (next)="next()" /> }
+        @case (3) { <app-fam-account-step-address (back)="back()" (next)="next()" /> }
+        @case (4) { <app-fam-account-step-children (back)="back()" (next)="next()" /> }
+        @case (5) { <app-fam-account-step-review (back)="back()" (completed)="finish($event)" /> }
+        }
+        } @else {
+        @switch (currentStep()) {
+        @case (1) { <app-fam-account-step-account (next)="next()" /> }
+        @case (2) { <app-fam-account-step-address (back)="back()" (next)="next()" /> }
+        @case (3) { <app-fam-account-step-children (back)="back()" (next)="next()" /> }
+        @case (4) { <app-fam-account-step-review (back)="back()" (completed)="finish($event)" /> }
+        }
+        }
     </div>
 </main>

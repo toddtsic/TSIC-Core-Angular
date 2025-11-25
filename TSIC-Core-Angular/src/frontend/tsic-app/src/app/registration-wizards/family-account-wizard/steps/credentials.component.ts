@@ -8,10 +8,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 
 @Component({
-    selector: 'app-fam-account-step-credentials',
-    standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
-    template: `
+  selector: 'app-fam-account-step-credentials',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Create Login</h5>
@@ -69,45 +69,45 @@ import { MatButtonModule } from '@angular/material/button';
   `
 })
 export class FamAccountStepCredentialsComponent {
-    @Output() next = new EventEmitter<void>();
-    private readonly fb = inject(FormBuilder);
-    private readonly auth = inject(AuthService);
-    constructor(public state: FamilyAccountWizardService) {
-        this.form = this.fb.group({
-            username: [this.state.username(), [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
-            password: [this.state.password(), [Validators.required, Validators.minLength(6)]],
-            confirmPassword: ['', [Validators.required]]
-        }, {
-            validators: (group: AbstractControl): ValidationErrors | null => {
-                const pwd = group.get('password')?.value;
-                const cfm = group.get('confirmPassword')?.value;
-                return pwd && cfm && pwd !== cfm ? { passwordMismatch: true } : null;
-            }
-        });
+  @Output() next = new EventEmitter<void>();
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
+  constructor(public state: FamilyAccountWizardService) {
+    this.form = this.fb.group({
+      username: [this.state.username(), [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
+      password: [this.state.password(), [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', [Validators.required]]
+    }, {
+      validators: (group: AbstractControl): ValidationErrors | null => {
+        const pwd = group.get('password')?.value;
+        const cfm = group.get('confirmPassword')?.value;
+        return pwd && cfm && pwd !== cfm ? { passwordMismatch: true } : null;
+      }
+    });
+  }
+
+  submitted = false;
+  form!: FormGroup;
+  get isAuthed(): boolean { return this.auth.isAuthenticated(); }
+
+  submit(): void {
+    this.submitted = true;
+    if (this.isAuthed) {
+      this.form.get('username')?.clearValidators();
+      this.form.get('password')?.clearValidators();
+      this.form.get('confirmPassword')?.clearValidators();
+      this.form.get('username')?.updateValueAndValidity({ emitEvent: false });
+      this.form.get('password')?.updateValueAndValidity({ emitEvent: false });
+      this.form.get('confirmPassword')?.updateValueAndValidity({ emitEvent: false });
     }
 
-    submitted = false;
-    form!: FormGroup;
-    get isAuthed(): boolean { return this.auth.isAuthenticated(); }
+    if (this.form.invalid) return;
 
-    submit(): void {
-        this.submitted = true;
-        if (this.isAuthed) {
-            this.form.get('username')?.clearValidators();
-            this.form.get('password')?.clearValidators();
-            this.form.get('confirmPassword')?.clearValidators();
-            this.form.get('username')?.updateValueAndValidity({ emitEvent: false });
-            this.form.get('password')?.updateValueAndValidity({ emitEvent: false });
-            this.form.get('confirmPassword')?.updateValueAndValidity({ emitEvent: false });
-        }
-
-        if (this.form.invalid) return;
-
-        const v = this.form.value;
-        if (!this.isAuthed) {
-            this.state.username.set(v.username ?? '');
-            this.state.password.set(v.password ?? '');
-        }
-        this.next.emit();
+    const v = this.form.value;
+    if (!this.isAuthed) {
+      this.state.username.set(v.username ?? '');
+      this.state.password.set(v.password ?? '');
     }
+    this.next.emit();
+  }
 }

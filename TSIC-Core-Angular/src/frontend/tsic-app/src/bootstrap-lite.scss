@@ -19,7 +19,9 @@ $spacers: (
     5: $spacer * 3
 );
 
-@function spacer($i) { @return map.get($spacers, $i); }
+@function spacer($i) {
+    @return map.get($spacers, $i);
+}
 
 // Generate margin/padding utilities we actively use (t, b, y, x, s, e)
 @mixin space-utils($prop, $abbr) {
@@ -291,11 +293,36 @@ $spacers: (
     padding-right: 1rem;
     max-width: 100%;
 }
-@media (min-width: 576px) { .layout-container { max-width: 540px; } }
-@media (min-width: 768px) { .layout-container { max-width: 720px; } }
-@media (min-width: 992px) { .layout-container { max-width: 960px; } }
-@media (min-width: 1200px) { .layout-container { max-width: 1140px; } }
-@media (min-width: 1400px) { .layout-container { max-width: 1320px; } }
+
+@media (min-width: 576px) {
+    .layout-container {
+        max-width: 540px;
+    }
+}
+
+@media (min-width: 768px) {
+    .layout-container {
+        max-width: 720px;
+    }
+}
+
+@media (min-width: 992px) {
+    .layout-container {
+        max-width: 960px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .layout-container {
+        max-width: 1140px;
+    }
+}
+
+@media (min-width: 1400px) {
+    .layout-container {
+        max-width: 1320px;
+    }
+}
 
 // Centered narrow column approximating col-lg-9 col-xl-8 for wizard shells
 .layout-center-col {
@@ -305,53 +332,147 @@ $spacers: (
     /* Progressive max widths matching original proportions */
     max-width: 100%;
 }
-@media (min-width: 992px) { .layout-center-col { max-width: 720px; } } // 9/12 of 960
-@media (min-width: 1200px) { .layout-center-col { max-width: 760px; } } // ~8/12 of 1140
-@media (min-width: 1400px) { .layout-center-col { max-width: 840px; } }
+
+@media (min-width: 992px) {
+    .layout-center-col {
+        max-width: 720px;
+    }
+}
+
+// 9/12 of 960
+@media (min-width: 1200px) {
+    .layout-center-col {
+        max-width: 760px;
+    }
+}
+
+// ~8/12 of 1140
+@media (min-width: 1400px) {
+    .layout-center-col {
+        max-width: 840px;
+    }
+}
 
 // Generic responsive grid utility (simple) for future replacements
-.grid { display: grid; gap: 1rem; }
-.grid.cols-2 { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
-.grid.cols-3 { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.grid.cols-2 {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.grid.cols-3 {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
 
 // --- Minimal grid shim for Bootstrap-like row/col classes ---
 .row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0; /* use g-* helpers for spacing */
+    gap: 0;
+    /* use g-* helpers for spacing */
 }
 
 // Gutters via gap helpers
-.g-0 { gap: 0 !important; }
-.g-1 { gap: spacer(1) !important; }
-.g-2 { gap: spacer(2) !important; }
-.g-3 { gap: spacer(3) !important; }
-.g-4 { gap: spacer(4) !important; }
+.g-0 {
+    gap: 0 !important;
+}
+
+.g-1 {
+    gap: spacer(1) !important;
+}
+
+.g-2 {
+    gap: spacer(2) !important;
+}
+
+.g-3 {
+    gap: spacer(3) !important;
+}
+
+.g-4 {
+    gap: spacer(4) !important;
+}
 
 // Base column padding kept minimal; using gap for gutters
-[class^="col-"], [class*=" col-"] { box-sizing: border-box; }
+[class^="col-"],
+[class*=" col-"] {
+    box-sizing: border-box;
+}
 
-@mixin make-col($n) { flex: 0 0 auto; width: math.div(100% * $n, 12); }
+@mixin make-col($n) {
+    flex: 0 0 auto;
+    width: math.div(100% * $n, 12);
+}
+
 @mixin cols($prefix: '') {
-    .#{$prefix}col-1 { @include make-col(1); }
-    .#{$prefix}col-2 { @include make-col(2); }
-    .#{$prefix}col-3 { @include make-col(3); }
-    .#{$prefix}col-4 { @include make-col(4); }
-    .#{$prefix}col-5 { @include make-col(5); }
-    .#{$prefix}col-6 { @include make-col(6); }
-    .#{$prefix}col-7 { @include make-col(7); }
-    .#{$prefix}col-8 { @include make-col(8); }
-    .#{$prefix}col-9 { @include make-col(9); }
-    .#{$prefix}col-10 { @include make-col(10); }
-    .#{$prefix}col-11 { @include make-col(11); }
-    .#{$prefix}col-12 { @include make-col(12); }
+    .#{$prefix}col-1 {
+        @include make-col(1);
+    }
+
+    .#{$prefix}col-2 {
+        @include make-col(2);
+    }
+
+    .#{$prefix}col-3 {
+        @include make-col(3);
+    }
+
+    .#{$prefix}col-4 {
+        @include make-col(4);
+    }
+
+    .#{$prefix}col-5 {
+        @include make-col(5);
+    }
+
+    .#{$prefix}col-6 {
+        @include make-col(6);
+    }
+
+    .#{$prefix}col-7 {
+        @include make-col(7);
+    }
+
+    .#{$prefix}col-8 {
+        @include make-col(8);
+    }
+
+    .#{$prefix}col-9 {
+        @include make-col(9);
+    }
+
+    .#{$prefix}col-10 {
+        @include make-col(10);
+    }
+
+    .#{$prefix}col-11 {
+        @include make-col(11);
+    }
+
+    .#{$prefix}col-12 {
+        @include make-col(12);
+    }
 }
 
 // Default columns
 @include cols();
 
 // Responsive columns (subset of breakpoints)
-@media (min-width: 576px) { @include cols('sm-'); }
-@media (min-width: 768px) { @include cols('md-'); }
-@media (min-width: 992px) { @include cols('lg-'); }
-@media (min-width: 1200px) { @include cols('xl-'); }
+@media (min-width: 576px) {
+    @include cols('sm-');
+}
+
+@media (min-width: 768px) {
+    @include cols('md-');
+}
+
+@media (min-width: 992px) {
+    @include cols('lg-');
+}
+
+@media (min-width: 1200px) {
+    @include cols('xl-');
+}

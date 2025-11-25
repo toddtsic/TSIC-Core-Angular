@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 
 @Component({
-    selector: 'app-rw-edit-lookup',
-    standalone: true,
-    imports: [CommonModule, MatButtonModule],
-    template: `
+  selector: 'app-rw-edit-lookup',
+  standalone: true,
+  imports: [CommonModule, MatButtonModule],
+  template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Find Previous Registration</h5>
@@ -22,6 +22,6 @@ import { MatButtonModule } from '@angular/material/button';
   `
 })
 export class EditLookupComponent {
-    @Output() next = new EventEmitter<void>();
-    @Output() back = new EventEmitter<void>();
+  @Output() next = new EventEmitter<void>();
+  @Output() back = new EventEmitter<void>();
 }

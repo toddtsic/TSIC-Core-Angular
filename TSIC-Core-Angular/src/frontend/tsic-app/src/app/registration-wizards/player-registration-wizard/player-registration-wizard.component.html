@@ -1,75 +1,74 @@
 <main class="layout-container py-4" aria-labelledby="rw-title" [wizardTheme]="'player'">
     <div class="layout-center-col">
-            <div class="card shadow-lg border-0 card-rounded mb-4">
-                <div class="card-header gradient-header text-center py-4 border-0">
-                    <h2 id="rw-title" class="mb-0 fw-bold">Player Registration</h2>
-                    <div class="mt-2">
-                        <span
-                            class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 text-nowrap shadow-sm d-inline-flex align-items-center gap-2"
-                            aria-live="polite">
-                            <i class="bi bi-question-circle" aria-hidden="true"></i>
-                            <!-- Dynamic Payment label mirrors Payment component; conditional insurance label -->
-                            <span class="fw-bold">{{ steps()[currentIndex()] === 'payment' &&
-                                state.offerPlayerRegSaver() ? 'Payment/Insurance' : stepLabels[steps()[currentIndex()]]
-                                }}</span>
-                            <span class="opacity-75">(Step {{ currentIndex() + 1 }} of {{ steps().length }})</span>
-                        </span>
-                    </div>
+        <div class="card shadow-lg border-0 card-rounded mb-4">
+            <div class="card-header gradient-header text-center py-4 border-0">
+                <h2 id="rw-title" class="mb-0 fw-bold">Player Registration</h2>
+                <div class="mt-2">
+                    <span
+                        class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 text-nowrap shadow-sm d-inline-flex align-items-center gap-2"
+                        aria-live="polite">
+                        <i class="bi bi-question-circle" aria-hidden="true"></i>
+                        <!-- Dynamic Payment label mirrors Payment component; conditional insurance label -->
+                        <span class="fw-bold">{{ steps()[currentIndex()] === 'payment' &&
+                            state.offerPlayerRegSaver() ? 'Payment/Insurance' : stepLabels[steps()[currentIndex()]]
+                            }}</span>
+                        <span class="opacity-75">(Step {{ currentIndex() + 1 }} of {{ steps().length }})</span>
+                    </span>
                 </div>
             </div>
+        </div>
 
-            <div class="rw-sticky-header mb-4">
-                <progress class="w-100 mb-2 rw-progress" [value]="progressPercent()" max="100">{{ progressPercent()
-                    }}%</progress>
-                <!-- Step tabs hidden intentionally to save space; single header badge above provides context -->
+        <div class="rw-sticky-header mb-4">
+            <progress class="w-100 mb-2 rw-progress" [value]="progressPercent()" max="100">{{ progressPercent()
+                }}%</progress>
+            <!-- Step tabs hidden intentionally to save space; single header badge above provides context -->
 
-                <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
-                    [canContinue]="canContinue()" [continueLabel]="continueLabel()"
-                    [showContinue]="showContinueButton()" (back)="back()" (continue)="onContinue()" />
-            </div>
+            <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
+                [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
+                (back)="back()" (continue)="onContinue()" />
+        </div>
 
-            @switch (currentStepId()) {
-            @case ('family-check') {
-            <app-rw-family-check (next)="next()" />
-            }
-            @case ('players') {
-            <app-rw-player-selection (next)="next()" />
-            }
-            @case ('eligibility') {
-            <app-rw-eligibility-selection (back)="back()" (next)="next()" />
-            }
-            @case ('teams') {
-            <app-rw-team-selection (back)="back()" (next)="next()" [multiSelect]="isMultiTeamMode()" />
-            }
-            @case ('forms') {
-            <app-rw-player-forms (back)="back()" (next)="next()" />
-            }
-            @case ('waivers') {
-            <app-rw-waivers (back)="back()" (next)="next()" />
-            }
-            @case ('review') {
-            <app-rw-review (back)="back()" (next)="proceedToPayment()" />
-            }
-            @case ('payment') {
-            <app-rw-payment (back)="back()" (submitted)="next()" />
-            }
-            @case ('confirmation') {
-            <app-rw-confirmation (completed)="finishToJobHome()" />
-            }
-            @default {
-            <div class="alert alert-warning" role="note">
-                Unknown step "{{ currentStepId() }}". Please go back and try again.
-            </div>
-            }
-            }
+        @switch (currentStepId()) {
+        @case ('family-check') {
+        <app-rw-family-check (next)="next()" />
+        }
+        @case ('players') {
+        <app-rw-player-selection (next)="next()" />
+        }
+        @case ('eligibility') {
+        <app-rw-eligibility-selection (back)="back()" (next)="next()" />
+        }
+        @case ('teams') {
+        <app-rw-team-selection (back)="back()" (next)="next()" [multiSelect]="isMultiTeamMode()" />
+        }
+        @case ('forms') {
+        <app-rw-player-forms (back)="back()" (next)="next()" />
+        }
+        @case ('waivers') {
+        <app-rw-waivers (back)="back()" (next)="next()" />
+        }
+        @case ('review') {
+        <app-rw-review (back)="back()" (next)="proceedToPayment()" />
+        }
+        @case ('payment') {
+        <app-rw-payment (back)="back()" (submitted)="next()" />
+        }
+        @case ('confirmation') {
+        <app-rw-confirmation (completed)="finishToJobHome()" />
+        }
+        @default {
+        <div class="alert alert-warning" role="note">
+            Unknown step "{{ currentStepId() }}". Please go back and try again.
+        </div>
+        }
+        }
 
-            <!-- Bottom action bar copy -->
-            <div class="mt-3 rw-bottom-actions">
-                <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
-                    [canContinue]="canContinue()" [continueLabel]="continueLabel()"
-                    [showContinue]="showContinueButton()" [placement]="'bottom'" (back)="back()"
-                    (continue)="onContinue()" />
-            </div>
+        <!-- Bottom action bar copy -->
+        <div class="mt-3 rw-bottom-actions">
+            <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
+                [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
+                [placement]="'bottom'" (back)="back()" (continue)="onContinue()" />
+        </div>
     </div>
 
 </main>

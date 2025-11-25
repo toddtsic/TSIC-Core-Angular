@@ -8,10 +8,10 @@ import { PaymentService } from '../services/payment.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
 
 @Component({
-    selector: 'app-payment-option-selector',
-    standalone: true,
-    imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
-    template: `
+  selector: 'app-payment-option-selector',
+  standalone: true,
+  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-option-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="pay-option-title" class="fw-semibold mb-3">Payment Option</h6>
@@ -65,13 +65,13 @@ import { RegistrationWizardService } from '../registration-wizard.service';
   `
 })
 export class PaymentOptionSelectorComponent {
-    code = '';
-    constructor(public svc: PaymentService, public state: RegistrationWizardService) { }
+  code = '';
+  constructor(public svc: PaymentService, public state: RegistrationWizardService) { }
 
-    choose(opt: 'PIF' | 'Deposit' | 'ARB') {
-        this.state.paymentOption.set(opt);
-        this.svc.resetDiscount();
-    }
+  choose(opt: 'PIF' | 'Deposit' | 'ARB') {
+    this.state.paymentOption.set(opt);
+    this.svc.resetDiscount();
+  }
 
-    apply() { this.svc.applyDiscount(this.code.trim()); }
+  apply() { this.svc.applyDiscount(this.code.trim()); }
 }
