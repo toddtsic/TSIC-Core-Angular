@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { ThemeService } from '../../core/services/theme.service';
+import { MatButtonModule } from '@angular/material/button';
 
 /**
  * PublicLayoutComponent
@@ -21,7 +22,7 @@ import { ThemeService } from '../../core/services/theme.service';
 @Component({
     selector: 'app-public-layout',
     standalone: true,
-    imports: [CommonModule, RouterOutlet],
+    imports: [CommonModule, RouterOutlet, MatButtonModule],
     templateUrl: './public-layout.component.html',
     styleUrls: ['./public-layout.component.scss']
 })

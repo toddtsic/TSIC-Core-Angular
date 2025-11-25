@@ -18,7 +18,7 @@
                 </div>
 
                 <div class="header-actions">
-                    <button class="btn btn-sm btn-outline-light theme-toggle" (click)="toggleTheme()" type="button"
+                    <button mat-icon-button class="theme-toggle" (click)="toggleTheme()" type="button"
                         [attr.aria-label]="(themeService.theme() === 'light' ? 'Switch to dark mode' : 'Switch to light mode')">
                         @if (themeService.theme() === 'light') {
                         <!-- Moon icon for dark mode -->
