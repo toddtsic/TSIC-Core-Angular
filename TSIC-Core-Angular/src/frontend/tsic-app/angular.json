@@ -32,7 +32,6 @@
               }
             ],
             "styles": [
-              "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "node_modules/@syncfusion/ej2-material-theme/styles/material.css",
               "src/bootstrap-lite.scss",
               "src/styles.scss"
@@ -44,8 +43,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "4.8MB",
-                  "maximumError": "5.5MB"
+                  "maximumWarning": "4.9MB",
+                  "maximumError": "5.2MB"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -111,7 +110,6 @@
               }
             ],
             "styles": [
-              "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "node_modules/@syncfusion/ej2-material-theme/styles/material.css",
               "src/bootstrap-lite.scss",
               "src/styles.scss"
