@@ -1,0 +1,95 @@
+// bootstrap-lite.scss
+// Minimal utility subset to allow progressive removal of full Bootstrap CSS.
+// Only includes spacing, flex, alignment, visibility helpers and a few structural classes
+// used heavily in wizards/components. Extend incrementally as legacy classes are replaced.
+// NOTE: Does NOT include full reboot, grid, alerts, badges, cards, buttons, forms.
+// Keep surface area intentionally tiny.
+
+// Spacing scale (match Bootstrap defaults)
+$spacer: 1rem;
+$spacers: (
+  0: 0,
+  1: $spacer * .25,
+  2: $spacer * .5,
+  3: $spacer * 1,
+  4: $spacer * 1.5,
+  5: $spacer * 3
+);
+
+@function spacer($i) { @return map-get($spacers, $i); }
+
+// Generate margin/padding utilities we actively use (t, b, y, x, s, e)
+@mixin space-utils($prop, $abbr) {
+  @each $i, $val in $spacers {
+    .#{$abbr}t-#{$i} { #{$prop}-top: $val !important; }
+    .#{$abbr}b-#{$i} { #{$prop}-bottom: $val !important; }
+    .#{$abbr}y-#{$i} { #{$prop}-top: $val !important; #{$prop}-bottom: $val !important; }
+    .#{$abbr}x-#{$i} { #{$prop}-left: $val !important; #{$prop}-right: $val !important; }
+    .#{$abbr}s-#{$i} { #{$prop}-left: $val !important; }
+    .#{$abbr}e-#{$i} { #{$prop}-right: $val !important; }
+    .#{$abbr}m-#{$i} { #{$prop}: $val !important; } // whole property (rare)
+  }
+}
+@include space-utils(margin, m);
+@include space-utils(padding, p);
+
+// Flex + alignment utilities
+.d-flex { display: flex !important; }
+.flex-column { flex-direction: column !important; }
+.flex-row { flex-direction: row !important; }
+.justify-content-center { justify-content: center !important; }
+.justify-content-between { justify-content: space-between !important; }
+.align-items-center { align-items: center !important; }
+.gap-1 { gap: spacer(1) !important; }
+.gap-2 { gap: spacer(2) !important; }
+.gap-3 { gap: spacer(3) !important; }
+.gap-4 { gap: spacer(4) !important; }
+
+// Width + text helpers
+.w-100 { width: 100% !important; }
+.text-center { text-align: center !important; }
+
+// Visibility helper (Bootstrap's visually-hidden)
+.visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
+
+// Simple border + rounded (subset)
+.border { border: 1px solid var(--mat-divider-color, rgba(0,0,0,.12)) !important; }
+.border-top { border-top: 1px solid var(--mat-divider-color, rgba(0,0,0,.12)) !important; }
+.rounded { border-radius: .375rem !important; }
+.rounded-1 { border-radius: .25rem !important; }
+
+// Utility shims for classes we plan to eliminate but still referenced short-term
+.fw-semibold { font-weight: 600 !important; }
+.small { font-size: .875em !important; }
+.opacity-75 { opacity: .75 !important; }
+
+// Placeholder card/alert minimal wrappers (non-invasive). Real replacements will move to Material components.
+.card { background: var(--mat-app-background, #fff); border: 1px solid var(--mat-divider-color, rgba(0,0,0,.12)); border-radius: .75rem; }
+.card-body { padding: spacer(3); }
+.card-header { padding: spacer(3); }
+.alert { padding: spacer(2) spacer(3); border-radius: .5rem; }
+.alert-info { background: #e8f4fd; color: #055160; }
+.alert-danger { background: #fdecea; color: #611a15; }
+.alert-secondary { background: #f2f3f5; color: #444; }
+.alert-success { background: #edf7ed; color: #0a4b25; }
+.alert-warning { background: #fff4e5; color: #613200; }
+
+.badge { display: inline-block; padding: .35em .6em; font-size: .75em; font-weight: 600; line-height: 1; border-radius: .5rem; }
+.bg-success { background:#198754; color:#fff; }
+.bg-secondary { background:#6c757d; color:#fff; }
+.bg-info-subtle { background:#dbeafe; color:#084298; }
+.bg-warning-subtle { background:#fff3cd; color:#664d03; }
+.bg-danger-subtle { background:#f8d7da; color:#58151c; }
+.bg-primary-subtle { background:#e0e7ff; color:#1d3b8d; }
+
+// List group minimal styling (used in Add Children step)
+.list-group { list-style:none; margin:0; padding:0; }
+.list-group-item { padding: .75rem 1rem; border:1px solid var(--mat-divider-color, rgba(0,0,0,.12)); display:flex; gap:.75rem; align-items:flex-start; }
+.list-group-item + .list-group-item { margin-top:-1px; }
+
+// Utility to highlight pulsing button (legacy class hook)
+.pulsing-button { position:relative; }
+.pulsing-button.apply-pulse { animation: pulse-bg 1.5s infinite; }
+@keyframes pulse-bg { 0% { box-shadow:0 0 0 0 rgba(25,118,210,.5); } 70% { box-shadow:0 0 0 10px rgba(25,118,210,0); } 100% { box-shadow:0 0 0 0 rgba(25,118,210,0); } }
+
+// TODO: As Bootstrap dependencies shrink, move remaining semantic components to dedicated Material wrappers and delete unused classes.
