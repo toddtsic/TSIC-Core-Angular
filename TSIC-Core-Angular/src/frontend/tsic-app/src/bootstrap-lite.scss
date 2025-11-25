@@ -292,44 +292,7 @@ $spacers: (
     color: #613200;
 }
 
-.badge {
-    display: inline-block;
-    padding: .35em .6em;
-    font-size: .75em;
-    font-weight: 600;
-    line-height: 1;
-    border-radius: .5rem;
-}
-
-.bg-success {
-    background: #198754;
-    color: #fff;
-}
-
-.bg-secondary {
-    background: #6c757d;
-    color: #fff;
-}
-
-.bg-info-subtle {
-    background: #dbeafe;
-    color: #084298;
-}
-
-.bg-warning-subtle {
-    background: #fff3cd;
-    color: #664d03;
-}
-
-.bg-danger-subtle {
-    background: #f8d7da;
-    color: #58151c;
-}
-
-.bg-primary-subtle {
-    background: #e0e7ff;
-    color: #1d3b8d;
-}
+// Removed Bootstrap badge utilities after migration to Angular Material chips
 
 // List group minimal styling (used in Add Children step)
 .list-group {

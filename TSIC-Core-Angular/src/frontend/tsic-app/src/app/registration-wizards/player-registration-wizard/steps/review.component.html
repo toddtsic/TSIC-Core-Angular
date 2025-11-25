@@ -30,9 +30,9 @@
                                 } @else {
                                 <span class="d-inline-flex flex-wrap gap-1">
                                     @for (t of getTeamsForPlayer(player.userId); track t) {
-                                    <span
-                                        class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{
-                                        t }}</span>
+                                    <mat-chip-set>
+                                        <mat-chip>{{ t }}</mat-chip>
+                                    </mat-chip-set>
                                     }
                                 </span>
                                 }

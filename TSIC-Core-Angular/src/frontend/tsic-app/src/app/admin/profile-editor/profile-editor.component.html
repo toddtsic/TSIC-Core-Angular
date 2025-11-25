@@ -66,7 +66,9 @@
                         <h5 class="card-title mb-0 d-flex align-items-center gap-2">
                             <span>This Job's Player Profile</span>
                             @if (jobCoreRegformRaw()) {
-                            <span class="badge bg-warning text-dark">{{ jobCoreRegformRaw() }}</span>
+                            <mat-chip-set class="ms-2">
+                                <mat-chip>{{ jobCoreRegformRaw() }}</mat-chip>
+                            </mat-chip-set>
                             }
                         </h5>
                     </div>
@@ -90,7 +92,11 @@
                     <!-- Allow Pay In Full removed: scenarios derive payment options -->
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
-                            @if (jobConfigDirty()) { <span class="badge bg-warning text-dark">Unsaved changes</span> }
+                            @if (jobConfigDirty()) {
+                            <mat-chip-set>
+                                <mat-chip>Unsaved changes</mat-chip>
+                            </mat-chip-set>
+                            }
                         </div>
                         <div class="d-flex gap-2">
                             <button mat-stroked-button (click)="onResetJobProfileConfig()"
@@ -170,7 +176,9 @@
                         <h5 class="mb-0 d-flex align-items-center">
                             <span>Profile Fields</span>
                             @if (selectedProfileType()) {
-                            <span class="badge bg-warning text-dark ms-2">{{ selectedProfileDisplay() }}</span>
+                            <mat-chip-set class="ms-2">
+                                <mat-chip>{{ selectedProfileDisplay() }}</mat-chip>
+                            </mat-chip-set>
                             }
                         </h5>
                         <small class="text-muted ms-3 d-none d-xl-inline">Edits here affect all jobs using the selected
@@ -207,12 +215,18 @@
                                     <td>{{ field.order }}</td>
                                     <td><code>{{ field.name }}</code></td>
                                     <td>{{ field.displayName }}</td>
-                                    <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                                    <td>
+                                        <mat-chip-set>
+                                            <mat-chip>{{ field.inputType }}</mat-chip>
+                                        </mat-chip-set>
+                                    </td>
                                     <td>
                                         @if (getValidationBadges(field).length === 0) { <span
                                             class="text-muted">—</span> } @else {
-                                        @for (badge of getValidationBadges(field); track badge) { <span
-                                            class="badge bg-secondary me-1">{{ badge }}</span> }
+                                        <mat-chip-set>
+                                            @for (badge of getValidationBadges(field); track badge) { <mat-chip
+                                                class="me-1">{{ badge }}</mat-chip> }
+                                        </mat-chip-set>
                                         }
                                     </td>
                                     <td>
@@ -282,7 +296,9 @@
                                         <div class="drag-preview-row">
                                             <span class="me-2">#{{ field.order }}</span>
                                             <code class="me-2">{{ field.name }}</code>
-                                            <span class="badge bg-info">{{ field.inputType }}</span>
+                                            <mat-chip-set>
+                                                <mat-chip>{{ field.inputType }}</mat-chip>
+                                            </mat-chip-set>
                                         </div>
                                     </ng-template>
                                 </tr>
@@ -306,12 +322,18 @@
                                     <td>{{ field.order }}</td>
                                     <td><code>{{ field.name }}</code></td>
                                     <td>{{ field.displayName }}</td>
-                                    <td><span class="badge bg-info">{{ field.inputType }}</span></td>
+                                    <td>
+                                        <mat-chip-set>
+                                            <mat-chip>{{ field.inputType }}</mat-chip>
+                                        </mat-chip-set>
+                                    </td>
                                     <td>
                                         @if (getValidationBadges(field).length === 0) { <span
                                             class="text-muted">—</span> } @else {
-                                        @for (badge of getValidationBadges(field); track badge) { <span
-                                            class="badge bg-secondary me-1">{{ badge }}</span> }
+                                        <mat-chip-set>
+                                            @for (badge of getValidationBadges(field); track badge) { <mat-chip
+                                                class="me-1">{{ badge }}</mat-chip> }
+                                        </mat-chip-set>
                                         }
                                     </td>
                                     <td>
@@ -603,13 +625,17 @@
             </div>
 
             @if (selectedCloneSource() && newProfileName()) {
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Will prepare:</strong> <code>{{ newProfileName() }}</code>
-                <br>
-                <small>This will create a new profile based on <strong>{{ selectedCloneSource() }}</strong> with an
-                    auto-incremented name.</small>
-            </div>
+            <mat-card appearance="outlined" class="mb-2" role="note" aria-live="polite">
+                <div class="d-flex align-items-start gap-2">
+                    <span class="bi bi-info-circle" aria-hidden="true"></span>
+                    <div class="flex-grow-1">
+                        <strong>Will prepare:</strong> <code>{{ newProfileName() }}</code>
+                        <br>
+                        <small>This will create a new profile based on <strong>{{ selectedCloneSource() }}</strong> with an
+                            auto-incremented name.</small>
+                    </div>
+                </div>
+            </mat-card>
             }
         </div>
         <div class="modal-footer">

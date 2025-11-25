@@ -57,9 +57,12 @@
         <app-rw-confirmation (completed)="finishToJobHome()" />
         }
         @default {
-        <div class="alert alert-warning" role="note">
-            Unknown step "{{ currentStepId() }}". Please go back and try again.
-        </div>
+        <mat-card appearance="outlined" role="alert" aria-live="polite" class="mb-3">
+            <div class="d-flex align-items-start gap-2">
+                <span class="bi bi-exclamation-triangle" aria-hidden="true"></span>
+                <div class="flex-grow-1">Unknown step "{{ currentStepId() }}". Please go back and try again.</div>
+            </div>
+        </mat-card>
         }
         }
 

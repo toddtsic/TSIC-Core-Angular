@@ -2,13 +2,14 @@ import { Component, EventEmitter, Output, inject, signal, effect, computed } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { MatChipsModule } from '@angular/material/chips';
 import { JobService, Job } from '../../../core/services/job.service';
 // Reactive forms were previously layered here but not used in the template; simplified to template-driven.
 
 @Component({
   selector: 'app-rw-eligibility-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MatChipsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -29,9 +30,13 @@ import { JobService, Job } from '../../../core/services/job.service';
                 <div class="card card-rounded border-0 shadow-sm">
                   <div class="card-header border-bottom-0" [ngClass]="colorClassFor(p.userId)">
                     <div class="d-flex align-items-center gap-2">
-                      <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">{{ p.name }}</span>
+                      <mat-chip-set>
+                        <mat-chip>{{ p.name }}</mat-chip>
+                      </mat-chip-set>
                       @if (isPlayerLocked(p.userId)) {
-                        <span class="badge bg-secondary" title="Already registered; eligibility locked">Locked</span>
+                        <mat-chip-set class="ms-2">
+                          <mat-chip title="Already registered; eligibility locked">Locked</mat-chip>
+                        </mat-chip-set>
                       }
                     </div>
                   </div>
@@ -311,7 +316,12 @@ export class ConstraintSelectionComponent {
   colorClassFor(playerId: string): string {
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
     let h = 0;
-    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) {
+      const cp = playerId.codePointAt(i) ?? 0;
+      h = (h * 31 + cp) >>> 0;
+      // Advance index by 1 for BMP and 2 for surrogate pairs
+      if (cp > 0xffff) i++;
+    }
     return palette[h % palette.length];
   }
 }

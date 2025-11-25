@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { CommonModule } from '@angular/common';
 import { PaymentService } from '../services/payment.service';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
   selector: 'app-payment-summary',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MatChipsModule],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
@@ -42,7 +43,11 @@ import { PaymentService } from '../services/payment.service';
                   @switch (prog.state) {
                     @case ('issue') { <span class="text-warning">Issue</span> }
                     @case ('pending') { <span>{{ prog.nextDate | date:'MMM d, y'}} ({{ prog.nextIndex + 1 }}/{{ prog.total }})</span> }
-                    @case ('completed') { <span class="badge bg-secondary-subtle text-dark border" title="No further scheduled billing dates">No more due</span> }
+                    @case ('completed') {
+                      <mat-chip-set>
+                        <mat-chip title="No further scheduled billing dates">No more due</mat-chip>
+                      </mat-chip-set>
+                    }
                     @default { <span>-</span> }
                   }
                 }

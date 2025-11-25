@@ -9,11 +9,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { ProfileFormPreviewComponent } from '../../shared/components/profile-form-preview/profile-form-preview.component';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
     selector: 'app-profile-migration',
     standalone: true,
-    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent, MatButtonModule, MatCardModule],
+    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent, MatButtonModule, MatCardModule, MatChipsModule],
     templateUrl: './profile-migration.component.html',
     styleUrls: ['./profile-migration.component.scss']
 })

@@ -47,6 +47,9 @@ import { MatChipsModule } from '@angular/material/chips';
                       <span class="badge" [ngClass]="isAccepted(w.id) ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger-emphasis'">
                         {{ isAccepted(w.id) ? 'Accepted' : 'Not Accepted' }}
                       </span>
+                        <mat-chip-set>
+                          <mat-chip>{{ isAccepted(w.id) ? 'Accepted' : 'Pending' }}</mat-chip>
+                        </mat-chip-set>
                     </span>
                   </button>
                 </h2>

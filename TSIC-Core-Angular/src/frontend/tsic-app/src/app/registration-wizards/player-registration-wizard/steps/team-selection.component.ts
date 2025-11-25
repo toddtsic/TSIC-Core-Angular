@@ -67,7 +67,9 @@ import { MatChipsModule } from '@angular/material/chips';
                           <mat-chip>{{ p.name }}</mat-chip>
                         </mat-chip-set>
                         @if (isPlayerFullyLocked(p.userId)) {
-                          <span class="badge bg-secondary" title="All prior registrations are paid; team changes may be limited by the director">Locked</span>
+                          <mat-chip-set>
+                            <mat-chip title="All prior registrations are paid; team changes may be limited by the director">Locked</mat-chip>
+                          </mat-chip-set>
                         }
                       </div>
                       @if (showEligibilityBadge()) {

@@ -2,6 +2,7 @@ import { Component, inject, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
 import { InsuranceStateService } from '../services/insurance-state.service';
 
 /**
@@ -12,7 +13,7 @@ import { InsuranceStateService } from '../services/insurance-state.service';
 @Component({
   selector: 'app-vi-confirm-modal',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatCardModule],
   template: `
     <div class="modal-backdrop fade show" (click)="close(false)"></div>
     <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true">
@@ -30,7 +31,12 @@ import { InsuranceStateService } from '../services/insurance-state.service';
               <!-- VerticalInsure widget will render into this container via existing Payment component initialization logic -->
               <div class="text-center text-muted" *ngIf="!ready">Loading insurance options…</div>
             </div>
-            <div *ngIf="error" class="alert alert-warning small">{{ error }}</div>
+            <mat-card *ngIf="error" appearance="outlined" class="mb-3" role="alert" aria-live="polite">
+              <div class="d-flex align-items-start gap-2">
+                <mat-icon>warning</mat-icon>
+                <div class="flex-grow-1 small">{{ error }}</div>
+              </div>
+            </mat-card>
             <div *ngIf="quotes?.length" class="mb-3">
               <h6 class="fw-semibold">Available Quotes</h6>
               <ul class="list-unstyled small mb-0">

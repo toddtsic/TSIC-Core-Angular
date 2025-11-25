@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule, MatCheckboxChange } from '@angular/material/checkbox';
 import { MatListModule, MatSelectionListChange } from '@angular/material/list';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
+import { MatChipsModule } from '@angular/material/chips';
 import { FamilyPlayer } from '../family-players.dto';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
@@ -17,7 +18,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatCheckboxModule, MatListModule],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatCheckboxModule, MatListModule, MatChipsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -39,9 +40,9 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
           <div class="fw-semibold mb-1">Selected teams</div>
           <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
             @for (id of selectedPlayersWithTeams[0]?.teamIds ?? []; track id) {
-              <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
-                <span class="name">{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</span>
-              </li>
+              <mat-chip-set>
+                <mat-chip>{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</mat-chip>
+              </mat-chip-set>
             }
             @if (!(selectedPlayersWithTeams[0]?.teamIds?.length)) {
               <li class="text-muted">None</li>
@@ -56,11 +57,11 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
               <div class="card-header border-bottom-0" [ngClass]="colorClassFor(player.userId)">
                 <div class="d-flex align-items-center justify-content-between">
                   <div class="d-flex align-items-center gap-2">
-                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">
-                      {{ player.name }}
-                    </span>
+                    <mat-chip-set>
+                      <mat-chip>{{ player.name }}</mat-chip>
+                    </mat-chip-set>
                     @if (isRegistered(player.userId)) {
-                      <span class="badge bg-success">Registered</span>
+                      <mat-chip-set class="ms-2"><mat-chip>Registered</mat-chip></mat-chip-set>
                     }
                   </div>
                   <!-- Remove duplicate team pills here -->

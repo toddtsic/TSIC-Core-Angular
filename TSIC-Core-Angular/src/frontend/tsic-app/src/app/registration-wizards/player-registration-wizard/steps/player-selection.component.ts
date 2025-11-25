@@ -4,13 +4,14 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-rw-player-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatCardModule, MatProgressSpinnerModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatCardModule, MatProgressSpinnerModule, MatChipsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -21,7 +22,9 @@ import { environment } from '../../../../environments/environment';
         @if (showDebug() && state.debugFamilyPlayersResp()) {
           <mat-card appearance="outlined" class="mb-3" role="region" aria-label="Family players raw response">
             <div class="d-flex justify-content-between align-items-start mb-2">
-              <strong class="me-2">Debug: Raw GetFamilyPlayers Response <span class="badge bg-warning text-dark ms-2">dev only</span></strong>
+              <strong class="me-2">Debug: Raw GetFamilyPlayers Response
+                <mat-chip-set class="ms-2"><mat-chip>dev only</mat-chip></mat-chip-set>
+              </strong>
               <button type="button" mat-stroked-button (click)="state.debugFamilyPlayersResp.set(null)">Hide</button>
             </div>
             <pre class="small mb-0" style="max-height:240px; overflow:auto;">
@@ -57,7 +60,9 @@ import { environment } from '../../../../environments/environment';
                   <div class="text-secondary small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
                 </div>
               </div>
-              @if (state.isPlayerLocked(p.playerId)) { <span class="badge bg-secondary" title="Previously registered for this job">Locked</span> }
+              @if (state.isPlayerLocked(p.playerId)) {
+                <mat-chip-set><mat-chip title="Previously registered for this job">Locked</mat-chip></mat-chip-set>
+              }
             </li>
             }
           </ul>

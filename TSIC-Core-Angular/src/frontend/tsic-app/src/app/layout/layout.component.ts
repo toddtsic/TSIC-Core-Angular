@@ -7,11 +7,12 @@ import { JobService } from '../core/services/job.service';
 import { JobContextService } from '../core/services/job-context.service';
 import { ThemeService } from '../core/services/theme.service';
 import { MatButtonModule } from '@angular/material/button';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, MatButtonModule],
+  imports: [CommonModule, RouterOutlet, RouterLink, MatButtonModule, MatChipsModule],
   template: `
     <!-- Header -->
     <header class="tsic-header">
@@ -68,10 +69,10 @@ import { MatButtonModule } from '@angular/material/button';
           <div class="col-auto">
             <div class="d-flex align-items-center justify-content-end gap-2">
               <span class="user-role-pill d-none d-md-inline" *ngIf="username() as u">
-                <span class="badge bg-user me-1">{{ u }}</span>
+                <mat-chip-set class="me-1"><mat-chip>{{ u }}</mat-chip></mat-chip-set>
                 <ng-container *ngIf="roleName() as r; else noRole">
                   <span class="text-muted small">as</span>
-                  <span class="badge bg-role ms-1">{{ r }}</span>
+                  <mat-chip-set class="ms-1"><mat-chip>{{ r }}</mat-chip></mat-chip-set>
                 </ng-container>
                 <ng-template #noRole></ng-template>
               </span>

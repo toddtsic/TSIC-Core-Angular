@@ -2,13 +2,14 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
 @Component({
   selector: 'app-fam-account-step-children',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatButtonModule],
+  imports: [CommonModule, ReactiveFormsModule, MatButtonModule, MatCardModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -18,7 +19,12 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
         <!-- Emphasize created children list first -->
         <div class="mb-4 allow-overflow">
   @if (state.children().length === 0) {
-            <div class="alert alert-info mb-3">Add at least one child to continue.</div>
+            <mat-card appearance="outlined" class="mb-3" role="note" aria-live="polite">
+              <div class="d-flex align-items-start gap-2">
+                <span class="bi bi-info-circle" aria-hidden="true"></span>
+                <div class="flex-grow-1">Add at least one child to continue.</div>
+              </div>
+            </mat-card>
           }
 
           @if (state.children().length > 0) {

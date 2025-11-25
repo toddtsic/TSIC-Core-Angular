@@ -13,13 +13,14 @@ import { AuthService } from '../../core/services/auth.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatChipsModule } from '@angular/material/chips';
 
 type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO' | 'HIDDEN';
 
 @Component({
     selector: 'app-profile-editor',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, DragDropModule, TsicDialogComponent, OptionsPanelComponent, MatButtonModule, MatCardModule, MatIconModule],
+    imports: [CommonModule, FormsModule, RouterLink, DragDropModule, TsicDialogComponent, OptionsPanelComponent, MatButtonModule, MatCardModule, MatIconModule, MatChipsModule],
     templateUrl: './profile-editor.component.html',
     styleUrl: './profile-editor.component.scss'
 })

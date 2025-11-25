@@ -6,11 +6,12 @@ import { ProfileMigrationService } from '../../../core/services/profile-migratio
 import { ProfileMetadata, OptionSet, ProfileFieldOption } from '../../../core/models/profile-migration.models';
 import { ToastService } from '../../../shared/toast.service';
 import { TsicDialogComponent } from '../../../shared/components/tsic-dialog/tsic-dialog.component';
+import { MatChipsModule } from '@angular/material/chips';
 
 @Component({
     selector: 'app-options-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule, DragDropModule, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, DragDropModule, TsicDialogComponent, MatChipsModule],
     templateUrl: './options-panel.component.html'
 })
 export class OptionsPanelComponent {
