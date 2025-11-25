@@ -1,6 +1,5 @@
-<main class="container py-4" aria-labelledby="rw-title" [wizardTheme]="'player'">
-    <div class="row justify-content-center">
-        <div class="col-lg-9 col-xl-8">
+<main class="layout-container py-4" aria-labelledby="rw-title" [wizardTheme]="'player'">
+    <div class="layout-center-col">
             <div class="card shadow-lg border-0 card-rounded mb-4">
                 <div class="card-header gradient-header text-center py-4 border-0">
                     <h2 id="rw-title" class="mb-0 fw-bold">Player Registration</h2>
@@ -71,7 +70,6 @@
                     [showContinue]="showContinueButton()" [placement]="'bottom'" (back)="back()"
                     (continue)="onContinue()" />
             </div>
-        </div>
     </div>
 
 </main>
