@@ -1,5 +1,7 @@
 import { Component, inject, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { InsuranceStateService } from '../services/insurance-state.service';
 
 /**
@@ -10,7 +12,7 @@ import { InsuranceStateService } from '../services/insurance-state.service';
 @Component({
   selector: 'app-vi-confirm-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule],
   template: `
     <div class="modal-backdrop fade show" (click)="close(false)"></div>
     <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true">
@@ -18,7 +20,9 @@ import { InsuranceStateService } from '../services/insurance-state.service';
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">RegSaver Player Insurance</h5>
-            <button type="button" class="btn-close" aria-label="Close" (click)="close(false)"></button>
+            <button type="button" mat-icon-button aria-label="Close" (click)="close(false)">
+              <mat-icon>close</mat-icon>
+            </button>
           </div>
           <div class="modal-body">
             <p class="mb-3">RegSaver player registration insurance is optional coverage offered for eligible events. It can reimburse certain fees under covered circumstances (e.g., injury, illness). Review the quote details below and choose whether to purchase. Declining will not affect your ability to continue registration.</p>
@@ -35,8 +39,8 @@ import { InsuranceStateService } from '../services/insurance-state.service';
             </div>
           </div>
           <div class="modal-footer d-flex flex-column flex-sm-row gap-2">
-            <button type="button" class="btn btn-outline-secondary w-100 w-sm-auto" (click)="decline()">Decline Insurance</button>
-            <button type="button" class="btn btn-primary w-100 w-sm-auto" [disabled]="!canConfirm()" (click)="confirm()">Confirm Purchase</button>
+            <button type="button" mat-stroked-button color="primary" class="w-100 w-sm-auto" (click)="decline()">Decline Insurance</button>
+            <button type="button" mat-raised-button color="primary" class="w-100 w-sm-auto" [disabled]="!canConfirm()" (click)="confirm()">Confirm Purchase</button>
           </div>
           <div class="px-3 pb-3 small text-muted">By confirming purchase you agree to the insurance provider's terms. A policy number will be returned after successful processing.</div>
         </div>

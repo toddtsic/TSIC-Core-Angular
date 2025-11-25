@@ -1,10 +1,12 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-vi-charge-confirm-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule],
   styles: [`
       .vi-modal-overlay { background: radial-gradient(circle at center, rgba(0,0,0,.55), rgba(0,0,0,.65)); }
       .vi-modal-content { border: 0; box-shadow: 0 0.5rem 1.25rem rgba(0,0,0,.25); }
@@ -27,7 +29,9 @@ import { CommonModule } from '@angular/common';
           <div class="modal-header vi-header">
             <h5 id="viConfirmTitle" class="modal-title" *ngIf="viCcOnlyFlow; else combinedTitle">Confirm Insurance Purchase</h5>
             <ng-template #combinedTitle><h5 id="viConfirmTitle" class="modal-title">Confirm Registration Payment + Insurance</h5></ng-template>
-            <button type="button" class="btn-close btn-close-white" aria-label="Close" (click)="onCancel()"></button>
+            <button type="button" mat-icon-button aria-label="Close" (click)="onCancel()">
+              <mat-icon>close</mat-icon>
+            </button>
           </div>
           <div class="modal-body vi-body" id="viConfirmDesc">
             <ul class="vi-summary-list" aria-label="Insurance purchase summary">
@@ -59,10 +63,10 @@ import { CommonModule } from '@angular/common';
             </div>
           </div>
           <div class="modal-footer justify-content-between">
-            <button type="button" class="btn btn-outline-secondary" (click)="onCancel()">Back</button>
+            <button type="button" mat-stroked-button color="primary" (click)="onCancel()">Back</button>
             <div class="d-flex gap-2">
-              <button type="button" class="btn btn-secondary" (click)="onCancel()">Cancel</button>
-              <button type="button" class="btn btn-primary" (click)="onConfirm()">Confirm</button>
+              <button type="button" mat-stroked-button color="primary" (click)="onCancel()">Cancel</button>
+              <button type="button" mat-raised-button color="primary" (click)="onConfirm()">Confirm</button>
             </div>
           </div>
         </div>
