@@ -5,19 +5,23 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 
 @Component({
   selector: 'app-credit-card-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule],
+  imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatCardModule],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
       @if (viOnly) {
-        <div class="alert alert-secondary border-0" role="status">
-          Your TSIC registration balance is $0. The card details below are for Vertical Insure only.
-        </div>
+        <mat-card appearance="outlined" class="mb-2" role="status" aria-live="polite">
+          <div class="d-flex align-items-start gap-2">
+            <span class="bi bi-credit-card" aria-hidden="true"></span>
+            <div class="flex-grow-1 small">Your TSIC registration balance is $0. The card details below are for Vertical Insure only.</div>
+          </div>
+        </mat-card>
       }
       <form [formGroup]="form" (ngSubmit)="noop()">
         <div class="row g-2">

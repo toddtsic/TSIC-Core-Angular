@@ -405,10 +405,7 @@
     box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .25);
 }
 
-/* Reduce default list-group flush divider weight so our border reads stronger */
-.list-group-flush>.list-group-item {
-    border-width: 0;
-}
+/* Removed Bootstrap list-group overrides after migrating to Angular Material lists */
 
 /* Utility to override clipping when inner shadows/glows need to escape a rounded card */
 .allow-overflow {

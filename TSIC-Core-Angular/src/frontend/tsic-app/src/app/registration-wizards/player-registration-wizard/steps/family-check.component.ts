@@ -5,6 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatListModule } from '@angular/material/list';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -12,7 +14,7 @@ import { AuthService } from '../../../core/services/auth.service';
 @Component({
   selector: 'app-rw-family-check',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatCardModule, MatListModule],
   template: `
   <div class="card shadow border-0 card-rounded allow-overflow">
     <div class="card-header gradient-header border-0 py-4 text-center text-white">
@@ -24,18 +26,17 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <fieldset role="radiogroup" aria-labelledby="famCheckLegend">
           <legend id="famCheckLegend" class="visually-hidden">Family account availability</legend>
-          <div class="list-group list-group-flush">
-            <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
-              <input class="form-check-input" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'yes'" />
+          <mat-selection-list [multiple]="false" class="mb-2">
+            <mat-list-option [selected]="hasAccount === 'yes'" (click)="hasAccount='yes'">
               <div>
                 <div class="fw-semibold">Yes — I have a FAMILY login</div>
                 <div class="text-muted small">Enter your credentials below once, then choose what you want to do.</div>
               </div>
-            </label>
+            </mat-list-option>
 
             @if (hasAccount === 'yes') {
             <!-- Shared credentials panel (single source of truth for both actions) -->
-            <div class="list-group-item border-0 pt-0 pb-3">
+            <div class="pt-0 pb-3">
               <div class="rw-accent-panel-neutral">
                 <div class="d-flex align-items-start gap-3">
                   <i class="bi bi-person-lock rw-accent-icon-neutral" aria-hidden="true"></i>
@@ -54,7 +55,14 @@ import { AuthService } from '../../../core/services/auth.service';
                         </mat-form-field>
                       </div>
                     </div>
-                    @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
+                    @if (inlineError) {
+                      <mat-card appearance="outlined" class="py-2 px-3 mb-2" role="alert" aria-live="polite">
+                        <div class="d-flex align-items-start gap-2">
+                          <span class="bi bi-exclamation-triangle" aria-hidden="true"></span>
+                          <div class="flex-grow-1 small">{{ inlineError }}</div>
+                        </div>
+                      </mat-card>
+                    }
                     <div class="text-secondary small">Enter credentials once, then choose an action below.</div>
                   </div>
                 </div>
@@ -64,7 +72,7 @@ import { AuthService } from '../../../core/services/auth.service';
 
             <!-- Action panels using shared credentials -->
             @if (hasAccount === 'yes') {
-              <div class="list-group-item border-0 pt-0 pb-3">
+              <div class="pt-0 pb-3">
                 <div class="rw-accent-panel">
                   <div class="d-flex align-items-start gap-3">
                     <i class="bi bi-play-fill rw-accent-icon" aria-hidden="true"></i>
@@ -81,7 +89,7 @@ import { AuthService } from '../../../core/services/auth.service';
                   </div>
                 </div>
               </div>
-              <div class="list-group-item border-0 pt-0 pb-3">
+              <div class="pt-0 pb-3">
                 <div class="rw-accent-panel bg-success-subtle">
                   <div class="d-flex align-items-start gap-3">
                     <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
@@ -100,17 +108,16 @@ import { AuthService } from '../../../core/services/auth.service';
               </div>
             }
 
-            <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
-              <input class="form-check-input" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'no'" />
+            <mat-list-option [selected]="hasAccount === 'no'" (click)="hasAccount='no'">
               <div>
                 <div class="fw-semibold">No — I need to create one</div>
                 <div class="text-muted small">We’ll help you create a Family Account before continuing.</div>
               </div>
-            </label>
+            </mat-list-option>
 
             <!-- CTA appears directly under the NO option -->
             @if (hasAccount === 'no') {
-            <div class="list-group-item border-0 pt-0 pb-3">
+            <div class="pt-0 pb-3">
               <div class="rw-accent-panel-neutral">
                 <div class="d-flex flex-column flex-md-row align-items-start gap-3">
                   <i class="bi bi-person-plus-fill rw-accent-icon-neutral" aria-hidden="true"></i>
@@ -122,7 +129,7 @@ import { AuthService } from '../../../core/services/auth.service';
               </div>
             </div>
             }
-          </div>
+          </mat-selection-list>
         </fieldset>
     </div>
   </div>

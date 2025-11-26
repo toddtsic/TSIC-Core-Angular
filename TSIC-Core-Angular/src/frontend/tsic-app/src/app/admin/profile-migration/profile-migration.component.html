@@ -308,10 +308,12 @@
                             }
                         </select>
                         @if (selectedJobId()) {
-                        <div class="alert alert-info small mb-0 mt-2">
-                            <i class="bi bi-info-circle"></i>
-                            Showing dropdown options for selected job
-                        </div>
+                        <mat-card appearance="outlined" class="py-2 px-3 mb-0 mt-2" aria-live="polite">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                <output class="small">Showing dropdown options for selected job</output>
+                            </div>
+                        </mat-card>
                         } @else {
                         <small class="text-muted d-block mt-1">
                             Select a job to preview with that job's specific dropdown values (from JsonOptions).

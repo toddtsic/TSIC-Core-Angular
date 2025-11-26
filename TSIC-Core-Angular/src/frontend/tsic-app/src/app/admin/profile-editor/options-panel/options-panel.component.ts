@@ -7,11 +7,15 @@ import { ProfileMetadata, OptionSet, ProfileFieldOption } from '../../../core/mo
 import { ToastService } from '../../../shared/toast.service';
 import { TsicDialogComponent } from '../../../shared/components/tsic-dialog/tsic-dialog.component';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
 
 @Component({
     selector: 'app-options-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule, DragDropModule, TsicDialogComponent, MatChipsModule],
+    imports: [CommonModule, FormsModule, DragDropModule, TsicDialogComponent, MatChipsModule, MatCardModule, MatButtonModule, MatIconModule, MatListModule],
     templateUrl: './options-panel.component.html'
 })
 export class OptionsPanelComponent {

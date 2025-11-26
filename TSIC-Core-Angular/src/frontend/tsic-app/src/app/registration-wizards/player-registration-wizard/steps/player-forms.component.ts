@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule, MatCheckboxChange } from '@angular/material/checkbox';
 import { MatListModule, MatSelectionListChange } from '@angular/material/list';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
@@ -18,14 +19,14 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatCheckboxModule, MatListModule, MatChipsModule],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatCheckboxModule, MatListModule, MatChipsModule, MatCardModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Player Forms</h5>
         <!-- Server-side validation summary (appears after a PreSubmit attempt that returned errors) -->
         @if (serverErrors().length) {
-          <div class="alert alert-danger mt-3 mb-0" role="alert">
+          <mat-card appearance="outlined" class="mt-3 mb-0" role="alert" aria-live="polite">
             <div class="fw-semibold mb-1">Please fix the following before continuing:</div>
             <ul class="mb-0 ps-3">
               @for (err of serverErrors(); track trackErr($index, err)) {
@@ -34,7 +35,7 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                 </li>
               }
             </ul>
-          </div>
+          </mat-card>
         }
         <div class="mt-2">
           <div class="fw-semibold mb-1">Selected teams</div>
@@ -70,14 +71,14 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
               <div class="card-body" [ngClass]="colorClassFor(player.userId)">
                 <!-- Per-player compact required-fields summary -->
                 @if (missingRequiredLabels(player.userId).length > 0) {
-                  <div class="alert alert-warning border-0 py-1 px-2 mb-2 req-mini" role="alert">
+                  <mat-card appearance="outlined" class="py-1 px-2 mb-2 req-mini" role="alert" aria-live="polite">
                     <div class="title">Please complete:</div>
                     <ul>
                       @for (label of missingRequiredLabels(player.userId); track label) {
                         <li>{{ label }}</li>
                       }
                     </ul>
-                  </div>
+                  </mat-card>
                 }
                 
                 <!-- Only show the first USA Lacrosse # field per player -->
@@ -115,12 +116,12 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
                             </button>
                           }
                           @if (isGenericGuidance(uslax?.errors?.['uslax']?.message)) {
-                            <div class="card border-0 mb-2 mt-2" role="alert" aria-live="polite" style="border-left: 4px solid var(--bs-warning);">
-                              <div class="card-body py-3 px-3 bg-danger-subtle rounded">
-                                <div class="fw-semibold text-danger-emphasis mb-1">USA Lacrosse guidance</div>
-                                <span class="text-danger-emphasis small d-block" [innerHTML]="uslax?.errors?.['uslax']?.message"></span>
+                            <mat-card appearance="outlined" class="mb-2 mt-2" role="alert" aria-live="polite">
+                              <div class="py-2 px-2">
+                                <div class="fw-semibold mb-1">USA Lacrosse guidance</div>
+                                <span class="small d-block" [innerHTML]="uslax?.errors?.['uslax']?.message"></span>
                               </div>
-                            </div>
+                            </mat-card>
                           } @else {
                             <span class="text-danger d-inline-block" [innerHTML]="uslax?.errors?.['uslax']?.message || 'Invalid number'"></span>
                           }
@@ -256,7 +257,12 @@ import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSu
         </div>
         <pre class="bg-light border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
       } @else {
-        <div class="alert alert-warning small">No membership details were returned by the API.</div>
+        <mat-card appearance="outlined" class="py-2 px-2" role="note" aria-live="polite">
+          <div class="d-flex align-items-start gap-2">
+            <span class="bi bi-info-circle" aria-hidden="true"></span>
+            <div class="flex-grow-1 small">No membership details were returned by the API.</div>
+          </div>
+        </mat-card>
       }
     </div>
   </div>

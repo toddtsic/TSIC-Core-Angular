@@ -5,13 +5,15 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatListModule } from '@angular/material/list';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-rw-player-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatCardModule, MatProgressSpinnerModule, MatChipsModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatCardModule, MatProgressSpinnerModule, MatChipsModule, MatListModule, MatCheckboxModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -45,27 +47,27 @@ import { environment } from '../../../../environments/environment';
         @if (!state.familyPlayersLoading() && state.familyPlayers().length === 0) {
           <mat-card appearance="outlined" role="status">No players found for your family. You can add players in your Family Account.</mat-card>
         } @else {
-          <ul class="list-group list-group-flush mb-3" [class.opacity-50]="state.familyPlayersLoading()">
+          <mat-selection-list class="mb-3" [class.opacity-50]="state.familyPlayersLoading()" [multiple]="true">
             @for (p of state.familyPlayers(); track p.playerId) {
-            <li class="list-group-item d-flex align-items-center justify-content-between">
-              <div class="d-flex align-items-center gap-3">
-      <input type="checkbox"
-        class="form-check-input"
-        [checked]="isSelected(p.playerId)"
-        [disabled]="state.isPlayerLocked(p.playerId)"
-        (change)="!state.isPlayerLocked(p.playerId) && state.togglePlayerSelection(p.playerId)"
-        [attr.aria-label]="state.isPlayerLocked(p.playerId) ? 'Already registered' : (isSelected(p.playerId) ? 'Deselect player' : 'Select player')" />
-                <div>
-                  <div class="fw-semibold">{{ p.firstName }} {{ p.lastName }}</div>
-                  <div class="text-secondary small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
+              <mat-list-option
+                [selected]="isSelected(p.playerId)"
+                [disabled]="state.isPlayerLocked(p.playerId)"
+                (selectionChange)="!state.isPlayerLocked(p.playerId) && state.togglePlayerSelection(p.playerId)"
+                [ariaLabel]="state.isPlayerLocked(p.playerId) ? 'Already registered' : (isSelected(p.playerId) ? 'Deselect player' : 'Select player')">
+                <div class="d-flex align-items-center justify-content-between w-100">
+                  <div class="d-flex align-items-center gap-3">
+                    <div>
+                      <div class="fw-semibold">{{ p.firstName }} {{ p.lastName }}</div>
+                      <div class="text-secondary small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
+                    </div>
+                  </div>
+                  @if (state.isPlayerLocked(p.playerId)) {
+                    <mat-chip-set><mat-chip title="Previously registered for this job">Locked</mat-chip></mat-chip-set>
+                  }
                 </div>
-              </div>
-              @if (state.isPlayerLocked(p.playerId)) {
-                <mat-chip-set><mat-chip title="Previously registered for this job">Locked</mat-chip></mat-chip-set>
-              }
-            </li>
+              </mat-list-option>
             }
-          </ul>
+          </mat-selection-list>
         }
       </div>
     </div>

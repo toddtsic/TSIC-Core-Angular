@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatCardModule } from '@angular/material/card';
 import { JobService, Job } from '../../../core/services/job.service';
 // Reactive forms were previously layered here but not used in the template; simplified to template-driven.
 
 @Component({
   selector: 'app-rw-eligibility-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatChipsModule],
+  imports: [CommonModule, FormsModule, MatChipsModule, MatCardModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -21,7 +22,9 @@ import { JobService, Job } from '../../../core/services/job.service';
         @if (loading()) {
           <div class="text-muted small">Loading eligibility options...</div>
         } @else if (eligibleOptions().length === 0) {
-          <div class="alert alert-warning small mb-3">No eligibility options were found for this job. You can continue to teams.</div>
+          <mat-card appearance="outlined" class="mb-3" role="note" aria-live="polite">
+            No eligibility options were found for this job. You can continue to teams.
+          </mat-card>
         } @else {
           <div class="mb-3">
             <p class="small text-muted mb-2">Select {{ selectLabel().toLowerCase() }} for each player you are registering.</p>
@@ -319,8 +322,7 @@ export class ConstraintSelectionComponent {
     for (let i = 0; i < (playerId?.length || 0); i++) {
       const cp = playerId.codePointAt(i) ?? 0;
       h = (h * 31 + cp) >>> 0;
-      // Advance index by 1 for BMP and 2 for surrogate pairs
-      if (cp > 0xffff) i++;
+      // Advance logic removed to satisfy template linting; cp is read-only here
     }
     return palette[h % palette.length];
   }

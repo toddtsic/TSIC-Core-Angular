@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatListModule } from '@angular/material/list';
 import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
 @Component({
   selector: 'app-fam-account-step-children',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatButtonModule, MatCardModule],
+  imports: [CommonModule, ReactiveFormsModule, MatButtonModule, MatCardModule, MatListModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -30,19 +31,21 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           @if (state.children().length > 0) {
             <div class="border border-primary rounded p-3 bg-primary-subtle">
               <h6 class="fw-semibold mb-3">Children added</h6>
-              <ul class="list-group mb-0">
+              <mat-list class="mb-0">
                 @for (c of state.children(); track $index) {
-                  <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                      <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
-                      @if (c.dob) { <div class="text-secondary small">DOB: {{ c.dob }}</div> }
-                      @if (c.email) { <div class="text-secondary small">Email: {{ c.email }}</div> }
-                      @if (c.phone) { <div class="text-secondary small">Cell: {{ c.phone }}</div> }
+                  <mat-list-item>
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                      <div>
+                        <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
+                        @if (c.dob) { <div class="text-secondary small">DOB: {{ c.dob }}</div> }
+                        @if (c.email) { <div class="text-secondary small">Email: {{ c.email }}</div> }
+                        @if (c.phone) { <div class="text-secondary small">Cell: {{ c.phone }}</div> }
+                      </div>
+                      <button type="button" mat-stroked-button color="warn" (click)="remove($index)">Remove</button>
                     </div>
-                    <button type="button" mat-stroked-button color="warn" (click)="remove($index)">Remove</button>
-                  </li>
+                  </mat-list-item>
                 }
-              </ul>
+              </mat-list>
             </div>
           }
         </div>
