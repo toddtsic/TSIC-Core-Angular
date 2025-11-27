@@ -78,6 +78,11 @@ export const routes: Routes = [
 				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
 				canActivate: [anonymousJobGuard]
 			},
+			// Brand preview (design system showcase)
+			{
+				path: 'brand-preview',
+				loadComponent: () => import('./job-home/brand-preview/brand-preview.component').then(m => m.BrandPreviewComponent)
+			},
 			// Admin-only routes for ANY job (SuperUser required)
 			{
 				path: 'admin',

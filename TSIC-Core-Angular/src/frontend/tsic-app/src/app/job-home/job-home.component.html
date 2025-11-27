@@ -85,7 +85,7 @@
         <div class="col-12">
             <div class="card shadow-sm card-rounded">
                 <div class="card-header card-header-subtle border-0 py-3">
-                    <h3 class="h4 mb-0 fw-semibold text-success">Registration</h3>
+                    <h3 class="h4 mb-0 fw-semibold text-primary">Registration</h3>
                 </div>
                 <div class="card-body">
                     @if (loading()) {
@@ -103,16 +103,16 @@
                     <div class="row g-3">
                         <!-- Start Family Registration: force logout to avoid cross-user context -->
                         <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 border-2 border-success">
+                            <div class="card h-100 border-2 border-primary">
                                 <div class="card-body text-center p-4 d-flex flex-column">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
-                                        class="mb-3 text-success" viewBox="0 0 16 16">
+                                        class="mb-3 text-primary" viewBox="0 0 16 16">
                                         <path d="M8 2.354a2.5 2.5 0 1 0 0 4.292 2.5 2.5 0 0 0 0-4.292Z" />
                                         <path d="M14 14s-1 0-1-1-1-4-5-4-5 3-5 4-1 1-1 1h12Z" />
                                     </svg>
                                     <h5 class="card-title fw-bold mb-2">Start Family Registration</h5>
                                     <p class="text-muted mb-3">Create a new Family Account to begin</p>
-                                    <button type="button" class="btn btn-success w-100 mt-auto"
+                                    <button type="button" class="btn btn-primary w-100 mt-auto"
                                         (click)="startFamilyRegistration()">
                                         Start Family Registration
                                     </button>
@@ -121,10 +121,10 @@
                         </div>
                         <!-- Family Account entry: edit existing (may prompt login) -->
                         <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 border-2 border-success">
+                            <div class="card h-100 border-2 border-primary">
                                 <div class="card-body text-center p-4">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
-                                        class="mb-3 text-success" viewBox="0 0 16 16">
+                                        class="mb-3 text-primary" viewBox="0 0 16 16">
                                         <path d="M8 2.354a2.5 2.5 0 1 0 0 4.292 2.5 2.5 0 0 0 0-4.292Z" />
                                         <path d="M14 14s-1 0-1-1-1-4-5-4-5 3-5 4-1 1-1 1h12Z" />
                                     </svg>
@@ -132,7 +132,7 @@
                                     <p class="text-muted mb-3">Review or update your family and children</p>
                                     <a [routerLink]="['/tsic','family-account']"
                                         [queryParams]="{ mode: 'edit', returnUrl: '/' + jobPath() + '/home' }"
-                                        class="btn btn-success w-100">
+                                        class="btn btn-primary w-100">
                                         Open Family Account
                                     </a>
                                 </div>
@@ -140,11 +140,11 @@
                         </div>
                         @for (status of registrationStatuses(); track status.registrationType) {
                         <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 border-2" [class.border-success]="status.isAvailable"
+                            <div class="card h-100 border-2" [class.border-primary]="status.isAvailable"
                                 [class.border-secondary]="!status.isAvailable">
                                 <div class="card-body text-center p-4">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
-                                        class="mb-3" [class.text-success]="status.isAvailable"
+                                        class="mb-3" [class.text-primary]="status.isAvailable"
                                         [class.text-secondary]="!status.isAvailable" viewBox="0 0 16 16">
                                         <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
                                         <path fill-rule="evenodd"
@@ -156,14 +156,14 @@
                                     <p class="text-muted mb-3">Registration is open</p>
                                     <!-- Primary: In-app Registration Wizard for Player registrations -->
                                     @if (status.registrationType === 'Player') {
-                                    <button type="button" class="btn btn-success w-100 mb-2"
+                                    <button type="button" class="btn btn-primary w-100 mb-2"
                                         (click)="startPlayerRegistration()">
                                         Start Registration Wizard
                                     </button>
                                     }
                                     <!-- Secondary: External/legacy registration URL when provided -->
                                     @if (status.registrationUrl) {
-                                    <a [href]="status.registrationUrl" class="btn btn-outline-success w-100">
+                                    <a [href]="status.registrationUrl" class="btn btn-outline-primary w-100">
                                         Open Registration Page
                                     </a>
                                     }

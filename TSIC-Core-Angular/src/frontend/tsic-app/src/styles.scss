@@ -1,69 +1,28 @@
-﻿/* Bootstrap and Syncfusion Bootstrap 5 theme are now globally included. Use Bootstrap utility classes and layout patterns for all new UI. */
+/* Bootstrap and Syncfusion Bootstrap 5 theme are now globally included. Use Bootstrap utility classes and layout patterns for all new UI. */
 /* Bootstrap Icons */
 /* Removed global bootstrap-icons import to trim initial CSS bundle below budget.
     If specific icons are needed, lazy-load the CSS after app bootstrap or inline SVGs. */
 
 /* ============================================
    CSS Custom Properties - Theme Variables
+   All base tokens defined in _tokens.scss
    ============================================ */
 /* ============================================
-   Base Palette Tokens (Light Mode Root)
-   Semantic tokens derive from these; themes pick from accent families.
+   Section Labels (for subsection headers in previews/forms)
    ============================================ */
-:root {
-    /* Neutral scale */
-    --neutral-50: #f9fafb;
-    --neutral-100: #f3f4f6;
-    --neutral-200: #e5e7eb;
-    --neutral-300: #d1d5db;
-    --neutral-400: #9ca3af;
-    --neutral-500: #6b7280;
-    --neutral-600: #4b5563;
-    --neutral-700: #374151;
-    --neutral-800: #1f2937;
-    --neutral-900: #111827;
+.section-label {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.9;
+}
 
-    /* Accent scales (subset) */
-    --indigo-400: #6366f1;
-    --indigo-500: #4f46e5;
-    --indigo-600: #4338ca;
-    --violet-500: #8b5cf6;
-    --violet-600: #7c3aed;
-    --emerald-500: #10b981;
-    --emerald-600: #059669;
-    --emerald-700: #047857;
-    --cyan-500: #06b6d4;
-    --cyan-600: #0891b2;
-
-    /* Semantic base (light) */
-    --color-bg: var(--neutral-50);
-    --color-surface: #ffffff;
-    --color-surface-alt: var(--neutral-100);
-    --color-text: var(--neutral-800);
-    --color-text-muted: var(--neutral-500);
-    --color-border: var(--neutral-200);
-
-    /* Default (fallback) primary + gradient */
-    --color-primary: var(--indigo-500);
-    --color-primary-rgb: 79, 70, 229;
-    --gradient-start: var(--indigo-500);
-    --gradient-end: var(--violet-600);
-
-    /* Legacy variable names mapped for existing selectors */
-    --gradient-primary-start: var(--gradient-start);
-    --gradient-primary-end: var(--gradient-end);
-
-    /* Bootstrap mappings */
-    --bs-primary: var(--color-primary);
-    --bs-primary-rgb: var(--color-primary-rgb);
-    --bg-primary: var(--color-bg);
-    --bg-secondary: var(--color-surface-alt);
-    --bg-elevated: var(--color-surface);
-    --text-primary: var(--color-text);
-    --text-secondary: var(--color-text-muted);
-    --border-color: var(--color-border);
-    --input-bg: var(--color-surface);
-    --input-border: var(--color-border);
+/* Card header titles */
+.card-header h5,
+.card-header h6 {
+    color: var(--text-primary);
 }
 
 /* ============================================
@@ -88,7 +47,7 @@
 
     /* Card and form styling for better visibility in dark mode */
     .card {
-        background-color: var(--bg-elevated);
+        background-color: var(--bs-card-bg, var(--bg-elevated));
         border: 1px solid var(--border-color) !important;
     }
 
@@ -117,6 +76,73 @@
 /* ============================================
    Reusable Utility Classes
    ============================================ */
+
+/* Card styling is handled in _tokens.scss */
+
+.card-header {
+
+    &.bg-primary,
+    &.bg-secondary,
+    &.bg-success,
+    &.bg-danger,
+    &.bg-warning,
+    &.bg-info,
+    &.bg-light,
+    &.bg-dark {
+        color: white;
+    }
+
+    &.bg-warning,
+    &.bg-light {
+        color: var(--bs-dark);
+    }
+}
+
+body {
+    background-color: var(--neutral-50);
+    color: var(--bs-body-color, #212529);
+}
+
+/* Override Bootstrap's bg-* utilities to use CSS variables */
+.bg-primary {
+    background-color: var(--bs-primary) !important;
+    color: white !important;
+}
+
+.bg-secondary {
+    background-color: var(--bs-secondary) !important;
+    color: white !important;
+}
+
+.bg-success {
+    background-color: var(--bs-success) !important;
+    color: white !important;
+}
+
+.bg-danger {
+    background-color: var(--bs-danger) !important;
+    color: white !important;
+}
+
+.bg-warning {
+    background-color: var(--bs-warning) !important;
+    color: var(--bs-dark) !important;
+}
+
+.bg-info {
+    background-color: var(--bs-info) !important;
+    color: white !important;
+}
+
+.bg-light {
+    background-color: var(--bs-light) !important;
+    color: var(--bs-dark) !important;
+}
+
+.bg-dark {
+    background-color: var(--bs-dark) !important;
+    color: white !important;
+}
 
 /* ============================================
    Wizard theme scopes (per-wizard color accents)
@@ -261,7 +287,7 @@
     flex-wrap: nowrap;
     gap: .5rem;
     overflow-x: auto;
-    /* Extra space so chip content doesn’t touch the scroll bar */
+    /* Extra space so chip content doesn�t touch the scroll bar */
     padding-bottom: .50rem;
 }
 
@@ -593,6 +619,9 @@
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    /* DIAGNOSTIC: Remove wrapper background so page-level shows */
+    background: transparent !important;
+    background-image: none !important;
 }
 
 .public-header {
@@ -660,7 +689,8 @@
 .public-content {
     flex: 1;
     padding: 2rem 0;
-    background-color: var(--bg-secondary);
+    /* Keep section wrapper plain; relief comes from cards */
+    background-color: #ffffff;
 }
 
 .public-footer {
@@ -773,6 +803,9 @@
     text-align: left;
 }
 
+/* ============================================
+   Palette System: Force text-muted to respect card color
+   ============================================ */
 .tsic-grid-footer-cell {
     border: 1px solid #000;
     padding: 4px 6px;

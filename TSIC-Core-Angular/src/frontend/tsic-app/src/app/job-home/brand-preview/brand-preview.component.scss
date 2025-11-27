@@ -1,0 +1,120 @@
+.palette-option {
+    border: 2px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    background: white;
+    transition: all 0.2s ease;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--bs-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    &.active {
+        border-color: var(--bs-primary);
+        border-width: 3px;
+        background: rgba(var(--bs-primary-rgb), 0.05);
+        box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.1);
+    }
+
+    h6 {
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+}
+
+.palette-colors {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.swatch {
+    height: 48px;
+    border-radius: var(--radius-sm);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    color: #fff;
+}
+
+.swatch-primary {
+    background: var(--brand-primary);
+}
+
+.swatch-accent {
+    background: var(--brand-accent);
+}
+
+.swatch-warn {
+    background: var(--brand-warn);
+}
+
+.swatch-bg {
+    background: var(--brand-bg);
+    color: var(--brand-text);
+    border: 1px solid var(--neutral-200);
+}
+
+.swatch-surface {
+    background: var(--brand-surface);
+    color: var(--brand-text);
+    border: 1px solid var(--neutral-200);
+}
+
+/* Neutral ramp helpers */
+.swatch-neutral-50 {
+    background: var(--neutral-50);
+    color: var(--brand-text);
+    border: 1px solid var(--neutral-200);
+}
+
+.swatch-neutral-100 {
+    background: var(--neutral-100);
+    color: var(--brand-text);
+    border: 1px solid var(--neutral-200);
+}
+
+.swatch-neutral-200 {
+    background: var(--neutral-200);
+    color: var(--brand-text);
+}
+
+.swatch-neutral-300 {
+    background: var(--neutral-300);
+}
+
+.swatch-neutral-400 {
+    background: var(--neutral-400);
+}
+
+.swatch-neutral-500 {
+    background: var(--neutral-500);
+}
+
+.swatch-neutral-600 {
+    background: var(--neutral-600);
+}
+
+.swatch-neutral-700 {
+    background: var(--neutral-700);
+}
+
+.swatch-neutral-800 {
+    background: var(--neutral-800);
+}
+
+.swatch-neutral-900 {
+    background: var(--neutral-900);
+}

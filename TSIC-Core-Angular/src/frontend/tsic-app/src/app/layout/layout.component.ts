@@ -214,7 +214,7 @@ import { ThemeService } from '../core/services/theme.service';
   `,
   styles: [`
     .tsic-header {
-      background: white;
+      background: var(--brand-surface);
       border-bottom: 2px solid #6DBE45;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       position: sticky;
@@ -223,7 +223,7 @@ import { ThemeService } from '../core/services/theme.service';
     }
 
     .tsic-brand-container {
-      background: white;
+      background: var(--brand-surface);
       border-radius: 8px;
       padding: 8px 12px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -286,7 +286,7 @@ import { ThemeService } from '../core/services/theme.service';
     }
 
     .job-logo-container {
-      background: white;
+      background: var(--brand-surface);
       border-radius: 6px;
       padding: 4px 8px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -310,7 +310,7 @@ import { ThemeService } from '../core/services/theme.service';
     }
 
     .job-button {
-      background: #ffffff;
+      background: var(--brand-surface);
       border-color: rgba(0,0,0,0.15);
       border-radius: 6px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
@@ -318,7 +318,7 @@ import { ThemeService } from '../core/services/theme.service';
       line-height: 1;
     }
     .job-button:hover {
-      background: #f8f9fa;
+      background: color-mix(in srgb, var(--brand-surface) 85%, #0000);
       box-shadow: 0 2px 6px rgba(0,0,0,0.12);
     }
     .job-name-text {
@@ -374,7 +374,7 @@ import { ThemeService } from '../core/services/theme.service';
 
     /* TSIC brand container gets stronger shadow in dark mode */
     :host-context([data-bs-theme="dark"]) .tsic-brand-container {
-      background: #ffffff;
+      background: var(--brand-surface);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     }
 

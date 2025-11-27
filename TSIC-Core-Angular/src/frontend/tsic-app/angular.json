@@ -33,6 +33,8 @@
             ],
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "src/styles/_tokens.scss",
+              "src/styles/_utilities.scss",
               "node_modules/@syncfusion/ej2-bootstrap5-theme/styles/bootstrap5-lite.css",
               "src/styles.scss"
             ],

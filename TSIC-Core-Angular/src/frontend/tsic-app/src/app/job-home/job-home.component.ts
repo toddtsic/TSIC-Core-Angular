@@ -52,7 +52,6 @@ export class JobHomeComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     this.jobService.loadRegistrationStatus(this.jobPath(), ['Player']);
-
   }
 
   // Start a fresh Family Registration flow: ensure no existing auth context carries over

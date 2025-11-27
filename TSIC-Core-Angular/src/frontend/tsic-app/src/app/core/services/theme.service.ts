@@ -43,6 +43,13 @@ export class ThemeService {
     private applyTheme(theme: 'light' | 'dark'): void {
         document.documentElement.dataset['bsTheme'] = theme;
 
+        // Apply our custom theme class to document root
+        if (theme === 'dark') {
+            document.documentElement.classList.add('theme-dark');
+        } else {
+            document.documentElement.classList.remove('theme-dark');
+        }
+
         // Apply Syncfusion dark mode class for their components
         if (theme === 'dark') {
             document.body.classList.add('e-dark-mode');
