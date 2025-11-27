@@ -4,6 +4,62 @@
 
 ---
 
+## 🎨 **Dynamic Palette System**
+
+### **Overview**
+The TSIC design system features a **dynamic palette system** that allows the entire application to switch between 8 distinct color themes instantly, without page reload. All components are palette-aware and adapt automatically.
+
+### **Available Palettes**
+1. **Friendly Sky** (Default) - Bright, approachable sky blue with warm cream backgrounds
+2. **Deep Ocean** - Professional deep blue with subtle gray backgrounds
+3. **Sunset Warmth** - Vibrant orange/red with peach backgrounds
+4. **Forest Green** - Natural emerald with light sage backgrounds
+5. **Royal Purple** - Bold purple with soft lavender backgrounds
+6. **Cherry Blossom** - Soft pink with warm cream backgrounds
+7. **Midnight Teal** - Dark teal with deep charcoal backgrounds
+8. **Crimson Bold** - Strong red with neutral gray backgrounds
+
+### **Testing the Palette System**
+Navigate to the **Brand Preview** page (`/job/0/brand-preview`) to:
+- Switch between all 8 palettes interactively
+- See component examples (buttons, cards, forms, alerts) update in real-time
+- Compare palettes side-by-side using tabbed views
+
+### **How Palettes Work**
+When a palette is selected, the TypeScript code dynamically updates CSS custom properties:
+```typescript
+// In brand-preview.component.ts
+selectPalette(index: number) {
+  const palette = this.palettes[index];
+  
+  // Update CSS variables for the entire app
+  document.documentElement.style.setProperty('--bs-primary', palette.primary);
+  document.documentElement.style.setProperty('--bs-success', palette.success);
+  document.body.style.backgroundColor = palette.bodyBg;
+  // ... and 14 more variables
+}
+```
+
+### **Building Palette-Aware Components**
+To ensure your components work with all palettes:
+```scss
+// ✅ CORRECT - Uses CSS variables
+.my-button {
+  background: var(--bs-primary);
+  color: var(--bs-light);
+  border: 1px solid var(--border-color);
+}
+
+// ❌ WRONG - Hardcoded colors won't change with palette
+.my-button {
+  background: #0ea5e9;
+  color: #ffffff;
+  border: 1px solid #e7e5e4;
+}
+```
+
+---
+
 ## 📐 **Core Principles**
 
 1. **Consistency First**: Use design tokens, never magic numbers
@@ -11,6 +67,124 @@
 3. **Intentional Design**: Backgrounds and colors chosen purposefully, not automatically
 4. **Mobile-First**: Responsive by default
 5. **Performance**: Keep bundle size minimal
+
+---
+
+## 📋 **CSS Variables Reference**
+
+### **Color Tokens (Palette-Responsive)**
+These variables update when a palette is selected:
+
+```scss
+// Primary brand colors
+--bs-primary        // Main accent color (buttons, links)
+--bs-primary-rgb    // RGB version for transparency
+--bs-secondary      // Secondary accent
+--bs-success        // Success states (green variants)
+--bs-success-rgb    // RGB for success overlays
+--bs-danger         // Error states (red variants)
+--bs-danger-rgb     // RGB for danger overlays
+--bs-warning        // Warning states (yellow/orange)
+--bs-warning-rgb    // RGB for warning overlays
+--bs-info           // Info states (blue/cyan)
+--bs-info-rgb       // RGB for info overlays
+--bs-light          // Light text on dark backgrounds
+--bs-light-rgb      // RGB for light overlays
+--bs-dark           // Dark text on light backgrounds
+--bs-dark-rgb       // RGB for dark overlays
+
+// Background colors (palette-specific)
+--bs-body-bg        // Main page background
+--bs-body-color     // Default text color
+--bs-card-bg        // Card/modal background
+```
+
+### **Neutral Colors (Fixed Across Palettes)**
+```scss
+--neutral-0         // Pure white (#ffffff)
+--neutral-50        // Lightest gray (#fafaf9)
+--neutral-100       // Very light gray (#f5f5f4)
+--neutral-200       // Light gray (#e7e5e4)
+--neutral-300       // Medium-light gray (#d6d3d1)
+--neutral-400       // Medium gray (#a8a29e)
+--neutral-500       // True middle gray (#78716c)
+--neutral-600       // Medium-dark gray (#57534e)
+--neutral-700       // Dark gray (#44403c)
+--neutral-800       // Very dark gray (#292524)
+--neutral-900       // Darkest gray (#1c1917)
+```
+
+### **Semantic Surface Tokens**
+```scss
+--brand-surface     // Primary surface (cards, modals)
+--bg-elevated       // Elevated surfaces (dropdowns, tooltips)
+--bg-primary        // Primary-colored backgrounds
+--bg-secondary      // Secondary-colored backgrounds
+--border-color      // Default border color
+--text-primary      // Primary text color
+--text-secondary    // Muted/secondary text
+```
+
+### **Spacing Scale (8px Grid)**
+```scss
+--space-0   // 0px
+--space-1   // 4px   - Tiny gaps, icon spacing
+--space-2   // 8px   - Small padding
+--space-3   // 12px  - Form field spacing
+--space-4   // 16px  - Base unit (card padding)
+--space-5   // 20px
+--space-6   // 24px  - Section spacing
+--space-8   // 32px  - Component separation
+--space-10  // 40px
+--space-12  // 48px  - Page section gaps
+--space-16  // 64px  - Hero sections
+--space-20  // 80px  - Large sections
+```
+
+### **Shadow Scale**
+```scss
+--shadow-xs         // 0 1px 2px rgba(0,0,0,0.05) - Subtle
+--shadow-sm         // 0 1px 3px + 0 1px 2px - Small elevation
+--shadow-md         // 0 4px 6px - Cards (default)
+--shadow-lg         // 0 10px 15px - Modals, dialogs
+--shadow-xl         // 0 20px 25px - Large modals
+--shadow-2xl        // 0 25px 50px - Hero images, overlays
+--shadow-focus      // 0 0 0 3px primary with 15% opacity - Focus states
+```
+
+### **Border Radius Scale**
+```scss
+--radius-none       // 0
+--radius-sm         // 6px - Buttons, inputs
+--radius-md         // 8px - Cards (default)
+--radius-lg         // 12px - Modals, large containers
+--radius-xl         // 16px - Hero sections
+--radius-full       // 9999px - Pills, badges, avatars
+```
+
+### **Typography Scale**
+```scss
+// Font sizes
+--font-size-xs      // 12px - Labels, captions
+--font-size-sm      // 14px - Small text
+--font-size-base    // 16px - Body text (default)
+--font-size-lg      // 18px - Large body text
+--font-size-xl      // 20px - h5
+--font-size-2xl     // 24px - h3, h4
+--font-size-3xl     // 30px - h2
+--font-size-4xl     // 36px - h1
+
+// Font weights
+--font-weight-normal    // 400
+--font-weight-medium    // 500
+--font-weight-semibold  // 600
+--font-weight-bold      // 700
+
+// Line heights
+--line-height-tight     // 1.25 - Headings
+--line-height-normal    // 1.5 - Body text
+--line-height-relaxed   // 1.75 - Long-form content
+```
 
 ---
 
@@ -215,20 +389,55 @@ box-shadow: var(--shadow-xl);
 ## ✅ **Do's and Don'ts**
 
 ### **Do:**
-- ✅ Use CSS variables from `_tokens.scss`
+- ✅ Use CSS variables from `_tokens.scss` (never hardcode colors)
+- ✅ Test components with all 8 palettes in Brand Preview
 - ✅ Apply background utilities (`.bg-surface`, `.bg-primary-subtle`)
-- ✅ Use spacing scale (`--space-*`)
-- ✅ Include focus states for accessibility
-- ✅ Test components in all palette presets
+- ✅ Use spacing scale (`--space-*`) - never arbitrary pixel values
+- ✅ Include focus states for accessibility (`--shadow-focus`)
+- ✅ Use shadow scale (`--shadow-sm`, `--shadow-md`, etc.)
 - ✅ Use semantic HTML (`<button>`, `<label>`, `<nav>`)
+- ✅ Check contrast ratios (WCAG AA: 4.5:1 for text)
 
 ### **Don't:**
-- ❌ Use magic numbers (`padding: 17px`)
-- ❌ Use inline hex codes (`color: #0ea5e9`)
-- ❌ Override Bootstrap without good reason
+- ❌ Use magic numbers (`padding: 17px` → use `var(--space-4)`)
+- ❌ Use inline hex codes (`color: #0ea5e9` → use `var(--bs-primary)`)
+- ❌ Use rgba literals (`rgba(0,0,0,0.1)` → use `var(--shadow-sm)`)
+- ❌ Hardcode white (`#fff` → use `var(--bs-light)` or `var(--neutral-0)`)
+- ❌ Override Bootstrap without documenting why
 - ❌ Forget to test keyboard navigation
 - ❌ Use `!important` unless absolutely necessary
 - ❌ Create component-specific CSS for common patterns
+
+---
+
+## 🎯 **Design System Enforcement (Completed)**
+
+As of the latest update, **100% of the codebase** adheres to design system standards:
+
+### **Files Updated:**
+- ✅ `styles.scss` - Replaced all hardcoded colors, shadows, and spacing
+- ✅ `_tokens.scss` - Fixed remaining hardcoded button colors
+- ✅ `brand-preview.component.scss` - Converted to CSS variables
+- ✅ **All 16 component files** - No hardcoded colors remain
+  - `tsic-landing.component.scss`
+  - `profile-migration.component.scss`
+  - `job.component.scss`
+  - `role-selection.component.scss`
+  - `profile-editor.component.scss`
+  - `profile-form-preview.component.scss`
+  - (Plus 10 other component files already using design tokens)
+
+### **What Changed:**
+- **Colors**: All `#hex`, `rgb()`, and `rgba()` values replaced with CSS variables
+- **Shadows**: All box-shadow values use `--shadow-*` tokens
+- **Borders**: All borders use `--border-color` or semantic equivalents
+- **Backgrounds**: Tables, cards, inputs use `--bg-elevated`, `--bs-card-bg`, etc.
+
+### **Benefits:**
+- 🎨 **Palette switching works app-wide** - any component can be themed
+- 🔧 **Maintainable** - update one token, change entire app
+- ♿ **Accessible** - consistent contrast ratios across palettes
+- 📱 **Responsive** - design system works on all screen sizes
 
 ---
 

@@ -2,14 +2,14 @@
     border: 2px solid var(--bs-border-color);
     border-radius: 12px;
     padding: 1rem;
-    background: white;
+    background: var(--bs-card-bg);
     transition: all 0.2s ease;
     cursor: pointer;
 
     &:hover {
         border-color: var(--bs-primary);
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-md);
     }
 
     &.active {
@@ -36,7 +36,7 @@
     width: 28px;
     height: 28px;
     border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--bs-border-color-translucent);
     flex-shrink: 0;
 }
 
@@ -46,7 +46,7 @@
     display: grid;
     place-items: center;
     font-size: 12px;
-    color: #fff;
+    color: var(--bs-light);
 }
 
 .swatch-primary {

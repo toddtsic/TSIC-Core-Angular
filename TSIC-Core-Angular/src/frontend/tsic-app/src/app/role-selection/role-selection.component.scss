@@ -36,7 +36,7 @@
   }
 
   &.e-active {
-    background-color: rgba(102, 126, 234, 0.15) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.15) !important;
     color: var(--text-primary) !important;
   }
 }

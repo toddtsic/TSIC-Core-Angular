@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 interface ColorPalette {
@@ -24,9 +24,9 @@ interface ColorPalette {
     templateUrl: './brand-preview.component.html',
     styleUrls: ['./brand-preview.component.scss']
 })
-export class BrandPreviewComponent {
+export class BrandPreviewComponent implements OnInit {
     selectedPalette = signal<number>(0);
-    activeTab = signal<string>('demo');
+    activeTab = signal<string>('colors');
 
     palettes: ColorPalette[] = [
         {
@@ -150,6 +150,11 @@ export class BrandPreviewComponent {
             cardBg: '#fef2f2'
         }
     ];
+
+    ngOnInit(): void {
+        // Apply default palette on initialization
+        this.selectPalette(0);
+    }
 
     selectPalette(index: number): void {
         this.selectedPalette.set(index);

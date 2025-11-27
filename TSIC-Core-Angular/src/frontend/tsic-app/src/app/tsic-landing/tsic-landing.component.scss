@@ -13,7 +13,7 @@
 
         &:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+            box-shadow: var(--shadow-xl) !important;
         }
 
         &:active:not(:disabled) {
@@ -23,7 +23,7 @@
 }
 
 .features-section {
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(var(--bs-dark-rgb), 0.15);
     backdrop-filter: blur(10px);
 }
 
@@ -33,7 +33,7 @@
 
     &:hover {
         transform: translateY(-8px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: var(--shadow-2xl) !important;
     }
 
     .feature-icon {
