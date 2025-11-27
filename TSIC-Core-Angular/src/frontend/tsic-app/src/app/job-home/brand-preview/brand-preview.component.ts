@@ -1,5 +1,7 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LocalStorageService } from '../../core/services/local-storage.service';
+import { LocalStorageKey } from '../../core/models/local-storage.model';
 
 interface ColorPalette {
     name: string;
@@ -25,6 +27,8 @@ interface ColorPalette {
     styleUrls: ['./brand-preview.component.scss']
 })
 export class BrandPreviewComponent implements OnInit {
+    private readonly localStorageService = inject(LocalStorageService);
+
     selectedPalette = signal<number>(0);
     activeTab = signal<string>('colors');
 
@@ -152,13 +156,17 @@ export class BrandPreviewComponent implements OnInit {
     ];
 
     ngOnInit(): void {
-        // Apply default palette on initialization
-        this.selectPalette(0);
+        // Load saved palette from localStorage or default to 0
+        const savedPaletteIndex = this.loadPaletteFromStorage();
+        this.selectPalette(savedPaletteIndex);
     }
 
     selectPalette(index: number): void {
         this.selectedPalette.set(index);
         const palette = this.palettes[index];
+
+        // Save palette choice to localStorage
+        this.savePaletteToStorage(index);
 
         // Helper to convert hex to RGB values
         const hexToRgb = (hex: string): string => {
@@ -219,5 +227,23 @@ export class BrandPreviewComponent implements OnInit {
 
     selectTab(tab: string): void {
         this.activeTab.set(tab);
+    }
+
+    private savePaletteToStorage(index: number): void {
+        this.localStorageService.set(LocalStorageKey.SelectedPalette, index);
+    }
+
+    private loadPaletteFromStorage(): number {
+        const savedIndex = this.localStorageService.getNumber(
+            LocalStorageKey.SelectedPalette,
+            0 // Default to first palette
+        );
+
+        // Validate the index is within valid range
+        if (savedIndex >= 0 && savedIndex < this.palettes.length) {
+            return savedIndex;
+        }
+
+        return 0; // Default to first palette if invalid
     }
 }
