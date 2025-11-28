@@ -67,6 +67,8 @@ public partial class Agegroups
 
     public bool? BAllowApiRosterAccess { get; set; }
 
+    public decimal? PlayerFeeOverride { get; set; }
+
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
 
     public virtual ICollection<Divisions> Divisions { get; set; } = new List<Divisions>();

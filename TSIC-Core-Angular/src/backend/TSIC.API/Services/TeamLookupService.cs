@@ -50,7 +50,8 @@ public class TeamLookupService : ITeamLookupService
                 RawRosterFee = t.Agegroup.RosterFee,
                 TeamAllowsSelfRostering = t.BAllowSelfRostering,
                 AgegroupAllowsSelfRostering = t.Agegroup.BAllowSelfRostering,
-                LeaguePlayerFeeOverride = t.League.PlayerFeeOverride
+                LeaguePlayerFeeOverride = t.League.PlayerFeeOverride,
+                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride
             })
             .ToListAsync();
 
@@ -72,7 +73,7 @@ public class TeamLookupService : ITeamLookupService
             var current = rosterCounts.TryGetValue(t.TeamId, out var c) ? c : 0;
             var rosterFull = current >= t.MaxCount && t.MaxCount > 0;
 
-            var fee = ComputePerRegistrantFee(t.RawPerRegistrantFee, t.RawTeamFee, t.RawRosterFee, t.LeaguePlayerFeeOverride);
+            var fee = ComputePerRegistrantFee(t.RawPerRegistrantFee, t.RawTeamFee, t.RawRosterFee, t.LeaguePlayerFeeOverride, t.AgegroupPlayerFeeOverride);
             var deposit = ComputePerRegistrantDeposit(t.RawPerRegistrantDeposit, t.RawTeamFee, t.RawRosterFee);
 
             return new AvailableTeamDto
@@ -110,7 +111,8 @@ public class TeamLookupService : ITeamLookupService
                 t.PerRegistrantDeposit,
                 TeamFee = t.Agegroup.TeamFee,
                 RosterFee = t.Agegroup.RosterFee,
-                LeaguePlayerFeeOverride = t.League.PlayerFeeOverride
+                LeaguePlayerFeeOverride = t.League.PlayerFeeOverride,
+                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride
             })
             .SingleOrDefaultAsync();
 
@@ -120,13 +122,18 @@ public class TeamLookupService : ITeamLookupService
             return (0m, 0m);
         }
 
-        var fee = ComputePerRegistrantFee(data.PerRegistrantFee, data.TeamFee, data.RosterFee, data.LeaguePlayerFeeOverride);
+        var fee = ComputePerRegistrantFee(data.PerRegistrantFee, data.TeamFee, data.RosterFee, data.LeaguePlayerFeeOverride, data.AgegroupPlayerFeeOverride);
         var deposit = ComputePerRegistrantDeposit(data.PerRegistrantDeposit, data.TeamFee, data.RosterFee);
         return (fee, deposit);
     }
 
-    private static decimal ComputePerRegistrantFee(decimal? prFee, decimal? agTeamFee, decimal? agRosterFee, decimal? leaguePlayerFeeOverride)
+    private static decimal ComputePerRegistrantFee(decimal? prFee, decimal? agTeamFee, decimal? agRosterFee, decimal? leaguePlayerFeeOverride, decimal? agegroupPlayerFeeOverride)
     {
+        if (agegroupPlayerFeeOverride.HasValue && agegroupPlayerFeeOverride.Value > 0m)
+        {
+            return agegroupPlayerFeeOverride.Value;
+        }
+
         if (leaguePlayerFeeOverride.HasValue && leaguePlayerFeeOverride.Value > 0m)
         {
             return leaguePlayerFeeOverride.Value;

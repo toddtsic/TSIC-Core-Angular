@@ -1145,6 +1145,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Modified)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("modified");
+            entity.Property(e => e.PlayerFeeOverride).HasColumnType("money");
             entity.Property(e => e.RosterFee)
                 .HasColumnType("decimal(18, 2)")
                 .HasColumnName("rosterFee");
