@@ -11,7 +11,13 @@ public partial class ClubReps
 
     public string ClubRepUserId { get; set; } = null!;
 
+    public string? LebUserId { get; set; }
+
+    public DateTime? Modified { get; set; }
+
     public virtual Clubs Club { get; set; } = null!;
 
     public virtual AspNetUsers ClubRepUser { get; set; } = null!;
+
+    public virtual AspNetUsers? LebUser { get; set; }
 }

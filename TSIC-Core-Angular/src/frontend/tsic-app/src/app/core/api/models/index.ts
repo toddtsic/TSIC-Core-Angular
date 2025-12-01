@@ -97,7 +97,7 @@ export interface CloneProfileResult {
     errorMessage?: string | undefined;
 }
 
-export interface ClubRegistrationRequest {
+export interface ClubRepRegistrationRequest {
     clubName?: string | undefined;
     firstName?: string | undefined;
     lastName?: string | undefined;
@@ -111,7 +111,7 @@ export interface ClubRegistrationRequest {
     cellphone?: string | undefined;
 }
 
-export interface ClubRegistrationResponse {
+export interface ClubRepRegistrationResponse {
     success?: boolean;
     clubId?: number | undefined;
     userId?: string | undefined;

@@ -103,7 +103,11 @@ public partial class AspNetUsers
 
     public virtual ICollection<ChatMessages> ChatMessages { get; set; } = new List<ChatMessages>();
 
-    public virtual ICollection<ClubReps> ClubReps { get; set; } = new List<ClubReps>();
+    public virtual ICollection<ClubReps> ClubRepsClubRepUser { get; set; } = new List<ClubReps>();
+
+    public virtual ICollection<ClubReps> ClubRepsLebUser { get; set; } = new List<ClubReps>();
+
+    public virtual ICollection<ClubTeams> ClubTeams { get; set; } = new List<ClubTeams>();
 
     public virtual ICollection<Clubs> Clubs { get; set; } = new List<Clubs>();
 

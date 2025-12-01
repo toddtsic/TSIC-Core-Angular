@@ -1652,43 +1652,60 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<ClubReps>(entity =>
         {
-            entity.HasKey(e => e.Aid).HasName("PK__ClubReps__C6970A102BE06776");
+            entity.HasKey(e => e.Aid).HasName("PK__ClubReps__C6970A1003EA6947");
 
             entity.ToTable("ClubReps", "Clubs");
 
             entity.Property(e => e.ClubRepUserId).HasMaxLength(450);
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
 
             entity.HasOne(d => d.Club).WithMany(p => p.ClubReps)
                 .HasForeignKey(d => d.ClubId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClubReps__ClubId__50E85797");
+                .HasConstraintName("FK__ClubReps__ClubId__602A9B27");
 
-            entity.HasOne(d => d.ClubRepUser).WithMany(p => p.ClubReps)
+            entity.HasOne(d => d.ClubRepUser).WithMany(p => p.ClubRepsClubRepUser)
                 .HasForeignKey(d => d.ClubRepUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClubReps__ClubRe__51DC7BD0");
+                .HasConstraintName("FK__ClubReps__ClubRe__611EBF60");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.ClubRepsLebUser)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK__ClubReps__LebUse__6212E399");
         });
 
         modelBuilder.Entity<ClubTeams>(entity =>
         {
-            entity.HasKey(e => e.ClubTeamId).HasName("PK__ClubTeam__831909DC17977763");
+            entity.HasKey(e => e.ClubTeamId).HasName("PK__ClubTeam__831909DC1095B2C0");
 
             entity.ToTable("ClubTeams", "Clubs");
 
+            entity.Property(e => e.ClubTeamGradYear).IsUnicode(false);
             entity.Property(e => e.ClubTeamLevelOfPlay)
                 .HasMaxLength(10)
                 .IsUnicode(false);
             entity.Property(e => e.ClubTeamName).HasMaxLength(80);
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
 
             entity.HasOne(d => d.Club).WithMany(p => p.ClubTeams)
                 .HasForeignKey(d => d.ClubId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClubTeams__ClubI__4C23A27A");
+                .HasConstraintName("FK__ClubTeams__ClubI__65E3747D");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.ClubTeams)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK__ClubTeams__LebUs__66D798B6");
         });
 
         modelBuilder.Entity<Clubs>(entity =>
         {
-            entity.HasKey(e => e.ClubId).HasName("PK__Clubs__D35058E7D3C356DC");
+            entity.HasKey(e => e.ClubId).HasName("PK__Clubs__D35058E77D57F962");
 
             entity.ToTable("Clubs", "Clubs");
 
@@ -1702,7 +1719,7 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.Clubs)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK__Clubs__LebUserId__3EC9A75C");
+                .HasConstraintName("FK__Clubs__LebUserId__5C5A0A43");
         });
 
         modelBuilder.Entity<ContactRelationshipCategories>(entity =>
@@ -6445,7 +6462,7 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.ClubTeam).WithMany(p => p.Teams)
                 .HasForeignKey(d => d.ClubTeamId)
-                .HasConstraintName("FK__teams__ClubTeamI__4D17C6B3");
+                .HasConstraintName("FK__teams__ClubTeamI__68BFE128");
 
             entity.HasOne(d => d.Clubrep).WithMany(p => p.TeamsClubrep)
                 .HasForeignKey(d => d.ClubrepId)

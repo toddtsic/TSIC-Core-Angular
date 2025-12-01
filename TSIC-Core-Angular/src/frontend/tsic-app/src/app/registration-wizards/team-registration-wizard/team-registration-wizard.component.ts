@@ -2,10 +2,14 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TwActionBarComponent } from '../shared/tw-action-bar.component';
 import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
 import { JobService } from '../../core/services/job.service';
 import { JobContextService } from '../../core/services/job-context.service';
+import { ClubService } from '../../core/services/club.service';
+import { AuthService } from '../../core/services/auth.service';
+import type { ClubRepRegistrationRequest, ClubSearchResult } from '../../core/api/models';
 
 @Component({
     selector: 'app-team-registration-wizard',
@@ -23,10 +27,16 @@ export class TeamRegistrationWizardComponent implements OnInit {
     };
     loginForm: FormGroup;
     registrationForm: FormGroup;
+    submitting = false;
+    loginError: string | null = null;
+    registrationError: string | null = null;
+    similarClubs: ClubSearchResult[] = [];
     private readonly route = inject(ActivatedRoute);
     private readonly jobService = inject(JobService);
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
+    private readonly clubService = inject(ClubService);
+    private readonly authService = inject(AuthService);
     statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
     constructor(readonly fb: FormBuilder) {
@@ -50,6 +60,13 @@ export class TeamRegistrationWizardComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        // Check if user is already logged in as club rep
+        const user = this.authService.currentUser();
+        if (user) {
+            // Preselect "Yes" if logged in
+            this.hasClubRepAccount = true;
+        }
+
         // Get jobPath from JobContextService (extracted from URL)
         const jobPath = this.jobContext.jobPath();
 
@@ -77,19 +94,82 @@ export class TeamRegistrationWizardComponent implements OnInit {
     }
 
     submitLogin() {
-        if (this.loginForm.valid) {
-            setTimeout(() => {
+        if (this.loginForm.invalid) return;
+
+        this.submitting = true;
+        this.loginError = null;
+
+        const credentials = {
+            username: this.loginForm.value.username,
+            password: this.loginForm.value.password
+        };
+
+        this.authService.login(credentials).subscribe({
+            next: () => {
+                this.submitting = false;
                 this.nextStep();
-            }, 300);
-        }
+            },
+            error: (error: HttpErrorResponse) => {
+                this.submitting = false;
+                this.loginError = error?.error?.message || error?.message || 'Login failed. Please check your credentials.';
+            }
+        });
     }
 
     submitRegistration() {
-        if (this.registrationForm.valid) {
-            setTimeout(() => {
-                this.nextStep();
-            }, 300);
-        }
+        if (this.registrationForm.invalid) return;
+
+        this.submitting = true;
+        this.registrationError = null;
+        this.similarClubs = [];
+
+        const request: ClubRepRegistrationRequest = {
+            clubName: this.registrationForm.value.clubName,
+            firstName: this.registrationForm.value.firstName,
+            lastName: this.registrationForm.value.lastName,
+            email: this.registrationForm.value.email,
+            username: this.registrationForm.value.username,
+            password: this.registrationForm.value.password,
+            streetAddress: this.registrationForm.value.street,
+            city: this.registrationForm.value.city,
+            state: this.registrationForm.value.state,
+            postalCode: this.registrationForm.value.zip,
+            cellphone: this.registrationForm.value.cellphone
+        };
+
+        this.clubService.registerClub(request).subscribe({
+            next: (response) => {
+                this.submitting = false;
+
+                // Show similar clubs warning if any found
+                if (response.similarClubs && response.similarClubs.length > 0) {
+                    this.similarClubs = response.similarClubs;
+                }
+
+                // Auto-login with the new credentials
+                this.authService.login({
+                    username: request.username!,
+                    password: request.password!
+                }).subscribe({
+                    next: () => {
+                        this.nextStep();
+                    },
+                    error: (error: HttpErrorResponse) => {
+                        // Registration succeeded but login failed - show error but allow manual retry
+                        this.registrationError = 'Account created successfully, but auto-login failed. Please use the login form above.';
+                        this.hasClubRepAccount = true;
+                    }
+                });
+            },
+            error: (error: HttpErrorResponse) => {
+                this.submitting = false;
+                this.registrationError = error?.error?.message || error?.message || 'Registration failed. Please try again.';
+            }
+        });
+    }
+
+    dismissSimilarClubsWarning() {
+        this.similarClubs = [];
     }
 
     canContinue(): boolean {

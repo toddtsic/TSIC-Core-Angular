@@ -15,7 +15,13 @@ public partial class ClubTeams
 
     public string ClubTeamLevelOfPlay { get; set; } = null!;
 
+    public string? LebUserId { get; set; }
+
+    public DateTime? Modified { get; set; }
+
     public virtual Clubs Club { get; set; } = null!;
+
+    public virtual AspNetUsers? LebUser { get; set; }
 
     public virtual ICollection<Teams> Teams { get; set; } = new List<Teams>();
 }

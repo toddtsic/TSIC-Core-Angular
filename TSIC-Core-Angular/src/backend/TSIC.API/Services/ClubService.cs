@@ -19,14 +19,14 @@ public sealed class ClubService : IClubService
         _db = db;
     }
 
-    public async Task<ClubRegistrationResponse> RegisterAsync(ClubRegistrationRequest request)
+    public async Task<ClubRepRegistrationResponse> RegisterAsync(ClubRepRegistrationRequest request)
     {
         // Validate required fields
         if (string.IsNullOrWhiteSpace(request.ClubName) ||
             string.IsNullOrWhiteSpace(request.Username) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return new ClubRegistrationResponse(false, null, null, "Club name, username, and password are required");
+            return new ClubRepRegistrationResponse(false, null, null, "Club name, username, and password are required");
         }
 
         // Check for similar existing clubs (fuzzy match)
@@ -36,7 +36,7 @@ public sealed class ClubService : IClubService
         var exactMatch = similarClubs.FirstOrDefault(c => c.MatchScore >= 90);
         if (exactMatch != null)
         {
-            return new ClubRegistrationResponse(
+            return new ClubRepRegistrationResponse(
                 false,
                 null,
                 null,
@@ -67,7 +67,7 @@ public sealed class ClubService : IClubService
         if (!createResult.Succeeded)
         {
             var msg = string.Join("; ", createResult.Errors.Select(e => e.Description));
-            return new ClubRegistrationResponse(false, null, null, msg);
+            return new ClubRepRegistrationResponse(false, null, null, msg);
         }
 
         // Create Clubs record
@@ -90,7 +90,7 @@ public sealed class ClubService : IClubService
         await _db.SaveChangesAsync();
 
         scope.Complete();
-        return new ClubRegistrationResponse(true, club.ClubId, user.Id, null, similarClubs.Any() ? similarClubs : null);
+        return new ClubRepRegistrationResponse(true, club.ClubId, user.Id, null, similarClubs.Any() ? similarClubs : null);
     }
 
     public async Task<List<ClubSearchResult>> SearchClubsAsync(string query, string? state)
