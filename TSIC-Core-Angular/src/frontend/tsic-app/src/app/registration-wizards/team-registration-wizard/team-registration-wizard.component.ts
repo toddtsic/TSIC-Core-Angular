@@ -1,8 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { TwActionBarComponent } from '../shared/tw-action-bar.component';
 import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
+import { JobService } from '../../core/services/job.service';
+import { JobContextService } from '../../core/services/job-context.service';
 
 @Component({
     selector: 'app-team-registration-wizard',
@@ -11,7 +14,7 @@ import { FormFieldDataService, SelectOption } from '../../core/services/form-fie
     standalone: true,
     imports: [CommonModule, ReactiveFormsModule, TwActionBarComponent]
 })
-export class TeamRegistrationWizardComponent {
+export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;
     hasClubRepAccount: boolean | null = null;
     stepLabels: Record<number, string> = {
@@ -20,6 +23,9 @@ export class TeamRegistrationWizardComponent {
     };
     loginForm: FormGroup;
     registrationForm: FormGroup;
+    private readonly route = inject(ActivatedRoute);
+    private readonly jobService = inject(JobService);
+    private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
     statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
@@ -41,6 +47,25 @@ export class TeamRegistrationWizardComponent {
             password: ['', [Validators.required, Validators.minLength(6)]],
             email: ['', [Validators.required, Validators.email]]
         });
+    }
+
+    ngOnInit(): void {
+        // Get jobPath from JobContextService (extracted from URL)
+        const jobPath = this.jobContext.jobPath();
+
+        if (jobPath) {
+            // Load job metadata and set JsonOptions for dropdowns
+            this.jobService.fetchJobMetadata(jobPath).subscribe({
+                next: (job) => {
+                    this.fieldData.setJobOptions(job.jsonOptions);
+                    // Job-specific dropdown options now available throughout the app
+                },
+                error: (err) => {
+                    console.error('Failed to load job metadata:', err);
+                    // Continue with static fallback options
+                }
+            });
+        }
     }
 
     nextStep() {
