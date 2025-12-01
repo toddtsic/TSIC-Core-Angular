@@ -81,6 +81,14 @@
 
 .card-header {
 
+    /* Remove background for both wizards for title area parity */
+    .wizard-theme-player &,
+    .wizard-theme-team & {
+        background: transparent !important;
+        background-color: transparent !important;
+        color: var(--text-primary);
+    }
+
     &.bg-primary,
     &.bg-secondary,
     &.bg-success,
@@ -153,10 +161,21 @@ body {
    Theme Scopes (choose tokens from palette)
    ============================================ */
 .wizard-theme-player {
-    --color-primary: var(--indigo-500);
-    --color-primary-rgb: 79, 70, 229;
-    --gradient-start: var(--indigo-500);
-    --gradient-end: var(--violet-600);
+    --color-primary: var(--brand-primary);
+    --color-primary-rgb: 14, 165, 233;
+    --gradient-start: var(--brand-primary);
+    --gradient-end: var(--brand-primary-dark);
+    --gradient-primary-start: var(--gradient-start);
+    --gradient-primary-end: var(--gradient-end);
+    --bs-primary: var(--color-primary);
+    --bs-primary-rgb: var(--color-primary-rgb);
+}
+
+.wizard-theme-team {
+    --color-primary: var(--brand-primary);
+    --color-primary-rgb: 14, 165, 233;
+    --gradient-start: var(--brand-primary);
+    --gradient-end: var(--brand-primary-dark);
     --gradient-primary-start: var(--gradient-start);
     --gradient-primary-end: var(--gradient-end);
     --bs-primary: var(--color-primary);
@@ -385,7 +404,7 @@ body {
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
     border-radius: .75rem;
-    padding: .75rem;
+    padding: .5rem;
     /* distinguish the whole area from page background */
 }
 

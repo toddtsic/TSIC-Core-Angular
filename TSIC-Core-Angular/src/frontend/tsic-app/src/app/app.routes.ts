@@ -73,6 +73,12 @@ export const routes: Routes = [
 				loadComponent: () => import('./registration-wizards/player-registration-wizard/player-registration-wizard.component').then(m => m.PlayerRegistrationWizardComponent),
 				canActivate: [anonymousJobGuard]
 			},
+			// Registration wizard route (team-specific)
+			{
+				path: 'register-team',
+				loadComponent: () => import('./registration-wizards/team-registration-wizard/team-registration-wizard.component').then(m => m.TeamRegistrationWizardComponent),
+				canActivate: [anonymousJobGuard]
+			},
 			{
 				path: 'home',
 				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),

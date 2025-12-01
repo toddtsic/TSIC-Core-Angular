@@ -1,0 +1,159 @@
+<main class="container py-4" aria-labelledby="tw-title">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <div class="text-center mb-2">
+                <h2 id="tw-title" class="mb-0 fw-bold">Team Registration</h2>
+                <div class="mt-2 tw-badge-area">
+                    <span
+                        class="badge rounded-pill bg-primary text-white px-3 py-2 text-nowrap shadow-sm d-inline-flex align-items-center gap-2 tw-badge"
+                        aria-live="polite">
+                        <i class="bi bi-person-badge" aria-hidden="true"></i>
+                        <span class="fw-bold">Club Rep - {{ currentStepLabel() }}</span>
+                    </span>
+                    <span class="ms-2 text-muted small fw-semibold tw-step-text">Step {{step}} of 2</span>
+                </div>
+            </div>
+            <div class="rw-sticky-header my-4">
+                <progress class="w-100 rw-progress" [value]="step * 50" max="100">{{ step * 50 }}%</progress>
+                <!-- Sticky top action bar -->
+                <app-tw-action-bar *ngIf="step !== 1" [canBack]="step !== 1" [canContinue]="canContinue()"
+                    [continueLabel]="continueLabel()" [showContinue]="showContinueButton()" [placement]="'top'"
+                    (back)="prevStep()" (continue)="nextStep()" />
+            </div>
+            <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-team">
+                <div class="card-body bg-surface px-4 pb-4 pt-5">
+                    <ng-container *ngIf="step === 1">
+                        <div class="mb-3">
+                            <div class="fw-semibold">Do you have a current <span class="text-primary">CLUB REP</span>
+                                username/password?</div>
+                            <div class="text-muted small mb-2">Use the credentials for your Club Rep Account only. Do
+                                not use a coach or director login.</div>
+                        </div>
+                        <fieldset class="mb-4">
+                            <legend id="clubRepLegend" class="visually-hidden">Club Rep account availability</legend>
+                            <div class="list-group list-group-flush">
+                                <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
+                                    <input class="form-check-input mt-1" type="radio" name="clubRepAccount"
+                                        [checked]="hasClubRepAccount === true" (change)="hasClubRepAccount = true" />
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold">Yes — I have a Club Rep login</div>
+                                        <div class="text-muted small mb-2">Enter your credentials below to continue.
+                                        </div>
+                                        <div *ngIf="hasClubRepAccount === true" class="rw-accent-panel-neutral mt-2">
+                                            <div class="d-flex align-items-start gap-3">
+                                                <i class="bi bi-person-lock rw-accent-icon-neutral"
+                                                    aria-hidden="true"></i>
+                                                <div class="flex-grow-1">
+                                                    <form [formGroup]="loginForm" (ngSubmit)="submitLogin()">
+                                                        <div class="row g-2 align-items-end mb-2">
+                                                            <div class="col-12 col-md-5">
+                                                                <label for="login-username"
+                                                                    class="form-label small text-muted">Username <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input id="login-username" formControlName="username"
+                                                                    class="form-control" type="text"
+                                                                    autocomplete="username" required />
+                                                            </div>
+                                                            <div class="col-12 col-md-5">
+                                                                <label for="login-password"
+                                                                    class="form-label small text-muted">Password <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input id="login-password" formControlName="password"
+                                                                    class="form-control" type="password"
+                                                                    autocomplete="current-password" required />
+                                                            </div>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary mt-2"
+                                                            [disabled]="loginForm.invalid">Sign in & Continue
+                                                            Registration</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                                <label class="list-group-item d-flex align-items-start gap-3 py-3 selectable">
+                                    <input class="form-check-input mt-1" type="radio" name="clubRepAccount"
+                                        [checked]="hasClubRepAccount === false" (change)="hasClubRepAccount = false" />
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold">No — I need to create one</div>
+                                        <div class="text-muted small mb-2">We'll help you create a Club Rep Account
+                                            before continuing.</div>
+                                        <div *ngIf="hasClubRepAccount === false" class="rw-accent-panel-neutral mt-2">
+                                            <div class="d-flex flex-column flex-md-row align-items-start gap-3">
+                                                <i class="bi bi-person-plus-fill rw-accent-icon-neutral"
+                                                    aria-hidden="true"></i>
+                                                <div class="flex-grow-1">
+                                                    <form [formGroup]="registrationForm"
+                                                        (ngSubmit)="submitRegistration()">
+                                                        <div class="mb-3">
+                                                            <label for="reg-clubName"
+                                                                class="form-label font-medium">Club Name <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input id="reg-clubName" formControlName="clubName"
+                                                                class="form-control" placeholder="Enter club name"
+                                                                required />
+                                                        </div>
+                                                        <div class="row g-2 mb-3">
+                                                            <div class="col-12 col-md-6">
+                                                                <label for="reg-firstname"
+                                                                    class="form-label font-medium">First Name <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input id="reg-firstname" formControlName="firstName"
+                                                                    class="form-control" placeholder="Enter first name"
+                                                                    required />
+                                                            </div>
+                                                            <div class="col-12 col-md-6">
+                                                                <label for="reg-lastname"
+                                                                    class="form-label font-medium">Last Name <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input id="reg-lastname" formControlName="lastName"
+                                                                    class="form-control" placeholder="Enter last name"
+                                                                    required />
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="reg-username"
+                                                                class="form-label font-medium">Username
+                                                                <span class="text-danger">*</span></label>
+                                                            <input id="reg-username" formControlName="username"
+                                                                class="form-control" placeholder="Enter username"
+                                                                autocomplete="username" required />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label for="reg-password"
+                                                                class="form-label font-medium">Password <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input id="reg-password" formControlName="password"
+                                                                class="form-control" type="password"
+                                                                placeholder="Create password"
+                                                                autocomplete="new-password" required />
+                                                            <div class="form-text small text-muted">Minimum 6 characters
+                                                            </div>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary">Create Club Rep
+                                                            Account & Continue Registration</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </fieldset>
+                    </ng-container>
+                    <ng-container *ngIf="step === 2">
+                        <!-- Team submission form goes here -->
+                        <div class="alert alert-info">Team submission step placeholder</div>
+                    </ng-container>
+                </div>
+            </div>
+            <!-- Bottom action bar -->
+            <div class="mt-3 rw-bottom-actions" *ngIf="step !== 1">
+                <app-tw-action-bar [canBack]="step !== 1" [canContinue]="canContinue()"
+                    [continueLabel]="continueLabel()" [showContinue]="showContinueButton()" [placement]="'bottom'"
+                    (back)="prevStep()" (continue)="nextStep()" />
+            </div>
+        </div>
+    </div>
+</main>

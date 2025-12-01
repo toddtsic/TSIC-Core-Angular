@@ -69,4 +69,11 @@ export class JobHomeComponent implements OnInit {
     const jp = this.jobPath();
     this.router.navigate(['/', jp, 'register-player']);
   }
+
+  // Start a fresh Team Registration flow
+  startTeamRegistration(): void {
+    try { this.authService.logoutLocal(); } catch { /* no-op */ }
+    const jp = this.jobPath();
+    this.router.navigate(['/', jp, 'register-team']);
+  }
 }

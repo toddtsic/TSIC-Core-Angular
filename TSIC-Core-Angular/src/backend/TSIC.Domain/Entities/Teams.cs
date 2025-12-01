@@ -191,11 +191,15 @@ public partial class Teams
 
     public int? GoalDiff9 { get; set; }
 
+    public int? ClubTeamId { get; set; }
+
     public virtual Agegroups Agegroup { get; set; } = null!;
 
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
 
     public virtual ICollection<ChatMessages> ChatMessages { get; set; } = new List<ChatMessages>();
+
+    public virtual ClubTeams? ClubTeam { get; set; }
 
     public virtual AspNetUsers? Clubrep { get; set; }
 
