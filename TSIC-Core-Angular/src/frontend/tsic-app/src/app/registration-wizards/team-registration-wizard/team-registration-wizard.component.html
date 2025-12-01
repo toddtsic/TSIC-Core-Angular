@@ -23,6 +23,13 @@
             <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-team">
                 <div class="card-body bg-surface px-4 pb-4 pt-5">
                     <ng-container *ngIf="step === 1">
+                        <div class="alert alert-info mb-3" role="alert">
+                            <strong>Important:</strong>
+                            <p>Only one club rep should register club teams.
+                                If multiple people take on the role of club rep for the same team you run the risk of
+                                duplicate team registrations and confusion as to the real club name.</p>
+                            <p><strong>This runs the risk of teams being removed from this event.</strong></p>
+                        </div>
                         <div class="mb-3">
                             <div class="fw-semibold">Do you have a current <span class="text-primary">CLUB REP</span>
                                 username/password?</div>
