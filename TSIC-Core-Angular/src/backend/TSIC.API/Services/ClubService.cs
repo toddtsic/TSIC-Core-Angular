@@ -22,8 +22,8 @@ public sealed class ClubService : IClubService
     public async Task<ClubRegistrationResponse> RegisterAsync(ClubRegistrationRequest request)
     {
         // Validate required fields
-        if (string.IsNullOrWhiteSpace(request.ClubName) || 
-            string.IsNullOrWhiteSpace(request.Username) || 
+        if (string.IsNullOrWhiteSpace(request.ClubName) ||
+            string.IsNullOrWhiteSpace(request.Username) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
             return new ClubRegistrationResponse(false, null, null, "Club name, username, and password are required");
@@ -31,15 +31,15 @@ public sealed class ClubService : IClubService
 
         // Check for similar existing clubs (fuzzy match)
         var similarClubs = await SearchClubsAsync(request.ClubName, request.State);
-        
+
         // If exact match found (90%+ similarity), warn user
         var exactMatch = similarClubs.FirstOrDefault(c => c.MatchScore >= 90);
         if (exactMatch != null)
         {
             return new ClubRegistrationResponse(
-                false, 
-                null, 
-                null, 
+                false,
+                null,
+                null,
                 $"A club with a very similar name already exists: '{exactMatch.ClubName}'. If this is a duplicate registration, your teams may be dropped. Please verify this is a NEW club or login to the existing club instead.",
                 similarClubs
             );
@@ -144,7 +144,7 @@ public sealed class ClubService : IClubService
         if (string.IsNullOrWhiteSpace(name)) return string.Empty;
 
         var normalized = name.ToLowerInvariant();
-        
+
         // Common lacrosse/sports abbreviations
         normalized = normalized.Replace("lax", "lacrosse")
                                .Replace("lc", "lacrosse club")
