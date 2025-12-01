@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { TwActionBarComponent } from '../shared/tw-action-bar.component';
+import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
 
 @Component({
     selector: 'app-team-registration-wizard',
@@ -19,6 +20,8 @@ export class TeamRegistrationWizardComponent {
     };
     loginForm: FormGroup;
     registrationForm: FormGroup;
+    private readonly fieldData = inject(FormFieldDataService);
+    statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
     constructor(readonly fb: FormBuilder) {
         this.loginForm = this.fb.group({
