@@ -3,9 +3,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import type { ApplyDiscountItemDto } from '../../../core/api/models/ApplyDiscountItemDto';
-import type { ApplyDiscountRequestDto } from '../../../core/api/models/ApplyDiscountRequestDto';
-import type { ApplyDiscountResponseDto } from '../../../core/api/models/ApplyDiscountResponseDto';
+import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto } from '../../../core/api/models';
 import { environment } from '../../../../environments/environment';
 
 export interface LineItem {

@@ -3,17 +3,7 @@ import { PlayerStateService } from './services/player-state.service';
 import { WaiverStateService } from './services/waiver-state.service';
 import { FormSchemaService } from './services/form-schema.service';
 import type { Loadable } from '../../core/models/state.models';
-import type { VIPlayerObjectResponse } from '../../core/api/models/VIPlayerObjectResponse';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-// Import the default environment, but we'll dynamically prefer the local dev API when running on localhost.
-import { environment } from '../../../environments/environment';
-import { FamilyPlayer, FamilyPlayerRegistration, RegSaverDetails, normalizeFormValues } from './family-players.dto';
-import type { PreSubmitRegistrationRequestDto } from '../../core/api/models/PreSubmitRegistrationRequestDto';
-import type { PreSubmitRegistrationResponseDto } from '../../core/api/models/PreSubmitRegistrationResponseDto';
-import type { PreSubmitTeamSelectionDto } from '../../core/api/models/PreSubmitTeamSelectionDto';
-import type { PreSubmitValidationErrorDto } from '../../core/api/models/PreSubmitValidationErrorDto';
-import type { FamilyPlayersResponseDto } from '../../core/api/models/FamilyPlayersResponseDto';
+import type { VIPlayerObjectResponse, PreSubmitRegistrationRequestDto, PreSubmitRegistrationResponseDto, PreSubmitTeamSelectionDto, PreSubmitValidationErrorDto, FamilyPlayersResponseDto } from '../../core/api/models';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 

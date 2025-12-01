@@ -3,8 +3,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from './insurance-state.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
-import type { InsurancePurchaseRequestDto } from '../../../core/api/models/InsurancePurchaseRequestDto';
-import type { InsurancePurchaseResponseDto } from '../../../core/api/models/InsurancePurchaseResponseDto';
+import type { InsurancePurchaseRequestDto, InsurancePurchaseResponseDto } from '../../../core/api/models';
 import { ToastService } from '../../../shared/toast.service';
 
 @Injectable({ providedIn: 'root' })

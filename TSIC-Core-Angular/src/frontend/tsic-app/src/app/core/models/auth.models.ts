@@ -1,13 +1,8 @@
-import type { FamilyUserSummaryDto as FamilyUserSummary } from '../../core/api/models/FamilyUserSummaryDto';
+import type { FamilyUserSummaryDto as FamilyUserSummary } from '../../core/api/models';
 // Re-export server-generated auth models to avoid duplication
-export type { LoginRequest } from '../../core/api/models/LoginRequest';
-export type { RegistrationDto } from '../../core/api/models/RegistrationDto';
-export type { RegistrationRoleDto } from '../../core/api/models/RegistrationRoleDto';
-export type { RoleSelectionRequest } from '../../core/api/models/RoleSelectionRequest';
-export type { RefreshTokenRequest } from '../../core/api/models/RefreshTokenRequest';
-export type { AuthTokenResponse } from '../../core/api/models/AuthTokenResponse';
+export type { LoginRequest, RegistrationDto, RegistrationRoleDto, RoleSelectionRequest, RefreshTokenRequest, AuthTokenResponse } from '../../core/api/models';
 // Keep existing LoginResponse name by aliasing the generated DTO
-export type { LoginResponseDto as LoginResponse } from '../../core/api/models/LoginResponseDto';
+export type { LoginResponseDto as LoginResponse } from '../../core/api/models';
 
 export interface AuthenticatedUser {
     username: string;

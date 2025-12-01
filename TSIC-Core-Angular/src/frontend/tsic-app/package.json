@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:tsic-app": "node dist/tsic-app/server/server.mjs",
-    "generate:api": "if not exist tmp mkdir tmp && curl -sS -k https://localhost:7215/swagger/v1/swagger.json -o tmp/swagger.json && openapi -i tmp/swagger.json -o src/app/core/api --client axios --useOptions --useUnionTypes --exportCore false --exportServices false --exportModels true --postfixServices Api --postfixModels Dto"
+    "generate:api": "nswag run nswag.json"
   },
   "private": true,
   "dependencies": {
@@ -47,7 +47,6 @@
     "karma-coverage": "2.2.0",
     "karma-jasmine": "5.1.0",
     "karma-jasmine-html-reporter": "2.1.0",
-    "typescript": "5.9.3",
-    "openapi-typescript-codegen": "^0.27.0"
+    "typescript": "5.9.3"
   }
 }

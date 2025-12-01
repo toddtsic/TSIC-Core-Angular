@@ -6,7 +6,7 @@ import { FamilyPlayer } from '../family-players.dto';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
-import type { PreSubmitValidationErrorDto } from '../../../core/api/models/PreSubmitValidationErrorDto';
+import type { PreSubmitValidationErrorDto } from '../../../core/api/models';
 
 @Component({
   selector: 'app-rw-player-forms',

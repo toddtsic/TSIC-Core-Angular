@@ -11,7 +11,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from '../services/insurance-state.service';
 import { PaymentStateService } from '../services/payment-state.service';
 import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confirm-modal.component';
-import type { PaymentResponseDto } from '../../../core/api/models/PaymentResponseDto';
+import type { PaymentResponseDto } from '../../../core/api/models';
 import { environment } from '../../../../environments/environment';
 import { TeamService } from '../team.service';
 import { ToastService } from '../../../shared/toast.service';
