@@ -311,7 +311,7 @@ export class ConstraintSelectionComponent {
   colorClassFor(playerId: string): string {
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
     let h = 0;
-    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.codePointAt(i)!) >>> 0;
     return palette[h % palette.length];
   }
 }

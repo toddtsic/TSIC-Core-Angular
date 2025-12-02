@@ -202,8 +202,8 @@ public sealed class VerticalInsureService : IVerticalInsureService
                     {
                         number = card?.Number ?? string.Empty,
                         verification = card?.Code ?? string.Empty,
-                        month = (card?.Expiry?.Length >= 2) ? card.Expiry.Substring(0, 2) : string.Empty,
-                        year = (card?.Expiry?.Length == 4) ? ("20" + card.Expiry.Substring(2, 2)) : string.Empty,
+                        month = card?.Expiry?.Length >= 2 ? card.Expiry.Substring(0, 2) : string.Empty,
+                        year = card?.Expiry?.Length == 4 ? "20" + card.Expiry.Substring(2, 2) : string.Empty,
                         name = ($"{card?.FirstName} {card?.LastName}").Trim(),
                         address_postal_code = card?.Zip ?? string.Empty
                     }

@@ -439,47 +439,63 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     private static string GetRegistrationMode(string? coreRegformPlayer, string? jsonOptions)
     {
         // 1) Prefer explicit CoreRegformPlayer if present (e.g., "CAC09|..." or "PP10|...")
-        if (!string.IsNullOrWhiteSpace(coreRegformPlayer) && coreRegformPlayer != "0" && coreRegformPlayer != "1")
-        {
-            var firstPart = coreRegformPlayer!.Split('|')[0].Trim();
-            if (firstPart.StartsWith("CAC", StringComparison.OrdinalIgnoreCase) ||
-                firstPart.Equals("CAC", StringComparison.OrdinalIgnoreCase))
-            {
-                return "CAC";
-            }
-            if (firstPart.StartsWith("PP", StringComparison.OrdinalIgnoreCase) ||
-                firstPart.Equals("PP", StringComparison.OrdinalIgnoreCase))
-            {
-                return "PP";
-            }
-        }
+        var modeFromCore = ExtractModeFromCoreProfile(coreRegformPlayer);
+        if (modeFromCore != null)
+            return modeFromCore;
 
         // 2) Fallback to JsonOptions keys if provided
-        if (!string.IsNullOrWhiteSpace(jsonOptions))
-        {
-            try
-            {
-                using var doc = JsonDocument.Parse(jsonOptions);
-                var root = doc.RootElement;
-                var keys = new[] { "registrationMode", "profileMode", "regProfileType", "registrationType" };
-                foreach (var k in keys)
-                {
-                    if (!root.TryGetProperty(k, out var el)) continue;
-                    var s = el.GetString();
-                    if (string.IsNullOrWhiteSpace(s)) continue;
-                    s = s.Trim();
-                    if (s.Equals("CAC", StringComparison.OrdinalIgnoreCase)) return "CAC";
-                    if (s.Equals("PP", StringComparison.OrdinalIgnoreCase)) return "PP";
-                }
-            }
-            catch (Exception)
-            {
-                // Ignore malformed jsonOptions; default to PP below
-            }
-        }
+        var modeFromOptions = ExtractModeFromJsonOptions(jsonOptions);
+        if (modeFromOptions != null)
+            return modeFromOptions;
 
         // 3) Default to PP to maintain backward compatibility
         return "PP";
+    }
+
+    private static string? ExtractModeFromCoreProfile(string? coreRegformPlayer)
+    {
+        if (string.IsNullOrWhiteSpace(coreRegformPlayer) || coreRegformPlayer == "0" || coreRegformPlayer == "1")
+            return null;
+
+        var firstPart = coreRegformPlayer!.Split('|')[0].Trim();
+        if (firstPart.StartsWith("CAC", StringComparison.OrdinalIgnoreCase) ||
+            firstPart.Equals("CAC", StringComparison.OrdinalIgnoreCase))
+        {
+            return "CAC";
+        }
+        if (firstPart.StartsWith("PP", StringComparison.OrdinalIgnoreCase) ||
+            firstPart.Equals("PP", StringComparison.OrdinalIgnoreCase))
+        {
+            return "PP";
+        }
+        return null;
+    }
+
+    private static string? ExtractModeFromJsonOptions(string? jsonOptions)
+    {
+        if (string.IsNullOrWhiteSpace(jsonOptions))
+            return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(jsonOptions);
+            var root = doc.RootElement;
+            var keys = new[] { "registrationMode", "profileMode", "regProfileType", "registrationType" };
+            foreach (var k in keys)
+            {
+                if (!root.TryGetProperty(k, out var el)) continue;
+                var s = el.GetString();
+                if (string.IsNullOrWhiteSpace(s)) continue;
+                s = s.Trim();
+                if (s.Equals("CAC", StringComparison.OrdinalIgnoreCase)) return "CAC";
+                if (s.Equals("PP", StringComparison.OrdinalIgnoreCase)) return "PP";
+            }
+        }
+        catch (Exception)
+        {
+            // Ignore malformed jsonOptions
+        }
+        return null;
     }
 
     private static Dictionary<string, string> BuildFieldNameToPropertyMap(string? metadataJson)
@@ -493,27 +509,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 foreach (var f in fieldsEl.EnumerateArray())
                 {
-                    var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
-                    var dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
-                    if (string.IsNullOrWhiteSpace(name)) continue;
-                    // Exclude fields marked hidden or adminOnly via visibility
-                    if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String)
+                    if (TryExtractFieldMapping(f, out var name, out var dbCol))
                     {
-                        var vis = visEl.GetString();
-                        if (string.Equals(vis, "hidden", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(vis, "adminOnly", StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
+                        map[name!] = dbCol!;
                     }
-                    // Do not include admin-only fields in the writable map
-                    if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
-                    {
-                        var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
-                                         (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
-                        if (adminFlag) continue;
-                    }
-                    map[name!] = !string.IsNullOrWhiteSpace(dbCol) ? dbCol! : name!;
                 }
             }
         }
@@ -522,6 +521,51 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             // Ignore malformed metadata and return empty map
         }
         return map;
+    }
+
+    private static bool TryExtractFieldMapping(JsonElement f, out string? name, out string? dbCol)
+    {
+        name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
+        dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
+        
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+
+        // Exclude fields marked hidden or adminOnly via visibility
+        if (IsFieldExcludedByVisibility(f))
+            return false;
+
+        // Do not include admin-only fields in the writable map
+        if (IsAdminOnlyField(f))
+            return false;
+
+        dbCol = !string.IsNullOrWhiteSpace(dbCol) ? dbCol : name;
+        return true;
+    }
+
+    private static bool IsFieldExcludedByVisibility(JsonElement f)
+    {
+        if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String)
+        {
+            var vis = visEl.GetString();
+            if (string.Equals(vis, "hidden", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(vis, "adminOnly", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsAdminOnlyField(JsonElement f)
+    {
+        if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
+        {
+            var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
+                             (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
+            return adminFlag;
+        }
+        return false;
     }
 
     // Helper: case-insensitive property lookup on JsonElement objects
@@ -660,46 +704,92 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         try
         {
             if (t == typeof(string))
-            {
-                boxed = json.ValueKind == JsonValueKind.Null ? null : json.ToString();
-                return true;
-            }
+                return TryConvertToString(json, out boxed);
             if (t == typeof(int))
-            {
-                if (json.ValueKind == JsonValueKind.String && int.TryParse(json.GetString(), out var iv)) { boxed = iv; return true; }
-                if (json.TryGetInt32(out var i)) { boxed = i; return true; }
-            }
+                return TryConvertToInt(json, out boxed);
             if (t == typeof(long))
-            {
-                if (json.ValueKind == JsonValueKind.String && long.TryParse(json.GetString(), out var lv)) { boxed = lv; return true; }
-                if (json.TryGetInt64(out var l)) { boxed = l; return true; }
-            }
+                return TryConvertToLong(json, out boxed);
             if (t == typeof(decimal))
-            {
-                if (json.ValueKind == JsonValueKind.String && decimal.TryParse(json.GetString(), out var dv)) { boxed = dv; return true; }
-                if (json.TryGetDecimal(out var d)) { boxed = d; return true; }
-            }
+                return TryConvertToDecimal(json, out boxed);
             if (t == typeof(double))
-            {
-                if (json.ValueKind == JsonValueKind.String && double.TryParse(json.GetString(), out var xv)) { boxed = xv; return true; }
-                if (json.TryGetDouble(out var x)) { boxed = x; return true; }
-            }
+                return TryConvertToDouble(json, out boxed);
             if (t == typeof(bool))
-            {
-                if (json.ValueKind == JsonValueKind.String && bool.TryParse(json.GetString(), out var bv)) { boxed = bv; return true; }
-                if (json.ValueKind == JsonValueKind.Number) { boxed = json.GetInt32() != 0; return true; }
-                if (json.ValueKind == JsonValueKind.True || json.ValueKind == JsonValueKind.False) { boxed = json.GetBoolean(); return true; }
-            }
-            if (t == typeof(DateTime) && json.ValueKind == JsonValueKind.String && DateTime.TryParse(json.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-            {
-                boxed = dt; return true;
-            }
-            if (t == typeof(Guid) && json.ValueKind == JsonValueKind.String && Guid.TryParse(json.GetString(), out var g))
-            {
-                boxed = g; return true;
-            }
+                return TryConvertToBool(json, out boxed);
+            if (t == typeof(DateTime))
+                return TryConvertToDateTime(json, out boxed);
+            if (t == typeof(Guid))
+                return TryConvertToGuid(json, out boxed);
         }
         catch { return false; }
+        return false;
+    }
+
+    private static bool TryConvertToString(JsonElement json, out object? boxed)
+    {
+        boxed = json.ValueKind == JsonValueKind.Null ? null : json.ToString();
+        return true;
+    }
+
+    private static bool TryConvertToInt(JsonElement json, out object? boxed)
+    {
+        boxed = null;
+        if (json.ValueKind == JsonValueKind.String && int.TryParse(json.GetString(), out var iv)) { boxed = iv; return true; }
+        if (json.TryGetInt32(out var i)) { boxed = i; return true; }
+        return false;
+    }
+
+    private static bool TryConvertToLong(JsonElement json, out object? boxed)
+    {
+        boxed = null;
+        if (json.ValueKind == JsonValueKind.String && long.TryParse(json.GetString(), out var lv)) { boxed = lv; return true; }
+        if (json.TryGetInt64(out var l)) { boxed = l; return true; }
+        return false;
+    }
+
+    private static bool TryConvertToDecimal(JsonElement json, out object? boxed)
+    {
+        boxed = null;
+        if (json.ValueKind == JsonValueKind.String && decimal.TryParse(json.GetString(), out var dv)) { boxed = dv; return true; }
+        if (json.TryGetDecimal(out var d)) { boxed = d; return true; }
+        return false;
+    }
+
+    private static bool TryConvertToDouble(JsonElement json, out object? boxed)
+    {
+        boxed = null;
+        if (json.ValueKind == JsonValueKind.String && double.TryParse(json.GetString(), out var xv)) { boxed = xv; return true; }
+        if (json.TryGetDouble(out var x)) { boxed = x; return true; }
+        return false;
+    }
+
+    private static bool TryConvertToBool(JsonElement json, out object? boxed)
+    {
+        boxed = null;
+        if (json.ValueKind == JsonValueKind.String && bool.TryParse(json.GetString(), out var bv)) { boxed = bv; return true; }
+        if (json.ValueKind == JsonValueKind.Number) { boxed = json.GetInt32() != 0; return true; }
+        if (json.ValueKind == JsonValueKind.True || json.ValueKind == JsonValueKind.False) { boxed = json.GetBoolean(); return true; }
+        return false;
+    }
+
+    private static bool TryConvertToDateTime(JsonElement json, out object? boxed)
+    {
+        boxed = null;
+        if (json.ValueKind == JsonValueKind.String && DateTime.TryParse(json.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+        {
+            boxed = dt;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryConvertToGuid(JsonElement json, out object? boxed)
+    {
+        boxed = null;
+        if (json.ValueKind == JsonValueKind.String && Guid.TryParse(json.GetString(), out var g))
+        {
+            boxed = g;
+            return true;
+        }
         return false;
     }
 }

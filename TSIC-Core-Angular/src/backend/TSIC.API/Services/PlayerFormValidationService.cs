@@ -10,6 +10,7 @@ namespace TSIC.API.Services;
 /// </summary>
 public class PlayerFormValidationService : IPlayerFormValidationService
 {
+    private const string RequiredErrorMessage = "Required";
     public List<PreSubmitValidationErrorDto> ValidatePlayerFormValues(string? metadataJson, List<PreSubmitTeamSelectionDto> selections)
     {
         var errors = new List<PreSubmitValidationErrorDto>();
@@ -58,54 +59,90 @@ public class PlayerFormValidationService : IPlayerFormValidationService
         var list = new List<(string, bool, string, string?, JsonElement?, string?, HashSet<string>)>();
         foreach (var f in fieldsEl.EnumerateArray())
         {
-            var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
-            if (string.IsNullOrWhiteSpace(name)) continue;
-
-            // Skip hidden or admin-only fields
-            if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String &&
-                (string.Equals(visEl.GetString(), "hidden", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(visEl.GetString(), "adminOnly", StringComparison.OrdinalIgnoreCase)))
-            {
-                continue;
-            }
-
-            // Skip admin-only fields so they are not required/validated for player form submission.
-            if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
-            {
-                var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
-                                 (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
-                if (adminFlag) continue;
-            }
-
-            var required = f.TryGetProperty("required", out var reqEl) && reqEl.ValueKind == JsonValueKind.True;
-            if (!required && f.TryGetProperty("validation", out var valEl) && valEl.ValueKind == JsonValueKind.Object)
-            {
-                if (valEl.TryGetProperty("required", out var rEl) && rEl.ValueKind == JsonValueKind.True) required = true;
-                if (valEl.TryGetProperty("requiredTrue", out var rtEl) && rtEl.ValueKind == JsonValueKind.True) required = true;
-            }
-
-            var type = f.TryGetProperty("type", out var tEl) ? (tEl.GetString() ?? "text") : "text";
-
-            string? condField = null; JsonElement? condValue = null; string? condOp = null;
-            if (f.TryGetProperty("condition", out var cEl) && cEl.ValueKind == JsonValueKind.Object)
-            {
-                condField = cEl.TryGetProperty("field", out var cfEl) ? cfEl.GetString() : null;
-                if (cEl.TryGetProperty("value", out var cvEl)) condValue = cvEl;
-                condOp = cEl.TryGetProperty("operator", out var coEl) ? coEl.GetString() : null;
-            }
-
-            var options = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (f.TryGetProperty("options", out var optEl) && optEl.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var o in optEl.EnumerateArray())
-                {
-                    if (o.ValueKind == JsonValueKind.String) options.Add(o.GetString()!);
-                }
-            }
-
-            list.Add((name!, required, type!.ToLowerInvariant(), condField, condValue, condOp, options));
+            var schema = TryBuildSchemaFromField(f);
+            if (schema.HasValue)
+                list.Add(schema.Value);
         }
         return list;
+    }
+
+    private static (string Name, bool Required, string Type, string? ConditionField, JsonElement? ConditionValue, string? ConditionOp, HashSet<string> Options)? TryBuildSchemaFromField(JsonElement f)
+    {
+        var name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
+        if (string.IsNullOrWhiteSpace(name)) return null;
+
+        if (ShouldSkipField(f)) return null;
+
+        var required = DetermineIfRequired(f);
+        var type = f.TryGetProperty("type", out var tEl) ? (tEl.GetString() ?? "text") : "text";
+        var (condField, condValue, condOp) = ExtractCondition(f);
+        var options = ExtractOptions(f);
+
+        return (name!, required, type!.ToLowerInvariant(), condField, condValue, condOp, options);
+    }
+
+    private static bool ShouldSkipField(JsonElement f)
+    {
+        if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String)
+        {
+            var vis = visEl.GetString();
+            if (string.Equals(vis, "hidden", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(vis, "adminOnly", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
+        {
+            var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
+                           (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
+            if (adminFlag) return true;
+        }
+
+        return false;
+    }
+
+    private static bool DetermineIfRequired(JsonElement f)
+    {
+        if (f.TryGetProperty("required", out var reqEl) && reqEl.ValueKind == JsonValueKind.True)
+            return true;
+
+        if (f.TryGetProperty("validation", out var valEl) && valEl.ValueKind == JsonValueKind.Object)
+        {
+            if (valEl.TryGetProperty("required", out var rEl) && rEl.ValueKind == JsonValueKind.True) 
+                return true;
+            if (valEl.TryGetProperty("requiredTrue", out var rtEl) && rtEl.ValueKind == JsonValueKind.True) 
+                return true;
+        }
+
+        return false;
+    }
+
+    private static (string? Field, JsonElement? Value, string? Op) ExtractCondition(JsonElement f)
+    {
+        if (!f.TryGetProperty("condition", out var cEl) || cEl.ValueKind != JsonValueKind.Object)
+            return (null, null, null);
+
+        var condField = cEl.TryGetProperty("field", out var cfEl) ? cfEl.GetString() : null;
+        var condValue = cEl.TryGetProperty("value", out var cvEl) ? (JsonElement?)cvEl : null;
+        var condOp = cEl.TryGetProperty("operator", out var coEl) ? coEl.GetString() : null;
+
+        return (condField, condValue, condOp);
+    }
+
+    private static HashSet<string> ExtractOptions(JsonElement f)
+    {
+        var options = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (f.TryGetProperty("options", out var optEl) && optEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var o in optEl.EnumerateArray())
+            {
+                if (o.ValueKind == JsonValueKind.String) 
+                    options.Add(o.GetString()!);
+            }
+        }
+        return options;
     }
 
     private static void ValidateSchemasForPlayer(
@@ -114,116 +151,157 @@ public class PlayerFormValidationService : IPlayerFormValidationService
         Dictionary<string, JsonElement> formValues,
         List<PreSubmitValidationErrorDto> errors)
     {
-        // Make field key lookup case-insensitive so client differences in casing (e.g., bWaiverSigned1 vs BWaiverSigned1) don't cause false "Required" errors.
         var ciFormValues = new Dictionary<string, JsonElement>(formValues, StringComparer.OrdinalIgnoreCase);
 
         foreach (var schema in schemas)
         {
-            if (schema.ConditionField != null && schema.ConditionValue.HasValue)
-            {
-                ciFormValues.TryGetValue(schema.ConditionField, out var otherVal);
-                var condOk = otherVal.ValueKind == schema.ConditionValue.Value.ValueKind && otherVal.ToString() == schema.ConditionValue.Value.ToString();
-                if (!condOk) continue;
-            }
+            if (!IsConditionSatisfied(schema.ConditionField, schema.ConditionValue, ciFormValues))
+                continue;
 
             ciFormValues.TryGetValue(schema.Name, out var valEl);
-            var present = valEl.ValueKind != JsonValueKind.Undefined && valEl.ValueKind != JsonValueKind.Null && valEl.ToString().Trim().Length > 0;
+            var present = IsValuePresent(valEl);
             var rawStr = valEl.ToString();
 
-            switch (schema.Type)
+            ValidateFieldByType(schema, playerId, present, rawStr, valEl, errors);
+        }
+    }
+
+    private static bool IsConditionSatisfied(string? conditionField, JsonElement? conditionValue, Dictionary<string, JsonElement> formValues)
+    {
+        if (conditionField == null || !conditionValue.HasValue)
+            return true;
+
+        formValues.TryGetValue(conditionField, out var otherVal);
+        return otherVal.ValueKind == conditionValue.Value.ValueKind && 
+               otherVal.ToString() == conditionValue.Value.ToString();
+    }
+
+    private static bool IsValuePresent(JsonElement valEl)
+    {
+        return valEl.ValueKind != JsonValueKind.Undefined && 
+               valEl.ValueKind != JsonValueKind.Null && 
+               valEl.ToString().Trim().Length > 0;
+    }
+
+    private static void ValidateFieldByType(
+        (string Name, bool Required, string Type, string? ConditionField, JsonElement? ConditionValue, string? ConditionOp, HashSet<string> Options) schema,
+        string playerId,
+        bool present,
+        string rawStr,
+        JsonElement valEl,
+        List<PreSubmitValidationErrorDto> errors)
+    {
+        switch (schema.Type)
+        {
+            case "number":
+                ValidateNumberField(schema.Name, schema.Required, playerId, present, rawStr, errors);
+                break;
+            case "phone":
+                ValidateDateField(schema.Name, schema.Required, playerId, present, rawStr, errors);
+                break;
+            case "select":
+                ValidateSelectField(schema.Name, schema.Required, schema.Options, playerId, present, rawStr, errors);
+                break;
+            case "multiselect":
+                ValidateMultiSelectField(schema.Name, schema.Required, schema.Options, playerId, present, valEl, errors);
+                break;
+            case "checkbox":
+                ValidateCheckboxField(schema.Name, schema.Required, playerId, present, rawStr, errors);
+                break;
+            case "text":
+            case "textarea":
+                ValidateTextField(schema.Name, schema.Required, playerId, rawStr, errors);
+                break;
+            default:
+                ValidateDefaultField(schema.Name, schema.Required, playerId, present, errors);
+                break;
+        }
+    }
+
+    private static void ValidateNumberField(string fieldName, bool required, string playerId, bool present, string rawStr, List<PreSubmitValidationErrorDto> errors)
+    {
+        if (required && !present)
+        {
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
+            return;
+        }
+        if (!present) return;
+        if (!double.TryParse(rawStr, out _))
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = "Must be a number" });
+    }
+
+    private static void ValidateDateField(string fieldName, bool required, string playerId, bool present, string rawStr, List<PreSubmitValidationErrorDto> errors)
+    {
+        if (required && !present)
+        {
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
+            return;
+        }
+        if (!present) return;
+        if (!DateTime.TryParse(rawStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = "Invalid date" });
+    }
+
+    private static void ValidateSelectField(string fieldName, bool required, HashSet<string> options, string playerId, bool present, string rawStr, List<PreSubmitValidationErrorDto> errors)
+    {
+        if (required && !present)
+        {
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
+            return;
+        }
+        if (!present) return;
+        if (options.Count > 0 && !options.Contains(rawStr))
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = "Invalid option" });
+    }
+
+    private static void ValidateMultiSelectField(string fieldName, bool required, HashSet<string> options, string playerId, bool present, JsonElement valEl, List<PreSubmitValidationErrorDto> errors)
+    {
+        if (!present)
+        {
+            if (required) 
+                errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
+            return;
+        }
+        
+        if (valEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in valEl.EnumerateArray())
             {
-                case "number":
-                    if (schema.Required && !present)
-                    {
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
-                        break;
-                    }
-                    if (!present) break;
-                    if (!double.TryParse(rawStr, out _))
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Must be a number" });
+                var s = item.ToString();
+                if (options.Count > 0 && !options.Contains(s))
+                {
+                    errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = "Invalid option" });
                     break;
-
-                case "date":
-                    if (schema.Required && !present)
-                    {
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
-                        break;
-                    }
-                    if (!present) break;
-                    if (!DateTime.TryParse(rawStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid date" });
-                    break;
-
-                case "select":
-                    if (schema.Required && !present)
-                    {
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
-                        break;
-                    }
-                    if (!present) break;
-                    if (schema.Options.Count > 0 && !schema.Options.Contains(rawStr))
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid option" });
-                    break;
-
-                case "multiselect":
-                    if (!present)
-                    {
-                        if (schema.Required) errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
-                        break;
-                    }
-                    if (valEl.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var item in valEl.EnumerateArray())
-                        {
-                            var s = item.ToString();
-                            if (schema.Options.Count > 0 && !schema.Options.Contains(s))
-                            {
-                                errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Invalid option" });
-                                break;
-                            }
-                        }
-                    }
-                    break;
-
-                case "checkbox":
-                    // For required checkboxes (e.g., waiver accepts): only evaluate if present; if missing, skip.
-                    if (!present) break;
-
-                    // Accept multiple representations of truthy values: true, "true", 1, "1", "yes", "on", "checked".
-                    bool accepted;
-                    if (valEl.ValueKind == JsonValueKind.True || valEl.ValueKind == JsonValueKind.False)
-                    {
-                        accepted = valEl.GetBoolean();
-                    }
-                    else if (valEl.ValueKind == JsonValueKind.Number)
-                    {
-                        try { accepted = valEl.GetInt32() != 0; }
-                        catch { accepted = false; }
-                    }
-                    else
-                    {
-                        var s = rawStr.Trim();
-                        accepted = string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(s, "1", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(s, "yes", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(s, "y", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(s, "on", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(s, "checked", StringComparison.OrdinalIgnoreCase);
-                    }
-                    if (schema.Required && !accepted)
-                    {
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
-                    }
-                    break;
-
-                default:
-                    if (schema.Required && !present)
-                    {
-                        errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = schema.Name, Message = "Required" });
-                    }
-                    break;
+                }
             }
         }
+    }
+
+    private static void ValidateCheckboxField(string fieldName, bool required, string playerId, bool present, string rawStr, List<PreSubmitValidationErrorDto> errors)
+    {
+        if (!present) return;
+
+        var accepted = string.Equals(rawStr, "true", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(rawStr, "yes", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(rawStr, "1", StringComparison.Ordinal) ||
+                       string.Equals(rawStr, "y", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(rawStr, "on", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(rawStr, "checked", StringComparison.OrdinalIgnoreCase);
+
+        if (required && !accepted)
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
+    }
+
+    private static void ValidateTextField(string fieldName, bool required, string playerId, string rawStr, List<PreSubmitValidationErrorDto> errors)
+    {
+        if (required && string.IsNullOrWhiteSpace(rawStr))
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
+    }
+
+    private static void ValidateDefaultField(string fieldName, bool required, string playerId, bool present, List<PreSubmitValidationErrorDto> errors)
+    {
+        if (required && !present)
+            errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
     }
 
     private static bool TryGetPropertyCI(JsonElement element, string propertyName, out JsonElement value)

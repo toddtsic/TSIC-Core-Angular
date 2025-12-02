@@ -15,7 +15,7 @@ export interface SelectOption {
 export class FormFieldDataService {
 
     // Job-specific options loaded dynamically (from Jobs.JsonOptions)
-    private _jobOptions = signal<Record<string, SelectOption[]> | null>(null);
+    private readonly _jobOptions = signal<Record<string, SelectOption[]> | null>(null);
 
     /**
      * Load job-specific options from Jobs.JsonOptions
@@ -179,7 +179,7 @@ export class FormFieldDataService {
      * Examples: "positions" -> "List_Positions", "jerseySize" -> "ListSizes_Jersey"
      */
     private findJobOptionsKey(jobOptions: Record<string, SelectOption[]>, dataSource: string): string | null {
-        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normalize = (s: string) => s.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
         const dsNorm = normalize(dataSource);
 
         // Exact match

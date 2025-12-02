@@ -84,30 +84,8 @@ public sealed class FamilyService : IFamilyService
             .Where(j => j.JobPath != null && EF.Functions.Collate(j.JobPath!, "SQL_Latin1_General_CP1_CI_AS") == jobPath)
             .Select(j => (Guid?)j.JobId)
             .FirstOrDefaultAsync();
-        // Determine discount code activity and AMEX allowance when job context is known
-        bool jobHasActiveDiscountCodes = false;
-        bool jobUsesAmex = false;
-        if (jobId != null)
-        {
-            var now = DateTime.UtcNow;
-            jobHasActiveDiscountCodes = await _db.JobDiscountCodes
-                .AsNoTracking()
-                .AnyAsync(dc => dc.JobId == jobId && dc.Active && dc.CodeStartDate <= now && dc.CodeEndDate >= now);
 
-            // Pull CustomerId and evaluate against configured client id list for Amex allowance
-            var jobMeta = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId)
-                .Select(j => new { j.CustomerId }).FirstOrDefaultAsync();
-            if (jobMeta != null)
-            {
-                try
-                {
-                    var amexIds = _config.GetSection("PaymentMethods_NonMCVisa_ClientIds:Amex").Get<string[]>() ?? Array.Empty<string>();
-                    var cust = jobMeta.CustomerId.ToString();
-                    jobUsesAmex = amexIds.Any(id => string.Equals(id, cust, StringComparison.OrdinalIgnoreCase));
-                }
-                catch { jobUsesAmex = false; }
-            }
-        }
+        var (jobHasActiveDiscountCodes, jobUsesAmex) = await GetJobPaymentFeaturesAsync(jobId);
 
         var linkedChildIds = await _db.FamilyMembers
             .AsNoTracking()
@@ -119,76 +97,18 @@ public sealed class FamilyService : IFamilyService
         var fam = await _db.Families.AsNoTracking().SingleOrDefaultAsync(f => f.FamilyUserId == familyUserId);
         var asp = await _db.AspNetUsers.AsNoTracking().SingleOrDefaultAsync(u => u.Id == familyUserId);
 
-        string display;
-        if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
-            display = $"{fam?.MomFirstName} {fam?.MomLastName}".Trim();
-        else if (!string.IsNullOrWhiteSpace(fam?.DadFirstName) || !string.IsNullOrWhiteSpace(fam?.DadLastName))
-            display = $"{fam?.DadFirstName} {fam?.DadLastName}".Trim();
-        else if (!string.IsNullOrWhiteSpace(asp?.FirstName) || !string.IsNullOrWhiteSpace(asp?.LastName))
-            display = $"{asp?.FirstName} {asp?.LastName}".Trim();
-        else
-            display = asp?.UserName ?? "Family";
-
-        var familyUser = new FamilyUserSummaryDto { FamilyUserId = familyUserId, DisplayName = display, UserName = asp?.UserName ?? string.Empty };
-
-        // Build credit card info (prefer mom, then dad, then asp user)
-        string? ccFirst = null;
-        string? ccLast = null;
-        if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
-        {
-            ccFirst = fam?.MomFirstName?.Trim();
-            ccLast = fam?.MomLastName?.Trim();
-        }
-        else if (!string.IsNullOrWhiteSpace(fam?.DadFirstName) || !string.IsNullOrWhiteSpace(fam?.DadLastName))
-        {
-            ccFirst = fam?.DadFirstName?.Trim();
-            ccLast = fam?.DadLastName?.Trim();
-        }
-        else if (!string.IsNullOrWhiteSpace(asp?.FirstName) || !string.IsNullOrWhiteSpace(asp?.LastName))
-        {
-            ccFirst = asp?.FirstName?.Trim();
-            ccLast = asp?.LastName?.Trim();
-        }
-        var ccStreet = asp?.StreetAddress?.Trim();
-        var ccZip = asp?.PostalCode?.Trim();
-        var ccEmail = !string.IsNullOrWhiteSpace(fam?.MomEmail) ? fam!.MomEmail!.Trim() : (asp?.Email?.Trim());
-        var ccPhone = !string.IsNullOrWhiteSpace(fam?.MomCellphone) ? fam!.MomCellphone!.Trim() : (asp?.Cellphone?.Trim() ?? asp?.Phone?.Trim());
-        var ccInfo = new CcInfoDto { FirstName = ccFirst, LastName = ccLast, StreetAddress = ccStreet, Zip = ccZip, Email = ccEmail, Phone = ccPhone };
+        var familyUser = BuildFamilyUserSummary(familyUserId, fam, asp);
+        var ccInfo = BuildCreditCardInfo(fam, asp);
 
         if (linkedChildIds.Count == 0)
             return new FamilyPlayersResponseDto { FamilyUser = familyUser, FamilyPlayers = Enumerable.Empty<FamilyPlayerDto>(), CcInfo = ccInfo, JobHasActiveDiscountCodes = jobHasActiveDiscountCodes, JobUsesAmex = jobUsesAmex };
 
-        // Capture registrations query separately so we can emit SQL for diagnostics (Dev only)
-        List<TSIC.Domain.Entities.Registrations> regsRaw;
-        if (jobId == null)
-        {
-            regsRaw = new List<TSIC.Domain.Entities.Registrations>();
-        }
-        else
-        {
-            var regsQuery = _db.Registrations
-                .AsNoTracking()
-                .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && linkedChildIds.Contains(r.UserId));
-            regsRaw = await regsQuery.ToListAsync();
-        }
-
+        // Load registrations for this job
+        var regsRaw = await LoadRegistrationsForJobAsync(jobId, familyUserId, linkedChildIds);
         var regSet = regsRaw.Select(x => x.UserId!).Distinct().ToHashSet(StringComparer.Ordinal);
 
-        string? metadataJson = null;
-        string? rawJsonOptions = null;
-        if (jobId != null)
-        {
-            metadataJson = await _db.Jobs
-                .AsNoTracking()
-                .Where(j => j.JobId == jobId)
-                .Select(j => j.PlayerProfileMetadataJson)
-                .SingleOrDefaultAsync();
-            rawJsonOptions = await _db.Jobs
-                .AsNoTracking()
-                .Where(j => j.JobId == jobId)
-                .Select(j => j.JsonOptions)
-                .SingleOrDefaultAsync();
-        }
+        // Fetch metadata and options
+        var (metadataJson, rawJsonOptions) = await GetJobMetadataAndOptionsAsync(jobId);
 
         // Parse metadata/options via reusable service
         var parsed = _profileMeta.Parse(metadataJson, rawJsonOptions);
@@ -197,185 +117,41 @@ public sealed class FamilyService : IFamilyService
         var waiverFieldNames = parsed.WaiverFieldNames;
         var visibleFieldNames = parsed.VisibleFieldNames;
 
-        var teamNameMap = new Dictionary<Guid, string>();
-        if (jobId != null)
-        {
-            var teamIds = regsRaw.Where(x => x.AssignedTeamId.HasValue).Select(x => x.AssignedTeamId!.Value).Distinct().ToList();
-            if (teamIds.Count > 0)
-            {
-                teamNameMap = await _db.Teams
-                    .AsNoTracking()
-                    .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
-                    .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty);
-            }
-        }
+        // Build team name lookup
+        var teamNameMap = await BuildTeamNameMapAsync(jobId, regsRaw);
 
-        // visibleFieldNames provided by metadata service
-
+        // Build registration DTOs by user
         var regsByUser = regsRaw
             .GroupBy(r => r.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(r =>
-                {
-                    var fv = BuildFormValuesDictionary(r, mappedFields);
-                    IReadOnlyDictionary<string, JsonElement>? formFieldValues = null;
-                    if (visibleFieldNames.Count > 0)
-                    {
-                        var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-                        foreach (var name in visibleFieldNames)
-                        {
-                            if (fv.TryGetValue(name, out var found))
-                            {
-                                var clone = JsonDocument.Parse(found.GetRawText()).RootElement.Clone();
-                                dict[name] = clone;
-                            }
-                        }
-                        formFieldValues = dict;
-                    }
-
-                    return new FamilyPlayerRegistrationDto
-                    {
-                        RegistrationId = r.RegistrationId,
-                        Active = r.BActive == true,
-                        Financials = new RegistrationFinancialsDto
-                        {
-                            FeeBase = r.FeeBase,
-                            FeeProcessing = r.FeeProcessing,
-                            FeeDiscount = r.FeeDiscount,
-                            FeeDonation = r.FeeDonation,
-                            FeeLateFee = r.FeeLatefee,
-                            FeeTotal = r.FeeTotal,
-                            OwedTotal = r.OwedTotal,
-                            PaidTotal = r.PaidTotal
-                        },
-                        AssignedTeamId = r.AssignedTeamId,
-                        AssignedTeamName = r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) ? teamNameMap[r.AssignedTeamId.Value] : null,
-                        AdnSubscriptionId = r.AdnSubscriptionId,
-                        AdnSubscriptionStatus = r.AdnSubscriptionStatus,
-                        AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
-                        AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences.HasValue ? (short?)r.AdnSubscriptionBillingOccurences.Value : null,
-                        AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength.HasValue ? (short?)r.AdnSubscriptionIntervalLength.Value : null,
-                        AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
-                        FormFieldValues = formFieldValues ?? new Dictionary<string, JsonElement>()
-                    };
-                }).ToList(),
+                g => g.Select(r => BuildRegistrationDto(r, mappedFields, visibleFieldNames, teamNameMap)).ToList(),
                 StringComparer.Ordinal);
 
         // For players not yet registered in this job, compute latest defaults across ALL jobs.
-        // Load all registrations for linked children ordered by Modified desc (most recent first).
-        var allRegsForChildren = await _db.Registrations
-            .AsNoTracking()
-            .Where(r => r.UserId != null && linkedChildIds.Contains(r.UserId))
-            .OrderByDescending(r => r.Modified)
-            .ThenByDescending(r => r.RegistrationTs)
-            .ToListAsync();
-        var allRegsByUser = allRegsForChildren
-            .GroupBy(r => r.UserId!)
-            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+        var allRegsByUser = await LoadAllRegistrationsByUserAsync(linkedChildIds);
 
-        RegSaverDetailsDto? regSaver = null;
-        var regSaverRaw = jobId == null ? null : await _db.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.RegsaverPolicyId != null)
-            .OrderByDescending(r => r.BActive == true)
-            .ThenByDescending(r => r.RegsaverPolicyIdCreateDate)
-            .Select(r => new { r.RegsaverPolicyId, r.RegsaverPolicyIdCreateDate })
-            .FirstOrDefaultAsync();
-        if (regSaverRaw != null && !string.IsNullOrWhiteSpace(regSaverRaw.RegsaverPolicyId) && regSaverRaw.RegsaverPolicyIdCreateDate.HasValue)
-        {
-            regSaver = new RegSaverDetailsDto { PolicyNumber = regSaverRaw.RegsaverPolicyId, PolicyCreateDate = regSaverRaw.RegsaverPolicyIdCreateDate.Value };
-        }
+        // Extract RegSaver details
+        var regSaver = await ExtractRegSaverDetailsAsync(jobId, familyUserId);
 
+        // Build player DTOs
         var children = await _db.AspNetUsers
             .AsNoTracking()
             .Where(u => linkedChildIds.Contains(u.Id))
             .ToListAsync();
 
-        var players = children.Select(c =>
-        {
-            var prior = regsByUser.TryGetValue(c.Id, out var list) ? (IReadOnlyList<FamilyPlayerRegistrationDto>)list : Array.Empty<FamilyPlayerRegistrationDto>();
-            var registered = regSet.Contains(c.Id);
-            IReadOnlyDictionary<string, JsonElement>? defaults = null;
-            if (!registered && jobId != null && mappedFields.Count > 0 && visibleFieldNames.Count > 0)
-            {
-                if (allRegsByUser.TryGetValue(c.Id, out var history) && history.Count > 0)
-                {
-                    defaults = BuildLatestVisibleFieldValues(history, mappedFields, visibleFieldNames);
-                }
-                else
-                {
-                    defaults = new Dictionary<string, JsonElement>();
-                }
-            }
-            return new FamilyPlayerDto
-            {
-                PlayerId = c.Id,
-                FirstName = c.FirstName ?? string.Empty,
-                LastName = c.LastName ?? string.Empty,
-                Gender = c.Gender ?? string.Empty,
-                Dob = c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
-                Registered = registered,
-                Selected = registered,
-                PriorRegistrations = prior,
-                DefaultFieldValues = defaults
-            };
-        })
-        .OrderBy(p => p.LastName)
-        .ThenBy(p => p.FirstName)
-        .ToList();
+        var players = BuildPlayerDtos(children, regsByUser, regSet, allRegsByUser, jobId, mappedFields, visibleFieldNames);
 
         if (jobId != null && typedFields.Count == 0)
         {
             throw new InvalidOperationException("Job profile metadata has no fields; this job must define fields.");
         }
 
+        // Build job registration form DTO
         JobRegFormDto? jobRegForm = null;
         if (typedFields.Count > 0)
         {
-            string? constraintType = null;
-            if (!string.IsNullOrWhiteSpace(metadataJson) && jobId != null)
-            {
-                var job = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId).Select(j => new { j.JsonOptions, j.CoreRegformPlayer }).FirstOrDefaultAsync();
-                string? coreProfile = job?.CoreRegformPlayer;
-                if (string.IsNullOrWhiteSpace(rawJsonOptions)) rawJsonOptions = job?.JsonOptions;
-                if (!string.IsNullOrWhiteSpace(coreProfile) && coreProfile != "0" && coreProfile != "1")
-                {
-                    var parts = coreProfile.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    foreach (var p in parts)
-                    {
-                        var up = p.ToUpperInvariant();
-                        if (up is "BYGRADYEAR" or "BYAGEGROUP" or "BYAGERANGE" or "BYCLUBNAME")
-                        {
-                            constraintType = up;
-                            break;
-                        }
-                    }
-                }
-                var versionSeed = $"{jobId}-{metadataJson?.Length ?? 0}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";
-                var version = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(versionSeed))).Substring(0, 16);
-                jobRegForm = new JobRegFormDto
-                {
-                    Version = version,
-                    CoreProfileName = coreProfile,
-                    Fields = typedFields.Select(tf => new JobRegFieldDto
-                    {
-                        Name = tf.Name,
-                        DbColumn = tf.DbColumn,
-                        DisplayName = string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
-                        InputType = string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
-                        DataSource = tf.DataSource,
-                        Options = tf.Options,
-                        Validation = tf.Validation,
-                        Order = tf.Order,
-                        Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
-                        Computed = tf.Computed,
-                        ConditionalOn = tf.ConditionalOn
-                    }).ToList(),
-                    WaiverFieldNames = waiverFieldNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                    ConstraintType = constraintType
-                };
-            }
+            jobRegForm = await BuildJobRegFormDtoAsync(jobId, metadataJson, rawJsonOptions, typedFields, waiverFieldNames);
         }
 
         return new FamilyPlayersResponseDto { FamilyUser = familyUser, FamilyPlayers = players, RegSaverDetails = regSaver, JobRegForm = jobRegForm, CcInfo = ccInfo, JobHasActiveDiscountCodes = jobHasActiveDiscountCodes, JobUsesAmex = jobUsesAmex };
@@ -662,5 +438,343 @@ public sealed class FamilyService : IFamilyService
         };
         _db.FamilyMembers.Add(fm);
         return (true, null);
+    }
+
+    private async Task<(bool HasActiveDiscountCodes, bool UsesAmex)> GetJobPaymentFeaturesAsync(Guid? jobId)
+    {
+        if (jobId == null) return (false, false);
+
+        var now = DateTime.UtcNow;
+        var hasActiveDiscountCodes = await _db.JobDiscountCodes
+            .AsNoTracking()
+            .AnyAsync(dc => dc.JobId == jobId && dc.Active && dc.CodeStartDate <= now && dc.CodeEndDate >= now);
+
+        var jobMeta = await _db.Jobs.AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.CustomerId })
+            .FirstOrDefaultAsync();
+
+        var usesAmex = false;
+        if (jobMeta != null)
+        {
+            try
+            {
+                var amexIds = _config.GetSection("PaymentMethods_NonMCVisa_ClientIds:Amex").Get<string[]>() ?? Array.Empty<string>();
+                var cust = jobMeta.CustomerId.ToString();
+                usesAmex = amexIds.Exists(id => string.Equals(id, cust, StringComparison.OrdinalIgnoreCase));
+            }
+            catch { usesAmex = false; }
+        }
+
+        return (hasActiveDiscountCodes, usesAmex);
+    }
+
+    private static FamilyUserSummaryDto BuildFamilyUserSummary(string familyUserId, Families? fam, AspNetUsers? asp)
+    {
+        string display;
+        if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
+            display = $"{fam?.MomFirstName} {fam?.MomLastName}".Trim();
+        else if (!string.IsNullOrWhiteSpace(fam?.DadFirstName) || !string.IsNullOrWhiteSpace(fam?.DadLastName))
+            display = $"{fam?.DadFirstName} {fam?.DadLastName}".Trim();
+        else if (!string.IsNullOrWhiteSpace(asp?.FirstName) || !string.IsNullOrWhiteSpace(asp?.LastName))
+            display = $"{asp?.FirstName} {asp?.LastName}".Trim();
+        else
+            display = asp?.UserName ?? "Family";
+
+        return new FamilyUserSummaryDto 
+        { 
+            FamilyUserId = familyUserId, 
+            DisplayName = display, 
+            UserName = asp?.UserName ?? string.Empty 
+        };
+    }
+
+    private static CcInfoDto BuildCreditCardInfo(Families? fam, AspNetUsers? asp)
+    {
+        string? ccFirst = null;
+        string? ccLast = null;
+
+        if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
+        {
+            ccFirst = fam?.MomFirstName?.Trim();
+            ccLast = fam?.MomLastName?.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(fam?.DadFirstName) || !string.IsNullOrWhiteSpace(fam?.DadLastName))
+        {
+            ccFirst = fam?.DadFirstName?.Trim();
+            ccLast = fam?.DadLastName?.Trim();
+        }
+        else if (!string.IsNullOrWhiteSpace(asp?.FirstName) || !string.IsNullOrWhiteSpace(asp?.LastName))
+        {
+            ccFirst = asp?.FirstName?.Trim();
+            ccLast = asp?.LastName?.Trim();
+        }
+
+        var ccStreet = asp?.StreetAddress?.Trim();
+        var ccZip = asp?.PostalCode?.Trim();
+        var ccEmail = !string.IsNullOrWhiteSpace(fam?.MomEmail) ? fam!.MomEmail!.Trim() : asp?.Email?.Trim();
+        var ccPhone = !string.IsNullOrWhiteSpace(fam?.MomCellphone) ? fam!.MomCellphone!.Trim() : (asp?.Cellphone?.Trim() ?? asp?.Phone?.Trim());
+
+        return new CcInfoDto 
+        { 
+            FirstName = ccFirst, 
+            LastName = ccLast, 
+            StreetAddress = ccStreet, 
+            Zip = ccZip, 
+            Email = ccEmail, 
+            Phone = ccPhone 
+        };
+    }
+
+    private static FamilyPlayerRegistrationDto BuildRegistrationDto(
+        TSIC.Domain.Entities.Registrations r, 
+        Dictionary<string, string> mappedFields,
+        HashSet<string> visibleFieldNames,
+        Dictionary<Guid, string> teamNameMap)
+    {
+        var fv = BuildFormValuesDictionary(r, mappedFields);
+        var formFieldValues = BuildVisibleFieldValues(fv, visibleFieldNames);
+
+        return new FamilyPlayerRegistrationDto
+        {
+            RegistrationId = r.RegistrationId,
+            Active = r.BActive == true,
+            Financials = new RegistrationFinancialsDto
+            {
+                FeeBase = r.FeeBase,
+                FeeProcessing = r.FeeProcessing,
+                FeeDiscount = r.FeeDiscount,
+                FeeDonation = r.FeeDonation,
+                FeeLateFee = r.FeeLatefee,
+                FeeTotal = r.FeeTotal,
+                OwedTotal = r.OwedTotal,
+                PaidTotal = r.PaidTotal
+            },
+            AssignedTeamId = r.AssignedTeamId,
+            AssignedTeamName = r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) 
+                ? teamNameMap[r.AssignedTeamId.Value] 
+                : null,
+            AdnSubscriptionId = r.AdnSubscriptionId,
+            AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+            AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+            AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences.HasValue 
+                ? (short?)r.AdnSubscriptionBillingOccurences.Value 
+                : null,
+            AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength.HasValue 
+                ? (short?)r.AdnSubscriptionIntervalLength.Value 
+                : null,
+            AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+            FormFieldValues = formFieldValues
+        };
+    }
+
+    private async Task<List<TSIC.Domain.Entities.Registrations>> LoadRegistrationsForJobAsync(
+        Guid? jobId,
+        string familyUserId,
+        List<string> linkedChildIds)
+    {
+        if (jobId == null)
+            return new List<TSIC.Domain.Entities.Registrations>();
+
+        var regsQuery = _db.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && linkedChildIds.Contains(r.UserId));
+        return await regsQuery.ToListAsync();
+    }
+
+    private async Task<(string? metadataJson, string? rawJsonOptions)> GetJobMetadataAndOptionsAsync(Guid? jobId)
+    {
+        if (jobId == null)
+            return (null, null);
+
+        var metadataJson = await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.PlayerProfileMetadataJson)
+            .SingleOrDefaultAsync();
+
+        var rawJsonOptions = await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.JsonOptions)
+            .SingleOrDefaultAsync();
+
+        return (metadataJson, rawJsonOptions);
+    }
+
+    private async Task<Dictionary<Guid, string>> BuildTeamNameMapAsync(
+        Guid? jobId,
+        List<TSIC.Domain.Entities.Registrations> regsRaw)
+    {
+        var teamNameMap = new Dictionary<Guid, string>();
+        if (jobId != null)
+        {
+            var teamIds = regsRaw.Where(x => x.AssignedTeamId.HasValue).Select(x => x.AssignedTeamId!.Value).Distinct().ToList();
+            if (teamIds.Count > 0)
+            {
+                teamNameMap = await _db.Teams
+                    .AsNoTracking()
+                    .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+                    .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty);
+            }
+        }
+        return teamNameMap;
+    }
+
+    private async Task<Dictionary<string, List<TSIC.Domain.Entities.Registrations>>> LoadAllRegistrationsByUserAsync(List<string> linkedChildIds)
+    {
+        var allRegsForChildren = await _db.Registrations
+            .AsNoTracking()
+            .Where(r => r.UserId != null && linkedChildIds.Contains(r.UserId))
+            .OrderByDescending(r => r.Modified)
+            .ThenByDescending(r => r.RegistrationTs)
+            .ToListAsync();
+        
+        return allRegsForChildren
+            .GroupBy(r => r.UserId!)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
+    }
+
+    private async Task<RegSaverDetailsDto?> ExtractRegSaverDetailsAsync(Guid? jobId, string familyUserId)
+    {
+        if (jobId == null)
+            return null;
+
+        var regSaverRaw = await _db.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.RegsaverPolicyId != null)
+            .OrderByDescending(r => r.BActive == true)
+            .ThenByDescending(r => r.RegsaverPolicyIdCreateDate)
+            .Select(r => new { r.RegsaverPolicyId, r.RegsaverPolicyIdCreateDate })
+            .FirstOrDefaultAsync();
+
+        if (regSaverRaw != null && !string.IsNullOrWhiteSpace(regSaverRaw.RegsaverPolicyId) && regSaverRaw.RegsaverPolicyIdCreateDate.HasValue)
+        {
+            return new RegSaverDetailsDto { PolicyNumber = regSaverRaw.RegsaverPolicyId, PolicyCreateDate = regSaverRaw.RegsaverPolicyIdCreateDate.Value };
+        }
+        return null;
+    }
+
+    private static List<FamilyPlayerDto> BuildPlayerDtos(
+        List<AspNetUsers> children,
+        Dictionary<string, List<FamilyPlayerRegistrationDto>> regsByUser,
+        HashSet<string> regSet,
+        Dictionary<string, List<TSIC.Domain.Entities.Registrations>> allRegsByUser,
+        Guid? jobId,
+        List<(string Name, string DbColumn)> mappedFields,
+        HashSet<string> visibleFieldNames)
+    {
+        return children.Select(c =>
+        {
+            var prior = regsByUser.TryGetValue(c.Id, out var list) ? (IReadOnlyList<FamilyPlayerRegistrationDto>)list : Array.Empty<FamilyPlayerRegistrationDto>();
+            var registered = regSet.Contains(c.Id);
+            IReadOnlyDictionary<string, JsonElement>? defaults = null;
+            if (!registered && jobId != null && mappedFields.Count > 0 && visibleFieldNames.Count > 0)
+            {
+                if (allRegsByUser.TryGetValue(c.Id, out var history) && history.Count > 0)
+                {
+                    defaults = BuildLatestVisibleFieldValues(history, mappedFields, visibleFieldNames);
+                }
+                else
+                {
+                    defaults = new Dictionary<string, JsonElement>();
+                }
+            }
+            return new FamilyPlayerDto
+            {
+                PlayerId = c.Id,
+                FirstName = c.FirstName ?? string.Empty,
+                LastName = c.LastName ?? string.Empty,
+                Gender = c.Gender ?? string.Empty,
+                Dob = c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
+                Registered = registered,
+                Selected = registered,
+                PriorRegistrations = prior,
+                DefaultFieldValues = defaults
+            };
+        })
+        .OrderBy(p => p.LastName)
+        .ThenBy(p => p.FirstName)
+        .ToList();
+    }
+
+    private async Task<JobRegFormDto?> BuildJobRegFormDtoAsync(
+        Guid? jobId,
+        string? metadataJson,
+        string? rawJsonOptions,
+        List<PlayerProfileFieldTyped> typedFields,
+        List<string> waiverFieldNames)
+    {
+        string? constraintType = null;
+        if (!string.IsNullOrWhiteSpace(metadataJson) && jobId != null)
+        {
+            var job = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId).Select(j => new { j.JsonOptions, j.CoreRegformPlayer }).FirstOrDefaultAsync();
+            string? coreProfile = job?.CoreRegformPlayer;
+            if (string.IsNullOrWhiteSpace(rawJsonOptions)) rawJsonOptions = job?.JsonOptions;
+            
+            constraintType = ExtractConstraintType(coreProfile);
+
+            var versionSeed = $"{jobId}-{metadataJson?.Length ?? 0}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";
+            var version = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(versionSeed))).Substring(0, 16);
+            
+            return new JobRegFormDto
+            {
+                Version = version,
+                CoreProfileName = coreProfile,
+                Fields = typedFields.Select(tf => new JobRegFieldDto
+                {
+                    Name = tf.Name,
+                    DbColumn = tf.DbColumn,
+                    DisplayName = string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
+                    InputType = string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
+                    DataSource = tf.DataSource,
+                    Options = tf.Options,
+                    Validation = tf.Validation,
+                    Order = tf.Order,
+                    Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
+                    Computed = tf.Computed,
+                    ConditionalOn = tf.ConditionalOn
+                }).ToList(),
+                WaiverFieldNames = waiverFieldNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                ConstraintType = constraintType
+            };
+        }
+        return null;
+    }
+
+    private static string? ExtractConstraintType(string? coreProfile)
+    {
+        if (string.IsNullOrWhiteSpace(coreProfile) || coreProfile == "0" || coreProfile == "1")
+            return null;
+
+        var parts = coreProfile.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var p in parts)
+        {
+            var up = p.ToUpperInvariant();
+            if (up is "BYGRADYEAR" or "BYAGEGROUP" or "BYAGERANGE" or "BYCLUBNAME")
+            {
+                return up;
+            }
+        }
+        return null;
+    }
+
+    private static IReadOnlyDictionary<string, JsonElement> BuildVisibleFieldValues(
+        Dictionary<string, JsonElement> allFieldValues,
+        HashSet<string> visibleFieldNames)
+    {
+        if (visibleFieldNames.Count == 0)
+            return new Dictionary<string, JsonElement>();
+
+        var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var name in visibleFieldNames)
+        {
+            if (allFieldValues.TryGetValue(name, out var found))
+            {
+                var clone = JsonDocument.Parse(found.GetRawText()).RootElement.Clone();
+                dict[name] = clone;
+            }
+        }
+        return dict;
     }
 }

@@ -262,7 +262,7 @@ export class TeamSelectionComponent {
   isPlayerFullyLocked(playerId: string): boolean {
     try {
       const fp = this.wizard.familyPlayers().find(p => p.playerId === playerId);
-      if (!fp || !(fp.priorRegistrations?.length)) return false;
+      if (!fp?.priorRegistrations?.length) return false;
       return fp.priorRegistrations.every(r => (r.financials?.paidTotal ?? 0) > 0);
     } catch { return false; }
   }
@@ -502,7 +502,7 @@ export class TeamSelectionComponent {
   priceForTeam(id: string): number | null {
     const all = this.teamService.filterByEligibility(null);
     const fee = all.find(t => t.teamId === id)?.perRegistrantFee as number | undefined;
-    return fee != null ? fee : null;
+    return fee ?? null;
   }
   removeTeam(playerId: string, teamId: string) {
     // Only registered players are locked via isRegistered
@@ -564,7 +564,7 @@ export class TeamSelectionComponent {
   colorClassFor(playerId: string): string {
     const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
     let h = 0;
-    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.codePointAt(i)!) >>> 0;
     return palette[h % palette.length];
   }
 }
