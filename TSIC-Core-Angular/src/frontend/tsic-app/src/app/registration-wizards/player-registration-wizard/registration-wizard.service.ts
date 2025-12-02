@@ -526,21 +526,21 @@ export class RegistrationWizardService {
         try {
             const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
             const schemaNameByLower = this.buildSchemaLookup(schemas);
-            
+
             for (const player of this.familyPlayers()) {
                 if (!player.registered || !player.priorRegistrations?.length) continue;
                 if (!current[player.playerId]) continue;
 
                 const latestRegistration = player.priorRegistrations.at(-1);
                 const formFieldValues = latestRegistration?.formFieldValues || {};
-                
+
                 this.copyFormFieldValues(
-                    formFieldValues, 
-                    current[player.playerId], 
+                    formFieldValues,
+                    current[player.playerId],
                     schemaNameByLower
                 );
             }
-            
+
             this.playerFormValues.set(current);
         } catch (e) {
             console.debug('[RegWizard] Prior registration seed failed', e);
@@ -566,12 +566,12 @@ export class RegistrationWizardService {
         try {
             const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
             const schemaNameByLower = this.buildSchemaLookup(schemas);
-            
+
             for (const player of this.familyPlayers()) {
                 if (this.shouldSkipPlayerForDefaults(player)) continue;
                 this.applyDefaultsToPlayer(player, current, schemaNameByLower);
             }
-            
+
             this.playerFormValues.set(current);
         } catch (e) {
             console.debug('[RegWizard] Default values seed failed', e);
@@ -615,13 +615,13 @@ export class RegistrationWizardService {
     private resolveFieldName(rawKey: string, schemaNameByLower: Record<string, string>): string | null {
         const kLower = rawKey.toLowerCase();
         let targetName = schemaNameByLower[kLower];
-        
+
         if (!targetName) {
             const alias = this.formSchema.aliasFieldMap();
             const foundAlias = Object.keys(alias).find(a => a.toLowerCase() === kLower);
             if (foundAlias) targetName = alias[foundAlias];
         }
-        
+
         return targetName || null;
     }
 
@@ -1002,7 +1002,7 @@ export class RegistrationWizardService {
     private togglePlayerInList(playerId: string): boolean {
         const list = this.familyPlayers();
         let becameSelected = false;
-        
+
         this.familyPlayers.set(list.map(p => {
             if (p.playerId !== playerId) return p;
             if (p.registered) return p; // locked
@@ -1010,7 +1010,7 @@ export class RegistrationWizardService {
             if (nextSelected && !p.selected) becameSelected = true;
             return { ...p, selected: nextSelected };
         }));
-        
+
         return becameSelected;
     }
 
@@ -1041,14 +1041,14 @@ export class RegistrationWizardService {
         const df = fam.defaultFieldValues;
         const schemaNameByLower: Record<string, string> = {};
         for (const s of schemas) schemaNameByLower[s.name.toLowerCase()] = s.name;
-        
+
         const alias = this.formSchema.aliasFieldMap();
         const curVals = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
         const target = curVals[playerId];
 
         for (const [rawK, rawV] of Object.entries(df)) {
             if (rawV == null || rawV === '') continue;
-            
+
             const targetName = this.resolveTargetFieldName(rawK, schemaNameByLower, alias);
             if (!targetName) continue;
 
@@ -1063,19 +1063,19 @@ export class RegistrationWizardService {
     private resolveTargetFieldName(rawKey: string, schemaNameByLower: Record<string, string>, alias: Record<string, string>): string | null {
         const kLower = rawKey.toLowerCase();
         let targetName = schemaNameByLower[kLower];
-        
+
         if (!targetName) {
             const foundAlias = Object.keys(alias).find(a => a.toLowerCase() === kLower);
             if (foundAlias) targetName = alias[foundAlias];
         }
-        
+
         return targetName || null;
     }
 
     private isFieldValueBlank(value: any): boolean {
-        return value == null || 
-               (typeof value === 'string' && value.trim() === '') || 
-               (Array.isArray(value) && value.length === 0);
+        return value == null ||
+            (typeof value === 'string' && value.trim() === '') ||
+            (Array.isArray(value) && value.length === 0);
     }
 
     private applyEligibilityFromDefaults(playerId: string, schemas: PlayerProfileFieldSchema[]): void {

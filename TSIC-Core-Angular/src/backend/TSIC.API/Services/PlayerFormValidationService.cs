@@ -110,9 +110,9 @@ public class PlayerFormValidationService : IPlayerFormValidationService
 
         if (f.TryGetProperty("validation", out var valEl) && valEl.ValueKind == JsonValueKind.Object)
         {
-            if (valEl.TryGetProperty("required", out var rEl) && rEl.ValueKind == JsonValueKind.True) 
+            if (valEl.TryGetProperty("required", out var rEl) && rEl.ValueKind == JsonValueKind.True)
                 return true;
-            if (valEl.TryGetProperty("requiredTrue", out var rtEl) && rtEl.ValueKind == JsonValueKind.True) 
+            if (valEl.TryGetProperty("requiredTrue", out var rtEl) && rtEl.ValueKind == JsonValueKind.True)
                 return true;
         }
 
@@ -138,7 +138,7 @@ public class PlayerFormValidationService : IPlayerFormValidationService
         {
             foreach (var o in optEl.EnumerateArray())
             {
-                if (o.ValueKind == JsonValueKind.String) 
+                if (o.ValueKind == JsonValueKind.String)
                     options.Add(o.GetString()!);
             }
         }
@@ -172,14 +172,14 @@ public class PlayerFormValidationService : IPlayerFormValidationService
             return true;
 
         formValues.TryGetValue(conditionField, out var otherVal);
-        return otherVal.ValueKind == conditionValue.Value.ValueKind && 
+        return otherVal.ValueKind == conditionValue.Value.ValueKind &&
                otherVal.ToString() == conditionValue.Value.ToString();
     }
 
     private static bool IsValuePresent(JsonElement valEl)
     {
-        return valEl.ValueKind != JsonValueKind.Undefined && 
-               valEl.ValueKind != JsonValueKind.Null && 
+        return valEl.ValueKind != JsonValueKind.Undefined &&
+               valEl.ValueKind != JsonValueKind.Null &&
                valEl.ToString().Trim().Length > 0;
     }
 
@@ -258,11 +258,11 @@ public class PlayerFormValidationService : IPlayerFormValidationService
     {
         if (!present)
         {
-            if (required) 
+            if (required)
                 errors.Add(new PreSubmitValidationErrorDto { PlayerId = playerId, Field = fieldName, Message = RequiredErrorMessage });
             return;
         }
-        
+
         if (valEl.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in valEl.EnumerateArray())

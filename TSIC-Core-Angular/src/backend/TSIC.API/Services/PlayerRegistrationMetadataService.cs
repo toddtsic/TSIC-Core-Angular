@@ -96,7 +96,7 @@ public class PlayerRegistrationMetadataService : IPlayerRegistrationMetadataServ
     {
         name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
         dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
-        
+
         if (string.IsNullOrWhiteSpace(name))
             return false;
 

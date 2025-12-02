@@ -481,11 +481,11 @@ public sealed class FamilyService : IFamilyService
         else
             display = asp?.UserName ?? "Family";
 
-        return new FamilyUserSummaryDto 
-        { 
-            FamilyUserId = familyUserId, 
-            DisplayName = display, 
-            UserName = asp?.UserName ?? string.Empty 
+        return new FamilyUserSummaryDto
+        {
+            FamilyUserId = familyUserId,
+            DisplayName = display,
+            UserName = asp?.UserName ?? string.Empty
         };
     }
 
@@ -515,19 +515,19 @@ public sealed class FamilyService : IFamilyService
         var ccEmail = !string.IsNullOrWhiteSpace(fam?.MomEmail) ? fam!.MomEmail!.Trim() : asp?.Email?.Trim();
         var ccPhone = !string.IsNullOrWhiteSpace(fam?.MomCellphone) ? fam!.MomCellphone!.Trim() : (asp?.Cellphone?.Trim() ?? asp?.Phone?.Trim());
 
-        return new CcInfoDto 
-        { 
-            FirstName = ccFirst, 
-            LastName = ccLast, 
-            StreetAddress = ccStreet, 
-            Zip = ccZip, 
-            Email = ccEmail, 
-            Phone = ccPhone 
+        return new CcInfoDto
+        {
+            FirstName = ccFirst,
+            LastName = ccLast,
+            StreetAddress = ccStreet,
+            Zip = ccZip,
+            Email = ccEmail,
+            Phone = ccPhone
         };
     }
 
     private static FamilyPlayerRegistrationDto BuildRegistrationDto(
-        TSIC.Domain.Entities.Registrations r, 
+        TSIC.Domain.Entities.Registrations r,
         Dictionary<string, string> mappedFields,
         HashSet<string> visibleFieldNames,
         Dictionary<Guid, string> teamNameMap)
@@ -551,17 +551,17 @@ public sealed class FamilyService : IFamilyService
                 PaidTotal = r.PaidTotal
             },
             AssignedTeamId = r.AssignedTeamId,
-            AssignedTeamName = r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) 
-                ? teamNameMap[r.AssignedTeamId.Value] 
+            AssignedTeamName = r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value)
+                ? teamNameMap[r.AssignedTeamId.Value]
                 : null,
             AdnSubscriptionId = r.AdnSubscriptionId,
             AdnSubscriptionStatus = r.AdnSubscriptionStatus,
             AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
-            AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences.HasValue 
-                ? (short?)r.AdnSubscriptionBillingOccurences.Value 
+            AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences.HasValue
+                ? (short?)r.AdnSubscriptionBillingOccurences.Value
                 : null,
-            AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength.HasValue 
-                ? (short?)r.AdnSubscriptionIntervalLength.Value 
+            AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength.HasValue
+                ? (short?)r.AdnSubscriptionIntervalLength.Value
                 : null,
             AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
             FormFieldValues = formFieldValues
@@ -629,7 +629,7 @@ public sealed class FamilyService : IFamilyService
             .OrderByDescending(r => r.Modified)
             .ThenByDescending(r => r.RegistrationTs)
             .ToListAsync();
-        
+
         return allRegsForChildren
             .GroupBy(r => r.UserId!)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
@@ -711,12 +711,12 @@ public sealed class FamilyService : IFamilyService
             var job = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId).Select(j => new { j.JsonOptions, j.CoreRegformPlayer }).FirstOrDefaultAsync();
             string? coreProfile = job?.CoreRegformPlayer;
             if (string.IsNullOrWhiteSpace(rawJsonOptions)) rawJsonOptions = job?.JsonOptions;
-            
+
             constraintType = ExtractConstraintType(coreProfile);
 
             var versionSeed = $"{jobId}-{metadataJson?.Length ?? 0}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";
             var version = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(versionSeed))).Substring(0, 16);
-            
+
             return new JobRegFormDto
             {
                 Version = version,
