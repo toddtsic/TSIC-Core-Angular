@@ -181,24 +181,34 @@ public sealed class VerticalInsureService : IVerticalInsureService
         var dto = new VIMakeTokenBatchCCPaymentDto
         {
             quotes = quoteIds.Select(q => new VIMakeTokenBatchQuotesDto { quote_id = q }).ToList(),
-            payment_method = new VIMakeTokenBatchPaymentMethodDto()
+            payment_method = !string.IsNullOrWhiteSpace(token)
+                ? new VIMakeTokenBatchPaymentMethodDto
+                {
+                    token = $"stripe:{token}",
+                    card = new VICreditCardDto
+                    {
+                        number = string.Empty,
+                        verification = string.Empty,
+                        month = string.Empty,
+                        year = string.Empty,
+                        name = string.Empty,
+                        address_postal_code = string.Empty
+                    }
+                }
+                : new VIMakeTokenBatchPaymentMethodDto
+                {
+                    token = string.Empty,
+                    card = new VICreditCardDto
+                    {
+                        number = card?.Number ?? string.Empty,
+                        verification = card?.Code ?? string.Empty,
+                        month = (card?.Expiry?.Length >= 2) ? card.Expiry.Substring(0, 2) : string.Empty,
+                        year = (card?.Expiry?.Length == 4) ? ("20" + card.Expiry.Substring(2, 2)) : string.Empty,
+                        name = ($"{card?.FirstName} {card?.LastName}").Trim(),
+                        address_postal_code = card?.Zip ?? string.Empty
+                    }
+                }
         };
-        if (!string.IsNullOrWhiteSpace(token))
-        {
-            dto.payment_method.token = $"stripe:{token}";
-        }
-        else if (card != null)
-        {
-            dto.payment_method.card = new VICreditCardDto
-            {
-                number = card.Number ?? string.Empty,
-                verification = card.Code ?? string.Empty,
-                month = (card.Expiry?.Length >= 2) ? card.Expiry!.Substring(0, 2) : string.Empty,
-                year = (card.Expiry?.Length == 4) ? ("20" + card.Expiry!.Substring(2, 2)) : string.Empty,
-                name = ($"{card.FirstName} {card.LastName}").Trim(),
-                address_postal_code = card.Zip ?? string.Empty
-            };
-        }
         return dto;
     }
 

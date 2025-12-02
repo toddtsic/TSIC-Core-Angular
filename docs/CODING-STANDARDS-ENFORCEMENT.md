@@ -9,6 +9,98 @@ This document outlines automated and manual strategies to enforce our coding sta
 
 ---
 
+## C# DTO Construction Pattern
+
+**Critical for OpenAPI/NSwag Integration:**
+
+DTOs must use `init` properties with `required` keyword (NOT positional parameters) for Swashbuckle to correctly generate OpenAPI required fields.
+
+### ✅ CORRECT Pattern
+```csharp
+public record FamilyUserSummaryDto
+{
+    public required string FamilyUserId { get; init; }
+    public required string DisplayName { get; init; }
+    public required string UserName { get; init; }
+}
+
+// Usage: Object initializer syntax
+var dto = new FamilyUserSummaryDto
+{
+    FamilyUserId = userId,
+    DisplayName = displayName,
+    UserName = userName
+};
+```
+
+### ❌ WRONG Pattern
+```csharp
+// Swashbuckle does NOT recognize positional parameters as required
+public record FamilyUserSummaryDto(
+    required string FamilyUserId,
+    required string DisplayName,
+    required string UserName
+);
+
+// This syntax won't work with init properties
+var dto = new FamilyUserSummaryDto(userId, displayName, userName);
+```
+
+### Why This Matters
+
+1. **OpenAPI Generation**: Swashbuckle 9.0.6+ only populates the `"required"` array for `init` properties
+2. **TypeScript Types**: NSwag generates `string` instead of `string | undefined` for required properties
+3. **Type Safety**: Eliminates need for `?? ''` null coalescing workarounds in frontend
+4. **Compiler Enforcement**: C# compiler ensures all required properties are set
+
+### Optional Properties
+
+Use nullable types without `required` keyword:
+
+```csharp
+public record FamilyPlayerDto
+{
+    public required string PlayerId { get; init; }
+    public required string FirstName { get; init; }
+    public string? Dob { get; init; }  // Optional - generates TypeScript: string | undefined
+    public Guid? AssignedTeamId { get; init; }  // Optional
+}
+```
+
+### Constructor Call Migration
+
+When converting from positional to init properties, update all constructor calls:
+
+```csharp
+// OLD: Positional parameter syntax
+return new LoginResponseDto(token, user);
+
+// NEW: Object initializer syntax
+return new LoginResponseDto
+{
+    Token = token,
+    User = user
+};
+```
+
+**Enforcement**: All new DTOs MUST follow this pattern. Legacy DTOs should be migrated opportunistically during refactors.
+
+### NSwag Regeneration Workflow
+
+After modifying any DTOs, regenerate TypeScript types:
+
+```bash
+scripts\regenerate-api-types.bat
+```
+
+The script handles everything:
+- Checks if API is running
+- Starts API if needed (waits up to 30 seconds for ready)
+- Runs NSwag generation
+- Verifies generated types are correct
+
+---
+
 ## Interfaces & Services
 
 - Convention: Place public service interfaces in separate files named `I*.cs` alongside their implementations within `TSIC.API/Services`.

@@ -439,62 +439,91 @@ public sealed class FamilyService : IFamilyService
         var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == userId);
         if (fam == null)
         {
-            return new FamilyProfileResponse(
-                aspUser.UserName ?? string.Empty,
-                new PersonDto(aspUser.FirstName ?? string.Empty, aspUser.LastName ?? string.Empty, aspUser.Cellphone ?? string.Empty, aspUser.Email ?? string.Empty),
-                new PersonDto(string.Empty, string.Empty, string.Empty, string.Empty),
-                new AddressDto(aspUser.StreetAddress ?? string.Empty, aspUser.City ?? string.Empty, aspUser.State ?? string.Empty, aspUser.PostalCode ?? string.Empty),
-                new List<ChildDto>()
-            );
+            return new FamilyProfileResponse
+            {
+                Username = aspUser.UserName ?? string.Empty,
+                Primary = new PersonDto
+                {
+                    FirstName = aspUser.FirstName ?? string.Empty,
+                    LastName = aspUser.LastName ?? string.Empty,
+                    Cellphone = aspUser.Cellphone ?? string.Empty,
+                    Email = aspUser.Email ?? string.Empty
+                },
+                Secondary = new PersonDto
+                {
+                    FirstName = string.Empty,
+                    LastName = string.Empty,
+                    Cellphone = string.Empty,
+                    Email = string.Empty
+                },
+                Address = new AddressDto
+                {
+                    StreetAddress = aspUser.StreetAddress ?? string.Empty,
+                    City = aspUser.City ?? string.Empty,
+                    State = aspUser.State ?? string.Empty,
+                    PostalCode = aspUser.PostalCode ?? string.Empty
+                },
+                Children = new List<ChildDto>()
+            };
         }
 
         var links = await _db.FamilyMembers.Where(l => l.FamilyUserId == fam.FamilyUserId).ToListAsync();
         var childIds = links.Select(l => l.FamilyMemberUserId).ToList();
         var children = await _db.AspNetUsers.Where(u => childIds.Contains(u.Id)).ToListAsync();
 
-        var childDtos = children.Select(c => new ChildDto(
-            c.FirstName ?? string.Empty,
-            c.LastName ?? string.Empty,
-            c.Gender ?? string.Empty,
-            c.Dob?.ToString(DateFormat),
-            c.Email,
-            c.Cellphone ?? c.Phone
-        )).ToList();
+        var childDtos = children.Select(c => new ChildDto
+        {
+            FirstName = c.FirstName ?? string.Empty,
+            LastName = c.LastName ?? string.Empty,
+            Gender = c.Gender ?? string.Empty,
+            Dob = c.Dob?.ToString(DateFormat),
+            Email = c.Email,
+            Phone = c.Cellphone ?? c.Phone
+        }).ToList();
 
         string Fallback(string? primary, string? fallback) => !string.IsNullOrWhiteSpace(primary) ? primary! : (fallback ?? string.Empty);
 
-        var primary = new PersonDto(
-            Fallback(fam.MomFirstName, aspUser.FirstName),
-            Fallback(fam.MomLastName, aspUser.LastName),
-            Fallback(fam.MomCellphone, aspUser.Cellphone ?? aspUser.Phone),
-            Fallback(fam.MomEmail, aspUser.Email)
-        );
+        var primary = new PersonDto
+        {
+            FirstName = Fallback(fam.MomFirstName, aspUser.FirstName),
+            LastName = Fallback(fam.MomLastName, aspUser.LastName),
+            Cellphone = Fallback(fam.MomCellphone, aspUser.Cellphone ?? aspUser.Phone),
+            Email = Fallback(fam.MomEmail, aspUser.Email)
+        };
 
-        var secondary = new PersonDto(
-            fam.DadFirstName ?? string.Empty,
-            fam.DadLastName ?? string.Empty,
-            fam.DadCellphone ?? string.Empty,
-            fam.DadEmail ?? string.Empty
-        );
+        var secondary = new PersonDto
+        {
+            FirstName = fam.DadFirstName ?? string.Empty,
+            LastName = fam.DadLastName ?? string.Empty,
+            Cellphone = fam.DadCellphone ?? string.Empty,
+            Email = fam.DadEmail ?? string.Empty
+        };
 
-        return new FamilyProfileResponse(
-            aspUser.UserName ?? string.Empty,
-            primary,
-            secondary,
-            new AddressDto(aspUser.StreetAddress ?? string.Empty, aspUser.City ?? string.Empty, aspUser.State ?? string.Empty, aspUser.PostalCode ?? string.Empty),
-            childDtos
-        );
+        return new FamilyProfileResponse
+        {
+            Username = aspUser.UserName ?? string.Empty,
+            Primary = primary,
+            Secondary = secondary,
+            Address = new AddressDto
+            {
+                StreetAddress = aspUser.StreetAddress ?? string.Empty,
+                City = aspUser.City ?? string.Empty,
+                State = aspUser.State ?? string.Empty,
+                PostalCode = aspUser.PostalCode ?? string.Empty
+            },
+            Children = childDtos
+        };
     }
 
     public async Task<FamilyRegistrationResponse> RegisterAsync(FamilyRegistrationRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         {
-            return new FamilyRegistrationResponse(false, null, null, "Username and password are required");
+            return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "Username and password are required" };
         }
         if (request.Children == null || request.Children.Count == 0)
         {
-            return new FamilyRegistrationResponse(false, null, null, "At least one child is required.");
+            return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "At least one child is required." };
         }
 
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
@@ -517,7 +546,7 @@ public sealed class FamilyService : IFamilyService
         if (!createResult.Succeeded)
         {
             var msg = string.Join("; ", createResult.Errors.Select(e => e.Description));
-            return new FamilyRegistrationResponse(false, null, null, msg);
+            return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = msg };
         }
 
         var fam = new TSIC.Domain.Entities.Families
@@ -543,25 +572,25 @@ public sealed class FamilyService : IFamilyService
             var (ok, error) = await CreateAndLinkChildAsync(child, fam.FamilyUserId);
             if (!ok)
             {
-                return new FamilyRegistrationResponse(false, null, null, error);
+                return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = error };
             }
         }
 
         await _db.SaveChangesAsync();
         scope.Complete();
-        return new FamilyRegistrationResponse(true, user.Id, Guid.Empty, null);
+        return new FamilyRegistrationResponse { Success = true, FamilyUserId = user.Id, FamilyId = Guid.Empty, Message = null };
     }
 
     public async Task<FamilyRegistrationResponse> UpdateAsync(FamilyUpdateRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username))
         {
-            return new FamilyRegistrationResponse(false, null, null, "Username is required");
+            return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "Username is required" };
         }
 
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
         var user = await _userManager.FindByNameAsync(request.Username);
-        if (user == null) return new FamilyRegistrationResponse(false, null, null, "User not found");
+        if (user == null) return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "User not found" };
 
         var aspUser = await _db.AspNetUsers.SingleOrDefaultAsync(u => u.Id == user.Id);
         if (aspUser != null)
@@ -577,7 +606,7 @@ public sealed class FamilyService : IFamilyService
         }
 
         var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == user.Id);
-        if (fam == null) return new FamilyRegistrationResponse(false, null, null, "Family record not found");
+        if (fam == null) return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "Family record not found" };
 
         fam.MomFirstName = request.Primary.FirstName;
         fam.MomLastName = request.Primary.LastName;
@@ -595,7 +624,7 @@ public sealed class FamilyService : IFamilyService
         // Future: extract full child synchronization rules into this service if still required.
 
         scope.Complete();
-        return new FamilyRegistrationResponse(true, user.Id, Guid.Empty, null);
+        return new FamilyRegistrationResponse { Success = true, FamilyUserId = user.Id, FamilyId = Guid.Empty, Message = null };
     }
 
     private async Task<(bool ok, string? error)> CreateAndLinkChildAsync(ChildDto child, string familyUserId)
