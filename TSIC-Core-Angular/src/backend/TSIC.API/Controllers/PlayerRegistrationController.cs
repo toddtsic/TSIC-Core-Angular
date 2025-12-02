@@ -8,15 +8,15 @@ using TSIC.Infrastructure.Data.SqlDbContext; // (no direct use; kept if DI decor
 namespace TSIC.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class RegistrationController : ControllerBase
+[Route("api/player-registration")]
+public class PlayerRegistrationController : ControllerBase
 {
     private readonly IJobLookupService _jobLookupService;
-    private readonly IRegistrationService _registrationService;
+    private readonly IPlayerRegistrationService _registrationService;
 
-    public RegistrationController(
+    public PlayerRegistrationController(
         IJobLookupService jobLookupService,
-        IRegistrationService registrationService)
+        IPlayerRegistrationService registrationService)
     {
         _jobLookupService = jobLookupService;
         _registrationService = registrationService;
@@ -28,10 +28,10 @@ public class RegistrationController : ControllerBase
     /// </summary>
     [HttpPost("preSubmit")]
     [Authorize]
-    [ProducesResponseType(typeof(TSIC.API.Dtos.PreSubmitRegistrationResponseDto), 200)]
+    [ProducesResponseType(typeof(TSIC.API.Dtos.PreSubmitPlayerRegistrationResponseDto), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> PreSubmitRegistration([FromBody] TSIC.API.Dtos.PreSubmitRegistrationRequestDto request)
+    public async Task<IActionResult> PreSubmitRegistration([FromBody] TSIC.API.Dtos.PreSubmitPlayerRegistrationRequestDto request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.JobPath) || string.IsNullOrWhiteSpace(request.FamilyUserId))
             return BadRequest(new { message = "Invalid preSubmit request" });

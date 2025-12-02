@@ -7,12 +7,12 @@ using TSIC.API.Services;
 namespace TSIC.API.Controllers;
 
 [ApiController]
-[Route("api/registration")]
-public class RegistrationQueriesController : ControllerBase
+[Route("api/player-registration")]
+public class PlayerRegistrationQueriesController : ControllerBase
 {
     private readonly IRegistrationQueryService _queryService;
 
-    public RegistrationQueriesController(IRegistrationQueryService queryService)
+    public PlayerRegistrationQueriesController(IRegistrationQueryService queryService)
     {
         _queryService = queryService;
     }

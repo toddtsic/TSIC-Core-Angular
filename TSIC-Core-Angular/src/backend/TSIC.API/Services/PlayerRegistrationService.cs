@@ -9,9 +9,9 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services;
 
-public class RegistrationService : IRegistrationService
+public class PlayerRegistrationService : IPlayerRegistrationService
 {
-    private readonly ILogger<RegistrationService> _logger;
+    private readonly ILogger<PlayerRegistrationService> _logger;
     private readonly SqlDbContext _db;
     private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
     private readonly IRegistrationRecordFeeCalculatorService _feeCalculator;
@@ -33,8 +33,8 @@ public class RegistrationService : IRegistrationService
         public Dictionary<(string PlayerId, Guid TeamId), Registrations> ExistingByPlayerTeam { get; init; } = new();
     }
 
-    public RegistrationService(
-        ILogger<RegistrationService> logger,
+    public PlayerRegistrationService(
+        ILogger<PlayerRegistrationService> logger,
         SqlDbContext db,
         IPlayerBaseTeamFeeResolverService feeResolver,
         IRegistrationRecordFeeCalculatorService feeCalculator,
@@ -51,7 +51,7 @@ public class RegistrationService : IRegistrationService
         _validationService = validationService;
     }
 
-    public async Task<PreSubmitRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitRegistrationRequestDto request, string callerUserId)
+    public async Task<PreSubmitPlayerRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request, string callerUserId)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
 
@@ -71,7 +71,7 @@ public class RegistrationService : IRegistrationService
         }
 
         // Server-side metadata validation BEFORE saving. If it fails, do not persist any changes.
-        var response = new PreSubmitRegistrationResponseDto
+        var response = new PreSubmitPlayerRegistrationResponseDto
         {
             TeamResults = teamResults,
             NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment"
@@ -106,7 +106,7 @@ public class RegistrationService : IRegistrationService
         return response;
     }
 
-    private async Task<PreSubmitContext> BuildPreSubmitContextAsync(Guid jobId, string familyUserId, PreSubmitRegistrationRequestDto request)
+    private async Task<PreSubmitContext> BuildPreSubmitContextAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request)
     {
         var teamIds = request.TeamSelections.Select(ts => ts.TeamId).Distinct().ToList();
         var teams = await _db.Teams.Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId)).ToListAsync();

@@ -1,9 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { PlayerStateService } from './services/player-state.service';
 import { WaiverStateService } from './services/waiver-state.service';
 import { FormSchemaService } from './services/form-schema.service';
 import type { Loadable } from '../../core/models/state.models';
-import type { VIPlayerObjectResponse, PreSubmitRegistrationRequestDto, PreSubmitRegistrationResponseDto, PreSubmitTeamSelectionDto, PreSubmitValidationErrorDto, FamilyPlayersResponseDto } from '../../core/api/models';
+import type { VIPlayerObjectResponse, PreSubmitPlayerRegistrationRequestDto, PreSubmitPlayerRegistrationResponseDto, PreSubmitTeamSelectionDto, PreSubmitValidationErrorDto, FamilyPlayersResponseDto, FamilyPlayerDto, FamilyPlayerRegistrationDto, RegSaverDetailsDto } from '../../core/api/models';
+import { normalizeFormValues } from './family-players.dto';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 
@@ -24,7 +27,7 @@ export class RegistrationWizardService {
 
     // Players and selections
     // Family players enriched with prior registrations + selection flag
-    familyPlayers = signal<FamilyPlayer[]>([]);
+    familyPlayers = signal<FamilyPlayerDto[]>([]);
     familyPlayersLoading = signal<boolean>(false);
     // Family user summary (from players endpoint). Includes optional contact fields for convenience defaults on Payment.
     familyUser = signal<{
@@ -55,7 +58,7 @@ export class RegistrationWizardService {
         };
     } | null>(null);
     // RegSaver (optional insurance) details for family/job
-    regSaverDetails = signal<RegSaverDetails | null>(null);
+    regSaverDetails = signal<RegSaverDetailsDto | null>(null);
     // Design Principle: EACH REGISTRATION OWNS ITS OWN SNAPSHOT OF FORM VALUES.
     // We do NOT merge or unify formValues across multiple registrations for a player.
     // Any edit that creates a new registration stamps values only into that new registration.
@@ -286,11 +289,11 @@ export class RegistrationWizardService {
         });
     }
 
-    private buildFamilyPlayersList(resp: FamilyPlayersResponseDto): FamilyPlayer[] {
+    private buildFamilyPlayersList(resp: FamilyPlayersResponseDto): FamilyPlayerDto[] {
         const rawPlayers: any[] = resp.familyPlayers || (resp as any).FamilyPlayers || (resp as any).players || (resp as any).Players || [];
         return rawPlayers.map(p => {
             const prior: any[] = p.priorRegistrations || p.PriorRegistrations || [];
-            const priorRegs: FamilyPlayerRegistration[] = prior.map(r => ({
+            const priorRegs: FamilyPlayerRegistrationDto[] = prior.map(r => ({
                 registrationId: r.registrationId ?? r.RegistrationId ?? '',
                 active: !!(r.active ?? r.Active),
                 financials: {
@@ -327,11 +330,11 @@ export class RegistrationWizardService {
                 selected: !!(p.selected ?? p.Selected ?? (p.registered ?? p.Registered)),
                 priorRegistrations: priorRegs,
                 defaultFieldValues: defaultsRaw ? normalizeFormValues(defaultsRaw) : null
-            } as FamilyPlayer;
+            } as FamilyPlayerDto;
         });
     }
 
-    private prefillTeamsFromPriorRegistrations(players: FamilyPlayer[]): void {
+    private prefillTeamsFromPriorRegistrations(players: FamilyPlayerDto[]): void {
         const teamMap: Record<string, string | string[]> = { ...this.playerState.selectedTeams() };
         for (const fp of players) {
             if (!fp.registered) continue;
@@ -691,7 +694,7 @@ export class RegistrationWizardService {
      * Pre-submit API call: checks team roster capacity and creates pending registrations before payment.
      * Returns per-team results and next tab to show.
      */
-    preSubmitRegistration(): Promise<PreSubmitRegistrationResponseDto> {
+    preSubmitRegistration(): Promise<PreSubmitPlayerRegistrationResponseDto> {
         const jobPath = this.jobPath();
         const familyUserId = this.familyUser()?.familyUserId;
         try { this.ensurePreSubmitPrerequisites(jobPath, familyUserId); } catch (e) {
@@ -701,7 +704,7 @@ export class RegistrationWizardService {
         const payload = this.buildPreSubmitPayload(jobPath!, familyUserId!);
         this.logPreSubmitPayloadIfLocal(payload);
         const base = this.resolveApiBase();
-        return firstValueFrom(this.http.post<PreSubmitRegistrationResponseDto>(`${base}/registration/preSubmit`, payload))
+        return firstValueFrom(this.http.post<PreSubmitPlayerRegistrationResponseDto>(`${base}/player-registration/preSubmit`, payload))
             .then(resp => {
                 this.captureServerValidationErrors(resp);
                 this.processInsuranceOffer(resp);
@@ -714,7 +717,7 @@ export class RegistrationWizardService {
         if (!jobPath || !familyUserId) throw new Error('Missing jobPath or familyUserId');
     }
 
-    private buildPreSubmitPayload(jobPath: string, familyUserId: string): PreSubmitRegistrationRequestDto {
+    private buildPreSubmitPayload(jobPath: string, familyUserId: string): PreSubmitPlayerRegistrationRequestDto {
         const teamSelections: PreSubmitTeamSelectionDto[] = [];
         for (const pid of this.selectedPlayerIds()) {
             const teamId = this.playerState.selectedTeams()[pid];
@@ -740,21 +743,21 @@ export class RegistrationWizardService {
         else if (Array.isArray(teamId) && teamId.length === 1 && typeof teamId[0] === 'string') formValues['teamId'] = teamId[0];
     }
 
-    private logPreSubmitPayloadIfLocal(payload: PreSubmitRegistrationRequestDto): void {
+    private logPreSubmitPayloadIfLocal(payload: PreSubmitPlayerRegistrationRequestDto): void {
         try {
             const host = globalThis.location?.host?.toLowerCase?.() ?? '';
             if (host.startsWith('localhost')) console.debug('[RegWizard] preSubmit payload', payload);
         } catch { /* ignore */ }
     }
 
-    private captureServerValidationErrors(resp: PreSubmitRegistrationResponseDto): void {
+    private captureServerValidationErrors(resp: PreSubmitPlayerRegistrationResponseDto): void {
         try {
             const ve = (resp as any)?.validationErrors as PreSubmitValidationErrorDto[] | undefined;
             this._serverValidationErrors = (ve && Array.isArray(ve) && ve.length) ? ve : [];
         } catch { this._serverValidationErrors = []; }
     }
 
-    private processInsuranceOffer(resp: PreSubmitRegistrationResponseDto): void {
+    private processInsuranceOffer(resp: PreSubmitPlayerRegistrationResponseDto): void {
         try {
             const ins: any = (resp as any)?.insurance;
             if (ins?.available && ins?.playerObject) {
@@ -880,7 +883,7 @@ export class RegistrationWizardService {
         const familyUserId = this.familyUser()?.familyUserId;
         if (!jobId || !familyUserId) return;
         const base = this.resolveApiBase();
-        this.http.get<PlayerRegConfirmationDto>(`${base}/registration/confirmation`, { params: { jobId, familyUserId } })
+        this.http.get<PlayerRegConfirmationDto>(`${base}/player-registration/confirmation`, { params: { jobId, familyUserId } })
             .subscribe({
                 next: dto => this.confirmation.set(dto),
                 error: err => {
@@ -896,7 +899,7 @@ export class RegistrationWizardService {
         const familyUserId = this.familyUser()?.familyUserId;
         if (!jobId || !familyUserId) return Promise.resolve(false);
         const base = this.resolveApiBase();
-        return firstValueFrom(this.http.post(`${base}/registration/confirmation/resend`, null, { params: { jobId, familyUserId } }))
+        return firstValueFrom(this.http.post(`${base}/player-registration/confirmation/resend`, null, { params: { jobId, familyUserId } }))
             .then(() => true)
             .catch(err => {
                 try { console.warn('[RegWizard] Resend confirmation failed', err); } catch { /* no-op */ }

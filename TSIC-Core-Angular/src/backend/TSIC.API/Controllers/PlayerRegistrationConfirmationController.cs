@@ -13,17 +13,17 @@ using Microsoft.EntityFrameworkCore;
 namespace TSIC.API.Controllers;
 
 [ApiController]
-[Route("api/registration")] // base route; action supplies segment
-public sealed class RegistrationConfirmationController : ControllerBase
+[Route("api/player-registration")] // base route; action supplies segment
+public sealed class PlayerRegistrationConfirmationController : ControllerBase
 {
     private readonly IPlayerRegConfirmationService _service;
-    private readonly ILogger<RegistrationConfirmationController> _logger;
+    private readonly ILogger<PlayerRegistrationConfirmationController> _logger;
     private readonly IEmailService _email;
     private readonly SqlDbContext _db;
 
-    public RegistrationConfirmationController(
+    public PlayerRegistrationConfirmationController(
         IPlayerRegConfirmationService service,
-        ILogger<RegistrationConfirmationController> logger,
+        ILogger<PlayerRegistrationConfirmationController> logger,
         IEmailService email,
         SqlDbContext db)
     {

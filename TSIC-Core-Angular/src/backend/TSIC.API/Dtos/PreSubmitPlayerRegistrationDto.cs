@@ -3,7 +3,7 @@ using TSIC.API.Dtos.VerticalInsure;
 
 namespace TSIC.API.Dtos
 {
-    public class PreSubmitRegistrationRequestDto
+    public class PreSubmitPlayerRegistrationRequestDto
     {
         public string JobPath { get; set; } = string.Empty;
         public string FamilyUserId { get; set; } = string.Empty;
@@ -18,7 +18,7 @@ namespace TSIC.API.Dtos
         public Dictionary<string, JsonElement>? FormValues { get; set; }
     }
 
-    public class PreSubmitRegistrationResponseDto
+    public class PreSubmitPlayerRegistrationResponseDto
     {
         public List<PreSubmitTeamResultDto> TeamResults { get; set; } = new();
         // Use List.Exists for style compliance (avoid LINQ Any in this simple predicate)

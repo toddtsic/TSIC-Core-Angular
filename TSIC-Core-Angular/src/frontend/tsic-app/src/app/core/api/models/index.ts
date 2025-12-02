@@ -474,13 +474,13 @@ export interface PreSubmitInsuranceDto {
     stateId?: string | undefined;
 }
 
-export interface PreSubmitRegistrationRequestDto {
+export interface PreSubmitPlayerRegistrationRequestDto {
     jobPath?: string | undefined;
     familyUserId?: string | undefined;
     teamSelections?: PreSubmitTeamSelectionDto[] | undefined;
 }
 
-export interface PreSubmitRegistrationResponseDto {
+export interface PreSubmitPlayerRegistrationResponseDto {
     teamResults?: PreSubmitTeamResultDto[] | undefined;
     readonly hasFullTeams?: boolean;
     nextTab?: string | undefined;

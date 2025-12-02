@@ -6,12 +6,12 @@ using TSIC.API.Services;
 namespace TSIC.API.Controllers;
 
 [ApiController]
-[Route("api/registration")]
-public class RegistrationStatusController : ControllerBase
+[Route("api/player-registration")]
+public class PlayerRegistrationStatusController : ControllerBase
 {
     private readonly IJobLookupService _jobLookupService;
 
-    public RegistrationStatusController(IJobLookupService jobLookupService)
+    public PlayerRegistrationStatusController(IJobLookupService jobLookupService)
     {
         _jobLookupService = jobLookupService;
     }

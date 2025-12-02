@@ -10,14 +10,14 @@ using Microsoft.Extensions.Logging;
 namespace TSIC.API.Controllers;
 
 [ApiController]
-[Route("api/registration")]
-public class RegistrationPaymentController : ControllerBase
+[Route("api/player-registration")]
+public class PlayerRegistrationPaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
     private readonly SqlDbContext _db;
-    private readonly ILogger<RegistrationPaymentController> _logger;
+    private readonly ILogger<PlayerRegistrationPaymentController> _logger;
 
-    public RegistrationPaymentController(IPaymentService paymentService, SqlDbContext db, ILogger<RegistrationPaymentController> logger)
+    public PlayerRegistrationPaymentController(IPaymentService paymentService, SqlDbContext db, ILogger<PlayerRegistrationPaymentController> logger)
     {
         _paymentService = paymentService;
         _db = db;
