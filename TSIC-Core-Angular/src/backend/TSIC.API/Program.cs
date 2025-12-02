@@ -192,6 +192,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new() { Title = "TSIC API", Version = "v1" });
+    options.SupportNonNullableReferenceTypes();
 });
 
 // CORS for Angular

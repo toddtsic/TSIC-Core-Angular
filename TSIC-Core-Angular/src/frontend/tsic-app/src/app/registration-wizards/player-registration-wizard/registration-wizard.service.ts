@@ -6,7 +6,7 @@ import { WaiverStateService } from './services/waiver-state.service';
 import { FormSchemaService } from './services/form-schema.service';
 import type { Loadable } from '../../core/models/state.models';
 import type { VIPlayerObjectResponse, PreSubmitPlayerRegistrationRequestDto, PreSubmitPlayerRegistrationResponseDto, PreSubmitTeamSelectionDto, PreSubmitValidationErrorDto, FamilyPlayersResponseDto, FamilyPlayerDto, FamilyPlayerRegistrationDto, RegSaverDetailsDto } from '../../core/api/models';
-import { normalizeFormValues } from './family-players.dto';
+import { environment } from '../../../environments/environment';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 
@@ -222,7 +222,7 @@ export class RegistrationWizardService {
     private extractConstraintType(resp: FamilyPlayersResponseDto): void {
         try {
             const jrf = resp.jobRegForm || (resp as any).JobRegForm;
-            const rawCt = jrf?.constraintType ?? jrf?.ConstraintType ?? jrf?.teamConstraint ?? jrf?.TeamConstraint ?? null;
+            const rawCt = jrf?.constraintType ?? null;
             if (typeof rawCt === 'string' && rawCt.trim()) {
                 const norm = rawCt.trim().toUpperCase();
                 this.teamConstraintType.set(norm);
@@ -244,9 +244,9 @@ export class RegistrationWizardService {
             return undefined;
         };
         const norm: any = {
-            familyUserId: fu.familyUserId ?? fu.FamilyUserId ?? '',
-            displayName: fu.displayName ?? fu.DisplayName ?? '',
-            userName: fu.userName ?? fu.UserName ?? '',
+            familyUserId: fu.familyUserId,
+            displayName: fu.displayName,
+            userName: fu.userName,
             firstName: pick(fu, ['firstName', 'FirstName', 'parentFirstName', 'ParentFirstName', 'motherFirstName', 'MotherFirstName', 'guardianFirstName', 'GuardianFirstName', 'billingFirstName', 'BillingFirstName']),
             lastName: pick(fu, ['lastName', 'LastName', 'parentLastName', 'ParentLastName', 'motherLastName', 'MotherLastName', 'guardianLastName', 'GuardianLastName', 'billingLastName', 'BillingLastName']),
             address: pick(fu, ['address', 'Address', 'billingAddress', 'BillingAddress', 'street', 'Street', 'street1', 'Street1', 'address1', 'Address1']),
@@ -284,8 +284,8 @@ export class RegistrationWizardService {
         const rs = resp.regSaverDetails || (resp as any).RegSaverDetails || null;
         if (!rs) { this.regSaverDetails.set(null); return; }
         this.regSaverDetails.set({
-            policyNumber: rs.policyNumber ?? rs.PolicyNumber ?? '',
-            policyCreateDate: rs.policyCreateDate ?? rs.PolicyCreateDate ?? ''
+            policyNumber: rs.policyNumber,
+            policyCreateDate: rs.policyCreateDate
         });
     }
 
@@ -306,30 +306,25 @@ export class RegistrationWizardService {
                     owedTotal: +(r.financials?.owedTotal ?? r.financials?.OwedTotal ?? 0),
                     paidTotal: +(r.financials?.paidTotal ?? r.financials?.PaidTotal ?? 0)
                 },
-                assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? null,
-                assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? null,
-                sportAssnId: r.sportAssnId ?? r.SportAssnId ?? null,
-                adnSubscriptionId: r.adnSubscriptionId ?? r.AdnSubscriptionId ?? null,
-                adnSubscriptionStatus: r.adnSubscriptionStatus ?? r.AdnSubscriptionStatus ?? null,
-                adnSubscriptionAmountPerOccurence: r.adnSubscriptionAmountPerOccurence ?? r.AdnSubscriptionAmountPerOccurence ?? null,
-                adnSubscriptionBillingOccurences: r.adnSubscriptionBillingOccurences ?? r.AdnSubscriptionBillingOccurences ?? null,
-                adnSubscriptionIntervalLength: r.adnSubscriptionIntervalLength ?? r.AdnSubscriptionIntervalLength ?? null,
-                adnSubscriptionStartDate: r.adnSubscriptionStartDate ?? r.AdnSubscriptionStartDate ?? null,
-                formValues: normalizeFormValues(
-                    r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues
-                )
+                assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? undefined,
+                assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? undefined,
+                adnSubscriptionId: r.adnSubscriptionId ?? undefined,
+                adnSubscriptionStatus: r.adnSubscriptionStatus ?? undefined,
+                adnSubscriptionAmountPerOccurence: r.adnSubscriptionAmountPerOccurence ?? undefined,
+                adnSubscriptionBillingOccurences: r.adnSubscriptionBillingOccurences ?? undefined,
+                adnSubscriptionIntervalLength: r.adnSubscriptionIntervalLength ?? undefined,
+                adnSubscriptionStartDate: r.adnSubscriptionStartDate ?? undefined,
+                formFieldValues: r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues || null
             }));
-            const defaultsRaw = p.defaultFieldValues || p.DefaultFieldValues || null;
             return {
-                playerId: p.playerId ?? p.PlayerId ?? '',
-                firstName: p.firstName ?? p.FirstName ?? '',
-                lastName: p.lastName ?? p.LastName ?? '',
-                gender: p.gender ?? p.Gender ?? '',
+                playerId: p.playerId ?? '',
+                firstName: p.firstName ?? '',
+                lastName: p.lastName ?? '',
+                gender: p.gender ?? '',
                 dob: p.dob ?? p.Dob ?? undefined,
                 registered: !!(p.registered ?? p.Registered),
                 selected: !!(p.selected ?? p.Selected ?? (p.registered ?? p.Registered)),
-                priorRegistrations: priorRegs,
-                defaultFieldValues: defaultsRaw ? normalizeFormValues(defaultsRaw) : null
+                priorRegistrations: priorRegs
             } as FamilyPlayerDto;
         });
     }
@@ -538,7 +533,7 @@ export class RegistrationWizardService {
                 const pid = p.playerId;
                 if (!current[pid]) continue;
                 const source = p.priorRegistrations.at(-1);
-                const fv = source?.formValues || {};
+                const fv = source?.formFieldValues || {};
                 for (const [rawK, rawV] of Object.entries(fv)) {
                     if (rawV == null || rawV === '') continue;
                     const kLower = rawK.toLowerCase();

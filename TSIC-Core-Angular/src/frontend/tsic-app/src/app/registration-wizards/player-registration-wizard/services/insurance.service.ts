@@ -3,7 +3,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from './insurance-state.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
-import type { InsurancePurchaseRequestDto, InsurancePurchaseResponseDto } from '../../../core/api/models';
+import type { InsurancePurchaseRequestDto, InsurancePurchaseResponseDto, CreditCardInfo } from '../../../core/api/models';
 import { ToastService } from '../../../shared/toast.service';
 
 @Injectable({ providedIn: 'root' })
@@ -103,17 +103,22 @@ export class InsuranceService {
             console.warn('[InsuranceService] Mismatch lengths', { quoteIds, registrationIds });
             return;
         }
-        const creditCardPayload = card ? {
-            Number: card.number?.trim() || null,
-            Expiry: this.sanitizeExpiry(card.expiry),
-            Code: card.code?.trim() || null,
-            FirstName: card.firstName?.trim() || null,
-            LastName: card.lastName?.trim() || null,
-            Zip: card.zip?.trim() || null,
-            Email: card.email?.trim() || null,
-            Phone: (card.phone || '').replaceAll(/\D+/g, '').slice(0, 15) || null,
-            Address: card.address?.trim() || null
-        } : null;
+        if (!card) {
+            this.toast.show('Credit card information required for insurance purchase', 'danger', 4000);
+            console.warn('[InsuranceService] No credit card provided');
+            return;
+        }
+        const creditCardPayload: CreditCardInfo = {
+            number: card.number?.trim() || undefined,
+            expiry: this.sanitizeExpiry(card.expiry),
+            code: card.code?.trim() || undefined,
+            firstName: card.firstName?.trim() || undefined,
+            lastName: card.lastName?.trim() || undefined,
+            zip: card.zip?.trim() || undefined,
+            email: card.email?.trim() || undefined,
+            phone: (card.phone || '').replaceAll(/\D+/g, '').slice(0, 15) || undefined,
+            address: card.address?.trim() || undefined
+        };
         const req: InsurancePurchaseRequestDto = {
             jobId: this.state.jobId(),
             familyUserId: this.state.familyUser()?.familyUserId!,
@@ -159,17 +164,22 @@ export class InsuranceService {
             console.warn('[InsuranceService] Mismatch lengths', { quoteIds, registrationIds });
             return;
         }
-        const creditCardPayload = card ? {
-            Number: card.number?.trim() || null,
-            Expiry: this.sanitizeExpiry(card.expiry),
-            Code: card.code?.trim() || null,
-            FirstName: card.firstName?.trim() || null,
-            LastName: card.lastName?.trim() || null,
-            Zip: card.zip?.trim() || null,
-            Email: card.email?.trim() || null,
-            Phone: (card.phone || '').replaceAll(/\D+/g, '').slice(0, 15) || null,
-            Address: card.address?.trim() || null
-        } : null;
+        if (!card) {
+            this.toast.show('Credit card information required for insurance purchase', 'danger', 4000);
+            console.warn('[InsuranceService] No credit card provided');
+            return;
+        }
+        const creditCardPayload: CreditCardInfo = {
+            number: card.number?.trim() || undefined,
+            expiry: this.sanitizeExpiry(card.expiry),
+            code: card.code?.trim() || undefined,
+            firstName: card.firstName?.trim() || undefined,
+            lastName: card.lastName?.trim() || undefined,
+            zip: card.zip?.trim() || undefined,
+            email: card.email?.trim() || undefined,
+            phone: (card.phone || '').replaceAll(/\D+/g, '').slice(0, 15) || undefined,
+            address: card.address?.trim() || undefined
+        };
         const req: InsurancePurchaseRequestDto = {
             jobId: this.state.jobId(),
             familyUserId: this.state.familyUser()?.familyUserId!,
@@ -203,10 +213,10 @@ export class InsuranceService {
         return this.inferRegistrationIdFromParticipant(q);
     }
 
-    private sanitizeExpiry(raw?: string): string | null {
+    private sanitizeExpiry(raw?: string): string | undefined {
         const digits = String(raw || '').replaceAll(/\D+/g, '').slice(0, 4);
         if (digits.length === 3) return ('0' + digits);
-        return digits.length === 4 ? digits : null;
+        return digits.length === 4 ? digits : undefined;
     }
 
     private extractRegistrationIdFromMeta(meta: any): string {

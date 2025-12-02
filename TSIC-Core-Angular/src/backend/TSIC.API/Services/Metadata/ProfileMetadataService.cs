@@ -53,21 +53,22 @@ public sealed class ProfileMetadataService : IProfileMetadataService
         var seed = $"{jobId}-{metadataJson?.Length ?? 0}-{jsonOptions?.Length ?? 0}-{parsed.TypedFields.Count}";
         var version = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(seed))).Substring(0, 16);
 
-        var fields = parsed.TypedFields.Select(tf => new JobRegFieldDto(
-            tf.Name,
-            tf.DbColumn,
-            string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
-            string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
-            tf.DataSource,
-            tf.Options,
-            tf.Validation,
-            tf.Order,
-            string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
-            tf.Computed,
-            tf.ConditionalOn
-        )).ToList();
+        var fields = parsed.TypedFields.Select(tf => new JobRegFieldDto
+        {
+            Name = tf.Name,
+            DbColumn = tf.DbColumn,
+            DisplayName = string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
+            InputType = string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
+            DataSource = tf.DataSource,
+            Options = tf.Options,
+            Validation = tf.Validation,
+            Order = tf.Order,
+            Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
+            Computed = tf.Computed,
+            ConditionalOn = tf.ConditionalOn
+        }).ToList();
 
-        return new JobRegFormDto(version, coreRegformPlayer, fields, parsed.WaiverFieldNames, constraint);
+        return new JobRegFormDto { Version = version, CoreProfileName = coreRegformPlayer, Fields = fields, WaiverFieldNames = parsed.WaiverFieldNames, ConstraintType = constraint };
     }
 
     private static (List<ProfileMetadataField> typed, List<(string Name, string DbColumn)> mapped, List<string> waiver) ParseFields(JsonElement fieldsEl)

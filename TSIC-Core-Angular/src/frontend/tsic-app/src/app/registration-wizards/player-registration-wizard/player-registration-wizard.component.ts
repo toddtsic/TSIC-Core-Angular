@@ -162,7 +162,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         const map = this.state.eligibilityByPlayer();
         for (const p of selected) {
             if (p.registered) continue;
-            const v = map[p.playerId];
+            const v = map[p.playerId ?? ''];
             if (!v || String(v).trim() === '') return false;
         }
         return true;
@@ -172,7 +172,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         if (selected.length === 0) return false;
         const map = this.state.selectedTeams();
         for (const p of selected) {
-            const val = map[p.playerId] as any;
+            const val = map[p.playerId ?? ''] as any;
             if (!val || (Array.isArray(val) && val.length === 0)) return false;
         }
         return true;

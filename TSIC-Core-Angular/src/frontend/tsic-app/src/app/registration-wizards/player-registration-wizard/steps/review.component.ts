@@ -20,7 +20,7 @@ export class ReviewComponent {
   selectedPlayers() {
     return this.state.familyPlayers()
       .filter(p => p.selected || p.registered)
-      .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+      .map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
   }
 
   getTeamsForPlayer(playerId: string): string[] {

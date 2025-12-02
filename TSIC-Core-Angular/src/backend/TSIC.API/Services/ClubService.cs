@@ -26,7 +26,7 @@ public sealed class ClubService : IClubService
             string.IsNullOrWhiteSpace(request.Username) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return new ClubRepRegistrationResponse(false, null, null, "Club name, username, and password are required");
+            return new ClubRepRegistrationResponse { Success = false, ClubId = null, UserId = null, Message = "Club name, username, and password are required" };
         }
 
         // Check for similar existing clubs (fuzzy match)
@@ -36,13 +36,14 @@ public sealed class ClubService : IClubService
         var exactMatch = similarClubs.FirstOrDefault(c => c.MatchScore >= 90);
         if (exactMatch != null)
         {
-            return new ClubRepRegistrationResponse(
-                false,
-                null,
-                null,
-                $"A club with a very similar name already exists: '{exactMatch.ClubName}'. If this is a duplicate registration, your teams may be dropped. Please verify this is a NEW club or login to the existing club instead.",
-                similarClubs
-            );
+            return new ClubRepRegistrationResponse
+            {
+                Success = false,
+                ClubId = null,
+                UserId = null,
+                Message = $"A club with a very similar name already exists: '{exactMatch.ClubName}'. If this is a duplicate registration, your teams may be dropped. Please verify this is a NEW club or login to the existing club instead.",
+                SimilarClubs = similarClubs
+            };
         }
 
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
@@ -67,7 +68,7 @@ public sealed class ClubService : IClubService
         if (!createResult.Succeeded)
         {
             var msg = string.Join("; ", createResult.Errors.Select(e => e.Description));
-            return new ClubRepRegistrationResponse(false, null, null, msg);
+            return new ClubRepRegistrationResponse { Success = false, ClubId = null, UserId = null, Message = msg };
         }
 
         // Create Clubs record
@@ -90,7 +91,7 @@ public sealed class ClubService : IClubService
         await _db.SaveChangesAsync();
 
         scope.Complete();
-        return new ClubRepRegistrationResponse(true, club.ClubId, user.Id, null, similarClubs.Any() ? similarClubs : null);
+        return new ClubRepRegistrationResponse { Success = true, ClubId = club.ClubId, UserId = user.Id, Message = null, SimilarClubs = similarClubs.Any() ? similarClubs : null };
     }
 
     public async Task<List<ClubSearchResult>> SearchClubsAsync(string query, string? state)
@@ -118,13 +119,14 @@ public sealed class ClubService : IClubService
 
         // Calculate similarity scores
         var results = clubs
-            .Select(c => new ClubSearchResult(
-                c.ClubId,
-                c.ClubName,
-                c.State,
-                c.TeamCount,
-                CalculateSimilarity(normalized, NormalizeClubName(c.ClubName))
-            ))
+            .Select(c => new ClubSearchResult
+            {
+                ClubId = c.ClubId,
+                ClubName = c.ClubName,
+                State = c.State,
+                TeamCount = c.TeamCount,
+                MatchScore = CalculateSimilarity(normalized, NormalizeClubName(c.ClubName))
+            })
             .Where(r => r.MatchScore >= 60) // Only return 60%+ matches
             .OrderByDescending(r => r.MatchScore)
             .Take(5)

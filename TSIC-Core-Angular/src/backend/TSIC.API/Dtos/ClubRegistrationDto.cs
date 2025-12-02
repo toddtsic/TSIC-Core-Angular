@@ -2,19 +2,20 @@ using FluentValidation;
 
 namespace TSIC.API.Dtos;
 
-public record ClubRepRegistrationRequest(
-    string ClubName,
-    string FirstName,
-    string LastName,
-    string Email,
-    string Username,
-    string Password,
-    string StreetAddress,
-    string City,
-    string State,
-    string PostalCode,
-    string Cellphone
-);
+public record ClubRepRegistrationRequest
+{
+    public required string ClubName { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required string Email { get; init; }
+    public required string Username { get; init; }
+    public required string Password { get; init; }
+    public required string StreetAddress { get; init; }
+    public required string City { get; init; }
+    public required string State { get; init; }
+    public required string PostalCode { get; init; }
+    public required string Cellphone { get; init; }
+}
 
 public class ClubRepRegistrationRequestValidator : AbstractValidator<ClubRepRegistrationRequest>
 {
@@ -70,18 +71,20 @@ public class ClubRepRegistrationRequestValidator : AbstractValidator<ClubRepRegi
     }
 }
 
-public record ClubRepRegistrationResponse(
-    bool Success,
-    int? ClubId,
-    string? UserId,
-    string? Message,
-    List<ClubSearchResult>? SimilarClubs = null
-);
+public record ClubRepRegistrationResponse
+{
+    public required bool Success { get; init; }
+    public int? ClubId { get; init; }
+    public string? UserId { get; init; }
+    public string? Message { get; init; }
+    public List<ClubSearchResult>? SimilarClubs { get; init; }
+}
 
-public record ClubSearchResult(
-    int ClubId,
-    string ClubName,
-    string? State,
-    int TeamCount,
-    int MatchScore
-);
+public record ClubSearchResult
+{
+    public required int ClubId { get; init; }
+    public required string ClubName { get; init; }
+    public string? State { get; init; }
+    public required int TeamCount { get; init; }
+    public required int MatchScore { get; init; }
+}

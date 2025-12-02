@@ -95,7 +95,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
   waivers = () => this.waiverState.waiverDefinitions();
   players = () => this.state.familyPlayers()
     .filter(p => p.selected || p.registered)
-    .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+    .map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
   submitted = signal(false);
 
   // Track open panels (exclusive) and auto-open first waiver

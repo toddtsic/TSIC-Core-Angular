@@ -28,7 +28,7 @@ export class PaymentService {
         const items: LineItem[] = [];
         const players = this.state.familyPlayers()
             .filter(p => p.selected || p.registered)
-            .map(p => ({ id: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+            .map(p => ({ id: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
         const selTeams = this.playerState.selectedTeams();
         for (const p of players) {
             const teamId = selTeams[p.id];

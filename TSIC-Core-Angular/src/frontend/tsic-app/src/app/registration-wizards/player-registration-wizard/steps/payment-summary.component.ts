@@ -92,23 +92,23 @@ export class PaymentSummaryComponent {
   activeArb(playerId: string): boolean {
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
     if (!p) return false;
-    return p.priorRegistrations.some(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
+    return p.priorRegistrations?.some(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active') ?? false;
   }
   hasSub(playerId: string): boolean {
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
     if (!p) return false;
-    return p.priorRegistrations.some(r => !!r.adnSubscriptionId);
+    return p.priorRegistrations?.some(r => !!r.adnSubscriptionId) ?? false;
   }
   subscriptionId(playerId: string): string | null {
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
     if (!p) return null;
-    const reg = p.priorRegistrations.find(r => !!r.adnSubscriptionId);
+    const reg = p.priorRegistrations?.find(r => !!r.adnSubscriptionId);
     return reg?.adnSubscriptionId ?? null;
   }
   arbProgress(playerId: string): { state: 'none' | 'issue' | 'pending' | 'completed'; nextDate?: Date; nextIndex: number; total: number; } {
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
     if (!p) return { state: 'none', nextIndex: -1, total: 0 };
-    const reg = p.priorRegistrations.find(r => !!r.adnSubscriptionId);
+    const reg = p.priorRegistrations?.find(r => !!r.adnSubscriptionId);
     if (!reg) return { state: 'none', nextIndex: -1, total: 0 };
     const status = (reg.adnSubscriptionStatus || '').toLowerCase();
     if (status !== 'active') return { state: 'issue', nextIndex: -1, total: reg.adnSubscriptionBillingOccurences || 0 };
@@ -133,7 +133,7 @@ export class PaymentSummaryComponent {
     if (prog.state === 'none') return 'No subscription';
     if (prog.state === 'issue') return 'Subscription issue – contact club';
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
-    const reg = p?.priorRegistrations.find(r => !!r.adnSubscriptionId);
+    const reg = p?.priorRegistrations?.find(r => !!r.adnSubscriptionId);
     if (!reg) return 'No subscription';
     const startRaw = reg.adnSubscriptionStartDate; const interval = reg.adnSubscriptionIntervalLength || 1; const occur = reg.adnSubscriptionBillingOccurences || 0;
     if (!startRaw || occur <= 0) return 'Subscription scheduled';

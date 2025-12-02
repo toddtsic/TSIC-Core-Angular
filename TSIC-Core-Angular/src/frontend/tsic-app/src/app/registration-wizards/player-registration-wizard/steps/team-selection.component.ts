@@ -229,7 +229,7 @@ export class TeamSelectionComponent {
   // expose signals for template
   loading = this.teamService.loading;
   error = this.teamService.error;
-  selectedPlayers = () => this.wizard.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+  selectedPlayers = () => this.wizard.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
   selectedTeams = () => this.playerState.selectedTeams();
   // readonly mode removed; selection is locked only for players with prior registrations
   // Syncfusion field mapping (disable selection for FULL teams)

@@ -2,11 +2,10 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
-import { FamilyPlayer } from '../family-players.dto';
+import type { FamilyPlayerDto, PreSubmitValidationErrorDto } from '../../../core/api/models';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
-import type { PreSubmitValidationErrorDto } from '../../../core/api/models';
 
 @Component({
   selector: 'app-rw-player-forms',
@@ -266,7 +265,7 @@ export class PlayerFormsComponent {
     const list = this.state.familyPlayers().filter(p => p.selected || p.registered);
     return list.map(p => ({
       userId: p.playerId,
-      name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
+      name: `${p.firstName} ${p.lastName}`.trim(),
       teamIds: (() => {
         // When eligibility step exists we show team selections elsewhere (Teams step), keep pills minimal here.
         // When no eligibility step, Teams tab is skipped and team selection happens here in Forms; still expose current selections as pills.
@@ -286,11 +285,11 @@ export class PlayerFormsComponent {
   }
   /** Returns registrationId for a player if present in familyPlayers. */
   getRegistrationId(playerId: string): string | null {
-    const p: FamilyPlayer | undefined = this.state.familyPlayers().find(fp => fp.playerId === playerId);
+    const p = this.state.familyPlayers().find(fp => fp.playerId === playerId);
     if (!p) return null;
     // Return first prior registration's ID if present (active preferred)
     const activeFirst = [...(p.priorRegistrations || [])].sort(r => r.active ? -1 : 1);
-    return activeFirst.length ? activeFirst[0].registrationId : null;
+    return activeFirst.length ? (activeFirst[0].registrationId ?? null) : null;
   }
   /**
    * Lookup a team by name from the TeamService filtered list.
@@ -316,7 +315,7 @@ export class PlayerFormsComponent {
   private readonly uslax = inject(UsLaxService);
 
   schemas = () => this.state.profileFieldSchemas();
-  selectedPlayers = () => this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+  selectedPlayers = () => this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
   // Deterministic color per player across steps (light/dark friendly using *-subtle variants)
@@ -369,7 +368,7 @@ export class PlayerFormsComponent {
   serverErrors = () => this.state.getServerValidationErrors();
   nameForPlayer(playerId?: string | null): string {
     const p = this.state.familyPlayers().find(fp => fp.playerId === (playerId ?? ''));
-    return p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : (playerId ?? '');
+    return p ? `${p.firstName} ${p.lastName}`.trim() : (playerId ?? '');
   }
   trackErr = (_: number, e: PreSubmitValidationErrorDto) => `${e.playerId ?? ''}|${e.field ?? ''}`;
   labelForField(fieldName: string): string {

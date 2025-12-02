@@ -129,7 +129,7 @@ public sealed class FamilyService : IFamilyService
         else
             display = asp?.UserName ?? "Family";
 
-        var familyUser = new FamilyUserSummaryDto(familyUserId, display, asp?.UserName ?? string.Empty);
+        var familyUser = new FamilyUserSummaryDto { FamilyUserId = familyUserId, DisplayName = display, UserName = asp?.UserName ?? string.Empty };
 
         // Build credit card info (prefer mom, then dad, then asp user)
         string? ccFirst = null;
@@ -153,10 +153,10 @@ public sealed class FamilyService : IFamilyService
         var ccZip = asp?.PostalCode?.Trim();
         var ccEmail = !string.IsNullOrWhiteSpace(fam?.MomEmail) ? fam!.MomEmail!.Trim() : (asp?.Email?.Trim());
         var ccPhone = !string.IsNullOrWhiteSpace(fam?.MomCellphone) ? fam!.MomCellphone!.Trim() : (asp?.Cellphone?.Trim() ?? asp?.Phone?.Trim());
-        var ccInfo = new CcInfoDto(ccFirst, ccLast, ccStreet, ccZip, ccEmail, ccPhone);
+        var ccInfo = new CcInfoDto { FirstName = ccFirst, LastName = ccLast, StreetAddress = ccStreet, Zip = ccZip, Email = ccEmail, Phone = ccPhone };
 
         if (linkedChildIds.Count == 0)
-            return new FamilyPlayersResponseDto(familyUser, Enumerable.Empty<FamilyPlayerDto>(), CcInfo: ccInfo, JobHasActiveDiscountCodes: jobHasActiveDiscountCodes, JobUsesAmex: jobUsesAmex);
+            return new FamilyPlayersResponseDto { FamilyUser = familyUser, FamilyPlayers = Enumerable.Empty<FamilyPlayerDto>(), CcInfo = ccInfo, JobHasActiveDiscountCodes = jobHasActiveDiscountCodes, JobUsesAmex = jobUsesAmex };
 
         // Capture registrations query separately so we can emit SQL for diagnostics (Dev only)
         List<TSIC.Domain.Entities.Registrations> regsRaw;
@@ -234,29 +234,31 @@ public sealed class FamilyService : IFamilyService
                         formFieldValues = dict;
                     }
 
-                    return new FamilyPlayerRegistrationDto(
-                        r.RegistrationId,
-                        r.BActive == true,
-                        new RegistrationFinancialsDto(
-                            r.FeeBase,
-                            r.FeeProcessing,
-                            r.FeeDiscount,
-                            r.FeeDonation,
-                            r.FeeLatefee,
-                            r.FeeTotal,
-                            r.OwedTotal,
-                            r.PaidTotal
-                        ),
-                        r.AssignedTeamId,
-                        r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) ? teamNameMap[r.AssignedTeamId.Value] : null,
-                        r.AdnSubscriptionId,
-                        r.AdnSubscriptionStatus,
-                        r.AdnSubscriptionAmountPerOccurence,
-                        r.AdnSubscriptionBillingOccurences.HasValue ? (short?)r.AdnSubscriptionBillingOccurences.Value : null,
-                        r.AdnSubscriptionIntervalLength.HasValue ? (short?)r.AdnSubscriptionIntervalLength.Value : null,
-                        r.AdnSubscriptionStartDate,
-                        formFieldValues ?? new Dictionary<string, JsonElement>()
-                    );
+                    return new FamilyPlayerRegistrationDto
+                    {
+                        RegistrationId = r.RegistrationId,
+                        Active = r.BActive == true,
+                        Financials = new RegistrationFinancialsDto
+                        {
+                            FeeBase = r.FeeBase,
+                            FeeProcessing = r.FeeProcessing,
+                            FeeDiscount = r.FeeDiscount,
+                            FeeDonation = r.FeeDonation,
+                            FeeLateFee = r.FeeLatefee,
+                            FeeTotal = r.FeeTotal,
+                            OwedTotal = r.OwedTotal,
+                            PaidTotal = r.PaidTotal
+                        },
+                        AssignedTeamId = r.AssignedTeamId,
+                        AssignedTeamName = r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value) ? teamNameMap[r.AssignedTeamId.Value] : null,
+                        AdnSubscriptionId = r.AdnSubscriptionId,
+                        AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+                        AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+                        AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences.HasValue ? (short?)r.AdnSubscriptionBillingOccurences.Value : null,
+                        AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength.HasValue ? (short?)r.AdnSubscriptionIntervalLength.Value : null,
+                        AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+                        FormFieldValues = formFieldValues ?? new Dictionary<string, JsonElement>()
+                    };
                 }).ToList(),
                 StringComparer.Ordinal);
 
@@ -282,7 +284,7 @@ public sealed class FamilyService : IFamilyService
             .FirstOrDefaultAsync();
         if (regSaverRaw != null && !string.IsNullOrWhiteSpace(regSaverRaw.RegsaverPolicyId) && regSaverRaw.RegsaverPolicyIdCreateDate.HasValue)
         {
-            regSaver = new RegSaverDetailsDto(regSaverRaw.RegsaverPolicyId, regSaverRaw.RegsaverPolicyIdCreateDate.Value);
+            regSaver = new RegSaverDetailsDto { PolicyNumber = regSaverRaw.RegsaverPolicyId, PolicyCreateDate = regSaverRaw.RegsaverPolicyIdCreateDate.Value };
         }
 
         var children = await _db.AspNetUsers
@@ -306,17 +308,18 @@ public sealed class FamilyService : IFamilyService
                     defaults = new Dictionary<string, JsonElement>();
                 }
             }
-            return new FamilyPlayerDto(
-                c.Id,
-                c.FirstName ?? string.Empty,
-                c.LastName ?? string.Empty,
-                c.Gender ?? string.Empty,
-                c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
-                registered,
-                registered,
-                prior,
-                defaults
-            );
+            return new FamilyPlayerDto
+            {
+                PlayerId = c.Id,
+                FirstName = c.FirstName ?? string.Empty,
+                LastName = c.LastName ?? string.Empty,
+                Gender = c.Gender ?? string.Empty,
+                Dob = c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
+                Registered = registered,
+                Selected = registered,
+                PriorRegistrations = prior,
+                DefaultFieldValues = defaults
+            };
         })
         .OrderBy(p => p.LastName)
         .ThenBy(p => p.FirstName)
@@ -351,29 +354,31 @@ public sealed class FamilyService : IFamilyService
                 }
                 var versionSeed = $"{jobId}-{metadataJson?.Length ?? 0}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";
                 var version = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(versionSeed))).Substring(0, 16);
-                jobRegForm = new JobRegFormDto(
-                    version,
-                    coreProfile,
-                    typedFields.Select(tf => new JobRegFieldDto(
-                        tf.Name,
-                        tf.DbColumn,
-                        string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
-                        string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
-                        tf.DataSource,
-                        tf.Options,
-                        tf.Validation,
-                        tf.Order,
-                        string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
-                        tf.Computed,
-                        tf.ConditionalOn
-                    )).ToList(),
-                    waiverFieldNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                    constraintType
-                );
+                jobRegForm = new JobRegFormDto
+                {
+                    Version = version,
+                    CoreProfileName = coreProfile,
+                    Fields = typedFields.Select(tf => new JobRegFieldDto
+                    {
+                        Name = tf.Name,
+                        DbColumn = tf.DbColumn,
+                        DisplayName = string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
+                        InputType = string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
+                        DataSource = tf.DataSource,
+                        Options = tf.Options,
+                        Validation = tf.Validation,
+                        Order = tf.Order,
+                        Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
+                        Computed = tf.Computed,
+                        ConditionalOn = tf.ConditionalOn
+                    }).ToList(),
+                    WaiverFieldNames = waiverFieldNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    ConstraintType = constraintType
+                };
             }
         }
 
-        return new FamilyPlayersResponseDto(familyUser, players, regSaver, jobRegForm, ccInfo, JobHasActiveDiscountCodes: jobHasActiveDiscountCodes, JobUsesAmex: jobUsesAmex);
+        return new FamilyPlayersResponseDto { FamilyUser = familyUser, FamilyPlayers = players, RegSaverDetails = regSaver, JobRegForm = jobRegForm, CcInfo = ccInfo, JobHasActiveDiscountCodes = jobHasActiveDiscountCodes, JobUsesAmex = jobUsesAmex };
     }
 
     // Build a dictionary of latest non-null values per visible field from a user's registration history (most-recent-first list)

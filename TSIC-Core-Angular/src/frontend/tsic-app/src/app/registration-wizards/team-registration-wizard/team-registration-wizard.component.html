@@ -222,55 +222,59 @@
                                                                     autocomplete="address-level2" required />
                                                             </div>
                                                             <div class="col-12 col-md-3">
-                                                                <button type="submit" class="btn btn-primary"
-                                                                    [disabled]="registrationForm.invalid || submitting">
-                                                                    @if (submitting) { <span
-                                                                        class="spinner-border spinner-border-sm me-2"
-                                                                        role="status" aria-hidden="true"></span> }
-                                                                    <span>{{ submitting ? 'Creating Account…' : 'Create
-                                                                        Club Rep Account & Continue Registration'
-                                                                        }}</span>
-                                                                </button>tate
-                                                                <span class="text-danger">*</span>
+                                                                <label for="reg-state"
+                                                                    class="form-label font-medium">State
+                                                                    <span class="text-danger">*</span>
+                                                                </label>
+                                                                <select id="reg-state" formControlName="state"
+                                                                    class="form-select" autocomplete="address-level1"
+                                                                    required>
+                                                                    <option value="" disabled>Select state</option>
+                                                                    @for (s of statesOptions; track s.value) {
+                                                                    <option [value]="s.value">{{ s.label }}</option>
+                                                                    }
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-12 col-md-4">
+                                                                <label for="reg-zip" class="form-label font-medium">ZIP
+                                                                    Code
+                                                                    <span class="text-danger">*</span></label>
+                                                                <input id="reg-zip" formControlName="zip"
+                                                                    class="form-control" placeholder="ZIP"
+                                                                    autocomplete="postal-code" required />
+                                                            </div>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary"
+                                                            [disabled]="registrationForm.invalid || submitting">
+                                                            @if (submitting) { <span
+                                                                class="spinner-border spinner-border-sm me-2"
+                                                                role="status" aria-hidden="true"></span> }
+                                                            <span>{{ submitting ? 'Creating Account…' : 'Create Club Rep
+                                                                Account & Continue Registration' }}</span>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </label>
-                                <select id="reg-state" formControlName="state" class="form-select"
-                                    autocomplete="address-level1" required>
-                                    <option value="" disabled>Select state</option>
-                                    @for (s of statesOptions; track s.value) {
-                                    <option [value]="s.value">{{ s.label }}</option>
-                                    }
-                                </select>
                             </div>
-                            <div class="col-12 col-md-4">
-                                <label for="reg-zip" class="form-label font-medium">ZIP
-                                    Code
-                                    <span class="text-danger">*</span></label>
-                                <input id="reg-zip" formControlName="zip" class="form-control" placeholder="ZIP"
-                                    autocomplete="postal-code" required />
-                            </div>
-                </div>
-                <button type="submit" class="btn btn-primary">Create Club Rep
-                    Account & Continue Registration</button>
-                </form>
+                        </fieldset>
+                    </ng-container>
+
+                    <ng-container *ngIf="step === 2">
+                        <!-- Team submission form goes here -->
+                        <div class="alert alert-info">Team submission step placeholder</div>
+                    </ng-container>
+                </div> <!-- /card-body -->
+            </div> <!-- /card -->
+
+            <!-- Bottom action bar -->
+            <div class="mt-3 rw-bottom-actions" *ngIf="step !== 1">
+                <app-tw-action-bar [canBack]="step !== 1" [canContinue]="canContinue()"
+                    [continueLabel]="continueLabel()" [showContinue]="showContinueButton()" [placement]="'bottom'"
+                    (back)="prevStep()" (continue)="nextStep()" />
             </div>
-        </div>
-    </div>
-    </div>
-    </label>
-    </div>
-    </fieldset>
-    </ng-container>
-    <ng-container *ngIf="step === 2">
-        <!-- Team submission form goes here -->
-        <div class="alert alert-info">Team submission step placeholder</div>
-    </ng-container>
-    </div>
-    </div>
-    <!-- Bottom action bar -->
-    <div class="mt-3 rw-bottom-actions" *ngIf="step !== 1">
-        <app-tw-action-bar [canBack]="step !== 1" [canContinue]="canContinue()" [continueLabel]="continueLabel()"
-            [showContinue]="showContinueButton()" [placement]="'bottom'" (back)="prevStep()" (continue)="nextStep()" />
-    </div>
-    </div>
-    </div>
+        </div> <!-- /col -->
+    </div> <!-- /row -->
 </main>

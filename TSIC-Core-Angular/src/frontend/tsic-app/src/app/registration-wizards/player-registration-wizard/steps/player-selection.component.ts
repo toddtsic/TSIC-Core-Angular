@@ -92,7 +92,7 @@ export class PlayerSelectionComponent implements OnInit {
     try {
       const fam = this.state.familyPlayers();
       const p = fam.find(x => x.playerId === id);
-      return !!p && (p.selected || p.registered);
+      return !!p && !!(p.selected || p.registered);
     } catch { return false; }
   }
 

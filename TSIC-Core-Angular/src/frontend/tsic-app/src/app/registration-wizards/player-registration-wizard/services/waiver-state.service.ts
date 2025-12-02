@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import type { WaiverDefinition } from '../registration-wizard.service';
-import type { FamilyPlayer } from '../family-players.dto';
+import type { FamilyPlayerDto } from '../../../core/api/models';
 
 /**
  * WaiverStateService: owns waiver definitions, mapping, acceptance & signature state.
@@ -63,7 +63,7 @@ export class WaiverStateService {
     }
 
     /** Recompute waiver acceptance when player selection changes. */
-    recomputeWaiverAcceptanceOnSelectionChange(selectedPlayerIds: string[], familyPlayers: FamilyPlayer[]): void {
+    recomputeWaiverAcceptanceOnSelectionChange(selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try {
             const defs = this.waiverDefinitions();
             const selectedIds = new Set(selectedPlayerIds);
@@ -90,7 +90,7 @@ export class WaiverStateService {
     }
 
     /** Seed acceptance for read-only scenarios (all selected players registered). */
-    seedAcceptedWaiversIfReadOnly(selectedPlayerIds: string[], familyPlayers: FamilyPlayer[]): void {
+    seedAcceptedWaiversIfReadOnly(selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try {
             const defs = this.waiverDefinitions();
             if (!defs.length) return;
@@ -109,7 +109,7 @@ export class WaiverStateService {
         } catch { /* ignore */ }
     }
 
-    processSchemasAndBindWaivers(defs: WaiverDefinition[], schemas: { name: string; label: string; type: string; required: boolean; visibility?: string }[], selectedPlayerIds: string[], familyPlayers: FamilyPlayer[]): void {
+    processSchemasAndBindWaivers(defs: WaiverDefinition[], schemas: { name: string; label: string; type: string; required: boolean; visibility?: string }[], selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try {
             const { fields, labels } = this.detectWaiverFieldsFromSchemas(schemas);
             this.waiverFieldNames.set(fields);

@@ -10,23 +10,23 @@
 
 
 export interface AddressDto {
-    streetAddress?: string | undefined;
-    city?: string | undefined;
-    state?: string | undefined;
-    postalCode?: string | undefined;
+    streetAddress: string;
+    city: string;
+    state: string;
+    postalCode: string;
 }
 
 export interface AllowedFieldDomainItem {
-    name?: string | undefined;
-    displayName?: string | undefined;
-    defaultInputType?: string | undefined;
-    defaultVisibility?: string | undefined;
-    seenInProfiles?: number;
+    name: string;
+    displayName: string;
+    defaultInputType: string;
+    defaultVisibility: string;
+    seenInProfiles: number;
 }
 
 export interface ApplyDiscountItemDto {
     playerId: string;
-    amount?: number;
+    amount: number;
 }
 
 export interface ApplyDiscountRequestDto {
@@ -37,236 +37,236 @@ export interface ApplyDiscountRequestDto {
 }
 
 export interface ApplyDiscountResponseDto {
-    success?: boolean;
-    message?: string | undefined;
-    totalDiscount?: number;
-    perPlayer?: { [key: string]: number; } | undefined;
+    success: boolean;
+    message: string | undefined;
+    totalDiscount: number;
+    perPlayer: { [key: string]: number; };
 }
 
 export interface AuthTokenResponse {
-    accessToken?: string | undefined;
-    refreshToken?: string | undefined;
-    expiresIn?: number | undefined;
+    accessToken: string;
+    refreshToken: string | undefined;
+    expiresIn: number | undefined;
 }
 
 export interface AvailableTeamDto {
     teamId: string;
-    teamName: string | undefined;
-    agegroupId?: string;
-    agegroupName?: string | undefined;
-    divisionId?: string | undefined;
-    divisionName?: string | undefined;
-    maxRosterSize?: number;
-    currentRosterSize?: number;
-    rosterIsFull?: boolean;
-    teamAllowsSelfRostering?: boolean | undefined;
-    agegroupAllowsSelfRostering?: boolean | undefined;
-    perRegistrantFee?: number | undefined;
-    perRegistrantDeposit?: number | undefined;
-    jobUsesWaitlists?: boolean;
-    waitlistTeamId?: string | undefined;
+    teamName: string;
+    agegroupId: string;
+    agegroupName: string | undefined;
+    divisionId: string | undefined;
+    divisionName: string | undefined;
+    maxRosterSize: number;
+    currentRosterSize: number;
+    rosterIsFull: boolean;
+    teamAllowsSelfRostering: boolean | undefined;
+    agegroupAllowsSelfRostering: boolean | undefined;
+    perRegistrantFee: number | undefined;
+    perRegistrantDeposit: number | undefined;
+    jobUsesWaitlists: boolean;
+    waitlistTeamId: string | undefined;
 }
 
 export interface CcInfoDto {
-    firstName?: string | undefined;
-    lastName?: string | undefined;
-    streetAddress?: string | undefined;
-    zip?: string | undefined;
-    email?: string | undefined;
-    phone?: string | undefined;
+    firstName: string | undefined;
+    lastName: string | undefined;
+    streetAddress: string | undefined;
+    zip: string | undefined;
+    email: string | undefined;
+    phone: string | undefined;
 }
 
 export interface ChildDto {
-    firstName?: string | undefined;
-    lastName?: string | undefined;
-    gender?: string | undefined;
-    dob?: string | undefined;
-    email?: string | undefined;
-    phone?: string | undefined;
+    firstName: string;
+    lastName: string;
+    gender: string;
+    dob: string | undefined;
+    email: string | undefined;
+    phone: string | undefined;
 }
 
 export interface CloneProfileRequest {
-    sourceProfileType?: string | undefined;
+    sourceProfileType: string;
 }
 
 export interface CloneProfileResult {
-    success?: boolean;
-    newProfileType?: string | undefined;
-    sourceProfileType?: string | undefined;
-    fieldCount?: number;
-    errorMessage?: string | undefined;
+    success: boolean;
+    newProfileType: string;
+    sourceProfileType: string;
+    fieldCount: number;
+    errorMessage: string | undefined;
 }
 
 export interface ClubRepRegistrationRequest {
-    clubName?: string | undefined;
-    firstName?: string | undefined;
-    lastName?: string | undefined;
-    email?: string | undefined;
-    username?: string | undefined;
-    password?: string | undefined;
-    streetAddress?: string | undefined;
-    city?: string | undefined;
-    state?: string | undefined;
-    postalCode?: string | undefined;
-    cellphone?: string | undefined;
+    clubName: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+    password: string;
+    streetAddress: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    cellphone: string;
 }
 
 export interface ClubRepRegistrationResponse {
-    success?: boolean;
-    clubId?: number | undefined;
-    userId?: string | undefined;
-    message?: string | undefined;
-    similarClubs?: ClubSearchResult[] | undefined;
+    success: boolean;
+    clubId: number | undefined;
+    userId: string | undefined;
+    message: string | undefined;
+    similarClubs: ClubSearchResult[] | undefined;
 }
 
 export interface ClubSearchResult {
-    clubId?: number;
-    clubName?: string | undefined;
-    state?: string | undefined;
-    teamCount?: number;
-    matchScore?: number;
+    clubId: number;
+    clubName: string;
+    state: string | undefined;
+    teamCount: number;
+    matchScore: number;
 }
 
 export interface CreditCardInfo {
-    number?: string | undefined;
-    expiry?: string | undefined;
-    code?: string | undefined;
-    firstName?: string | undefined;
-    lastName?: string | undefined;
-    address?: string | undefined;
-    zip?: string | undefined;
-    email?: string | undefined;
-    phone?: string | undefined;
+    number: string | undefined;
+    expiry: string | undefined;
+    code: string | undefined;
+    firstName: string | undefined;
+    lastName: string | undefined;
+    address: string | undefined;
+    zip: string | undefined;
+    email: string | undefined;
+    phone: string | undefined;
 }
 
 export interface EmailHealthStatus {
-    emailingEnabled?: boolean;
-    isDevelopment?: boolean;
-    sandboxMode?: boolean;
-    sesReachable?: boolean;
-    max24HourSend?: number | undefined;
-    sentLast24Hours?: number | undefined;
-    maxSendRate?: number | undefined;
-    region?: string | undefined;
-    warning?: string | undefined;
+    emailingEnabled: boolean;
+    isDevelopment: boolean;
+    sandboxMode: boolean;
+    sesReachable: boolean;
+    max24HourSend: number | undefined;
+    sentLast24Hours: number | undefined;
+    maxSendRate: number | undefined;
+    region: string;
+    warning: string | undefined;
 }
 
 export interface FamilyPlayerDto {
-    playerId?: string | undefined;
-    firstName?: string | undefined;
-    lastName?: string | undefined;
-    gender?: string | undefined;
-    dob?: string | undefined;
-    registered?: boolean;
-    selected?: boolean;
-    priorRegistrations?: FamilyPlayerRegistrationDto[] | undefined;
-    defaultFieldValues?: { [key: string]: any; } | undefined;
+    playerId: string;
+    firstName: string;
+    lastName: string;
+    gender: string;
+    dob: string | undefined;
+    registered: boolean;
+    selected: boolean;
+    priorRegistrations: FamilyPlayerRegistrationDto[];
+    defaultFieldValues: { [key: string]: any; } | undefined;
 }
 
 export interface FamilyPlayerRegistrationDto {
-    registrationId?: string;
-    active?: boolean;
-    financials?: RegistrationFinancialsDto;
-    assignedTeamId?: string | undefined;
-    assignedTeamName?: string | undefined;
-    adnSubscriptionId?: string | undefined;
-    adnSubscriptionStatus?: string | undefined;
-    adnSubscriptionAmountPerOccurence?: number | undefined;
-    adnSubscriptionBillingOccurences?: number | undefined;
-    adnSubscriptionIntervalLength?: number | undefined;
-    adnSubscriptionStartDate?: Date | undefined;
-    formFieldValues?: { [key: string]: any; } | undefined;
+    registrationId: string;
+    active: boolean;
+    financials: RegistrationFinancialsDto;
+    assignedTeamId: string | undefined;
+    assignedTeamName: string | undefined;
+    adnSubscriptionId: string | undefined;
+    adnSubscriptionStatus: string | undefined;
+    adnSubscriptionAmountPerOccurence: number | undefined;
+    adnSubscriptionBillingOccurences: number | undefined;
+    adnSubscriptionIntervalLength: number | undefined;
+    adnSubscriptionStartDate: Date | undefined;
+    formFieldValues: { [key: string]: any; };
 }
 
 export interface FamilyPlayersResponseDto {
-    familyUser?: FamilyUserSummaryDto;
-    familyPlayers?: FamilyPlayerDto[] | undefined;
-    regSaverDetails?: RegSaverDetailsDto;
-    jobRegForm?: JobRegFormDto;
-    ccInfo?: CcInfoDto;
-    jobHasActiveDiscountCodes?: boolean;
-    jobUsesAmex?: boolean;
+    familyUser: FamilyUserSummaryDto;
+    familyPlayers: FamilyPlayerDto[];
+    regSaverDetails: RegSaverDetailsDto;
+    jobRegForm: JobRegFormDto;
+    ccInfo: CcInfoDto;
+    jobHasActiveDiscountCodes: boolean;
+    jobUsesAmex: boolean;
 }
 
 export interface FamilyProfileResponse {
-    username?: string | undefined;
-    primary?: PersonDto;
-    secondary?: PersonDto;
-    address?: AddressDto;
-    children?: ChildDto[] | undefined;
+    username: string;
+    primary: PersonDto;
+    secondary: PersonDto;
+    address: AddressDto;
+    children: ChildDto[];
 }
 
 export interface FamilyRegistrationItemDto {
-    registrationId?: string;
-    playerId?: string | undefined;
-    playerFirstName?: string | undefined;
-    playerLastName?: string | undefined;
-    jobId?: string;
-    jobPath?: string | undefined;
-    assignedTeamId?: string | undefined;
-    assignedTeamName?: string | undefined;
-    modified?: Date;
-    gradYear?: string | undefined;
-    sportAssnId?: string | undefined;
-    feeBase?: number;
-    feeDiscount?: number;
-    feeDiscountMp?: number;
-    feeDonation?: number;
-    feeLatefee?: number;
-    feeProcessing?: number;
-    feeTotal?: number;
-    owedTotal?: number;
-    paidTotal?: number;
+    registrationId: string;
+    playerId: string;
+    playerFirstName: string | undefined;
+    playerLastName: string | undefined;
+    jobId: string;
+    jobPath: string;
+    assignedTeamId: string | undefined;
+    assignedTeamName: string | undefined;
+    modified: Date;
+    gradYear: string | undefined;
+    sportAssnId: string | undefined;
+    feeBase: number;
+    feeDiscount: number;
+    feeDiscountMp: number;
+    feeDonation: number;
+    feeLatefee: number;
+    feeProcessing: number;
+    feeTotal: number;
+    owedTotal: number;
+    paidTotal: number;
 }
 
 export interface FamilyRegistrationRequest {
-    username?: string | undefined;
-    password?: string | undefined;
-    primary?: PersonDto;
-    secondary?: PersonDto;
-    address?: AddressDto;
-    children?: ChildDto[] | undefined;
+    username: string;
+    password: string;
+    primary: PersonDto;
+    secondary: PersonDto;
+    address: AddressDto;
+    children: ChildDto[];
 }
 
 export interface FamilyRegistrationResponse {
-    success?: boolean;
-    familyUserId?: string | undefined;
-    familyId?: string | undefined;
-    message?: string | undefined;
+    success: boolean;
+    familyUserId: string | undefined;
+    familyId: string | undefined;
+    message: string | undefined;
 }
 
 export interface FamilyUpdateRequest {
-    username?: string | undefined;
-    primary?: PersonDto;
-    secondary?: PersonDto;
-    address?: AddressDto;
-    children?: ChildDto[] | undefined;
+    username: string;
+    primary: PersonDto;
+    secondary: PersonDto;
+    address: AddressDto;
+    children: ChildDto[];
 }
 
 export interface FamilyUserSummaryDto {
-    familyUserId?: string | undefined;
-    displayName?: string | undefined;
-    userName?: string | undefined;
+    familyUserId: string;
+    displayName: string;
+    userName: string;
 }
 
 export interface FieldCondition {
-    field?: string | undefined;
-    value?: any | undefined;
-    operator?: string | undefined;
+    field: string;
+    value: any | undefined;
+    operator: string;
 }
 
 export interface FieldValidation {
-    required?: boolean;
-    email?: boolean;
-    requiredTrue?: boolean;
-    minLength?: number | undefined;
-    maxLength?: number | undefined;
-    pattern?: string | undefined;
-    min?: number | undefined;
-    max?: number | undefined;
-    compare?: string | undefined;
-    remote?: string | undefined;
-    message?: string | undefined;
+    required: boolean;
+    email: boolean;
+    requiredTrue: boolean;
+    minLength: number | undefined;
+    maxLength: number | undefined;
+    pattern: string | undefined;
+    min: number | undefined;
+    max: number | undefined;
+    compare: string | undefined;
+    remote: string | undefined;
+    message: string | undefined;
 }
 
 export interface InsurancePurchaseRequestDto {
@@ -274,116 +274,116 @@ export interface InsurancePurchaseRequestDto {
     familyUserId: string;
     registrationIds: string[];
     quoteIds: string[];
-    creditCard?: CreditCardInfo;
+    creditCard: CreditCardInfo;
 }
 
 export interface InsurancePurchaseResponseDto {
-    success?: boolean;
-    error?: string | undefined;
-    policies?: { [key: string]: string; } | undefined;
+    success: boolean;
+    error: string | undefined;
+    policies: { [key: string]: string; };
 }
 
 export interface JobMetadataResponse {
     jobId: string;
-    jobName: string | undefined;
-    jobPath: string | undefined;
-    jobLogoPath?: string | undefined;
-    jobBannerPath?: string | undefined;
-    coreRegformPlayer?: boolean | undefined;
-    usLaxNumberValidThroughDate?: Date | undefined;
-    expiryUsers?: Date | undefined;
-    playerProfileMetadataJson?: string | undefined;
-    jsonOptions?: string | undefined;
-    momLabel?: string | undefined;
-    dadLabel?: string | undefined;
-    playerRegReleaseOfLiability?: string | undefined;
-    playerRegCodeOfConduct?: string | undefined;
-    playerRegCovid19Waiver?: string | undefined;
-    playerRegRefundPolicy?: string | undefined;
-    offerPlayerRegsaverInsurance?: boolean;
-    adnArb?: boolean | undefined;
-    adnArbBillingOccurences?: number | undefined;
-    adnArbIntervalLength?: number | undefined;
-    adnArbStartDate?: Date | undefined;
+    jobName: string;
+    jobPath: string;
+    jobLogoPath: string | undefined;
+    jobBannerPath: string | undefined;
+    coreRegformPlayer: boolean | undefined;
+    usLaxNumberValidThroughDate: Date | undefined;
+    expiryUsers: Date | undefined;
+    playerProfileMetadataJson: string | undefined;
+    jsonOptions: string | undefined;
+    momLabel: string | undefined;
+    dadLabel: string | undefined;
+    playerRegReleaseOfLiability: string | undefined;
+    playerRegCodeOfConduct: string | undefined;
+    playerRegCovid19Waiver: string | undefined;
+    playerRegRefundPolicy: string | undefined;
+    offerPlayerRegsaverInsurance: boolean;
+    adnArb: boolean | undefined;
+    adnArbBillingOccurences: number | undefined;
+    adnArbIntervalLength: number | undefined;
+    adnArbStartDate: Date | undefined;
 }
 
 export interface JobRegFieldDto {
-    name?: string | undefined;
-    dbColumn?: string | undefined;
-    displayName?: string | undefined;
-    inputType?: string | undefined;
-    dataSource?: string | undefined;
-    options?: ProfileFieldOption[] | undefined;
-    validation?: FieldValidation;
-    order?: number;
-    visibility?: string | undefined;
-    computed?: boolean;
-    conditionalOn?: FieldCondition;
+    name: string;
+    dbColumn: string;
+    displayName: string;
+    inputType: string;
+    dataSource: string | undefined;
+    options: ProfileFieldOption[] | undefined;
+    validation: FieldValidation;
+    order: number;
+    visibility: string;
+    computed: boolean;
+    conditionalOn: FieldCondition;
 }
 
 export interface JobRegFormDto {
-    version?: string | undefined;
-    coreProfileName?: string | undefined;
-    fields?: JobRegFieldDto[] | undefined;
-    waiverFieldNames?: string[] | undefined;
-    constraintType?: string | undefined;
+    version: string;
+    coreProfileName: string | undefined;
+    fields: JobRegFieldDto[];
+    waiverFieldNames: string[];
+    constraintType: string | undefined;
 }
 
 export interface LoginRequest {
-    username?: string | undefined;
-    password?: string | undefined;
+    username: string;
+    password: string;
 }
 
 export interface LoginResponseDto {
-    userId?: string | undefined;
-    registrations?: RegistrationRoleDto[] | undefined;
+    userId: string;
+    registrations: RegistrationRoleDto[];
 }
 
 export interface MigrateAllRequest {
-    dryRun?: boolean;
-    profileTypes?: string[] | undefined;
+    dryRun: boolean;
+    profileTypes: string[] | undefined;
 }
 
 export interface MigrateProfilesRequest {
-    dryRun?: boolean;
-    profileTypes?: string[] | undefined;
+    dryRun: boolean;
+    profileTypes: string[] | undefined;
 }
 
 export interface MigrationReport {
-    successCount?: number;
-    failureCount?: number;
-    warningCount?: number;
-    skippedCount?: number;
-    startedAt?: Date;
-    completedAt?: Date | undefined;
-    results?: MigrationResult[] | undefined;
-    globalWarnings?: string[] | undefined;
+    successCount: number;
+    failureCount: number;
+    warningCount: number;
+    skippedCount: number;
+    startedAt: Date;
+    completedAt: Date | undefined;
+    results: MigrationResult[];
+    globalWarnings: string[];
 }
 
 export interface MigrationResult {
     jobId: string;
-    jobName?: string | undefined;
-    profileType?: string | undefined;
-    success?: boolean;
-    errorMessage?: string | undefined;
-    warnings?: string[] | undefined;
-    fieldCount?: number;
-    generatedMetadata?: ProfileMetadata;
+    jobName: string;
+    profileType: string;
+    success: boolean;
+    errorMessage: string | undefined;
+    warnings: string[];
+    fieldCount: number;
+    generatedMetadata: ProfileMetadata;
 }
 
 export interface NextProfileTypeResult {
-    newProfileType?: string | undefined;
+    newProfileType: string;
 }
 
 export interface OptionSet {
-    key?: string | undefined;
-    provider?: string | undefined;
-    readOnly?: boolean;
-    values?: ProfileFieldOption[] | undefined;
+    key: string;
+    provider: string;
+    readOnly: boolean;
+    values: ProfileFieldOption[];
 }
 
 export interface OptionSetUpdateRequest {
-    values?: ProfileFieldOption[] | undefined;
+    values: ProfileFieldOption[];
 }
 
 export enum PaymentOption {
@@ -396,361 +396,361 @@ export interface PaymentRequestDto {
     jobId: string;
     familyUserId: string;
     paymentOption: PaymentOption;
-    creditCard?: CreditCardInfo;
-    idempotencyKey?: string | undefined;
-    viConfirmed?: boolean | undefined;
-    viPolicyNumber?: string | undefined;
-    viPolicyCreateDate?: Date | undefined;
-    viQuoteIds?: string[] | undefined;
-    viToken?: string | undefined;
+    creditCard: CreditCardInfo;
+    idempotencyKey: string | undefined;
+    viConfirmed: boolean | undefined;
+    viPolicyNumber: string | undefined;
+    viPolicyCreateDate: Date | undefined;
+    viQuoteIds: string[] | undefined;
+    viToken: string | undefined;
 }
 
 export interface PaymentResponseDto {
-    success?: boolean;
-    message?: string | undefined;
-    errorCode?: string | undefined;
-    transactionId?: string | undefined;
-    subscriptionId?: string | undefined;
-    subscriptionIds?: { [key: string]: string; } | undefined;
-    failedSubscriptionIds?: string[] | undefined;
-    readonly partialSuccess?: boolean;
+    success: boolean;
+    message: string | undefined;
+    errorCode: string | undefined;
+    transactionId: string | undefined;
+    subscriptionId: string | undefined;
+    subscriptionIds: { [key: string]: string; } | undefined;
+    failedSubscriptionIds: string[] | undefined;
+    readonly partialSuccess: boolean;
 }
 
 export interface PersonDto {
-    firstName?: string | undefined;
-    lastName?: string | undefined;
-    cellphone?: string | undefined;
-    email?: string | undefined;
+    firstName: string;
+    lastName: string;
+    cellphone: string;
+    email: string;
 }
 
 export interface PlayerRegConfirmationDto {
-    tsic?: PlayerRegTsicFinancialDto;
-    insurance?: PlayerRegInsuranceStatusDto;
-    confirmationHtml?: string | undefined;
+    tsic: PlayerRegTsicFinancialDto;
+    insurance: PlayerRegInsuranceStatusDto;
+    confirmationHtml: string;
 }
 
 export interface PlayerRegFinancialLineDto {
-    registrationId?: string;
-    playerName?: string | undefined;
-    teamName?: string | undefined;
-    feeTotal?: number;
-    discountCodes?: string[] | undefined;
+    registrationId: string;
+    playerName: string;
+    teamName: string;
+    feeTotal: number;
+    discountCodes: string[];
 }
 
 export interface PlayerRegInsuranceStatusDto {
-    offered?: boolean;
-    selected?: boolean;
-    declined?: boolean;
-    purchaseSucceeded?: boolean;
-    policies?: PlayerRegPolicyDto[] | undefined;
+    offered: boolean;
+    selected: boolean;
+    declined: boolean;
+    purchaseSucceeded: boolean;
+    policies: PlayerRegPolicyDto[];
 }
 
 export interface PlayerRegPolicyDto {
-    registrationId?: string;
-    policyNumber?: string | undefined;
-    issuedUtc?: Date;
-    insurableAmountCents?: number;
+    registrationId: string;
+    policyNumber: string;
+    issuedUtc: Date;
+    insurableAmountCents: number;
 }
 
 export interface PlayerRegTsicFinancialDto {
-    wasImmediateCharge?: boolean;
-    wasArb?: boolean;
-    amountCharged?: number;
-    currency?: string | undefined;
-    transactionId?: string | undefined;
-    paymentMethodMasked?: string | undefined;
-    nextArbBillDate?: Date | undefined;
-    totalOriginal?: number;
-    totalDiscounts?: number;
-    totalNet?: number;
-    lines?: PlayerRegFinancialLineDto[] | undefined;
+    wasImmediateCharge: boolean;
+    wasArb: boolean;
+    amountCharged: number;
+    currency: string;
+    transactionId: string | undefined;
+    paymentMethodMasked: string | undefined;
+    nextArbBillDate: Date | undefined;
+    totalOriginal: number;
+    totalDiscounts: number;
+    totalNet: number;
+    lines: PlayerRegFinancialLineDto[];
 }
 
 export interface PreSubmitInsuranceDto {
-    available?: boolean;
-    playerObject?: VIPlayerObjectResponse;
-    error?: string | undefined;
-    expiresUtc?: Date | undefined;
-    stateId?: string | undefined;
+    available: boolean;
+    playerObject: VIPlayerObjectResponse;
+    error: string | undefined;
+    expiresUtc: Date | undefined;
+    stateId: string | undefined;
 }
 
 export interface PreSubmitPlayerRegistrationRequestDto {
-    jobPath?: string | undefined;
-    familyUserId?: string | undefined;
-    teamSelections?: PreSubmitTeamSelectionDto[] | undefined;
+    jobPath: string;
+    familyUserId: string;
+    teamSelections: PreSubmitTeamSelectionDto[];
 }
 
 export interface PreSubmitPlayerRegistrationResponseDto {
-    teamResults?: PreSubmitTeamResultDto[] | undefined;
-    readonly hasFullTeams?: boolean;
-    nextTab?: string | undefined;
-    insurance?: PreSubmitInsuranceDto;
-    validationErrors?: PreSubmitValidationErrorDto[] | undefined;
+    teamResults: PreSubmitTeamResultDto[];
+    readonly hasFullTeams: boolean;
+    nextTab: string;
+    insurance: PreSubmitInsuranceDto;
+    validationErrors: PreSubmitValidationErrorDto[] | undefined;
 }
 
 export interface PreSubmitTeamResultDto {
-    playerId?: string | undefined;
-    teamId?: string;
-    isFull?: boolean;
-    teamName?: string | undefined;
-    message?: string | undefined;
-    registrationCreated?: boolean;
+    playerId: string;
+    teamId: string;
+    isFull: boolean;
+    teamName: string;
+    message: string;
+    registrationCreated: boolean;
 }
 
 export interface PreSubmitTeamSelectionDto {
-    playerId?: string | undefined;
-    teamId?: string;
-    formValues?: { [key: string]: any; } | undefined;
+    playerId: string;
+    teamId: string;
+    formValues: { [key: string]: any; } | undefined;
 }
 
 export interface PreSubmitValidationErrorDto {
-    playerId?: string | undefined;
-    field?: string | undefined;
-    message?: string | undefined;
+    playerId: string;
+    field: string;
+    message: string;
 }
 
 export interface ProblemDetails {
-    type?: string | undefined;
-    title?: string | undefined;
-    status?: number | undefined;
-    detail?: string | undefined;
-    instance?: string | undefined;
+    type: string | undefined;
+    title: string | undefined;
+    status: number | undefined;
+    detail: string | undefined;
+    instance: string | undefined;
 
     [key: string]: any;
 }
 
 export interface ProfileBatchMigrationReport {
-    startedAt?: Date;
-    completedAt?: Date | undefined;
-    totalProfiles?: number;
-    successCount?: number;
-    failureCount?: number;
-    totalJobsAffected?: number;
-    results?: ProfileMigrationResult[] | undefined;
-    globalWarnings?: string[] | undefined;
+    startedAt: Date;
+    completedAt: Date | undefined;
+    totalProfiles: number;
+    successCount: number;
+    failureCount: number;
+    totalJobsAffected: number;
+    results: ProfileMigrationResult[];
+    globalWarnings: string[];
 }
 
 export interface ProfileFieldOption {
-    value?: string | undefined;
-    label?: string | undefined;
+    value: string;
+    label: string;
 }
 
 export interface ProfileMetadata {
-    fields?: ProfileMetadataField[] | undefined;
-    source?: ProfileMetadataSource;
+    fields: ProfileMetadataField[];
+    source: ProfileMetadataSource;
 }
 
 export interface ProfileMetadataField {
-    name?: string | undefined;
-    dbColumn?: string | undefined;
-    displayName?: string | undefined;
-    inputType?: string | undefined;
-    dataSource?: string | undefined;
-    options?: ProfileFieldOption[] | undefined;
-    validation?: FieldValidation;
+    name: string;
+    dbColumn: string;
+    displayName: string;
+    inputType: string;
+    dataSource: string | undefined;
+    options: ProfileFieldOption[] | undefined;
+    validation: FieldValidation;
     order: number;
-    visibility?: string | undefined;
+    visibility: string;
     computed: boolean;
-    conditionalOn?: FieldCondition;
+    conditionalOn: FieldCondition;
 }
 
 export interface ProfileMetadataSource {
-    sourceFile?: string | undefined;
-    repository?: string | undefined;
-    commitSha?: string | undefined;
-    migratedAt?: Date;
-    migratedBy?: string | undefined;
+    sourceFile: string;
+    repository: string;
+    commitSha: string;
+    migratedAt: Date;
+    migratedBy: string;
 }
 
 export interface ProfileMetadataWithOptions {
-    jobId?: string;
-    jobName?: string | undefined;
-    metadata?: ProfileMetadata;
-    jsonOptions?: { [key: string]: any; } | undefined;
+    jobId: string;
+    jobName: string;
+    metadata: ProfileMetadata;
+    jsonOptions: { [key: string]: any; } | undefined;
 }
 
 export interface ProfileMigrationResult {
-    profileType?: string | undefined;
-    success?: boolean;
-    fieldCount?: number;
-    jobsAffected?: number;
-    affectedJobIds?: string[] | undefined;
-    affectedJobNames?: string[] | undefined;
-    affectedJobYears?: string[] | undefined;
-    generatedMetadata?: ProfileMetadata;
-    warnings?: string[] | undefined;
-    errorMessage?: string | undefined;
+    profileType: string;
+    success: boolean;
+    fieldCount: number;
+    jobsAffected: number;
+    affectedJobIds: string[];
+    affectedJobNames: string[];
+    affectedJobYears: string[];
+    generatedMetadata: ProfileMetadata;
+    warnings: string[];
+    errorMessage: string | undefined;
 }
 
 export interface ProfileSummary {
-    profileType?: string | undefined;
-    jobCount?: number;
-    migratedJobCount?: number;
-    allJobsMigrated?: boolean;
-    sampleJobNames?: string[] | undefined;
+    profileType: string;
+    jobCount: number;
+    migratedJobCount: number;
+    allJobsMigrated: boolean;
+    sampleJobNames: string[];
 }
 
 export interface RefreshTokenRequest {
-    refreshToken?: string | undefined;
+    refreshToken: string;
 }
 
 export interface RegSaverDetailsDto {
-    policyNumber?: string | undefined;
-    policyCreateDate?: Date;
+    policyNumber: string;
+    policyCreateDate: Date;
 }
 
 export interface RegistrationDto {
-    regId?: string | undefined;
-    displayText?: string | undefined;
-    jobLogo?: string | undefined;
-    jobPath?: string | undefined;
+    regId: string;
+    displayText: string;
+    jobLogo: string;
+    jobPath: string | undefined;
 }
 
 export interface RegistrationFinancialsDto {
-    feeBase?: number;
-    feeProcessing?: number;
-    feeDiscount?: number;
-    feeDonation?: number;
-    feeLateFee?: number;
-    feeTotal?: number;
-    owedTotal?: number;
-    paidTotal?: number;
+    feeBase: number;
+    feeProcessing: number;
+    feeDiscount: number;
+    feeDonation: number;
+    feeLateFee: number;
+    feeTotal: number;
+    owedTotal: number;
+    paidTotal: number;
 }
 
 export interface RegistrationRoleDto {
-    roleName?: string | undefined;
-    roleRegistrations?: RegistrationDto[] | undefined;
+    roleName: string;
+    roleRegistrations: RegistrationDto[];
 }
 
 export interface RegistrationStatusRequest {
-    jobPath: string | undefined;
-    registrationTypes: string[] | undefined;
+    jobPath: string;
+    registrationTypes: string[];
 }
 
 export interface RegistrationStatusResponse {
-    registrationType: string | undefined;
+    registrationType: string;
     isAvailable: boolean;
-    message?: string | undefined;
-    registrationUrl?: string | undefined;
+    message: string | undefined;
+    registrationUrl: string | undefined;
 }
 
 export interface RenameOptionSetRequest {
-    newKey?: string | undefined;
+    newKey: string;
 }
 
 export interface RoleSelectionRequest {
-    regId?: string | undefined;
+    regId: string;
 }
 
 export interface TestValidationRequest {
-    field?: ProfileMetadataField;
-    testValue?: string | undefined;
+    field: ProfileMetadataField;
+    testValue: string;
 }
 
 export interface UpdateCurrentJobProfileConfigRequest {
-    profileType?: string | undefined;
-    teamConstraint?: string | undefined;
+    profileType: string;
+    teamConstraint: string;
 }
 
 export interface VIColorsDto {
-    background?: string | undefined;
-    primary?: string | undefined;
-    primary_contrast?: string | undefined;
-    secondary?: string | undefined;
-    secondary_contrast?: string | undefined;
-    neutral?: string | undefined;
-    neutral_contrast?: string | undefined;
-    error?: string | undefined;
-    error_contrast?: string | undefined;
-    success?: string | undefined;
-    success_contrast?: string | undefined;
-    border?: string | undefined;
+    background: string;
+    primary: string;
+    primary_contrast: string;
+    secondary: string;
+    secondary_contrast: string;
+    neutral: string;
+    neutral_contrast: string;
+    error: string;
+    error_contrast: string;
+    success: string;
+    success_contrast: string;
+    border: string;
 }
 
 export interface VIComponentsDto {
-    border_radius?: string | undefined;
+    border_radius: string;
 }
 
 export interface VICustomerDto {
-    first_name?: string | undefined;
-    last_name?: string | undefined;
-    email_address?: string | undefined;
-    phone?: string | undefined;
-    street?: string | undefined;
-    city?: string | undefined;
-    state?: string | undefined;
-    postal_code?: string | undefined;
+    first_name: string;
+    last_name: string;
+    email_address: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    postal_code: string;
 }
 
 export interface VIOrganizationDto {
-    org_name?: string | undefined;
-    org_contact_email?: string | undefined;
-    org_contact_first_name?: string | undefined;
-    org_contact_last_name?: string | undefined;
-    org_contact_phone?: string | undefined;
-    org_website?: string | undefined;
-    org_city?: string | undefined;
-    org_state?: string | undefined;
-    org_postal_code?: string | undefined;
-    org_country?: string | undefined;
-    payment_plan?: boolean;
-    registration_session_name?: string | undefined;
+    org_name: string;
+    org_contact_email: string;
+    org_contact_first_name: string;
+    org_contact_last_name: string;
+    org_contact_phone: string;
+    org_website: string;
+    org_city: string;
+    org_state: string;
+    org_postal_code: string;
+    org_country: string;
+    payment_plan: boolean;
+    registration_session_name: string;
 }
 
 export interface VIParticipantDto {
-    first_name?: string | undefined;
-    last_name?: string | undefined;
+    first_name: string;
+    last_name: string;
 }
 
 export interface VIPaymentsDto {
-    enabled?: boolean;
-    button?: boolean;
+    enabled: boolean;
+    button: boolean;
 }
 
 export interface VIPlayerMetadataDto {
-    context_name?: string | undefined;
-    context_event?: string | undefined;
-    context_description?: string | undefined;
-    tsic_registrationid?: string;
-    tsic_secondchance?: string | undefined;
-    tsic_customer?: string | undefined;
+    context_name: string;
+    context_event: string;
+    context_description: string;
+    tsic_registrationid: string;
+    tsic_secondchance: string;
+    tsic_customer: string;
 }
 
 export interface VIPlayerObjectResponse {
-    client_id?: string | undefined;
+    client_id: string;
     theme: VIThemeDto;
-    product_config?: VIPlayerProductConfigDto;
-    payments?: VIPaymentsDto;
+    product_config: VIPlayerProductConfigDto;
+    payments: VIPaymentsDto;
 }
 
 export interface VIPlayerPolicyAttributes {
-    event_start_date?: Date | undefined;
-    event_end_date?: Date | undefined;
-    insurable_amount?: number;
-    participant?: VIParticipantDto;
-    organization?: VIOrganizationDto;
+    event_start_date: Date | undefined;
+    event_end_date: Date | undefined;
+    insurable_amount: number;
+    participant: VIParticipantDto;
+    organization: VIOrganizationDto;
 }
 
 export interface VIPlayerProductConfigDto {
-    "registration-cancellation"?: VIPlayerProductDto[] | undefined;
+    "registration-cancellation": VIPlayerProductDto[];
 }
 
 export interface VIPlayerProductDto {
-    customer?: VICustomerDto;
-    metadata?: VIPlayerMetadataDto;
-    policy_attributes?: VIPlayerPolicyAttributes;
-    offer_Id?: string | undefined;
+    customer: VICustomerDto;
+    metadata: VIPlayerMetadataDto;
+    policy_attributes: VIPlayerPolicyAttributes;
+    offer_Id: string;
 }
 
 export interface VIThemeDto {
-    colors?: VIColorsDto;
-    font_family?: string | undefined;
-    components?: VIComponentsDto;
+    colors: VIColorsDto;
+    font_family: string;
+    components: VIComponentsDto;
 }
 
 export interface ValidationTestResult {
-    fieldName?: string | undefined;
-    testValue?: string | undefined;
-    isValid?: boolean;
-    messages?: string[] | undefined;
+    fieldName: string;
+    testValue: string;
+    isValid: boolean;
+    messages: string[];
 }

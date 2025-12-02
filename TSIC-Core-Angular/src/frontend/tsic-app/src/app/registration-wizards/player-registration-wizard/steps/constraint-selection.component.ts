@@ -297,7 +297,7 @@ export class ConstraintSelectionComponent {
   selectedPlayers() {
     return this.state.familyPlayers()
       .filter(p => p.selected || p.registered)
-      .map(p => ({ userId: p.playerId, name: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() }));
+      .map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
   }
 
   // Helper: check if a given value exists in the eligible options list
