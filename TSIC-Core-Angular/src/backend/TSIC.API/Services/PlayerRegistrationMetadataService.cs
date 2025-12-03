@@ -128,7 +128,7 @@ public class PlayerRegistrationMetadataService : IPlayerRegistrationMetadataServ
 
     private static bool IsAdminOnlyField(JsonElement f)
     {
-        if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
+        if (TryGetPropertyCIStatic(f, "adminOnly", out var adminEl))
         {
             var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
                              (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
@@ -137,7 +137,22 @@ public class PlayerRegistrationMetadataService : IPlayerRegistrationMetadataServ
         return false;
     }
 
-    private static bool TryGetPropertyCI(JsonElement obj, string name, out JsonElement value)
+    private static bool TryGetPropertyCIStatic(JsonElement obj, string name, out JsonElement value)
+    {
+        value = default;
+        if (obj.ValueKind != JsonValueKind.Object) return false;
+        foreach (var p in obj.EnumerateObject())
+        {
+            if (string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = p.Value;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public bool TryGetPropertyCI(JsonElement obj, string name, out JsonElement value)
     {
         value = default;
         if (obj.ValueKind != JsonValueKind.Object) return false;

@@ -461,7 +461,7 @@ public sealed class FamilyService : IFamilyService
             {
                 var amexIds = _config.GetSection("PaymentMethods_NonMCVisa_ClientIds:Amex").Get<string[]>() ?? Array.Empty<string>();
                 var cust = jobMeta.CustomerId.ToString();
-                usesAmex = amexIds.Exists(id => string.Equals(id, cust, StringComparison.OrdinalIgnoreCase));
+                usesAmex = Array.Exists(amexIds, id => string.Equals(id, cust, StringComparison.OrdinalIgnoreCase));
             }
             catch { usesAmex = false; }
         }
@@ -469,7 +469,7 @@ public sealed class FamilyService : IFamilyService
         return (hasActiveDiscountCodes, usesAmex);
     }
 
-    private static FamilyUserSummaryDto BuildFamilyUserSummary(string familyUserId, Families? fam, AspNetUsers? asp)
+    private static FamilyUserSummaryDto BuildFamilyUserSummary(string familyUserId, TSIC.Domain.Entities.Families? fam, TSIC.Domain.Entities.AspNetUsers? asp)
     {
         string display;
         if (!string.IsNullOrWhiteSpace(fam?.MomFirstName) || !string.IsNullOrWhiteSpace(fam?.MomLastName))
@@ -489,7 +489,7 @@ public sealed class FamilyService : IFamilyService
         };
     }
 
-    private static CcInfoDto BuildCreditCardInfo(Families? fam, AspNetUsers? asp)
+    private static CcInfoDto BuildCreditCardInfo(TSIC.Domain.Entities.Families? fam, TSIC.Domain.Entities.AspNetUsers? asp)
     {
         string? ccFirst = null;
         string? ccLast = null;
@@ -528,7 +528,7 @@ public sealed class FamilyService : IFamilyService
 
     private static FamilyPlayerRegistrationDto BuildRegistrationDto(
         TSIC.Domain.Entities.Registrations r,
-        Dictionary<string, string> mappedFields,
+        List<(string Name, string DbColumn)> mappedFields,
         HashSet<string> visibleFieldNames,
         Dictionary<Guid, string> teamNameMap)
     {
@@ -656,7 +656,7 @@ public sealed class FamilyService : IFamilyService
     }
 
     private static List<FamilyPlayerDto> BuildPlayerDtos(
-        List<AspNetUsers> children,
+        List<TSIC.Domain.Entities.AspNetUsers> children,
         Dictionary<string, List<FamilyPlayerRegistrationDto>> regsByUser,
         HashSet<string> regSet,
         Dictionary<string, List<TSIC.Domain.Entities.Registrations>> allRegsByUser,
@@ -702,7 +702,7 @@ public sealed class FamilyService : IFamilyService
         Guid? jobId,
         string? metadataJson,
         string? rawJsonOptions,
-        List<PlayerProfileFieldTyped> typedFields,
+        List<TSIC.API.Dtos.ProfileMetadataField> typedFields,
         List<string> waiverFieldNames)
     {
         string? constraintType = null;
@@ -760,7 +760,7 @@ public sealed class FamilyService : IFamilyService
     }
 
     private static IReadOnlyDictionary<string, JsonElement> BuildVisibleFieldValues(
-        Dictionary<string, JsonElement> allFieldValues,
+        IReadOnlyDictionary<string, JsonElement> allFieldValues,
         HashSet<string> visibleFieldNames)
     {
         if (visibleFieldNames.Count == 0)

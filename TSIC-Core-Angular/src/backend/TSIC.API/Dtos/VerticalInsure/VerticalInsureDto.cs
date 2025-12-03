@@ -19,52 +19,73 @@ public record RequestVITeamRequest
 
 public record VIPlayerObjectResponse
 {
-    public string client_id { get; set; } = string.Empty;
-    public VIThemeDto theme { get; set; } = new();
-    public VIPlayerProductConfigDto product_config { get; set; } = new();
-    public VIPaymentsDto payments { get; set; } = new();
+    [JsonPropertyName("client_id")]
+    public string ClientId { get; set; } = string.Empty;
+    [JsonPropertyName("theme")]
+    public VIThemeDto Theme { get; set; } = new();
+    [JsonPropertyName("product_config")]
+    public VIPlayerProductConfigDto ProductConfig { get; set; } = new();
+    [JsonPropertyName("payments")]
+    public VIPaymentsDto Payments { get; set; } = new();
 
 }
 
 public record VIPlayerProductConfigDto
 {
     [JsonPropertyName("registration-cancellation")]
-    public List<VIPlayerProductDto> registration_cancellation { get; set; } = new();
+    public List<VIPlayerProductDto> RegistrationCancellation { get; set; } = new();
 }
 
 public record VIPlayerProductDto
 {
-    public VICustomerDto customer { get; set; } = new();
-    public VIPlayerMetadataDto metadata { get; set; } = new();
+    [JsonPropertyName("customer")]
+    public VICustomerDto Customer { get; set; } = new();
+    [JsonPropertyName("metadata")]
+    public VIPlayerMetadataDto Metadata { get; set; } = new();
 
-    public VIPlayerPolicyAttributes policy_attributes { get; set; } = new();
-    public string offer_Id { get; set; } = string.Empty;
+    [JsonPropertyName("policy_attributes")]
+    public VIPlayerPolicyAttributes PolicyAttributes { get; set; } = new();
+    [JsonPropertyName("offer_Id")]
+    public string OfferId { get; set; } = string.Empty;
 
 }
 
 public record VIPlayerMetadataDto
 {
-    public string context_name { get; set; } = string.Empty;
-    public string context_event { get; set; } = string.Empty;
-    public string context_description { get; set; } = string.Empty;
-    public Guid tsic_registrationid { get; set; }
-    public string tsic_secondchance { get; set; } = string.Empty;
-    public string tsic_customer { get; set; } = string.Empty;
+    [JsonPropertyName("context_name")]
+    public string ContextName { get; set; } = string.Empty;
+    [JsonPropertyName("context_event")]
+    public string ContextEvent { get; set; } = string.Empty;
+    [JsonPropertyName("context_description")]
+    public string ContextDescription { get; set; } = string.Empty;
+    [JsonPropertyName("tsic_registrationid")]
+    public Guid TsicRegistrationId { get; set; }
+    [JsonPropertyName("tsic_secondchance")]
+    public string TsicSecondChance { get; set; } = string.Empty;
+    [JsonPropertyName("tsic_customer")]
+    public string TsicCustomer { get; set; } = string.Empty;
 }
 
 public record VIPlayerPolicyAttributes
 {
-    public DateOnly? event_start_date { get; set; }
-    public DateOnly? event_end_date { get; set; }
-    public int insurable_amount { get; set; }
-    public VIParticipantDto participant { get; set; } = new();
-    public VIOrganizationDto organization { get; set; } = new();
+    [JsonPropertyName("event_start_date")]
+    public DateOnly? EventStartDate { get; set; }
+    [JsonPropertyName("event_end_date")]
+    public DateOnly? EventEndDate { get; set; }
+    [JsonPropertyName("insurable_amount")]
+    public int InsurableAmount { get; set; }
+    [JsonPropertyName("participant")]
+    public VIParticipantDto Participant { get; set; } = new();
+    [JsonPropertyName("organization")]
+    public VIOrganizationDto Organization { get; set; } = new();
 }
 
 public record VIParticipantDto
 {
-    public string first_name { get; set; } = string.Empty;
-    public string last_name { get; set; } = string.Empty;
+    [JsonPropertyName("first_name")]
+    public string FirstName { get; set; } = string.Empty;
+    [JsonPropertyName("last_name")]
+    public string LastName { get; set; } = string.Empty;
 }
 
 #endregion viPlayer

@@ -108,7 +108,7 @@ export class PaymentService {
             code,
             items
         };
-        this.http.post<ApplyDiscountResponseDto>(`${environment.apiUrl}/registration/apply-discount`, req)
+        this.http.post<ApplyDiscountResponseDto>(`${environment.apiUrl}/player-registration/apply-discount`, req)
             .subscribe({
                 next: resp => {
                     this.discountApplying.set(false);

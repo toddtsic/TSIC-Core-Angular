@@ -84,7 +84,7 @@ export class JobService {
         this.registrationLoading.set(true);
         this.registrationError.set(null);
         this.http
-            .post<RegistrationStatusResponse[]>(`${this.apiUrl}/registration/check-status`, request)
+            .post<RegistrationStatusResponse[]>(`${this.apiUrl}/player-registration/check-status`, request)
             .subscribe({
                 next: (statuses) => {
                     this.registrationStatuses.set(statuses);
@@ -102,6 +102,6 @@ export class JobService {
     // Legacy Observable return (kept temporarily for callers that still expect it)
     checkRegistrationStatus(jobPath: string, registrationTypes: string[]): Observable<RegistrationStatusResponse[]> {
         const request: RegistrationStatusRequest = { jobPath, registrationTypes };
-        return this.http.post<RegistrationStatusResponse[]>(`${this.apiUrl}/registration/check-status`, request);
+        return this.http.post<RegistrationStatusResponse[]>(`${this.apiUrl}/player-registration/check-status`, request);
     }
 }
