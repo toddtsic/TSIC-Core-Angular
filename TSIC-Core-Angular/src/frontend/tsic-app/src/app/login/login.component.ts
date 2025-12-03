@@ -47,8 +47,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly fb: FormBuilder,
     private readonly autofill: AutofillMonitor
   ) {
-    // Pre-fill username from localStorage if available
-    const savedUsername = localStorage.getItem('last_username') || '';
+    // Pre-fill username from JWT token if available
+    const savedUsername = this.authService.currentUser()?.username || '';
     this.form = this.fb.group({
       username: [savedUsername, [Validators.required]],
       password: ['', [Validators.required]],
@@ -139,9 +139,6 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
       username: this.form.get('username')?.value ?? '',
       password: this.form.get('password')?.value ?? ''
     };
-
-    // Save username for future logins
-    localStorage.setItem('last_username', String(credentials.username ?? ''));
 
     // Signals-driven login; navigation handled via effect below
     this.authService.loginCommand(credentials);

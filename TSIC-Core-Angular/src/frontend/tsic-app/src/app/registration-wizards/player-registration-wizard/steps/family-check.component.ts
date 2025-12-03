@@ -143,7 +143,6 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   submitting = false; // legacy overall submitting flag (network in-flight)
   submittingAction: 'proceed' | 'manage' | null = null; // which button initiated login
   inlineError: string | null = null;
-  private readonly LAST_USER_KEY = 'tsic_last_family_username';
   @ViewChild('famPasswordInput') famPasswordInput?: ElementRef<HTMLInputElement>;
   private _pendingFocusPassword = false;
   usernameTouched = false;
@@ -163,36 +162,26 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   }
 
   private initialize(): void {
-    if (this.shouldAutoAdvanceFamily()) {
-      this.state.hasFamilyAccount.set('yes');
-      this.next.emit();
-      return;
-    }
     // If user logged out but state still says 'yes', clear it.
     const currentUser = this.auth.getCurrentUser();
     if (!currentUser && this.state.hasFamilyAccount() === 'yes') {
       this.state.hasFamilyAccount.set(null);
     }
 
-    // Prefill last successful username if present and user not already authenticated
-    if (!this.auth.getCurrentUser()) {
-      const last = localStorage.getItem(this.LAST_USER_KEY);
-      if (last && !this.username) {
-        this.username = last;
+    // Pre-select "Yes" if user is already authenticated with Family role
+    if (currentUser) {
+      const roles = currentUser?.roles || (currentUser?.role ? [currentUser.role] : []);
+      if (roles.includes(Roles.Family) && this.state.hasFamilyAccount() === null) {
+        this.state.hasFamilyAccount.set('yes');
+      }
+      // Prefill username from JWT
+      if (currentUser.username && !this.username) {
+        this.username = currentUser.username;
       }
     }
 
     // If panel already visible (hasAccount === 'yes') attempt to focus immediately.
     this.attemptFocusPassword();
-  }
-
-  private shouldAutoAdvanceFamily(): boolean {
-    if (this.state.hasFamilyAccount() != null) return false;
-    // Auto advance if wizard already has familyUser context.
-    if (this.state.familyUser()?.familyUserId) return true;
-    const user = this.auth.getCurrentUser();
-    const roles = user?.roles || (user?.role ? [user.role] : []);
-    return roles.includes(Roles.Family);
   }
 
   // Use centralized login screen with theming and a safe returnUrl back to this wizard
@@ -275,7 +264,6 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
       this.auth.login({ username: this.username.trim(), password: this.password }).subscribe({
         next: () => {
           this.submitting = false;
-          try { localStorage.setItem(this.LAST_USER_KEY, this.username.trim()); } catch { }
           resolve();
         },
         error: (err) => {

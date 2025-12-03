@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -21,6 +21,10 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '../../core/ap
 export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;
     hasClubRepAccount: boolean | null = null;
+
+    // Computed: determine if user is logged in
+    private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);
+
     stepLabels: Record<number, string> = {
         1: 'Login',
         2: 'Teams'
@@ -60,10 +64,10 @@ export class TeamRegistrationWizardComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        // Check if user is already logged in as club rep
-        const user = this.authService.currentUser();
-        if (user) {
-            // Preselect "Yes" if logged in
+        // Initialize hasClubRepAccount based on current auth state
+        const loggedIn = this.isLoggedIn();
+        console.log('TeamWizard ngOnInit - isLoggedIn:', loggedIn, 'currentUser:', this.authService.currentUser());
+        if (loggedIn) {
             this.hasClubRepAccount = true;
         }
 

@@ -63,16 +63,14 @@ export class JobHomeComponent implements OnInit {
     this.router.navigate(['/tsic/family-account'], { queryParams: { next: 'register-player', returnUrl } });
   }
 
-  // Start a fresh Player Registration flow: explicit logout for symmetry and safety
+  // Start Player Registration flow - preserves existing authentication
   startPlayerRegistration(): void {
-    try { this.authService.logoutLocal(); } catch { /* no-op */ }
     const jp = this.jobPath();
     this.router.navigate(['/', jp, 'register-player']);
   }
 
-  // Start a fresh Team Registration flow
+  // Start Team Registration flow - preserves existing authentication
   startTeamRegistration(): void {
-    try { this.authService.logoutLocal(); } catch { /* no-op */ }
     const jp = this.jobPath();
     this.router.navigate(['/', jp, 'register-team']);
   }
