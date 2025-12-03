@@ -152,6 +152,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
                     password: request.password!
                 }).subscribe({
                     next: () => {
+                        // Update component state to reflect logged-in status
+                        this.hasClubRepAccount = true;
                         this.nextStep();
                     },
                     error: (error: HttpErrorResponse) => {
