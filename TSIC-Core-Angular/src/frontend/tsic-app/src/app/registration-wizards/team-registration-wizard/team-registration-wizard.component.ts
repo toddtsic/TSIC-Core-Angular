@@ -36,7 +36,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly clubService = inject(ClubService);
-    private readonly authService = inject(AuthService);
+    readonly authService = inject(AuthService);
     statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
     constructor(readonly fb: FormBuilder) {
@@ -163,7 +163,34 @@ export class TeamRegistrationWizardComponent implements OnInit {
             },
             error: (error: HttpErrorResponse) => {
                 this.submitting = false;
-                this.registrationError = error?.error?.message || error?.message || 'Registration failed. Please try again.';
+                console.error('Club registration error:', error);
+
+                // Try to extract meaningful error details
+                let errorMessage = 'Registration failed. Please try again.';
+
+                if (error.error) {
+                    if (typeof error.error === 'string') {
+                        errorMessage = error.error;
+                    } else if (error.error.message) {
+                        errorMessage = error.error.message;
+                    } else if (error.error.title) {
+                        errorMessage = error.error.title;
+                        if (error.error.detail) {
+                            errorMessage += ': ' + error.error.detail;
+                        }
+                    } else if (error.error.errors) {
+                        // Validation errors object
+                        const errors = Object.values(error.error.errors).flat();
+                        errorMessage = errors.join(', ');
+                    }
+                }
+
+                // Include status for debugging during development
+                if (error.status >= 500) {
+                    errorMessage += ` (Server Error ${error.status})`;
+                }
+
+                this.registrationError = errorMessage;
             }
         });
     }

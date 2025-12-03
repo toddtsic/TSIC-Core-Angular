@@ -8,7 +8,8 @@
                         class="badge rounded-pill bg-primary text-white px-3 py-2 text-nowrap shadow-sm d-inline-flex align-items-center gap-2 tw-badge"
                         aria-live="polite">
                         <i class="bi bi-person-badge" aria-hidden="true"></i>
-                        <span class="fw-bold">Club Rep - {{ currentStepLabel() }}</span>
+                        <span class="fw-bold">{{ authService.currentUser()?.username || 'Club Rep' }} - {{
+                            currentStepLabel() }}</span>
                     </span>
                     <span class="ms-2 text-muted small fw-semibold tw-step-text">Step {{step}} of 2</span>
                 </div>

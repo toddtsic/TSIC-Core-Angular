@@ -18,10 +18,25 @@ public class ClubRepsController : ControllerBase
     [HttpPost("register")]
     [ProducesResponseType(typeof(ClubRepRegistrationResponse), 200)]
     [ProducesResponseType(typeof(ClubRepRegistrationResponse), 400)]
+    [ProducesResponseType(typeof(ProblemDetails), 500)]
     public async Task<IActionResult> Register([FromBody] ClubRepRegistrationRequest request)
     {
-        var result = await _clubService.RegisterAsync(request);
-        if (!result.Success) return BadRequest(result);
-        return Ok(result);
+        try
+        {
+            var result = await _clubService.RegisterAsync(request);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            // Return structured error for client consumption
+            return StatusCode(500, new ProblemDetails
+            {
+                Status = 500,
+                Title = "Club Registration Failed",
+                Detail = ex.Message,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1"
+            });
+        }
     }
 }
