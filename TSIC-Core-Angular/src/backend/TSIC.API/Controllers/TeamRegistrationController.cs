@@ -23,17 +23,48 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Get clubs that the current user is a rep for.
+    /// </summary>
+    [HttpGet("my-clubs")]
+    [ProducesResponseType(typeof(List<string>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> GetMyClubs()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            var clubs = await _teamRegistrationService.GetMyClubsAsync(userId);
+            return Ok(clubs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting clubs for user {UserId}", userId);
+            return StatusCode(500, new { Message = "An error occurred while retrieving clubs" });
+        }
+    }
+
+    /// <summary>
     /// Get teams metadata for the current club and event.
     /// </summary>
     [HttpGet("metadata")]
     [ProducesResponseType(typeof(TeamsMetadataResponse), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> GetMetadata([FromQuery] string jobPath)
+    public async Task<IActionResult> GetMetadata([FromQuery] string jobPath, [FromQuery] string clubName)
     {
         if (string.IsNullOrWhiteSpace(jobPath))
         {
             return BadRequest(new { Message = "jobPath is required" });
+        }
+
+        if (string.IsNullOrWhiteSpace(clubName))
+        {
+            return BadRequest(new { Message = "clubName is required" });
         }
 
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -44,7 +75,7 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            var response = await _teamRegistrationService.GetTeamsMetadataAsync(jobPath, userId);
+            var response = await _teamRegistrationService.GetTeamsMetadataAsync(jobPath, userId, clubName);
             return Ok(response);
         }
         catch (InvalidOperationException ex)

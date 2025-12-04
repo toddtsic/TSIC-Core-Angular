@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TwActionBarComponent } from '../shared/tw-action-bar.component';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
+import { TeamRegistrationService } from './services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
 import { JobService } from '../../core/services/job.service';
 import { JobContextService } from '../../core/services/job-context.service';
@@ -23,6 +24,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;
     hasClubRepAccount: boolean | null = null;
     clubName: string | null = null;
+    availableClubs: string[] = [];
+    selectedClub: string | null = null;
 
     // Computed: determine if user is logged in
     private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);
@@ -42,6 +45,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly clubService = inject(ClubService);
+    private readonly teamRegService = inject(TeamRegistrationService);
     readonly authService = inject(AuthService);
     statesOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
@@ -113,13 +117,40 @@ export class TeamRegistrationWizardComponent implements OnInit {
         this.authService.login(credentials).subscribe({
             next: () => {
                 this.submitting = false;
-                this.nextStep();
+                this.hasClubRepAccount = true;
+                // Fetch clubs for this user
+                this.teamRegService.getMyClubs().subscribe({
+                    next: (clubs) => {
+                        this.availableClubs = clubs;
+                        if (clubs.length === 1) {
+                            // Auto-select single club
+                            this.selectedClub = clubs[0];
+                            this.clubName = clubs[0];
+                        } else if (clubs.length === 0) {
+                            this.loginError = 'You are not registered as a club representative.';
+                        }
+                        // If multiple clubs, user will select from UI
+                    },
+                    error: (err) => {
+                        this.loginError = 'Failed to load your clubs. Please try again.';
+                        console.error('Failed to load clubs:', err);
+                    }
+                });
             },
             error: (error: HttpErrorResponse) => {
                 this.submitting = false;
                 this.loginError = error?.error?.message || error?.message || 'Login failed. Please check your credentials.';
             }
         });
+    }
+
+    selectClub(clubName: string): void {
+        this.selectedClub = clubName;
+        this.clubName = clubName;
+    }
+
+    canProceedToTeams(): boolean {
+        return this.hasClubRepAccount === true && this.selectedClub !== null;
     }
 
     submitRegistration() {
@@ -154,8 +185,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
                 // Auto-login with the new credentials
                 this.authService.login({
-                    username: request.username!,
-                    password: request.password!
+                    username: request.username,
+                    password: request.password
                 }).subscribe({
                     next: () => {
                         // Update component state to reflect logged-in status

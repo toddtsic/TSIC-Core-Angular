@@ -18,15 +18,30 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger = logger;
     }
 
-    public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId)
+    public async Task<List<string>> GetMyClubsAsync(string userId)
     {
-        _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}", jobPath, userId);
+        _logger.LogInformation("Getting clubs for user: {UserId}", userId);
 
-        // Get club rep for user
-        var clubRep = await _db.ClubReps
+        var clubs = await _db.ClubReps
             .Where(cr => cr.ClubRepUserId == userId)
+            .Select(cr => cr.Club.ClubName)
+            .Distinct()
+            .OrderBy(name => name)
+            .ToListAsync();
+
+        _logger.LogInformation("Found {ClubCount} clubs for user {UserId}", clubs.Count, userId);
+        return clubs;
+    }
+
+    public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName)
+    {
+        _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}", jobPath, userId, clubName);
+
+        // Get club rep for user and club
+        var clubRep = await _db.ClubReps
+            .Where(cr => cr.ClubRepUserId == userId && cr.Club.ClubName == clubName)
             .Select(cr => new { cr.ClubId, cr.Club.ClubName })
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         if (clubRep == null)
         {
@@ -38,7 +53,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var job = await _db.Jobs
             .Where(j => j.JobPath == jobPath)
             .Select(j => new { j.JobId, j.Season })
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         if (job == null)
         {
@@ -142,7 +157,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var clubTeam = await _db.ClubTeams
             .Where(ct => ct.ClubTeamId == request.ClubTeamId)
             .Select(ct => new { ct.ClubId, ct.ClubTeamGradYear })
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         if (clubTeam == null)
         {
@@ -159,7 +174,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         // Get job
         var job = await _db.Jobs
             .Where(j => j.JobPath == request.JobPath)
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         if (job == null)
         {
@@ -204,7 +219,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ageGroupId = request.AgeGroupId.Value;
             var providedAgeGroup = await _db.Agegroups
                 .Where(ag => ag.AgegroupId == ageGroupId && ag.LeagueId == leagueId && ag.Season == job.Season)
-                .FirstOrDefaultAsync();
+                .SingleOrDefaultAsync();
 
             if (providedAgeGroup == null)
             {
@@ -319,7 +334,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var team = await _db.Teams
             .Include(t => t.ClubTeam)
             .Where(t => t.TeamId == teamId)
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         if (team == null)
         {

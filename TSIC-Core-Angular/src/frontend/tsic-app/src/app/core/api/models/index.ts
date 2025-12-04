@@ -9,11 +9,32 @@
 
 
 
+export interface AddClubTeamRequest {
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
+}
+
+export interface AddClubTeamResponse {
+    clubTeamId: number;
+    success: boolean;
+    message: string | undefined;
+}
+
 export interface AddressDto {
     streetAddress: string;
     city: string;
     state: string;
     postalCode: string;
+}
+
+export interface AgeGroupDto {
+    ageGroupId: string;
+    ageGroupName: string;
+    maxTeams: number;
+    registeredCount: number;
+    rosterFee: number;
+    teamFee: number;
 }
 
 export interface AllowedFieldDomainItem {
@@ -125,6 +146,13 @@ export interface ClubSearchResult {
     state: string | undefined;
     teamCount: number;
     matchScore: number;
+}
+
+export interface ClubTeamDto {
+    clubTeamId: number;
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
 }
 
 export interface CreditCardInfo {
@@ -599,6 +627,33 @@ export interface RegSaverDetailsDto {
     policyCreateDate: Date;
 }
 
+export interface RegisterTeamRequest {
+    clubTeamId: number;
+    jobPath: string;
+    ageGroupId: string | undefined;
+}
+
+export interface RegisterTeamResponse {
+    teamId: string;
+    success: boolean;
+    message: string | undefined;
+}
+
+export interface RegisteredTeamDto {
+    teamId: string;
+    clubTeamId: number;
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
+    ageGroupId: string;
+    ageGroupName: string;
+    feeBase: number;
+    feeProcessing: number;
+    feeTotal: number;
+    paidTotal: number;
+    owedTotal: number;
+}
+
 export interface RegistrationDto {
     regId: string;
     displayText: string;
@@ -640,6 +695,14 @@ export interface RenameOptionSetRequest {
 
 export interface RoleSelectionRequest {
     regId: string;
+}
+
+export interface TeamsMetadataResponse {
+    clubId: number;
+    clubName: string;
+    availableClubTeams: ClubTeamDto[];
+    registeredTeams: RegisteredTeamDto[];
+    ageGroups: AgeGroupDto[];
 }
 
 export interface TestValidationRequest {

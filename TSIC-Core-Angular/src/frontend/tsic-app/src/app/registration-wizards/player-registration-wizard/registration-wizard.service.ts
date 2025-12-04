@@ -5,7 +5,18 @@ import { PlayerStateService } from './services/player-state.service';
 import { WaiverStateService } from './services/waiver-state.service';
 import { FormSchemaService } from './services/form-schema.service';
 import type { Loadable } from '../../core/models/state.models';
-import type { VIPlayerObjectResponse, PreSubmitPlayerRegistrationRequestDto, PreSubmitPlayerRegistrationResponseDto, PreSubmitTeamSelectionDto, PreSubmitValidationErrorDto, FamilyPlayersResponseDto, FamilyPlayerDto, FamilyPlayerRegistrationDto, RegSaverDetailsDto } from '../../core/api/models';
+import type {
+    VIPlayerObjectResponse,
+    PreSubmitPlayerRegistrationRequestDto,
+    PreSubmitPlayerRegistrationResponseDto,
+    PreSubmitTeamSelectionDto,
+    PreSubmitValidationErrorDto,
+    FamilyPlayersResponseDto,
+    FamilyPlayerDto,
+    FamilyPlayerRegistrationDto,
+    RegSaverDetailsDto,
+    PlayerRegConfirmationDto
+} from '../../core/api/models';
 import { environment } from '../../../environments/environment';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
@@ -1359,42 +1370,4 @@ function deriveConstraintTypeFromJsonOptions(raw: string | null | undefined): st
     }
 }
 
-// --- Confirmation DTO interfaces (backend parity) ---
-export interface PlayerRegFinancialLineDto {
-    registrationId: string;
-    playerName: string;
-    teamName: string;
-    feeTotal: number;
-    discountCodes: string[];
-}
-export interface PlayerRegTsicFinancialDto {
-    wasImmediateCharge: boolean;
-    wasArb: boolean;
-    amountCharged: number;
-    currency: string;
-    transactionId?: string;
-    paymentMethodMasked?: string;
-    nextArbBillDate?: string | null;
-    totalOriginal: number;
-    totalDiscounts: number;
-    totalNet: number;
-    lines: PlayerRegFinancialLineDto[];
-}
-export interface PlayerRegPolicyDto {
-    registrationId: string;
-    policyNumber: string;
-    issuedUtc: string;
-    insurableAmountCents: number;
-}
-export interface PlayerRegInsuranceStatusDto {
-    offered: boolean;
-    selected: boolean;
-    declined: boolean;
-    purchaseSucceeded: boolean;
-    policies: PlayerRegPolicyDto[];
-}
-export interface PlayerRegConfirmationDto {
-    tsic: PlayerRegTsicFinancialDto;
-    insurance: PlayerRegInsuranceStatusDto;
-    confirmationHtml: string;
-}
+// --- Confirmation DTOs imported from NSwag-generated models ---

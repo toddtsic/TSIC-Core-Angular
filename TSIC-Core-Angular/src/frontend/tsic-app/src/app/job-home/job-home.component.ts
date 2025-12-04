@@ -1,7 +1,8 @@
 import { Component, effect, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { JobService, RegistrationStatusResponse } from '../core/services/job.service';
+import { JobService } from '../core/services/job.service';
+import type { RegistrationStatusResponse } from '../core/api/models';
 import { AuthService } from '../core/services/auth.service';
 
 @Component({

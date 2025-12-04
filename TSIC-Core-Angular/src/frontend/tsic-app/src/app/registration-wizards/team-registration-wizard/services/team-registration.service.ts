@@ -2,6 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
+import {
+    TeamsMetadataResponse,
+    RegisterTeamRequest,
+    RegisterTeamResponse,
+    AddClubTeamRequest,
+    AddClubTeamResponse
+} from '../../../core/api/models';
 
 /**
  * Team Registration Service
@@ -27,6 +34,13 @@ export class TeamRegistrationService {
     constructor(private readonly http: HttpClient) { }
 
     /**
+     * Get list of clubs the current user is a rep for
+     */
+    getMyClubs(): Observable<string[]> {
+        return this.http.get<string[]>(`${this.apiUrl}/my-clubs`);
+    }
+
+    /**
      * Get teams metadata for the current club and event
      * 
      * Returns:
@@ -36,9 +50,12 @@ export class TeamRegistrationService {
      * - Age groups (with availability, fees, slots)
      * 
      * @param jobPath - The event identifier (e.g., "summer-2025-soccer")
+     * @param clubName - The club name to filter club rep association
      */
-    getTeamsMetadata(jobPath: string): Observable<TeamsMetadataResponse> {
-        const params = new HttpParams().set('jobPath', jobPath);
+    getTeamsMetadata(jobPath: string, clubName: string): Observable<TeamsMetadataResponse> {
+        const params = new HttpParams()
+            .set('jobPath', jobPath)
+            .set('clubName', clubName);
         return this.http.get<TeamsMetadataResponse>(`${this.apiUrl}/metadata`, { params });
     }
 
@@ -76,74 +93,4 @@ export class TeamRegistrationService {
     addNewClubTeam(request: AddClubTeamRequest): Observable<AddClubTeamResponse> {
         return this.http.post<AddClubTeamResponse>(`${this.apiUrl}/add-club-team`, request);
     }
-}
-
-// ========================================
-// Request/Response Types
-// ========================================
-// These will eventually be moved to core/api/models once backend endpoints are implemented
-
-export interface TeamsMetadataResponse {
-    clubId: number;
-    clubName: string;
-    availableClubTeams: ClubTeamDto[];
-    registeredTeams: RegisteredTeamDto[];
-    ageGroups: AgeGroupDto[];
-}
-
-export interface ClubTeamDto {
-    clubTeamId: number;
-    clubTeamName: string;
-    clubTeamGradYear: string;
-    clubTeamLevelOfPlay: string;
-}
-
-export interface RegisteredTeamDto {
-    teamId: string;          // Guid
-    clubTeamId: number;
-    clubTeamName: string;
-    clubTeamGradYear: string;
-    clubTeamLevelOfPlay: string;
-    ageGroupId: string;      // Guid
-    ageGroupName: string;
-
-    // Financial details
-    feeBase: number;          // RosterFee or (RosterFee + TeamFee) depending on bTeamsFullPaymentRequired
-    feeProcessing: number;    // Credit card processing fee
-    feeTotal: number;         // feeBase + feeProcessing
-    paidTotal: number;        // Total amount paid so far
-    owedTotal: number;        // feeTotal - paidTotal
-}
-
-export interface AgeGroupDto {
-    ageGroupId: string;      // Guid
-    ageGroupName: string;
-    maxTeams: number;         // Maximum teams allowed
-    registeredCount: number;  // Current number of registered teams
-    rosterFee: number;        // Deposit amount
-    teamFee: number;          // Final balance amount
-}
-
-export interface RegisterTeamRequest {
-    clubTeamId: number;
-    jobPath: string;
-    ageGroupId?: string;     // Optional Guid: auto-determine from team's grade year if not provided
-}
-
-export interface RegisterTeamResponse {
-    teamId: string;          // Guid
-    success: boolean;
-    message?: string;
-}
-
-export interface AddClubTeamRequest {
-    clubTeamName: string;
-    clubTeamGradYear: string;
-    clubTeamLevelOfPlay: string;
-}
-
-export interface AddClubTeamResponse {
-    clubTeamId: number;
-    success: boolean;
-    message?: string;
 }

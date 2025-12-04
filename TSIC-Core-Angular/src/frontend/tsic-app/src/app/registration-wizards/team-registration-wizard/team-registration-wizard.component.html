@@ -18,7 +18,7 @@
             <div class="rw-sticky-header my-4">
                 <progress class="w-100 rw-progress" [value]="step * 50" max="100">{{ step * 50 }}%</progress>
                 <!-- Sticky top action bar -->
-                <app-tw-action-bar *ngIf="step !== 1" [canBack]="step !== 1" [canContinue]="canContinue()"
+                <app-tw-action-bar *ngIf="step !== 1" [canBack]="step !== 1" [canContinue]="canProceedToTeams()"
                     [continueLabel]="continueLabel()" [showContinue]="showContinueButton()" [placement]="'top'"
                     (back)="prevStep()" (continue)="nextStep()" />
             </div>
@@ -82,10 +82,27 @@
                                                             @if (submitting) { <span
                                                                 class="spinner-border spinner-border-sm me-2"
                                                                 role="status" aria-hidden="true"></span> }
-                                                            <span>{{ submitting ? 'Signing in…' : 'Sign in & Continue
-                                                                Registration' }}</span>
+                                                            <span>{{ submitting ? 'Signing in…' : 'Sign in' }}</span>
                                                         </button>
                                                     </form>
+
+                                                    @if (availableClubs.length > 0) {
+                                                    <div class="mt-4">
+                                                        <label class="form-label fw-semibold">Select Your Club:</label>
+                                                        <div class="list-group">
+                                                            @for (club of availableClubs; track club) {
+                                                            <label
+                                                                class="list-group-item d-flex align-items-center gap-2">
+                                                                <input class="form-check-input" type="radio"
+                                                                    name="selectedClub" [value]="club"
+                                                                    [checked]="selectedClub === club"
+                                                                    (change)="selectClub(club)" />
+                                                                <span>{{ club }}</span>
+                                                            </label>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    }
                                                 </div>
                                             </div>
                                         </div>
@@ -265,14 +282,14 @@
                     </ng-container>
 
                     <ng-container *ngIf="step === 2">
-                        <app-teams-step></app-teams-step>
+                        <app-teams-step [clubName]="clubName || ''"></app-teams-step>
                     </ng-container>
                 </div> <!-- /card-body -->
             </div> <!-- /card -->
 
             <!-- Bottom action bar -->
             <div class="mt-3 rw-bottom-actions" *ngIf="step !== 1">
-                <app-tw-action-bar [canBack]="step !== 1" [canContinue]="canContinue()"
+                <app-tw-action-bar [canBack]="step !== 1" [canContinue]="canProceedToTeams()"
                     [continueLabel]="continueLabel()" [showContinue]="showContinueButton()" [placement]="'bottom'"
                     (back)="prevStep()" (continue)="nextStep()" />
             </div>

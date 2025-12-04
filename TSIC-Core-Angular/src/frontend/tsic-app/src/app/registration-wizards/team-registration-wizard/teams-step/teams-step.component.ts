@@ -1,8 +1,8 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../services/team-registration.service';
+import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../../../core/api/models';
 import { JobContextService } from '../../../core/services/job-context.service';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
 
@@ -44,13 +44,13 @@ export class TeamsStepComponent implements OnInit {
     filterLevelOfPlay = signal<string>('');
 
     // Data signals (populated from service)
-    availableClubTeams = signal<ClubTeam[]>([]);
-    registeredTeams = signal<RegisteredTeam[]>([]);
-    ageGroups = signal<AgeGroup[]>([]);
+    availableClubTeams = signal<ClubTeamDto[]>([]);
+    registeredTeams = signal<RegisteredTeamDto[]>([]);
+    ageGroups = signal<AgeGroupDto[]>([]);
 
-    // Club metadata
+    // Club metadata (clubName from parent wizard, clubId from API)
+    clubName = input.required<string>();
     clubId = signal<number | null>(null);
-    clubName = signal<string>('');
 
     // UI state
     isLoading = signal<boolean>(false);
@@ -105,17 +105,25 @@ export class TeamsStepComponent implements OnInit {
     // Get unique grade years from all teams
     gradeYears = computed(() => {
         const years = new Set<string>();
-        this.availableClubTeams().forEach(t => years.add(t.clubTeamGradYear));
-        this.registeredTeams().forEach(t => years.add(t.clubTeamGradYear));
-        return Array.from(years).sort();
+        for (const t of this.availableClubTeams()) {
+            years.add(t.clubTeamGradYear);
+        }
+        for (const t of this.registeredTeams()) {
+            years.add(t.clubTeamGradYear);
+        }
+        return Array.from(years).sort((a, b) => a.localeCompare(b));
     });
 
     // Get unique levels of play from all teams
     levelsOfPlay = computed(() => {
         const levels = new Set<string>();
-        this.availableClubTeams().forEach(t => levels.add(t.clubTeamLevelOfPlay));
-        this.registeredTeams().forEach(t => levels.add(t.clubTeamLevelOfPlay));
-        return Array.from(levels).sort();
+        for (const t of this.availableClubTeams()) {
+            levels.add(t.clubTeamLevelOfPlay);
+        }
+        for (const t of this.registeredTeams()) {
+            levels.add(t.clubTeamLevelOfPlay);
+        }
+        return Array.from(levels).sort((a, b) => a.localeCompare(b));
     });
 
     ngOnInit(): void {
@@ -132,18 +140,24 @@ export class TeamsStepComponent implements OnInit {
      */
     private loadTeamsMetadata(): void {
         const jobPath = this.jobContext.jobPath();
+        const clubName = this.clubName();
+
         if (!jobPath) {
             this.errorMessage.set('Event not found. Please navigate from a valid event link.');
+            return;
+        }
+
+        if (!clubName) {
+            this.errorMessage.set('Club name is required.');
             return;
         }
 
         this.isLoading.set(true);
         this.errorMessage.set(null);
 
-        this.teamService.getTeamsMetadata(jobPath).subscribe({
+        this.teamService.getTeamsMetadata(jobPath, clubName).subscribe({
             next: (response) => {
                 this.clubId.set(response.clubId);
-                this.clubName.set(response.clubName);
                 this.availableClubTeams.set(response.availableClubTeams);
                 this.registeredTeams.set(response.registeredTeams);
                 this.ageGroups.set(response.ageGroups);
@@ -161,7 +175,7 @@ export class TeamsStepComponent implements OnInit {
      * Register a ClubTeam for this event
      * Creates a Teams record linked to the ClubTeam and current Job
      */
-    registerTeam(clubTeam: ClubTeam): void {
+    registerTeam(clubTeam: ClubTeamDto): void {
         const jobPath = this.jobContext.jobPath();
         if (!jobPath) {
             this.errorMessage.set('Event not found');
@@ -172,7 +186,8 @@ export class TeamsStepComponent implements OnInit {
 
         this.teamService.registerTeamForEvent({
             clubTeamId: clubTeam.clubTeamId,
-            jobPath: jobPath
+            jobPath: jobPath,
+            ageGroupId: undefined // Auto-determine from team grad year
         }).subscribe({
             next: () => {
                 // Refresh metadata to get updated state
@@ -189,7 +204,7 @@ export class TeamsStepComponent implements OnInit {
      * Unregister a Team from this event
      * Deletes the Teams record if it has no payments
      */
-    unregisterTeam(team: RegisteredTeam): void {
+    unregisterTeam(team: RegisteredTeamDto): void {
         if (team.paidTotal > 0) {
             this.errorMessage.set('Cannot unregister a team that has payments. Please contact support.');
             return;
@@ -245,7 +260,7 @@ export class TeamsStepComponent implements OnInit {
     /**
      * Get age group availability info by name
      */
-    getAgeGroupAvailability(ageGroupName: string): AgeGroup | undefined {
+    getAgeGroupAvailability(ageGroupName: string): AgeGroupDto | undefined {
         return this.ageGroups().find(ag => ag.ageGroupName === ageGroupName);
     }
 
@@ -266,11 +281,6 @@ export class TeamsStepComponent implements OnInit {
         this.filterLevelOfPlay.set('');
     }
 }
-
-// Type aliases for template usage
-type ClubTeam = ClubTeamDto;
-type RegisteredTeam = RegisteredTeamDto;
-type AgeGroup = AgeGroupDto;
 
 interface NewClubTeamData {
     clubTeamName: string;

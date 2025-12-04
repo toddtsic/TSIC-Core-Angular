@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import type { RegistrationStatusRequest, RegistrationStatusResponse } from '../api/models';
 
 export interface JobBulletin {
     id: string;
@@ -24,18 +25,6 @@ export interface Job {
     playerProfileMetadataJson?: string;
     jsonOptions?: string;
     jobBulletins: JobBulletin[];
-}
-
-export interface RegistrationStatusRequest {
-    jobPath: string;
-    registrationTypes: string[];
-}
-
-export interface RegistrationStatusResponse {
-    registrationType: string;
-    isAvailable: boolean;
-    message?: string;
-    registrationUrl?: string;
 }
 
 @Injectable({ providedIn: 'root' })

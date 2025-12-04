@@ -103,3 +103,17 @@ public sealed record AddClubTeamResponse
     public required bool Success { get; init; }
     public string? Message { get; init; }
 }
+
+public sealed record ValidateClubRepRequest
+{
+    public required string Username { get; init; }
+    public required string Password { get; init; }
+    public required string JobPath { get; init; }
+}
+
+public sealed record ValidateClubRepResponse
+{
+    public required bool IsValid { get; init; }
+    public required string? ClubName { get; init; }
+    public string? Message { get; init; }
+}

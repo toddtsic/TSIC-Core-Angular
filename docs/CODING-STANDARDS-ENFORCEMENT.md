@@ -101,6 +101,122 @@ The script handles everything:
 
 ---
 
+## NSwag-Generated Types: Single Source of Truth
+
+**CRITICAL RULE: ALWAYS use NSwag-generated types. NEVER create local type definitions.**
+
+### Configuration
+
+NSwag is configured to generate **TypeScript interfaces only** (no client classes):
+
+```json
+{
+  "generateClientClasses": false,
+  "generateClientInterfaces": false
+}
+```
+
+All generated types are located in: `src/app/core/api/models/index.ts`
+
+### Enforcement Rules
+
+**✅ CORRECT - Import from NSwag models:**
+```typescript
+import {
+    TeamsMetadataResponse,
+    ClubTeamDto,
+    RegisteredTeamDto,
+    RegisterTeamRequest
+} from '../../../core/api/models';
+
+@Injectable()
+export class TeamRegistrationService {
+    getTeamsMetadata(jobPath: string, clubName: string): Observable<TeamsMetadataResponse> {
+        return this.http.get<TeamsMetadataResponse>(`${this.apiUrl}/metadata`, {
+            params: { jobPath, clubName }
+        });
+    }
+}
+```
+
+**❌ WRONG - Local interface definitions:**
+```typescript
+// NEVER DO THIS - duplicates NSwag-generated types
+interface TeamsMetadataResponse {
+    clubId: number;
+    clubName: string;
+    availableClubTeams: ClubTeamDto[];
+    // ...
+}
+
+interface ClubTeamDto {
+    clubTeamId: number;
+    // ...
+}
+```
+
+### Why This Matters
+
+1. **Single Source of Truth**: Backend DTOs are the authoritative schema
+2. **Type Safety**: NSwag ensures frontend types exactly match backend contracts
+3. **Automatic Updates**: Regenerating updates all types across the application
+4. **No Drift**: Prevents frontend/backend type mismatches
+5. **Maintainability**: Changes in one place (backend DTOs) propagate everywhere
+
+### Workflow
+
+1. **Modify Backend DTO** (C# record in `TSIC.API/Dtos/`)
+2. **Run regeneration script**: `scripts\regenerate-api-types.bat`
+3. **Verify generation**: Check `core/api/models/index.ts` contains updated types
+4. **Import in services**: Always use `import { ... } from 'core/api/models'`
+5. **NEVER create local types** that duplicate NSwag models
+
+### Manual Service Implementation
+
+Since `generateClientClasses: false`, you must manually implement HTTP services:
+
+```typescript
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { TeamsMetadataResponse, RegisterTeamRequest } from '../../../core/api/models';
+
+@Injectable({ providedIn: 'root' })
+export class TeamRegistrationService {
+    private readonly http = inject(HttpClient);
+    private readonly apiUrl = '/api/team-registration';
+
+    getTeamsMetadata(jobPath: string, clubName: string): Observable<TeamsMetadataResponse> {
+        const params = new HttpParams()
+            .set('jobPath', jobPath)
+            .set('clubName', clubName);
+        
+        return this.http.get<TeamsMetadataResponse>(`${this.apiUrl}/metadata`, { params });
+    }
+}
+```
+
+**Key Points:**
+- Import ALL types from `core/api/models`
+- Manually implement HTTP methods (GET, POST, etc.)
+- Use generics `http.get<TeamsMetadataResponse>()` for type safety
+- NEVER define response types locally in service files
+
+### Verification
+
+Before committing, verify no duplicate type definitions exist:
+
+```powershell
+# Search for local interface definitions in service files
+grep -n "^interface.*Response\|^interface.*Dto\|^interface.*Request" src/app/**/*.service.ts
+
+# Should return NO results - all types must come from core/api/models
+```
+
+**Enforcement**: Any PR with local type definitions that duplicate NSwag models will be rejected.
+
+---
+
 ## Interfaces & Services
 
 - Convention: Place public service interfaces in separate files named `I*.cs` alongside their implementations within `TSIC.API/Services`.

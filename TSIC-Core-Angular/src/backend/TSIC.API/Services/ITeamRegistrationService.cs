@@ -5,10 +5,15 @@ namespace TSIC.API.Services;
 public interface ITeamRegistrationService
 {
     /// <summary>
+    /// Get list of clubs that the user is a rep for.
+    /// </summary>
+    Task<List<string>> GetMyClubsAsync(string userId);
+
+    /// <summary>
     /// Get teams metadata for the current club and event.
     /// Returns club info, available ClubTeams, registered Teams, and age groups.
     /// </summary>
-    Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId);
+    Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName);
 
     /// <summary>
     /// Register a ClubTeam for the current event.

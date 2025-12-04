@@ -1,90 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-
-export interface FamilyRegistrationRequest {
-    username: string;
-    password: string;
-    primary: {
-        firstName: string;
-        lastName: string;
-        cellphone: string;
-        email: string;
-    };
-    secondary: {
-        firstName: string;
-        lastName: string;
-        cellphone: string;
-        email: string;
-    };
-    address: {
-        streetAddress: string;
-        city: string;
-        state: string;
-        postalCode: string;
-    };
-    children: Array<{
-        firstName: string;
-        lastName: string;
-        gender: string;
-        dob?: string;
-        email?: string;
-        phone?: string;
-    }>;
-}
-
-export interface FamilyRegistrationResponse {
-    success: boolean;
-    familyUserId?: string;
-    familyId?: string;
-    message?: string;
-}
-
-export interface FamilyUpdateRequest {
-    username: string;
-    primary: {
-        firstName: string;
-        lastName: string;
-        cellphone: string;
-        email: string;
-    };
-    secondary: {
-        firstName: string;
-        lastName: string;
-        cellphone: string;
-        email: string;
-    };
-    address: {
-        streetAddress: string;
-        city: string;
-        state: string;
-        postalCode: string;
-    };
-    children: Array<{
-        firstName: string;
-        lastName: string;
-        gender: string;
-        dob?: string;
-        email?: string;
-        phone?: string;
-    }>;
-}
-
-export interface FamilyProfileResponse {
-    username: string;
-    primary: {
-        firstName: string; lastName: string; cellphone: string; email: string;
-    };
-    secondary: {
-        firstName: string; lastName: string; cellphone: string; email: string;
-    };
-    address: {
-        streetAddress: string; city: string; state: string; postalCode: string;
-    };
-    children: Array<{
-        firstName: string; lastName: string; gender: string; dob?: string; email?: string; phone?: string;
-    }>;
-}
+import type {
+    FamilyRegistrationRequest,
+    FamilyRegistrationResponse,
+    FamilyUpdateRequest,
+    FamilyProfileResponse
+} from '../api/models';
 
 @Injectable({ providedIn: 'root' })
 export class FamilyService {
