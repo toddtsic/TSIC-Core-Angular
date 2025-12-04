@@ -302,12 +302,24 @@
                 <button type="button" class="btn-close" (click)="closeAddTeamModal()" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">Add a new team to your club's permanent library. Once created, this team will be available for registration in all future events.</p>
+                <p class="text-muted small">Add a new team to your club's permanent library. Once created, this team
+                    will be available for registration in all future events.</p>
                 <form #addTeamForm="ngForm" (ngSubmit)="addNewClubTeam({
                     clubTeamName: teamName.value,
                     clubTeamGradYear: teamGradYear.value,
                     clubTeamLevelOfPlay: teamLevelOfPlay.value
                 })">
+                    <div class="mb-3">
+                        <label for="teamAgeGroup" class="form-label">Age Group</label>
+                        <select id="teamAgeGroup" #teamAgeGroup="ngModel" ngModel name="teamAgeGroup"
+                            class="form-select">
+                            <option value="">Select age group (optional)...</option>
+                            @for (ag of ageGroups(); track ag.ageGroupId) {
+                            <option [value]="ag.ageGroupName">{{ ag.ageGroupName }}</option>
+                            }
+                        </select>
+                        <div class="form-text">Optional: The age group this team typically plays in</div>
+                    </div>
                     <div class="mb-3">
                         <label for="teamName" class="form-label">Team Name <span class="text-danger">*</span></label>
                         <input id="teamName" #teamName="ngModel" ngModel name="teamName" type="text"
@@ -316,20 +328,13 @@
                     <div class="mb-3">
                         <label for="teamGradYear" class="form-label">Graduation Year <span
                                 class="text-danger">*</span></label>
-                        <input id="teamGradYear" #teamGradYear="ngModel" ngModel name="teamGradYear" type="text"
-                            class="form-control" placeholder="e.g., 2013" required pattern="[0-9]{4}" />
-                        <div class="form-text">4-digit year (e.g., 2013)</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="teamAgeGroup" class="form-label">Age Group</label>
-                        <select id="teamAgeGroup" #teamAgeGroup="ngModel" ngModel name="teamAgeGroup"
-                            class="form-select">
-                            <option value="">Select age group (optional)...</option>
-                            @for (ag of ageGroups(); track ag.ageGroupId) {
-                                <option [value]="ag.ageGroupName">{{ ag.ageGroupName }}</option>
+                        <select id="teamGradYear" #teamGradYear="ngModel" ngModel name="teamGradYear"
+                            class="form-select" required>
+                            <option value="">Select graduation year...</option>
+                            @for (year of availableGradYears(); track year.value) {
+                            <option [value]="year.value">{{ year.label }}</option>
                             }
                         </select>
-                        <div class="form-text">Optional: The age group this team typically plays in</div>
                     </div>
                     <div class="mb-3">
                         <label for="teamLevelOfPlay" class="form-label">Level of Play <span
@@ -337,11 +342,9 @@
                         <select id="teamLevelOfPlay" #teamLevelOfPlay="ngModel" ngModel name="teamLevelOfPlay"
                             class="form-select" required>
                             <option value="">Select level...</option>
-                            <option value="Elite">Elite</option>
-                            <option value="Select">Select</option>
-                            <option value="Premier">Premier</option>
-                            <option value="Classic">Classic</option>
-                            <option value="Recreational">Recreational</option>
+                            @for (level of availableLevelsOfPlay(); track level.value) {
+                            <option [value]="level.value">{{ level.label }}</option>
+                            }
                         </select>
                     </div>
                     <div class="d-flex justify-content-end gap-2">

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../services/team-registration.service';
 import { JobContextService } from '../../../core/services/job-context.service';
+import { FormFieldDataService } from '../../../core/services/form-field-data.service';
 
 /**
  * Teams Step Component
@@ -31,6 +32,11 @@ export class TeamsStepComponent implements OnInit {
     // Injected services
     private readonly teamService = inject(TeamRegistrationService);
     private readonly jobContext = inject(JobContextService);
+    private readonly fieldData = inject(FormFieldDataService);
+
+    // Dropdown options from JsonOptions
+    availableGradYears = computed(() => this.fieldData.getOptionsForDataSource('gradYears'));
+    availableLevelsOfPlay = computed(() => this.fieldData.getOptionsForDataSource('levelOfPlay'));
 
     // Search/filter state
     searchTerm = signal<string>('');
