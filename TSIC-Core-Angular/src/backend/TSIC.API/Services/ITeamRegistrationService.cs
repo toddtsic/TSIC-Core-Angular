@@ -1,0 +1,30 @@
+using TSIC.API.Dtos;
+
+namespace TSIC.API.Services;
+
+public interface ITeamRegistrationService
+{
+    /// <summary>
+    /// Get teams metadata for the current club and event.
+    /// Returns club info, available ClubTeams, registered Teams, and age groups.
+    /// </summary>
+    Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId);
+
+    /// <summary>
+    /// Register a ClubTeam for the current event.
+    /// Creates a Teams record linking the ClubTeam to the Job.
+    /// </summary>
+    Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId);
+
+    /// <summary>
+    /// Unregister a Team from the current event.
+    /// Deletes the Teams record if it has no payments.
+    /// </summary>
+    Task<bool> UnregisterTeamFromEventAsync(Guid teamId, string userId);
+
+    /// <summary>
+    /// Add a new ClubTeam to the club.
+    /// Creates a new ClubTeam record that will be available for all future events.
+    /// </summary>
+    Task<AddClubTeamResponse> AddNewClubTeamAsync(AddClubTeamRequest request, string userId);
+}

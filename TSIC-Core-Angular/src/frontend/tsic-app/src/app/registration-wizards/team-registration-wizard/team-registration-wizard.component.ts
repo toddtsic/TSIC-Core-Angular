@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TwActionBarComponent } from '../shared/tw-action-bar.component';
+import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
 import { JobService } from '../../core/services/job.service';
 import { JobContextService } from '../../core/services/job-context.service';
@@ -16,11 +17,12 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '../../core/ap
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, TwActionBarComponent]
+    imports: [CommonModule, ReactiveFormsModule, TwActionBarComponent, TeamsStepComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;
     hasClubRepAccount: boolean | null = null;
+    clubName: string | null = null;
 
     // Computed: determine if user is logged in
     private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);
@@ -158,6 +160,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
                     next: () => {
                         // Update component state to reflect logged-in status
                         this.hasClubRepAccount = true;
+                        this.clubName = request.clubName;
                         this.nextStep();
                     },
                     error: (error: HttpErrorResponse) => {

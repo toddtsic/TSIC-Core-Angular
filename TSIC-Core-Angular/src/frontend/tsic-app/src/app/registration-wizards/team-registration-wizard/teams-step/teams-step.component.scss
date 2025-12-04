@@ -1,0 +1,25 @@
+.teams-step-container {
+    /* Container styles */
+}
+
+.modal.d-block {
+    display: block !important;
+}
+
+/* Card hover effects for available teams */
+.list-group-item-action:hover {
+    cursor: pointer;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+}

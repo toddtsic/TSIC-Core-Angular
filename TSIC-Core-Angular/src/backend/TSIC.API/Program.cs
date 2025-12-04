@@ -52,6 +52,7 @@ builder.Services.AddHttpClient("verticalinsure", (sp, c) =>
 });
 builder.Services.AddScoped<IFamilyService, FamilyService>();
 builder.Services.AddScoped<IClubService, ClubService>();
+builder.Services.AddScoped<ITeamRegistrationService, TeamRegistrationService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
