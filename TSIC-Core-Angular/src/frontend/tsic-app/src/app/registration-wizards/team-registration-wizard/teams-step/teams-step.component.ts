@@ -38,7 +38,7 @@ export class TeamsStepComponent implements OnInit {
 
     // Dropdown options from JsonOptions
     availableGradYears = computed(() => this.fieldData.getOptionsForDataSource('gradYears'));
-    availableLevelsOfPlay = computed(() => this.fieldData.getOptionsForDataSource('levelOfPlay'));
+    availableLevelsOfPlay = computed(() => this.fieldData.getOptionsForDataSource('List_Lops'));
 
     // Search/filter state
     searchTerm = signal<string>('');
@@ -54,10 +54,38 @@ export class TeamsStepComponent implements OnInit {
     clubName = input.required<string>();
     clubId = signal<number | null>(null);
 
+    // Event display name from jobPath
+    eventName = computed(() => {
+        const jp = this.jobContext.jobPath();
+        if (!jp) return 'This Event';
+        // Convert jobPath like 'iftc-summer-2026' to 'IFTC SUMMER 2026'
+        return jp.toUpperCase().replace(/-/g, ' ');
+    });
+
+    // Filtered age groups (exclude only Dropped)
+    displayedAgeGroups = computed(() => {
+        return this.ageGroups()
+            .filter(ag => {
+                const name = ag.ageGroupName.toLowerCase();
+                return !name.startsWith('dropped');
+            })
+            .sort((a, b) => {
+                // Full age groups go to bottom
+                const aFull = a.registeredCount >= a.maxTeams;
+                const bFull = b.registeredCount >= b.maxTeams;
+                if (aFull && !bFull) return 1;
+                if (!aFull && bFull) return -1;
+                // Otherwise maintain original order (by name)
+                return a.ageGroupName.localeCompare(b.ageGroupName);
+            });
+    });
+
     // UI state
     isLoading = signal<boolean>(false);
     errorMessage = signal<string | null>(null);
     showAddTeamModal = signal<boolean>(false);
+    showAgeGroupModal = signal<boolean>(false);
+    selectedClubTeamForRegistration = signal<ClubTeamDto | null>(null);
 
     // Financial summary
     totalOwed = computed(() => {
@@ -129,6 +157,10 @@ export class TeamsStepComponent implements OnInit {
     });
 
     ngOnInit(): void {
+        // DEBUG: Check what options are loaded
+        console.log('=== Available dropdown options ===');
+        console.log('gradYears:', this.availableGradYears());
+        console.log('levelsOfPlay:', this.availableLevelsOfPlay());
         this.loadTeamsMetadata();
     }
 
@@ -181,13 +213,30 @@ export class TeamsStepComponent implements OnInit {
     }
 
     /**
-     * Register a ClubTeam for this event
-     * Creates a Teams record linked to the ClubTeam and current Job
+     * Open age group selection modal for team registration
      */
-    registerTeam(clubTeam: ClubTeamDto): void {
+    openAgeGroupSelectionModal(clubTeam: ClubTeamDto): void {
+        this.selectedClubTeamForRegistration.set(clubTeam);
+        this.showAgeGroupModal.set(true);
+    }
+
+    /**
+     * Close age group selection modal
+     */
+    closeAgeGroupModal(): void {
+        this.showAgeGroupModal.set(false);
+        this.selectedClubTeamForRegistration.set(null);
+    }
+
+    /**
+     * Register a ClubTeam for this event with selected age group
+     */
+    registerTeamWithAgeGroup(ageGroupId: string): void {
+        const clubTeam = this.selectedClubTeamForRegistration();
         const jobPath = this.jobContext.jobPath();
-        if (!jobPath) {
-            this.errorMessage.set('Event not found');
+        
+        if (!clubTeam || !jobPath) {
+            this.errorMessage.set('Invalid registration data');
             return;
         }
 
@@ -196,10 +245,10 @@ export class TeamsStepComponent implements OnInit {
         this.teamService.registerTeamForEvent({
             clubTeamId: clubTeam.clubTeamId,
             jobPath: jobPath,
-            ageGroupId: undefined // Auto-determine from team grad year
+            ageGroupId: ageGroupId
         }).subscribe({
             next: () => {
-                // Refresh metadata to get updated state
+                this.closeAgeGroupModal();
                 this.loadTeamsMetadata();
             },
             error: (err) => {

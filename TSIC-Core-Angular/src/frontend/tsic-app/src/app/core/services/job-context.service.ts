@@ -1,4 +1,4 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 // Segments that are structural and not job identifiers.
