@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../../../core/api/models';
 import { JobContextService } from '../../../core/services/job-context.service';
@@ -33,6 +34,7 @@ export class TeamsStepComponent implements OnInit {
     private readonly teamService = inject(TeamRegistrationService);
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
+    private readonly route = inject(ActivatedRoute);
 
     // Dropdown options from JsonOptions
     availableGradYears = computed(() => this.fieldData.getOptionsForDataSource('gradYears'));
@@ -139,8 +141,15 @@ export class TeamsStepComponent implements OnInit {
      * - ageGroups (with availability info)
      */
     private loadTeamsMetadata(): void {
-        const jobPath = this.jobContext.jobPath();
+        const jobPath = this.jobContext.resolveFromRoute(this.route);
         const clubName = this.clubName();
+
+        // DEBUG: Log what we're getting
+        console.log('=== loadTeamsMetadata Debug ===');
+        console.log('jobPath from jobContext:', jobPath);
+        console.log('clubName from input:', clubName);
+        console.log('window.location.pathname:', window.location.pathname);
+        console.log('window.location.href:', window.location.href);
 
         if (!jobPath) {
             this.errorMessage.set('Event not found. Please navigate from a valid event link.');

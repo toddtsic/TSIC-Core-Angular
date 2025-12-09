@@ -21,6 +21,17 @@ export interface AddClubTeamResponse {
     message: string | undefined;
 }
 
+export interface AddClubToRepRequest {
+    clubName: string;
+}
+
+export interface AddClubToRepResponse {
+    success: boolean;
+    clubName: string;
+    similarClubs: ClubSearchResult[] | undefined;
+    message: string | undefined;
+}
+
 export interface AddressDto {
     streetAddress: string;
     city: string;
@@ -116,6 +127,11 @@ export interface CloneProfileResult {
     sourceProfileType: string;
     fieldCount: number;
     errorMessage: string | undefined;
+}
+
+export interface ClubRepClubDto {
+    clubName: string;
+    isInUse: boolean;
 }
 
 export interface ClubRepRegistrationRequest {

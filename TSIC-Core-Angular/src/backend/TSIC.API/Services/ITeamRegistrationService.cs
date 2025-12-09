@@ -5,9 +5,9 @@ namespace TSIC.API.Services;
 public interface ITeamRegistrationService
 {
     /// <summary>
-    /// Get list of clubs that the user is a rep for.
+    /// Get list of clubs that the user is a rep for, with usage status.
     /// </summary>
-    Task<List<string>> GetMyClubsAsync(string userId);
+    Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId);
 
     /// <summary>
     /// Get teams metadata for the current club and event.
@@ -32,4 +32,16 @@ public interface ITeamRegistrationService
     /// Creates a new ClubTeam record that will be available for all future events.
     /// </summary>
     Task<AddClubTeamResponse> AddNewClubTeamAsync(AddClubTeamRequest request, string userId);
+
+    /// <summary>
+    /// Add a club to the user's rep account.
+    /// Links the user to an existing club or creates a new one.
+    /// </summary>
+    Task<AddClubToRepResponse> AddClubToRepAsync(string userId, string clubName);
+
+    /// <summary>
+    /// Remove a club from the user's rep account.
+    /// Only allowed if the club has no team registrations.
+    /// </summary>
+    Task<bool> RemoveClubFromRepAsync(string userId, string clubName);
 }

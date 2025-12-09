@@ -239,15 +239,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     }
     private resetWizardState(): void { this.state.reset(); try { this.jobContext.init(); } catch { /* ignore */ } }
     private resolveJobPath(): string {
-        const existing = this.jobContext.jobPath();
-        if (existing) { console.debug('[PRW] jobPath:', existing); return existing; }
-        const qpParam = this.route.snapshot.paramMap.get('jobPath')
-            || this.route.parent?.snapshot.paramMap.get('jobPath')
-            || this.route.root.firstChild?.snapshot.paramMap.get('jobPath')
-            || '';
-        if (qpParam) console.debug('[PRW] jobPath:', qpParam);
-        else console.warn('[PRW] jobPath was not found in URL; wizard may not load data.');
-        return qpParam;
+        return this.jobContext.resolveFromRoute(this.route);
     }
     private loadPlayers(jobPath: string): void { if (jobPath) this.state.loadFamilyPlayers(jobPath); }
     private applyQueryStep(): boolean {

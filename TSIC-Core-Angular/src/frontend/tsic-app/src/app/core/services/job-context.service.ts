@@ -1,9 +1,11 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 
 // Segments that are structural and not job identifiers.
 const NON_JOB_SEGMENTS = new Set([
     'tsic',
     'register-player',
+    'register-team',
     'family-account',
     'login',
     'admin'
@@ -51,8 +53,39 @@ export class JobContextService {
         }
     }
 
+    /**
+     * Resolve jobPath from Angular route params.
+     * This is the CORRECT way to get jobPath - reads from ActivatedRoute paramMap.
+     * Falls back to URL parsing (init) if route params are not available.
+     */
+    resolveFromRoute(route: ActivatedRoute): string {
+        // Try to get from route params (/:jobPath pattern)
+        const fromParams = route.snapshot.paramMap.get('jobPath')
+            || route.parent?.snapshot.paramMap.get('jobPath')
+            || route.root.firstChild?.snapshot.paramMap.get('jobPath')
+            || '';
+
+        if (fromParams) {
+            console.debug('[JobContext] jobPath from route params:', fromParams);
+            this._jobPath.set(fromParams);
+            return fromParams;
+        }
+
+        // Fallback to existing value (from init())
+        const existing = this._jobPath();
+        if (existing) {
+            console.debug('[JobContext] jobPath from existing:', existing);
+            return existing;
+        }
+
+        console.warn('[JobContext] jobPath not found in route params or URL');
+        return '';
+    }
+
     /** Explicit override (e.g., single-job deployments) */
     set(jobPath: string | null): void { this._jobPath.set(jobPath); }
+
+    /** Get current jobPath value */
     jobPath(): string | null { return this._jobPath(); }
 }
 

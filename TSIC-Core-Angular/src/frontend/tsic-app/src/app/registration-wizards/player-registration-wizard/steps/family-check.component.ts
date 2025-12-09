@@ -326,11 +326,6 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   private resolveJobPath(): string {
     let jobPath = (this.state.jobPath() || '').trim();
     if (!jobPath) jobPath = this.auth.getJobPath() || '';
-    if (!jobPath) {
-      const url = (this.router.url || '').split('?')[0].split('#')[0];
-      const segs = url.split('/').filter(s => !!s);
-      if (segs.length > 0 && segs[0].toLowerCase() !== 'tsic') jobPath = segs[0];
-    }
     return jobPath;
   }
 }

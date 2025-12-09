@@ -2,6 +2,41 @@ using FluentValidation;
 
 namespace TSIC.API.Dtos;
 
+public sealed record ClubRepClubDto
+{
+    public required string ClubName { get; init; }
+    public required bool IsInUse { get; init; }
+}
+
+public sealed record AddClubToRepRequest
+{
+    public required string ClubName { get; init; }
+}
+
+public class AddClubToRepRequestValidator : AbstractValidator<AddClubToRepRequest>
+{
+    public AddClubToRepRequestValidator()
+    {
+        RuleFor(x => x.ClubName)
+            .NotEmpty().WithMessage("Club name is required")
+            .MaximumLength(200).WithMessage("Club name cannot exceed 200 characters");
+    }
+}
+
+public sealed record RemoveClubFromRepRequest
+{
+    public required string ClubName { get; init; }
+}
+
+public class RemoveClubFromRepRequestValidator : AbstractValidator<RemoveClubFromRepRequest>
+{
+    public RemoveClubFromRepRequestValidator()
+    {
+        RuleFor(x => x.ClubName)
+            .NotEmpty().WithMessage("Club name is required");
+    }
+}
+
 public sealed record TeamsMetadataResponse
 {
     public required int ClubId { get; init; }
@@ -101,6 +136,14 @@ public sealed record AddClubTeamResponse
 {
     public required int ClubTeamId { get; init; }
     public required bool Success { get; init; }
+    public string? Message { get; init; }
+}
+
+public sealed record AddClubToRepResponse
+{
+    public required bool Success { get; init; }
+    public required string ClubName { get; init; }
+    public List<ClubSearchResult>? SimilarClubs { get; init; }
     public string? Message { get; init; }
 }
 

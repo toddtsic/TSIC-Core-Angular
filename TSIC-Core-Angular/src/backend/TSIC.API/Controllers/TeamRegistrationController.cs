@@ -23,10 +23,10 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Get clubs that the current user is a rep for.
+    /// Get clubs that the current user is a rep for, with usage status.
     /// </summary>
     [HttpGet("my-clubs")]
-    [ProducesResponseType(typeof(List<string>), 200)]
+    [ProducesResponseType(typeof(List<ClubRepClubDto>), 200)]
     [ProducesResponseType(401)]
     public async Task<IActionResult> GetMyClubs()
     {
@@ -186,6 +186,75 @@ public class TeamRegistrationController : ControllerBase
         {
             _logger.LogError(ex, "Error adding club team for user {UserId}", userId);
             return StatusCode(500, new { Message = "An error occurred while adding the club team" });
+        }
+    }
+
+    /// <summary>
+    /// Add a club to the current user's rep account.
+    /// </summary>
+    [HttpPost("add-club")]
+    [ProducesResponseType(typeof(AddClubToRepResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> AddClubToRep([FromBody] AddClubToRepRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            var response = await _teamRegistrationService.AddClubToRepAsync(userId, request.ClubName);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation while adding club for user {UserId}", userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding club for user {UserId}", userId);
+            return StatusCode(500, new { Message = "An error occurred while adding the club" });
+        }
+    }
+
+    /// <summary>
+    /// Remove a club from the current user's rep account.
+    /// </summary>
+    [HttpDelete("remove-club")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> RemoveClubFromRep([FromQuery] string clubName)
+    {
+        if (string.IsNullOrWhiteSpace(clubName))
+        {
+            return BadRequest(new { Message = "clubName is required" });
+        }
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            await _teamRegistrationService.RemoveClubFromRepAsync(userId, clubName);
+            return Ok(new { Success = true, Message = "Club removed successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation while removing club for user {UserId}", userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing club for user {UserId}", userId);
+            return StatusCode(500, new { Message = "An error occurred while removing the club" });
         }
     }
 }

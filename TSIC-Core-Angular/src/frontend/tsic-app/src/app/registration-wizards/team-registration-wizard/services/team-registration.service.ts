@@ -7,7 +7,10 @@ import {
     RegisterTeamRequest,
     RegisterTeamResponse,
     AddClubTeamRequest,
-    AddClubTeamResponse
+    AddClubTeamResponse,
+    ClubRepClubDto,
+    AddClubToRepRequest,
+    AddClubToRepResponse
 } from '../../../core/api/models';
 
 /**
@@ -34,10 +37,10 @@ export class TeamRegistrationService {
     constructor(private readonly http: HttpClient) { }
 
     /**
-     * Get list of clubs the current user is a rep for
+     * Get list of clubs the current user is a rep for, with usage status
      */
-    getMyClubs(): Observable<string[]> {
-        return this.http.get<string[]>(`${this.apiUrl}/my-clubs`);
+    getMyClubs(): Observable<ClubRepClubDto[]> {
+        return this.http.get<ClubRepClubDto[]>(`${this.apiUrl}/my-clubs`);
     }
 
     /**
@@ -92,5 +95,27 @@ export class TeamRegistrationService {
      */
     addNewClubTeam(request: AddClubTeamRequest): Observable<AddClubTeamResponse> {
         return this.http.post<AddClubTeamResponse>(`${this.apiUrl}/add-club-team`, request);
+    }
+
+    /**
+     * Add a club to the current user's rep account
+     * 
+     * @param clubName - Name of the club to add
+     */
+    addClubToRep(clubName: string): Observable<AddClubToRepResponse> {
+        const request: AddClubToRepRequest = { clubName };
+        return this.http.post<AddClubToRepResponse>(`${this.apiUrl}/add-club`, request);
+    }
+
+    /**
+     * Remove a club from the current user's rep account
+     * 
+     * Only allowed if the club has no registered teams.
+     * 
+     * @param clubName - Name of the club to remove
+     */
+    removeClubFromRep(clubName: string): Observable<void> {
+        const params = new HttpParams().set('clubName', clubName);
+        return this.http.delete<void>(`${this.apiUrl}/remove-club`, { params });
     }
 }
