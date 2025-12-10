@@ -37,7 +37,7 @@
         <!-- Available Teams (Left) -->
         <div class="col-12 col-lg-6">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <div class="card-header bg-surface-neutral d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0 fw-bold text-primary">
                             <i class="bi bi-building me-2"></i>
@@ -48,7 +48,7 @@
                         }
                     </div>
                     <button type="button" class="btn btn-sm btn-primary" (click)="openAddTeamModal()">
-                        <i class="bi bi-plus-circle me-1"></i> <span class="d-none d-sm-inline">Add Team</span>
+                        <i class="bi bi-plus-circle me-1"></i>Add to Library
                     </button>
                 </div>
                 <div class="card-body p-0">
@@ -57,7 +57,7 @@
                         <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                         @if (availableClubTeams().length === 0 && registeredTeams().length === 0) {
                         <p class="mb-0">No teams in your library yet.</p>
-                        <p class="small">Click "Add Team" above to create your first team.</p>
+                        <p class="small">Click "Add to Library" above to create your first team.</p>
                         } @else {
                         <p>All teams are registered for this event</p>
                         }
@@ -67,15 +67,17 @@
                         @for (team of filteredAvailableTeams(); track team.clubTeamId) {
                         <div class="list-group-item d-flex justify-content-between align-items-center py-3">
                             <div class="flex-grow-1">
-                                <div class="fw-semibold">{{ team.clubTeamName }}</div>
-                                <div class="small text-muted">
-                                    <span class="badge bg-secondary me-2">{{ team.clubTeamGradYear }}</span>
-                                    <span class="badge bg-info">{{ team.clubTeamLevelOfPlay }}</span>
+                                <div class="mb-2">
+                                    <span class="badge bg-primary">Team: {{ team.clubTeamName }}</span>
+                                </div>
+                                <div class="small">
+                                    <span class="badge bg-secondary me-2">Grad Year: {{ team.clubTeamGradYear }}</span>
+                                    <span class="badge bg-info text-dark">LOP: {{ team.clubTeamLevelOfPlay }}</span>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-success" (click)="openAgeGroupSelectionModal(team)"
-                                title="Add to event">
-                                <i class="bi bi-plus-circle me-1"></i> Add
+                            <button type="button" class="btn btn-sm btn-success"
+                                (click)="openAgeGroupSelectionModal(team)" title="Register for event">
+                                <i class="bi bi-calendar-plus me-1"></i> Register
                             </button>
                         </div>
                         }
@@ -89,7 +91,7 @@
         @if (availableClubTeams().length > 0 || registeredTeams().length > 0) {
         <div class="col-12 col-lg-6">
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-success bg-opacity-10 d-flex justify-content-between align-items-center">
+                <div class="card-header card-header-success-subtle d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0 fw-bold text-success">
                             <i class="bi bi-trophy me-2"></i>
@@ -135,7 +137,8 @@
                                     <span class="d-lg-none">
                                         <div><strong>Fee:</strong> {{ team.feeTotal | currency }}</div>
                                         <div><strong>Paid:</strong> {{ team.paidTotal | currency }}</div>
-                                        <div class="text-danger"><strong>Owed:</strong> {{ team.owedTotal | currency }}</div>
+                                        <div class="text-danger"><strong>Owed:</strong> {{ team.owedTotal | currency }}
+                                        </div>
                                     </span>
                                 </div>
                             </div>
@@ -163,22 +166,28 @@
 
 <!-- Add New Team Modal -->
 @if (showAddTeamModal()) {
-<div class="modal d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+<div class="modal d-block" tabindex="-1" role="dialog"
+    style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
     <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-primary text-white border-0">
-                <h4 class="modal-title mb-0">
-                    <i class="bi bi-plus-circle-fill me-2"></i>
-                    Add Team to <span class="badge bg-white text-primary ms-1">{{ clubName() }}</span>
-                </h4>
-                <button type="button" class="btn-close btn-close-white" (click)="closeAddTeamModal()" aria-label="Close"></button>
+                <div class="d-flex align-items-start w-100">
+                    <i class="bi bi-plus-circle-fill me-2 mt-1 flex-shrink-0"></i>
+                    <h4 class="modal-title mb-0 flex-grow-1">
+                        Add Team to <span class="badge badge-surface ms-1">{{ clubName() }}</span> Club Team
+                        Library
+                    </h4>
+                </div>
+                <button type="button" class="btn-close btn-close-white flex-shrink-0" (click)="closeAddTeamModal()"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="alert alert-success border-0 bg-success bg-opacity-10 mb-3 d-flex align-items-start">
+                <div class="alert alert-success border-0 mb-3 d-flex align-items-start">
                     <i class="bi bi-info-circle-fill me-2 mt-1 flex-shrink-0"></i>
-                    <small>Add a new team to your club's permanent library. Once created, this team will be available for registration in all future events.</small>
+                    <small>Add a new team to your club's permanent library. Once created, this team will be available
+                        for registration in all future events.</small>
                 </div>
-                
+
                 <div class="alert alert-danger border-3 border-danger mb-4 d-flex align-items-center">
                     <i class="bi bi-exclamation-triangle-fill fs-4 me-3 flex-shrink-0"></i>
                     <div>
@@ -186,7 +195,7 @@
                         <strong>DO NOT REPEAT YOUR CLUB NAME IN YOUR TEAM NAME</strong>
                     </div>
                 </div>
-                
+
                 <form #addTeamForm="ngForm" (ngSubmit)="addNewClubTeam({
                     clubTeamName: teamName.value,
                     clubTeamGradYear: teamGradYear.value,
@@ -200,13 +209,13 @@
                                 Team Name <span class="text-danger">*</span>
                             </label>
                             <input id="teamName" #teamName="ngModel" ngModel name="teamName" type="text"
-                                class="form-control form-control-lg" placeholder="e.g., U12 Boys Elite" required 
+                                class="form-control form-control-lg" placeholder="e.g., U12 Boys Elite" required
                                 [class.is-invalid]="teamName.invalid && teamName.touched" />
                             @if (teamName.invalid && teamName.touched) {
                             <div class="invalid-feedback">Team name is required</div>
                             }
                         </div>
-                        
+
                         <!-- Graduation Year & Level of Play - Side by Side -->
                         <div class="col-md-6">
                             <label for="teamGradYear" class="form-label fw-semibold">
@@ -225,7 +234,7 @@
                             <div class="invalid-feedback">Graduation year is required</div>
                             }
                         </div>
-                        
+
                         <div class="col-md-6">
                             <label for="teamLevelOfPlay" class="form-label fw-semibold">
                                 <i class="bi bi-graph-up-arrow text-warning me-1"></i>
@@ -244,7 +253,7 @@
                             }
                         </div>
                     </div>
-                    
+
                     <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
                         <button type="button" class="btn btn-lg btn-outline-secondary" (click)="closeAddTeamModal()">
                             <i class="bi bi-x-circle me-1"></i> Cancel
@@ -262,7 +271,8 @@
 
 <!-- Age Group Selection Modal -->
 @if (showAgeGroupModal()) {
-<div class="modal d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+<div class="modal d-block" tabindex="-1" role="dialog"
+    style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-success text-white border-0">
@@ -270,42 +280,49 @@
                     <i class="bi bi-trophy-fill me-2"></i>
                     Select Age Group
                 </h4>
-                <button type="button" class="btn-close btn-close-white" (click)="closeAgeGroupModal()" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" (click)="closeAgeGroupModal()"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 @if (selectedClubTeamForRegistration(); as team) {
-                <div class="alert alert-info border-0 bg-info bg-opacity-10 mb-4 d-flex align-items-start">
+                <div class="alert alert-info border-0 mb-4 d-flex align-items-start">
                     <i class="bi bi-info-circle-fill me-2 mt-1 flex-shrink-0"></i>
                     <div>
                         <strong>{{ team.clubTeamName }}</strong>
                         <div class="small mt-1">
                             <span class="badge bg-secondary me-2">{{ team.clubTeamGradYear }}</span>
-                            <span class="badge bg-info">{{ team.clubTeamLevelOfPlay }}</span>
+                            <span class="badge bg-info">LOP: {{ team.clubTeamLevelOfPlay }}</span>
                         </div>
                     </div>
                 </div>
-                
-                <p class="mb-3 fw-semibold">Which age group are you requesting for this team at {{ eventName() }}?</p>
-                
+
+                <p class="mb-3 fw-semibold">Which age group are you requesting for this team at <span
+                        class="badge bg-primary">{{ eventName() }}</span>?</p>
+
                 <div class="list-group">
-                    @for (ag of displayedAgeGroups(); track ag.ageGroupId) {
-                    <button type="button" 
+                    @for (ag of filteredAgeGroupsForModal(); track ag.ageGroupId) {
+                    @let isFull = ag.registeredCount >= ag.maxTeams;
+                    @let isWaitlist = ag.ageGroupName.toLowerCase().startsWith('waitlist');
+                    <button type="button"
                         class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3"
-                        [disabled]="ag.registeredCount >= ag.maxTeams"
+                        [class.list-group-item-danger]="isFull && !isWaitlist" [disabled]="isFull && !isWaitlist"
                         (click)="registerTeamWithAgeGroup(ag.ageGroupId)">
                         <div>
                             <div class="fw-semibold">{{ ag.ageGroupName }}</div>
                             <div class="small text-muted">
                                 Fee: {{ ag.teamFee | currency }}
-                                @if (ag.registeredCount >= ag.maxTeams) {
+                                @if (isFull && !isWaitlist) {
                                 <span class="text-danger ms-2">• Full</span>
-                                } @else {
-                                <span class="text-success ms-2">• {{ ag.maxTeams - ag.registeredCount }} spots available</span>
+                                } @else if (!isWaitlist) {
+                                <span class="text-success ms-2">• {{ ag.maxTeams - ag.registeredCount }} spots
+                                    available</span>
                                 }
                             </div>
                         </div>
-                        @if (ag.registeredCount >= ag.maxTeams) {
+                        @if (isFull && !isWaitlist) {
                         <span class="badge bg-danger">Full</span>
+                        } @else if (isWaitlist) {
+                        <span class="badge bg-warning text-dark">Waitlist</span>
                         } @else {
                         <i class="bi bi-arrow-right-circle fs-4 text-success"></i>
                         }

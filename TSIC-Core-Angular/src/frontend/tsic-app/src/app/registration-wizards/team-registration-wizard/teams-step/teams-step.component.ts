@@ -80,6 +80,37 @@ export class TeamsStepComponent implements OnInit {
             });
     });
 
+    // Filtered age groups for modal (special waitlist handling)
+    filteredAgeGroupsForModal = computed(() => {
+        return this.ageGroups()
+            .filter(ag => {
+                const name = ag.ageGroupName.toLowerCase();
+                // Exclude "Dropped" age groups
+                if (name.startsWith('dropped')) return false;
+                // Only include Waitlist if it has spots available
+                if (name.startsWith('waitlist')) {
+                    return (ag.maxTeams - ag.registeredCount) > 0;
+                }
+                return true;
+            })
+            .sort((a, b) => {
+                const aName = a.ageGroupName.toLowerCase();
+                const bName = b.ageGroupName.toLowerCase();
+                const aFull = a.registeredCount >= a.maxTeams && !aName.startsWith('waitlist');
+                const bFull = b.registeredCount >= b.maxTeams && !bName.startsWith('waitlist');
+                const aWaitlist = aName.startsWith('waitlist');
+                const bWaitlist = bName.startsWith('waitlist');
+
+                // Available first, then full (red), then waitlist
+                if (aFull && !bFull) return 1;
+                if (!aFull && bFull) return -1;
+                if (aWaitlist && !bWaitlist) return 1;
+                if (!aWaitlist && bWaitlist) return -1;
+
+                return a.ageGroupName.localeCompare(b.ageGroupName);
+            });
+    });
+
     // UI state
     isLoading = signal<boolean>(false);
     errorMessage = signal<string | null>(null);
@@ -234,7 +265,7 @@ export class TeamsStepComponent implements OnInit {
     registerTeamWithAgeGroup(ageGroupId: string): void {
         const clubTeam = this.selectedClubTeamForRegistration();
         const jobPath = this.jobContext.jobPath();
-        
+
         if (!clubTeam || !jobPath) {
             this.errorMessage.set('Invalid registration data');
             return;
