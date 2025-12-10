@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } 
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
+import { RwActionBarComponent } from '../player-registration-wizard/action-bar/rw-action-bar.component';
 import { TeamRegistrationService } from './services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
 import { JobService } from '../../core/services/job.service';
@@ -17,7 +18,7 @@ import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } fro
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, RwActionBarComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;
@@ -97,6 +98,10 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
     nextStep() {
         this.step++;
+    }
+
+    goBackToStep1() {
+        this.step = 1;
     }
 
     prevStep() {

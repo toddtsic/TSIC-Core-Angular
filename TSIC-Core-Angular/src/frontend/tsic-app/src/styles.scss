@@ -107,7 +107,12 @@
 
     .card-title,
     .card-text,
-    h1, h2, h3, h4, h5, h6 {
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
         color: var(--brand-text) !important;
     }
 
@@ -145,6 +150,71 @@
    Reusable Utility Classes
    ============================================ */
 
+/* ============================================
+   Fun & Engaging Animations
+   ============================================ */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Smooth hover effects for interactive elements */
+.selectable {
+    transition: all 0.2s ease !important;
+    
+    &:hover {
+        transform: translateX(2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+    }
+}
+
+/* Make radio buttons clearly visible when parent has colored background */
+.bg-primary .form-check-input[type="radio"],
+.bg-success .form-check-input[type="radio"],
+.bg-info .form-check-input[type="radio"] {
+    background-color: white !important;
+    border: 2px solid white !important;
+    
+    &:checked {
+        background-color: white !important;
+        border-color: white !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2' fill='%230d6efd'/%3e%3c/svg%3e") !important;
+    }
+}
+
+.btn {
+    transition: all 0.2s ease !important;
+    
+    &:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+    
+    &:active:not(:disabled) {
+        transform: translateY(0);
+    }
+}
+
+.form-control, .form-select {
+    transition: all 0.2s ease !important;
+    
+    &:focus {
+        transform: scale(1.01);
+        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.15) !important;
+    }
+}
+
 /* Dark-aware surface backgrounds */
 .bg-surface {
     background-color: var(--bg-elevated) !important;
@@ -179,6 +249,88 @@
     [data-bs-theme='dark'] & {
         background-color: var(--neutral-200) !important;
         border-bottom: 1px solid var(--border-color) !important;
+    }
+}
+
+/* Custom radio button with checkmark - override Bootstrap form-check-input */
+.list-group-item input[type="radio"].form-check-input {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    width: 2rem !important;
+    height: 2rem !important;
+    border: 2px solid var(--bs-body-color) !important;
+    border-radius: 50% !important;
+    background-color: var(--bs-body-bg) !important;
+    background-image: none !important;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 0 !important;
+    transition: all 0.2s ease;
+    
+    &:checked {
+        background-color: var(--bs-body-bg) !important;
+        border-color: var(--bs-body-color) !important;
+        background-image: none !important;
+        border-width: 3px !important;
+        
+        &::after {
+            content: '✓';
+            position: absolute;
+            color: var(--bs-body-color);
+            font-size: 1.5rem;
+            font-weight: 900;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            animation: checkmarkPop 0.3s ease-out;
+        }
+    }
+    
+    &:focus {
+        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25) !important;
+        border-color: var(--bs-primary) !important;
+    }
+}
+
+/* Checkmark pop animation */
+@keyframes checkmarkPop {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* When option is selected (has bg-primary), make radio more visible */
+.list-group-item.bg-primary input[type="radio"].form-check-input {
+    background-color: var(--bs-body-bg) !important;
+    border-color: var(--bs-body-bg) !important;
+    
+    &:checked {
+        background-color: var(--bs-body-bg) !important;
+        border-color: var(--bs-body-bg) !important;
+    }
+}
+
+/* Hover effect for radio option labels */
+.list-group-item.selectable:not(.bg-info):hover {
+    background-color: rgba(var(--bs-info-rgb), 0.05);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* Soften the selected option background */
+.list-group-item.bg-info.bg-opacity-10 {
+    background-color: rgba(var(--bs-info-rgb), 0.08) !important;
+    
+    /* Keep text strong and readable when option is selected */
+    .fw-semibold {
+        color: var(--bs-body-color) !important;
     }
 }
 
@@ -914,6 +1066,12 @@ body {
 
 .rw-progress::-webkit-progress-value {
     border-radius: 999px;
+    background-color: var(--bs-body-color);
+}
+
+.rw-progress::-moz-progress-bar {
+    border-radius: 999px;
+    background-color: var(--bs-body-color);
 }
 
 /* ============================================

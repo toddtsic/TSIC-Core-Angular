@@ -21,303 +21,262 @@
             <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-team">
                 <div class="card-body bg-surface px-4 pb-4 pt-5">
                     <ng-container *ngIf="step === 1">
-                        <div class="alert alert-info mb-3" role="alert">
-                            <strong>Important:</strong>
-                            Only one club rep should register club teams. If multiple people register for the same team,
-                            you risk duplicate registrations and teams being removed from this event.
+                        <div class="alert alert-warning mb-4 border-warning border-2 shadow-sm" role="alert">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-exclamation-triangle-fill fs-4 flex-shrink-0"></i>
+                                <div>
+                                    <strong class="d-block mb-1">Important:</strong>
+                                    Only one club rep should register club teams. If multiple people register for the same team,
+                                    you risk duplicate registrations and teams being removed from this event.
+                                </div>
+                            </div>
                         </div>
-                        <p class="mb-2">Do you have a current <strong>CLUB REP</strong> username/password?</p>
-                        <p class="text-secondary small mb-3">Use the credentials for your Club Rep Account only. Do not
-                            use a coach or director login.</p>
+                        <h5 class="mb-2 fw-semibold pt-3">Do you have a current <strong class="text-primary">CLUB REP</strong> username/password?</h5>
+                        <p class="text-muted small">Use the credentials for your Club Rep Account only. Do not use a coach or director login.</p>
 
-                        <fieldset aria-labelledby="clubRepLegend">
+                        <fieldset aria-labelledby="clubRepLegend" style="margin-top: 2rem;">
                             <legend id="clubRepLegend" class="visually-hidden">Club Rep account availability</legend>
                             <div class="list-group list-group-flush">
                                 <!-- YES OPTION -->
-                                <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
-                                    <input class="form-check-input" type="radio" name="hasClubRepAccount"
+                                <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
+                                    style="cursor: pointer;"
+                                    [class.border-info]="hasClubRepAccount === 'yes'"
+                                    [class.bg-info]="hasClubRepAccount === 'yes'"
+                                    [class.bg-opacity-10]="hasClubRepAccount === 'yes'">
+                                    <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount"
                                         [(ngModel)]="hasClubRepAccount" [value]="'yes'" />
-                                    <div>
-                                        <div class="fw-semibold">Yes — I have a CLUB REP login</div>
-                                        <div class="text-muted small">Enter your credentials below once, then choose
-                                            what you want to do.</div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold">
+                                            Yes — I have a CLUB REP login
+                                        </div>
+                                        <div class="text-muted small">Enter your credentials below once, then choose what you want to do.</div>
                                     </div>
                                 </label>
 
                                 @if (hasClubRepAccount === 'yes') {
                                 <!-- CREDENTIALS PANEL -->
-                                <div class="list-group-item border-0 pt-0 pb-3">
-                                    <div class="rw-accent-panel-neutral">
-                                        <div class="d-flex align-items-start gap-3">
-                                            <i class="bi bi-person-lock rw-accent-icon-neutral" aria-hidden="true"></i>
-                                            <div class="flex-grow-1">
-                                                <div class="row g-2 align-items-end mb-2">
-                                                    <div class="col-12 col-md-5">
-                                                        <label for="clubRepUsername"
-                                                            class="form-label small text-muted">Username</label>
-                                                        <input id="clubRepUsername" class="form-control" type="text"
-                                                            [(ngModel)]="username" autocomplete="username" />
-                                                    </div>
-                                                    <div class="col-12 col-md-5">
-                                                        <label for="clubRepPassword"
-                                                            class="form-label small text-muted">Password</label>
-                                                        <input id="clubRepPassword" class="form-control" type="password"
-                                                            [(ngModel)]="password" autocomplete="current-password" />
-                                                    </div>
-                                                </div>
-                                                @if (inlineError) {
-                                                <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}
-                                                </div>
-                                                }
-                                                <div class="text-secondary small">Enter credentials once, then choose an
-                                                    action below.</div>
-                                            </div>
+                                <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
+                                    <div class="border border-2 rounded p-3 shadow-sm">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-12 col-sm-6 col-md-4">
+                                            <label for="clubRepUsername" class="form-label small mb-1">Username</label>
+                                            <input id="clubRepUsername" class="form-control form-control-sm" type="text"
+                                                [(ngModel)]="username" autocomplete="username" />
+                                        </div>
+                                        <div class="col-12 col-sm-6 col-md-4">
+                                            <label for="clubRepPassword" class="form-label small mb-1">Password</label>
+                                            <input id="clubRepPassword" class="form-control form-control-sm"
+                                                type="password" [(ngModel)]="password"
+                                                autocomplete="current-password" />
                                         </div>
                                     </div>
-                                </div>
+                                    @if (inlineError) {
+                                    <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div>
+                                    }
 
                                 <!-- CLUB SELECTION (after successful login) -->
                                 @if (availableClubs.length > 0) {
-                                <div class="list-group-item border-0 pt-0 pb-3">
+                                <div class="mt-3">
                                     @if (availableClubs.length === 1) {
-                                    <div class="text-secondary small mb-2">
-                                        Logged in for: <strong>{{ availableClubs[0].clubName }}</strong>
+                                    <div class="text-secondary small">
+                                        Club: <strong>{{ availableClubs[0].clubName }}</strong>
                                         @if (availableClubs[0].isInUse) {<span class="badge bg-secondary ms-2">In
                                             Use</span>}
                                     </div>
                                     } @else {
-                                    <div class="mb-2">
-                                        <div class="form-label fw-semibold">Select your club:</div>
-                                        <div class="list-group">
+                                    <div>
+                                        <label class="form-label small mb-1">Select Club:</label>
+                                        <select class="form-select form-select-sm" style="max-width: 300px;"
+                                            [(ngModel)]="selectedClub"
+                                            (ngModelChange)="selectedClub && selectClub(selectedClub)">
+                                            <option value="">Choose...</option>
                                             @for (club of availableClubs; track club.clubName) {
-                                            <label class="list-group-item d-flex align-items-center gap-2">
-                                                <input class="form-check-input" type="radio" [value]="club.clubName"
-                                                    [checked]="selectedClub === club.clubName"
-                                                    (change)="selectClub(club.clubName)" />
-                                                <span>{{ club.clubName }}</span>
-                                                @if (club.isInUse) {
-                                                <span class="badge bg-secondary ms-auto">In Use</span>
-                                                }
-                                            </label>
+                                            <option [value]="club.clubName">{{ club.clubName }} @if (club.isInUse) {(In
+                                                Use)}</option>
                                             }
-                                        </div>
+                                        </select>
                                     </div>
                                     }
                                 </div>
                                 }
 
-                                <!-- ACTION 1: REGISTER TEAMS -->
-                                <div class="list-group-item border-0 pt-0 pb-3">
-                                    <div class="rw-accent-panel">
-                                        <div class="d-flex align-items-start gap-3">
-                                            <i class="bi bi-play-fill rw-accent-icon" aria-hidden="true"></i>
-                                            <div
-                                                class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
-                                                <button type="button" class="btn btn-primary"
-                                                    [disabled]="submitting || !username || !password || (availableClubs.length > 1 && !selectedClub)"
-                                                    (click)="signInThenRegisterTeams()">
-                                                    @if (submittingAction === 'register') {
-                                                    <span class="spinner-border spinner-border-sm me-2"></span>
-                                                    }
-                                                    <span>{{ submitting && submittingAction === 'register' ? 'Signing
-                                                        in…' : 'Sign in & Register Teams' }}</span>
-                                                </button>
-                                                <span class="text-secondary small">Authenticate and jump straight to
-                                                    team registration <strong>for this event</strong>.</span>
-                                            </div>
-                                        </div>
+                                <!-- ACTION BUTTONS -->
+                                <div class="mt-3 d-flex flex-column flex-sm-row gap-2 align-items-start">
+                                        <button type="button" class="btn btn-primary btn-sm"
+                                            [disabled]="submitting || !username || !password || (availableClubs.length > 1 && !selectedClub)"
+                                            (click)="signInThenRegisterTeams()">
+                                            @if (submittingAction === 'register') {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            <i class="bi bi-calendar-plus me-1"></i>
+                                            <span>{{ submitting && submittingAction === 'register' ? 'Signing in…' :
+                                                'Register Teams' }}</span>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            [disabled]="submitting || !username || !password"
+                                            (click)="signInThenManageAccount()">
+                                            @if (submittingAction === 'manage') {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            <i class="bi bi-gear me-1"></i>
+                                            <span>{{ submitting && submittingAction === 'manage' ? 'Signing in…' :
+                                                'Manage Account' }}</span>
+                                        </button>
                                     </div>
-                                </div>
-
-                                <!-- ACTION 2: MANAGE ACCOUNT -->
-                                <div class="list-group-item border-0 pt-0 pb-3">
-                                    <div class="rw-accent-panel bg-success-subtle">
-                                        <div class="d-flex align-items-start gap-3">
-                                            <i class="bi bi-gear-fill rw-accent-icon text-success"
-                                                aria-hidden="true"></i>
-                                            <div
-                                                class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
-                                                <button type="button" class="btn btn-success"
-                                                    [disabled]="submitting || !username || !password"
-                                                    (click)="signInThenManageAccount()">
-                                                    @if (submittingAction === 'manage') {
-                                                    <span class="spinner-border spinner-border-sm me-2"></span>
-                                                    }
-                                                    <span>{{ submitting && submittingAction === 'manage' ? 'Signing in…'
-                                                        : 'Sign in & Manage Account' }}</span>
-                                                </button>
-                                                <span class="text-secondary small">Authenticate then manage your club
-                                                    affiliations (if you manage more than one club).</span>
-                                            </div>
-                                        </div>
+                                    <div class="text-muted small mt-2">Sign in to register teams for this event or
+                                        manage your club affiliations.</div>
                                     </div>
                                 </div>
                                 }
 
                                 <!-- NO OPTION -->
-                                <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
-                                    <input class="form-check-input" type="radio" name="hasClubRepAccount"
+                                <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2 mt-3"
+                                    style="cursor: pointer;"
+                                    [class.border-info]="hasClubRepAccount === 'no'"
+                                    [class.bg-info]="hasClubRepAccount === 'no'"
+                                    [class.bg-opacity-10]="hasClubRepAccount === 'no'">
+                                    <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount"
                                         [(ngModel)]="hasClubRepAccount" [value]="'no'" />
-                                    <div>
-                                        <div class="fw-semibold">No — I need to create one</div>
-                                        <div class="text-muted small">We'll help you create a Club Rep Account before
-                                            continuing.</div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold">
+                                            No — I need to create one
+                                        </div>
+                                        <div class="text-muted small">We'll help you create a Club Rep Account before continuing.</div>
                                     </div>
                                 </label>
 
                                 @if (hasClubRepAccount === 'no') {
-                                <div class="list-group-item border-0 pt-0 pb-3">
-                                    <div class="rw-accent-panel-neutral">
-                                        <div class="d-flex flex-column flex-md-row align-items-start gap-3">
-                                            <i class="bi bi-person-plus-fill rw-accent-icon-neutral"
-                                                aria-hidden="true"></i>
-                                            <div class="flex-grow-1">
-                                                @if (registrationError) {
-                                                <div class="alert alert-danger py-2 mb-3" role="alert">
-                                                    {{ registrationError }}
+                                <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
+                                    <div class="border border-2 rounded p-3 bg-body shadow-sm">
+                                        @if (registrationError) {
+                                        <div class="alert alert-danger py-2 mb-3" role="alert">
+                                            {{ registrationError }}
+                                        </div>
+                                        }
+                                        @if (similarClubs.length > 0) {
+                                        <div class="alert alert-warning py-2 mb-3" role="alert">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <strong>Warning:</strong> Similar clubs already exist:
+                                                    <ul class="mb-0 mt-1">
+                                                        @for (club of similarClubs; track club.clubId) {
+                                                        <li>{{ club.clubName }} ({{ club.state }}) - {{
+                                                            club.matchScore }}% match</li>
+                                                        }
+                                                    </ul>
+                                                    <small class="d-block mt-2">Please verify this is not a
+                                                        duplicate. You may proceed if this is a different
+                                                        club.</small>
                                                 </div>
-                                                }
-                                                @if (similarClubs.length > 0) {
-                                                <div class="alert alert-warning py-2 mb-3" role="alert">
-                                                    <div class="d-flex justify-content-between align-items-start">
-                                                        <div>
-                                                            <strong>Warning:</strong> Similar clubs already exist:
-                                                            <ul class="mb-0 mt-1">
-                                                                @for (club of similarClubs; track club.clubId) {
-                                                                <li>{{ club.clubName }} ({{ club.state }}) - {{
-                                                                    club.matchScore }}% match</li>
-                                                                }
-                                                            </ul>
-                                                            <small class="d-block mt-2">Please verify this is not a
-                                                                duplicate. You may proceed if this is a different
-                                                                club.</small>
-                                                        </div>
-                                                        <button type="button" class="btn-close btn-sm"
-                                                            aria-label="Dismiss"
-                                                            (click)="dismissSimilarClubsWarning()"></button>
-                                                    </div>
-                                                </div>
-                                                }
-                                                <form [formGroup]="registrationForm" (ngSubmit)="submitRegistration()">
-                                                    <div class="row g-2 mb-3">
-                                                        <div class="col-12 col-md-6">
-                                                            <label for="reg-username"
-                                                                class="form-label font-medium">Username
-                                                                <span class="text-danger">*</span></label>
-                                                            <input id="reg-username" formControlName="username"
-                                                                class="form-control" placeholder="Enter username"
-                                                                autocomplete="username" required />
-                                                        </div>
-                                                        <div class="col-12 col-md-6">
-                                                            <label for="reg-password"
-                                                                class="form-label font-medium">Password <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input id="reg-password" formControlName="password"
-                                                                class="form-control" type="password"
-                                                                placeholder="Create password"
-                                                                autocomplete="new-password" required />
-                                                            <div class="form-text small text-muted">Minimum 6 characters
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-2 mb-3 mt-4">
-                                                        <div class="col-12">
-                                                            <label for="reg-clubName"
-                                                                class="form-label font-medium">Club Name <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input id="reg-clubName" formControlName="clubName"
-                                                                class="form-control" placeholder="Enter club name"
-                                                                required />
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-2 mb-3 mt-4">
-                                                        <div class="col-12 col-md-6">
-                                                            <label for="reg-firstname"
-                                                                class="form-label font-medium">First Name <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input id="reg-firstname" formControlName="firstName"
-                                                                class="form-control" placeholder="Enter first name"
-                                                                required />
-                                                        </div>
-                                                        <div class="col-12 col-md-6">
-                                                            <label for="reg-lastname"
-                                                                class="form-label font-medium">Last Name <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input id="reg-lastname" formControlName="lastName"
-                                                                class="form-control" placeholder="Enter last name"
-                                                                required />
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-2 mb-3">
-                                                        <div class="col-12 col-md-6">
-                                                            <label for="reg-email" class="form-label font-medium">Email
-                                                                <span class="text-danger">*</span></label>
-                                                            <input id="reg-email" formControlName="email"
-                                                                class="form-control" type="email"
-                                                                placeholder="Enter email" autocomplete="email"
-                                                                required />
-                                                        </div>
-                                                        <div class="col-12 col-md-6">
-                                                            <label for="reg-cellphone"
-                                                                class="form-label font-medium">Cell Phone
-                                                                <span class="text-danger">*</span></label>
-                                                            <input id="reg-cellphone" formControlName="cellphone"
-                                                                class="form-control" type="tel"
-                                                                placeholder="Enter cell phone" autocomplete="tel"
-                                                                required />
-                                                            <div class="form-text small text-muted">Numbers only</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-2 mb-3">
-                                                        <div class="col-12">
-                                                            <label for="reg-street"
-                                                                class="form-label font-medium">Street Address
-                                                                <span class="text-danger">*</span></label>
-                                                            <input id="reg-street" formControlName="street"
-                                                                class="form-control" placeholder="Enter street address"
-                                                                autocomplete="address-line1" required />
-                                                        </div>
-                                                    </div>
-                                                    <div class="row g-2 mb-3">
-                                                        <div class="col-12 col-md-5">
-                                                            <label for="reg-city" class="form-label font-medium">City
-                                                                <span class="text-danger">*</span></label>
-                                                            <input id="reg-city" formControlName="city"
-                                                                class="form-control" placeholder="Enter city"
-                                                                autocomplete="address-level2" required />
-                                                        </div>
-                                                        <div class="col-12 col-md-3">
-                                                            <label for="reg-state" class="form-label font-medium">State
-                                                                <span class="text-danger">*</span>
-                                                            </label>
-                                                            <select id="reg-state" formControlName="state"
-                                                                class="form-select" autocomplete="address-level1"
-                                                                required>
-                                                                <option value="" disabled>Select state</option>
-                                                                @for (s of statesOptions; track s.value) {
-                                                                <option [value]="s.value">{{ s.label }}</option>
-                                                                }
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-12 col-md-4">
-                                                            <label for="reg-zip" class="form-label font-medium">ZIP Code
-                                                                <span class="text-danger">*</span></label>
-                                                            <input id="reg-zip" formControlName="zip"
-                                                                class="form-control" placeholder="ZIP"
-                                                                autocomplete="postal-code" required />
-                                                        </div>
-                                                    </div>
-                                                    <button type="submit" class="btn btn-primary"
-                                                        [disabled]="registrationForm.invalid || submitting">
-                                                        @if (submitting) { <span
-                                                            class="spinner-border spinner-border-sm me-2" role="status"
-                                                            aria-hidden="true"></span> }
-                                                        <span>{{ submitting ? 'Creating Account…' : 'Create Club Rep
-                                                            Account & Continue Registration' }}</span>
-                                                    </button>
-                                                </form>
+                                                <button type="button" class="btn-close btn-sm" aria-label="Dismiss"
+                                                    (click)="dismissSimilarClubsWarning()"></button>
                                             </div>
                                         </div>
+                                        }
+                                        <form [formGroup]="registrationForm" (ngSubmit)="submitRegistration()">
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-12 col-md-6">
+                                                    <label for="reg-username" class="form-label font-medium">Username
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-username" formControlName="username"
+                                                        class="form-control" placeholder="Enter username"
+                                                        autocomplete="username" required />
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <label for="reg-password" class="form-label font-medium">Password
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-password" formControlName="password"
+                                                        class="form-control" type="password"
+                                                        placeholder="Create password" autocomplete="new-password"
+                                                        required />
+                                                    <div class="form-text small text-muted">Minimum 6 characters
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-2 mb-3 mt-4">
+                                                <div class="col-12">
+                                                    <label for="reg-clubName" class="form-label font-medium">Club Name
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-clubName" formControlName="clubName"
+                                                        class="form-control" placeholder="Enter club name" required />
+                                                </div>
+                                            </div>
+                                            <div class="row g-2 mb-3 mt-4">
+                                                <div class="col-12 col-md-6">
+                                                    <label for="reg-firstname" class="form-label font-medium">First Name
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-firstname" formControlName="firstName"
+                                                        class="form-control" placeholder="Enter first name" required />
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <label for="reg-lastname" class="form-label font-medium">Last Name
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-lastname" formControlName="lastName"
+                                                        class="form-control" placeholder="Enter last name" required />
+                                                </div>
+                                            </div>
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-12 col-md-6">
+                                                    <label for="reg-email" class="form-label font-medium">Email
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-email" formControlName="email" class="form-control"
+                                                        type="email" placeholder="Enter email" autocomplete="email"
+                                                        required />
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <label for="reg-cellphone" class="form-label font-medium">Cell Phone
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-cellphone" formControlName="cellphone"
+                                                        class="form-control" type="tel" placeholder="Enter cell phone"
+                                                        autocomplete="tel" required />
+                                                    <div class="form-text small text-muted">Numbers only</div>
+                                                </div>
+                                            </div>
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-12">
+                                                    <label for="reg-street" class="form-label font-medium">Street
+                                                        Address
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-street" formControlName="street" class="form-control"
+                                                        placeholder="Enter street address" autocomplete="address-line1"
+                                                        required />
+                                                </div>
+                                            </div>
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-12 col-md-5">
+                                                    <label for="reg-city" class="form-label font-medium">City
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-city" formControlName="city" class="form-control"
+                                                        placeholder="Enter city" autocomplete="address-level2"
+                                                        required />
+                                                </div>
+                                                <div class="col-12 col-md-3">
+                                                    <label for="reg-state" class="form-label font-medium">State
+                                                        <span class="text-danger">*</span>
+                                                    </label>
+                                                    <select id="reg-state" formControlName="state" class="form-select"
+                                                        autocomplete="address-level1" required>
+                                                        <option value="" disabled>Select state</option>
+                                                        @for (s of statesOptions; track s.value) {
+                                                        <option [value]="s.value">{{ s.label }}</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-12 col-md-4">
+                                                    <label for="reg-zip" class="form-label font-medium">ZIP Code
+                                                        <span class="text-danger">*</span></label>
+                                                    <input id="reg-zip" formControlName="zip" class="form-control"
+                                                        placeholder="ZIP" autocomplete="postal-code" required />
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary"
+                                                [disabled]="registrationForm.invalid || submitting">
+                                                @if (submitting) { <span class="spinner-border spinner-border-sm me-2"
+                                                    role="status" aria-hidden="true"></span> }
+                                                <span>{{ submitting ? 'Creating Account…' : 'Create Club Rep Account'
+                                                    }}</span>
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                                 }
@@ -326,6 +285,12 @@
                     </ng-container>
 
                     <ng-container *ngIf="step === 2">
+                        <app-rw-action-bar
+                            [canBack]="true"
+                            [showContinue]="false"
+                            (back)="goBackToStep1()"
+                            placement="top">
+                        </app-rw-action-bar>
                         <app-teams-step [clubName]="clubName || ''"></app-teams-step>
                     </ng-container>
                 </div> <!-- /card-body -->
