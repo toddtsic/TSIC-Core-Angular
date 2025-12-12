@@ -6,20 +6,171 @@
     display: block !important;
 }
 
-/* Card hover effects for available teams */
-.list-group-item-action:hover {
-    cursor: pointer;
-    background-color: rgba(13, 110, 253, 0.05);
+/* Gradient backgrounds for card headers */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, #0056b3 100%);
 }
 
-/* Badge styling */
+.bg-gradient-success {
+    background: linear-gradient(135deg, var(--bs-success) 0%, #0d6832 100%);
+}
+
+/* Team item hover effect */
+.team-item-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+
+    &:hover {
+        background-color: rgba(13, 110, 253, 0.04);
+    }
+}
+
+/* Table styling */
+.table {
+    thead th {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--bs-secondary);
+        border-bottom: 2px solid var(--bs-border-color);
+    }
+
+    tbody td {
+        vertical-align: middle;
+        padding: 1rem 0.75rem;
+        position: relative;
+    }
+}
+
+/* Dropdown menu styling */
+.dropdown {
+    position: static;
+
+    .dropdown-menu {
+        position: fixed !important;
+        max-height: 400px;
+        overflow-y: auto;
+        min-width: 280px;
+        max-width: 400px;
+        z-index: 1050;
+        margin-top: 0.125rem;
+
+        &.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            white-space: normal;
+
+            &.disabled {
+                opacity: 0.5;
+                background-color: var(--bs-secondary-bg);
+                cursor: not-allowed;
+            }
+
+            &:not(.disabled):hover {
+                background-color: rgba(13, 110, 253, 0.1);
+                cursor: pointer;
+            }
+        }
+    }
+}
+
+/* Badge enhancements */
 .badge {
     font-weight: 500;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+/* Button hover effects */
+.btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slideIn {
+    animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Empty state styling */
+.bi-inbox {
+    opacity: 0.3;
+}
+
+/* Card styling */
+.card {
+    border-radius: 12px;
+    overflow: hidden;
+
+    .card-header {
+        border-bottom: none;
+    }
+}
+
+/* Subtle backgrounds */
+.bg-success-subtle {
+    background-color: rgba(25, 135, 84, 0.08) !important;
+}
+
+.bg-warning-subtle {
+    background-color: rgba(255, 193, 7, 0.15) !important;
 }
 
 /* Responsive adjustments */
 @media (max-width: 991.98px) {
     .card {
         margin-bottom: 1rem;
+    }
+
+    .team-item-hover:hover {
+        transform: none;
+        border-left: none;
+    }
+}
+
+/* Age group radio button styling */
+.age-group-option {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+
+    &.selected {
+        background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
+        border-color: var(--bs-primary) !important;
+    }
+
+    &:hover:not(.disabled) {
+        background-color: rgba(var(--bs-primary-rgb), 0.05) !important;
+    }
+
+    input[type="radio"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        cursor: pointer;
+        margin-top: 0;
     }
 }

@@ -1,9 +1,9 @@
-/* Minimal, consistent bar */
+/* Minimal, consistent bar for team wizard */
 :host {
     display: block;
 }
 
-.rw-action-bar {
+.tw-action-bar {
     position: sticky;
     top: 0;
     z-index: 20;
@@ -14,7 +14,7 @@
     border: 1px solid var(--bs-border-color-translucent);
 }
 
-:host([placement='bottom']) .rw-action-bar {
+:host([placement='bottom']) .tw-action-bar {
     bottom: 0;
 }
 

@@ -185,20 +185,6 @@
     }
 }
 
-/* Make radio buttons clearly visible when parent has colored background */
-.bg-primary .form-check-input[type="radio"],
-.bg-success .form-check-input[type="radio"],
-.bg-info .form-check-input[type="radio"] {
-    background-color: white !important;
-    border: 2px solid white !important;
-
-    &:checked {
-        background-color: white !important;
-        border-color: white !important;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2' fill='%230d6efd'/%3e%3c/svg%3e") !important;
-    }
-}
-
 .btn {
     transition: all 0.2s ease !important;
 
@@ -256,73 +242,6 @@
     [data-bs-theme='dark'] & {
         background-color: var(--neutral-200) !important;
         border-bottom: 1px solid var(--border-color) !important;
-    }
-}
-
-/* Custom radio button with checkmark - override Bootstrap form-check-input */
-.list-group-item input[type="radio"].form-check-input {
-    appearance: none !important;
-    -webkit-appearance: none !important;
-    width: 2rem !important;
-    height: 2rem !important;
-    border: 2px solid var(--bs-body-color) !important;
-    border-radius: 50% !important;
-    background-color: var(--bs-body-bg) !important;
-    background-image: none !important;
-    cursor: pointer;
-    position: relative;
-    flex-shrink: 0;
-    margin-top: 0 !important;
-    transition: all 0.2s ease;
-
-    &:checked {
-        background-color: var(--bs-body-bg) !important;
-        border-color: var(--bs-body-color) !important;
-        background-image: none !important;
-        border-width: 3px !important;
-
-        &::after {
-            content: '✓';
-            position: absolute;
-            color: var(--bs-body-color);
-            font-size: 1.5rem;
-            font-weight: 900;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(1);
-            animation: checkmarkPop 0.3s ease-out;
-        }
-    }
-
-    &:focus {
-        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25) !important;
-        border-color: var(--bs-primary) !important;
-    }
-}
-
-/* Checkmark pop animation */
-@keyframes checkmarkPop {
-    0% {
-        transform: translate(-50%, -50%) scale(0);
-    }
-
-    50% {
-        transform: translate(-50%, -50%) scale(1.2);
-    }
-
-    100% {
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
-/* When option is selected (has bg-primary), make radio more visible */
-.list-group-item.bg-primary input[type="radio"].form-check-input {
-    background-color: var(--bs-body-bg) !important;
-    border-color: var(--bs-body-bg) !important;
-
-    &:checked {
-        background-color: var(--bs-body-bg) !important;
-        border-color: var(--bs-body-bg) !important;
     }
 }
 

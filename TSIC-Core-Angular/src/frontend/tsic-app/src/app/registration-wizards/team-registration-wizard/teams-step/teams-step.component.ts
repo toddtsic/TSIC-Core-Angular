@@ -117,6 +117,9 @@ export class TeamsStepComponent implements OnInit {
     showAddTeamModal = signal<boolean>(false);
     showAgeGroupModal = signal<boolean>(false);
     selectedClubTeamForRegistration = signal<ClubTeamDto | null>(null);
+    openDropdownTeamId = signal<number | null>(null);
+    isRegistering = signal<boolean>(false);
+    selectedAgeGroupId = signal<string | null>(null);
 
     // Financial summary
     totalOwed = computed(() => {
@@ -129,6 +132,10 @@ export class TeamsStepComponent implements OnInit {
         const search = this.searchTerm().toLowerCase();
         const gradeYear = this.filterGradeYear();
         const levelOfPlay = this.filterLevelOfPlay();
+
+        // Filter out teams already registered
+        const registeredTeamIds = new Set(this.registeredTeams().map(t => t.clubTeamId));
+        teams = teams.filter(t => !registeredTeamIds.has(t.clubTeamId));
 
         if (search) {
             teams = teams.filter(t => t.clubTeamName.toLowerCase().includes(search));
@@ -188,10 +195,6 @@ export class TeamsStepComponent implements OnInit {
     });
 
     ngOnInit(): void {
-        // DEBUG: Check what options are loaded
-        console.log('=== Available dropdown options ===');
-        console.log('gradYears:', this.availableGradYears());
-        console.log('levelsOfPlay:', this.availableLevelsOfPlay());
         this.loadTeamsMetadata();
     }
 
@@ -206,13 +209,6 @@ export class TeamsStepComponent implements OnInit {
     private loadTeamsMetadata(): void {
         const jobPath = this.jobContext.resolveFromRoute(this.route);
         const clubName = this.clubName();
-
-        // DEBUG: Log what we're getting
-        console.log('=== loadTeamsMetadata Debug ===');
-        console.log('jobPath from jobContext:', jobPath);
-        console.log('clubName from input:', clubName);
-        console.log('window.location.pathname:', window.location.pathname);
-        console.log('window.location.href:', window.location.href);
 
         if (!jobPath) {
             this.errorMessage.set('Event not found. Please navigate from a valid event link.');
@@ -244,6 +240,28 @@ export class TeamsStepComponent implements OnInit {
     }
 
     /**
+     * Toggle dropdown for team (used by dropdown)
+     */
+    toggleDropdown(clubTeam: ClubTeamDto, event: Event): void {
+        event.stopPropagation();
+        const currentId = this.openDropdownTeamId();
+        if (currentId === clubTeam.clubTeamId) {
+            this.openDropdownTeamId.set(null);
+            this.selectedClubTeamForRegistration.set(null);
+        } else {
+            this.openDropdownTeamId.set(clubTeam.clubTeamId);
+            this.selectedClubTeamForRegistration.set(clubTeam);
+        }
+    }
+
+    /**
+     * Close dropdown
+     */
+    closeDropdown(): void {
+        this.openDropdownTeamId.set(null);
+    }
+
+    /**
      * Open age group selection modal for team registration
      */
     openAgeGroupSelectionModal(clubTeam: ClubTeamDto): void {
@@ -271,19 +289,27 @@ export class TeamsStepComponent implements OnInit {
             return;
         }
 
+        if (this.isRegistering()) {
+            return; // Prevent double-click
+        }
+
         this.errorMessage.set(null);
+        this.isRegistering.set(true);
 
         this.teamService.registerTeamForEvent({
             clubTeamId: clubTeam.clubTeamId,
-            jobPath: jobPath,
-            ageGroupId: ageGroupId
+            jobPath,
+            ageGroupId,
         }).subscribe({
             next: () => {
+                this.isRegistering.set(false);
+                this.selectedAgeGroupId.set(null);
                 this.closeAgeGroupModal();
                 this.loadTeamsMetadata();
             },
             error: (err) => {
                 console.error('Failed to register team:', err);
+                this.isRegistering.set(false);
                 this.errorMessage.set(err.error?.message || 'Failed to register team. Please try again.');
             }
         });
