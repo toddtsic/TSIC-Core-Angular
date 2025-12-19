@@ -6,7 +6,7 @@
     overflow-y: auto;
     min-width: 280px;
     max-width: 90vw;
-    
+
     // Align dropdown to the right side of the button
     transform: translateX(-100%) translateX(100px) !important;
 }
@@ -18,14 +18,14 @@
         min-width: 250px;
         font-size: 0.85rem;
         transform: translateX(-100%) translateX(80px) !important;
-        
+
         .dropdown-item {
             padding: 0.5rem 0.75rem;
-            
+
             small {
                 font-size: 0.75rem;
             }
-            
+
             .badge {
                 font-size: 0.65rem;
                 padding: 0.2rem 0.4rem;
@@ -57,15 +57,15 @@
     .alert {
         padding: 0.75rem !important;
         font-size: 0.85rem;
-        
+
         i {
             font-size: 1.25rem !important;
         }
-        
+
         .fw-bold {
             font-size: 1rem !important;
         }
-        
+
         small {
             font-size: 0.75rem;
         }
@@ -74,17 +74,17 @@
     // Compact card header
     .card-header {
         padding: 0.75rem !important;
-        
+
         h5 {
             font-size: 1rem;
             margin-bottom: 0.25rem !important;
         }
-        
+
         .badge {
             font-size: 0.7rem;
             padding: 0.25rem 0.5rem;
         }
-        
+
         small {
             font-size: 0.65rem !important;
         }
@@ -126,12 +126,12 @@
         small {
             font-size: 0.65rem;
         }
-        
+
         i {
             font-size: 0.85rem;
         }
     }
-    
+
     // Reduce spacing in team name mobile details
     .text-muted.small.mt-1 {
         margin-top: 0.25rem !important;
