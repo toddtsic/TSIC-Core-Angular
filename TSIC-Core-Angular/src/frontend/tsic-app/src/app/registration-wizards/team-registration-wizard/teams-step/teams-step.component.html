@@ -18,192 +18,137 @@
 
 <!-- Main content -->
 <div class="teams-step-container" (click)="closeDropdown()">
-    <!-- Financial summary - only show if there are registered teams -->
-    @if (registeredTeams().length > 0) {
+    <!-- Financial summary - always visible -->
     <div
-        class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-3 animate-slideIn">
-        <div class="d-flex align-items-center gap-3">
-            <i class="bi bi-cash-coin fs-4 text-success"></i>
+        class="alert border-0 shadow-sm d-flex justify-content-between align-items-center mb-3 bg-secondary-subtle flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2 gap-md-3">
+            <i class="bi bi-cash-coin fs-5 fs-md-4"></i>
             <div>
-                <div class="fw-bold fs-5">{{ totalOwed() | currency }}</div>
+                <div class="fw-bold fs-6 fs-md-5">{{ totalOwed() | currency }}</div>
                 <small class="text-muted">{{ registeredTeams().length }} team{{ registeredTeams().length !== 1 ? 's' :
                     '' }} registered</small>
             </div>
         </div>
-        <button type="button" class="btn btn-sm btn-outline-success" (click)="openAddTeamModal()">
-            <i class="bi bi-plus-circle me-1"></i> Add Team
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openAddTeamModal()">
+            <i class="bi bi-plus-circle me-1 d-none d-md-inline"></i><span class="d-none d-sm-inline">Add </span>Team
         </button>
     </div>
-    }
 
-    <!-- Responsive two-column layout -->
-    <div class="row g-3">
-        <!-- Available Teams (Left) -->
-        <div class="col-12 col-lg-6">
-            <div class="card border-0 shadow-sm animate-slideIn" style="overflow: visible; min-height: 400px;">
-                <div class="card-header border-0 bg-gradient-primary text-white py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-1 fw-bold d-flex align-items-center">
-                                <i class="bi bi-building-fill me-2"></i>
-                                Club Team Library
-                            </h5>
-                            <small class="opacity-75">Click to register →</small>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-light" (click)="openAddTeamModal()">
-                            <i class="bi bi-plus-circle-fill me-1"></i>Add
-                        </button>
-                    </div>
+    <!-- Single unified table -->
+    <div class="card border shadow-sm">
+        <div class="card-header border-bottom bg-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="mb-1 fw-semibold d-flex align-items-center">
+                        <i class="bi bi-collection me-2"></i>
+                        <span class="badge badge-inverted">{{ clubName() }}</span>
+                        <span class="mx-2">Teams for</span>
+                        <span class="badge badge-inverted">{{ eventName() }}</span>
+                    </h5>
+                    <small class="text-muted fst-italic fw-bold d-flex align-items-center" style="font-size: 0.7rem;">
+                        <i class="bi bi-collection me-2 opacity-0"></i>Registered teams appear at top</small>
                 </div>
-                <div class="card-body p-0">
-                    @if (filteredAvailableTeams().length === 0) {
-                    <div class="p-4 text-center text-muted">
-                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                        @if (availableClubTeams().length === 0 && registeredTeams().length === 0) {
-                        <p class="mb-0">No teams in your library yet.</p>
-                        <p class="small">Click "Add to Library" above to create your first team.</p>
-                        } @else {
-                        <p>All teams are registered for this event</p>
-                        }
-                    </div>
-                    } @else {
-                    <div class="table-wrapper">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Team Name</th>
-                                    <th>Grad Year</th>
-                                    <th>Level of Play</th>
-                                    <th class="text-end"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (team of filteredAvailableTeams(); track team.clubTeamId) {
-                                <tr class="team-item-hover">
-                                    <td class="fw-semibold">{{ team.clubTeamName }}</td>
-                                    <td class="text-muted">{{ team.clubTeamGradYear }}</td>
-                                    <td class="text-muted">{{ team.clubTeamLevelOfPlay }}</td>
-                                    <td class="text-end">
-                                        <div class="btn-group" style="position: relative;">
-                                            <button type="button"
-                                                class="btn btn-success btn-sm shadow-sm dropdown-toggle"
-                                                (click)="toggleDropdown(team, $event)">
-                                                <i class="bi bi-arrow-right-circle-fill me-1"></i> Register for Age
-                                                Group
-                                            </button>
-                                            @if (openDropdownTeamId() === team.clubTeamId) {
-                                            <ul class="dropdown-menu show"
-                                                style="position: absolute; top: 100%; right: 0; z-index: 1050;">
-                                                @for (ag of filteredAgeGroupsForModal(); track ag.ageGroupId) {
-                                                @let isFull = ag.registeredCount >= ag.maxTeams;
-                                                @let isWaitlist = ag.ageGroupName.toLowerCase().startsWith('waitlist');
-                                                <li>
-                                                    <a class="dropdown-item" href="javascript:void(0)"
-                                                        [class.disabled]="isFull && !isWaitlist"
-                                                        [class.text-muted]="isFull && !isWaitlist"
-                                                        (click)="registerTeamWithAgeGroup(ag.ageGroupId.toString(), team)">
-                                                        <div class="d-flex justify-content-between align-items-center">
-                                                            <span>{{ ag.ageGroupName }}</span>
-                                                            <div class="ms-3">
-                                                                <small class="text-muted me-2">{{ ag.teamFee | currency
-                                                                    }}</small>
-                                                                @if (isFull && !isWaitlist) {
-                                                                <span class="badge bg-danger">Full</span>
-                                                                }
-                                                            </div>
-                                                        </div>
-                                                    </a>
-                                                </li>
-                                                }
-                                            </ul>
-                                            }
-                                        </div>
-                                    </td>
-                                </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                    }
-                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="openAddTeamModal()">
+                    <i class="bi bi-plus-circle me-1"></i>Add Team
+                </button>
             </div>
         </div>
-
-        <!-- Registered Teams (Right) -->
-        @if (availableClubTeams().length > 0 || registeredTeams().length > 0) {
-        <div class="col-12 col-lg-6">
-            <div class="card border-0 shadow-sm h-100 animate-slideIn" style="animation-delay: 0.1s;">
-                <div class="card-header border-0 bg-gradient-success text-white py-3">
-                    <div>
-                        <h5 class="mb-1 fw-bold d-flex align-items-center">
-                            <i class="bi bi-trophy-fill me-2"></i>
-                            {{ eventName() }}
-                        </h5>
-                        <small class="opacity-75">Registered Teams</small>
-                    </div>
-                </div>
-                <div class="card-body p-0" style="overflow: visible;">
-                    @if (filteredRegisteredTeams().length === 0) {
-                    <div class="p-4 text-center text-muted">
-                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                        @if (searchTerm()) {
-                        <p>No registered teams match your search</p>
-                        } @else {
-                        <p>No teams registered yet</p>
-                        }
-                    </div>
-                    } @else {
-                    <div class="table-responsive" style="overflow: visible;">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Team Name</th>
-                                    <th>Grad Year</th>
-                                    <th>LOP</th>
-                                    <th>Age Group</th>
-                                    <th class="text-end">Fee</th>
-                                    <th class="text-end">Status</th>
-                                    <th class="text-end"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (team of filteredRegisteredTeams(); track team.teamId) {
-                                <tr [class.table-success]="team.paidTotal === 0 && team.owedTotal === 0"
-                                    [class.table-warning]="team.paidTotal > 0">
-                                    <td class="fw-semibold">{{ team.clubTeamName }}</td>
-                                    <td class="text-muted">{{ team.clubTeamGradYear }}</td>
-                                    <td class="text-muted">{{ team.clubTeamLevelOfPlay }}</td>
-                                    <td><span class="badge bg-success text-white">{{ team.ageGroupName }}</span></td>
-                                    <td class="text-end text-muted">{{ team.feeTotal | currency }}</td>
-                                    <td class="text-end">
-                                        @if (team.owedTotal > 0) {
-                                        <span class="badge bg-danger">Owed: {{ team.owedTotal | currency }}</span>
-                                        } @else if (team.paidTotal > 0) {
-                                        <span class="badge bg-warning text-dark"><i
-                                                class="bi bi-lock-fill me-1"></i>Paid</span>
-                                        } @else {
-                                        <span class="badge bg-success"><i
-                                                class="bi bi-check-circle-fill me-1"></i>Paid</span>
-                                        }
-                                    </td>
-                                    <td class="text-end">
-                                        @if (team.paidTotal === 0) {
-                                        <button type="button" class="btn btn-sm btn-outline-danger"
-                                            (click)="unregisterTeam(team)" title="Remove from event">
-                                            <i class="bi bi-x-circle me-1"></i> Remove
-                                        </button>
-                                        }
-                                    </td>
-                                </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                    }
-                </div>
+        <div class="card-body p-0">
+            @if (filteredUnifiedTeams().length === 0) {
+            <div class="p-4 text-center text-muted">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                @if (availableClubTeams().length === 0 && registeredTeams().length === 0) {
+                <p class="mb-0">No teams in your library yet.</p>
+                <p class="small">Click "Add Team" above to create your first team.</p>
+                } @else {
+                <p>No teams match your filters</p>
+                }
             </div>
+            } @else {
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-uppercase fw-bold small">Team</th>
+                            <th class="text-uppercase fw-bold small d-none d-md-table-cell">Grad Year</th>
+                            <th class="text-uppercase fw-bold small d-none d-md-table-cell">LOP</th>
+                            <th class="text-uppercase fw-bold small">Status</th>
+                            <th class="text-end"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (team of filteredUnifiedTeams(); track team.clubTeamId) {
+                        <tr [class.registered-team]="team.isRegistered">
+                            <td class="fw-semibold">
+                                {{ team.clubTeamName }}
+                                <div class="d-md-none text-muted small mt-1">
+                                    {{ team.clubTeamGradYear }} | {{ team.clubTeamLevelOfPlay }}
+                                </div>
+                            </td>
+                            <td class="text-muted d-none d-md-table-cell">{{ team.clubTeamGradYear }}</td>
+                            <td class="text-muted d-none d-md-table-cell">{{ team.clubTeamLevelOfPlay }}</td>
+                            <td>
+                                @if (team.isRegistered && team.registeredTeam) {
+                                <span class="registered-status">
+                                    <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                    <span class="fw-semibold">{{ team.registeredTeam.ageGroupName }}</span>
+                                    <small class="text-muted ms-2">{{ team.registeredTeam.feeTotal | currency }}</small>
+                                </span>
+                                } @else {
+                                <span class="text-muted fst-italic">Not registered</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (team.isRegistered && team.registeredTeam) {
+                                @if (team.registeredTeam.paidTotal === 0) {
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    (click)="unregisterTeam(team.registeredTeam)" title="Remove from event">
+                                    <i class="bi bi-x-circle me-1"></i>Remove
+                                </button>
+                                } @else {
+                                <span class="badge bg-success">Paid</span>
+                                }
+                                } @else {
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle"
+                                        (click)="toggleDropdown(team, $event)">
+                                        <i class="bi bi-plus-circle me-1"></i>Register
+                                    </button>
+                                    @if (openDropdownTeamId() === team.clubTeamId) {
+                                    <ul class="dropdown-menu show">
+                                        @for (ag of filteredAgeGroupsForModal(); track ag.ageGroupId) {
+                                        @let isFull = ag.registeredCount >= ag.maxTeams;
+                                        @let isWaitlist = ag.ageGroupName.toLowerCase().startsWith('waitlist');
+                                        <li>
+                                            <a class="dropdown-item" href="javascript:void(0)"
+                                                [class.disabled]="isFull && !isWaitlist"
+                                                [class.text-muted]="isFull && !isWaitlist"
+                                                (click)="registerTeamWithAgeGroup(ag.ageGroupId.toString(), team)">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span>{{ ag.ageGroupName }}</span>
+                                                    <div class="ms-3">
+                                                        <small class="text-muted me-2">{{ ag.teamFee | currency
+                                                            }}</small>
+                                                        @if (isFull && !isWaitlist) {
+                                                        <span class="badge bg-danger">Full</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </a>
+                                        </li>
+                                        }
+                                    </ul>
+                                    }
+                                </div>
+                                }
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            }
         </div>
-        }
     </div>
 </div>
 }

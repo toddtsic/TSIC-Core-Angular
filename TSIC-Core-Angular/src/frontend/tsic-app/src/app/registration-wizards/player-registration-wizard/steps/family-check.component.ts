@@ -10,7 +10,7 @@ import { InfoTooltipComponent } from '../../../shared/components/info-tooltip.co
 @Component({
   selector: 'app-rw-family-check',
   standalone: true,
-  imports: [CommonModule, FormsModule, InfoTooltipComponent],
+  imports: [CommonModule, FormsModule],
   template: `
   <div class="card shadow-lg border-0 card-rounded">
     <div class="card-body bg-surface px-4 pb-4 pt-3">

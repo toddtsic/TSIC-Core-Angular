@@ -234,6 +234,17 @@
     color: var(--text-secondary) !important;
 }
 
+/* Badge variants that adapt to light/dark mode */
+.badge-inverted {
+    background-color: #495057 !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme='dark'] .badge-inverted {
+    background-color: #dee2e6 !important;
+    color: #212529 !important;
+}
+
 /* Card header utility that adapts to theme */
 .card-header-neutral {
     background-color: var(--neutral-50) !important;

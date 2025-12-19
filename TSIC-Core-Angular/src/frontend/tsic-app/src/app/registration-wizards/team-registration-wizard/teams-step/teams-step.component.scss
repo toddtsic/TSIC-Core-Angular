@@ -1,204 +1,96 @@
-.modal.d-block {
-    display: block !important;
+// Dropdown positioning - use fixed positioning to escape container constraints
+.dropdown-menu {
+    position: fixed !important;
+    z-index: 1050;
+    max-height: 400px;
+    overflow-y: auto;
+    min-width: 320px;
 }
 
-/* Gradient backgrounds for card headers */
-.bg-gradient-primary {
-    background: linear-gradient(135deg, var(--bs-primary) 0%, #0056b3 100%);
+// Disabled dropdown items
+.dropdown-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
-.bg-gradient-success {
-    background: linear-gradient(135deg, var(--bs-success) 0%, #0d6832 100%);
-}
-
-/* Team item hover effect */
-.team-item-hover {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-
-    &:hover {
-        background-color: rgba(13, 110, 253, 0.04);
-    }
-}
-
-/* Table styling */
-.table-wrapper {
-    overflow: visible !important;
-}
-
-.table {
-    thead th {
-        font-weight: 600;
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--bs-secondary);
-        border-bottom: 2px solid var(--bs-border-color);
-    }
-
-    tbody td {
-        vertical-align: middle;
-        padding: 1rem 0.75rem;
-        position: relative;
-
-        /* Ensure overflow is visible for dropdown */
-        &:last-child {
-            overflow: visible;
-        }
-    }
-
-    tbody tr {
-        position: relative;
-    }
-}
-
-/* Dropdown menu styling */
-.dropdown,
-.btn-group {
-    position: static;
-
-    .dropdown-menu {
-        position: absolute !important;
-        max-height: 400px;
-        overflow-y: auto;
-        min-width: 320px;
-        max-width: 450px;
-        z-index: 1050;
-        margin-top: 0.125rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 8px;
-
-        &.show {
-            display: block;
-        }
-
-        .dropdown-item {
-            white-space: normal;
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--bs-border-color);
-
-            &:last-child {
-                border-bottom: none;
-            }
-
-            &.disabled {
-                opacity: 0.5;
-                background-color: var(--bs-secondary-bg);
-                cursor: not-allowed;
-                pointer-events: none;
-            }
-
-            &:not(.disabled):hover {
-                background-color: rgba(13, 110, 253, 0.1);
-                cursor: pointer;
-            }
-
-            .badge {
-                font-size: 0.75rem;
-            }
-        }
-    }
-}
-
-/* Badge enhancements */
-.badge {
-    font-weight: 500;
-    padding: 0.375rem 0.75rem;
+// Table cell horizontal padding
+.table th,
+.table td {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    vertical-align: middle;
     font-size: 0.875rem;
-    transition: all 0.2s ease;
 }
 
-/* Button hover effects */
-.btn {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+// Mobile responsive adjustments
+@media (max-width: 767px) {
 
-    &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    .table th,
+    .table td {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        font-size: 0.75rem;
     }
 
-    &:active {
-        transform: translateY(0);
-    }
-}
-
-/* Animations */
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    // Hide less critical columns on mobile
+    .table th:nth-child(2),
+    .table td:nth-child(2),
+    .table th:nth-child(3),
+    .table td:nth-child(3) {
+        display: none;
     }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animate-slideIn {
-    animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* Empty state styling */
-.bi-inbox {
-    opacity: 0.3;
-}
-
-/* Card styling */
-.card {
-    border-radius: 12px;
-    overflow: visible !important;
-
-    .card-header {
-        border-bottom: none;
+    // Make team name and status columns wider
+    .table th:first-child,
+    .table td:first-child {
+        min-width: 100px;
     }
 
-    .card-body {
-        overflow: visible !important;
-    }
-}
-
-/* Subtle backgrounds */
-.bg-success-subtle {
-    background-color: rgba(25, 135, 84, 0.08) !important;
-}
-
-.bg-warning-subtle {
-    background-color: rgba(255, 193, 7, 0.15) !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 991.98px) {
-    .card {
-        margin-bottom: 1rem;
+    .table th:nth-child(4),
+    .table td:nth-child(4) {
+        min-width: 120px;
     }
 
-    .team-item-hover:hover {
-        transform: none;
-        border-left: none;
+    // Compact buttons on mobile
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .btn-sm i {
+        display: none; // Hide icons in buttons on mobile
+    }
+
+    // Make registered status more compact
+    .registered-status {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.125rem;
+
+        small {
+            font-size: 0.65rem;
+        }
     }
 }
 
-/* Age group radio button styling */
-.age-group-option {
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 2px solid transparent;
+// Visual distinction for registered teams
+tr.registered-team {
+    background-color: rgba(var(--bs-success-rgb), 0.05);
+    border-left: 3px solid var(--bs-success);
 
-    &.selected {
-        background-color: rgba(var(--bs-primary-rgb), 0.1) !important;
-        border-color: var(--bs-primary) !important;
+    td:first-child {
+        padding-left: calc(1.5rem - 3px); // Adjust for border
     }
+}
 
-    &:hover:not(.disabled) {
-        background-color: rgba(var(--bs-primary-rgb), 0.05) !important;
-    }
+[data-bs-theme='dark'] tr.registered-team {
+    background-color: rgba(var(--bs-success-rgb), 0.1);
+}
 
-    input[type="radio"] {
-        width: 1.25rem;
-        height: 1.25rem;
-        cursor: pointer;
-        margin-top: 0;
-    }
+// Registered status styling
+.registered-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
 }

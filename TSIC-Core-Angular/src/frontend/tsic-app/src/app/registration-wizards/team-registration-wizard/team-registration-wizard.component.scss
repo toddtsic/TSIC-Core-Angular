@@ -1,7 +1,7 @@
 .wizard-container {
-    max-width: 500px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1rem;
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -79,4 +79,127 @@
 
 .card-body-custom-top {
     padding-top: 2rem;
+}
+
+// Mobile responsive adjustments
+@media (max-width: 767px) {
+
+    // Reduce badge size on mobile
+    .tw-badge {
+        font-size: 0.75rem;
+        padding: 0.5rem 1rem !important;
+    }
+
+    // Make title smaller on mobile
+    #tw-title {
+        font-size: 1.5rem;
+    }
+
+    // Reduce alert padding on mobile
+    .alert {
+        padding: 0.75rem !important;
+
+        i.fs-4 {
+            font-size: 1.25rem !important;
+        }
+
+        strong {
+            font-size: 0.9rem;
+        }
+
+        p,
+        .small {
+            font-size: 0.8rem;
+        }
+    }
+
+    // Make radio option labels more compact
+    .list-group-item {
+        padding: 0.75rem !important;
+        gap: 0.75rem !important;
+
+        .fw-semibold {
+            font-size: 0.9rem;
+        }
+
+        .small {
+            font-size: 0.75rem;
+        }
+    }
+
+    // Reduce nested panel indentation
+    .ps-5 {
+        padding-left: 1rem !important;
+    }
+
+    // Stack buttons vertically on mobile
+    .d-flex.flex-sm-row {
+        flex-direction: column !important;
+
+        button {
+            width: 100%;
+        }
+    }
+
+    // Reduce card padding on mobile
+    .card-body {
+        padding: 1rem !important;
+    }
+
+    // Form elements on mobile
+    .form-label {
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 0.85rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .form-text {
+        font-size: 0.75rem;
+        margin-top: 0.15rem;
+        margin-bottom: 0;
+    }
+
+    // Reduce spacing between form rows
+    .row.g-2,
+    .row.mb-3 {
+        margin-bottom: 0.75rem !important;
+    }
+
+    .row.g-2 {
+        --bs-gutter-y: 0.75rem;
+    }
+
+    // Remove extra top margins on form rows
+    .row.mt-4 {
+        margin-top: 0 !important;
+    }
+
+    .btn {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    // Collapsible alert styling
+    .alert {
+        .alert-toggle-btn {
+            color: currentColor;
+            opacity: 0.7;
+            line-height: 1;
+            min-width: 1.5rem;
+
+            &:hover {
+                opacity: 1;
+            }
+
+            &:focus {
+                box-shadow: none;
+                opacity: 1;
+            }
+        }
+    }
 }

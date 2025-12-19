@@ -126,16 +126,56 @@ export class TeamsStepComponent implements OnInit {
         return this.registeredTeams().reduce((sum, team) => sum + (team.owedTotal || 0), 0);
     });
 
-    // Filtered available teams
-    filteredAvailableTeams = computed(() => {
-        let teams = this.availableClubTeams();
+    // Unified team view combining available and registered teams
+    unifiedTeams = computed(() => {
+        const available = this.availableClubTeams();
+        const registered = this.registeredTeams();
+        const registeredMap = new Map(registered.map(t => [t.clubTeamId, t]));
+
+        // Combine all unique teams
+        const allTeams: UnifiedTeamView[] = [];
+
+        // Add all club teams with their registration status
+        for (const clubTeam of available) {
+            const registeredTeam = registeredMap.get(clubTeam.clubTeamId);
+            allTeams.push({
+                clubTeamId: clubTeam.clubTeamId,
+                clubTeamName: clubTeam.clubTeamName,
+                clubTeamGradYear: clubTeam.clubTeamGradYear,
+                clubTeamLevelOfPlay: clubTeam.clubTeamLevelOfPlay,
+                isRegistered: !!registeredTeam,
+                registeredTeam: registeredTeam || null
+            });
+        }
+
+        // Add any registered teams not in available list (shouldn't happen but defensive)
+        for (const regTeam of registered) {
+            if (!available.some(a => a.clubTeamId === regTeam.clubTeamId)) {
+                allTeams.push({
+                    clubTeamId: regTeam.clubTeamId,
+                    clubTeamName: regTeam.clubTeamName,
+                    clubTeamGradYear: regTeam.clubTeamGradYear,
+                    clubTeamLevelOfPlay: regTeam.clubTeamLevelOfPlay,
+                    isRegistered: true,
+                    registeredTeam: regTeam
+                });
+            }
+        }
+
+        // Sort: registered first, then alphabetically by name
+        return allTeams.sort((a, b) => {
+            if (a.isRegistered && !b.isRegistered) return -1;
+            if (!a.isRegistered && b.isRegistered) return 1;
+            return a.clubTeamName.localeCompare(b.clubTeamName);
+        });
+    });
+
+    // Filtered unified teams
+    filteredUnifiedTeams = computed(() => {
+        let teams = this.unifiedTeams();
         const search = this.searchTerm().toLowerCase();
         const gradeYear = this.filterGradeYear();
         const levelOfPlay = this.filterLevelOfPlay();
-
-        // Filter out teams already registered
-        const registeredTeamIds = new Set(this.registeredTeams().map(t => t.clubTeamId));
-        teams = teams.filter(t => !registeredTeamIds.has(t.clubTeamId));
 
         if (search) {
             teams = teams.filter(t => t.clubTeamName.toLowerCase().includes(search));
@@ -150,24 +190,15 @@ export class TeamsStepComponent implements OnInit {
         return teams;
     });
 
-    // Filtered registered teams
+    // Keep these for backward compatibility but mark as deprecated
+    /** @deprecated Use unifiedTeams instead */
+    filteredAvailableTeams = computed(() => {
+        return this.filteredUnifiedTeams().filter(t => !t.isRegistered);
+    });
+
+    /** @deprecated Use unifiedTeams instead */
     filteredRegisteredTeams = computed(() => {
-        let teams = this.registeredTeams();
-        const search = this.searchTerm().toLowerCase();
-        const gradeYear = this.filterGradeYear();
-        const levelOfPlay = this.filterLevelOfPlay();
-
-        if (search) {
-            teams = teams.filter(t => t.clubTeamName.toLowerCase().includes(search));
-        }
-        if (gradeYear) {
-            teams = teams.filter(t => t.clubTeamGradYear === gradeYear);
-        }
-        if (levelOfPlay) {
-            teams = teams.filter(t => t.clubTeamLevelOfPlay === levelOfPlay);
-        }
-
-        return teams;
+        return this.registeredTeams();
     });
 
     // Get unique grade years from all teams
@@ -206,7 +237,7 @@ export class TeamsStepComponent implements OnInit {
      * - registeredTeams (Teams already registered for this event)
      * - ageGroups (with availability info)
      */
-    private loadTeamsMetadata(): void {
+    private loadTeamsMetadata(showLoading: boolean = true): void {
         const jobPath = this.jobContext.resolveFromRoute(this.route);
         const clubName = this.clubName();
 
@@ -220,7 +251,9 @@ export class TeamsStepComponent implements OnInit {
             return;
         }
 
-        this.isLoading.set(true);
+        if (showLoading) {
+            this.isLoading.set(true);
+        }
         this.errorMessage.set(null);
 
         this.teamService.getTeamsMetadata(jobPath, clubName).subscribe({
@@ -242,14 +275,21 @@ export class TeamsStepComponent implements OnInit {
     /**
      * Toggle dropdown for team (used by dropdown)
      */
-    toggleDropdown(clubTeam: ClubTeamDto, event: Event): void {
+    toggleDropdown(team: UnifiedTeamView, event: Event): void {
         event.stopPropagation();
         const currentId = this.openDropdownTeamId();
-        if (currentId === clubTeam.clubTeamId) {
+        if (currentId === team.clubTeamId) {
             this.openDropdownTeamId.set(null);
             this.selectedClubTeamForRegistration.set(null);
         } else {
-            this.openDropdownTeamId.set(clubTeam.clubTeamId);
+            this.openDropdownTeamId.set(team.clubTeamId);
+            // Create a ClubTeamDto from the unified view
+            const clubTeam: ClubTeamDto = {
+                clubTeamId: team.clubTeamId,
+                clubTeamName: team.clubTeamName,
+                clubTeamGradYear: team.clubTeamGradYear,
+                clubTeamLevelOfPlay: team.clubTeamLevelOfPlay
+            };
             this.selectedClubTeamForRegistration.set(clubTeam);
         }
     }
@@ -280,12 +320,25 @@ export class TeamsStepComponent implements OnInit {
     /**
      * Register a ClubTeam for this event with selected age group
      */
-    registerTeamWithAgeGroup(ageGroupId: string, clubTeam?: ClubTeamDto): void {
+    registerTeamWithAgeGroup(ageGroupId: string, team?: ClubTeamDto | UnifiedTeamView): void {
         // Use provided team or fall back to selected team from modal
-        const team = clubTeam || this.selectedClubTeamForRegistration();
+        let clubTeam: ClubTeamDto | null = null;
+
+        if (team) {
+            // Convert UnifiedTeamView to ClubTeamDto if needed
+            clubTeam = {
+                clubTeamId: team.clubTeamId,
+                clubTeamName: team.clubTeamName,
+                clubTeamGradYear: team.clubTeamGradYear,
+                clubTeamLevelOfPlay: team.clubTeamLevelOfPlay
+            };
+        } else {
+            clubTeam = this.selectedClubTeamForRegistration();
+        }
+
         const jobPath = this.jobContext.jobPath();
 
-        if (!team || !jobPath) {
+        if (!clubTeam || !jobPath) {
             this.errorMessage.set('Invalid registration data');
             return;
         }
@@ -298,7 +351,7 @@ export class TeamsStepComponent implements OnInit {
         this.isRegistering.set(true);
 
         this.teamService.registerTeamForEvent({
-            clubTeamId: team.clubTeamId,
+            clubTeamId: clubTeam.clubTeamId,
             jobPath,
             ageGroupId,
         }).subscribe({
@@ -306,8 +359,10 @@ export class TeamsStepComponent implements OnInit {
                 this.isRegistering.set(false);
                 this.selectedAgeGroupId.set(null);
                 this.closeAgeGroupModal();
-                this.closeDropdown(); // Close dropdown if it was open
-                this.loadTeamsMetadata();
+                this.closeDropdown();
+
+                // Reload without showing loading spinner
+                this.loadTeamsMetadata(false);
             },
             error: (err) => {
                 console.error('Failed to register team:', err);
@@ -331,8 +386,8 @@ export class TeamsStepComponent implements OnInit {
 
         this.teamService.unregisterTeamFromEvent(team.teamId).subscribe({
             next: () => {
-                // Refresh metadata to get updated state
-                this.loadTeamsMetadata();
+                // Reload without showing loading spinner
+                this.loadTeamsMetadata(false);
             },
             error: (err) => {
                 console.error('Failed to unregister team:', err);
@@ -364,8 +419,8 @@ export class TeamsStepComponent implements OnInit {
         this.teamService.addNewClubTeam(teamData).subscribe({
             next: () => {
                 this.closeAddTeamModal();
-                // Refresh metadata to get the new team
-                this.loadTeamsMetadata();
+                // Refresh metadata without showing loading spinner
+                this.loadTeamsMetadata(false);
             },
             error: (err) => {
                 console.error('Failed to add club team:', err);
@@ -403,4 +458,13 @@ interface NewClubTeamData {
     clubTeamName: string;
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;
+}
+
+interface UnifiedTeamView {
+    clubTeamId: number;
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
+    isRegistered: boolean;
+    registeredTeam: RegisteredTeamDto | null;
 }
