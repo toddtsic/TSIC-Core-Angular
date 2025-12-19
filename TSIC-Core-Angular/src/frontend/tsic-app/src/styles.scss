@@ -78,6 +78,16 @@
     --color-text-muted: var(--neutral-400);
     --color-border: var(--neutral-300);
 
+    /* Keep button groups with light backgrounds and visible borders in dark mode */
+    .btn-group .btn-outline-secondary {
+        background-color: #e7e5e4 !important;
+        border-color: #a8a29e !important;
+
+        &:hover {
+            background-color: #d6d3d1 !important;
+        }
+    }
+
     --bg-primary: var(--color-bg);
     --bg-secondary: var(--color-surface-alt);
     --bg-elevated: var(--color-surface);
@@ -88,9 +98,12 @@
     --input-border: var(--color-border);
 
     /* Adjusted shadows for dark mode */
-    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.4);
 
     /* Card and form styling for better visibility in dark mode */
     .card {
