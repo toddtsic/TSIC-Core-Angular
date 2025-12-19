@@ -5,13 +5,13 @@ using System.Transactions;
 using System.Text.Json;
 using TSIC.API.Dtos;
 using TSIC.API.Services.Metadata;
-using TSIC.Application.Services;
+using TSIC.API.Services;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using Microsoft.Extensions.Configuration;
 
-namespace TSIC.API.Services;
+namespace TSIC.Infrastructure.Services;
 
 public sealed class FamilyService : IFamilyService
 {

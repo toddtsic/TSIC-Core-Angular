@@ -4,11 +4,11 @@ using System.Globalization;
 using System.Text.Json;
 using TSIC.Domain.Constants;
 using TSIC.API.Dtos;
-using TSIC.Application.Services;
+using TSIC.API.Services;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Domain.Entities;
 
-namespace TSIC.API.Services;
+namespace TSIC.Infrastructure.Services;
 
 public class PlayerRegistrationService : IPlayerRegistrationService
 {

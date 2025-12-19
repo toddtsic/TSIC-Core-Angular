@@ -11,6 +11,7 @@ import { JobService } from '../../core/services/job.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { ClubService } from '../../core/services/club.service';
 import { AuthService } from '../../core/services/auth.service';
+import { InfoTooltipComponent } from '../../shared/components/info-tooltip.component';
 import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '../../core/api/models';
 
 @Component({
@@ -18,7 +19,7 @@ import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } fro
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TwActionBarComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TwActionBarComponent, InfoTooltipComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;

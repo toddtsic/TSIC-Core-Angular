@@ -6,7 +6,7 @@
     </div>
     <p class="mt-3 text-muted">Loading your teams...</p>
 </div>
-}
+} @else {
 
 <!-- Error message -->
 @if (errorMessage()) {
@@ -17,7 +17,6 @@
 }
 
 <!-- Main content -->
-@if (!isLoading()) {
 <div class="teams-step-container" (click)="closeDropdown()">
     <!-- Financial summary - only show if there are registered teams -->
     @if (registeredTeams().length > 0) {
@@ -40,9 +39,9 @@
     <!-- Responsive two-column layout -->
     <div class="row g-3">
         <!-- Available Teams (Left) -->
-        <div class="col-12 col-lg-6" style="overflow: visible;">
-            <div class="card border-0 shadow-sm h-100 animate-slideIn" style="overflow: visible;">
-                <div class="card-header border-0 bg-gradient-primary text-white py-3" style="overflow: visible;">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm animate-slideIn" style="overflow: visible; min-height: 400px;">
+                <div class="card-header border-0 bg-gradient-primary text-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="mb-1 fw-bold d-flex align-items-center">
@@ -56,7 +55,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="card-body p-0" style="overflow: visible;">
+                <div class="card-body p-0">
                     @if (filteredAvailableTeams().length === 0) {
                     <div class="p-4 text-center text-muted">
                         <i class="bi bi-inbox fs-1 d-block mb-2"></i>
@@ -68,7 +67,7 @@
                         }
                     </div>
                     } @else {
-                    <div class="table-responsive" style="overflow: visible;">
+                    <div class="table-wrapper">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
@@ -85,10 +84,39 @@
                                     <td class="text-muted">{{ team.clubTeamGradYear }}</td>
                                     <td class="text-muted">{{ team.clubTeamLevelOfPlay }}</td>
                                     <td class="text-end">
-                                        <button type="button" class="btn btn-success btn-sm shadow-sm"
-                                            (click)="openAgeGroupSelectionModal(team)">
-                                            <i class="bi bi-arrow-right-circle-fill me-1"></i> Register
-                                        </button>
+                                        <div class="btn-group" style="position: relative;">
+                                            <button type="button"
+                                                class="btn btn-success btn-sm shadow-sm dropdown-toggle"
+                                                (click)="toggleDropdown(team, $event)">
+                                                <i class="bi bi-arrow-right-circle-fill me-1"></i> Register for Age Group
+                                            </button>
+                                            @if (openDropdownTeamId() === team.clubTeamId) {
+                                            <ul class="dropdown-menu show"
+                                                style="position: absolute; top: 100%; right: 0; z-index: 1050;">
+                                                @for (ag of filteredAgeGroupsForModal(); track ag.ageGroupId) {
+                                                @let isFull = ag.registeredCount >= ag.maxTeams;
+                                                @let isWaitlist = ag.ageGroupName.toLowerCase().startsWith('waitlist');
+                                                <li>
+                                                    <a class="dropdown-item" href="javascript:void(0)"
+                                                        [class.disabled]="isFull && !isWaitlist"
+                                                        [class.text-muted]="isFull && !isWaitlist"
+                                                        (click)="registerTeamWithAgeGroup(ag.ageGroupId.toString(), team)">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <span>{{ ag.ageGroupName }}</span>
+                                                            <div class="ms-3">
+                                                                <small class="text-muted me-2">{{ ag.teamFee | currency
+                                                                    }}</small>
+                                                                @if (isFull && !isWaitlist) {
+                                                                <span class="badge bg-danger">Full</span>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </a>
+                                                </li>
+                                                }
+                                            </ul>
+                                            }
+                                        </div>
                                     </td>
                                 </tr>
                                 }

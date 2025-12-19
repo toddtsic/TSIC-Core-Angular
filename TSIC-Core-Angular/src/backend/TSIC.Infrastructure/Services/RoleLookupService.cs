@@ -11,10 +11,12 @@ namespace TSIC.Infrastructure.Services
     public class RoleLookupService : IRoleLookupService
     {
         private readonly SqlDbContext _context;
+        private readonly IUserPrivilegeLevelService _privilegeService;
 
-        public RoleLookupService(SqlDbContext context)
+        public RoleLookupService(SqlDbContext context, IUserPrivilegeLevelService privilegeService)
         {
             _context = context;
+            _privilegeService = privilegeService;
         }
 
         public async Task<List<RegistrationRoleDto>> GetRegistrationsForUserAsync(string userId)
@@ -246,7 +248,73 @@ namespace TSIC.Infrastructure.Services
                 model.Add(new RegistrationRoleDto("Referee", lRefRoles));
             }
 
+            // Apply privilege separation filtering for historical violations
+            model = FilterToLeastPrivilegedRole(model);
+
             return model;
+        }
+
+        /// <summary>
+        /// Filter registrations to show only least privileged role if mixed privileges exist.
+        /// This handles historical violations before the account separation policy was implemented.
+        /// </summary>
+        private List<RegistrationRoleDto> FilterToLeastPrivilegedRole(List<RegistrationRoleDto> registrations)
+        {
+            if (registrations.Count <= 1)
+            {
+                // Only one privilege level - no filtering needed
+                return registrations;
+            }
+
+            // Extract all unique role IDs from registrations
+            var roleIds = registrations.Select(r => GetRoleIdFromRoleName(r.RoleName)).Where(id => id != null).ToList();
+
+            if (roleIds.Count <= 1)
+            {
+                // Only one privilege level - no filtering needed
+                return registrations;
+            }
+
+            // Get least privileged role
+            var leastPrivilegedRole = _privilegeService.GetLeastPrivilegedRole(roleIds!);
+            var leastPrivilegedRoleName = GetRoleNameFromRoleId(leastPrivilegedRole);
+
+            // Filter to show only the least privileged role
+            return registrations.Where(r => r.RoleName == leastPrivilegedRoleName).ToList();
+        }
+
+        private static string? GetRoleIdFromRoleName(string roleName)
+        {
+            return roleName switch
+            {
+                "Family" => RoleConstants.Family,
+                "Player" => RoleConstants.Player,
+                "Staff" => RoleConstants.Staff,
+                "Club Rep" => RoleConstants.ClubRep,
+                "Director" => RoleConstants.Director,
+                "SuperDirector" => RoleConstants.SuperDirector,
+                "Superuser" => RoleConstants.Superuser,
+                "Referee" => RoleConstants.Referee,
+                "Ref Assignor" => RoleConstants.RefAssignor,
+                _ => null
+            };
+        }
+
+        private static string GetRoleNameFromRoleId(string roleId)
+        {
+            return roleId switch
+            {
+                RoleConstants.Family => "Family",
+                RoleConstants.Player => "Player",
+                RoleConstants.Staff => "Staff",
+                RoleConstants.ClubRep => "Club Rep",
+                RoleConstants.Director => "Director",
+                RoleConstants.SuperDirector => "SuperDirector",
+                RoleConstants.Superuser => "Superuser",
+                RoleConstants.Referee => "Referee",
+                RoleConstants.RefAssignor => "Ref Assignor",
+                _ => "Unknown"
+            };
         }
     }
 }

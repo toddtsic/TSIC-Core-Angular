@@ -280,11 +280,12 @@ export class TeamsStepComponent implements OnInit {
     /**
      * Register a ClubTeam for this event with selected age group
      */
-    registerTeamWithAgeGroup(ageGroupId: string): void {
-        const clubTeam = this.selectedClubTeamForRegistration();
+    registerTeamWithAgeGroup(ageGroupId: string, clubTeam?: ClubTeamDto): void {
+        // Use provided team or fall back to selected team from modal
+        const team = clubTeam || this.selectedClubTeamForRegistration();
         const jobPath = this.jobContext.jobPath();
 
-        if (!clubTeam || !jobPath) {
+        if (!team || !jobPath) {
             this.errorMessage.set('Invalid registration data');
             return;
         }
@@ -297,7 +298,7 @@ export class TeamsStepComponent implements OnInit {
         this.isRegistering.set(true);
 
         this.teamService.registerTeamForEvent({
-            clubTeamId: clubTeam.clubTeamId,
+            clubTeamId: team.clubTeamId,
             jobPath,
             ageGroupId,
         }).subscribe({
@@ -305,6 +306,7 @@ export class TeamsStepComponent implements OnInit {
                 this.isRegistering.set(false);
                 this.selectedAgeGroupId.set(null);
                 this.closeAgeGroupModal();
+                this.closeDropdown(); // Close dropdown if it was open
                 this.loadTeamsMetadata();
             },
             error: (err) => {

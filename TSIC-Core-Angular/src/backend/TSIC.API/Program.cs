@@ -52,6 +52,7 @@ builder.Services.AddHttpClient("verticalinsure", (sp, c) =>
 });
 builder.Services.AddScoped<IFamilyService, FamilyService>();
 builder.Services.AddScoped<IClubService, ClubService>();
+builder.Services.AddScoped<IUserPrivilegeLevelService, UserPrivilegeLevelService>();
 builder.Services.AddScoped<ITeamRegistrationService, TeamRegistrationService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
@@ -189,12 +190,7 @@ builder.Services.AddAuthorization(options =>
             RoleConstants.Names.StaffName));
 });
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new() { Title = "TSIC API", Version = "v1" });
-    options.SupportNonNullableReferenceTypes();
-});
+builder.Services.AddOpenApi();
 
 // CORS for Angular
 builder.Services.AddCors(options =>
@@ -223,11 +219,7 @@ if (app.Environment.IsDevelopment())
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "TSIC API V1");
-    });
+    app.MapOpenApi("/swagger/v1/swagger.json");
 }
 
 // Conditionally use HTTPS redirection only when HTTPS is configured

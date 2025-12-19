@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TSIC.API.Dtos;
-using TSIC.API.Constants;
+using TSIC.Domain.Constants;
 using System.Transactions;
 using System.Globalization;
 using TSIC.Domain.Entities;
@@ -11,6 +11,7 @@ using TSIC.Infrastructure.Data.Identity;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.Text.Json;
+using TSIC.Application.Services;
 using TSIC.API.Services;
 
 namespace TSIC.API.Controllers;

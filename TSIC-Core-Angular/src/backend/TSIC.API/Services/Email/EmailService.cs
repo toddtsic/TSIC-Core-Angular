@@ -5,7 +5,7 @@ using MimeKit;
 using System.Net;
 using System.IO;
 using System.Linq;
-using TSIC.API.Constants;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Services.Email;
 

@@ -5,97 +5,94 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { InfoTooltipComponent } from '../../../shared/components/info-tooltip.component';
 
 @Component({
   selector: 'app-rw-family-check',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, InfoTooltipComponent],
   template: `
-  <div class="card shadow border-0 card-rounded allow-overflow">
-    <div class="card-header gradient-header border-0 py-4 text-center text-white">
-      <h5 class="mb-1 fw-semibold">Family Account</h5>
-    </div>
-    <div class="card-body">
-        <p class="mb-2">Do you have a current <strong>FAMILY</strong> username/password?</p>
-        <p class="text-secondary small mb-3">Use the credentials for your Family Account only. Do not use a coach or director login.</p>
+  <div class="card shadow-lg border-0 card-rounded">
+    <div class="card-body bg-surface px-4 pb-4 pt-3">
+        <div class="alert alert-info mb-4 border-info border-2 shadow-sm" role="note">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-shield-check fs-4 flex-shrink-0"></i>
+            <div>
+              <strong class="d-block mb-1">Player Account Security:</strong>
+              This Family/Player account is for viewing YOUR CHILD'S TEAM ONLY and can be safely shared with your child. 
+              If you plan to coach or volunteer, you'll need a separate Coach account to protect other families' privacy.
+            </div>
+          </div>
+        </div>
+        <h5 class="mb-2 fw-semibold pt-3">Do you have a current <strong class="text-primary">FAMILY</strong> username/password?</h5>
+        <p class="text-muted small">Use the credentials for your Family Account only. Do not use a coach or director login.</p>
 
-        <fieldset role="radiogroup" aria-labelledby="famCheckLegend">
+        <fieldset role="radiogroup" aria-labelledby="famCheckLegend" style="margin-top: 2rem;">
           <legend id="famCheckLegend" class="visually-hidden">Family account availability</legend>
           <div class="list-group list-group-flush">
-            <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
-              <input class="form-check-input" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'yes'" />
-              <div>
+            <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
+                   style="cursor: pointer;"
+                   [class.border-info]="hasAccount === 'yes'"
+                   [class.bg-info]="hasAccount === 'yes'"
+                   [class.bg-opacity-10]="hasAccount === 'yes'">
+              <input class="form-check-input mt-0" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'yes'" />
+              <div class="flex-grow-1">
                 <div class="fw-semibold">Yes — I have a FAMILY login</div>
                 <div class="text-muted small">Enter your credentials below once, then choose what you want to do.</div>
               </div>
             </label>
 
             @if (hasAccount === 'yes') {
-            <!-- Shared credentials panel (single source of truth for both actions) -->
-            <div class="list-group-item border-0 pt-0 pb-3">
-              <div class="rw-accent-panel-neutral">
-                <div class="d-flex align-items-start gap-3">
-                  <i class="bi bi-person-lock rw-accent-icon-neutral" aria-hidden="true"></i>
-                  <div class="flex-grow-1">
-                    <div class="row g-2 align-items-end mb-2">
-                      <div class="col-12 col-md-5">
-                        <label for="famUsername" class="form-label small text-muted">Family username</label>
-                        <input id="famUsername" name="famUsername" class="form-control" type="text" [(ngModel)]="username" autocomplete="username" (keyup.enter)="signInThenProceed()" />
-                      </div>
-                      <div class="col-12 col-md-5">
-                        <label for="famPassword" class="form-label small text-muted">Password</label>
-                        <input #famPasswordInput id="famPassword" name="famPassword" class="form-control" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
-                      </div>
-                    </div>
-                    @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
-                    <div class="text-secondary small">Enter credentials once, then choose an action below.</div>
+            <!-- Shared credentials panel -->
+            <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
+              <div class="border border-2 rounded p-3 shadow-sm">
+                <div class="row g-2 mb-2">
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <label for="famUsername" class="form-label small mb-1">Username</label>
+                    <input id="famUsername" name="famUsername" class="form-control form-control-sm" type="text" [(ngModel)]="username" autocomplete="username" (keyup.enter)="signInThenProceed()" />
+                  </div>
+                  <div class="col-12 col-sm-6 col-md-4">
+                    <label for="famPassword" class="form-label small mb-1">Password</label>
+                    <input #famPasswordInput id="famPassword" name="famPassword" class="form-control form-control-sm" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
+                  </div>
+                </div>
+                @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
+                <div class="text-secondary small mb-3">Enter credentials once, then choose an action below.</div>
+                
+                <!-- Action buttons -->
+                <div class="d-flex flex-column gap-2">
+                  <div>
+                    <button type="button"
+                            class="btn btn-primary me-2"
+                            [disabled]="submitting || !username || !password"
+                            (click)="signInThenProceed()">
+                      @if (submitting && submittingAction === 'proceed') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
+                      <span>{{ submitting && submittingAction === 'proceed' ? 'Signing in…' : 'Sign in & Continue Registration' }}</span>
+                    </button>
+                    <span class="text-secondary small">Authenticate and jump straight to selecting players.</span>
+                  </div>
+                  <div>
+                    <button type="button"
+                            class="btn btn-success me-2"
+                            [disabled]="submitting || !username || !password"
+                            (click)="signInThenGoFamilyAccount()">
+                      @if (submitting && submittingAction === 'manage') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
+                      <span>{{ submitting && submittingAction === 'manage' ? 'Signing in…' : 'Sign in & Manage Family' }}</span>
+                    </button>
+                    <span class="text-secondary small">Authenticate then review / update your family before registering.</span>
                   </div>
                 </div>
               </div>
             </div>
             }
 
-            <!-- Action panels using shared credentials -->
-            @if (hasAccount === 'yes') {
-              <div class="list-group-item border-0 pt-0 pb-3">
-                <div class="rw-accent-panel">
-                  <div class="d-flex align-items-start gap-3">
-                    <i class="bi bi-play-fill rw-accent-icon" aria-hidden="true"></i>
-                    <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
-                      <button type="button"
-                              class="btn btn-primary"
-                              [disabled]="submitting || !username || !password"
-                              (click)="signInThenProceed()">
-                        @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
-                        <span>{{ submitting ? 'Signing in…' : 'Sign in & Continue Registration' }}</span>
-                      </button>
-                      <span class="text-secondary small">Authenticate and jump straight to selecting players.</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="list-group-item border-0 pt-0 pb-3">
-                <div class="rw-accent-panel bg-success-subtle">
-                  <div class="d-flex align-items-start gap-3">
-                    <i class="bi bi-people-fill rw-accent-icon text-success" aria-hidden="true"></i>
-                    <div class="flex-grow-1 d-flex flex-column flex-sm-row align-items-start gap-2 w-100">
-                      <button type="button"
-                              class="btn btn-success"
-                              [disabled]="submitting || !username || !password"
-                              (click)="signInThenGoFamilyAccount()">
-                        @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
-                        <span>{{ submitting ? 'Signing in…' : 'Sign in & Manage Family' }}</span>
-                      </button>
-                      <span class="text-secondary small">Authenticate then review / update your family before registering.</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            }
-
-            <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable">
-              <input class="form-check-input" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'no'" />
-              <div>
+            <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
+                   style="cursor: pointer;"
+                   [class.border-info]="hasAccount === 'no'"
+                   [class.bg-info]="hasAccount === 'no'"
+                   [class.bg-opacity-10]="hasAccount === 'no'">
+              <input class="form-check-input mt-0" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'no'" />
+              <div class="flex-grow-1">
                 <div class="fw-semibold">No — I need to create one</div>
                 <div class="text-muted small">We’ll help you create a Family Account before continuing.</div>
               </div>
@@ -103,15 +100,12 @@ import { AuthService } from '../../../core/services/auth.service';
 
             <!-- CTA appears directly under the NO option -->
             @if (hasAccount === 'no') {
-            <div class="list-group-item border-0 pt-0 pb-3">
-              <div class="rw-accent-panel-neutral">
-                <div class="d-flex flex-column flex-md-row align-items-start gap-3">
-                  <i class="bi bi-person-plus-fill rw-accent-icon-neutral" aria-hidden="true"></i>
-                  <div class="flex-grow-1">
-                    <div class="text-muted small mb-2">We'll guide you through a quick setup. Takes about 1–2 minutes.</div>
-                    <button type="button" class="btn btn-primary pulsing-button apply-pulse" (click)="createAccount()">OK, Let's create a FAMILY ACCOUNT for you</button>
-                  </div>
-                </div>
+            <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
+              <div class="border border-2 rounded p-3 shadow-sm">
+                <div class="text-muted small mb-2">We'll guide you through a quick setup. Takes about 1–2 minutes.</div>
+                <button type="button" class="btn btn-primary" (click)="createAccount()">
+                  <i class="bi bi-person-plus-fill me-2"></i>Create a FAMILY ACCOUNT
+                </button>
               </div>
             </div>
             }

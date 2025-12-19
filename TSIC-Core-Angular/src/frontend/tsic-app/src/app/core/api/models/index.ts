@@ -13,16 +13,22 @@ export interface AddClubTeamRequest {
     clubTeamName: string;
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;
+
+    [key: string]: any;
 }
 
 export interface AddClubTeamResponse {
     clubTeamId: number;
     success: boolean;
     message: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface AddClubToRepRequest {
     clubName: string;
+
+    [key: string]: any;
 }
 
 export interface AddClubToRepResponse {
@@ -30,6 +36,8 @@ export interface AddClubToRepResponse {
     clubName: string;
     similarClubs: ClubSearchResult[] | undefined;
     message: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface AddressDto {
@@ -37,6 +45,8 @@ export interface AddressDto {
     city: string;
     state: string;
     postalCode: string;
+
+    [key: string]: any;
 }
 
 export interface AgeGroupDto {
@@ -46,6 +56,8 @@ export interface AgeGroupDto {
     registeredCount: number;
     rosterFee: number;
     teamFee: number;
+
+    [key: string]: any;
 }
 
 export interface AllowedFieldDomainItem {
@@ -54,11 +66,15 @@ export interface AllowedFieldDomainItem {
     defaultInputType: string;
     defaultVisibility: string;
     seenInProfiles: number;
+
+    [key: string]: any;
 }
 
 export interface ApplyDiscountItemDto {
     playerId: string;
     amount: number;
+
+    [key: string]: any;
 }
 
 export interface ApplyDiscountRequestDto {
@@ -66,6 +82,8 @@ export interface ApplyDiscountRequestDto {
     familyUserId: string;
     code: string;
     items: ApplyDiscountItemDto[];
+
+    [key: string]: any;
 }
 
 export interface ApplyDiscountResponseDto {
@@ -73,12 +91,16 @@ export interface ApplyDiscountResponseDto {
     message: string | undefined;
     totalDiscount: number;
     perPlayer: { [key: string]: number; };
+
+    [key: string]: any;
 }
 
 export interface AuthTokenResponse {
     accessToken: string;
     refreshToken: string | undefined;
     expiresIn: number | undefined;
+
+    [key: string]: any;
 }
 
 export interface AvailableTeamDto {
@@ -97,6 +119,8 @@ export interface AvailableTeamDto {
     perRegistrantDeposit: number | undefined;
     jobUsesWaitlists: boolean;
     waitlistTeamId: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface CcInfoDto {
@@ -106,6 +130,8 @@ export interface CcInfoDto {
     zip: string | undefined;
     email: string | undefined;
     phone: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface ChildDto {
@@ -115,10 +141,14 @@ export interface ChildDto {
     dob: string | undefined;
     email: string | undefined;
     phone: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface CloneProfileRequest {
     sourceProfileType: string;
+
+    [key: string]: any;
 }
 
 export interface CloneProfileResult {
@@ -127,11 +157,15 @@ export interface CloneProfileResult {
     sourceProfileType: string;
     fieldCount: number;
     errorMessage: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface ClubRepClubDto {
     clubName: string;
     isInUse: boolean;
+
+    [key: string]: any;
 }
 
 export interface ClubRepRegistrationRequest {
@@ -146,6 +180,8 @@ export interface ClubRepRegistrationRequest {
     state: string;
     postalCode: string;
     cellphone: string;
+
+    [key: string]: any;
 }
 
 export interface ClubRepRegistrationResponse {
@@ -154,6 +190,8 @@ export interface ClubRepRegistrationResponse {
     userId: string | undefined;
     message: string | undefined;
     similarClubs: ClubSearchResult[] | undefined;
+
+    [key: string]: any;
 }
 
 export interface ClubSearchResult {
@@ -162,6 +200,8 @@ export interface ClubSearchResult {
     state: string | undefined;
     teamCount: number;
     matchScore: number;
+
+    [key: string]: any;
 }
 
 export interface ClubTeamDto {
@@ -169,6 +209,8 @@ export interface ClubTeamDto {
     clubTeamName: string;
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;
+
+    [key: string]: any;
 }
 
 export interface CreditCardInfo {
@@ -181,6 +223,8 @@ export interface CreditCardInfo {
     zip: string | undefined;
     email: string | undefined;
     phone: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface EmailHealthStatus {
@@ -193,6 +237,8 @@ export interface EmailHealthStatus {
     maxSendRate: number | undefined;
     region: string;
     warning: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface FamilyPlayerDto {
@@ -204,7 +250,9 @@ export interface FamilyPlayerDto {
     registered: boolean;
     selected: boolean;
     priorRegistrations: FamilyPlayerRegistrationDto[];
-    defaultFieldValues: { [key: string]: any; } | undefined;
+    defaultFieldValues: any | undefined;
+
+    [key: string]: any;
 }
 
 export interface FamilyPlayerRegistrationDto {
@@ -219,17 +267,21 @@ export interface FamilyPlayerRegistrationDto {
     adnSubscriptionBillingOccurences: number | undefined;
     adnSubscriptionIntervalLength: number | undefined;
     adnSubscriptionStartDate: Date | undefined;
-    formFieldValues: { [key: string]: any; };
+    formFieldValues: any;
+
+    [key: string]: any;
 }
 
 export interface FamilyPlayersResponseDto {
     familyUser: FamilyUserSummaryDto;
     familyPlayers: FamilyPlayerDto[];
-    regSaverDetails: RegSaverDetailsDto;
-    jobRegForm: JobRegFormDto;
-    ccInfo: CcInfoDto;
+    regSaverDetails: RegSaverDetailsDto | undefined;
+    jobRegForm: JobRegFormDto | undefined;
+    ccInfo: CcInfoDto | undefined;
     jobHasActiveDiscountCodes: boolean;
     jobUsesAmex: boolean;
+
+    [key: string]: any;
 }
 
 export interface FamilyProfileResponse {
@@ -238,6 +290,8 @@ export interface FamilyProfileResponse {
     secondary: PersonDto;
     address: AddressDto;
     children: ChildDto[];
+
+    [key: string]: any;
 }
 
 export interface FamilyRegistrationItemDto {
@@ -261,6 +315,8 @@ export interface FamilyRegistrationItemDto {
     feeTotal: number;
     owedTotal: number;
     paidTotal: number;
+
+    [key: string]: any;
 }
 
 export interface FamilyRegistrationRequest {
@@ -270,6 +326,8 @@ export interface FamilyRegistrationRequest {
     secondary: PersonDto;
     address: AddressDto;
     children: ChildDto[];
+
+    [key: string]: any;
 }
 
 export interface FamilyRegistrationResponse {
@@ -277,6 +335,8 @@ export interface FamilyRegistrationResponse {
     familyUserId: string | undefined;
     familyId: string | undefined;
     message: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface FamilyUpdateRequest {
@@ -285,18 +345,24 @@ export interface FamilyUpdateRequest {
     secondary: PersonDto;
     address: AddressDto;
     children: ChildDto[];
+
+    [key: string]: any;
 }
 
 export interface FamilyUserSummaryDto {
     familyUserId: string;
     displayName: string;
     userName: string;
+
+    [key: string]: any;
 }
 
 export interface FieldCondition {
     field: string;
-    value: any | undefined;
+    value: any;
     operator: string;
+
+    [key: string]: any;
 }
 
 export interface FieldValidation {
@@ -311,6 +377,8 @@ export interface FieldValidation {
     compare: string | undefined;
     remote: string | undefined;
     message: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface InsurancePurchaseRequestDto {
@@ -318,13 +386,17 @@ export interface InsurancePurchaseRequestDto {
     familyUserId: string;
     registrationIds: string[];
     quoteIds: string[];
-    creditCard: CreditCardInfo;
+    creditCard: CreditCardInfo | undefined;
+
+    [key: string]: any;
 }
 
 export interface InsurancePurchaseResponseDto {
     success: boolean;
     error: string | undefined;
     policies: { [key: string]: string; };
+
+    [key: string]: any;
 }
 
 export interface JobMetadataResponse {
@@ -349,6 +421,8 @@ export interface JobMetadataResponse {
     adnArbBillingOccurences: number | undefined;
     adnArbIntervalLength: number | undefined;
     adnArbStartDate: Date | undefined;
+
+    [key: string]: any;
 }
 
 export interface JobRegFieldDto {
@@ -358,11 +432,13 @@ export interface JobRegFieldDto {
     inputType: string;
     dataSource: string | undefined;
     options: ProfileFieldOption[] | undefined;
-    validation: FieldValidation;
+    validation: FieldValidation | undefined;
     order: number;
     visibility: string;
     computed: boolean;
-    conditionalOn: FieldCondition;
+    conditionalOn: FieldCondition | undefined;
+
+    [key: string]: any;
 }
 
 export interface JobRegFormDto {
@@ -371,26 +447,36 @@ export interface JobRegFormDto {
     fields: JobRegFieldDto[];
     waiverFieldNames: string[];
     constraintType: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface LoginRequest {
     username: string;
     password: string;
+
+    [key: string]: any;
 }
 
 export interface LoginResponseDto {
     userId: string;
     registrations: RegistrationRoleDto[];
+
+    [key: string]: any;
 }
 
 export interface MigrateAllRequest {
     dryRun: boolean;
     profileTypes: string[] | undefined;
+
+    [key: string]: any;
 }
 
 export interface MigrateProfilesRequest {
     dryRun: boolean;
     profileTypes: string[] | undefined;
+
+    [key: string]: any;
 }
 
 export interface MigrationReport {
@@ -402,6 +488,8 @@ export interface MigrationReport {
     completedAt: Date | undefined;
     results: MigrationResult[];
     globalWarnings: string[];
+
+    [key: string]: any;
 }
 
 export interface MigrationResult {
@@ -412,11 +500,15 @@ export interface MigrationResult {
     errorMessage: string | undefined;
     warnings: string[];
     fieldCount: number;
-    generatedMetadata: ProfileMetadata;
+    generatedMetadata: ProfileMetadata | undefined;
+
+    [key: string]: any;
 }
 
 export interface NextProfileTypeResult {
     newProfileType: string;
+
+    [key: string]: any;
 }
 
 export interface OptionSet {
@@ -424,29 +516,29 @@ export interface OptionSet {
     provider: string;
     readOnly: boolean;
     values: ProfileFieldOption[];
+
+    [key: string]: any;
 }
 
 export interface OptionSetUpdateRequest {
     values: ProfileFieldOption[];
-}
 
-export enum PaymentOption {
-    _0 = 0,
-    _1 = 1,
-    _2 = 2,
+    [key: string]: any;
 }
 
 export interface PaymentRequestDto {
     jobId: string;
     familyUserId: string;
-    paymentOption: PaymentOption;
-    creditCard: CreditCardInfo;
+    paymentOption: number;
+    creditCard: CreditCardInfo | undefined;
     idempotencyKey: string | undefined;
     viConfirmed: boolean | undefined;
     viPolicyNumber: string | undefined;
     viPolicyCreateDate: Date | undefined;
     viQuoteIds: string[] | undefined;
     viToken: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface PaymentResponseDto {
@@ -457,7 +549,9 @@ export interface PaymentResponseDto {
     subscriptionId: string | undefined;
     subscriptionIds: { [key: string]: string; } | undefined;
     failedSubscriptionIds: string[] | undefined;
-    readonly partialSuccess: boolean;
+    partialSuccess: boolean;
+
+    [key: string]: any;
 }
 
 export interface PersonDto {
@@ -465,12 +559,16 @@ export interface PersonDto {
     lastName: string;
     cellphone: string;
     email: string;
+
+    [key: string]: any;
 }
 
 export interface PlayerRegConfirmationDto {
     tsic: PlayerRegTsicFinancialDto;
     insurance: PlayerRegInsuranceStatusDto;
     confirmationHtml: string;
+
+    [key: string]: any;
 }
 
 export interface PlayerRegFinancialLineDto {
@@ -479,6 +577,8 @@ export interface PlayerRegFinancialLineDto {
     teamName: string;
     feeTotal: number;
     discountCodes: string[];
+
+    [key: string]: any;
 }
 
 export interface PlayerRegInsuranceStatusDto {
@@ -487,6 +587,8 @@ export interface PlayerRegInsuranceStatusDto {
     declined: boolean;
     purchaseSucceeded: boolean;
     policies: PlayerRegPolicyDto[];
+
+    [key: string]: any;
 }
 
 export interface PlayerRegPolicyDto {
@@ -494,6 +596,8 @@ export interface PlayerRegPolicyDto {
     policyNumber: string;
     issuedUtc: Date;
     insurableAmountCents: number;
+
+    [key: string]: any;
 }
 
 export interface PlayerRegTsicFinancialDto {
@@ -508,28 +612,36 @@ export interface PlayerRegTsicFinancialDto {
     totalDiscounts: number;
     totalNet: number;
     lines: PlayerRegFinancialLineDto[];
+
+    [key: string]: any;
 }
 
 export interface PreSubmitInsuranceDto {
     available: boolean;
-    playerObject: VIPlayerObjectResponse;
+    playerObject: VIPlayerObjectResponse | undefined;
     error: string | undefined;
     expiresUtc: Date | undefined;
     stateId: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface PreSubmitPlayerRegistrationRequestDto {
     jobPath: string;
     familyUserId: string;
     teamSelections: PreSubmitTeamSelectionDto[];
+
+    [key: string]: any;
 }
 
 export interface PreSubmitPlayerRegistrationResponseDto {
     teamResults: PreSubmitTeamResultDto[];
-    readonly hasFullTeams: boolean;
+    hasFullTeams: boolean;
     nextTab: string;
-    insurance: PreSubmitInsuranceDto;
+    insurance: PreSubmitInsuranceDto | undefined;
     validationErrors: PreSubmitValidationErrorDto[] | undefined;
+
+    [key: string]: any;
 }
 
 export interface PreSubmitTeamResultDto {
@@ -539,18 +651,24 @@ export interface PreSubmitTeamResultDto {
     teamName: string;
     message: string;
     registrationCreated: boolean;
+
+    [key: string]: any;
 }
 
 export interface PreSubmitTeamSelectionDto {
     playerId: string;
     teamId: string;
-    formValues: { [key: string]: any; } | undefined;
+    formValues: any | undefined;
+
+    [key: string]: any;
 }
 
 export interface PreSubmitValidationErrorDto {
     playerId: string;
     field: string;
     message: string;
+
+    [key: string]: any;
 }
 
 export interface ProblemDetails {
@@ -572,16 +690,22 @@ export interface ProfileBatchMigrationReport {
     totalJobsAffected: number;
     results: ProfileMigrationResult[];
     globalWarnings: string[];
+
+    [key: string]: any;
 }
 
 export interface ProfileFieldOption {
     value: string;
     label: string;
+
+    [key: string]: any;
 }
 
 export interface ProfileMetadata {
     fields: ProfileMetadataField[];
-    source: ProfileMetadataSource;
+    source: ProfileMetadataSource | undefined;
+
+    [key: string]: any;
 }
 
 export interface ProfileMetadataField {
@@ -591,11 +715,13 @@ export interface ProfileMetadataField {
     inputType: string;
     dataSource: string | undefined;
     options: ProfileFieldOption[] | undefined;
-    validation: FieldValidation;
+    validation: FieldValidation | undefined;
     order: number;
     visibility: string;
     computed: boolean;
-    conditionalOn: FieldCondition;
+    conditionalOn: FieldCondition | undefined;
+
+    [key: string]: any;
 }
 
 export interface ProfileMetadataSource {
@@ -604,13 +730,17 @@ export interface ProfileMetadataSource {
     commitSha: string;
     migratedAt: Date;
     migratedBy: string;
+
+    [key: string]: any;
 }
 
 export interface ProfileMetadataWithOptions {
     jobId: string;
     jobName: string;
     metadata: ProfileMetadata;
-    jsonOptions: { [key: string]: any; } | undefined;
+    jsonOptions: any | undefined;
+
+    [key: string]: any;
 }
 
 export interface ProfileMigrationResult {
@@ -621,9 +751,11 @@ export interface ProfileMigrationResult {
     affectedJobIds: string[];
     affectedJobNames: string[];
     affectedJobYears: string[];
-    generatedMetadata: ProfileMetadata;
+    generatedMetadata: ProfileMetadata | undefined;
     warnings: string[];
     errorMessage: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface ProfileSummary {
@@ -632,27 +764,14 @@ export interface ProfileSummary {
     migratedJobCount: number;
     allJobsMigrated: boolean;
     sampleJobNames: string[];
+
+    [key: string]: any;
 }
 
 export interface RefreshTokenRequest {
     refreshToken: string;
-}
 
-export interface RegSaverDetailsDto {
-    policyNumber: string;
-    policyCreateDate: Date;
-}
-
-export interface RegisterTeamRequest {
-    clubTeamId: number;
-    jobPath: string;
-    ageGroupId: string | undefined;
-}
-
-export interface RegisterTeamResponse {
-    teamId: string;
-    success: boolean;
-    message: string | undefined;
+    [key: string]: any;
 }
 
 export interface RegisteredTeamDto {
@@ -668,6 +787,24 @@ export interface RegisteredTeamDto {
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;
+
+    [key: string]: any;
+}
+
+export interface RegisterTeamRequest {
+    clubTeamId: number;
+    jobPath: string;
+    ageGroupId: string | undefined;
+
+    [key: string]: any;
+}
+
+export interface RegisterTeamResponse {
+    teamId: string;
+    success: boolean;
+    message: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface RegistrationDto {
@@ -675,6 +812,8 @@ export interface RegistrationDto {
     displayText: string;
     jobLogo: string;
     jobPath: string | undefined;
+
+    [key: string]: any;
 }
 
 export interface RegistrationFinancialsDto {
@@ -686,16 +825,22 @@ export interface RegistrationFinancialsDto {
     feeTotal: number;
     owedTotal: number;
     paidTotal: number;
+
+    [key: string]: any;
 }
 
 export interface RegistrationRoleDto {
     roleName: string;
     roleRegistrations: RegistrationDto[];
+
+    [key: string]: any;
 }
 
 export interface RegistrationStatusRequest {
     jobPath: string;
     registrationTypes: string[];
+
+    [key: string]: any;
 }
 
 export interface RegistrationStatusResponse {
@@ -703,14 +848,27 @@ export interface RegistrationStatusResponse {
     isAvailable: boolean;
     message: string | undefined;
     registrationUrl: string | undefined;
+
+    [key: string]: any;
+}
+
+export interface RegSaverDetailsDto {
+    policyNumber: string;
+    policyCreateDate: Date;
+
+    [key: string]: any;
 }
 
 export interface RenameOptionSetRequest {
     newKey: string;
+
+    [key: string]: any;
 }
 
 export interface RoleSelectionRequest {
     regId: string;
+
+    [key: string]: any;
 }
 
 export interface TeamsMetadataResponse {
@@ -719,16 +877,31 @@ export interface TeamsMetadataResponse {
     availableClubTeams: ClubTeamDto[];
     registeredTeams: RegisteredTeamDto[];
     ageGroups: AgeGroupDto[];
+
+    [key: string]: any;
 }
 
 export interface TestValidationRequest {
     field: ProfileMetadataField;
     testValue: string;
+
+    [key: string]: any;
 }
 
 export interface UpdateCurrentJobProfileConfigRequest {
     profileType: string;
     teamConstraint: string;
+
+    [key: string]: any;
+}
+
+export interface ValidationTestResult {
+    fieldName: string;
+    testValue: string;
+    isValid: boolean;
+    messages: string[];
+
+    [key: string]: any;
 }
 
 export interface VIColorsDto {
@@ -744,10 +917,14 @@ export interface VIColorsDto {
     success: string;
     success_contrast: string;
     border: string;
+
+    [key: string]: any;
 }
 
 export interface VIComponentsDto {
     border_radius: string;
+
+    [key: string]: any;
 }
 
 export interface VICustomerDto {
@@ -759,6 +936,8 @@ export interface VICustomerDto {
     city: string;
     state: string;
     postal_code: string;
+
+    [key: string]: any;
 }
 
 export interface VIOrganizationDto {
@@ -774,16 +953,22 @@ export interface VIOrganizationDto {
     org_country: string;
     payment_plan: boolean;
     registration_session_name: string;
+
+    [key: string]: any;
 }
 
 export interface VIParticipantDto {
     first_name: string;
     last_name: string;
+
+    [key: string]: any;
 }
 
 export interface VIPaymentsDto {
     enabled: boolean;
     button: boolean;
+
+    [key: string]: any;
 }
 
 export interface VIPlayerMetadataDto {
@@ -793,6 +978,8 @@ export interface VIPlayerMetadataDto {
     tsic_registrationid: string;
     tsic_secondchance: string;
     tsic_customer: string;
+
+    [key: string]: any;
 }
 
 export interface VIPlayerObjectResponse {
@@ -800,6 +987,8 @@ export interface VIPlayerObjectResponse {
     theme: VIThemeDto;
     product_config: VIPlayerProductConfigDto;
     payments: VIPaymentsDto;
+
+    [key: string]: any;
 }
 
 export interface VIPlayerPolicyAttributes {
@@ -808,10 +997,14 @@ export interface VIPlayerPolicyAttributes {
     insurable_amount: number;
     participant: VIParticipantDto;
     organization: VIOrganizationDto;
+
+    [key: string]: any;
 }
 
 export interface VIPlayerProductConfigDto {
     "registration-cancellation": VIPlayerProductDto[];
+
+    [key: string]: any;
 }
 
 export interface VIPlayerProductDto {
@@ -819,17 +1012,14 @@ export interface VIPlayerProductDto {
     metadata: VIPlayerMetadataDto;
     policy_attributes: VIPlayerPolicyAttributes;
     offer_Id: string;
+
+    [key: string]: any;
 }
 
 export interface VIThemeDto {
-    colors: VIColorsDto;
+    colors: VIColorsDto | undefined;
     font_family: string;
     components: VIComponentsDto;
-}
 
-export interface ValidationTestResult {
-    fieldName: string;
-    testValue: string;
-    isValid: boolean;
-    messages: string[];
+    [key: string]: any;
 }

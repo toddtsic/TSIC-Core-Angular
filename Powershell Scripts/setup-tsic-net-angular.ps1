@@ -2,7 +2,7 @@
 # TSIC-Net-Angular Project Setup Script
 # ============================================
 # This script creates the complete solution structure for TSIC-Net-Angular
-# with .NET 9 backend and Angular 18 frontend
+# with .NET 10 backend and Angular 18 frontend
 
 param(
     [string]$SolutionName = "TSIC-Net-Angular",
@@ -55,27 +55,27 @@ Write-Host "Creating backend projects..." -ForegroundColor Yellow
 
 # Domain
 Write-Host "  - Creating TSIC.Domain..." -ForegroundColor Gray
-dotnet new classlib -n TSIC.Domain -o src/backend/TSIC.Domain -f net9.0
+dotnet new classlib -n TSIC.Domain -o src/backend/TSIC.Domain -f net10.0
 dotnet sln add src/backend/TSIC.Domain
 
 # Application
 Write-Host "  - Creating TSIC.Application..." -ForegroundColor Gray
-dotnet new classlib -n TSIC.Application -o src/backend/TSIC.Application -f net9.0
+dotnet new classlib -n TSIC.Application -o src/backend/TSIC.Application -f net10.0
 dotnet sln add src/backend/TSIC.Application
 
 # Infrastructure
 Write-Host "  - Creating TSIC.Infrastructure..." -ForegroundColor Gray
-dotnet new classlib -n TSIC.Infrastructure -o src/backend/TSIC.Infrastructure -f net9.0
+dotnet new classlib -n TSIC.Infrastructure -o src/backend/TSIC.Infrastructure -f net10.0
 dotnet sln add src/backend/TSIC.Infrastructure
 
 # API
 Write-Host "  - Creating TSIC.API..." -ForegroundColor Gray
-dotnet new webapi -n TSIC.API -o src/backend/TSIC.API -f net9.0
+dotnet new webapi -n TSIC.API -o src/backend/TSIC.API -f net10.0
 dotnet sln add src/backend/TSIC.API
 
 # Tests
 Write-Host "  - Creating TSIC.Tests..." -ForegroundColor Gray
-dotnet new xunit -n TSIC.Tests -o src/backend/TSIC.Tests -f net9.0
+dotnet new xunit -n TSIC.Tests -o src/backend/TSIC.Tests -f net10.0
 dotnet sln add src/backend/TSIC.Tests
 
 Write-Host "✓ Backend projects created" -ForegroundColor Green
@@ -89,12 +89,12 @@ Write-Host "Creating service layer projects..." -ForegroundColor Yellow
 
 # API Client
 Write-Host "  - Creating TSIC.ApiClient..." -ForegroundColor Gray
-dotnet new classlib -n TSIC.ApiClient -o src/services/TSIC.ApiClient -f net9.0
+dotnet new classlib -n TSIC.ApiClient -o src/services/TSIC.ApiClient -f net10.0
 dotnet sln add src/services/TSIC.ApiClient
 
 # API Client Tests
 Write-Host "  - Creating TSIC.ApiClient.Tests..." -ForegroundColor Gray
-dotnet new xunit -n TSIC.ApiClient.Tests -o src/services/TSIC.ApiClient.Tests -f net9.0
+dotnet new xunit -n TSIC.ApiClient.Tests -o src/services/TSIC.ApiClient.Tests -f net10.0
 dotnet sln add src/services/TSIC.ApiClient.Tests
 
 Write-Host "✓ Service layer projects created" -ForegroundColor Green

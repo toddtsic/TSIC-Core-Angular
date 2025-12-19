@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Transactions;
 using TSIC.API.Dtos;
+using TSIC.API.Services;
 using TSIC.Application.Services;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
-namespace TSIC.API.Services;
+namespace TSIC.Infrastructure.Services;
 
 public sealed class ClubService : IClubService
 {
