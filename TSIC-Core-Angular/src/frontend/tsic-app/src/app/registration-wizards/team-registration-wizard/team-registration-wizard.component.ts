@@ -33,9 +33,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
     submittingAction: 'register' | 'manage' | null = null;
     inlineError: string | null = null;
 
-    // Alert collapse states (collapsed by default on mobile)
-    securityAlertCollapsed = true;
-    registrationAlertCollapsed = true;
+    // Accordion collapse state
+    credentialsCollapsed = true;
 
     // Computed: determine if user is logged in
     private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);

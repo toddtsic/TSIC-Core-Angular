@@ -82,7 +82,7 @@
                             <td class="fw-semibold">
                                 {{ team.clubTeamName }}
                                 <div class="d-md-none text-muted small mt-1">
-                                    {{ team.clubTeamGradYear }} | {{ team.clubTeamLevelOfPlay }}
+                                    {{ team.clubTeamGradYear }} LOP: {{ team.clubTeamLevelOfPlay }}/5
                                 </div>
                             </td>
                             <td class="text-muted d-none d-md-table-cell">{{ team.clubTeamGradYear }}</td>
@@ -163,25 +163,78 @@
                 <div class="d-flex align-items-start w-100">
                     <i class="bi bi-plus-circle-fill me-2 mt-1 flex-shrink-0"></i>
                     <h4 class="modal-title mb-0 flex-grow-1">
-                        Add Team to <span class="badge badge-surface ms-1">{{ clubName() }}</span> Club Team
-                        Library
+                        Add Team to Club Team Library
                     </h4>
                 </div>
                 <button type="button" class="btn-close btn-close-white flex-shrink-0" (click)="closeAddTeamModal()"
                     aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="alert alert-success border-0 mb-3 d-flex align-items-start">
-                    <i class="bi bi-info-circle-fill me-2 mt-1 flex-shrink-0"></i>
-                    <small>Add a new team to your club's permanent library. Once created, this team will be available
-                        for registration in all future events.</small>
-                </div>
+                <div class="accordion mb-3" id="addTeamAccordion">
+                    <!-- Guidelines Section -->
+                    <div class="accordion-item border-2">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" [class.collapsed]="guidelinesCollapsed"
+                                (click)="guidelinesCollapsed = !guidelinesCollapsed"
+                                [attr.aria-expanded]="!guidelinesCollapsed" aria-controls="guidelinesCollapse">
+                                <i class="bi bi-info-circle text-primary fs-4 me-2 fw-bold"></i>
+                                <i class="bi bi-exclamation-triangle-fill text-warning fs-5 me-2"></i>
+                                <span class="fw-bold">Club Team Library Guidelines</span>
+                            </button>
+                        </h2>
+                        <div id="guidelinesCollapse" class="accordion-collapse collapse"
+                            [class.show]="!guidelinesCollapsed">
+                            <div class="accordion-body">
+                                <ul class="mb-0 small ps-3">
+                                    <li><strong>DO NOT REPEAT YOUR CLUB NAME</strong> in your team name</li>
+                                    <li><strong>Once created, this team will be available for registration in all future
+                                            events</strong>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="alert alert-danger border-3 border-danger mb-4 d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill fs-4 me-3 flex-shrink-0"></i>
-                    <div>
-                        <strong class="text-uppercase d-block mb-1">Important:</strong>
-                        <strong>DO NOT REPEAT YOUR CLUB NAME IN YOUR TEAM NAME</strong>
+                    <!-- Existing Teams Section -->
+                    <div class="accordion-item border-2 mt-3">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" [class.collapsed]="existingTeamsCollapsed"
+                                (click)="existingTeamsCollapsed = !existingTeamsCollapsed"
+                                [attr.aria-expanded]="!existingTeamsCollapsed" aria-controls="existingTeamsCollapse">
+                                <i class="bi bi-info-circle text-primary fs-4 me-2 fw-bold"></i>
+                                <i class="bi bi-list-ul fs-5 me-2 text-primary"></i>
+                                <span class="fw-bold">Existing Teams ({{ availableClubTeams().length }})</span>
+                            </button>
+                        </h2>
+                        <div id="existingTeamsCollapse" class="accordion-collapse collapse"
+                            [class.show]="!existingTeamsCollapsed">
+                            <div class="accordion-body bg-info bg-opacity-10">
+                                @if (availableClubTeams().length === 0) {
+                                <p class="mb-0 small text-muted fst-italic">No teams in library yet</p>
+                                } @else {
+                                <div class="mt-2 small"
+                                    style="max-height: 300px; overflow-y: auto; overflow-x: hidden;">
+                                    <!-- Header Row -->
+                                    <div class="row g-0 mb-2 fw-bold border-bottom pb-1" style="font-size: 0.6rem;">
+                                        <div class="col-1 text-center">#</div>
+                                        <div class="col-5 ps-1">Team</div>
+                                        <div class="col-4 ps-1">Age Group</div>
+                                        <div class="col-2 text-center text-nowrap">LOP</div>
+                                    </div>
+                                    <!-- Data Rows -->
+                                    @for (team of availableClubTeams(); track team.clubTeamId; let i = $index) {
+                                    <div class="row g-0 py-1 align-items-center" style="font-size: 0.8rem;">
+                                        <div class="col-1 text-center text-muted">{{ i + 1 }}</div>
+                                        <div class="col-5 ps-1">{{ team.clubTeamName }}</div>
+                                        <div class="col-4 ps-1 text-muted">{{ team.clubTeamGradYear }}</div>
+                                        <div class="col-2 text-center text-muted text-nowrap">{{
+                                            team.clubTeamLevelOfPlay }}/5</div>
+                                    </div>
+                                    }
+                                </div>
+                                }
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -189,8 +242,14 @@
                     clubTeamName: teamName.value,
                     clubTeamGradYear: teamGradYear.value,
                     clubTeamLevelOfPlay: teamLevelOfPlay.value
-                })">
+                }, addTeamForm)">
                     <div class="row g-3">
+                        <!-- Club Name (read-only display) -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold text-muted mb-1">Club:</label>
+                            <div class="fw-bold fs-5 text-dark">{{ clubName() }}</div>
+                        </div>
+
                         <!-- Team Name - Full Width -->
                         <div class="col-12">
                             <label for="teamName" class="form-label fw-semibold">
@@ -243,13 +302,23 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-                        <button type="button" class="btn btn-lg btn-outline-secondary" (click)="closeAddTeamModal()">
-                            <i class="bi bi-x-circle me-1"></i> Cancel
-                        </button>
-                        <button type="submit" class="btn btn-lg btn-primary" [disabled]="addTeamForm.invalid">
-                            <i class="bi bi-plus-circle-fill me-1"></i> Add to Library
-                        </button>
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="addAnotherCheck"
+                                [(ngModel)]="addAnotherTeam" [ngModelOptions]="{standalone: true}">
+                            <label class="form-check-label" for="addAnotherCheck">
+                                <i class="bi bi-arrow-repeat me-1"></i> Add another team after this one
+                            </label>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-lg btn-outline-secondary"
+                                (click)="closeAddTeamModal()">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </button>
+                            <button type="submit" class="btn btn-lg btn-primary" [disabled]="addTeamForm.invalid">
+                                <i class="bi bi-plus-circle-fill me-1"></i> Add to Library
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -294,7 +363,7 @@
                                 <span class="badge border border-secondary text-body ms-2">Grad Year: {{
                                     team.clubTeamGradYear }}</span>
                                 <span class="badge border border-secondary text-body ms-2">LOP: {{
-                                    team.clubTeamLevelOfPlay }}</span>
+                                    team.clubTeamLevelOfPlay }}/5</span>
                             </div>
                         </div>
                     </div>

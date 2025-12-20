@@ -159,3 +159,68 @@ tr.registered-team {
     align-items: center;
     gap: 0.25rem;
 }
+
+// Modal mobile optimizations
+@media (max-width: 767px) {
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    .modal-header {
+        padding: 0.75rem !important;
+
+        .modal-title {
+            font-size: 1.1rem !important;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        i.bi-plus-circle-fill {
+            font-size: 1.25rem;
+        }
+    }
+
+    .modal-body {
+        padding: 1rem !important;
+
+        .alert {
+            padding: 0.75rem !important;
+            font-size: 0.85rem;
+
+            strong {
+                font-size: 0.9rem;
+            }
+
+            ul {
+                font-size: 0.8rem;
+            }
+        }
+
+        .form-label {
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+
+            i {
+                font-size: 0.8rem;
+            }
+        }
+
+        .form-control,
+        .form-select {
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .btn-lg {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .row.g-3 {
+            --bs-gutter-y: 0.75rem;
+        }
+    }
+}

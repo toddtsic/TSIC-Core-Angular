@@ -121,6 +121,10 @@ export class TeamsStepComponent implements OnInit {
     isRegistering = signal<boolean>(false);
     selectedAgeGroupId = signal<string | null>(null);
 
+    // Accordion collapse states
+    guidelinesCollapsed = true;
+    existingTeamsCollapsed = true;
+
     // Financial summary
     totalOwed = computed(() => {
         return this.registeredTeams().reduce((sum, team) => sum + (team.owedTotal || 0), 0);
@@ -410,17 +414,29 @@ export class TeamsStepComponent implements OnInit {
         this.showAddTeamModal.set(false);
     }
 
+    // Add another team flag
+    addAnotherTeam = signal<boolean>(false);
+
     /**
      * Add a new ClubTeam to the club
      */
-    addNewClubTeam(teamData: NewClubTeamData): void {
+    addNewClubTeam(teamData: NewClubTeamData, formRef?: any): void {
         this.errorMessage.set(null);
 
         this.teamService.addNewClubTeam(teamData).subscribe({
             next: () => {
-                this.closeAddTeamModal();
-                // Refresh metadata without showing loading spinner
-                this.loadTeamsMetadata(false);
+                if (this.addAnotherTeam()) {
+                    // Reset the form but keep modal open
+                    if (formRef) {
+                        formRef.resetForm();
+                    }
+                    // Refresh metadata without showing loading spinner
+                    this.loadTeamsMetadata(false);
+                } else {
+                    this.closeAddTeamModal();
+                    // Refresh metadata without showing loading spinner
+                    this.loadTeamsMetadata(false);
+                }
             },
             error: (err) => {
                 console.error('Failed to add club team:', err);

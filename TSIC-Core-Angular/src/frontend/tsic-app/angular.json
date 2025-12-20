@@ -29,13 +29,18 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/bootstrap-icons/font",
+                "output": "/bootstrap-icons"
               }
             ],
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/@syncfusion/ej2-bootstrap5-theme/styles/bootstrap5-lite.css",
               "src/styles/_tokens.scss",
               "src/styles/_utilities.scss",
-              "node_modules/@syncfusion/ej2-bootstrap5-theme/styles/bootstrap5-lite.css",
               "src/styles.scss"
             ],
             "scripts": []
