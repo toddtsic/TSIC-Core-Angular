@@ -160,3 +160,63 @@ public sealed record ValidateClubRepResponse
     public required string? ClubName { get; init; }
     public string? Message { get; init; }
 }
+// Club Team Management DTOs
+public sealed record ClubTeamManagementDto
+{
+    public required int ClubTeamId { get; init; }
+    public required string ClubTeamName { get; init; }
+    public required string ClubTeamGradYear { get; init; }
+    public required string ClubTeamLevelOfPlay { get; init; }
+    public required bool IsActive { get; init; }
+    public required bool HasBeenUsed { get; init; }
+}
+
+public sealed record InactivateClubTeamRequest
+{
+    public required int ClubTeamId { get; init; }
+}
+
+public class InactivateClubTeamRequestValidator : AbstractValidator<InactivateClubTeamRequest>
+{
+    public InactivateClubTeamRequestValidator()
+    {
+        RuleFor(x => x.ClubTeamId)
+            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
+    }
+}
+
+public sealed record ActivateClubTeamRequest
+{
+    public required int ClubTeamId { get; init; }
+}
+
+public class ActivateClubTeamRequestValidator : AbstractValidator<ActivateClubTeamRequest>
+{
+    public ActivateClubTeamRequestValidator()
+    {
+        RuleFor(x => x.ClubTeamId)
+            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
+    }
+}
+
+public sealed record DeleteClubTeamRequest
+{
+    public required int ClubTeamId { get; init; }
+}
+
+public class DeleteClubTeamRequestValidator : AbstractValidator<DeleteClubTeamRequest>
+{
+    public DeleteClubTeamRequestValidator()
+    {
+        RuleFor(x => x.ClubTeamId)
+            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
+    }
+}
+
+public sealed record ClubTeamOperationResponse
+{
+    public required bool Success { get; init; }
+    public required int ClubTeamId { get; init; }
+    public required string ClubTeamName { get; init; }
+    public string? Message { get; init; }
+}

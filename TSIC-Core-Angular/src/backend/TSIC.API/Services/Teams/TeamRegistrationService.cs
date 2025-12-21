@@ -539,6 +539,145 @@ public class TeamRegistrationService : ITeamRegistrationService
         return results;
     }
 
+    // ============================================================
+    // CLUB TEAM MANAGEMENT (Active/Inactive/Delete)
+    // ============================================================
+
+    public async Task<List<ClubTeamManagementDto>> GetClubTeamsForManagementAsync(string userId, string clubName)
+    {
+        _logger.LogInformation("Getting club teams for management. User: {UserId}, Club: {ClubName}", userId, clubName);
+
+        // Get club rep and verify authorization
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        var clubRep = myClubs.FirstOrDefault(c => string.Equals(c.ClubName, clubName, StringComparison.OrdinalIgnoreCase));
+
+        if (clubRep == null)
+        {
+            _logger.LogWarning("User {UserId} is not a club rep for club {ClubName}", userId, clubName);
+            throw new InvalidOperationException("User is not authorized as a club representative for this club");
+        }
+
+        var teams = await _clubTeams.GetClubTeamsWithMetadataAsync(clubRep.ClubId);
+        _logger.LogInformation("Found {TeamCount} teams for management. Club: {ClubId}", teams.Count, clubRep.ClubId);
+
+        return teams;
+    }
+
+    public async Task<ClubTeamOperationResponse> InactivateClubTeamAsync(int clubTeamId, string userId)
+    {
+        _logger.LogInformation("Inactivating club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        // Get the team
+        var team = await _clubTeams.GetByIdAsync(clubTeamId);
+        if (team == null)
+        {
+            _logger.LogWarning("Club team not found: {ClubTeamId}", clubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is authorized for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == team.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not a rep for club {ClubId}", userId, team.ClubId);
+            throw new InvalidOperationException("You can only manage teams from your own club");
+        }
+
+        // Inactivate the team
+        team.Active = false;
+        team.Modified = DateTime.UtcNow;
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} inactivated successfully", clubTeamId);
+
+        return new ClubTeamOperationResponse
+        {
+            Success = true,
+            ClubTeamId = clubTeamId,
+            ClubTeamName = team.ClubTeamName,
+            Message = "Team inactivated successfully"
+        };
+    }
+
+    public async Task<ClubTeamOperationResponse> ActivateClubTeamAsync(int clubTeamId, string userId)
+    {
+        _logger.LogInformation("Activating club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        // Get the team
+        var team = await _clubTeams.GetByIdAsync(clubTeamId);
+        if (team == null)
+        {
+            _logger.LogWarning("Club team not found: {ClubTeamId}", clubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is authorized for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == team.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not a rep for club {ClubId}", userId, team.ClubId);
+            throw new InvalidOperationException("You can only manage teams from your own club");
+        }
+
+        // Activate the team
+        team.Active = true;
+        team.Modified = DateTime.UtcNow;
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} activated successfully", clubTeamId);
+
+        return new ClubTeamOperationResponse
+        {
+            Success = true,
+            ClubTeamId = clubTeamId,
+            ClubTeamName = team.ClubTeamName,
+            Message = "Team activated successfully"
+        };
+    }
+
+    public async Task<ClubTeamOperationResponse> DeleteClubTeamAsync(int clubTeamId, string userId)
+    {
+        _logger.LogInformation("Deleting club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        // Get the team
+        var team = await _clubTeams.GetByIdAsync(clubTeamId);
+        if (team == null)
+        {
+            _logger.LogWarning("Club team not found: {ClubTeamId}", clubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is authorized for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == team.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not a rep for club {ClubId}", userId, team.ClubId);
+            throw new InvalidOperationException("You can only manage teams from your own club");
+        }
+
+        // Check if team has been used in any event registration
+        var hasBeenUsed = await _clubTeams.HasBeenUsedAsync(clubTeamId);
+        if (hasBeenUsed)
+        {
+            _logger.LogWarning("Cannot delete club team {ClubTeamId} - it has been used in event registrations", clubTeamId);
+            throw new InvalidOperationException("Cannot delete a team that has been used in event registrations. Inactivate instead.");
+        }
+
+        // Delete the team
+        _clubTeams.Remove(team);
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} deleted successfully", clubTeamId);
+
+        return new ClubTeamOperationResponse
+        {
+            Success = true,
+            ClubTeamId = clubTeamId,
+            ClubTeamName = team.ClubTeamName,
+            Message = "Team deleted successfully"
+        };
+    }
+
 }
 
 

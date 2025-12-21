@@ -14,7 +14,7 @@ public class ClubTeamRepository : IClubTeamRepository
     public async Task<List<ClubTeamDto>> GetClubTeamsForClubAsync(int clubId, CancellationToken cancellationToken = default)
     {
         return await _context.ClubTeams
-            .Where(ct => ct.ClubId == clubId)
+            .Where(ct => ct.ClubId == clubId && ct.Active == true)
             .Select(ct => new ClubTeamDto
             {
                 ClubTeamId = ct.ClubTeamId,
@@ -27,7 +27,42 @@ public class ClubTeamRepository : IClubTeamRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<ClubTeams?> GetByIdAsync(Guid clubTeamId, CancellationToken cancellationToken = default)
+    public async Task<List<ClubTeamManagementDto>> GetClubTeamsWithMetadataAsync(int clubId, CancellationToken cancellationToken = default)
+    {
+        // Get all club teams for this club (active + inactive)
+        var teams = await _context.ClubTeams
+            .Where(ct => ct.ClubId == clubId)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        // For each team, check if it's been used
+        var result = new List<ClubTeamManagementDto>();
+        foreach (var team in teams)
+        {
+            var hasBeenUsed = await _context.Teams
+                .AnyAsync(t => t.ClubTeamId == team.ClubTeamId, cancellationToken);
+
+            result.Add(new ClubTeamManagementDto
+            {
+                ClubTeamId = team.ClubTeamId,
+                ClubTeamName = team.ClubTeamName,
+                ClubTeamGradYear = team.ClubTeamGradYear,
+                ClubTeamLevelOfPlay = team.ClubTeamLevelOfPlay,
+                IsActive = team.Active ?? false,
+                HasBeenUsed = hasBeenUsed
+            });
+        }
+
+        return result.OrderBy(ct => ct.ClubTeamName).ToList();
+    }
+
+    public async Task<bool> HasBeenUsedAsync(int clubTeamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AnyAsync(t => t.ClubTeamId == clubTeamId, cancellationToken);
+    }
+
+    public async Task<ClubTeams?> GetByIdAsync(int clubTeamId, CancellationToken cancellationToken = default)
     {
         return await _context.ClubTeams
             .Where(ct => ct.ClubTeamId == clubTeamId)
@@ -43,6 +78,11 @@ public class ClubTeamRepository : IClubTeamRepository
     public void Add(ClubTeams clubTeam)
     {
         _context.ClubTeams.Add(clubTeam);
+    }
+
+    public void Remove(ClubTeams clubTeam)
+    {
+        _context.ClubTeams.Remove(clubTeam);
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
