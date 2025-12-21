@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using TSIC.API.Dtos;
+using TSIC.Contracts.Dtos;
 
 namespace TSIC.API.Services.Metadata;
 

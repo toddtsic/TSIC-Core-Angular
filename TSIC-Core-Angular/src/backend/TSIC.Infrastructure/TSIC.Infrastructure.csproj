@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TSIC.Application\TSIC.Application.csproj" />
+    <ProjectReference Include="..\TSIC.Contracts\TSIC.Contracts.csproj" />
     <ProjectReference Include="..\TSIC.Domain\TSIC.Domain.csproj" />
   </ItemGroup>
 

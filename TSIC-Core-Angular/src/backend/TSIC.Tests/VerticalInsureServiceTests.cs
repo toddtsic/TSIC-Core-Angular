@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TSIC.API.Services;
+using TSIC.API.Services.External;
+using TSIC.API.Services.Teams;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using Xunit;
 

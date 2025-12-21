@@ -4,8 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Xunit;
-using TSIC.API.Services;
-using TSIC.API.Dtos;
+using TSIC.API.Services.External;
+using TSIC.Contracts.Dtos;
 
 namespace TSIC.Tests;
 

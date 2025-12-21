@@ -75,13 +75,13 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                 <!-- Only show the first USA Lacrosse # field per player -->
                 @let usLaxField = firstUsLaxField();
                 @if (usLaxField) {
-                  <div class="mb-3">
+                  <div class="mb-2">
                     <div class="uslax-field-group">
-                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, usLaxField.name)">
+                      <label class="form-label small mb-1 d-flex align-items-center gap-2" [for]="helpId(player.userId, usLaxField.name)">
                         <span>{{ usLaxField.label || 'USA Lacrosse Number' }}</span>
                         @if (usLaxField.required) { <span class="badge bg-danger text-white">Required</span> }
                       </label>
-                      <input type="text" class="form-control"
+                      <input type="text" class="form-control form-control-sm"
                              #uslax="ngModel"
                              [required]="usLaxField.required"
                              [id]="helpId(player.userId, usLaxField.name)"
@@ -125,17 +125,17 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                 }
 
                 <!-- Render all other visible, non-waiver fields with labels -->
-                <div class="row g-3">
+                <div class="row g-2">
                 @for (field of schemas(); track trackField($index, field)) {
                   @if (!isUsLaxField(field) && isFieldVisible(player.userId, field)) {
                     <div class="col-12 col-md-6">
-                      <label class="form-label fw-semibold d-flex align-items-center gap-2" [for]="helpId(player.userId, field.name)">
+                      <label class="form-label small mb-1 d-flex align-items-center gap-2" [for]="helpId(player.userId, field.name)">
                         <span>{{ field.label }}</span>
                         @if (field.required) { <span class="badge bg-danger text-white">Required</span> } @else { <span class="badge text-bg-light border">Optional</span> }
                       </label>
                       @switch (field.type) {
                         @case ('text') {
-           <input type="text" class="form-control"
+           <input type="text" class="form-control form-control-sm"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  autocomplete="off"
@@ -143,7 +143,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
                         @case ('number') {
-           <input type="number" class="form-control"
+           <input type="number" class="form-control form-control-sm"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  inputmode="numeric"
@@ -151,14 +151,14 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
                         @case ('date') {
-           <input type="date" class="form-control"
+           <input type="date" class="form-control form-control-sm"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
                         @case ('select') {
-        <select class="form-select"
+        <select class="form-select form-select-sm"
                                   [id]="helpId(player.userId, field.name)"
                                   [required]="field.required"
                                   [ngModel]="value(player.userId, field.name)"
@@ -193,7 +193,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                           </div>
                         }
                         @default {
-                          <input type="text" class="form-control"
+                          <input type="text" class="form-control form-control-sm"
                                  [id]="helpId(player.userId, field.name)"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />

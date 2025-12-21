@@ -2,10 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using TSIC.API.Dtos;
+using TSIC.Contracts.Dtos;
 using TSIC.Application.Validators;
 using Microsoft.AspNetCore.Identity;
-using TSIC.Application.Services;
+using TSIC.Application.Services.Auth;
+using TSIC.Application.Services.Users;
 using FluentValidation;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.API.Services.Auth;
@@ -262,3 +263,5 @@ namespace TSIC.API.Controllers
         }
     }
 }
+
+

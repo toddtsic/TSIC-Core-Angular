@@ -12,7 +12,10 @@
 			"options": {
 				"cwd": "${workspaceFolder}/TSIC-Core-Angular"
 			},
-			"problemMatcher": "$msCompile"
+			"problemMatcher": "$msCompile",
+			"presentation": {
+				"close": true
+			}
 		},
 		{
 			"label": "dotnet: run (API)",

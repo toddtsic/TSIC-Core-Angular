@@ -1,7 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TSIC.API.DTOs;
-using TSIC.API.Services;
+using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Services;
+using TSIC.API.Services.Players;
+using TSIC.API.Services.Teams;
+using TSIC.API.Services.Families;
+using TSIC.API.Services.Clubs;
+using TSIC.API.Services.Payments;
+using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Shared;
+using TSIC.API.Services.External;
+using TSIC.API.Services.Auth;
+using TSIC.API.Services.Email;
+using TSIC.API.Services.Validation;
 
 namespace TSIC.API.Controllers;
 

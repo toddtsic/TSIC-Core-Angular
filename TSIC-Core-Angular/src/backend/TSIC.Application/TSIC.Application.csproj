@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\TSIC.Contracts\TSIC.Contracts.csproj" />
     <ProjectReference Include="..\TSIC.Domain\TSIC.Domain.csproj" />
   </ItemGroup>
 

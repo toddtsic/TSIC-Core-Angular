@@ -18,8 +18,8 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
       <form [formGroup]="form" (ngSubmit)="noop()">
         <div class="row g-2">
           <div class="col-md-3">
-            <label class="form-label">CC Type</label>
-            <select class="form-select" formControlName="type" required aria-required="true">
+            <label class="form-label small mb-1">CC Type</label>
+            <select class="form-select form-select-sm" formControlName="type" required aria-required="true">
               <option value=""></option>
               <option value="MC">MC</option>
               <option value="VISA">VISA</option>
@@ -28,13 +28,13 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
             <div class="form-text text-danger" *ngIf="err('type')">{{ err('type') }}</div>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Card Number</label>
-            <input class="form-control" formControlName="number" (input)="formatNumber()">
+            <label class="form-label small mb-1">Card Number</label>
+            <input class="form-control form-control-sm" formControlName="number" (input)="formatNumber()">
             <div class="form-text text-danger" *ngIf="err('number')">{{ err('number') }}</div>
           </div>
           <div class="col-md-3">
-            <label class="form-label" for="cc-expiry">Expiry (MM / YY)</label>
-            <input id="cc-expiry" class="form-control" formControlName="expiry"
+            <label class="form-label small mb-1" for="cc-expiry">Expiry (MM / YY)</label>
+            <input id="cc-expiry" class="form-control form-control-sm" formControlName="expiry"
                    (input)="formatExpiry($event)" (blur)="forceMonthLeadingZero()"
                    placeholder="MM / YY" inputmode="numeric" autocomplete="cc-exp"
                    aria-describedby="cc-expiry-help">
@@ -42,39 +42,39 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
             <div class="form-text text-danger" *ngIf="err('expiry')">{{ err('expiry') }}</div>
           </div>
           <div class="col-md-2">
-            <label class="form-label">CVV</label>
-            <input class="form-control" formControlName="code" (input)="formatCvv()">
+            <label class="form-label small mb-1">CVV</label>
+            <input class="form-control form-control-sm" formControlName="code" (input)="formatCvv()">
             <div class="form-text text-danger" *ngIf="err('code')">{{ err('code') }}</div>
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-6">
-            <label class="form-label">First Name</label>
-            <input class="form-control" formControlName="firstName">
+            <label class="form-label small mb-1">First Name</label>
+            <input class="form-control form-control-sm" formControlName="firstName">
             <div class="form-text text-danger" *ngIf="err('firstName')">{{ err('firstName') }}</div>
           </div>
           <div class="col-md-6">
-            <label class="form-label">Last Name</label>
-            <input class="form-control" formControlName="lastName">
+            <label class="form-label small mb-1">Last Name</label>
+            <input class="form-control form-control-sm" formControlName="lastName">
             <div class="form-text text-danger" *ngIf="err('lastName')">{{ err('lastName') }}</div>
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-8">
-            <label class="form-label">Address</label>
-            <input class="form-control" formControlName="address">
+            <label class="form-label small mb-1">Address</label>
+            <input class="form-control form-control-sm" formControlName="address">
             <div class="form-text text-danger" *ngIf="err('address')">{{ err('address') }}</div>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Zip Code</label>
-            <input class="form-control" formControlName="zip">
+            <label class="form-label small mb-1">Zip Code</label>
+            <input class="form-control form-control-sm" formControlName="zip">
             <div class="form-text text-danger" *ngIf="err('zip')">{{ err('zip') }}</div>
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-6">
-            <label class="form-label">Email</label>
-            <input class="form-control" formControlName="email" autocomplete="email">
+            <label class="form-label small mb-1">Email</label>
+            <input class="form-control form-control-sm" formControlName="email" autocomplete="email">
             <div class="form-text text-danger" *ngIf="err('email')">{{ err('email') }}</div>
           </div>
           <div class="col-md-6">

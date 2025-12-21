@@ -11,9 +11,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TSIC.API.Dtos; // CreditCardInfo
-using TSIC.API.Services;
-using TSIC.API.Dtos.VerticalInsure;
+using TSIC.Contracts.Dtos; // CreditCardInfo
+using TSIC.API.Services.External;
+using TSIC.API.Services.Teams;
+using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using Xunit;

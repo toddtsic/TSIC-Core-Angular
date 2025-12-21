@@ -3,10 +3,24 @@ using TSIC.Infrastructure.Data.Identity;
 using TSIC.Domain.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using TSIC.Application.Services;
+using TSIC.Application.Services.Auth;
+using TSIC.Application.Services.Users;
 using TSIC.Application.Validators;
-using TSIC.Infrastructure.Services;
-using TSIC.API.Services;
+using TSIC.Application.Services.Players;
+using TSIC.Infrastructure.Services.Auth;
+using TSIC.Infrastructure.Services.Users;
+using TSIC.Contracts.Services;
+using TSIC.API.Services.Players;
+using TSIC.API.Services.Teams;
+using TSIC.API.Services.Families;
+using TSIC.API.Services.Clubs;
+using TSIC.API.Services.Payments;
+using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Shared;
+using TSIC.API.Services.External;
+using TSIC.API.Services.Auth;
+using TSIC.API.Services.Email;
+using TSIC.API.Services.Validation;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Validation;
 using TSIC.API.Services.Auth;
@@ -31,7 +45,12 @@ builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 builder.Services.AddScoped<IAdnApiService, AdnApiService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPlayerBaseTeamFeeResolverService, PlayerBaseTeamFeeResolverService>();
-builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
+builder.Services.AddScoped<IPlayerFeeCalculator>(sp =>
+{
+    // Read credit card processing percentage from configuration
+    var ccPercent = builder.Configuration.GetValue<decimal?>("Fees:CreditCardPercent") ?? 0.035m;
+    return new PlayerFeeCalculator(ccPercent);
+});
 builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService>();
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
 builder.Services.AddScoped<IPlayerRegistrationFeeService, PlayerRegistrationFeeService>();
@@ -240,3 +259,5 @@ app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.Ok())
 app.MapControllers();
 
 await app.RunAsync();
+
+

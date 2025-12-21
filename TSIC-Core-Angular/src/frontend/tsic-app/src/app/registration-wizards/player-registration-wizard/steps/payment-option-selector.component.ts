@@ -5,21 +5,21 @@ import { PaymentService } from '../services/payment.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
 
 @Component({
-    selector: 'app-payment-option-selector',
-    standalone: true,
-    imports: [CommonModule, FormsModule],
-    template: `
+  selector: 'app-payment-option-selector',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-option-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="pay-option-title" class="fw-semibold mb-3">Payment Option</h6>
 
       @if (state.jobHasActiveDiscountCodes()) {
         <div class="mb-3">
-          <label for="discountCode" class="form-label fw-semibold me-2 d-block d-md-inline">Discount Code</label>
+          <label for="discountCode" class="form-label small mb-1 me-2 d-block d-md-inline">Discount Code</label>
           <div class="input-group input-group-sm w-auto d-inline-flex align-items-center">
-            <input id="discountCode" type="text" [(ngModel)]="code" class="form-control" placeholder="Enter code"
+            <input id="discountCode" type="text" [(ngModel)]="code" class="form-control form-control-sm" placeholder="Enter code"
                    [disabled]="svc.discountApplying()" style="min-width: 180px;">
-            <button type="button" class="btn btn-outline-primary" (click)="apply()" [disabled]="svc.discountApplying() || !code">Apply</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="apply()" [disabled]="svc.discountApplying() || !code">Apply</button>
           </div>
           @if (svc.discountMessage()) {
             <div class="form-text mt-1"
@@ -63,13 +63,13 @@ import { RegistrationWizardService } from '../registration-wizard.service';
   `
 })
 export class PaymentOptionSelectorComponent {
-    code = '';
-    constructor(public svc: PaymentService, public state: RegistrationWizardService) { }
+  code = '';
+  constructor(public svc: PaymentService, public state: RegistrationWizardService) { }
 
-    choose(opt: 'PIF' | 'Deposit' | 'ARB') {
-        this.state.paymentOption.set(opt);
-        this.svc.resetDiscount();
-    }
+  choose(opt: 'PIF' | 'Deposit' | 'ARB') {
+    this.state.paymentOption.set(opt);
+    this.svc.resetDiscount();
+  }
 
-    apply() { this.svc.applyDiscount(this.code.trim()); }
+  apply() { this.svc.applyDiscount(this.code.trim()); }
 }

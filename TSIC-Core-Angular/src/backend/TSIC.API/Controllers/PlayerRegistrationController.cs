@@ -1,8 +1,19 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using TSIC.API.Dtos;
-using TSIC.API.Services;
+using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Services;
+using TSIC.API.Services.Players;
+using TSIC.API.Services.Teams;
+using TSIC.API.Services.Families;
+using TSIC.API.Services.Clubs;
+using TSIC.API.Services.Payments;
+using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Shared;
+using TSIC.API.Services.External;
+using TSIC.API.Services.Auth;
+using TSIC.API.Services.Email;
+using TSIC.API.Services.Validation;
 using TSIC.Infrastructure.Data.SqlDbContext; // (no direct use; kept if DI decoration needed later)
 
 namespace TSIC.API.Controllers;
@@ -28,10 +39,10 @@ public class PlayerRegistrationController : ControllerBase
     /// </summary>
     [HttpPost("preSubmit")]
     [Authorize]
-    [ProducesResponseType(typeof(TSIC.API.Dtos.PreSubmitPlayerRegistrationResponseDto), 200)]
+    [ProducesResponseType(typeof(TSIC.Contracts.Dtos.PreSubmitPlayerRegistrationResponseDto), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> PreSubmitRegistration([FromBody] TSIC.API.Dtos.PreSubmitPlayerRegistrationRequestDto request)
+    public async Task<IActionResult> PreSubmitRegistration([FromBody] TSIC.Contracts.Dtos.PreSubmitPlayerRegistrationRequestDto request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.JobPath) || string.IsNullOrWhiteSpace(request.FamilyUserId))
             return BadRequest(new { message = "Invalid preSubmit request" });

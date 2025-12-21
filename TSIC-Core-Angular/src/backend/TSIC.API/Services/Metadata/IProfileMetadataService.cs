@@ -1,5 +1,5 @@
 using System.Text.Json;
-using TSIC.API.Dtos;
+using TSIC.Contracts.Dtos;
 
 namespace TSIC.API.Services.Metadata;
 
