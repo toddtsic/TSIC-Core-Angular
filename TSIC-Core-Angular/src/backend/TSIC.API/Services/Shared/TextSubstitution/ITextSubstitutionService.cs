@@ -1,4 +1,4 @@
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.TextSubstitution;
 
 public interface ITextSubstitutionService
 {

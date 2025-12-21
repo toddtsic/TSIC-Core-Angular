@@ -8,8 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Application.Services.Players;
 using TSIC.Application.Services.Shared;
+using TSIC.API.Services.Shared.Utilities;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.TextSubstitution;
 
 /// <summary>
 /// Rewritten version of legacy TextSubstitutionService.

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
-using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Players;

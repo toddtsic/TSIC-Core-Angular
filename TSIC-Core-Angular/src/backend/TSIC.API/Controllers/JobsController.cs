@@ -10,8 +10,8 @@ using TSIC.API.Services.Payments;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Auth;
-using TSIC.API.Services.Email;
 using TSIC.API.Services.Shared.UsLax;
 
 namespace TSIC.API.Controllers;

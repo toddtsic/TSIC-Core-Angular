@@ -1,6 +1,6 @@
 using MimeKit;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Email;
 
 public interface IEmailService
 {

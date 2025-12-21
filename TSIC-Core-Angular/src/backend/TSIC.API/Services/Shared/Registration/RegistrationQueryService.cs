@@ -2,8 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.API.Services.Shared.Jobs;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Registration;
 
 public sealed class RegistrationQueryService : IRegistrationQueryService
 {

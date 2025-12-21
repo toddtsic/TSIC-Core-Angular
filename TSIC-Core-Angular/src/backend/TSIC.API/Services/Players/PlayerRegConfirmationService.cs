@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Infrastructure.Data.SqlDbContext;
-using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.TextSubstitution;
 
 namespace TSIC.API.Services.Players;
 

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Jobs;
 
 public class JobMetadataDto
 {

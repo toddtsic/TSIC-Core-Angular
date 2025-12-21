@@ -1,6 +1,6 @@
 using TSIC.Infrastructure.Data.SqlDbContext;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Accounting;
 
 public interface IAccountingService
 {

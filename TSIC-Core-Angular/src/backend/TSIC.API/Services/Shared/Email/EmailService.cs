@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using TSIC.Domain.Constants;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Email;
 
 /// <summary>
 /// Amazon SES implementation only. Other legacy SMTP providers intentionally removed.

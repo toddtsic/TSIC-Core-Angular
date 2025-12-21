@@ -1,6 +1,6 @@
 using TSIC.Contracts.Dtos;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Registration;
 
 public interface IRegistrationQueryService
 {

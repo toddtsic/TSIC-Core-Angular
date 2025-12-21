@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Utilities;
 
 internal class SampleBackgroundService(ILogger<SampleBackgroundService> logger) : BackgroundService
 {

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Domain.Entities;
 
-namespace TSIC.API.Services.Shared;
+namespace TSIC.API.Services.Shared.Accounting;
 
 /// <summary>
 /// Minimal accounting service extracted from legacy production code. Responsible only for discount calculation.

@@ -1,7 +1,7 @@
 using Amazon.SimpleEmail;
 using Amazon.SimpleEmail.Model;
 using Microsoft.Extensions.Options;
-using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.Email;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Services.Email;
