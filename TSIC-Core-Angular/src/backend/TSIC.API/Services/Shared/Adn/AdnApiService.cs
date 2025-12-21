@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using TSIC.Contracts.Dtos;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
-namespace TSIC.API.Services.External;
+namespace TSIC.API.Services.Shared.Adn;
 
 // Authorize.Net transport records moved to Dtos/Payments/AuthorizeNet/AuthorizeNetRequests.cs
 

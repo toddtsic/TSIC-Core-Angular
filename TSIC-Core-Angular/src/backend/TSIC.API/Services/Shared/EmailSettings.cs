@@ -1,4 +1,4 @@
-namespace TSIC.API.Services.Email;
+namespace TSIC.API.Services.Shared;
 
 /// <summary>
 /// Configuration for email sending. Only Amazon SES is supported; if EmailingEnabled is false

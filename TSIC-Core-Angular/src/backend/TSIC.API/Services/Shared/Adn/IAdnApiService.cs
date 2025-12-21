@@ -2,7 +2,7 @@ using AuthorizeNet.Api.Contracts.V1;
 using TSIC.Contracts.Dtos;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
-namespace TSIC.API.Services.External;
+namespace TSIC.API.Services.Shared.Adn;
 
 public interface IAdnApiService
 {

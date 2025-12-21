@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TSIC.Contracts.Dtos;
 using TSIC.API.Services.Payments;
-using TSIC.API.Services.External;
+using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Players;
 using TSIC.Domain.Entities;

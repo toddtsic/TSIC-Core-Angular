@@ -10,7 +10,7 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Application.Services.Shared;
 using TSIC.API.Services.Teams;
 
-namespace TSIC.API.Services.External;
+namespace TSIC.API.Services.Shared.VerticalInsure;
 
 /// <summary>
 /// Encapsulates all VerticalInsure / RegSaver snapshot generation logic.

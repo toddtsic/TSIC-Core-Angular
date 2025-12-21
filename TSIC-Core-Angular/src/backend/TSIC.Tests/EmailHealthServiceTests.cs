@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using TSIC.API.Services.Email;
+using TSIC.API.Services.Shared;
 using Xunit;
 
 namespace TSIC.Tests;

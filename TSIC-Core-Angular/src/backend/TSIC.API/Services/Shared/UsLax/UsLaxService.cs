@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
-namespace TSIC.API.Services.Validation;
+namespace TSIC.API.Services.Shared.UsLax;
 
 public sealed class UsLaxService : IUsLaxService
 {

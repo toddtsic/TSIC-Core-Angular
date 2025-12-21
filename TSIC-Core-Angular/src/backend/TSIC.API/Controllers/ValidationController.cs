@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
-using TSIC.API.Services.Validation;
+using TSIC.API.Services.Shared.UsLax;
 
 namespace TSIC.API.Controllers;
 

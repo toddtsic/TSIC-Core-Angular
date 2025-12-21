@@ -1,7 +1,7 @@
 using TSIC.Contracts.Dtos; // Unified DTOs (includes CreditCardInfo via PaymentDtos, VerticalInsurePurchaseResult via InsurancePurchaseDtos)
 using TSIC.Contracts.Dtos.VerticalInsure; // VICreditCardDto and related
 
-namespace TSIC.API.Services.External;
+namespace TSIC.API.Services.Shared.VerticalInsure;
 
 public interface IVerticalInsureService
 {

@@ -8,7 +8,7 @@ using TSIC.Contracts.Services;
 using TSIC.Application.Services.Players;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Domain.Entities;
-using TSIC.API.Services.External;
+using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 
 namespace TSIC.API.Services.Players;

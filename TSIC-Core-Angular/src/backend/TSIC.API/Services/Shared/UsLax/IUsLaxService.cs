@@ -1,4 +1,4 @@
-namespace TSIC.API.Services.Validation;
+namespace TSIC.API.Services.Shared.UsLax;
 
 public interface IUsLaxService
 {
