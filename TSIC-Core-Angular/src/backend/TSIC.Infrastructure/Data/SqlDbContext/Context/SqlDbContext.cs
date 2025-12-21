@@ -344,6 +344,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<Txs> Txs { get; set; }
 
+    public virtual DbSet<VItemsToUpdate> VItemsToUpdate { get; set; }
+
     public virtual DbSet<VMonthlyJobStats> VMonthlyJobStats { get; set; }
 
     public virtual DbSet<VRegistrationsSearch> VRegistrationsSearch { get; set; }
@@ -1105,14 +1107,14 @@ public partial class SqlDbContext : DbContext
             entity.ToTable("agegroups", "Leagues");
 
             entity.Property(e => e.AgegroupId)
-                .HasDefaultValueSql("(newsequentialid())")
+                .HasDefaultValueSql("(newsequentialid())", "DF__agegroups__agegr__21C0F255")
                 .HasColumnName("agegroupID");
             entity.Property(e => e.AgegroupName).HasColumnName("agegroupName");
             entity.Property(e => e.BAllowApiRosterAccess)
                 .HasDefaultValue(false)
                 .HasColumnName("bAllowApiRosterAccess");
             entity.Property(e => e.BAllowSelfRostering)
-                .HasDefaultValue(false)
+                .HasDefaultValue(false, "DF_agegroups_bAllowSelfRostering")
                 .HasColumnName("bAllowSelfRostering");
             entity.Property(e => e.BChampionsByDivision)
                 .HasDefaultValue(false)
@@ -1141,13 +1143,13 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.MaxTeams)
-                .HasDefaultValue(100)
+                .HasDefaultValue(100, "DF__agegroups__maxTe__22B5168E")
                 .HasColumnName("maxTeams");
             entity.Property(e => e.MaxTeamsPerClub)
-                .HasDefaultValue(100)
+                .HasDefaultValue(100, "DF__agegroups__maxTe__23A93AC7")
                 .HasColumnName("maxTeamsPerClub");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF__agegroups__modif__249D5F00")
                 .HasColumnName("modified");
             entity.Property(e => e.PlayerFeeOverride).HasColumnType("money");
             entity.Property(e => e.RosterFee)
@@ -1295,7 +1297,7 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF_AspNetUsers_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.Phone).HasColumnName("phone");
             entity.Property(e => e.PostalCode).HasColumnName("postalCode");
@@ -1652,7 +1654,7 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<ClubReps>(entity =>
         {
-            entity.HasKey(e => e.Aid).HasName("PK__ClubReps__C6970A1003EA6947");
+            entity.HasKey(e => e.Aid).HasName("PK__ClubReps__C6970A105879EB8F");
 
             entity.ToTable("ClubReps", "Clubs");
 
@@ -1665,24 +1667,25 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.Club).WithMany(p => p.ClubReps)
                 .HasForeignKey(d => d.ClubId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClubReps__ClubId__602A9B27");
+                .HasConstraintName("FK__ClubReps__ClubId__0650440F");
 
             entity.HasOne(d => d.ClubRepUser).WithMany(p => p.ClubRepsClubRepUser)
                 .HasForeignKey(d => d.ClubRepUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClubReps__ClubRe__611EBF60");
+                .HasConstraintName("FK__ClubReps__ClubRe__07446848");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.ClubRepsLebUser)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK__ClubReps__LebUse__6212E399");
+                .HasConstraintName("FK__ClubReps__LebUse__08388C81");
         });
 
         modelBuilder.Entity<ClubTeams>(entity =>
         {
-            entity.HasKey(e => e.ClubTeamId).HasName("PK__ClubTeam__831909DC1095B2C0");
+            entity.HasKey(e => e.ClubTeamId).HasName("PK__ClubTeam__831909DCC9F5B04D");
 
             entity.ToTable("ClubTeams", "Clubs");
 
+            entity.Property(e => e.Active).HasDefaultValue(true);
             entity.Property(e => e.ClubTeamGradYear).IsUnicode(false);
             entity.Property(e => e.ClubTeamLevelOfPlay)
                 .HasMaxLength(10)
@@ -1696,16 +1699,16 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.Club).WithMany(p => p.ClubTeams)
                 .HasForeignKey(d => d.ClubId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClubTeams__ClubI__65E3747D");
+                .HasConstraintName("FK__ClubTeams__ClubI__0C091D65");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.ClubTeams)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK__ClubTeams__LebUs__66D798B6");
+                .HasConstraintName("FK__ClubTeams__LebUs__0CFD419E");
         });
 
         modelBuilder.Entity<Clubs>(entity =>
         {
-            entity.HasKey(e => e.ClubId).HasName("PK__Clubs__D35058E77D57F962");
+            entity.HasKey(e => e.ClubId).HasName("PK__Clubs__D35058E7615E4D34");
 
             entity.ToTable("Clubs", "Clubs");
 
@@ -1719,7 +1722,7 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.Clubs)
                 .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK__Clubs__LebUserId__5C5A0A43");
+                .HasConstraintName("FK__Clubs__LebUserId__027FB32B");
         });
 
         modelBuilder.Entity<ContactRelationshipCategories>(entity =>
@@ -2099,7 +2102,7 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF_Families_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.MomCellphone)
                 .HasMaxLength(64)
@@ -2155,7 +2158,7 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF_Family_Members_modified")
                 .HasColumnName("modified");
 
             entity.HasOne(d => d.FamilyMemberUser).WithMany(p => p.FamilyMembers)
@@ -3656,7 +3659,7 @@ public partial class SqlDbContext : DbContext
             entity.ToTable("JobDisplayOptions", "Jobs");
 
             entity.Property(e => e.JobId)
-                .HasDefaultValueSql("(newsequentialid())")
+                .HasDefaultValueSql("(newsequentialid())", "DF_JobDisplayOptions_jobID")
                 .HasColumnName("jobID");
             entity.Property(e => e.BlockPurchase)
                 .IsUnicode(false)
@@ -3689,7 +3692,7 @@ public partial class SqlDbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("logo_header");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF_JobDisplayOptions_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.ParallaxBackgroundImage)
                 .IsUnicode(false)
@@ -3944,7 +3947,7 @@ public partial class SqlDbContext : DbContext
             entity.ToTable("JobOwlImages", "Jobs");
 
             entity.Property(e => e.JobId)
-                .HasDefaultValueSql("(newsequentialid())")
+                .HasDefaultValueSql("(newsequentialid())", "DF_JobOwlImages_jobID")
                 .HasColumnName("jobID");
             entity.Property(e => e.Caption)
                 .IsUnicode(false)
@@ -3953,7 +3956,7 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF_JobOwlImages_modified")
                 .HasColumnName("modified");
             entity.Property(e => e.OwlImage01)
                 .IsUnicode(false)
@@ -4115,7 +4118,7 @@ public partial class SqlDbContext : DbContext
             entity.HasIndex(e => e.JobCode, "ui_jobcode_valued").HasFilter("([jobCode] IS NOT NULL)");
 
             entity.Property(e => e.JobId)
-                .HasDefaultValueSql("(newsequentialid())")
+                .HasDefaultValueSql("(newsequentialid())", "DF__Jobs__jobID__2C3E80C8")
                 .HasColumnName("jobID");
             entity.Property(e => e.AdnArb)
                 .HasDefaultValue(false)
@@ -4211,8 +4214,8 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.DisplayName).IsUnicode(false);
             entity.Property(e => e.EventEndDate).HasColumnType("datetime");
             entity.Property(e => e.EventStartDate).HasColumnType("datetime");
-            entity.Property(e => e.ExpiryAdmin).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.ExpiryUsers).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ExpiryAdmin).HasDefaultValueSql("(getdate())", "DF__Jobs__ExpiryAdmi__2962141D");
+            entity.Property(e => e.ExpiryUsers).HasDefaultValueSql("(getdate())", "DF__Jobs__ExpiryUser__2A563856");
             entity.Property(e => e.JobAi)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("jobAI");
@@ -4241,7 +4244,7 @@ public partial class SqlDbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("mobileJobName");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF__Jobs__modified__2D32A501")
                 .HasColumnName("modified");
             entity.Property(e => e.MomLabel).IsUnicode(false);
             entity.Property(e => e.PayTo).HasColumnName("payTo");
@@ -4275,22 +4278,22 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.RegformNameClubRep)
                 .HasMaxLength(50)
                 .IsUnicode(false)
-                .HasDefaultValue("Default_Form")
+                .HasDefaultValue("Default_Form", "DF_Jobs_RegformName_ClubRep")
                 .HasColumnName("RegformName_ClubRep");
             entity.Property(e => e.RegformNameCoach)
                 .HasMaxLength(50)
                 .IsUnicode(false)
-                .HasDefaultValue("Default_Form")
+                .HasDefaultValue("Default_Form", "DF_Jobs_RegformName_Coach")
                 .HasColumnName("RegformName_Coach");
             entity.Property(e => e.RegformNamePlayer)
                 .HasMaxLength(50)
                 .IsUnicode(false)
-                .HasDefaultValue("Default_Form")
+                .HasDefaultValue("Default_Form", "DF_Jobs_RegformName_Player")
                 .HasColumnName("RegformName_Player");
             entity.Property(e => e.RegformNameTeam)
                 .HasMaxLength(50)
                 .IsUnicode(false)
-                .HasDefaultValue("Default_Form")
+                .HasDefaultValue("Default_Form", "DF_Jobs_RegformName_Team")
                 .HasColumnName("RegformName_Team");
             entity.Property(e => e.Rescheduleemaillist)
                 .IsUnicode(false)
@@ -4311,6 +4314,9 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.StoreSalesTax)
                 .HasColumnType("money")
                 .HasColumnName("storeSalesTax");
+            entity.Property(e => e.StoreTsicrate)
+                .HasColumnType("decimal(8, 3)")
+                .HasColumnName("storeTSICRate");
             entity.Property(e => e.UslaxNumberValidThroughDate)
                 .HasColumnType("datetime")
                 .HasColumnName("USLaxNumberValidThroughDate");
@@ -4548,7 +4554,7 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF__Monthly_J__modif__33221F2F")
                 .HasColumnType("datetime")
                 .HasColumnName("modified");
             entity.Property(e => e.Month).HasColumnName("month");
@@ -5104,7 +5110,7 @@ public partial class SqlDbContext : DbContext
             entity.HasIndex(e => e.RegistrationAi, "UI_Registrations_Ai").IsUnique();
 
             entity.Property(e => e.RegistrationId)
-                .HasDefaultValueSql("(newsequentialid())")
+                .HasDefaultValueSql("(newsequentialid())", "DF__Registrat__Regis__3C3FDE67")
                 .HasColumnName("RegistrationID");
             entity.Property(e => e.Act).HasColumnName("act");
             entity.Property(e => e.AdnSubscriptionAmountPerOccurence)
@@ -5244,7 +5250,7 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("lebUserID");
             entity.Property(e => e.MedicalNote).HasColumnName("medical_note");
             entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(getdate())", "DF__Registrat__modif__3E2826D9")
                 .HasColumnName("modified");
             entity.Property(e => e.ModifiedMobile).HasColumnName("modified_mobile");
             entity.Property(e => e.MomInstagram)
@@ -5996,6 +6002,10 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.LebUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Stores__lebUserI__025FB79A");
+
+            entity.HasOne(d => d.ParentStore).WithMany(p => p.InverseParentStore)
+                .HasForeignKey(d => d.ParentStoreId)
+                .HasConstraintName("FK__Stores__ParentSt__344C18E9");
         });
 
         modelBuilder.Entity<TeamAttendanceEvents>(entity =>
@@ -6314,7 +6324,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.AgegroupId).HasColumnName("agegroupID");
             entity.Property(e => e.AgegroupRequested).HasColumnName("agegroupRequested");
             entity.Property(e => e.BAllowSelfRostering)
-                .HasDefaultValue(false)
+                .HasDefaultValue(false, "DF_teams_bAllowSelfRostering")
                 .HasColumnName("bAllowSelfRostering");
             entity.Property(e => e.BDoNotValidateUslaxNumber)
                 .HasDefaultValue(false)
@@ -6462,7 +6472,7 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.ClubTeam).WithMany(p => p.Teams)
                 .HasForeignKey(d => d.ClubTeamId)
-                .HasConstraintName("FK__teams__ClubTeamI__68BFE128");
+                .HasConstraintName("FK__teams__ClubTeamI__0EE58A10");
 
             entity.HasOne(d => d.Clubrep).WithMany(p => p.TeamsClubrep)
                 .HasForeignKey(d => d.ClubrepId)
@@ -6804,6 +6814,16 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Zip)
                 .HasMaxLength(50)
                 .HasColumnName("ZIP");
+        });
+
+        modelBuilder.Entity<VItemsToUpdate>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("vItemsToUpdate", "stores");
+
+            entity.Property(e => e.StoreItemName).IsUnicode(false);
+            entity.Property(e => e.StoreItemPrice).HasColumnType("money");
         });
 
         modelBuilder.Entity<VMonthlyJobStats>(entity =>

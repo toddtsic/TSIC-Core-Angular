@@ -1,37 +1,51 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
-using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Application.Services.Clubs;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Teams;
 
 public class TeamRegistrationService : ITeamRegistrationService
 {
-    private readonly SqlDbContext _db;
     private readonly ILogger<TeamRegistrationService> _logger;
+    private readonly IClubRepRepository _clubReps;
+    private readonly IClubRepository _clubs;
+    private readonly IClubTeamRepository _clubTeams;
+    private readonly IJobRepository _jobs;
+    private readonly IJobLeagueRepository _jobLeagues;
+    private readonly IAgeGroupRepository _agegroups;
+    private readonly ITeamRepository _teams;
 
     public TeamRegistrationService(
-        SqlDbContext db,
-        ILogger<TeamRegistrationService> logger)
+        ILogger<TeamRegistrationService> logger,
+        IClubRepRepository clubReps,
+        IClubRepository clubs,
+        IClubTeamRepository clubTeams,
+        IJobRepository jobs,
+        IJobLeagueRepository jobLeagues,
+        IAgeGroupRepository agegroups,
+        ITeamRepository teams)
     {
-        _db = db;
         _logger = logger;
+        _clubReps = clubReps;
+        _clubs = clubs;
+        _clubTeams = clubTeams;
+        _jobs = jobs;
+        _jobLeagues = jobLeagues;
+        _agegroups = agegroups;
+        _teams = teams;
     }
 
     public async Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId)
     {
         _logger.LogInformation("Getting clubs for user: {UserId}", userId);
 
-        var clubs = await _db.ClubReps
-            .Where(cr => cr.ClubRepUserId == userId)
-            .Select(cr => new ClubRepClubDto
-            {
-                ClubName = cr.Club.ClubName,
-                IsInUse = _db.Teams.Any(t => t.ClubTeam!.ClubId == cr.ClubId)
-            })
+        var clubsRaw = await _clubReps.GetClubsForUserAsync(userId);
+        var clubs = clubsRaw
+            .Select(c => new ClubRepClubDto { ClubName = c.ClubName, IsInUse = c.IsInUse })
             .OrderBy(c => c.ClubName)
-            .ToListAsync();
+            .ToList();
 
         _logger.LogInformation("Found {ClubCount} clubs for user {UserId}", clubs.Count, userId);
         return clubs;
@@ -42,10 +56,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}", jobPath, userId, clubName);
 
         // Get club rep for user and club
-        var clubRep = await _db.ClubReps
-            .Where(cr => cr.ClubRepUserId == userId && cr.Club.ClubName == clubName)
-            .Select(cr => new { cr.ClubId, cr.Club.ClubName })
-            .SingleOrDefaultAsync();
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        var clubRep = myClubs.FirstOrDefault(c => string.Equals(c.ClubName, clubName, StringComparison.OrdinalIgnoreCase));
 
         if (clubRep == null)
         {
@@ -54,10 +66,9 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Get job
-        var job = await _db.Jobs
-            .Where(j => j.JobPath == jobPath)
-            .Select(j => new { j.JobId, j.Season })
-            .SingleOrDefaultAsync();
+        var jobId = await _jobs.GetJobIdByPathAsync(jobPath) ?? throw new InvalidOperationException($"Event not found: {jobPath}");
+        var jobSeason = await _jobs.Query().Where(j => j.JobId == jobId).Select(j => j.Season).SingleOrDefaultAsync();
+        if (jobSeason == null) throw new InvalidOperationException($"Event not found: {jobPath}");
 
         if (job == null)
         {
@@ -66,11 +77,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Get league for this job (prefer primary, fall back to first league)
-        var jobLeague = await _db.JobLeagues
-            .Where(jl => jl.JobId == job.JobId)
-            .OrderByDescending(jl => jl.BIsPrimary)
-            .Select(jl => new { jl.LeagueId })
-            .FirstOrDefaultAsync();
+        var jobLeague = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId);
 
         if (jobLeague == null)
         {
@@ -81,52 +88,44 @@ public class TeamRegistrationService : ITeamRegistrationService
         var leagueId = jobLeague.LeagueId;
 
         // Get club teams for this club
-        var clubTeams = await _db.ClubTeams
-            .Where(ct => ct.ClubId == clubRep.ClubId)
-            .Select(ct => new ClubTeamDto
-            {
-                ClubTeamId = ct.ClubTeamId,
-                ClubTeamName = ct.ClubTeamName,
-                ClubTeamGradYear = ct.ClubTeamGradYear,
-                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay
-            })
-            .OrderBy(ct => ct.ClubTeamName)
-            .ToListAsync();
+        var clubTeams = await _clubTeams.GetClubTeamsForClubAsync(clubRep.ClubId);
 
         // Get already registered teams for this club and event
-        var registeredTeams = await _db.Teams
-            .Where(t => t.JobId == job.JobId && t.ClubTeam!.ClubId == clubRep.ClubId)
-            .Select(t => new RegisteredTeamDto
-            {
-                TeamId = t.TeamId,
-                ClubTeamId = t.ClubTeamId!.Value,
-                ClubTeamName = t.ClubTeam!.ClubTeamName,
-                ClubTeamGradYear = t.ClubTeam!.ClubTeamGradYear,
-                ClubTeamLevelOfPlay = t.ClubTeam!.ClubTeamLevelOfPlay,
-                AgeGroupId = t.AgegroupId,
-                AgeGroupName = t.Agegroup!.AgegroupName ?? string.Empty,
-                FeeBase = t.FeeBase ?? 0,
-                FeeProcessing = t.FeeProcessing ?? 0,
-                FeeTotal = (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0),
-                PaidTotal = t.PaidTotal ?? 0,
-                OwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0)
-            })
-            .ToListAsync();
+        var regInfos = await _teams.GetRegisteredTeamsForClubAndJobAsync(jobId, clubRep.ClubId);
+        var registeredTeams = regInfos.Select(info => new RegisteredTeamDto
+        {
+            TeamId = info.TeamId,
+            ClubTeamId = info.ClubTeamId,
+            ClubTeamName = info.ClubTeamName,
+            ClubTeamGradYear = info.ClubTeamGradYear,
+            ClubTeamLevelOfPlay = info.ClubTeamLevelOfPlay,
+            AgeGroupId = info.AgeGroupId,
+            AgeGroupName = info.AgeGroupName,
+            FeeBase = info.FeeBase,
+            FeeProcessing = info.FeeProcessing,
+            FeeTotal = info.FeeTotal,
+            PaidTotal = info.PaidTotal,
+            OwedTotal = info.OwedTotal
+        }).ToList();
 
         // Get age groups for this league/season with their registration counts
-        var ageGroups = await _db.Agegroups
-            .Where(ag => ag.LeagueId == leagueId && ag.Season == job.Season && ag.MaxTeams > 0)
-            .Select(ag => new AgeGroupDto
+        var ageGroupEntities = _agegroups.Query()
+            .Where(ag => ag.LeagueId == leagueId && ag.Season == jobSeason && ag.MaxTeams > 0)
+            .OrderBy(ag => ag.AgegroupName);
+        var ageGroups = new List<AgeGroupDto>();
+        foreach (var ag in await ageGroupEntities.ToListAsync())
+        {
+            var regCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId, ag.AgegroupId);
+            ageGroups.Add(new AgeGroupDto
             {
                 AgeGroupId = ag.AgegroupId,
                 AgeGroupName = ag.AgegroupName ?? string.Empty,
                 MaxTeams = ag.MaxTeams,
                 RosterFee = ag.RosterFee ?? 0,
                 TeamFee = ag.TeamFee ?? 0,
-                RegisteredCount = _db.Teams.Count(t => t.JobId == job.JobId && t.AgegroupId == ag.AgegroupId)
-            })
-            .OrderBy(ag => ag.AgeGroupName)
-            .ToListAsync();
+                RegisteredCount = regCount
+            });
+        }
 
         _logger.LogInformation("Found {ClubTeamCount} club teams, {RegisteredCount} registered teams, {AgeGroupCount} age groups",
             clubTeams.Count, registeredTeams.Count, ageGroups.Count);
@@ -147,10 +146,13 @@ public class TeamRegistrationService : ITeamRegistrationService
             request.JobPath, request.ClubTeamId, userId);
 
         // Get club rep
-        var clubRep = await _db.ClubReps
-            .Where(cr => cr.ClubRepUserId == userId)
-            .Select(cr => new { cr.ClubId })
-            .FirstOrDefaultAsync();
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        var clubId = myClubs.FirstOrDefault()?.ClubId;
+        if (clubId == null)
+        {
+            _logger.LogWarning("User {UserId} is not a club rep", userId);
+            throw new InvalidOperationException("User is not authorized as a club representative");
+        }
 
         if (clubRep == null)
         {
@@ -159,40 +161,31 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Get club team and verify ownership
-        var clubTeam = await _db.ClubTeams
-            .Where(ct => ct.ClubTeamId == request.ClubTeamId)
-            .Select(ct => new { ct.ClubId, ct.ClubTeamGradYear })
-            .SingleOrDefaultAsync();
+        var clubTeamEntity = await _clubTeams.GetByIdAsync(request.ClubTeamId);
 
-        if (clubTeam == null)
+        if (clubTeamEntity == null)
         {
             _logger.LogWarning("Club team not found: {ClubTeamId}", request.ClubTeamId);
             throw new InvalidOperationException("Club team not found");
         }
 
-        if (clubTeam.ClubId != clubRep.ClubId)
+        if (clubTeamEntity.ClubId != clubId)
         {
             _logger.LogWarning("Club team {ClubTeamId} does not belong to user's club", request.ClubTeamId);
             throw new InvalidOperationException("You can only register teams from your own club");
         }
 
         // Get job
-        var job = await _db.Jobs
-            .Where(j => j.JobPath == request.JobPath)
-            .SingleOrDefaultAsync();
+        var jobId = await _jobs.GetJobIdByPathAsync(request.JobPath);
 
-        if (job == null)
+        if (jobId == null)
         {
             _logger.LogWarning("Job not found: {JobPath}", request.JobPath);
             throw new InvalidOperationException($"Event not found: {request.JobPath}");
         }
 
         // Get league for this job (prefer primary, fall back to first league)
-        var jobLeague = await _db.JobLeagues
-            .Where(jl => jl.JobId == job.JobId)
-            .OrderByDescending(jl => jl.BIsPrimary)
-            .Select(jl => new { jl.LeagueId })
-            .FirstOrDefaultAsync();
+        var jobLeague = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId.Value);
 
         if (jobLeague == null)
         {
@@ -203,8 +196,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         var leagueId = jobLeague.LeagueId;
 
         // Check if team is already registered
-        var existingTeam = await _db.Teams
-            .Where(t => t.JobId == job.JobId && t.ClubTeamId == request.ClubTeamId)
+        var existingTeam = await _teams.Query()
+            .Where(t => t.JobId == jobId && t.ClubTeamId == request.ClubTeamId)
             .FirstOrDefaultAsync();
 
         if (existingTeam != null)
@@ -223,8 +216,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             // Use provided age group
             ageGroupId = request.AgeGroupId.Value;
-            var providedAgeGroup = await _db.Agegroups
-                .Where(ag => ag.AgegroupId == ageGroupId && ag.LeagueId == leagueId && ag.Season == job.Season)
+            var providedAgeGroup = await _agegroups.Query()
+                .Where(ag => ag.AgegroupId == ageGroupId && ag.LeagueId == leagueId)
                 .SingleOrDefaultAsync();
 
             if (providedAgeGroup == null)
@@ -239,7 +232,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         else
         {
             // Auto-determine age group by grad year
-            var gradYearString = clubTeam.ClubTeamGradYear;
+            var gradYearString = clubTeamEntity.ClubTeamGradYear;
             if (string.IsNullOrWhiteSpace(gradYearString) || !int.TryParse(gradYearString, out var gradYear))
             {
                 _logger.LogWarning("Cannot auto-determine age group: ClubTeam {ClubTeamId} has no valid grad year",
@@ -247,9 +240,8 @@ public class TeamRegistrationService : ITeamRegistrationService
                 throw new InvalidOperationException("Age group must be specified or team must have a valid graduation year");
             }
 
-            var ageGroup = await _db.Agegroups
+            var ageGroup = await _agegroups.Query()
                 .Where(ag => ag.LeagueId == leagueId
-                    && ag.Season == job.Season
                     && ag.MaxTeams > 0
                     && (ag.GradYearMin == null || ag.GradYearMin <= gradYear)
                     && (ag.GradYearMax == null || ag.GradYearMax >= gradYear))
@@ -268,11 +260,9 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Verify age group has capacity
-        var registeredCount = await _db.Teams
-            .Where(t => t.JobId == job.JobId && t.AgegroupId == ageGroupId)
-            .CountAsync();
+        var registeredCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId.Value, ageGroupId);
 
-        var maxTeams = await _db.Agegroups
+        var maxTeams = await _agegroups.Query()
             .Where(ag => ag.AgegroupId == ageGroupId)
             .Select(ag => ag.MaxTeams)
             .FirstOrDefaultAsync();
@@ -294,7 +284,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var team = new Domain.Entities.Teams
         {
             TeamId = Guid.NewGuid(),
-            JobId = job.JobId,
+            JobId = jobId.Value,
             LeagueId = leagueId,
             AgegroupId = ageGroupId,
             ClubTeamId = request.ClubTeamId,
@@ -305,9 +295,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             Createdate = DateTime.UtcNow,
             Modified = DateTime.UtcNow
         };
-
-        _db.Teams.Add(team);
-        await _db.SaveChangesAsync();
+        _teams.Add(team);
+        await _teams.SaveChangesAsync();
 
         _logger.LogInformation("Team registered successfully. TeamId: {TeamId}, FeeBase: {FeeBase}, FeeProcessing: {FeeProcessing}",
             team.TeamId, feeBase, feeProcessing);
@@ -325,10 +314,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Unregistering team {TeamId} for user {UserId}", teamId, userId);
 
         // Get club rep
-        var clubRep = await _db.ClubReps
-            .Where(cr => cr.ClubRepUserId == userId)
-            .Select(cr => new { cr.ClubId })
-            .FirstOrDefaultAsync();
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
 
         if (clubRep == null)
         {
@@ -337,10 +323,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Get team and verify ownership
-        var team = await _db.Teams
-            .Include(t => t.ClubTeam)
-            .Where(t => t.TeamId == teamId)
-            .SingleOrDefaultAsync();
+        var team = await _teams.GetTeamWithDetailsAsync(teamId);
 
         if (team == null)
         {
@@ -348,7 +331,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Team registration not found");
         }
 
-        if (team.ClubTeam?.ClubId != clubRep.ClubId)
+        if (team.ClubTeam is null || !myClubs.Any(c => c.ClubId == team.ClubTeam.ClubId))
         {
             _logger.LogWarning("Team {TeamId} does not belong to user's club", teamId);
             throw new InvalidOperationException("You can only unregister teams from your own club");
@@ -363,8 +346,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Remove team
-        _db.Teams.Remove(team);
-        await _db.SaveChangesAsync();
+        _teams.Remove(team);
+        await _teams.SaveChangesAsync();
 
         _logger.LogInformation("Team {TeamId} unregistered successfully", teamId);
         return true;
@@ -375,10 +358,13 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Adding new club team: {TeamName} for user {UserId}", request.ClubTeamName, userId);
 
         // Get club rep
-        var clubRep = await _db.ClubReps
-            .Where(cr => cr.ClubRepUserId == userId)
-            .Select(cr => new { cr.ClubId })
-            .FirstOrDefaultAsync();
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        var clubId = myClubs.FirstOrDefault()?.ClubId;
+        if (clubId == null)
+        {
+            _logger.LogWarning("User {UserId} is not a club rep", userId);
+            throw new InvalidOperationException("User is not authorized as a club representative");
+        }
 
         if (clubRep == null)
         {
@@ -387,28 +373,25 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Check for duplicate team name in this club
-        var existingTeam = await _db.ClubTeams
-            .Where(ct => ct.ClubId == clubRep.ClubId && ct.ClubTeamName == request.ClubTeamName)
-            .FirstOrDefaultAsync();
+        var exists = await _clubTeams.ExistsByNameAsync(clubId.Value, request.ClubTeamName);
 
-        if (existingTeam != null)
+        if (exists)
         {
-            _logger.LogWarning("Duplicate team name {TeamName} in club {ClubId}", request.ClubTeamName, clubRep.ClubId);
+            _logger.LogWarning("Duplicate team name {TeamName} in club {ClubId}", request.ClubTeamName, clubId.Value);
             throw new InvalidOperationException($"A team named '{request.ClubTeamName}' already exists for your club");
         }
 
         // Create new club team
         var clubTeam = new ClubTeams
         {
-            ClubId = clubRep.ClubId,
+            ClubId = clubId.Value,
             ClubTeamName = request.ClubTeamName,
             ClubTeamGradYear = request.ClubTeamGradYear,
             ClubTeamLevelOfPlay = request.ClubTeamLevelOfPlay,
             Modified = DateTime.UtcNow
         };
-
-        _db.ClubTeams.Add(clubTeam);
-        await _db.SaveChangesAsync();
+        _clubTeams.Add(clubTeam);
+        await _clubTeams.SaveChangesAsync();
 
         _logger.LogInformation("Club team created successfully. ClubTeamId: {ClubTeamId}", clubTeam.ClubTeamId);
 
@@ -495,10 +478,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Removing club {ClubName} from rep account for user {UserId}", clubName, userId);
 
         // Find club
-        var club = await _db.Clubs
-            .Where(c => c.ClubName == clubName)
-            .Select(c => new { c.ClubId })
-            .SingleOrDefaultAsync();
+        var club = await _clubs.GetByNameAsync(clubName);
 
         if (club == null)
         {
@@ -507,8 +487,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Check if club has ANY teams (referential integrity)
-        var hasTeams = await _db.Teams
-            .AnyAsync(t => t.ClubTeam!.ClubId == club.ClubId);
+        var hasTeams = await _teams.Query().AnyAsync(t => t.ClubTeam!.ClubId == club!.ClubId);
 
         if (hasTeams)
         {
@@ -517,9 +496,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Find and remove ClubReps link
-        var clubRep = await _db.ClubReps
-            .Where(cr => cr.ClubRepUserId == userId && cr.ClubId == club.ClubId)
-            .SingleOrDefaultAsync();
+        var clubRep = await _clubReps.GetClubRepForUserAndClubAsync(userId, club!.ClubId);
 
         if (clubRep == null)
         {
@@ -527,8 +504,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("You are not a representative for this club");
         }
 
-        _db.ClubReps.Remove(clubRep);
-        await _db.SaveChangesAsync();
+        _clubReps.Remove(clubRep);
+        await _clubReps.SaveChangesAsync();
 
         _logger.LogInformation("Removed club {ClubId} from user {UserId} rep account", club.ClubId, userId);
         return true;
@@ -543,15 +520,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var normalized = ClubNameMatcher.NormalizeClubName(query);
 
-        var clubs = await _db.Clubs
-            .Select(c => new
-            {
-                c.ClubId,
-                c.ClubName,
-                State = c.LebUser!.State,
-                TeamCount = c.ClubTeams.Count
-            })
-            .ToListAsync();
+        var clubs = await _clubs.GetSearchCandidatesAsync();
 
         var results = clubs
             .Select(c => new ClubSearchResult

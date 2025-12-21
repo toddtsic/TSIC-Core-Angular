@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Families;
@@ -14,8 +15,6 @@ using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Shared.UsLax;
-using Microsoft.EntityFrameworkCore;
-using TSIC.Infrastructure.Data.SqlDbContext;
 using Microsoft.Extensions.Logging;
 
 namespace TSIC.API.Controllers;
@@ -25,13 +24,16 @@ namespace TSIC.API.Controllers;
 public class PlayerRegistrationPaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
-    private readonly SqlDbContext _db;
+    private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
 
-    public PlayerRegistrationPaymentController(IPaymentService paymentService, SqlDbContext db, ILogger<PlayerRegistrationPaymentController> logger)
+    public PlayerRegistrationPaymentController(
+        IPaymentService paymentService,
+        IJobDiscountCodeRepository discountCodeRepo,
+        ILogger<PlayerRegistrationPaymentController> logger)
     {
         _paymentService = paymentService;
-        _db = db;
+        _discountCodeRepo = discountCodeRepo;
         _logger = logger;
     }
 
@@ -89,15 +91,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
 
         var now = DateTime.UtcNow;
         var codeLower = request.Code.Trim().ToLowerInvariant();
-        var rec = await _db.JobDiscountCodes
-            .AsNoTracking()
-            .Where(d => d.JobId == request.JobId
-                        && d.Active
-                        && d.CodeStartDate <= now
-                        && d.CodeEndDate >= now
-                        && d.CodeName.ToLower() == codeLower)
-            .Select(d => new { d.BAsPercent, d.CodeAmount })
-            .SingleOrDefaultAsync();
+        var rec = await _discountCodeRepo.GetActiveCodeAsync(request.JobId, codeLower, now);
 
         var response = new ApplyDiscountResponseDto();
         if (rec == null)
@@ -118,7 +112,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
         }
 
         var total = items.Sum(i => i.Amount);
-        var amount = rec.CodeAmount ?? 0m;
+        var (bAsPercent, codeAmount) = rec.Value;
+        var amount = codeAmount ?? 0m;
         if (amount <= 0m || total <= 0m)
         {
             response.Success = false;
@@ -130,7 +125,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         var perPlayer = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         decimal totalDiscount;
 
-        if (rec.BAsPercent)
+        if (bAsPercent ?? false)
         {
             var pct = amount / 100m;
             foreach (var it in items)

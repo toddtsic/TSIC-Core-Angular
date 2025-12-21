@@ -1,12 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using System.Transactions;
 using System.Globalization;
 using TSIC.Domain.Entities;
-using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.Identity;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
@@ -31,17 +30,17 @@ namespace TSIC.API.Controllers;
 [Route("api/[controller]")]
 public class FamilyController : ControllerBase
 {
-    private readonly SqlDbContext _db;
+    private readonly IFamilyRepository _familyRepo;
+    private readonly IUserRepository _userRepo;
     private readonly IFamilyService _familyService;
-    // DateFormat constant moved into FamilyService
 
-    // Generic mapper: include ANY dbColumn-backed metadata field present on Registrations.
-    // Avoid special-casing (fees, waivers, sportAssnId, etc.) so client can rely on a single source of truth.
-    // BuildFormValuesDictionary moved into FamilyService
-
-    public FamilyController(SqlDbContext db, IFamilyService familyService)
+    public FamilyController(
+        IFamilyRepository familyRepo,
+        IUserRepository userRepo,
+        IFamilyService familyService)
     {
-        _db = db;
+        _familyRepo = familyRepo;
+        _userRepo = userRepo;
         _familyService = familyService;
     }
 
@@ -101,14 +100,14 @@ public class FamilyController : ControllerBase
         if (callerId == null) return Unauthorized();
 
         // Determine if caller has a Families record; if not, return empty list (must create one first)
-        var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == callerId);
+        var fam = await _familyRepo.GetByFamilyUserIdAsync(callerId);
         if (fam == null)
         {
             return Ok(Array.Empty<object>());
         }
 
         // Display name preference: MomFirstName/LastName then Dad fallback then username (from AspNetUsers)
-        var aspUser = await _db.AspNetUsers.SingleOrDefaultAsync(u => u.Id == callerId);
+        var aspUser = await _userRepo.GetByIdAsync(callerId);
         // Build a display name with clear imperative logic (avoid nested ternaries for readability / complexity)
         string display;
         if (!string.IsNullOrWhiteSpace(fam.MomFirstName) || !string.IsNullOrWhiteSpace(fam.MomLastName))

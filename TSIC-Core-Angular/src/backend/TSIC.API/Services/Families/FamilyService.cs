@@ -10,7 +10,7 @@ using TSIC.Application.Services.Users;
 using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.Identity;
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Repositories;
 using Microsoft.Extensions.Configuration;
 
 namespace TSIC.API.Services.Families;
@@ -18,24 +18,42 @@ namespace TSIC.API.Services.Families;
 public sealed class FamilyService : IFamilyService
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SqlDbContext _db;
     private readonly IProfileMetadataService _profileMeta;
     private readonly IConfiguration _config;
     private readonly IUserPrivilegeLevelService _privilegeService;
+    private readonly IJobRepository _jobRepo;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly ITeamRepository _teamRepo;
+    private readonly IFamiliesRepository _familiesRepo;
+    private readonly IUserRepository _userRepo;
+    private readonly IJobDiscountCodeRepository _jobDiscountRepo;
+    private readonly IFamilyMemberRepository _familyMemberRepo;
     private const string DateFormat = "yyyy-MM-dd";
 
     public FamilyService(
         UserManager<ApplicationUser> userManager,
-        SqlDbContext db,
         IProfileMetadataService profileMeta,
         IConfiguration config,
-        IUserPrivilegeLevelService privilegeService)
+        IUserPrivilegeLevelService privilegeService,
+        IJobRepository jobRepo,
+        IRegistrationRepository registrationRepo,
+        ITeamRepository teamRepo,
+        IFamiliesRepository familiesRepo,
+        IUserRepository userRepo,
+        IJobDiscountCodeRepository jobDiscountRepo,
+        IFamilyMemberRepository familyMemberRepo)
     {
         _userManager = userManager;
-        _db = db;
         _profileMeta = profileMeta;
         _config = config;
         _privilegeService = privilegeService;
+        _jobRepo = jobRepo;
+        _registrationRepo = registrationRepo;
+        _teamRepo = teamRepo;
+        _familiesRepo = familiesRepo;
+        _userRepo = userRepo;
+        _jobDiscountRepo = jobDiscountRepo;
+        _familyMemberRepo = familyMemberRepo;
     }
 
     // Generic mapper ported from controller: include ANY dbColumn-backed metadata field present on Registrations.
@@ -89,23 +107,14 @@ public sealed class FamilyService : IFamilyService
 
         jobPath = jobPath.Trim();
 
-        Guid? jobId = await _db.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobPath != null && EF.Functions.Collate(j.JobPath!, "SQL_Latin1_General_CP1_CI_AS") == jobPath)
-            .Select(j => (Guid?)j.JobId)
-            .FirstOrDefaultAsync();
+        Guid? jobId = await _jobRepo.GetJobIdByPathAsync(jobPath);
 
         var (jobHasActiveDiscountCodes, jobUsesAmex) = await GetJobPaymentFeaturesAsync(jobId);
 
-        var linkedChildIds = await _db.FamilyMembers
-            .AsNoTracking()
-            .Where(fm => fm.FamilyUserId == familyUserId)
-            .Select(fm => fm.FamilyMemberUserId)
-            .Distinct()
-            .ToListAsync();
+        var linkedChildIds = await _familyMemberRepo.GetChildUserIdsAsync(familyUserId);
 
-        var fam = await _db.Families.AsNoTracking().SingleOrDefaultAsync(f => f.FamilyUserId == familyUserId);
-        var asp = await _db.AspNetUsers.AsNoTracking().SingleOrDefaultAsync(u => u.Id == familyUserId);
+        var fam = await _familiesRepo.GetByFamilyUserIdAsync(familyUserId);
+        var asp = await _userRepo.GetByIdAsync(familyUserId);
 
         var familyUser = BuildFamilyUserSummary(familyUserId, fam, asp);
         var ccInfo = BuildCreditCardInfo(fam, asp);
@@ -145,7 +154,7 @@ public sealed class FamilyService : IFamilyService
         var regSaver = await ExtractRegSaverDetailsAsync(jobId, familyUserId);
 
         // Build player DTOs
-        var children = await _db.AspNetUsers
+        var children = await _userRepo.Query()
             .AsNoTracking()
             .Where(u => linkedChildIds.Contains(u.Id))
             .ToListAsync();
@@ -219,10 +228,10 @@ public sealed class FamilyService : IFamilyService
     {
         if (string.IsNullOrWhiteSpace(userId)) return null;
 
-        var aspUser = await _db.AspNetUsers.SingleOrDefaultAsync(u => u.Id == userId);
+        var aspUser = await _userRepo.GetByIdAsync(userId);
         if (aspUser == null) return null;
 
-        var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == userId);
+        var fam = await _familiesRepo.GetByFamilyUserIdAsync(userId);
         if (fam == null)
         {
             return new FamilyProfileResponse
@@ -253,9 +262,8 @@ public sealed class FamilyService : IFamilyService
             };
         }
 
-        var links = await _db.FamilyMembers.Where(l => l.FamilyUserId == fam.FamilyUserId).ToListAsync();
-        var childIds = links.Select(l => l.FamilyMemberUserId).ToList();
-        var children = await _db.AspNetUsers.Where(u => childIds.Contains(u.Id)).ToListAsync();
+        var childIds = await _familyMemberRepo.GetChildUserIdsAsync(fam.FamilyUserId);
+        var children = await _userRepo.Query().Where(u => childIds.Contains(u.Id)).ToListAsync();
 
         var childDtos = children.Select(c => new ChildDto
         {
@@ -395,8 +403,8 @@ public sealed class FamilyService : IFamilyService
             Modified = DateTime.UtcNow,
             LebUserId = TsicConstants.SuperUserId
         };
-        _db.Families.Add(fam);
-        await _db.SaveChangesAsync();
+        _familiesRepo.Add(fam);
+        await _familiesRepo.SaveChangesAsync();
 
         // Create and link children
         foreach (var child in request.Children)
@@ -408,7 +416,7 @@ public sealed class FamilyService : IFamilyService
             }
         }
 
-        await _db.SaveChangesAsync();
+        await _familyMemberRepo.SaveChangesAsync();
         scope.Complete();
         return new FamilyRegistrationResponse { Success = true, FamilyUserId = user.Id, FamilyId = Guid.Empty, Message = null };
     }
@@ -424,20 +432,20 @@ public sealed class FamilyService : IFamilyService
         var user = await _userManager.FindByNameAsync(request.Username);
         if (user == null) return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "User not found" };
 
-        var aspUser = await _db.AspNetUsers.SingleOrDefaultAsync(u => u.Id == user.Id);
-        if (aspUser != null)
+        var appUser = await _userManager.FindByIdAsync(user.Id);
+        if (appUser != null)
         {
-            aspUser.StreetAddress = request.Address.StreetAddress;
-            aspUser.City = request.Address.City;
-            aspUser.State = request.Address.State;
-            aspUser.PostalCode = request.Address.PostalCode;
-            aspUser.Cellphone = request.Primary.Cellphone;
-            aspUser.Phone = request.Primary.Cellphone;
-            if (string.IsNullOrWhiteSpace(aspUser.LebUserId)) aspUser.LebUserId = TsicConstants.SuperUserId;
-            await _db.SaveChangesAsync();
+            appUser.StreetAddress = request.Address.StreetAddress;
+            appUser.City = request.Address.City;
+            appUser.State = request.Address.State;
+            appUser.PostalCode = request.Address.PostalCode;
+            appUser.Cellphone = request.Primary.Cellphone;
+            appUser.Phone = request.Primary.Cellphone;
+            if (string.IsNullOrWhiteSpace(appUser.LebUserId)) appUser.LebUserId = TsicConstants.SuperUserId;
+            await _userManager.UpdateAsync(appUser);
         }
 
-        var fam = await _db.Families.SingleOrDefaultAsync(f => f.FamilyUserId == user.Id);
+        var fam = await _familiesRepo.GetByFamilyUserIdAsync(user.Id);
         if (fam == null) return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "Family record not found" };
 
         fam.MomFirstName = request.Primary.FirstName;
@@ -450,7 +458,8 @@ public sealed class FamilyService : IFamilyService
         fam.DadEmail = request.Secondary.Email;
         fam.Modified = DateTime.UtcNow;
         if (string.IsNullOrWhiteSpace(fam.LebUserId)) fam.LebUserId = TsicConstants.SuperUserId;
-        await _db.SaveChangesAsync();
+        _familiesRepo.Update(fam);
+        await _familiesRepo.SaveChangesAsync();
 
         // Simplify: controller had complex child sync logic. Preserve existing children unchanged for now.
         // Future: extract full child synchronization rules into this service if still required.
@@ -492,7 +501,7 @@ public sealed class FamilyService : IFamilyService
             Modified = DateTime.UtcNow,
             LebUserId = TsicConstants.SuperUserId
         };
-        _db.FamilyMembers.Add(fm);
+        _familyMemberRepo.Add(fm);
         return (true, null);
     }
 
@@ -501,11 +510,11 @@ public sealed class FamilyService : IFamilyService
         if (jobId == null) return (false, false);
 
         var now = DateTime.UtcNow;
-        var hasActiveDiscountCodes = await _db.JobDiscountCodes
+        var hasActiveDiscountCodes = await _jobDiscountRepo.Query()
             .AsNoTracking()
             .AnyAsync(dc => dc.JobId == jobId && dc.Active && dc.CodeStartDate <= now && dc.CodeEndDate >= now);
 
-        var jobMeta = await _db.Jobs.AsNoTracking()
+        var jobMeta = await _jobRepo.Query().AsNoTracking()
             .Where(j => j.JobId == jobId)
             .Select(j => new { j.CustomerId })
             .FirstOrDefaultAsync();
@@ -632,10 +641,7 @@ public sealed class FamilyService : IFamilyService
         if (jobId == null)
             return new List<TSIC.Domain.Entities.Registrations>();
 
-        var regsQuery = _db.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && linkedChildIds.Contains(r.UserId));
-        return await regsQuery.ToListAsync();
+        return await _registrationRepo.GetFamilyRegistrationsForPlayersAsync(jobId.Value, familyUserId, linkedChildIds);
     }
 
     private async Task<(string? metadataJson, string? rawJsonOptions)> GetJobMetadataAndOptionsAsync(Guid? jobId)
@@ -643,19 +649,8 @@ public sealed class FamilyService : IFamilyService
         if (jobId == null)
             return (null, null);
 
-        var metadataJson = await _db.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.PlayerProfileMetadataJson)
-            .SingleOrDefaultAsync();
-
-        var rawJsonOptions = await _db.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.JsonOptions)
-            .SingleOrDefaultAsync();
-
-        return (metadataJson, rawJsonOptions);
+        var jm = await _jobRepo.GetJobMetadataAsync(jobId.Value);
+        return (jm?.PlayerProfileMetadataJson, jm?.JsonOptions);
     }
 
     private async Task<Dictionary<Guid, string>> BuildTeamNameMapAsync(
@@ -668,10 +663,8 @@ public sealed class FamilyService : IFamilyService
             var teamIds = regsRaw.Where(x => x.AssignedTeamId.HasValue).Select(x => x.AssignedTeamId!.Value).Distinct().ToList();
             if (teamIds.Count > 0)
             {
-                teamNameMap = await _db.Teams
-                    .AsNoTracking()
-                    .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
-                    .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty);
+                var teams = await _teamRepo.GetTeamsForJobAsync(jobId.Value, teamIds);
+                teamNameMap = teams.ToDictionary(t => t.TeamId, t => t.TeamName ?? string.Empty);
             }
         }
         return teamNameMap;
@@ -679,7 +672,7 @@ public sealed class FamilyService : IFamilyService
 
     private async Task<Dictionary<string, List<TSIC.Domain.Entities.Registrations>>> LoadAllRegistrationsByUserAsync(List<string> linkedChildIds)
     {
-        var allRegsForChildren = await _db.Registrations
+        var allRegsForChildren = await _registrationRepo.Query()
             .AsNoTracking()
             .Where(r => r.UserId != null && linkedChildIds.Contains(r.UserId))
             .OrderByDescending(r => r.Modified)
@@ -696,7 +689,7 @@ public sealed class FamilyService : IFamilyService
         if (jobId == null)
             return null;
 
-        var regSaverRaw = await _db.Registrations
+        var regSaverRaw = await _registrationRepo.Query()
             .AsNoTracking()
             .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.RegsaverPolicyId != null)
             .OrderByDescending(r => r.BActive == true)
@@ -764,9 +757,9 @@ public sealed class FamilyService : IFamilyService
         string? constraintType = null;
         if (!string.IsNullOrWhiteSpace(metadataJson) && jobId != null)
         {
-            var job = await _db.Jobs.AsNoTracking().Where(j => j.JobId == jobId).Select(j => new { j.JsonOptions, j.CoreRegformPlayer }).FirstOrDefaultAsync();
-            string? coreProfile = job?.CoreRegformPlayer;
-            if (string.IsNullOrWhiteSpace(rawJsonOptions)) rawJsonOptions = job?.JsonOptions;
+            var meta = await _jobRepo.GetJobMetadataAsync(jobId.Value);
+            string? coreProfile = meta?.CoreRegformPlayer;
+            if (string.IsNullOrWhiteSpace(rawJsonOptions)) rawJsonOptions = meta?.JsonOptions;
 
             constraintType = ExtractConstraintType(coreProfile);
 

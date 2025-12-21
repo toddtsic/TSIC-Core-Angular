@@ -1,0 +1,60 @@
+using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Repositories;
+using TSIC.Domain.Entities;
+using TSIC.Infrastructure.Data.SqlDbContext;
+
+namespace TSIC.Infrastructure.Repositories;
+
+/// <summary>
+/// Repository for Jobs entity using Entity Framework Core.
+/// </summary>
+public class JobRepository : IJobRepository
+{
+    private readonly SqlDbContext _context;
+
+    public JobRepository(SqlDbContext context)
+    {
+        _context = context;
+    }
+
+    public IQueryable<Jobs> Query()
+    {
+        return _context.Jobs.AsQueryable();
+    }
+
+    public async Task<JobPreSubmitMetadata?> GetPreSubmitMetadataAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobPreSubmitMetadata(j.PlayerProfileMetadataJson, j.JsonOptions, j.CoreRegformPlayer))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<JobPaymentInfo?> GetJobPaymentInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobPaymentInfo(j.AdnArb, j.AdnArbbillingOccurences, j.AdnArbintervalLength, j.AdnArbstartDate))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<JobMetadata?> GetJobMetadataAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobMetadata(j.PlayerProfileMetadataJson, j.JsonOptions, j.CoreRegformPlayer))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Guid?> GetJobIdByPathAsync(string jobPath, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobPath != null && EF.Functions.Collate(j.JobPath!, "SQL_Latin1_General_CP1_CI_AS") == jobPath)
+            .Select(j => (Guid?)j.JobId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+}

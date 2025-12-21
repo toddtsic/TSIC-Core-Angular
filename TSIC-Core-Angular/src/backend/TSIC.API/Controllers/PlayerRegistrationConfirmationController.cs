@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Families;
@@ -12,13 +13,11 @@ using TSIC.API.Services.Payments;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.VerticalInsure;
-using TSIC.API.Services.Shared.Email;
+
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos;
-using TSIC.Infrastructure.Data.SqlDbContext;
-using MimeKit;
-using Microsoft.EntityFrameworkCore;
+
 
 namespace TSIC.API.Controllers;
 
@@ -29,18 +28,18 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
     private readonly IPlayerRegConfirmationService _service;
     private readonly ILogger<PlayerRegistrationConfirmationController> _logger;
     private readonly IEmailService _email;
-    private readonly SqlDbContext _db;
+    private readonly IFamilyRepository _familyRepo;
 
     public PlayerRegistrationConfirmationController(
         IPlayerRegConfirmationService service,
         ILogger<PlayerRegistrationConfirmationController> logger,
         IEmailService email,
-        SqlDbContext db)
+        IFamilyRepository familyRepo)
     {
         _service = service;
         _logger = logger;
         _email = email;
-        _db = db;
+        _familyRepo = familyRepo;
     }
 
     [HttpGet("confirmation")]
@@ -101,13 +100,13 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
 
         // Build distinct recipient list: player emails for this job + mom/dad from Families
         var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fam = await _db.Families.AsNoTracking().FirstOrDefaultAsync(f => f.FamilyUserId == familyUserId.ToString(), ct);
-        if (!string.IsNullOrWhiteSpace(fam?.MomEmail)) recipients.Add(fam!.MomEmail!.Trim());
-        if (!string.IsNullOrWhiteSpace(fam?.DadEmail)) recipients.Add(fam!.DadEmail!.Trim());
-        var playerRegs = await _db.Registrations.AsNoTracking()
-            .Include(r => r.User)
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId.ToString())
-            .ToListAsync(ct);
+        var fam = await _familyRepo.GetByFamilyUserIdAsync(familyUserId.ToString());
+        if (fam != null)
+        {
+            if (!string.IsNullOrWhiteSpace(fam.MomEmail)) recipients.Add(fam.MomEmail.Trim());
+            if (!string.IsNullOrWhiteSpace(fam.DadEmail)) recipients.Add(fam.DadEmail.Trim());
+        }
+        var playerRegs = await _familyRepo.GetFamilyRegistrationsForJobAsync(jobId, familyUserId.ToString(), ct);
         foreach (var r in playerRegs)
         {
             var e = r.User?.Email?.Trim();
@@ -130,16 +129,14 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
             return BadRequest(new { message = "No confirmation content available to send" });
         }
 
-        var message = new MimeMessage();
-        foreach (var addr in toList)
+        var dto = new EmailMessageDto
         {
-            message.To.Add(MailboxAddress.Parse(addr));
-        }
-        message.Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject;
-        var builder = new BodyBuilder { HtmlBody = html };
-        message.Body = builder.ToMessageBody();
+            Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject,
+            HtmlBody = html
+        };
+        dto.ToAddresses.AddRange(toList);
 
-        var ok = await _email.SendAsync(message, sendInDevelopment: false, cancellationToken: ct);
+        var ok = await _email.SendAsync(dto, sendInDevelopment: false, cancellationToken: ct);
         if (!ok) return StatusCode(502, new { message = "Email send failed" });
         return Ok(new { sent = true });
     }

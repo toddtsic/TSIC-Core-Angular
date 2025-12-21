@@ -19,6 +19,8 @@ public partial class ClubTeams
 
     public DateTime? Modified { get; set; }
 
+    public bool? Active { get; set; }
+
     public virtual Clubs Club { get; set; } = null!;
 
     public virtual AspNetUsers? LebUser { get; set; }

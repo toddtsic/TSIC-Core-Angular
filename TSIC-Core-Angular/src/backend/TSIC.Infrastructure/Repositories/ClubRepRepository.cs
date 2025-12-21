@@ -1,0 +1,69 @@
+using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Repositories;
+using TSIC.Domain.Entities;
+using TSIC.Infrastructure.Data.SqlDbContext;
+
+namespace TSIC.Infrastructure.Repositories;
+
+/// <summary>
+/// Repository for ClubReps entity using Entity Framework Core.
+/// </summary>
+public class ClubRepRepository : IClubRepRepository
+{
+    private readonly SqlDbContext _context;
+
+    public ClubRepRepository(SqlDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<ClubWithUsageInfo>> GetClubsForUserAsync(
+        string clubRepUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ClubReps
+            .Where(cr => cr.ClubRepUserId == clubRepUserId)
+            .Select(cr => new ClubWithUsageInfo(
+                cr.ClubId,
+                cr.Club!.ClubName!,
+                _context.Teams.Any(t => t.ClubTeam!.ClubId == cr.ClubId)
+            ))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ClubReps?> GetClubRepForUserAndClubAsync(
+        string clubRepUserId,
+        int clubId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ClubReps
+            .Where(cr => cr.ClubRepUserId == clubRepUserId && cr.ClubId == clubId)
+            .Include(cr => cr.Club)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> ExistsAsync(
+        string clubRepUserId,
+        int clubId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ClubReps
+            .AnyAsync(cr => cr.ClubRepUserId == clubRepUserId && cr.ClubId == clubId, cancellationToken);
+    }
+
+    public void Add(ClubReps clubRep)
+    {
+        _context.ClubReps.Add(clubRep);
+    }
+
+    public void Remove(ClubReps clubRep)
+    {
+        _context.ClubReps.Remove(clubRep);
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
+}

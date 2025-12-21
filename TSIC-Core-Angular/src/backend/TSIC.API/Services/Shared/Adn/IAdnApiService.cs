@@ -1,6 +1,5 @@
 using AuthorizeNet.Api.Contracts.V1;
 using TSIC.Contracts.Dtos;
-using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services.Shared.Adn;
 
@@ -9,12 +8,10 @@ public interface IAdnApiService
     AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false);
 
     Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(
-        SqlDbContext _context,
         Guid jobId,
         bool bProdOnly = false
     );
     Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(
-        SqlDbContext _context,
         Guid customerId,
         bool bProdOnly = false
     );

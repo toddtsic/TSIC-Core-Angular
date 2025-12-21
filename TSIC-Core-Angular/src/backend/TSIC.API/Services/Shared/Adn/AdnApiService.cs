@@ -17,12 +17,14 @@ public class AdnApiService : IAdnApiService
     private readonly IHostEnvironment _env;
     private readonly ILogger<AdnApiService> _logger;
     private readonly IConfiguration _config;
+    private readonly SqlDbContext _context;
 
-    public AdnApiService(IHostEnvironment env, ILogger<AdnApiService> logger, IConfiguration config)
+    public AdnApiService(IHostEnvironment env, ILogger<AdnApiService> logger, IConfiguration config, SqlDbContext context)
     {
         _env = env;
         _logger = logger;
         _config = config;
+        _context = context;
     }
 
     public AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false)
@@ -35,7 +37,7 @@ public class AdnApiService : IAdnApiService
         return AuthorizeNet.Environment.PRODUCTION;
     }
 
-    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(SqlDbContext _context, Guid jobId, bool bProdOnly = false)
+    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(Guid jobId, bool bProdOnly = false)
     {
         var isSandbox = _env.IsDevelopment() && !bProdOnly;
         if (isSandbox)
@@ -72,7 +74,7 @@ public class AdnApiService : IAdnApiService
         return creds;
     }
 
-    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(SqlDbContext _context, Guid customerId, bool bProdOnly = false)
+    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(Guid customerId, bool bProdOnly = false)
     {
         var isSandbox = _env.IsDevelopment() && !bProdOnly;
         if (isSandbox)

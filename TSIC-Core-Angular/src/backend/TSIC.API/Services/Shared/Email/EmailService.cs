@@ -6,6 +6,7 @@ using System.Net;
 using System.IO;
 using System.Linq;
 using TSIC.Domain.Constants;
+using TSIC.Contracts.Services;
 
 namespace TSIC.API.Services.Shared.Email;
 
@@ -31,9 +32,9 @@ public sealed class EmailService : IEmailService
         _env = env;
     }
 
-    public async Task<bool> SendAsync(MimeMessage message, bool sendInDevelopment = false, CancellationToken cancellationToken = default)
+    public async Task<bool> SendAsync(EmailMessageDto messageDto, bool sendInDevelopment = false, CancellationToken cancellationToken = default)
     {
-        if (message is null)
+        if (messageDto is null)
         {
             _logger.LogWarning("Email send skipped: null message");
             return false;
@@ -42,7 +43,7 @@ public sealed class EmailService : IEmailService
         if (!_settings.EmailingEnabled)
         {
             // Short-circuit success when emailing disabled.
-            _logger.LogInformation("Emailing disabled; treating message to {Recipients} as sent.", string.Join(",", message.To.Select(t => t.ToString())));
+            _logger.LogInformation("Emailing disabled; treating message to {Recipients} as sent.", string.Join(",", (messageDto.ToAddresses ?? new List<string>())));
             return true;
         }
 
@@ -54,6 +55,7 @@ public sealed class EmailService : IEmailService
 
         try
         {
+            var message = BuildMimeMessage(messageDto);
             NormalizeFromHeader(message);
             using var memory = new MemoryStream();
             await message.WriteToAsync(memory, cancellationToken);
@@ -78,12 +80,12 @@ public sealed class EmailService : IEmailService
         }
     }
 
-    public async Task<EmailBatchSendResult> SendBatchAsync(IEnumerable<MimeMessage> messages, CancellationToken cancellationToken = default)
+    public async Task<EmailBatchSendResult> SendBatchAsync(IEnumerable<EmailMessageDto> messages, CancellationToken cancellationToken = default)
     {
         var result = new EmailBatchSendResult();
-        foreach (var msg in messages)
+        foreach (var dto in messages)
         {
-            var tos = msg?.To.Mailboxes.Select(m => m.Address).Distinct() ?? Enumerable.Empty<string>();
+            var tos = dto?.ToAddresses?.Distinct() ?? Enumerable.Empty<string>();
             foreach (var to in tos)
             {
                 if (!result.AllAddresses.Contains(to))
@@ -91,7 +93,7 @@ public sealed class EmailService : IEmailService
                     result.AllAddresses.Add(to);
                 }
             }
-            var success = await SendAsync(msg!, sendInDevelopment: false, cancellationToken);
+            var success = await SendAsync(dto!, sendInDevelopment: false, cancellationToken);
             if (!success)
             {
                 foreach (var to in tos)
@@ -104,6 +106,46 @@ public sealed class EmailService : IEmailService
             }
         }
         return result;
+    }
+
+    private MimeMessage BuildMimeMessage(EmailMessageDto dto)
+    {
+        var message = new MimeMessage();
+        var fromName = string.IsNullOrWhiteSpace(dto.FromName) ? "TEAMSPORTSINFO.COM" : dto.FromName;
+        var fromAddress = string.IsNullOrWhiteSpace(dto.FromAddress) ? TsicConstants.SupportEmail : dto.FromAddress!;
+        message.From.Add(new MailboxAddress(fromName!, fromAddress!));
+
+        if (dto.ToAddresses != null)
+        {
+            foreach (var to in dto.ToAddresses.Where(a => !string.IsNullOrWhiteSpace(a)))
+            {
+                message.To.Add(MailboxAddress.Parse(to));
+            }
+        }
+        if (dto.CcAddresses != null)
+        {
+            foreach (var cc in dto.CcAddresses.Where(a => !string.IsNullOrWhiteSpace(a)))
+            {
+                message.Cc.Add(MailboxAddress.Parse(cc));
+            }
+        }
+        if (dto.BccAddresses != null)
+        {
+            foreach (var bcc in dto.BccAddresses.Where(a => !string.IsNullOrWhiteSpace(a)))
+            {
+                message.Bcc.Add(MailboxAddress.Parse(bcc));
+            }
+        }
+
+        message.Subject = dto.Subject ?? string.Empty;
+
+        var builder = new BodyBuilder
+        {
+            HtmlBody = dto.HtmlBody,
+            TextBody = dto.TextBody
+        };
+        message.Body = builder.ToMessageBody();
+        return message;
     }
 
     private void NormalizeFromHeader(MimeMessage message)

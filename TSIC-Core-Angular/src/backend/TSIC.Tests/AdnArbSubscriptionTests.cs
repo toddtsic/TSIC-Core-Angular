@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using System;
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.Configuration;
@@ -32,7 +33,12 @@ public sealed class AdnArbSubscriptionTests
         };
         var config = new ConfigurationBuilder().AddInMemoryCollection(inMemory).Build();
         var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AdnApiService>();
-        var service = new AdnApiService(new DevEnv(), logger, config);
+        // Minimal in-memory context for constructor; not used for sandbox path
+        var dbOpts = new DbContextOptionsBuilder<TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext>()
+            .UseInMemoryDatabase($"tsic-tests-{Guid.NewGuid()}")
+            .Options;
+        var context = new TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext(dbOpts);
+        var service = new AdnApiService(new DevEnv(), logger, config, context);
         var env = service.GetADNEnvironment(); // should be SANDBOX under Development
 
         // Use test VISA; service maps 4242.. -> 4111.. for sandbox

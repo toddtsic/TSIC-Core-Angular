@@ -221,6 +221,8 @@ public partial class Jobs
 
     public bool? BenableStp { get; set; }
 
+    public decimal? StoreTsicrate { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();

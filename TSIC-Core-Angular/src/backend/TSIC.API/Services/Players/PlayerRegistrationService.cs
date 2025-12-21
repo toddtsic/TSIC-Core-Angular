@@ -1,27 +1,27 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using System.Text.Json;
 using TSIC.Domain.Constants;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.Application.Services.Players;
-using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Domain.Entities;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Players;
 
 public class PlayerRegistrationService : IPlayerRegistrationService
 {
     private readonly ILogger<PlayerRegistrationService> _logger;
-    private readonly SqlDbContext _db;
     private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
     private readonly IPlayerFeeCalculator _feeCalculator;
     private readonly IVerticalInsureService _verticalInsure;
     private readonly ITeamLookupService _teamLookupService;
     private readonly IPlayerFormValidationService _validationService;
+    private readonly IRegistrationRepository _registrations;
+    private readonly ITeamRepository _teams;
+    private readonly IJobRepository _jobs;
 
     private sealed class PreSubmitContext
     {
@@ -39,20 +39,24 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
     public PlayerRegistrationService(
         ILogger<PlayerRegistrationService> logger,
-        SqlDbContext db,
         IPlayerBaseTeamFeeResolverService feeResolver,
         IPlayerFeeCalculator feeCalculator,
         IVerticalInsureService verticalInsure,
         ITeamLookupService teamLookupService,
-        IPlayerFormValidationService validationService)
+        IPlayerFormValidationService validationService,
+        IRegistrationRepository registrations,
+        ITeamRepository teams,
+        IJobRepository jobs)
     {
         _logger = logger;
-        _db = db;
         _feeResolver = feeResolver;
         _feeCalculator = feeCalculator;
         _verticalInsure = verticalInsure;
         _teamLookupService = teamLookupService;
         _validationService = validationService;
+        _registrations = registrations;
+        _teams = teams;
+        _jobs = jobs;
     }
 
     public async Task<PreSubmitPlayerRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request, string callerUserId)
@@ -60,9 +64,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         if (request == null) throw new ArgumentNullException(nameof(request));
 
         var ctx = await BuildPreSubmitContextAsync(jobId, familyUserId, request);
-
-        // Build prospective changes first inside a transaction; if validation fails, roll back so nothing is saved.
-        using var tx = await _db.Database.BeginTransactionAsync();
 
         var selectionsByPlayer = request.TeamSelections
             .GroupBy(s => s.PlayerId)
@@ -91,7 +92,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 {
                     response.NextTab = "Forms";
                 }
-                await tx.RollbackAsync(); // ensure nothing persists when validation fails
                 // Build insurance offer even on validation errors (non-persistent) for a consistent response shape
                 response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
                 return response;
@@ -103,8 +103,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             _logger.LogWarning(vex, "[PreSubmit] Validation threw unexpectedly; proceeding.");
         }
 
-        await _db.SaveChangesAsync();
-        await tx.CommitAsync();
+        await _registrations.SaveChangesAsync();
         // Delegate insurance offer construction to VerticalInsure service.
         response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
         return response;
@@ -113,17 +112,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     private async Task<PreSubmitContext> BuildPreSubmitContextAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request)
     {
         var teamIds = request.TeamSelections.Select(ts => ts.TeamId).Distinct().ToList();
-        var teams = await _db.Teams.Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId)).ToListAsync();
-        var teamRosterCounts = await _db.Registrations
-            .Where(r => r.JobId == jobId && r.AssignedTeamId.HasValue && teamIds.Contains(r.AssignedTeamId.Value) && r.BActive == true)
-            .GroupBy(r => r.AssignedTeamId!.Value)
-            .ToDictionaryAsync(g => g.Key, g => g.Count());
+        var teams = await _teams.GetTeamsForJobAsync(jobId, teamIds);
+        var teamRosterCounts = await _registrations.GetActiveTeamRosterCountsAsync(jobId, teamIds);
 
-        var jobEntity = await _db.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => new { j.PlayerProfileMetadataJson, j.JsonOptions, j.CoreRegformPlayer })
-            .SingleOrDefaultAsync();
+        var jobEntity = await _jobs.GetPreSubmitMetadataAsync(jobId);
 
         var metadataJson = jobEntity?.PlayerProfileMetadataJson;
         var registrationMode = GetRegistrationMode(jobEntity?.CoreRegformPlayer, jobEntity?.JsonOptions);
@@ -132,10 +124,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var writableProps = BuildWritablePropertyMap();
 
         var playerIds = request.TeamSelections.Select(ts => ts.PlayerId).Distinct().ToList();
-        var existingRegs = await _db.Registrations
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && playerIds.Contains(r.UserId))
-            .OrderByDescending(r => r.Modified)
-            .ToListAsync();
+        var existingRegs = await _registrations.GetFamilyRegistrationsForPlayersAsync(jobId, familyUserId, playerIds);
 
         var existingByPlayer = existingRegs.GroupBy(r => r.UserId!).ToDictionary(g => g.Key, g => g.ToList());
         var existingByPlayerTeam = existingRegs
@@ -350,7 +339,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             };
             ApplyFormValues(newReg, sel, ctx.NameToProperty, ctx.WritableProps);
             await ApplyInitialFeesAsync(newReg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
-            _db.Registrations.Add(newReg);
+            _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
             return;
         }
@@ -379,7 +368,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         };
         ApplyFormValues(reg, sel, ctx.NameToProperty, ctx.WritableProps);
         await ApplyInitialFeesAsync(reg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
-        _db.Registrations.Add(reg);
+        _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
     }
 
@@ -389,15 +378,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var (fee, _) = await _teamLookupService.ResolvePerRegistrantAsync(teamId);
         if (fee > 0m) return fee;
 
-        // Fallback to legacy resolver if centralized logic yields zero, for backward compatibility.
-        var cached = await _db.Teams.Where(x => x.TeamId == teamId)
-            .Select(x => new { x.FeeBase, x.PerRegistrantFee })
-            .FirstOrDefaultAsync();
-        if (cached != null)
-        {
-            var v = cached.FeeBase ?? cached.PerRegistrantFee ?? 0m;
-            if (v > 0m) return v;
-        }
+        // Fallback to repository if centralized logic yields zero, for backward compatibility.
+        var feeInfo = await _teams.GetTeamFeeInfoAsync(teamId);
+        var v = feeInfo.FeeBase ?? feeInfo.PerRegistrantFee ?? 0m;
+        if (v > 0m) return v;
         return await _feeResolver.ResolveBaseFeeForTeamAsync(teamId);
     }
 

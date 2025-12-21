@@ -1,31 +1,39 @@
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
-using TSIC.Infrastructure.Data.SqlDbContext;
-using TSIC.API.Services.Shared.Email;
+using TSIC.Contracts.Services;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Players;
-using MimeKit;
+
 
 namespace TSIC.API.Services.Payments;
 
 public class PaymentService : IPaymentService
 {
-    private readonly SqlDbContext _db;
+    private readonly IJobRepository _jobs;
+    private readonly IRegistrationRepository _registrations;
+    private readonly ITeamRepository _teams;
     private readonly IAdnApiService _adnApiService;
     private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
     private readonly ITeamLookupService _teamLookup;
     private readonly ILogger<PaymentService> _logger;
     private readonly IPlayerRegConfirmationService? _confirmation;
     private readonly IEmailService? _email;
+    private readonly IFamiliesRepository _families;
+    private readonly IRegistrationAccountingRepository _acct;
 
     private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate);
 
-    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
     {
-        _db = db;
+        _jobs = jobs;
+        _registrations = registrations;
+        _teams = teams;
+        _families = families;
+        _acct = acct;
         _adnApiService = adnApiService;
         _feeResolver = feeResolver;
         _teamLookup = teamLookup;
@@ -33,8 +41,8 @@ public class PaymentService : IPaymentService
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(SqlDbContext db, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
-        : this(db, adnApiService, feeResolver, teamLookup, logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
+        : this(jobs, registrations, teams, families, acct, adnApiService, feeResolver, teamLookup, logger)
     {
         _confirmation = confirmation;
         _email = email;
@@ -59,12 +67,10 @@ public class PaymentService : IPaymentService
     private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, CreditCardInfo? Card)> ValidatePaymentRequestAsync(PaymentRequestDto request)
     {
         if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null);
-        var jobQuery = _db.Jobs.Where(j => j.JobId == request.JobId)
-            .Select(j => new JobInfo(j.AdnArb, j.AdnArbbillingOccurences, j.AdnArbintervalLength, j.AdnArbstartDate));
-        var job = await jobQuery.SingleOrDefaultAsync();
-        if (job == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
-        var regsQuery = _db.Registrations.Where(r => r.JobId == request.JobId && r.FamilyUserId == request.FamilyUserId.ToString() && r.UserId != null);
-        var registrations = await regsQuery.ToListAsync();
+        var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(request.JobId);
+        if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
+        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate);
+        var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(request.JobId, request.FamilyUserId.ToString(), activePlayersOnly: true);
         if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
         if (request.PaymentOption == PaymentOption.ARB && job.AdnArb != true) return (Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED"), null, null, null);
         if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
@@ -97,7 +103,7 @@ public class PaymentService : IPaymentService
                 SubscriptionIds = registrations.Where(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId)).ToDictionary(r => r.RegistrationId, r => r.AdnSubscriptionId!)
             };
         }
-        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(_db, request.JobId);
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(request.JobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
         {
             return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
@@ -106,10 +112,10 @@ public class PaymentService : IPaymentService
         var schedule = BuildArbSchedule(job.AdnArbbillingOccurences, job.AdnArbintervalLength, job.AdnArbstartDate);
         var (occur, intervalLen, start) = schedule;
         NormalizeProcessingFees(registrations, request.JobId, userId);
-        await _db.SaveChangesAsync();
+        await _registrations.SaveChangesAsync();
         var args = new ArbSubArgs(env, credentials.AdnLoginId!, credentials.AdnTransactionKey!, occur, intervalLen, start, cc, userId);
         var (subs, failed) = await CreateArbSubscriptionsAsync(registrations, args);
-        await _db.SaveChangesAsync();
+        await _registrations.SaveChangesAsync();
         var response = BuildArbResponse(subs, failed);
         // Always attempt confirmation email after any successful subscription creation.
         if (response.Success && subs.Count > 0)
@@ -121,7 +127,7 @@ public class PaymentService : IPaymentService
 
     private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal totalAmount)
     {
-        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(_db, request.JobId);
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(request.JobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
         {
             return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
@@ -167,7 +173,7 @@ public class PaymentService : IPaymentService
                     reg.LebUserId = userId;
                 }
             }
-            await _db.SaveChangesAsync();
+            await _registrations.SaveChangesAsync();
             // Attempt confirmation email after successful charge (always send, never gated by prior sends)
             await TrySendConfirmationEmailAsync(request.JobId, request.FamilyUserId.ToString(), userId);
             return new PaymentResponseDto
@@ -289,9 +295,8 @@ public class PaymentService : IPaymentService
 
     private async Task<bool> IsDuplicateAsync(PaymentRequestDto request)
     {
-        return await _db.RegistrationAccounting
-            .Join(_db.Registrations, a => a.RegistrationId, r => r.RegistrationId, (a, r) => new { a, r })
-            .AnyAsync(x => x.r.JobId == request.JobId && x.r.FamilyUserId == request.FamilyUserId.ToString() && x.a.AdnInvoiceNo == request.IdempotencyKey);
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey)) return false;
+        return await _acct.AnyDuplicateAsync(request.JobId, request.FamilyUserId.ToString(), request.IdempotencyKey);
     }
 
     private static PaymentResponseDto Fail(string msg, string code) => new PaymentResponseDto { Success = false, Message = msg, ErrorCode = code };
@@ -397,7 +402,7 @@ public class PaymentService : IPaymentService
             if (reg.RegistrationId == Guid.Empty) continue;
             if (!charges.TryGetValue(reg.RegistrationId, out var payAmt) || payAmt <= 0) continue;
 
-            _db.RegistrationAccounting.Add(new RegistrationAccounting
+            _acct.Add(new RegistrationAccounting
             {
                 RegistrationId = reg.RegistrationId,
                 Payamt = payAmt,
@@ -419,12 +424,7 @@ public class PaymentService : IPaymentService
     {
         try
         {
-            var q = _db.Registrations
-                .Where(r => r.RegistrationId == registrationId && r.JobId == jobId)
-                .Join(_db.Jobs, r => r.JobId, j => j.JobId, (r, j) => new { r, j })
-                .Join(_db.Customers, x => x.j.CustomerId, c => c.CustomerId, (x, c) => new { x.r, x.j, c })
-                .Select(x => new { x.c.CustomerAi, x.j.JobAi, x.r.RegistrationAi });
-            var data = await q.SingleOrDefaultAsync();
+            var data = await _registrations.GetRegistrationWithInvoiceDataAsync(registrationId, jobId);
             if (data == null)
             {
                 _logger.LogWarning("Invoice build fallback (missing entities) for registration {RegistrationId} job {JobId}.", registrationId, jobId);
@@ -452,32 +452,25 @@ public class PaymentService : IPaymentService
     {
         try
         {
-            // Player + Job info
-            var pjQuery = _db.Registrations
-                .Where(r => r.RegistrationId == reg.RegistrationId)
-                .Join(_db.Jobs, r => r.JobId, j => j.JobId, (r, j) => new { r, j })
-                .Join(_db.AspNetUsers, x => x.r.UserId, u => u.Id, (x, u) => new { x.r, x.j.JobName, u.FirstName, u.LastName, u.UserName });
-            var pj = await pjQuery.SingleOrDefaultAsync();
-            string playerFirst = pj?.FirstName?.Trim() ?? "Player";
-            string playerLast = pj?.LastName?.Trim() ?? pj?.UserName?.Trim() ?? reg.RegistrationAi.ToString();
-            string jobName = pj?.JobName?.Trim() ?? "Registration";
+            string playerFirst = reg.User?.FirstName?.Trim() ?? "Player";
+            string playerLast = reg.User?.LastName?.Trim() ?? reg.User?.UserName?.Trim() ?? reg.RegistrationAi.ToString();
+            string jobName = await _jobs.Query()
+                .Where(j => j.JobId == reg.JobId)
+                .Select(j => j.JobName ?? "Registration")
+                .SingleOrDefaultAsync() ?? "Registration";
 
             string? teamName = null;
             string? agegroupName = null;
             if (reg.AssignedTeamId.HasValue)
             {
-                var taQuery = _db.Teams
-                    .Where(t => t.TeamId == reg.AssignedTeamId.Value)
-                    .Select(t => new { t.TeamName, AgegroupName = t.Agegroup.AgegroupName });
-                var ta = await taQuery.SingleOrDefaultAsync();
-                if (ta != null)
+                var team = await _teams.GetTeamWithDetailsAsync(reg.AssignedTeamId.Value);
+                if (team != null)
                 {
-                    teamName = ta.TeamName;
-                    agegroupName = ta.AgegroupName;
+                    teamName = team.TeamName ?? team.DisplayName;
+                    agegroupName = team.Agegroup?.AgegroupName;
                 }
             }
 
-            // Compose parts
             var parts = new List<string>();
             parts.Add($"ARB subscription for {playerFirst} {playerLast}: {jobName}");
             if (!string.IsNullOrWhiteSpace(agegroupName) || !string.IsNullOrWhiteSpace(teamName))
@@ -492,7 +485,7 @@ public class PaymentService : IPaymentService
         catch (Exception ex)
         {
             _logger.LogError(ex, "ARB description build error for registration {RegistrationId}", reg.RegistrationId);
-            return "Registration Payment"; // Fallback to prior static description
+            return "Registration Payment";
         }
     }
 
@@ -531,39 +524,27 @@ public class PaymentService : IPaymentService
 
     private async Task<List<string>> BuildConfirmationRecipientsAsync(Guid jobId, string familyUserId)
     {
-        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fam = await _db.Families.AsNoTracking().FirstOrDefaultAsync(f => f.FamilyUserId == familyUserId);
-        if (!string.IsNullOrWhiteSpace(fam?.MomEmail)) recipients.Add(fam!.MomEmail!.Trim());
-        if (!string.IsNullOrWhiteSpace(fam?.DadEmail)) recipients.Add(fam!.DadEmail!.Trim());
-        var playerRegs = await _db.Registrations.AsNoTracking().Include(r => r.User)
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
-            .Select(r => r.User!.Email)
-            .ToListAsync();
-        foreach (var e in playerRegs)
-        {
-            var norm = e?.Trim();
-            if (!string.IsNullOrWhiteSpace(norm)) recipients.Add(norm!);
-        }
-        return recipients.Select(x => x.Trim()).Where(x => x.Contains('@')).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return await _families.GetEmailsForFamilyAndPlayersAsync(jobId, familyUserId);
     }
 
-    private async Task<MimeMessage?> BuildConfirmationMessageAsync(Guid jobId, string familyUserId, List<string> toList)
+    private async Task<EmailMessageDto?> BuildConfirmationMessageAsync(Guid jobId, string familyUserId, List<string> toList)
     {
         var (subject, html) = await _confirmation!.BuildEmailAsync(jobId, familyUserId, CancellationToken.None);
         if (string.IsNullOrWhiteSpace(html)) return null;
-        var message = new MimeMessage();
-        foreach (var addr in toList) message.To.Add(MailboxAddress.Parse(addr));
-        message.Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject;
-        var builder = new BodyBuilder { HtmlBody = html };
-        message.Body = builder.ToMessageBody();
-        return message;
+        var dto = new EmailMessageDto
+        {
+            Subject = string.IsNullOrWhiteSpace(subject) ? "Registration Confirmation" : subject,
+            HtmlBody = html
+        };
+        dto.ToAddresses.AddRange(toList);
+        return dto;
     }
 
     private async Task FlagRegistrationsAsync(Guid jobId, string familyUserId, string userId)
     {
-        var regsToFlag = await _db.Registrations
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && !r.BConfirmationSent)
-            .ToListAsync();
+        var regsToFlag = (await _registrations.GetByFamilyAndJobAsync(jobId, familyUserId))
+            .Where(r => !r.BConfirmationSent)
+            .ToList();
         if (regsToFlag.Count == 0)
         {
             _logger.LogDebug("[ConfirmationEmail] All registrations already flagged jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
@@ -575,7 +556,8 @@ public class PaymentService : IPaymentService
             reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
         }
-        await _db.SaveChangesAsync();
+        await _registrations.SaveChangesAsync();
+        await _acct.SaveChangesAsync();
         _logger.LogInformation("[ConfirmationEmail] Flagged {Count} registrations jobId={JobId} familyUserId={FamilyUserId}", regsToFlag.Count, jobId, familyUserId);
     }
 }

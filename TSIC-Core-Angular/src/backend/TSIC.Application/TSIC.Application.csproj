@@ -5,9 +5,16 @@
     <ProjectReference Include="..\TSIC.Domain\TSIC.Domain.csproj" />
   </ItemGroup>
 
+  <!-- Exclude obsolete email implementation; API layer provides IEmailService -->
+  <ItemGroup>
+    <Compile Remove="Services\Shared\EmailService.cs" />
+    <Compile Remove="Services\Shared\IEmailService.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="SonarAnalyzer.CSharp" />
   </ItemGroup>
 

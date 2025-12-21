@@ -13,9 +13,15 @@ public partial class Stores
 
     public string LebUserId { get; set; } = null!;
 
+    public int? ParentStoreId { get; set; }
+
+    public virtual ICollection<Stores> InverseParentStore { get; set; } = new List<Stores>();
+
     public virtual Jobs Job { get; set; } = null!;
 
     public virtual AspNetUsers LebUser { get; set; } = null!;
+
+    public virtual Stores? ParentStore { get; set; }
 
     public virtual ICollection<StoreCart> StoreCart { get; set; } = new List<StoreCart>();
 

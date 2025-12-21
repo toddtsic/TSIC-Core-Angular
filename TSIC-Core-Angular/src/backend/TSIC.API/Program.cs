@@ -1,5 +1,6 @@
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.Infrastructure.Repositories;
 using TSIC.Domain.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -13,6 +14,7 @@ using TSIC.Application.Services.Players;
 using TSIC.Infrastructure.Services.Auth;
 using TSIC.Infrastructure.Services.Users;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Families;
@@ -44,6 +46,25 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache(); // Add memory cache for refresh tokens
+
+// Infrastructure Repositories
+builder.Services.AddScoped<IRegistrationRepository, RegistrationRepository>();
+builder.Services.AddScoped<IJobRepository, JobRepository>();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ITeamRepository, TeamRepository>();
+builder.Services.AddScoped<IAgeGroupRepository, AgeGroupRepository>();
+builder.Services.AddScoped<IFamilyRepository, FamilyRepository>();
+builder.Services.AddScoped<IJobDiscountCodeRepository, JobDiscountCodeRepository>();
+builder.Services.AddScoped<IClubRepRepository, ClubRepRepository>();
+builder.Services.AddScoped<IJobLeagueRepository, JobLeagueRepository>();
+builder.Services.AddScoped<IClubRepository, ClubRepository>();
+builder.Services.AddScoped<IFamiliesRepository, FamiliesRepository>();
+builder.Services.AddScoped<IFamilyMemberRepository, FamilyMemberRepository>();
+builder.Services.AddScoped<IRegistrationAccountingRepository, RegistrationAccountingRepository>();
+builder.Services.AddScoped<IClubTeamRepository, ClubTeamRepository>();
+
+// Application & Infrastructure Services
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJobLookupService, JobLookupService>();

@@ -36,6 +36,13 @@ public class PaymentServiceTests
         out Mock<IPlayerBaseTeamFeeResolverService> feeResolver,
         out Mock<ITeamLookupService> teamLookup)
     {
+        // Real repository implementations against in-memory db to honor seeded data
+        var jobsRepo = new TSIC.Infrastructure.Repositories.JobRepository(db);
+        var regsRepo = new TSIC.Infrastructure.Repositories.RegistrationRepository(db);
+        var teamsRepo = new TSIC.Infrastructure.Repositories.TeamRepository(db);
+        var familiesRepo = new Mock<TSIC.Contracts.Repositories.IFamiliesRepository>(MockBehavior.Strict);
+        var acctRepo = new Mock<TSIC.Contracts.Repositories.IRegistrationAccountingRepository>(MockBehavior.Strict);
+
         adn = new Mock<IAdnApiService>(MockBehavior.Strict);
         feeResolver = new Mock<IPlayerBaseTeamFeeResolverService>(MockBehavior.Strict);
         teamLookup = new Mock<ITeamLookupService>(MockBehavior.Strict);
@@ -43,14 +50,21 @@ public class PaymentServiceTests
         // Common mocks
         adn.Setup(a => a.GetADNEnvironment(It.IsAny<bool>()))
             .Returns(AuthorizeNet.Environment.SANDBOX);
-        adn.Setup(a => a.GetJobAdnCredentials_FromJobId(It.IsAny<SqlDbContext>(), It.IsAny<Guid>(), It.IsAny<bool>()))
+        adn.Setup(a => a.GetJobAdnCredentials_FromJobId(It.IsAny<Guid>(), It.IsAny<bool>()))
             .ReturnsAsync(new AdnCredentialsViewModel { AdnLoginId = "login", AdnTransactionKey = "key" });
 
         // Fee resolver is consulted to ensure OwedTotal is set when FeeTotal > 0 and PaidTotal == 0
         feeResolver.Setup(f => f.ResolveBaseFeeForTeamAsync(It.IsAny<Guid>())).ReturnsAsync(0m);
 
+        // Families + Accounting not used by this test path; set lenient no-ops
+        familiesRepo.Setup(f => f.GetEmailsForFamilyAndPlayersAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<string>());
+        acctRepo.Setup(a => a.Add(It.IsAny<TSIC.Domain.Entities.RegistrationAccounting>()));
+        acctRepo.Setup(a => a.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        acctRepo.Setup(a => a.AnyDuplicateAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
         var logger = NullLogger<PaymentService>.Instance;
-        return new PaymentService(db, adn.Object, feeResolver.Object, teamLookup.Object, logger);
+        return new PaymentService(jobsRepo, regsRepo, teamsRepo, familiesRepo.Object, acctRepo.Object, adn.Object, feeResolver.Object, teamLookup.Object, logger);
     }
 
     private static void SeedRegistration(SqlDbContext db, Guid jobId, Guid familyId, Guid? teamId = null, decimal owed = 200m)
