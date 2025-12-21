@@ -44,4 +44,9 @@ public interface ITeamRegistrationService
     /// Only allowed if the club has no team registrations.
     /// </summary>
     Task<bool> RemoveClubFromRepAsync(string userId, string clubName);
+
+    /// <summary>
+    /// Get all club teams for all clubs the user is a rep for.
+    /// </summary>
+    Task<List<ClubTeamManagementDto>> GetClubTeamsAsync(string userId);
 }

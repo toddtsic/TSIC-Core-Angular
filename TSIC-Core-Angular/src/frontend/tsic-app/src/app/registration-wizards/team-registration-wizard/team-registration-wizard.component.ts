@@ -42,8 +42,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
     stepLabels: Record<number, string> = {
         1: 'Login',
-        2: 'Teams',
-        3: 'Manage Account'
+        2: 'Manage Club Teams',
+        3: 'Register Teams'
     };
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
@@ -156,11 +156,11 @@ export class TeamRegistrationWizardComponent implements OnInit {
                 next: (clubs) => {
                     this.availableClubs = clubs;
                     if (clubs.length === 1) {
-                        // Auto-select single club and proceed
+                        // Auto-select single club and proceed to step 3 (Register Teams)
                         this.selectedClub = clubs[0].clubName;
                         this.clubName = clubs[0].clubName;
                         this.hasClubRepAccount = 'yes';
-                        this.nextStep();
+                        this.step = 3;
                     } else if (clubs.length === 0) {
                         this.inlineError = 'You are not registered as a club representative.';
                     }
@@ -187,8 +187,26 @@ export class TeamRegistrationWizardComponent implements OnInit {
             await this.doInlineLogin();
             if (this.inlineError) return;
 
-            // Navigate to Club Team Management (step 3)
-            this.step = 3;
+            // Fetch clubs after login
+            this.teamRegService.getMyClubs().subscribe({
+                next: (clubs) => {
+                    this.availableClubs = clubs;
+                    if (clubs.length === 1) {
+                        // Auto-select single club and proceed to step 2 (Manage Club Teams)
+                        this.selectedClub = clubs[0].clubName;
+                        this.clubName = clubs[0].clubName;
+                        this.hasClubRepAccount = 'yes';
+                        this.step = 2;
+                    } else if (clubs.length === 0) {
+                        this.inlineError = 'You are not registered as a club representative.';
+                    }
+                    // If multiple clubs, wait for user selection (they'll click button again)
+                },
+                error: (err) => {
+                    this.inlineError = 'Failed to load your clubs. Please try again.';
+                    console.error('Failed to load clubs:', err);
+                }
+            });
         } finally {
             this.submittingAction = null;
         }

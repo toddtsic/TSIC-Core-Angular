@@ -269,19 +269,14 @@ public class TeamRegistrationController : ControllerBase
         }
     }
 
-    // ============================================================
-    // CLUB TEAM MANAGEMENT ENDPOINTS
-    // ============================================================
-
     /// <summary>
-    /// Get all club teams (active + inactive) for management.
+    /// Get all club teams for all clubs the user is a rep for.
     /// </summary>
-    [HttpGet("clubs/{clubName}/management")]
-    [Authorize(Policy = "ClubRepOnly")]
+    [HttpGet("club-library-teams")]
     [ProducesResponseType(typeof(List<ClubTeamManagementDto>), 200)]
     [ProducesResponseType(401)]
-    [ProducesResponseType(400)]
-    public async Task<IActionResult> GetClubTeamsForManagement(string clubName)
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> GetClubTeams()
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
@@ -291,117 +286,23 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            var teams = await _teamRegistrationService.GetClubTeamsForManagementAsync(userId, clubName);
+            var teams = await _teamRegistrationService.GetClubTeamsAsync(userId);
             return Ok(teams);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt by user {UserId}", userId);
+            return StatusCode(403, new { Message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Invalid operation getting teams for management. User: {UserId}, Club: {Club}", userId, clubName);
+            _logger.LogWarning(ex, "Invalid operation while getting teams for user {UserId}", userId);
             return BadRequest(new { Message = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting teams for management. User: {UserId}, Club: {Club}", userId, clubName);
-            return StatusCode(500, new { Message = "An error occurred while retrieving teams" });
-        }
-    }
-
-    /// <summary>
-    /// Inactivate a club team (soft delete). Can be reactivated later for year rollover.
-    /// </summary>
-    [HttpPatch("teams/{clubTeamId}/inactivate")]
-    [Authorize(Policy = "ClubRepOnly")]
-    [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
-    [ProducesResponseType(401)]
-    [ProducesResponseType(400)]
-    public async Task<IActionResult> InactivateClubTeam(int clubTeamId)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { Message = "User not authenticated" });
-        }
-
-        try
-        {
-            var result = await _teamRegistrationService.InactivateClubTeamAsync(clubTeamId, userId);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Invalid operation inactivating team {TeamId} for user {UserId}", clubTeamId, userId);
-            return BadRequest(new { Message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error inactivating team {TeamId} for user {UserId}", clubTeamId, userId);
-            return StatusCode(500, new { Message = "An error occurred while inactivating the team" });
-        }
-    }
-
-    /// <summary>
-    /// Activate a club team (restore from inactive). Used for year rollover.
-    /// </summary>
-    [HttpPatch("teams/{clubTeamId}/activate")]
-    [Authorize(Policy = "ClubRepOnly")]
-    [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
-    [ProducesResponseType(401)]
-    [ProducesResponseType(400)]
-    public async Task<IActionResult> ActivateClubTeam(int clubTeamId)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { Message = "User not authenticated" });
-        }
-
-        try
-        {
-            var result = await _teamRegistrationService.ActivateClubTeamAsync(clubTeamId, userId);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Invalid operation activating team {TeamId} for user {UserId}", clubTeamId, userId);
-            return BadRequest(new { Message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error activating team {TeamId} for user {UserId}", clubTeamId, userId);
-            return StatusCode(500, new { Message = "An error occurred while activating the team" });
-        }
-    }
-
-    /// <summary>
-    /// Delete a club team permanently. Only allowed if team has never been used.
-    /// </summary>
-    [HttpDelete("teams/{clubTeamId}")]
-    [Authorize(Policy = "ClubRepOnly")]
-    [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
-    [ProducesResponseType(401)]
-    [ProducesResponseType(400)]
-    public async Task<IActionResult> DeleteClubTeam(int clubTeamId)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { Message = "User not authenticated" });
-        }
-
-        try
-        {
-            var result = await _teamRegistrationService.DeleteClubTeamAsync(clubTeamId, userId);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Invalid operation deleting team {TeamId} for user {UserId}", clubTeamId, userId);
-            return BadRequest(new { Message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting team {TeamId} for user {UserId}", clubTeamId, userId);
-            return StatusCode(500, new { Message = "An error occurred while deleting the team" });
+            _logger.LogError(ex, "Error getting teams for user {UserId}", userId);
+            return StatusCode(500, new { Message = "An error occurred while retrieving club teams" });
         }
     }
 }
