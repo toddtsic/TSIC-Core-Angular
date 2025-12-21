@@ -1,0 +1,250 @@
+<div class="club-team-management">
+  <!-- Header -->
+  <div class="mb-4">
+    <h3 class="mb-2">
+      <i class="bi bi-collection me-2"></i>Manage Club Teams
+    </h3>
+    <p class="text-muted small mb-3">
+      Create and manage teams in your club library. Teams can be inactivated for year-end rollover.
+    </p>
+  </div>
+
+  <!-- Error Alert -->
+  @if (errorMessage()) {
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
+    <button type="button" class="btn-close" (click)="errorMessage.set(null)"></button>
+  </div>
+  }
+
+  <!-- Success Alert -->
+  @if (successMessage()) {
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-2"></i>{{ successMessage() }}
+    <button type="button" class="btn-close" (click)="successMessage.set(null)"></button>
+  </div>
+  }
+
+  <!-- Add Team Button -->
+  <div class="mb-4">
+    <button class="btn btn-primary" (click)="openAddTeamModal()">
+      <i class="bi bi-plus-circle me-2"></i>Add New Team
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+  <div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2 text-muted">Loading teams...</p>
+  </div>
+  } @else {
+  <!-- No Teams -->
+  @if (teams().length === 0) {
+  <div class="alert alert-info text-center py-5">
+    <i class="bi bi-inbox fs-2 mb-2"></i>
+    <p class="mb-0">No teams yet. Click "Add New Team" to create your first team.</p>
+  </div>
+  } @else {
+  <!-- Active Teams Section -->
+  @if (hasActiveTeams()) {
+  <div class="mb-5">
+    <h5 class="mb-3 fw-bold text-success">
+      <i class="bi bi-check-circle me-2"></i>Active Teams
+    </h5>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Team Name</th>
+            <th class="d-none d-md-table-cell">Graduation Year</th>
+            <th class="d-none d-md-table-cell">Level of Play</th>
+            <th class="text-center">Used?</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (team of activeTeams(); track team.clubTeamId) {
+          <tr>
+            <td class="fw-semibold">{{ team.clubTeamName }}</td>
+            <td class="d-none d-md-table-cell text-muted">{{ team.clubTeamGradYear }}</td>
+            <td class="d-none d-md-table-cell text-muted">{{ team.clubTeamLevelOfPlay }}/5</td>
+            <td class="text-center">
+              @if (team.hasBeenUsed) {
+              <span class="badge bg-success">Yes</span>
+              } @else {
+              <span class="badge bg-secondary">No</span>
+              }
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <!-- Inactivate Button -->
+                <button class="btn btn-warning" (click)="inactivateTeam(team)" title="Inactivate team">
+                  <i class="bi bi-pause-circle"></i>
+                  <span class="d-none d-lg-inline ms-1">Inactivate</span>
+                </button>
+
+                <!-- Delete Button (only if unused) -->
+                @if (!team.hasBeenUsed) {
+                <button class="btn btn-danger" (click)="confirmDelete(team)" title="Delete team">
+                  <i class="bi bi-trash"></i>
+                  <span class="d-none d-lg-inline ms-1">Delete</span>
+                </button>
+                }
+              </div>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+  }
+
+  <!-- Inactive Teams Section -->
+  @if (hasInactiveTeams()) {
+  <div class="mb-5">
+    <h5 class="mb-3 fw-bold text-muted">
+      <i class="bi bi-slash-circle me-2"></i>Inactive Teams
+    </h5>
+    <div class="alert alert-light border-2">
+      <small class="text-muted">
+        Inactive teams are hidden from registration but preserved for historical records.
+        Activate them to make available for new event registrations.
+      </small>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover opacity-75">
+        <thead>
+          <tr>
+            <th>Team Name</th>
+            <th class="d-none d-md-table-cell">Graduation Year</th>
+            <th class="d-none d-md-table-cell">Level of Play</th>
+            <th class="text-center">Used?</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (team of inactiveTeams(); track team.clubTeamId) {
+          <tr>
+            <td class="fw-semibold text-muted">{{ team.clubTeamName }}</td>
+            <td class="d-none d-md-table-cell text-muted">{{ team.clubTeamGradYear }}</td>
+            <td class="d-none d-md-table-cell text-muted">{{ team.clubTeamLevelOfPlay }}/5</td>
+            <td class="text-center">
+              @if (team.hasBeenUsed) {
+              <span class="badge bg-success">Yes</span>
+              } @else {
+              <span class="badge bg-secondary">No</span>
+              }
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <!-- Activate Button -->
+                <button class="btn btn-success" (click)="activateTeam(team)" title="Activate team">
+                  <i class="bi bi-play-circle"></i>
+                  <span class="d-none d-lg-inline ms-1">Activate</span>
+                </button>
+
+                <!-- Delete Button (only if unused) -->
+                @if (!team.hasBeenUsed) {
+                <button class="btn btn-danger" (click)="confirmDelete(team)" title="Delete team">
+                  <i class="bi bi-trash"></i>
+                  <span class="d-none d-lg-inline ms-1">Delete</span>
+                </button>
+                }
+              </div>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+  }
+  }
+  }
+
+  <!-- Add Team Modal -->
+  @if (showAddTeamModal()) {
+  <div class="modal d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-plus-circle me-2"></i>Add New Team
+          </h5>
+          <button type="button" class="btn-close" (click)="closeAddTeamModal()" [disabled]="isSubmitting()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="teamName" class="form-label">Team Name *</label>
+            <input type="text" class="form-control" id="teamName" [(ngModel)]="newTeamName" 
+              [disabled]="isSubmitting()" placeholder="e.g., 2024 Blue">
+          </div>
+          <div class="mb-3">
+            <label for="gradYear" class="form-label">Graduation Year *</label>
+            <input type="text" class="form-control" id="gradYear" [(ngModel)]="newTeamGradYear" 
+              [disabled]="isSubmitting()" placeholder="e.g., 2025">
+          </div>
+          <div class="mb-3">
+            <label for="lop" class="form-label">Level of Play (1-5) *</label>
+            <select class="form-select" id="lop" [(ngModel)]="newTeamLOP" [disabled]="isSubmitting()">
+              <option value="">-- Select Level --</option>
+              <option value="1">1 - Developmental</option>
+              <option value="2">2 - Recreational</option>
+              <option value="3">3 - Intermediate</option>
+              <option value="4">4 - Competitive</option>
+              <option value="5">5 - Elite</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeAddTeamModal()" [disabled]="isSubmitting()">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" (click)="addTeam()" [disabled]="isSubmitting()">
+            @if (isSubmitting()) {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            }
+            Add Team
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (showDeleteConfirm() && teamToDelete()) {
+  <div class="modal d-block" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">
+            <i class="bi bi-exclamation-triangle me-2"></i>Delete Team?
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="cancelDelete()"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3">
+            Are you sure you want to permanently delete <strong>{{ teamToDelete()?.clubTeamName }}</strong>?
+          </p>
+          <div class="alert alert-info small mb-0">
+            <i class="bi bi-info-circle me-2"></i>This action cannot be undone.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cancelDelete()">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-danger" (click)="deleteTeam()">
+            <i class="bi bi-trash me-2"></i>Delete Permanently
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+</div>

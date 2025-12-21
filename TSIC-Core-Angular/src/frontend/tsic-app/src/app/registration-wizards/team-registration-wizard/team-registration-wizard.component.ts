@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } 
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
+import { ClubTeamManagementComponent } from './club-team-management/club-team-management.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TeamRegistrationService } from './services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
@@ -19,7 +20,7 @@ import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } fro
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TwActionBarComponent, InfoTooltipComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, ClubTeamManagementComponent, TwActionBarComponent, InfoTooltipComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;
@@ -41,7 +42,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
     stepLabels: Record<number, string> = {
         1: 'Login',
-        2: 'Teams'
+        2: 'Teams',
+        3: 'Manage Account'
     };
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
@@ -185,11 +187,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
             await this.doInlineLogin();
             if (this.inlineError) return;
 
-            // TODO: Club Rep Account management page not yet implemented
-            this.inlineError = 'Club Rep Account management coming soon! For now, use "Sign in & Register Teams" to proceed with team registration.';
-            // const jobPath = this.jobContext.jobPath() || '';
-            // const returnUrl = jobPath ? `/${jobPath}/register-team?step=1` : `/register-team?step=1`;
-            // this.router.navigateByUrl(`/tsic/club-rep-account?mode=edit&returnUrl=${encodeURIComponent(returnUrl)}`);
+            // Navigate to Club Team Management (step 3)
+            this.step = 3;
         } finally {
             this.submittingAction = null;
         }

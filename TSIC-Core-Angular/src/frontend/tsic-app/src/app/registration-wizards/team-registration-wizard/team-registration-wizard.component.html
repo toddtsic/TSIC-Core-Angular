@@ -3,10 +3,10 @@
         <div class="col-12">
             <div class="text-center mb-3">
                 <h2 id="tw-title" class="mb-1 fw-bold">Team Registration</h2>
-                <p class="text-muted mb-0 fs-6">Step {{step}} of 2: {{ currentStepLabel() }}</p>
+                <p class="text-muted mb-0 fs-6">Step {{step}} of {{ step === 3 ? 3 : 2 }}: {{ currentStepLabel() }}</p>
             </div>
             <div class="rw-sticky-header mb-4">
-                <progress class="w-100 rw-progress" [value]="step * 50" max="100">{{ step * 50 }}%</progress>
+                <progress class="w-100 rw-progress" [value]="step === 3 ? 100 : step * 50" max="100">{{ step === 3 ? 100 : step * 50 }}%</progress>
             </div>
             <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-team">
                 <div class="card-body bg-surface px-4 pb-4 pt-3">
@@ -314,6 +314,13 @@
                             placement="top">
                         </app-tw-action-bar>
                         <app-teams-step [clubName]="clubName || ''"></app-teams-step>
+                    </ng-container>
+
+                    <ng-container *ngIf="step === 3">
+                        <app-tw-action-bar class="mt-2" [canBack]="true" [showContinue]="false" (back)="step = 1"
+                            placement="top">
+                        </app-tw-action-bar>
+                        <app-club-team-management [clubName]="clubName || ''"></app-club-team-management>
                     </ng-container>
                 </div> <!-- /card-body -->
             </div> <!-- /card -->

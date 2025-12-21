@@ -277,6 +277,7 @@ public class TeamRegistrationController : ControllerBase
     /// Get all club teams (active + inactive) for management.
     /// </summary>
     [HttpGet("clubs/{clubName}/management")]
+    [Authorize(Policy = "ClubRepOnly")]
     [ProducesResponseType(typeof(List<ClubTeamManagementDto>), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(400)]
@@ -309,6 +310,7 @@ public class TeamRegistrationController : ControllerBase
     /// Inactivate a club team (soft delete). Can be reactivated later for year rollover.
     /// </summary>
     [HttpPatch("teams/{clubTeamId}/inactivate")]
+    [Authorize(Policy = "ClubRepOnly")]
     [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(400)]
@@ -341,6 +343,7 @@ public class TeamRegistrationController : ControllerBase
     /// Activate a club team (restore from inactive). Used for year rollover.
     /// </summary>
     [HttpPatch("teams/{clubTeamId}/activate")]
+    [Authorize(Policy = "ClubRepOnly")]
     [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(400)]
@@ -373,6 +376,7 @@ public class TeamRegistrationController : ControllerBase
     /// Delete a club team permanently. Only allowed if team has never been used.
     /// </summary>
     [HttpDelete("teams/{clubTeamId}")]
+    [Authorize(Policy = "ClubRepOnly")]
     [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(400)]
