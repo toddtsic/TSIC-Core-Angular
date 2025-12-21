@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 
-namespace TSIC.Application.Services.Shared;
+namespace TSIC.Application.Services.Shared.Html;
 
 /// <summary>
 /// Pure business logic for HTML table generation.

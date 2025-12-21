@@ -1,4 +1,4 @@
-namespace TSIC.Application.Services.Shared;
+namespace TSIC.Application.Services.Shared.Insurance;
 
 /// <summary>
 /// Pure business logic for calculating insurable amounts for Vertical Insure.

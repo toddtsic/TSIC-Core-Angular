@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TSIC.Application.Services.Shared;
+namespace TSIC.Application.Services.Shared.Text;
 
 /// <summary>
 /// Pure business logic for text template token replacement.

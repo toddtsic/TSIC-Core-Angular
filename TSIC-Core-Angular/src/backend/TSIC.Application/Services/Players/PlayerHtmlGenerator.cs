@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text;
-using TSIC.Application.Services.Shared;
+using TSIC.Application.Services.Shared.Html;
 
 namespace TSIC.Application.Services.Players;
 

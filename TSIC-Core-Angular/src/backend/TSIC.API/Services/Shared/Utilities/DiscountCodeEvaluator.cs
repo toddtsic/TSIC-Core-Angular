@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using TSIC.Application.Services.Shared;
+using TSIC.Application.Services.Shared.Discount;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services.Shared.Utilities;

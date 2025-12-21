@@ -7,7 +7,7 @@ using TSIC.Contracts.Dtos; // Unified DTO namespace (PreSubmitInsuranceDto, Vert
 using TSIC.Contracts.Dtos.VerticalInsure; // VI specific DTOs
 using TSIC.Domain.Entities; // Registrations entity
 using TSIC.Infrastructure.Data.SqlDbContext;
-using TSIC.Application.Services.Shared;
+using TSIC.Application.Services.Shared.Insurance;
 using TSIC.API.Services.Teams;
 
 namespace TSIC.API.Services.Shared.VerticalInsure;

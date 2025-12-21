@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Application.Services.Players;
-using TSIC.Application.Services.Shared;
+using TSIC.Application.Services.Shared.Html;
+using TSIC.Application.Services.Shared.Text;
 using TSIC.API.Services.Shared.Utilities;
 
 namespace TSIC.API.Services.Shared.TextSubstitution;

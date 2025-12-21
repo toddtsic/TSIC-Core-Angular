@@ -5,7 +5,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.Application.Services.Users;
 using TSIC.Application.Services.Clubs;
-using TSIC.Application.Services.Shared;
+using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;

@@ -7,7 +7,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.API.Services.Metadata;
 using TSIC.Contracts.Services;
 using TSIC.Application.Services.Users;
-using TSIC.Application.Services.Shared;
+using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.Infrastructure.Data.SqlDbContext;

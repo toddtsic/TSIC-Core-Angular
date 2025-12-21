@@ -1,4 +1,4 @@
-namespace TSIC.Application.Services.Shared;
+namespace TSIC.Application.Services.Shared.Mapping;
 
 /// <summary>
 /// Pure business logic for mapping role IDs to human-readable privilege names.

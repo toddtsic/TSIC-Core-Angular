@@ -1,4 +1,4 @@
-namespace TSIC.Application.Services.Shared;
+namespace TSIC.Application.Services.Shared.Discount;
 
 /// <summary>
 /// Pure business logic for discount calculations.
