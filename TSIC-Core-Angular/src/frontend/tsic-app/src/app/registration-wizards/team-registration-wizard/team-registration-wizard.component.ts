@@ -6,6 +6,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { ClubTeamManagementComponent } from './club-team-management/club-team-management.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
+import { TwStepIndicatorComponent, WizardStep } from './step-indicator/tw-step-indicator.component';
 import { TeamRegistrationService } from './services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '../../core/services/form-field-data.service';
 import { JobService } from '../../core/services/job.service';
@@ -20,7 +21,7 @@ import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } fro
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, ClubTeamManagementComponent, TwActionBarComponent, InfoTooltipComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, ClubTeamManagementComponent, TwActionBarComponent, TwStepIndicatorComponent, InfoTooltipComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit {
     step = 1;
@@ -31,8 +32,9 @@ export class TeamRegistrationWizardComponent implements OnInit {
     username = '';
     password = '';
     submitting = false;
-    submittingAction: 'register' | 'manage' | null = null;
     inlineError: string | null = null;
+    hasTeamsInLibrary = false;
+    showClubSelectionModal = false;
 
     // Accordion collapse state
     credentialsCollapsed = true;
@@ -43,8 +45,19 @@ export class TeamRegistrationWizardComponent implements OnInit {
     stepLabels: Record<number, string> = {
         1: 'Login',
         2: 'Manage Club Teams',
-        3: 'Register Teams'
+        3: 'Register Teams',
+        4: 'Payment',
+        5: 'Confirmation'
     };
+
+    wizardSteps: WizardStep[] = [
+        { stepNumber: 1, label: 'Login' },
+        { stepNumber: 2, label: 'Manage Teams' },
+        { stepNumber: 3, label: 'Register' },
+        { stepNumber: 4, label: 'Payment' },
+        { stepNumber: 5, label: 'Confirmation' }
+    ];
+
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly jobService = inject(JobService);
@@ -140,10 +153,8 @@ export class TeamRegistrationWizardComponent implements OnInit {
         });
     }
 
-    async signInThenRegisterTeams(): Promise<void> {
-        this.submittingAction = 'register';
+    async signInThenGoToStep2(): Promise<void> {
         if (!this.username || !this.password) {
-            this.submittingAction = null;
             return;
         }
 
@@ -151,20 +162,26 @@ export class TeamRegistrationWizardComponent implements OnInit {
             await this.doInlineLogin();
             if (this.inlineError) return;
 
-            // Fetch clubs after login
+            // Fetch clubs after login - stay on step 1 until club selected
             this.teamRegService.getMyClubs().subscribe({
                 next: (clubs) => {
                     this.availableClubs = clubs;
+
+                    if (clubs.length === 0) {
+                        this.inlineError = 'You are not registered as a club representative.';
+                        return;
+                    }
+
+                    // Auto-select if only one club, otherwise require selection
                     if (clubs.length === 1) {
-                        // Auto-select single club and proceed to step 3 (Register Teams)
                         this.selectedClub = clubs[0].clubName;
                         this.clubName = clubs[0].clubName;
-                        this.hasClubRepAccount = 'yes';
-                        this.step = 3;
-                    } else if (clubs.length === 0) {
-                        this.inlineError = 'You are not registered as a club representative.';
+                    } else {
+                        this.selectedClub = null;
                     }
-                    // If multiple clubs, wait for user selection (they'll click button again)
+                    this.hasClubRepAccount = 'yes';
+                    // Show modal for club confirmation/selection
+                    this.showClubSelectionModal = true;
                 },
                 error: (err) => {
                     this.inlineError = 'Failed to load your clubs. Please try again.';
@@ -172,44 +189,25 @@ export class TeamRegistrationWizardComponent implements OnInit {
                 }
             });
         } finally {
-            this.submittingAction = null;
+            // no-op; doInlineLogin toggles submitting
         }
     }
 
-    async signInThenManageAccount(): Promise<void> {
-        this.submittingAction = 'manage';
-        if (!this.username || !this.password) {
-            this.submittingAction = null;
+    continueFromStep1(): void {
+        if (!this.selectedClub) {
+            this.inlineError = 'Please select a club before continuing.';
             return;
         }
+        this.clubName = this.selectedClub;
+        this.inlineError = null;
+        this.showClubSelectionModal = false;
+        this.step = 2;
+    }
 
-        try {
-            await this.doInlineLogin();
-            if (this.inlineError) return;
-
-            // Fetch clubs after login
-            this.teamRegService.getMyClubs().subscribe({
-                next: (clubs) => {
-                    this.availableClubs = clubs;
-                    if (clubs.length === 1) {
-                        // Auto-select single club and proceed to step 2 (Manage Club Teams)
-                        this.selectedClub = clubs[0].clubName;
-                        this.clubName = clubs[0].clubName;
-                        this.hasClubRepAccount = 'yes';
-                        this.step = 2;
-                    } else if (clubs.length === 0) {
-                        this.inlineError = 'You are not registered as a club representative.';
-                    }
-                    // If multiple clubs, wait for user selection (they'll click button again)
-                },
-                error: (err) => {
-                    this.inlineError = 'Failed to load your clubs. Please try again.';
-                    console.error('Failed to load clubs:', err);
-                }
-            });
-        } finally {
-            this.submittingAction = null;
-        }
+    cancelClubSelection(): void {
+        this.showClubSelectionModal = false;
+        this.selectedClub = null;
+        this.inlineError = null;
     }
 
     submitRegistration() {
@@ -311,5 +309,13 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
     currentStepLabel(): string {
         return this.stepLabels[this.step] || '';
+    }
+
+    onTeamsLoaded(count: number): void {
+        this.hasTeamsInLibrary = count > 0;
+    }
+
+    goToTeamsStep(): void {
+        this.step = 3;
     }
 }

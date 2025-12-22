@@ -3,10 +3,10 @@
         <div class="col-12">
             <div class="text-center mb-3">
                 <h2 id="tw-title" class="mb-1 fw-bold">Team Registration</h2>
-                <p class="text-muted mb-0 fs-6">Step {{step}} of 3: {{ currentStepLabel() }}</p>
             </div>
+            <app-tw-step-indicator [steps]="wizardSteps" [currentStep]="step"></app-tw-step-indicator>
             <div class="rw-sticky-header mb-4">
-                <progress class="w-100 rw-progress" [value]="step * 33.33" max="100">{{ step * 33.33 | number:'1.0-0'
+                <progress class="w-100 rw-progress" [value]="step * 20" max="100">{{ step * 20 | number:'1.0-0'
                     }}%</progress>
             </div>
             <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-team">
@@ -86,59 +86,20 @@
                                         <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div>
                                         }
 
-                                        <!-- CLUB SELECTION (after successful login) -->
-                                        @if (availableClubs.length > 0) {
-                                        <div class="mt-3">
-                                            @if (availableClubs.length === 1) {
-                                            <div class="text-secondary small">
-                                                Club: <strong>{{ availableClubs[0].clubName }}</strong>
-                                                @if (availableClubs[0].isInUse) {<span
-                                                    class="badge bg-secondary ms-2">In
-                                                    Use</span>}
-                                            </div>
-                                            } @else {
-                                            <div>
-                                                <label class="form-label small mb-1">Select Club:</label>
-                                                <select class="form-select form-select-sm" style="max-width: 300px;"
-                                                    [(ngModel)]="selectedClub"
-                                                    (ngModelChange)="selectedClub && selectClub(selectedClub)">
-                                                    <option value="">Choose...</option>
-                                                    @for (club of availableClubs; track club.clubName) {
-                                                    <option [value]="club.clubName">{{ club.clubName }} @if
-                                                        (club.isInUse) {(In
-                                                        Use)}</option>
-                                                    }
-                                                </select>
-                                            </div>
-                                            }
-                                        </div>
-                                        }
-
                                         <!-- ACTION BUTTONS -->
                                         <div class="mt-3 d-flex flex-column flex-sm-row gap-2 align-items-start">
                                             <button type="button" class="btn btn-primary btn-sm"
-                                                [disabled]="submitting || !username || !password || (availableClubs.length > 1 && !selectedClub)"
-                                                (click)="signInThenRegisterTeams()">
-                                                @if (submittingAction === 'register') {
-                                                <span class="spinner-border spinner-border-sm me-1"></span>
-                                                }
-                                                <i class="bi bi-calendar-plus me-1"></i>
-                                                <span>{{ submitting && submittingAction === 'register' ? 'Signing in…' :
-                                                    'Register Teams' }}</span>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm"
                                                 [disabled]="submitting || !username || !password"
-                                                (click)="signInThenManageAccount()">
-                                                @if (submittingAction === 'manage') {
+                                                (click)="signInThenGoToStep2()">
+                                                @if (submitting) {
                                                 <span class="spinner-border spinner-border-sm me-1"></span>
                                                 }
-                                                <i class="bi bi-gear me-1"></i>
-                                                <span>{{ submitting && submittingAction === 'manage' ? 'Signing in…' :
-                                                    'Manage Account' }}</span>
+                                                <i class="bi bi-box-arrow-in-right me-1"></i>
+                                                <span>{{ submitting ? 'Signing in…' : 'Login as Club Rep' }}</span>
                                             </button>
                                         </div>
-                                        <div class="text-muted small mt-2">Sign in to register teams for this event or
-                                            manage your club affiliations.</div>
+                                        <div class="text-muted small mt-2">Sign in to manage club teams (Step 2). From
+                                            there you can jump to Register Teams (Step 3) when ready.</div>
                                     </div>
                                 </div>
                                 }
@@ -311,10 +272,12 @@
                     </ng-container>
 
                     <ng-container *ngIf="step === 2">
-                        <app-tw-action-bar class="mt-2" [canBack]="true" [showContinue]="false" (back)="goBackToStep1()"
-                            placement="top">
+                        <app-tw-action-bar class="mt-2" [canBack]="true" [showContinue]="hasTeamsInLibrary"
+                            [canContinue]="hasTeamsInLibrary" continueLabel="Next" (back)="goBackToStep1()"
+                            (continue)="goToTeamsStep()" placement="top">
                         </app-tw-action-bar>
-                        <app-club-team-management [clubName]="clubName || ''"></app-club-team-management>
+                        <app-club-team-management [clubName]="clubName || ''" (teamsLoaded)="onTeamsLoaded($event)"
+                            (addTeam)="hasTeamsInLibrary = true"></app-club-team-management>
                     </ng-container>
 
                     <ng-container *ngIf="step === 3">
@@ -328,3 +291,74 @@
         </div> <!-- /col -->
     </div> <!-- /row -->
 </main>
+
+<!-- Club Selection Modal -->
+@if (showClubSelectionModal) {
+<div class="modal d-block" tabindex="-1" role="dialog"
+    style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <div class="d-flex align-items-start w-100">
+                    <i class="bi bi-building me-2 mt-1 flex-shrink-0"></i>
+                    <h4 class="modal-title mb-0 flex-grow-1">
+                        @if (availableClubs.length === 1) {
+                        Confirm Your Club
+                        } @else {
+                        Select Your Club
+                        }
+                    </h4>
+                </div>
+            </div>
+            <div class="modal-body p-4">
+                @if (inlineError) {
+                <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>{{ inlineError }}
+                    <button type="button" class="btn-close" (click)="inlineError = null"></button>
+                </div>
+                }
+
+                @if (availableClubs.length === 1) {
+                <!-- Single Club: Show club name prominently -->
+                <p class="text-muted mb-3">Confirm that you are representing this club:</p>
+                <div class="mb-4 p-3 border border-2 border-primary rounded bg-light">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-building fs-3 text-primary"></i>
+                        <div>
+                            <div class="fw-bold fs-5 text-dark">{{ availableClubs[0].clubName }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary" (click)="cancelClubSelection()">
+                        <i class="bi bi-x-circle me-1"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" (click)="continueFromStep1()">
+                        <i class="bi bi-check-circle me-1"></i> Confirm
+                    </button>
+                </div>
+                } @else {
+                <!-- Multiple Clubs: Show dropdown -->
+                <p class="text-muted mb-3">Choose which club you want to manage in this session:</p>
+                <div class="mb-3">
+                    <label for="clubSelector" class="form-label fw-semibold">Club</label>
+                    <select id="clubSelector" class="form-select form-select-lg" [(ngModel)]="selectedClub"
+                        (ngModelChange)="selectedClub && selectClub(selectedClub)">
+                        <option [value]="null">-- Choose a club --</option>
+                        @for (club of availableClubs; track club.clubName) {
+                        <option [value]="club.clubName">{{ club.clubName }}</option>
+                        }
+                    </select>
+                </div>
+                <div class="mt-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-primary" [disabled]="!selectedClub"
+                        (click)="continueFromStep1()">
+                        <i class="bi bi-arrow-right-circle me-1"></i> Continue
+                    </button>
+                </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+}

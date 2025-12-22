@@ -1,0 +1,20 @@
+<div class="step-indicator">
+    <div class="step-container">
+        @for (step of steps; track step.stepNumber; let isLast = $last) {
+        <div class="step-item" [class.completed]="isCompleted(step.stepNumber)"
+            [class.active]="isActive(step.stepNumber)" [class.future]="isFuture(step.stepNumber)">
+            <div class="step-badge">
+                @if (isCompleted(step.stepNumber)) {
+                <i class="bi bi-check-circle-fill"></i>
+                } @else {
+                <span class="step-number">{{ step.stepNumber }}</span>
+                }
+            </div>
+            <div class="step-label">{{ step.label }}</div>
+        </div>
+        @if (!isLast) {
+        <div class="step-connector" [class.completed]="isCompleted(step.stepNumber + 1)"></div>
+        }
+        }
+    </div>
+</div>

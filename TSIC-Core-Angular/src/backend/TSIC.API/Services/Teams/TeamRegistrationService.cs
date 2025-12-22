@@ -370,7 +370,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamName = request.ClubTeamName,
             ClubTeamGradYear = request.ClubTeamGradYear,
             ClubTeamLevelOfPlay = request.ClubTeamLevelOfPlay,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.UtcNow,
+            Active = true
         };
         _clubTeams.Add(clubTeam);
         await _clubTeams.SaveChangesAsync();

@@ -1,12 +1,19 @@
 <div class="club-team-management">
     <!-- Header -->
-    <div class="mb-4">
-        <h3 class="mb-2">
-            <i class="bi bi-collection me-2"></i>Manage Club Teams
-        </h3>
-        <p class="text-muted small mb-3">
-            View and manage teams in your club library.
-        </p>
+    <div class="mb-4 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
+        <div>
+            <h3 class="mb-1 d-flex align-items-center flex-wrap gap-2">
+                <i class="bi bi-collection me-1"></i>
+                <span>Manage Club Teams</span>
+                <span class="badge bg-light text-dark border">{{ clubName() || 'Your Club' }}</span>
+            </h3>
+            <p class="text-muted small mb-0">
+                View and manage teams in your club library.
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm align-self-start" (click)="requestAddTeam()">
+            <i class="bi bi-plus-circle me-1"></i>Add Team
+        </button>
     </div>
 
     <!-- Error Alert -->
@@ -72,4 +79,7 @@
     </div>
     }
     }
+
+    <!-- Add New Team Modal -->
+    <app-club-team-add-modal #addTeamModal [clubName]="clubName()"></app-club-team-add-modal>
 </div>

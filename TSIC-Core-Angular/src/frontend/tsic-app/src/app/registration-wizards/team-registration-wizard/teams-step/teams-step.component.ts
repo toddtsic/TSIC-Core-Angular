@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject, input } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -6,6 +6,7 @@ import { TeamRegistrationService } from '../services/team-registration.service';
 import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../../../core/api/models';
 import { JobContextService } from '../../../core/services/job-context.service';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
+import { ClubTeamAddModalComponent } from '../club-team-add-modal/club-team-add-modal.component';
 
 /**
  * Teams Step Component
@@ -25,7 +26,7 @@ import { FormFieldDataService } from '../../../core/services/form-field-data.ser
 @Component({
     selector: 'app-teams-step',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, ClubTeamAddModalComponent],
     templateUrl: './teams-step.component.html',
     styleUrls: ['./teams-step.component.scss']
 })
@@ -114,7 +115,7 @@ export class TeamsStepComponent implements OnInit {
     // UI state
     isLoading = signal<boolean>(false);
     errorMessage = signal<string | null>(null);
-    showAddTeamModal = signal<boolean>(false);
+    addTeamModal = viewChild<ClubTeamAddModalComponent>('addTeamModal');
     showAgeGroupModal = signal<boolean>(false);
     selectedClubTeamForRegistration = signal<ClubTeamDto | null>(null);
     openDropdownTeamId = signal<number | null>(null);
@@ -404,45 +405,7 @@ export class TeamsStepComponent implements OnInit {
      * Open the add new team modal
      */
     openAddTeamModal(): void {
-        this.showAddTeamModal.set(true);
-    }
-
-    /**
-     * Close the add new team modal
-     */
-    closeAddTeamModal(): void {
-        this.showAddTeamModal.set(false);
-    }
-
-    // Add another team flag
-    addAnotherTeam = signal<boolean>(false);
-
-    /**
-     * Add a new ClubTeam to the club
-     */
-    addNewClubTeam(teamData: NewClubTeamData, formRef?: any): void {
-        this.errorMessage.set(null);
-
-        this.teamService.addNewClubTeam(teamData).subscribe({
-            next: () => {
-                if (this.addAnotherTeam()) {
-                    // Reset the form but keep modal open
-                    if (formRef) {
-                        formRef.resetForm();
-                    }
-                    // Refresh metadata without showing loading spinner
-                    this.loadTeamsMetadata(false);
-                } else {
-                    this.closeAddTeamModal();
-                    // Refresh metadata without showing loading spinner
-                    this.loadTeamsMetadata(false);
-                }
-            },
-            error: (err) => {
-                console.error('Failed to add club team:', err);
-                this.errorMessage.set(err.error?.message || 'Failed to add team. Please try again.');
-            }
-        });
+        this.addTeamModal()?.open();
     }
 
     /**
