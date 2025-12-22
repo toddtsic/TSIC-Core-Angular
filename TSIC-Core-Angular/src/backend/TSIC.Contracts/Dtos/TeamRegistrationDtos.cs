@@ -139,6 +139,11 @@ public sealed record AddClubTeamResponse
     public string? Message { get; init; }
 }
 
+public sealed record RenameClubTeamRequest
+{
+    public required string NewName { get; init; }
+}
+
 public sealed record AddClubToRepResponse
 {
     public required bool Success { get; init; }

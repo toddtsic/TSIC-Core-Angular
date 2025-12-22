@@ -305,4 +305,123 @@ public class TeamRegistrationController : ControllerBase
             return StatusCode(500, new { Message = "An error occurred while retrieving club teams" });
         }
     }
+
+    /// <summary>
+    /// Inactivate a club team.
+    /// </summary>
+    [HttpPut("club-team/{clubTeamId}/inactivate")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> InactivateClubTeam(int clubTeamId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            await _teamRegistrationService.InactivateClubTeamAsync(clubTeamId, userId);
+            return Ok(new { Success = true, Message = "Team inactivated successfully" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized attempt to inactivate team {ClubTeamId} by user {UserId}", clubTeamId, userId);
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to inactivate team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inactivating team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return StatusCode(500, new { Message = "An error occurred while inactivating the team" });
+        }
+    }
+
+    /// <summary>
+    /// Rename a club team. Only allowed if team has never been used.
+    /// </summary>
+    [HttpPut("club-team/{clubTeamId}/rename")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> RenameClubTeam(int clubTeamId, [FromBody] RenameClubTeamRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.NewName))
+        {
+            return BadRequest(new { Message = "New team name is required" });
+        }
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            await _teamRegistrationService.RenameClubTeamAsync(clubTeamId, request.NewName, userId);
+            return Ok(new { Success = true, Message = "Team renamed successfully" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized attempt to rename team {ClubTeamId} by user {UserId}", clubTeamId, userId);
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to rename team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error renaming team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return StatusCode(500, new { Message = "An error occurred while renaming the team" });
+        }
+    }
+
+    /// <summary>
+    /// Delete a club team. Only allowed if team has never been used.
+    /// </summary>
+    [HttpDelete("club-team/{clubTeamId}")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> DeleteClubTeam(int clubTeamId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            await _teamRegistrationService.DeleteClubTeamAsync(clubTeamId, userId);
+            return Ok(new { Success = true, Message = "Team deleted successfully" });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized attempt to delete team {ClubTeamId} by user {UserId}", clubTeamId, userId);
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return StatusCode(500, new { Message = "An error occurred while deleting the team" });
+        }
+    }
 }

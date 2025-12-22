@@ -49,4 +49,19 @@ public interface ITeamRegistrationService
     /// Get all club teams for all clubs the user is a rep for.
     /// </summary>
     Task<List<ClubTeamManagementDto>> GetClubTeamsAsync(string userId);
+
+    /// <summary>
+    /// Inactivate a club team. Team can be reactivated later.
+    /// </summary>
+    Task<bool> InactivateClubTeamAsync(int clubTeamId, string userId);
+
+    /// <summary>
+    /// Rename a club team. Only allowed if team has never been used.
+    /// </summary>
+    Task<bool> RenameClubTeamAsync(int clubTeamId, string newName, string userId);
+
+    /// <summary>
+    /// Delete a club team. Only allowed if team has never been used.
+    /// </summary>
+    Task<bool> DeleteClubTeamAsync(int clubTeamId, string userId);
 }

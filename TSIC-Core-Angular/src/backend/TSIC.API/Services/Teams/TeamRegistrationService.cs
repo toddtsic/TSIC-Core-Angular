@@ -545,4 +545,116 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         return allTeams;
     }
+
+    public async Task<bool> InactivateClubTeamAsync(int clubTeamId, string userId)
+    {
+        _logger.LogInformation("Inactivating club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        // Get the team and verify user owns it
+        var clubTeam = await _clubTeams.GetByIdAsync(clubTeamId);
+        if (clubTeam == null)
+        {
+            _logger.LogWarning("Club team {ClubTeamId} not found", clubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is a rep for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == clubTeam.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not authorized for club team {ClubTeamId}", userId, clubTeamId);
+            throw new UnauthorizedAccessException("You are not authorized to manage this team");
+        }
+
+        // Inactivate the team
+        clubTeam.Active = false;
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} inactivated successfully", clubTeamId);
+        return true;
+    }
+
+    public async Task<bool> RenameClubTeamAsync(int clubTeamId, string newName, string userId)
+    {
+        _logger.LogInformation("Renaming club team {ClubTeamId} to {NewName} for user {UserId}", clubTeamId, newName, userId);
+
+        // Get the team and verify user owns it
+        var clubTeam = await _clubTeams.GetByIdAsync(clubTeamId);
+        if (clubTeam == null)
+        {
+            _logger.LogWarning("Club team {ClubTeamId} not found", clubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is a rep for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == clubTeam.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not authorized for club team {ClubTeamId}", userId, clubTeamId);
+            throw new UnauthorizedAccessException("You are not authorized to manage this team");
+        }
+
+        // Check if team has been used
+        var hasBeenUsed = await _teams.Query()
+            .AnyAsync(t => t.ClubTeamId == clubTeamId);
+
+        if (hasBeenUsed)
+        {
+            _logger.LogWarning("Cannot rename club team {ClubTeamId} because it has been used", clubTeamId);
+            throw new InvalidOperationException("Cannot rename a team that has been used in registrations");
+        }
+
+        // Check for duplicate name in the same club
+        var exists = await _clubTeams.ExistsByNameAsync(clubTeam.ClubId, newName);
+        if (exists)
+        {
+            _logger.LogWarning("Duplicate team name {TeamName} in club {ClubId}", newName, clubTeam.ClubId);
+            throw new InvalidOperationException($"A team named '{newName}' already exists for your club");
+        }
+
+        // Rename the team
+        clubTeam.ClubTeamName = newName;
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} renamed successfully to {NewName}", clubTeamId, newName);
+        return true;
+    }
+
+    public async Task<bool> DeleteClubTeamAsync(int clubTeamId, string userId)
+    {
+        _logger.LogInformation("Deleting club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        // Get the team and verify user owns it
+        var clubTeam = await _clubTeams.GetByIdAsync(clubTeamId);
+        if (clubTeam == null)
+        {
+            _logger.LogWarning("Club team {ClubTeamId} not found", clubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is a rep for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == clubTeam.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not authorized for club team {ClubTeamId}", userId, clubTeamId);
+            throw new UnauthorizedAccessException("You are not authorized to manage this team");
+        }
+
+        // Check if team has been used
+        var hasBeenUsed = await _teams.Query()
+            .AnyAsync(t => t.ClubTeamId == clubTeamId);
+
+        if (hasBeenUsed)
+        {
+            _logger.LogWarning("Cannot delete club team {ClubTeamId} because it has been used", clubTeamId);
+            throw new InvalidOperationException("Cannot delete a team that has been used in registrations");
+        }
+
+        // Delete the team
+        _clubTeams.Remove(clubTeam);
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} deleted successfully", clubTeamId);
+        return true;
+    }
 }
