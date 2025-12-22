@@ -2,7 +2,7 @@
     [attr.aria-label]="placement === 'bottom' ? 'Wizard actions (bottom)' : 'Wizard actions'">
     <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2 flex-grow-1">
         @if (canBack) {
-        <button type="button" class="btn btn-secondary d-inline-flex align-items-center gap-2" (click)="back.emit()"
+        <button type="button" class="btn btn-secondary btn-sm d-inline-flex align-items-center gap-2" (click)="back.emit()"
             aria-label="Go back to previous step">
             <span class="dir-icon" aria-hidden="true">‹</span>
             <span>Back</span>
@@ -12,7 +12,7 @@
         }
 
         @if (showContinue) {
-        <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 fw-semibold"
+        <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-2 fw-semibold"
             (click)="continue.emit()" [disabled]="!canContinue">
             {{ continueLabel }}
             <span class="dir-icon" aria-hidden="true">›</span>

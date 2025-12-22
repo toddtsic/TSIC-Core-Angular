@@ -494,6 +494,7 @@ body {
 /* Apply the mixin for each theme scope */
 @include wizard-button-theme('.wizard-theme-family');
 @include wizard-button-theme('.wizard-theme-player');
+@include wizard-button-theme('.wizard-theme-team');
 @include wizard-button-theme('.wizard-theme-login');
 @include wizard-button-theme('.wizard-theme-role-select');
 @include wizard-button-theme('.wizard-theme-landing');

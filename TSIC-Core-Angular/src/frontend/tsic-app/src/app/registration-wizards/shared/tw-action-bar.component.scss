@@ -1,7 +1,21 @@
-.tw-action-bar {
-    min-height: 48px;
+.btn-mobile {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    min-width: 70px;
+}
 
-    .btn {
+.tw-action-bar {
+    min-height: 36px;
+}
+
+@media (min-width: 768px) {
+    .btn-mobile {
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
         min-width: 120px;
+    }
+
+    .tw-action-bar {
+        min-height: 48px;
     }
 }

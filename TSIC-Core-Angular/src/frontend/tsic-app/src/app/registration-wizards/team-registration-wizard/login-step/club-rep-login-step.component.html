@@ -1,0 +1,235 @@
+<div class="accordion mb-4" id="wizardAccordion">
+    <div class="accordion-item border-2">
+        <h2 class="accordion-header">
+            <button class="accordion-button" type="button" [class.collapsed]="credentialsCollapsed"
+                (click)="credentialsCollapsed = !credentialsCollapsed" [attr.aria-expanded]="!credentialsCollapsed"
+                aria-controls="credentialsCollapse">
+                <i class="bi bi-info-circle text-primary fs-4 me-2 fw-bold"></i>
+                <span class="fw-bold">Club Rep Credentials</span>
+            </button>
+        </h2>
+        <div id="credentialsCollapse" class="accordion-collapse collapse" [class.show]="!credentialsCollapsed">
+            <div class="accordion-body">
+                <ul class="mb-0 small ps-3">
+                    <li>Use Club Rep credentials only. Do not use coach or director login.</li>
+                    <li>Only one rep should register teams to avoid duplicates and removal from
+                        this event.</li>
+                    <li>Never share this account - it has visibility over club and player
+                        information.</li>
+                    <li>If you have a Player or Coach account, you must create a separate
+                        username for Club Rep registration.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<h5 class="mb-2 fw-semibold pt-1">Have <strong class="text-primary">CLUB REP</strong>
+    credentials?</h5>
+
+<fieldset aria-labelledby="clubRepLegend" style="margin-top: 0.5rem;">
+    <legend id="clubRepLegend" class="visually-hidden">Club Rep account availability</legend>
+    <div class="list-group list-group-flush">
+        <!-- YES OPTION -->
+        <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
+            style="cursor: pointer;" [class.border-info]="hasClubRepAccount === 'yes'"
+            [class.bg-info]="hasClubRepAccount === 'yes'" [class.bg-opacity-10]="hasClubRepAccount === 'yes'">
+            <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount" [(ngModel)]="hasClubRepAccount"
+                [value]="'yes'" />
+            <div class="flex-grow-1">
+                <div class="fw-semibold">
+                    Yes — I have a CLUB REP login
+                </div>
+                <div class="text-muted small">Enter your credentials below once, then choose
+                    what you want to do.</div>
+            </div>
+        </label>
+
+        @if (hasClubRepAccount === 'yes') {
+        <!-- CREDENTIALS PANEL -->
+        <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
+            <div class="border border-2 rounded p-3 shadow-sm">
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label for="clubRepUsername" class="form-label small mb-1">Username</label>
+                        <input id="clubRepUsername" class="form-control form-control-sm" type="text"
+                            [(ngModel)]="username" autocomplete="username" />
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label for="clubRepPassword" class="form-label small mb-1">Password</label>
+                        <input id="clubRepPassword" class="form-control form-control-sm" type="password"
+                            [(ngModel)]="password" autocomplete="current-password" />
+                    </div>
+                </div>
+                @if (inlineError) {
+                <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div>
+                }
+
+                <!-- ACTION BUTTONS -->
+                <div class="mt-3 d-flex flex-column flex-sm-row gap-2 align-items-start">
+                    <button type="button" class="btn btn-primary btn-sm"
+                        [disabled]="submitting || !username || !password" (click)="signInThenProceed()">
+                        @if (submitting) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                        <span>{{ submitting ? 'Signing in…' : 'Login as Club Rep' }}</span>
+                    </button>
+                </div>
+                <div class="text-muted small mt-2">Sign in to manage club teams (Step 2). From
+                    there you can jump to Register Teams (Step 3) when ready.</div>
+            </div>
+        </div>
+        }
+
+        <!-- NO OPTION -->
+        <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2 mt-3"
+            style="cursor: pointer;" [class.border-info]="hasClubRepAccount === 'no'"
+            [class.bg-info]="hasClubRepAccount === 'no'" [class.bg-opacity-10]="hasClubRepAccount === 'no'">
+            <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount" [(ngModel)]="hasClubRepAccount"
+                [value]="'no'" />
+            <div class="flex-grow-1">
+                <div class="fw-semibold">
+                    No — I need to create one
+                </div>
+                <div class="text-muted small">We'll help you create a Club Rep Account before
+                    continuing.</div>
+            </div>
+        </label>
+
+        @if (hasClubRepAccount === 'no') {
+        <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
+            <div class="border border-2 rounded p-3 bg-body shadow-sm">
+                @if (registrationError) {
+                <div class="alert alert-danger py-2 mb-3" role="alert">
+                    {{ registrationError }}
+                </div>
+                }
+                @if (similarClubs.length > 0) {
+                <div class="alert alert-warning py-2 mb-3" role="alert">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>Warning:</strong> Similar clubs already exist:
+                            <ul class="mb-0 mt-1">
+                                @for (club of similarClubs; track club.clubId) {
+                                <li>{{ club.clubName }} ({{ club.state }}) - {{
+                                    club.matchScore }}% match</li>
+                                }
+                            </ul>
+                            <small class="d-block mt-2">Please verify this is not a
+                                duplicate. You may proceed if this is a different
+                                club.</small>
+                        </div>
+                        <button type="button" class="btn-close btn-sm" aria-label="Dismiss"
+                            (click)="dismissSimilarClubsWarning()"></button>
+                    </div>
+                </div>
+                }
+                <form [formGroup]="registrationForm" (ngSubmit)="submitRegistration()">
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label for="reg-username" class="form-label font-medium d-flex align-items-center">
+                                Username
+                                <span class="text-danger">*</span>
+                                <app-info-tooltip
+                                    message="Your Club Rep username must be different from any Player or Coach account username. We recommend: yourname_clubrep. This account should NEVER be shared. If you need to register a Player or yourself as a Coach, you must create a separate FAMILY or STAFF account." />
+                            </label>
+                            <input id="reg-username" formControlName="username" class="form-control"
+                                placeholder="Enter username (e.g., jsmith_clubrep)" autocomplete="username" required />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="reg-password" class="form-label font-medium d-flex align-items-center">
+                                Password
+                                <span class="text-danger">*</span>
+                                <app-info-tooltip
+                                    message="Keep this password secure and do NOT share it. Club Rep accounts access private information about multiple teams and many families' children." />
+                            </label>
+                            <input id="reg-password" formControlName="password" class="form-control" type="password"
+                                placeholder="Create password" autocomplete="new-password" required />
+                            <div class="form-text small text-muted">Minimum 6 characters
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3 mt-4">
+                        <div class="col-12">
+                            <label for="reg-clubName" class="form-label font-medium">Club Name
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-clubName" formControlName="clubName" class="form-control"
+                                placeholder="Enter club name" required />
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3 mt-4">
+                        <div class="col-12 col-md-6">
+                            <label for="reg-firstname" class="form-label font-medium">First Name
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-firstname" formControlName="firstName" class="form-control"
+                                placeholder="Enter first name" required />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="reg-lastname" class="form-label font-medium">Last Name
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-lastname" formControlName="lastName" class="form-control"
+                                placeholder="Enter last name" required />
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label for="reg-email" class="form-label font-medium">Email
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-email" formControlName="email" class="form-control" type="email"
+                                placeholder="Enter email" autocomplete="email" required />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="reg-cellphone" class="form-label font-medium">Cell Phone
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-cellphone" formControlName="cellphone" class="form-control" type="tel"
+                                placeholder="Enter cell phone" autocomplete="tel" required />
+                            <div class="form-text small text-muted">Numbers only</div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12">
+                            <label for="reg-street" class="form-label font-medium">Street
+                                Address
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-street" formControlName="street" class="form-control"
+                                placeholder="Enter street address" autocomplete="address-line1" required />
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-5">
+                            <label for="reg-city" class="form-label font-medium">City
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-city" formControlName="city" class="form-control" placeholder="Enter city"
+                                autocomplete="address-level2" required />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label for="reg-state" class="form-label font-medium">State
+                                <span class="text-danger">*</span>
+                            </label>
+                            <select id="reg-state" formControlName="state" class="form-select"
+                                autocomplete="address-level1" required>
+                                <option value="" disabled>Select state</option>
+                                @for (s of statesOptions; track s.value) {
+                                <option [value]="s.value">{{ s.label }}</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label for="reg-zip" class="form-label font-medium">ZIP Code
+                                <span class="text-danger">*</span></label>
+                            <input id="reg-zip" formControlName="zip" class="form-control" placeholder="ZIP"
+                                autocomplete="postal-code" required />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" [disabled]="registrationForm.invalid || submitting">
+                        @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status"
+                            aria-hidden="true"></span> }
+                        <span>{{ submitting ? 'Creating Account…' : 'Create Club Rep Account'
+                            }}</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        }
+    </div>
+</fieldset>

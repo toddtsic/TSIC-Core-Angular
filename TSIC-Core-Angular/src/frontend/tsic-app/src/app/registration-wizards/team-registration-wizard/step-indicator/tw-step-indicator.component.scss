@@ -87,35 +87,59 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .step-indicator {
+        padding: 0.5rem 0;
+    }
+
     .step-item {
-        min-width: 60px;
+        min-width: 50px;
     }
 
     .step-badge {
-        width: 32px;
-        height: 32px;
-        font-size: 0.875rem;
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+        border-width: 1.5px;
     }
 
     .step-label {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
 
     .step-connector {
-        max-width: 30px;
+        max-width: 20px;
+        height: 1.5px;
+    }
+
+    .step-container {
+        gap: 0.25rem;
+    }
+
+    .step-item {
+        gap: 0.25rem;
     }
 }
 
 @media (max-width: 576px) {
+    .step-indicator {
+        padding: 0.35rem 0;
+    }
+
     .step-label {
         display: none;
     }
 
     .step-item {
-        min-width: 40px;
+        min-width: 28px;
+    }
+
+    .step-badge {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
     }
 
     .step-connector {
-        max-width: 20px;
+        max-width: 15px;
     }
 }
