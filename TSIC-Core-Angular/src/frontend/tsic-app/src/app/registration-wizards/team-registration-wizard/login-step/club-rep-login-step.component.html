@@ -29,8 +29,8 @@
 <fieldset aria-labelledby="clubRepLegend" style="margin-top: 0.5rem;">
     <legend id="clubRepLegend" class="visually-hidden">Club Rep account availability</legend>
     <div class="list-group list-group-flush">
-        <!-- MOBILE SEGMENTED TOGGLE (xs only) -->
-        <div class="d-sm-none mb-2">
+        <!-- SEGMENTED TOGGLE (all viewports) -->
+        <div class="mb-2">
             <div class="btn-group w-100" role="group" aria-label="Club Rep account availability">
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes"
                     [(ngModel)]="hasClubRepAccount" [value]="'yes'" />
@@ -41,8 +41,14 @@
                 <label class="btn btn-outline-primary" for="seg-hasClubRep-no">No</label>
             </div>
         </div>
+        @if (hasClubRepAccount === 'yes') {
+        <div class="text-muted small mb-2">Enter your credentials below once, then choose what you want to do.</div>
+        }
+        @if (hasClubRepAccount === 'no') {
+        <div class="text-muted small mb-2">We'll help you create a Club Rep Account before continuing.</div>
+        }
         <!-- YES OPTION -->
-        <label class="list-group-item d-none d-sm-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
+        <label class="list-group-item d-none align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
             style="cursor: pointer;" [class.border-info]="hasClubRepAccount === 'yes'"
             [class.bg-info]="hasClubRepAccount === 'yes'" [class.bg-opacity-10]="hasClubRepAccount === 'yes'">
             <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount" [(ngModel)]="hasClubRepAccount"
@@ -94,7 +100,7 @@
         }
 
         <!-- NO OPTION -->
-        <label class="list-group-item d-none d-sm-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2 mt-3"
+        <label class="list-group-item d-none align-items-center gap-3 py-3 selectable border-2 rounded mb-2 mt-3"
             style="cursor: pointer;" [class.border-info]="hasClubRepAccount === 'no'"
             [class.bg-info]="hasClubRepAccount === 'no'" [class.bg-opacity-10]="hasClubRepAccount === 'no'">
             <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount" [(ngModel)]="hasClubRepAccount"
