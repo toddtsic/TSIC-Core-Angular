@@ -64,7 +64,7 @@
 
         @if (hasClubRepAccount === 'yes') {
         <!-- CREDENTIALS PANEL -->
-        <div class="pt-2 pb-3 ps-0 ps-sm-4 ps-md-5" style="animation: slideIn 0.3s ease-out;">
+        <div class="pt-2 pb-3 ps-0" style="animation: slideIn 0.3s ease-out;">
             <div class="border border-2 rounded p-3 shadow-sm">
                 <div class="row g-2 mb-2">
                     <div class="col-12 col-sm-6 col-md-4">
@@ -83,7 +83,7 @@
                 }
 
                 <!-- ACTION BUTTONS -->
-                <div class="mt-3 d-flex flex-column flex-sm-row gap-2 align-items-start">
+                <div class="mt-3 d-flex flex-column flex-sm-row gap-2 align-items-center justify-content-center">
                     <button type="button" class="btn btn-primary btn-sm"
                         [disabled]="submitting || !username || !password" (click)="signInThenProceed()">
                         @if (submitting) {
@@ -115,7 +115,7 @@
         </label>
 
         @if (hasClubRepAccount === 'no') {
-        <div class="pt-2 pb-3 ps-0 ps-sm-4 ps-md-5" style="animation: slideIn 0.3s ease-out;">
+        <div class="pt-2 pb-3 ps-0" style="animation: slideIn 0.3s ease-out;">
             <div class="border border-2 rounded p-3 bg-body shadow-sm">
                 @if (registrationError) {
                 <div class="alert alert-danger py-2 mb-3" role="alert">
@@ -175,71 +175,77 @@
                                 placeholder="Enter club name" required />
                         </div>
                     </div>
-                    <div class="row g-2 mb-3 mt-4">
-                        <div class="col-12 col-md-6">
-                            <label for="reg-firstname" class="form-label font-medium">First Name
-                                <span class="text-danger">*</span></label>
-                            <input id="reg-firstname" formControlName="firstName" class="form-control"
-                                placeholder="Enter first name" required />
+                    <fieldset class="mt-3">
+                        <legend class="small fw-bold text-primary">Club Rep Contact Details</legend>
+                        <div class="row g-2 mb-3 mt-2">
+                            <div class="col-12 col-md-6">
+                                <label for="reg-firstname" class="form-label font-medium">First Name
+                                    <span class="text-danger">*</span></label>
+                                <input id="reg-firstname" formControlName="firstName" class="form-control"
+                                    placeholder="Enter first name" required />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="reg-lastname" class="form-label font-medium">Last Name
+                                    <span class="text-danger">*</span></label>
+                                <input id="reg-lastname" formControlName="lastName" class="form-control"
+                                    placeholder="Enter last name" required />
+                            </div>
                         </div>
-                        <div class="col-12 col-md-6">
-                            <label for="reg-lastname" class="form-label font-medium">Last Name
-                                <span class="text-danger">*</span></label>
-                            <input id="reg-lastname" formControlName="lastName" class="form-control"
-                                placeholder="Enter last name" required />
+                        <div class="row g-2 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label for="reg-email" class="form-label font-medium">Email
+                                    <span class="text-danger">*</span></label>
+                                <input id="reg-email" formControlName="email" class="form-control" type="email"
+                                    placeholder="Enter email" autocomplete="email" required />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="reg-cellphone" class="form-label font-medium">Cell Phone
+                                    <span class="text-danger">*</span></label>
+                                <input id="reg-cellphone" formControlName="cellphone" class="form-control" type="tel"
+                                    placeholder="Enter cell phone" autocomplete="tel" required />
+                                <div class="form-text small text-muted">Numbers only</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-12 col-md-6">
-                            <label for="reg-email" class="form-label font-medium">Email
-                                <span class="text-danger">*</span></label>
-                            <input id="reg-email" formControlName="email" class="form-control" type="email"
-                                placeholder="Enter email" autocomplete="email" required />
+                    </fieldset>
+                    <fieldset class="mt-3">
+                        <legend class="small text-muted fw-semibold">Club Rep Address</legend>
+                        <div class="row g-2 mb-3 mt-2">
+                            <div class="col-12">
+                                <label for="reg-street" class="form-label font-medium">Street
+                                    Address
+                                    <span class="text-danger">*</span></label>
+                                <input id="reg-street" formControlName="street" class="form-control"
+                                    placeholder="Enter street address" autocomplete="address-line1" required />
+                            </div>
                         </div>
-                        <div class="col-12 col-md-6">
-                            <label for="reg-cellphone" class="form-label font-medium">Cell Phone
-                                <span class="text-danger">*</span></label>
-                            <input id="reg-cellphone" formControlName="cellphone" class="form-control" type="tel"
-                                placeholder="Enter cell phone" autocomplete="tel" required />
-                            <div class="form-text small text-muted">Numbers only</div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-12 col-md-5">
+                                <label for="reg-city" class="form-label font-medium">City
+                                    <span class="text-danger">*</span></label>
+                                <input id="reg-city" formControlName="city" class="form-control" placeholder="Enter city"
+                                    autocomplete="address-level2" required />
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label for="reg-state" class="form-label font-medium">State
+                                    <span class="text-danger">*</span>
+                                </label>
+                                <select id="reg-state" formControlName="state" class="form-select"
+                                    autocomplete="address-level1" required>
+                                    <option value="" disabled>Select state</option>
+                                    @for (s of statesOptions; track s.value) {
+                                    <option [value]="s.value">{{ s.label }}</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="reg-zip" class="form-label font-medium">ZIP Code
+                                    <span class="text-danger">*</span></label>
+                                <input id="reg-zip" formControlName="zip" class="form-control" placeholder="ZIP"
+                                    autocomplete="postal-code" required />
+                            </div>
                         </div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-12">
-                            <label for="reg-street" class="form-label font-medium">Street
-                                Address
-                                <span class="text-danger">*</span></label>
-                            <input id="reg-street" formControlName="street" class="form-control"
-                                placeholder="Enter street address" autocomplete="address-line1" required />
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-12 col-md-5">
-                            <label for="reg-city" class="form-label font-medium">City
-                                <span class="text-danger">*</span></label>
-                            <input id="reg-city" formControlName="city" class="form-control" placeholder="Enter city"
-                                autocomplete="address-level2" required />
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label for="reg-state" class="form-label font-medium">State
-                                <span class="text-danger">*</span>
-                            </label>
-                            <select id="reg-state" formControlName="state" class="form-select"
-                                autocomplete="address-level1" required>
-                                <option value="" disabled>Select state</option>
-                                @for (s of statesOptions; track s.value) {
-                                <option [value]="s.value">{{ s.label }}</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label for="reg-zip" class="form-label font-medium">ZIP Code
-                                <span class="text-danger">*</span></label>
-                            <input id="reg-zip" formControlName="zip" class="form-control" placeholder="ZIP"
-                                autocomplete="postal-code" required />
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary" [disabled]="registrationForm.invalid || submitting">
+                    </fieldset>
+                    <button type="submit" class="btn btn-primary d-block mx-auto" [disabled]="registrationForm.invalid || submitting">
                         @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status"
                             aria-hidden="true"></span> }
                         <span>{{ submitting ? 'Creating Account…' : 'Create Club Rep Account'
