@@ -1,0 +1,7 @@
+<div class="tw-action-bar d-flex justify-content-between align-items-center">
+    <button *ngIf="canBack" class="btn btn-outline-primary btn-mobile mb-0" (click)="back.emit()">Back</button>
+    <div class="flex-grow-1"></div>
+    <button *ngIf="showContinue" class="btn btn-primary btn-mobile mb-0" [disabled]="!canContinue"
+        (click)="continue.emit()">{{
+        continueLabel }}</button>
+</div>

@@ -47,13 +47,13 @@ export class TeamEditModalComponent {
                 const t = this.team()!;
                 this.teamName.set(t.clubTeamName);
                 this.gradYear.set(t.clubTeamGradYear);
-                
+
                 // Find matching dropdown option for level of play
                 // Database stores "5", dropdown has "5 (strongest)"
                 const lopOptions = this.levelOfPlayOptions();
                 const matchingOption = lopOptions.find(opt => opt.value.startsWith(t.clubTeamLevelOfPlay));
                 this.levelOfPlay.set(matchingOption?.value || t.clubTeamLevelOfPlay);
-                
+
                 this.errorMessage.set(null);
                 this.successMessage.set(null);
             }

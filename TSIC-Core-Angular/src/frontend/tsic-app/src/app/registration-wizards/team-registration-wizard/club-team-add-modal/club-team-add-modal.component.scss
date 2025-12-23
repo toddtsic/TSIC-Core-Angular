@@ -25,7 +25,7 @@
 .info-section {
     background-color: rgba(var(--bs-info-rgb, 13, 202, 240), 0.05);
     border: 1px solid rgba(var(--bs-info-rgb, 13, 202, 240), 0.15);
-    
+
     [data-bs-theme='dark'] & {
         background-color: rgba(var(--bs-info-rgb, 13, 202, 240), 0.08);
         border-color: rgba(var(--bs-info-rgb, 13, 202, 240), 0.2);
@@ -35,7 +35,7 @@
 .form-section {
     background: linear-gradient(to bottom, rgba(var(--bs-primary-rgb), 0.02), rgba(var(--bs-primary-rgb), 0.05));
     border: 1px solid rgba(var(--bs-primary-rgb), 0.12);
-    
+
     [data-bs-theme='dark'] & {
         background: linear-gradient(to bottom, rgba(var(--bs-primary-rgb), 0.05), rgba(var(--bs-primary-rgb), 0.08));
         border-color: rgba(var(--bs-primary-rgb), 0.2);

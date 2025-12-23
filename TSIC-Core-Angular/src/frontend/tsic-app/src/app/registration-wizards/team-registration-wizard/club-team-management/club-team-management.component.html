@@ -14,21 +14,13 @@
     <div class="accordion mb-3" id="teamLibraryInfoAccordion">
         <div class="accordion-item">
             <h2 class="accordion-header">
-                <button 
-                    class="accordion-button" 
-                    [class.collapsed]="!infoExpanded()"
-                    type="button" 
-                    (click)="toggleInfo()"
-                    aria-expanded="{{ infoExpanded() }}"
-                    aria-controls="teamLibraryInfoContent">
+                <button class="accordion-button" [class.collapsed]="!infoExpanded()" type="button"
+                    (click)="toggleInfo()" aria-expanded="{{ infoExpanded() }}" aria-controls="teamLibraryInfoContent">
                     <i class="bi bi-lightbulb me-2"></i>
                     <strong>New: Reusable Team Library</strong>
                 </button>
             </h2>
-            <div 
-                id="teamLibraryInfoContent" 
-                class="accordion-collapse collapse"
-                [class.show]="infoExpanded()">
+            <div id="teamLibraryInfoContent" class="accordion-collapse collapse" [class.show]="infoExpanded()">
                 <div class="accordion-body">
                     <p class="mb-2">
                         Your teams are now saved in a permanent library. Create them once, use them for every event!
@@ -40,10 +32,7 @@
                     </ul>
                     @if (!infoAlreadyRead()) {
                     <div class="text-end">
-                        <button 
-                            type="button" 
-                            class="btn btn-sm btn-outline-primary"
-                            (click)="acknowledgeInfo()">
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="acknowledgeInfo()">
                             <i class="bi bi-check-circle me-1"></i>Got it!
                         </button>
                     </div>
@@ -70,13 +59,22 @@
         <p class="mt-2 text-muted">Loading teams...</p>
     </div>
     } @else {
-    <!-- No Teams -->
-    @if (teams().length === 0) {
-    <div class="alert alert-info text-center py-5">
-        <i class="bi bi-inbox fs-2 mb-2"></i>
-        <p class="mb-0">No teams in your club library yet.</p>
+
+    <!-- Search Filter -->
+    <div class="mb-3">
+        <div class="input-group">
+            <span class="input-group-text bg-light border-end-0">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" class="form-control border-start-0" placeholder="Filter teams by name or grad year..."
+                [(ngModel)]="searchTerm" (ngModelChange)="searchTerm.set($event)">
+            @if (searchTerm()) {
+            <button class="btn btn-outline-secondary" type="button" (click)="searchTerm.set('')" title="Clear search">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            }
+        </div>
     </div>
-    } @else {
 
     <!-- Tabs -->
     <ul class="nav nav-tabs mb-3">
@@ -100,6 +98,14 @@
         </li>
     </ul>
 
+    <!-- No Teams -->
+    @if (teams().length === 0) {
+    <div class="alert alert-info text-center py-5">
+        <i class="bi bi-inbox fs-2 mb-2"></i>
+        <p class="mb-0">No teams in your club library yet.</p>
+    </div>
+    }
+
     <!-- Empty State for Active Tab -->
     @if (activeTab() === 'active' && activeTeams().length === 0) {
     <div class="alert alert-info text-center py-4">
@@ -116,60 +122,84 @@
     </div>
     }
 
-    <!-- Teams Table -->
+    <!-- Expand/Collapse All -->
+    @if (groupedTeams().length > 1) {
+    <div class="mb-2 d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="expandAll()">
+            <i class="bi bi-arrows-expand me-1"></i>Expand All
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">
+            <i class="bi bi-arrows-collapse me-1"></i>Collapse All
+        </button>
+    </div>
+    }
+
+    <!-- Grouped Teams Table -->
     @if (filteredTeams().length > 0) {
-    <div class="table-responsive">
-        <table class="table table-hover table-sm">
-            <thead>
-                <tr>
-                    <th>
-                        <span class="d-none d-md-inline">Team Name</span>
-                        <span class="d-md-none">Name</span>
-                    </th>
-                    <th>
-                        <span class="d-none d-md-inline">Graduation Year</span>
-                        <span class="d-md-none">Grad</span>
-                    </th>
-                    <th>
-                        <span class="d-none d-md-inline">Level of Play</span>
-                        <span class="d-md-none">LoP</span>
-                    </th>
-                    <th class="text-center d-none d-lg-table-cell">
-                        <span class="d-none d-xl-inline">Registered?</span>
-                        <span class="d-xl-none">Reg?</span>
-                    </th>
-                    <th class="text-center">
-                        <span class="d-none d-sm-inline">Actions</span>
-                        <span class="d-sm-none"><i class="bi bi-three-dots"></i></span>
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (team of filteredTeams(); track team.clubTeamId) {
-                <tr>
-                    <td class="fw-semibold">{{ team.clubTeamName }}</td>
-                    <td class="text-muted">{{ team.clubTeamGradYear }}</td>
-                    <td class="text-muted">{{ team.clubTeamLevelOfPlay }}/5</td>
-                    <td class="text-center d-none d-lg-table-cell">
-                        @if (team.hasBeenRegisteredForAnyEvent) {
-                        <span class="badge bg-info" title="This team has been registered for events">
-                            <i class="bi bi-check-circle me-1"></i>Yes
-                        </span>
-                        } @else {
-                        <span class="badge bg-light text-dark">No</span>
-                        }
-                    </td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-outline-primary btn-sm" (click)="modifyTeam(team)"
-                            title="Edit, activate/inactivate, or delete this team">
-                            <i class="bi bi-pencil-square"></i>
-                            <span class="d-none d-sm-inline ms-1">Modify</span>
-                        </button>
-                    </td>
-                </tr>
-                }
-            </tbody>
-        </table>
+    @for (group of groupedTeams(); track group.year) {
+    <div class="mb-3">
+        <!-- Year Header -->
+        <div class="year-header d-flex align-items-center justify-content-between p-2 bg-light border rounded"
+            (click)="toggleYearCollapse(group.year)" role="button" [attr.aria-expanded]="!isYearCollapsed(group.year)">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi" [class.bi-chevron-down]="!isYearCollapsed(group.year)"
+                    [class.bi-chevron-right]="isYearCollapsed(group.year)"></i>
+                <strong>{{ group.year }} Teams</strong>
+                <span class="badge bg-secondary">{{ group.teams.length }}</span>
+            </div>
+        </div>
+
+        <!-- Teams Table for this Year -->
+        @if (!isYearCollapsed(group.year)) {
+        <div class="table-responsive mt-2">
+            <table class="table table-hover table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>
+                            <span class="d-none d-md-inline">Team Name</span>
+                            <span class="d-md-none">Name</span>
+                        </th>
+                        <th>
+                            <span class="d-none d-md-inline">Level of Play</span>
+                            <span class="d-md-none">LoP</span>
+                        </th>
+                        <th class="text-center d-none d-lg-table-cell">
+                            <span class="d-none d-xl-inline">Registered?</span>
+                            <span class="d-xl-none">Reg?</span>
+                        </th>
+                        <th class="text-center">
+                            <span class="d-none d-sm-inline">Actions</span>
+                            <span class="d-sm-none"><i class="bi bi-three-dots"></i></span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (team of group.teams; track team.clubTeamId) {
+                    <tr>
+                        <td class="fw-semibold">{{ team.clubTeamName }}</td>
+                        <td class="text-muted">{{ team.clubTeamLevelOfPlay }}/5</td>
+                        <td class="text-center d-none d-lg-table-cell">
+                            @if (team.hasBeenRegisteredForAnyEvent) {
+                            <span class="badge bg-info" title="This team has been registered for events">
+                                <i class="bi bi-check-circle me-1"></i>Yes
+                            </span>
+                            } @else {
+                            <span class="badge bg-light text-dark">No</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-outline-primary btn-sm" (click)="modifyTeam(team)"
+                                title="Edit, activate/inactivate, or delete this team">
+                                <i class="bi bi-pencil-square"></i>
+                                <span class="d-none d-sm-inline ms-1">Modify</span>
+                            </button>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        }
     </div>
     }
     }

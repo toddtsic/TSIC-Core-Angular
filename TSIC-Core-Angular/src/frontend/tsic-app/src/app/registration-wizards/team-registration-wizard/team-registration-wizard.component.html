@@ -40,10 +40,11 @@
             </div> <!-- /card -->
         </div> <!-- /col -->
     </div> <!-- /row -->
-    
+
     <!-- Fixed Bottom Navigation -->
     @if (step === 2 || step === 3) {
-    <div class="position-fixed bottom-0 start-0 end-0 py-2" style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
+    <div class="position-fixed bottom-0 start-0 end-0 py-2"
+        style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
         <div class="container-fluid px-2">
             <div class="row justify-content-center">
                 <div class="col-auto">
@@ -92,7 +93,8 @@
 
                 @if (availableClubs.length === 1) {
                 <!-- Single Club: Show club name prominently -->
-                <div class="mb-3 py-3 px-3 rounded-3 border-0" style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
+                <div class="mb-3 py-3 px-3 rounded-3 border-0"
+                    style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
                     <div class="d-flex align-items-center gap-3">
                         <div class="p-2 rounded-circle" style="background-color: rgba(var(--bs-primary-rgb), 0.25);">
                             <i class="bi bi-building fs-4" style="color: var(--bs-primary);"></i>

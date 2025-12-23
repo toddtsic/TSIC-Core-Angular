@@ -91,19 +91,17 @@
                 <!-- Left side: Delete/Inactivate/Restore button -->
                 <div>
                     @if (isActive()) {
-                        @if (hasBeenRegistered()) {
-                        <button type="button" class="btn btn-outline-warning btn-sm" (click)="deleteTeam()"
-                            [disabled]="isSubmitting()"
-                            title="Move to inactive (preserves registration history)">
-                            <i class="bi bi-archive me-1"></i>Inactivate
-                        </button>
-                        } @else {
-                        <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteTeam()"
-                            [disabled]="isSubmitting()"
-                            title="Permanently delete this team">
-                            <i class="bi bi-trash me-1"></i>Delete
-                        </button>
-                        }
+                    @if (hasBeenRegistered()) {
+                    <button type="button" class="btn btn-outline-warning btn-sm" (click)="deleteTeam()"
+                        [disabled]="isSubmitting()" title="Move to inactive (preserves registration history)">
+                        <i class="bi bi-archive me-1"></i>Inactivate
+                    </button>
+                    } @else {
+                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteTeam()"
+                        [disabled]="isSubmitting()" title="Permanently delete this team">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </button>
+                    }
                     } @else {
                     <button type="button" class="btn btn-outline-success btn-sm" (click)="toggleActive()"
                         [disabled]="isSubmitting()">
