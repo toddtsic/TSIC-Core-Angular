@@ -47,20 +47,7 @@
         @if (hasClubRepAccount === 'no') {
         <div class="text-muted small mb-2">We'll help you create a Club Rep Account before continuing.</div>
         }
-        <!-- YES OPTION -->
-        <label class="list-group-item d-none align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
-            style="cursor: pointer;" [class.border-info]="hasClubRepAccount === 'yes'"
-            [class.bg-info]="hasClubRepAccount === 'yes'" [class.bg-opacity-10]="hasClubRepAccount === 'yes'">
-            <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount" [(ngModel)]="hasClubRepAccount"
-                [value]="'yes'" />
-            <div class="flex-grow-1">
-                <div class="fw-semibold">
-                    Yes — I have a CLUB REP login
-                </div>
-                <div class="text-muted small">Enter your credentials below once, then choose
-                    what you want to do.</div>
-            </div>
-        </label>
+        <!-- YES/NO cards removed (replaced by segmented toggle globally) -->
 
         @if (hasClubRepAccount === 'yes') {
         <!-- CREDENTIALS PANEL -->
@@ -99,20 +86,7 @@
         </div>
         }
 
-        <!-- NO OPTION -->
-        <label class="list-group-item d-none align-items-center gap-3 py-3 selectable border-2 rounded mb-2 mt-3"
-            style="cursor: pointer;" [class.border-info]="hasClubRepAccount === 'no'"
-            [class.bg-info]="hasClubRepAccount === 'no'" [class.bg-opacity-10]="hasClubRepAccount === 'no'">
-            <input class="form-check-input mt-0" type="radio" name="hasClubRepAccount" [(ngModel)]="hasClubRepAccount"
-                [value]="'no'" />
-            <div class="flex-grow-1">
-                <div class="fw-semibold">
-                    No — I need to create one
-                </div>
-                <div class="text-muted small">We'll help you create a Club Rep Account before
-                    continuing.</div>
-            </div>
-        </label>
+        
 
         @if (hasClubRepAccount === 'no') {
         <div class="pt-2 pb-3 ps-0" style="animation: slideIn 0.3s ease-out;">
@@ -142,7 +116,8 @@
                     </div>
                 </div>
                 }
-                <form class="club-rep-registration-form" [formGroup]="registrationForm" (ngSubmit)="submitRegistration()">
+                <form class="club-rep-registration-form" [formGroup]="registrationForm"
+                    (ngSubmit)="submitRegistration()">
                     <div class="row g-2 mb-3">
                         <div class="col-12 col-md-6">
                             <label for="reg-username" class="form-label font-medium d-flex align-items-center">
@@ -222,8 +197,8 @@
                             <div class="col-12 col-md-5">
                                 <label for="reg-city" class="form-label font-medium">City
                                     <span class="text-danger">*</span></label>
-                                <input id="reg-city" formControlName="city" class="form-control" placeholder="Enter city"
-                                    autocomplete="address-level2" required />
+                                <input id="reg-city" formControlName="city" class="form-control"
+                                    placeholder="Enter city" autocomplete="address-level2" required />
                             </div>
                             <div class="col-12 col-md-3">
                                 <label for="reg-state" class="form-label font-medium">State
@@ -245,7 +220,8 @@
                             </div>
                         </div>
                     </fieldset>
-                    <button type="submit" class="btn btn-primary d-block mx-auto" [disabled]="registrationForm.invalid || submitting">
+                    <button type="submit" class="btn btn-primary d-block mx-auto"
+                        [disabled]="registrationForm.invalid || submitting">
                         @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status"
                             aria-hidden="true"></span> }
                         <span>{{ submitting ? 'Creating Account…' : 'Create Club Rep Account'

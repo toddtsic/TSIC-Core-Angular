@@ -92,17 +92,17 @@
                 <div>
                     @if (isActive()) {
                     @if (!confirmingDelete()) {
-                        @if (hasBeenRegistered()) {
-                        <button type="button" class="btn btn-outline-warning btn-sm" (click)="beginDelete()"
-                            [disabled]="isSubmitting()" title="Move to inactive (preserves registration history)">
-                            <i class="bi bi-archive me-1"></i>Inactivate
-                        </button>
-                        } @else {
-                        <button type="button" class="btn btn-outline-danger btn-sm" (click)="beginDelete()"
-                            [disabled]="isSubmitting()" title="Permanently delete this team">
-                            <i class="bi bi-trash me-1"></i>Delete
-                        </button>
-                        }
+                    @if (hasBeenRegistered()) {
+                    <button type="button" class="btn btn-outline-warning btn-sm" (click)="beginDelete()"
+                        [disabled]="isSubmitting()" title="Move to inactive (preserves registration history)">
+                        <i class="bi bi-archive me-1"></i>Inactivate
+                    </button>
+                    } @else {
+                    <button type="button" class="btn btn-outline-danger btn-sm" (click)="beginDelete()"
+                        [disabled]="isSubmitting()" title="Permanently delete this team">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </button>
+                    }
                     }
                     } @else {
                     <button type="button" class="btn btn-outline-success btn-sm" (click)="toggleActive()"
@@ -132,21 +132,26 @@
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-triangle text-danger"></i>
                         @if (hasBeenRegistered()) {
-                        <span class="small">This team has registration history and will be moved to <strong>inactive</strong>. Are you sure?</span>
+                        <span class="small">This team has registration history and will be moved to
+                            <strong>inactive</strong>. Are you sure?</span>
                         } @else {
-                        <span class="small">This team will be <strong>permanently deleted</strong>. Type <strong>DELETE</strong> to confirm.</span>
+                        <span class="small">This team will be <strong>permanently deleted</strong>. Type
+                            <strong>DELETE</strong> to confirm.</span>
                         }
                     </div>
                     @if (!hasBeenRegistered()) {
                     <div class="mt-2">
                         <input type="text" class="form-control form-control-sm w-auto" placeholder="Type DELETE"
-                            [ngModel]="confirmText()" (ngModelChange)="confirmText.set($event)" aria-label="Confirm deletion">
+                            [ngModel]="confirmText()" (ngModelChange)="confirmText.set($event)"
+                            aria-label="Confirm deletion">
                     </div>
                     }
                     <div class="mt-2 d-flex gap-2">
-                        <button type="button" class="btn btn-secondary btn-sm" (click)="cancelDelete()" [disabled]="isSubmitting()">Cancel</button>
-                        <button type="button" class="btn btn-sm" [class.btn-danger]="!hasBeenRegistered()" [class.btn-warning]="hasBeenRegistered()"
-                            (click)="confirmDelete()" [disabled]="confirmDisabled()">Confirm</button>
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="cancelDelete()"
+                            [disabled]="isSubmitting()">Cancel</button>
+                        <button type="button" class="btn btn-sm" [class.btn-danger]="!hasBeenRegistered()"
+                            [class.btn-warning]="hasBeenRegistered()" (click)="confirmDelete()"
+                            [disabled]="confirmDisabled()">Confirm</button>
                     </div>
                 </div>
                 }
