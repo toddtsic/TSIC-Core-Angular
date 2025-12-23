@@ -238,6 +238,28 @@
     }
 }
 
+/* ============================================
+     Mobile compact form controls (global wizard usage)
+     Apply a consistent small style to inputs/selects across wizard pages on mobile.
+     ============================================ */
+@media (max-width: 575.98px) {
+    .wizard-theme-player form .form-control,
+    .wizard-theme-team form .form-control,
+    .wizard-theme-family form .form-control,
+    .wizard-theme-login form .form-control,
+    .wizard-theme-role-select form .form-control,
+    .wizard-theme-landing form .form-control,
+    .wizard-theme-player form .form-select,
+    .wizard-theme-team form .form-select,
+    .wizard-theme-family form .form-select,
+    .wizard-theme-login form .form-select,
+    .wizard-theme-role-select form .form-select,
+    .wizard-theme-landing form .form-select {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
 /* Dark-aware text colors */
 .text-primary-content {
     color: var(--text-primary) !important;
