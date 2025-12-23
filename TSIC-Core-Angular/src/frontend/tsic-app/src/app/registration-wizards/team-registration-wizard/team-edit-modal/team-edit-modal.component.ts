@@ -185,17 +185,32 @@ export class TeamEditModalComponent {
         );
     }
 
-    deleteTeam(): void {
+    // Delete confirmation state
+    confirmingDelete = signal<boolean>(false);
+    confirmText = signal<string>('');
+    confirmDisabled = computed(() => {
+        if (this.isSubmitting()) return true;
+        // Require typing DELETE for permanent deletion (no registration history)
+        if (!this.hasBeenRegistered()) {
+            return this.confirmText().trim().toUpperCase() !== 'DELETE';
+        }
+        return false;
+    });
+
+    beginDelete(): void {
+        this.errorMessage.set(null);
+        this.successMessage.set(null);
+        this.confirmingDelete.set(true);
+    }
+
+    cancelDelete(): void {
+        this.confirmText.set('');
+        this.confirmingDelete.set(false);
+    }
+
+    confirmDelete(): void {
         const currentTeam = this.team();
         if (!currentTeam || this.isSubmitting()) {
-            return;
-        }
-
-        const confirmMessage = currentTeam.hasBeenRegisteredForAnyEvent
-            ? `This team has registration history and will be moved to inactive. Are you sure?`
-            : `This team will be permanently deleted. Are you sure?`;
-
-        if (!confirm(confirmMessage)) {
             return;
         }
 
@@ -207,7 +222,7 @@ export class TeamEditModalComponent {
             currentTeam.clubTeamId,
             (response) => {
                 this.isSubmitting.set(false);
-                this.successMessage.set(response.message || 'Team deleted successfully');
+                this.successMessage.set(response.message || (currentTeam.hasBeenRegisteredForAnyEvent ? 'Team moved to inactive' : 'Team deleted successfully'));
 
                 // Update local team object if soft-deleted
                 if (currentTeam.hasBeenRegisteredForAnyEvent) {
@@ -226,7 +241,8 @@ export class TeamEditModalComponent {
                     });
                 }
 
-                // Close modal after brief delay
+                // Reset confirm state and close modal after brief delay
+                this.cancelDelete();
                 setTimeout(() => this.close(), 1500);
             },
             (error) => {
