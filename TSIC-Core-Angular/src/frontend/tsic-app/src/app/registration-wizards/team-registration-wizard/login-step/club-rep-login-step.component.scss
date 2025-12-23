@@ -1,13 +1,13 @@
 /* Compact registration inputs on small screens to match the login panel */
 @media (max-width: 575.98px) {
-	form[formGroup] .form-control,
-	form[formGroup] .form-select {
+	.club-rep-registration-form .form-control,
+	.club-rep-registration-form .form-select {
 		font-size: 0.875rem;
 		padding: 0.25rem 0.5rem;
 	}
 
 	/* Fine-tune selects for consistent height */
-	form[formGroup] .form-select {
+	.club-rep-registration-form .form-select {
 		padding-top: 0.25rem;
 		padding-bottom: 0.25rem;
 	}
