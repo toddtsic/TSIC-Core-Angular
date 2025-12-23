@@ -22,7 +22,9 @@ public interface IClubTeamRepository
 
     Task<ClubTeams?> GetByIdAsync(int clubTeamId, CancellationToken cancellationToken = default);
     Task<bool> ExistsByNameAsync(int clubId, string teamName, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByNameExcludingIdAsync(int clubId, string teamName, int excludeClubTeamId, CancellationToken cancellationToken = default);
     void Add(ClubTeams clubTeam);
+    void Update(ClubTeams clubTeam);
     void Remove(ClubTeams clubTeam);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

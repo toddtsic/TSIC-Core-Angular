@@ -10,7 +10,10 @@ import {
     AddClubTeamResponse,
     ClubRepClubDto,
     AddClubToRepRequest,
-    AddClubToRepResponse
+    AddClubToRepResponse,
+    ClubTeamManagementDto,
+    UpdateClubTeamRequest,
+    ClubTeamOperationResponse
 } from '../../../core/api/models';
 
 /**
@@ -117,5 +120,113 @@ export class TeamRegistrationService {
     removeClubFromRep(clubName: string): Observable<void> {
         const params = new HttpParams().set('clubName', clubName);
         return this.http.delete<void>(`${this.apiUrl}/remove-club`, { params });
+    }
+
+    /**
+     * Get all club teams for all clubs the user is a rep for
+     * 
+     * Returns teams with metadata including usage and registration status
+     */
+    getClubTeams(): Observable<ClubTeamManagementDto[]> {
+        return this.http.get<ClubTeamManagementDto[]>(`${this.apiUrl}/club-library-teams`);
+    }
+
+    /**
+     * Update a club team
+     * 
+     * Conditional logic:
+     * - If team has never been registered: all fields can be updated
+     * - If team has registration history: only level of play can be updated
+     * 
+     * @param request - Update request with clubTeamId and field values
+     * @param onSuccess - Callback invoked on successful update with response
+     * @param onError - Callback invoked on error with error message
+     */
+    updateClubTeam(
+        request: UpdateClubTeamRequest,
+        onSuccess: (response: ClubTeamOperationResponse) => void,
+        onError: (error: string) => void
+    ): void {
+        this.http.put<ClubTeamOperationResponse>(`${this.apiUrl}/club-team/${request.clubTeamId}`, request)
+            .subscribe({
+                next: (response) => onSuccess(response),
+                error: (err) => {
+                    const message = err.error?.message || err.error?.Message || 'Failed to update team';
+                    onError(message);
+                }
+            });
+    }
+
+    /**
+     * Activate a club team (set Active = true)
+     * 
+     * @param clubTeamId - ID of the team to activate
+     * @param onSuccess - Callback invoked on successful activation
+     * @param onError - Callback invoked on error with error message
+     */
+    activateClubTeam(
+        clubTeamId: number,
+        onSuccess: (response: ClubTeamOperationResponse) => void,
+        onError: (error: string) => void
+    ): void {
+        this.http.patch<ClubTeamOperationResponse>(`${this.apiUrl}/club-team/${clubTeamId}/activate`, {})
+            .subscribe({
+                next: (response) => onSuccess(response),
+                error: (err) => {
+                    const message = err.error?.message || err.error?.Message || 'Failed to activate team';
+                    onError(message);
+                }
+            });
+    }
+
+    /**
+     * Inactivate a club team (set Active = false)
+     * 
+     * Cannot inactivate if team is currently registered for any event
+     * 
+     * @param clubTeamId - ID of the team to inactivate
+     * @param onSuccess - Callback invoked on successful inactivation
+     * @param onError - Callback invoked on error with error message
+     */
+    inactivateClubTeam(
+        clubTeamId: number,
+        onSuccess: (response: ClubTeamOperationResponse) => void,
+        onError: (error: string) => void
+    ): void {
+        this.http.patch<ClubTeamOperationResponse>(`${this.apiUrl}/club-team/${clubTeamId}/inactivate`, {})
+            .subscribe({
+                next: (response) => onSuccess(response),
+                error: (err) => {
+                    const message = err.error?.message || err.error?.Message || 'Failed to inactivate team';
+                    onError(message);
+                }
+            });
+    }
+
+    /**
+     * Delete a club team
+     * 
+     * Smart delete logic:
+     * - If team has never been registered: hard delete (permanently removed)
+     * - If team has registration history: soft delete (set Active = false)
+     * Cannot delete if team is currently registered for any event
+     * 
+     * @param clubTeamId - ID of the team to delete
+     * @param onSuccess - Callback invoked on successful deletion
+     * @param onError - Callback invoked on error with error message
+     */
+    deleteClubTeam(
+        clubTeamId: number,
+        onSuccess: (response: ClubTeamOperationResponse) => void,
+        onError: (error: string) => void
+    ): void {
+        this.http.delete<ClubTeamOperationResponse>(`${this.apiUrl}/club-team/${clubTeamId}`)
+            .subscribe({
+                next: (response) => onSuccess(response),
+                error: (err) => {
+                    const message = err.error?.message || err.error?.Message || 'Failed to delete team';
+                    onError(message);
+                }
+            });
     }
 }

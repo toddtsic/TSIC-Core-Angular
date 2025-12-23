@@ -120,7 +120,7 @@ public class AddClubTeamRequestValidator : AbstractValidator<AddClubTeamRequest>
     {
         RuleFor(x => x.ClubTeamName)
             .NotEmpty().WithMessage("Team name is required")
-            .MaximumLength(200).WithMessage("Team name cannot exceed 200 characters");
+            .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters");
 
         RuleFor(x => x.ClubTeamGradYear)
             .NotEmpty().WithMessage("Graduation year is required")
@@ -174,6 +174,7 @@ public sealed record ClubTeamManagementDto
     public required string ClubTeamLevelOfPlay { get; init; }
     public required bool IsActive { get; init; }
     public required bool HasBeenUsed { get; init; }
+    public required bool HasBeenRegisteredForAnyEvent { get; init; }
 }
 
 public sealed record InactivateClubTeamRequest
@@ -201,6 +202,35 @@ public class ActivateClubTeamRequestValidator : AbstractValidator<ActivateClubTe
     {
         RuleFor(x => x.ClubTeamId)
             .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
+    }
+}
+
+public sealed record UpdateClubTeamRequest
+{
+    public required int ClubTeamId { get; init; }
+    public required string ClubTeamName { get; init; }
+    public required string ClubTeamGradYear { get; init; }
+    public required string ClubTeamLevelOfPlay { get; init; }
+}
+
+public class UpdateClubTeamRequestValidator : AbstractValidator<UpdateClubTeamRequest>
+{
+    public UpdateClubTeamRequestValidator()
+    {
+        RuleFor(x => x.ClubTeamId)
+            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
+
+        RuleFor(x => x.ClubTeamName)
+            .NotEmpty().WithMessage("Team name is required")
+            .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters");
+
+        RuleFor(x => x.ClubTeamGradYear)
+            .NotEmpty().WithMessage("Graduation year is required")
+            .Matches(@"^\d{4}$").WithMessage("Graduation year must be a 4-digit year");
+
+        RuleFor(x => x.ClubTeamLevelOfPlay)
+            .NotEmpty().WithMessage("Level of play is required")
+            .MaximumLength(50).WithMessage("Level of play cannot exceed 50 characters");
     }
 }
 

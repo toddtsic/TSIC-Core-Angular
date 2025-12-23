@@ -213,6 +213,27 @@ export interface ClubTeamDto {
     [key: string]: any;
 }
 
+export interface ClubTeamManagementDto {
+    clubTeamId: number;
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
+    isActive: boolean;
+    hasBeenUsed: boolean;
+    hasBeenRegisteredForAnyEvent: boolean;
+
+    [key: string]: any;
+}
+
+export interface ClubTeamOperationResponse {
+    success: boolean;
+    clubTeamId: number;
+    clubTeamName: string;
+    message: string | undefined;
+
+    [key: string]: any;
+}
+
 export interface CreditCardInfo {
     number: string | undefined;
     expiry: string | undefined;
@@ -884,6 +905,15 @@ export interface TeamsMetadataResponse {
 export interface TestValidationRequest {
     field: ProfileMetadataField;
     testValue: string;
+
+    [key: string]: any;
+}
+
+export interface UpdateClubTeamRequest {
+    clubTeamId: number;
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
 
     [key: string]: any;
 }

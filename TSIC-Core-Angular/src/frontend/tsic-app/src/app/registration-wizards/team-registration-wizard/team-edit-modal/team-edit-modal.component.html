@@ -1,0 +1,134 @@
+<!-- Modal Backdrop -->
+@if (visible()) {
+<div class="modal fade show d-block" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <!-- Header -->
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil-square me-2"></i>Modify Team
+                </h5>
+                <button type="button" class="btn-close" (click)="close()" [disabled]="isSubmitting()"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+                <!-- Success Alert -->
+                @if (successMessage()) {
+                <div class="alert alert-success" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>{{ successMessage() }}
+                </div>
+                }
+
+                <!-- Error Alert -->
+                @if (errorMessage()) {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
+                    <button type="button" class="btn-close" (click)="errorMessage.set(null)"></button>
+                </div>
+                }
+
+                <!-- Registration History Notice -->
+                @if (hasBeenRegistered()) {
+                <div class="alert alert-info" role="alert">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>This team has registration history.</strong>
+                    <br>Team name and graduation year cannot be changed. Only level of play can be updated.
+                </div>
+                }
+
+                <!-- Form -->
+                <form>
+                    <!-- Team Name -->
+                    <div class="mb-3">
+                        <label for="teamName" class="form-label">
+                            Team Name
+                            @if (!canEditName()) {
+                            <i class="bi bi-lock-fill text-muted ms-1" title="Locked due to registration history"></i>
+                            }
+                        </label>
+                        <input type="text" class="form-control" id="teamName" [ngModel]="teamName()"
+                            (ngModelChange)="teamName.set($event)" [disabled]="!canEditName() || isSubmitting()"
+                            [readonly]="!canEditName()" name="teamName" required maxlength="80">
+                    </div>
+
+                    <!-- Graduation Year -->
+                    <div class="mb-3">
+                        <label for="gradYear" class="form-label">
+                            Graduation Year
+                            @if (!canEditGradYear()) {
+                            <i class="bi bi-lock-fill text-muted ms-1" title="Locked due to registration history"></i>
+                            }
+                        </label>
+                        <select class="form-select" id="gradYear" [ngModel]="gradYear()"
+                            (ngModelChange)="gradYear.set($event)" [disabled]="!canEditGradYear() || isSubmitting()"
+                            name="gradYear" required>
+                            @for (year of gradYearOptions(); track year) {
+                            <option [value]="year">{{ year }}</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Level of Play -->
+                    <div class="mb-3">
+                        <label for="levelOfPlay" class="form-label">
+                            Level of Play
+                            <i class="bi bi-unlock-fill text-success ms-1" title="Can always be updated"></i>
+                        </label>
+                        <select class="form-select" id="levelOfPlay" [ngModel]="levelOfPlay()"
+                            (ngModelChange)="levelOfPlay.set($event)" [disabled]="isSubmitting()" name="levelOfPlay"
+                            required maxlength="50">
+                            @for (option of levelOfPlayOptions(); track option.value) {
+                            <option [value]="option.value">{{ option.label }}</option>
+                            }
+                        </select>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer d-flex justify-content-between">
+                <!-- Left side: Delete/Inactivate/Restore button -->
+                <div>
+                    @if (isActive()) {
+                        @if (hasBeenRegistered()) {
+                        <button type="button" class="btn btn-outline-warning btn-sm" (click)="deleteTeam()"
+                            [disabled]="isSubmitting()"
+                            title="Move to inactive (preserves registration history)">
+                            <i class="bi bi-archive me-1"></i>Inactivate
+                        </button>
+                        } @else {
+                        <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteTeam()"
+                            [disabled]="isSubmitting()"
+                            title="Permanently delete this team">
+                            <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                        }
+                    } @else {
+                    <button type="button" class="btn btn-outline-success btn-sm" (click)="toggleActive()"
+                        [disabled]="isSubmitting()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Restore
+                    </button>
+                    }
+                </div>
+
+                <!-- Right side: Cancel/Save buttons -->
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm me-2" (click)="close()"
+                        [disabled]="isSubmitting()">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" (click)="saveChanges()"
+                        [disabled]="isSubmitting()">
+                        @if (isSubmitting()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}

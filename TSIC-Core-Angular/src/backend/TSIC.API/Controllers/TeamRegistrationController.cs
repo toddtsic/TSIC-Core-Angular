@@ -307,10 +307,96 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Update a club team. Conditional logic based on registration history.
+    /// </summary>
+    [HttpPut("club-team/{clubTeamId}")]
+    [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> UpdateClubTeam(int clubTeamId, [FromBody] UpdateClubTeamRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new { Message = "Request body is required" });
+        }
+
+        if (request.ClubTeamId != clubTeamId)
+        {
+            return BadRequest(new { Message = "ClubTeamId in URL does not match request body" });
+        }
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            var result = await _teamRegistrationService.UpdateClubTeamAsync(request, userId);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized attempt to update team {ClubTeamId} by user {UserId}", clubTeamId, userId);
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to update team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return StatusCode(500, new { Message = "An error occurred while updating the team" });
+        }
+    }
+
+    /// <summary>
+    /// Activate a club team.
+    /// </summary>
+    [HttpPatch("club-team/{clubTeamId}/activate")]
+    [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> ActivateClubTeam(int clubTeamId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            var result = await _teamRegistrationService.ActivateClubTeamAsync(clubTeamId, userId);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized attempt to activate team {ClubTeamId} by user {UserId}", clubTeamId, userId);
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to activate team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+            return StatusCode(500, new { Message = "An error occurred while activating the team" });
+        }
+    }
+
+    /// <summary>
     /// Inactivate a club team.
     /// </summary>
-    [HttpPut("club-team/{clubTeamId}/inactivate")]
-    [ProducesResponseType(200)]
+    [HttpPatch("club-team/{clubTeamId}/inactivate")]
+    [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
@@ -324,8 +410,8 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            await _teamRegistrationService.InactivateClubTeamAsync(clubTeamId, userId);
-            return Ok(new { Success = true, Message = "Team inactivated successfully" });
+            var result = await _teamRegistrationService.InactivateClubTeamAsync(clubTeamId, userId);
+            return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -345,53 +431,10 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Rename a club team. Only allowed if team has never been used.
-    /// </summary>
-    [HttpPut("club-team/{clubTeamId}/rename")]
-    [ProducesResponseType(200)]
-    [ProducesResponseType(400)]
-    [ProducesResponseType(401)]
-    [ProducesResponseType(403)]
-    public async Task<IActionResult> RenameClubTeam(int clubTeamId, [FromBody] RenameClubTeamRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request?.NewName))
-        {
-            return BadRequest(new { Message = "New team name is required" });
-        }
-
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { Message = "User not authenticated" });
-        }
-
-        try
-        {
-            await _teamRegistrationService.RenameClubTeamAsync(clubTeamId, request.NewName, userId);
-            return Ok(new { Success = true, Message = "Team renamed successfully" });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger.LogWarning(ex, "Unauthorized attempt to rename team {ClubTeamId} by user {UserId}", clubTeamId, userId);
-            return StatusCode(403, new { Message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Failed to rename team {ClubTeamId} for user {UserId}", clubTeamId, userId);
-            return BadRequest(new { Message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error renaming team {ClubTeamId} for user {UserId}", clubTeamId, userId);
-            return StatusCode(500, new { Message = "An error occurred while renaming the team" });
-        }
-    }
-
-    /// <summary>
-    /// Delete a club team. Only allowed if team has never been used.
+    /// Delete a club team. Smart delete: soft delete if registered, hard delete if never used.
     /// </summary>
     [HttpDelete("club-team/{clubTeamId}")]
-    [ProducesResponseType(200)]
+    [ProducesResponseType(typeof(ClubTeamOperationResponse), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
@@ -405,8 +448,8 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            await _teamRegistrationService.DeleteClubTeamAsync(clubTeamId, userId);
-            return Ok(new { Success = true, Message = "Team deleted successfully" });
+            var result = await _teamRegistrationService.DeleteClubTeamAsync(clubTeamId, userId);
+            return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {

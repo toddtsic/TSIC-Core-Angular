@@ -547,7 +547,134 @@ public class TeamRegistrationService : ITeamRegistrationService
         return allTeams;
     }
 
-    public async Task<bool> InactivateClubTeamAsync(int clubTeamId, string userId)
+    public async Task<ClubTeamOperationResponse> UpdateClubTeamAsync(UpdateClubTeamRequest request, string userId)
+    {
+        _logger.LogInformation("Updating club team {ClubTeamId} for user {UserId}", request.ClubTeamId, userId);
+
+        // Get the team and verify it exists
+        var clubTeam = await _clubTeams.GetByIdAsync(request.ClubTeamId);
+        if (clubTeam == null)
+        {
+            _logger.LogWarning("Club team {ClubTeamId} not found", request.ClubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is a rep for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == clubTeam.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not authorized for club team {ClubTeamId}", userId, request.ClubTeamId);
+            throw new UnauthorizedAccessException("You are not authorized to manage this team");
+        }
+
+        // Check if team has been registered for any event
+        var hasBeenRegistered = await _clubTeams.HasBeenUsedAsync(request.ClubTeamId);
+
+        // If team has been registered, only allow level of play changes
+        if (hasBeenRegistered)
+        {
+            if (clubTeam.ClubTeamName != request.ClubTeamName)
+            {
+                _logger.LogWarning("Cannot change name of club team {ClubTeamId} - has registration history", request.ClubTeamId);
+                return new ClubTeamOperationResponse
+                {
+                    Success = false,
+                    ClubTeamId = request.ClubTeamId,
+                    ClubTeamName = clubTeam.ClubTeamName,
+                    Message = "Cannot change team name - this team has registration history"
+                };
+            }
+
+            if (clubTeam.ClubTeamGradYear != request.ClubTeamGradYear)
+            {
+                _logger.LogWarning("Cannot change grad year of club team {ClubTeamId} - has registration history", request.ClubTeamId);
+                return new ClubTeamOperationResponse
+                {
+                    Success = false,
+                    ClubTeamId = request.ClubTeamId,
+                    ClubTeamName = clubTeam.ClubTeamName,
+                    Message = "Cannot change graduation year - this team has registration history"
+                };
+            }
+
+            // Only update level of play
+            clubTeam.ClubTeamLevelOfPlay = request.ClubTeamLevelOfPlay;
+        }
+        else
+        {
+            // Team has never been registered - allow all fields to be updated
+            // Check for duplicate name if name is changing
+            if (clubTeam.ClubTeamName != request.ClubTeamName)
+            {
+                var exists = await _clubTeams.ExistsByNameExcludingIdAsync(clubTeam.ClubId, request.ClubTeamName, request.ClubTeamId);
+                if (exists)
+                {
+                    _logger.LogWarning("Duplicate team name {TeamName} in club {ClubId}", request.ClubTeamName, clubTeam.ClubId);
+                    return new ClubTeamOperationResponse
+                    {
+                        Success = false,
+                        ClubTeamId = request.ClubTeamId,
+                        ClubTeamName = clubTeam.ClubTeamName,
+                        Message = $"A team named '{request.ClubTeamName}' already exists for your club"
+                    };
+                }
+            }
+
+            // Update all fields
+            clubTeam.ClubTeamName = request.ClubTeamName;
+            clubTeam.ClubTeamGradYear = request.ClubTeamGradYear;
+            clubTeam.ClubTeamLevelOfPlay = request.ClubTeamLevelOfPlay;
+        }
+
+        _clubTeams.Update(clubTeam);
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} updated successfully", request.ClubTeamId);
+        return new ClubTeamOperationResponse
+        {
+            Success = true,
+            ClubTeamId = clubTeam.ClubTeamId,
+            ClubTeamName = clubTeam.ClubTeamName,
+            Message = "Team updated successfully"
+        };
+    }
+
+    public async Task<ClubTeamOperationResponse> ActivateClubTeamAsync(int clubTeamId, string userId)
+    {
+        _logger.LogInformation("Activating club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        // Get the team and verify it exists
+        var clubTeam = await _clubTeams.GetByIdAsync(clubTeamId);
+        if (clubTeam == null)
+        {
+            _logger.LogWarning("Club team {ClubTeamId} not found", clubTeamId);
+            throw new InvalidOperationException("Club team not found");
+        }
+
+        // Verify user is a rep for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == clubTeam.ClubId))
+        {
+            _logger.LogWarning("User {UserId} is not authorized for club team {ClubTeamId}", userId, clubTeamId);
+            throw new UnauthorizedAccessException("You are not authorized to manage this team");
+        }
+
+        // Activate the team
+        clubTeam.Active = true;
+        _clubTeams.Update(clubTeam);
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Club team {ClubTeamId} activated successfully", clubTeamId);
+        return new ClubTeamOperationResponse
+        {
+            Success = true,
+            ClubTeamId = clubTeam.ClubTeamId,
+            ClubTeamName = clubTeam.ClubTeamName,
+            Message = "Team activated successfully"
+        };
+    }
+
+    public async Task<ClubTeamOperationResponse> InactivateClubTeamAsync(int clubTeamId, string userId)
     {
         _logger.LogInformation("Inactivating club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
 
@@ -569,59 +696,20 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         // Inactivate the team
         clubTeam.Active = false;
+        _clubTeams.Update(clubTeam);
         await _clubTeams.SaveChangesAsync();
 
         _logger.LogInformation("Club team {ClubTeamId} inactivated successfully", clubTeamId);
-        return true;
+        return new ClubTeamOperationResponse
+        {
+            Success = true,
+            ClubTeamId = clubTeam.ClubTeamId,
+            ClubTeamName = clubTeam.ClubTeamName,
+            Message = "Team moved to inactive"
+        };
     }
 
-    public async Task<bool> RenameClubTeamAsync(int clubTeamId, string newName, string userId)
-    {
-        _logger.LogInformation("Renaming club team {ClubTeamId} to {NewName} for user {UserId}", clubTeamId, newName, userId);
-
-        // Get the team and verify user owns it
-        var clubTeam = await _clubTeams.GetByIdAsync(clubTeamId);
-        if (clubTeam == null)
-        {
-            _logger.LogWarning("Club team {ClubTeamId} not found", clubTeamId);
-            throw new InvalidOperationException("Club team not found");
-        }
-
-        // Verify user is a rep for this club
-        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-        if (!myClubs.Any(c => c.ClubId == clubTeam.ClubId))
-        {
-            _logger.LogWarning("User {UserId} is not authorized for club team {ClubTeamId}", userId, clubTeamId);
-            throw new UnauthorizedAccessException("You are not authorized to manage this team");
-        }
-
-        // Check if team has been used
-        var hasBeenUsed = await _teams.Query()
-            .AnyAsync(t => t.ClubTeamId == clubTeamId);
-
-        if (hasBeenUsed)
-        {
-            _logger.LogWarning("Cannot rename club team {ClubTeamId} because it has been used", clubTeamId);
-            throw new InvalidOperationException("Cannot rename a team that has been used in registrations");
-        }
-
-        // Check for duplicate name in the same club
-        var exists = await _clubTeams.ExistsByNameAsync(clubTeam.ClubId, newName);
-        if (exists)
-        {
-            _logger.LogWarning("Duplicate team name {TeamName} in club {ClubId}", newName, clubTeam.ClubId);
-            throw new InvalidOperationException($"A team named '{newName}' already exists for your club");
-        }
-
-        // Rename the team
-        clubTeam.ClubTeamName = newName;
-        await _clubTeams.SaveChangesAsync();
-
-        _logger.LogInformation("Club team {ClubTeamId} renamed successfully to {NewName}", clubTeamId, newName);
-        return true;
-    }
-
-    public async Task<bool> DeleteClubTeamAsync(int clubTeamId, string userId)
+    public async Task<ClubTeamOperationResponse> DeleteClubTeamAsync(int clubTeamId, string userId)
     {
         _logger.LogInformation("Deleting club team {ClubTeamId} for user {UserId}", clubTeamId, userId);
 
@@ -641,21 +729,39 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new UnauthorizedAccessException("You are not authorized to manage this team");
         }
 
-        // Check if team has been used
-        var hasBeenUsed = await _teams.Query()
-            .AnyAsync(t => t.ClubTeamId == clubTeamId);
+        // Check if team has been registered for any event
+        var hasBeenRegistered = await _clubTeams.HasBeenUsedAsync(clubTeamId);
 
-        if (hasBeenUsed)
+        if (hasBeenRegistered)
         {
-            _logger.LogWarning("Cannot delete club team {ClubTeamId} because it has been used", clubTeamId);
-            throw new InvalidOperationException("Cannot delete a team that has been used in registrations");
+            // Soft delete: set inactive to preserve history
+            _logger.LogInformation("Club team {ClubTeamId} has registration history - performing soft delete", clubTeamId);
+            clubTeam.Active = false;
+            _clubTeams.Update(clubTeam);
+            await _clubTeams.SaveChangesAsync();
+
+            return new ClubTeamOperationResponse
+            {
+                Success = true,
+                ClubTeamId = clubTeam.ClubTeamId,
+                ClubTeamName = clubTeam.ClubTeamName,
+                Message = "Team moved to inactive (history preserved)"
+            };
         }
+        else
+        {
+            // Hard delete: remove from database
+            _logger.LogInformation("Club team {ClubTeamId} has no history - performing hard delete", clubTeamId);
+            _clubTeams.Remove(clubTeam);
+            await _clubTeams.SaveChangesAsync();
 
-        // Delete the team
-        _clubTeams.Remove(clubTeam);
-        await _clubTeams.SaveChangesAsync();
-
-        _logger.LogInformation("Club team {ClubTeamId} deleted successfully", clubTeamId);
-        return true;
+            return new ClubTeamOperationResponse
+            {
+                Success = true,
+                ClubTeamId = clubTeam.ClubTeamId,
+                ClubTeamName = clubTeam.ClubTeamName,
+                Message = "Team deleted permanently"
+            };
+        }
     }
 }

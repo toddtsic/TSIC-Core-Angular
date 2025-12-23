@@ -13,7 +13,7 @@ public partial class ClubTeams
 
     public string ClubTeamGradYear { get; set; } = null!;
 
-    public string ClubTeamLevelOfPlay { get; set; } = null!;
+    public string? ClubTeamLevelOfPlay { get; set; }
 
     public string? LebUserId { get; set; }
 

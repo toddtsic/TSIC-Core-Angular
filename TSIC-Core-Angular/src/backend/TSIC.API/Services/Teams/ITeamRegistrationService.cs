@@ -51,17 +51,27 @@ public interface ITeamRegistrationService
     Task<List<ClubTeamManagementDto>> GetClubTeamsAsync(string userId);
 
     /// <summary>
-    /// Inactivate a club team. Team can be reactivated later.
+    /// Update a club team. Name and grad year can only be changed if team has never been registered.
+    /// Level of play can always be updated.
     /// </summary>
-    Task<bool> InactivateClubTeamAsync(int clubTeamId, string userId);
+    Task<ClubTeamOperationResponse> UpdateClubTeamAsync(UpdateClubTeamRequest request, string userId);
 
     /// <summary>
-    /// Rename a club team. Only allowed if team has never been used.
+    /// Activate a club team (set Active = true).
     /// </summary>
-    Task<bool> RenameClubTeamAsync(int clubTeamId, string newName, string userId);
+    Task<ClubTeamOperationResponse> ActivateClubTeamAsync(int clubTeamId, string userId);
 
     /// <summary>
-    /// Delete a club team. Only allowed if team has never been used.
+    /// Inactivate a club team (set Active = false). Team can be reactivated later.
+    /// Cannot inactivate if team is currently registered for any event.
     /// </summary>
-    Task<bool> DeleteClubTeamAsync(int clubTeamId, string userId);
+    Task<ClubTeamOperationResponse> InactivateClubTeamAsync(int clubTeamId, string userId);
+
+    /// <summary>
+    /// Delete a club team permanently. 
+    /// If team has registration history, it will be soft-deleted (set Active = false).
+    /// If team has never been used, it will be hard-deleted (removed from database).
+    /// Cannot delete if team is currently registered for any event.
+    /// </summary>
+    Task<ClubTeamOperationResponse> DeleteClubTeamAsync(int clubTeamId, string userId);
 }

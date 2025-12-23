@@ -1,4 +1,4 @@
-import { Component, Input, computed, inject, signal, effect } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -22,6 +22,7 @@ interface ClubTeamDto {
 })
 export class ClubTeamAddModalComponent {
     @Input({ required: true }) clubName!: string;
+    @Output() teamAdded = new EventEmitter<void>();
 
     private readonly http = inject(HttpClient);
     private readonly fieldData = inject(FormFieldDataService);
@@ -79,10 +80,15 @@ export class ClubTeamAddModalComponent {
         }
 
         const normalizedGradYear = teamData.clubTeamGradYear === 'N/A' ? null : teamData.clubTeamGradYear;
+        
+        // Strip descriptive text from level of play, keep only the number
+        const lopMatch = teamData.clubTeamLevelOfPlay.match(/^(\d+)/);
+        const normalizedLevelOfPlay = lopMatch ? lopMatch[1] : teamData.clubTeamLevelOfPlay;
 
         this.teamService.addNewClubTeam({
-            ...teamData,
-            clubTeamGradYear: normalizedGradYear as any
+            clubTeamName: teamData.clubTeamName,
+            clubTeamGradYear: normalizedGradYear as any,
+            clubTeamLevelOfPlay: normalizedLevelOfPlay
         }).subscribe({
             next: () => {
                 const shouldStayOpen = this.stayOpenOnSubmit;
@@ -90,6 +96,9 @@ export class ClubTeamAddModalComponent {
 
                 // Reload teams to show the newly added team
                 this.loadTeams();
+                
+                // Notify parent component to refresh its table
+                this.teamAdded.emit();
 
                 if (shouldStayOpen) {
                     // Reset the form but keep modal open

@@ -5,14 +5,53 @@
             <i class="bi bi-collection"></i>
             <h5 class="mb-0">Manage Club Teams</h5>
         </div>
-        <button type="button" class="btn btn-outline-primary btn-sm" (click)="requestAddTeam()">
+        <button type="button" class="btn btn-success btn-sm" (click)="requestAddTeam()">
             <i class="bi bi-plus-circle me-1"></i>Add Team
         </button>
     </div>
-    
-    <p class="text-muted small mb-3">
-        View and manage teams in your club library.
-    </p>
+
+    <!-- New Paradigm Info Accordion -->
+    <div class="accordion mb-3" id="teamLibraryInfoAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button 
+                    class="accordion-button" 
+                    [class.collapsed]="!infoExpanded()"
+                    type="button" 
+                    (click)="toggleInfo()"
+                    aria-expanded="{{ infoExpanded() }}"
+                    aria-controls="teamLibraryInfoContent">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    <strong>New: Reusable Team Library</strong>
+                </button>
+            </h2>
+            <div 
+                id="teamLibraryInfoContent" 
+                class="accordion-collapse collapse"
+                [class.show]="infoExpanded()">
+                <div class="accordion-body">
+                    <p class="mb-2">
+                        Your teams are now saved in a permanent library. Create them once, use them for every event!
+                    </p>
+                    <ul class="mb-3 ps-3">
+                        <li><strong>Add teams here</strong> - they'll be available for all future registrations</li>
+                        <li><strong>Reuse teams</strong> - no need to recreate teams for each tournament</li>
+                        <li><strong>Edit anytime</strong> - changes won't affect past event registrations</li>
+                    </ul>
+                    @if (!infoAlreadyRead()) {
+                    <div class="text-end">
+                        <button 
+                            type="button" 
+                            class="btn btn-sm btn-outline-primary"
+                            (click)="acknowledgeInfo()">
+                            <i class="bi bi-check-circle me-1"></i>Got it!
+                        </button>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Error Alert -->
     @if (errorMessage()) {
@@ -38,37 +77,94 @@
         <p class="mb-0">No teams in your club library yet.</p>
     </div>
     } @else {
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link" [class.active]="activeTab() === 'active'" (click)="switchTab('active')">
+                Active
+                <span class="badge rounded-pill ms-1" [class.bg-primary]="activeTab() === 'active'"
+                    [class.bg-secondary]="activeTab() !== 'active'">
+                    {{ activeCount() }}
+                </span>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" [class.active]="activeTab() === 'inactive'" (click)="switchTab('inactive')">
+                Inactive
+                <span class="badge rounded-pill ms-1" [class.bg-primary]="activeTab() === 'inactive'"
+                    [class.bg-secondary]="activeTab() !== 'inactive'">
+                    {{ inactiveCount() }}
+                </span>
+            </button>
+        </li>
+    </ul>
+
+    <!-- Empty State for Active Tab -->
+    @if (activeTab() === 'active' && activeTeams().length === 0) {
+    <div class="alert alert-info text-center py-4">
+        <i class="bi bi-info-circle fs-4 mb-2"></i>
+        <p class="mb-0">No active teams. Inactive teams can be restored from the Inactive tab.</p>
+    </div>
+    }
+
+    <!-- Empty State for Inactive Tab -->
+    @if (activeTab() === 'inactive' && inactiveTeams().length === 0) {
+    <div class="alert alert-info text-center py-4">
+        <i class="bi bi-info-circle fs-4 mb-2"></i>
+        <p class="mb-0">No inactive teams. Teams with registration history are moved here when deleted.</p>
+    </div>
+    }
+
     <!-- Teams Table -->
+    @if (filteredTeams().length > 0) {
     <div class="table-responsive">
-        <table class="table table-hover">
+        <table class="table table-hover table-sm">
             <thead>
                 <tr>
-                    <th>Team Name</th>
-                    <th class="d-none d-md-table-cell">Graduation Year</th>
-                    <th class="d-none d-md-table-cell">Level of Play</th>
-                    <th class="text-center">Status</th>
-                    <th class="text-center">Used?</th>
+                    <th>
+                        <span class="d-none d-md-inline">Team Name</span>
+                        <span class="d-md-none">Name</span>
+                    </th>
+                    <th>
+                        <span class="d-none d-md-inline">Graduation Year</span>
+                        <span class="d-md-none">Grad</span>
+                    </th>
+                    <th>
+                        <span class="d-none d-md-inline">Level of Play</span>
+                        <span class="d-md-none">LoP</span>
+                    </th>
+                    <th class="text-center d-none d-lg-table-cell">
+                        <span class="d-none d-xl-inline">Registered?</span>
+                        <span class="d-xl-none">Reg?</span>
+                    </th>
+                    <th class="text-center">
+                        <span class="d-none d-sm-inline">Actions</span>
+                        <span class="d-sm-none"><i class="bi bi-three-dots"></i></span>
+                    </th>
                 </tr>
             </thead>
             <tbody>
-                @for (team of teams(); track team.clubTeamId) {
+                @for (team of filteredTeams(); track team.clubTeamId) {
                 <tr>
                     <td class="fw-semibold">{{ team.clubTeamName }}</td>
-                    <td class="d-none d-md-table-cell text-muted">{{ team.clubTeamGradYear }}</td>
-                    <td class="d-none d-md-table-cell text-muted">{{ team.clubTeamLevelOfPlay }}/5</td>
-                    <td class="text-center">
-                        @if (team.isActive) {
-                        <span class="badge bg-success">Active</span>
-                        } @else {
-                        <span class="badge bg-secondary">Inactive</span>
-                        }
-                    </td>
-                    <td class="text-center">
-                        @if (team.hasBeenUsed) {
-                        <span class="badge bg-info">Yes</span>
+                    <td class="text-muted">{{ team.clubTeamGradYear }}</td>
+                    <td class="text-muted">{{ team.clubTeamLevelOfPlay }}/5</td>
+                    <td class="text-center d-none d-lg-table-cell">
+                        @if (team.hasBeenRegisteredForAnyEvent) {
+                        <span class="badge bg-info" title="This team has been registered for events">
+                            <i class="bi bi-check-circle me-1"></i>Yes
+                        </span>
                         } @else {
                         <span class="badge bg-light text-dark">No</span>
                         }
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-primary btn-sm" (click)="modifyTeam(team)"
+                            title="Edit, activate/inactivate, or delete this team">
+                            <i class="bi bi-pencil-square"></i>
+                            <span class="d-none d-sm-inline ms-1">Modify</span>
+                        </button>
                     </td>
                 </tr>
                 }
@@ -77,7 +173,12 @@
     </div>
     }
     }
+    }
+
+    <!-- Modals -->
+    <app-team-edit-modal #editTeamModal></app-team-edit-modal>
+
 
     <!-- Add New Team Modal -->
-    <app-club-team-add-modal #addTeamModal [clubName]="clubName()"></app-club-team-add-modal>
+    <app-club-team-add-modal #addTeamModal [clubName]="clubName()" (teamAdded)="loadTeams()"></app-club-team-add-modal>
 </div>

@@ -1,25 +1,17 @@
 import { Component, EventEmitter, OnInit, Output, inject, input, signal, computed, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
+import { UserPreferencesService } from '../../../core/services/user-preferences.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { ClubTeamAddModalComponent } from '../club-team-add-modal/club-team-add-modal.component';
-
-interface ClubTeamDto {
-    clubTeamId: number;
-    clubTeamName: string;
-    clubTeamGradYear: string;
-    clubTeamLevelOfPlay: string;
-    isActive: boolean;
-    hasBeenUsed: boolean;
-}
+import { TeamEditModalComponent } from '../team-edit-modal/team-edit-modal.component';
+import { ClubTeamManagementDto } from '../../../core/api/models';
 
 @Component({
     selector: 'app-club-team-management',
     standalone: true,
-    imports: [CommonModule, FormsModule, ClubTeamAddModalComponent],
+    imports: [CommonModule, FormsModule, ClubTeamAddModalComponent, TeamEditModalComponent],
     templateUrl: './club-team-management.component.html',
     styleUrls: ['./club-team-management.component.scss']
 })
@@ -29,14 +21,28 @@ export class ClubTeamManagementComponent implements OnInit {
     @Output() teamsLoaded = new EventEmitter<number>();
     @Output() addTeam = new EventEmitter<void>();
 
-    private readonly http = inject(HttpClient);
     private readonly fieldData = inject(FormFieldDataService);
+    private readonly userPrefs = inject(UserPreferencesService);
     private readonly teamRegService = inject(TeamRegistrationService);
 
-    teams = signal<ClubTeamDto[]>([]);
+    teams = signal<ClubTeamManagementDto[]>([]);
     isLoading = signal<boolean>(false);
     errorMessage = signal<string | null>(null);
+    activeTab = signal<'active' | 'inactive'>('active');
+    infoExpanded = signal<boolean>(!this.userPrefs.isTeamLibraryInfoRead());
+    infoAlreadyRead = signal<boolean>(this.userPrefs.isTeamLibraryInfoRead());
+
     addTeamModal = viewChild<ClubTeamAddModalComponent>('addTeamModal');
+    editTeamModal = viewChild<TeamEditModalComponent>('editTeamModal');
+
+    // Computed signals for filtered teams
+    activeTeams = computed(() => this.teams().filter(t => t.isActive));
+    inactiveTeams = computed(() => this.teams().filter(t => !t.isActive));
+    filteredTeams = computed(() =>
+        this.activeTab() === 'active' ? this.activeTeams() : this.inactiveTeams()
+    );
+    activeCount = computed(() => this.activeTeams().length);
+    inactiveCount = computed(() => this.inactiveTeams().length);
 
     gradYearOptions = computed(() => this.fieldData.getOptionsForDataSource('gradYears'));
     levelOfPlayOptions = computed(() => this.fieldData.getOptionsForDataSource('List_Lops'));
@@ -49,9 +55,7 @@ export class ClubTeamManagementComponent implements OnInit {
         this.isLoading.set(true);
         this.errorMessage.set(null);
 
-        const url = `${environment.apiUrl}/team-registration/club-library-teams`;
-
-        this.http.get<ClubTeamDto[]>(url).subscribe({
+        this.teamRegService.getClubTeams().subscribe({
             next: (teams) => {
                 this.teams.set(teams);
                 this.teamsLoaded.emit(teams.length);
@@ -68,5 +72,31 @@ export class ClubTeamManagementComponent implements OnInit {
 
     requestAddTeam(): void {
         this.addTeamModal()?.open();
+    }
+
+    switchTab(tab: 'active' | 'inactive'): void {
+        this.activeTab.set(tab);
+    }
+
+    modifyTeam(team: ClubTeamManagementDto): void {
+        this.editTeamModal()?.open(team, (updatedTeam) => {
+            // Update the team in the local array
+            const index = this.teams().findIndex(t => t.clubTeamId === updatedTeam.clubTeamId);
+            if (index !== -1) {
+                const updated = [...this.teams()];
+                updated[index] = updatedTeam;
+                this.teams.set(updated);
+            }
+        });
+    }
+
+    toggleInfo(): void {
+        this.infoExpanded.set(!this.infoExpanded());
+    }
+
+    acknowledgeInfo(): void {
+        this.userPrefs.markTeamLibraryInfoAsRead();
+        this.infoAlreadyRead.set(true);
+        this.infoExpanded.set(false);
     }
 }

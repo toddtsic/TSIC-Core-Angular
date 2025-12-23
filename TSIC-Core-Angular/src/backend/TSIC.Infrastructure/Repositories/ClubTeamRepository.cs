@@ -49,7 +49,8 @@ public class ClubTeamRepository : IClubTeamRepository
                 ClubTeamGradYear = team.ClubTeamGradYear,
                 ClubTeamLevelOfPlay = team.ClubTeamLevelOfPlay,
                 IsActive = team.Active ?? false,
-                HasBeenUsed = hasBeenUsed
+                HasBeenUsed = hasBeenUsed,
+                HasBeenRegisteredForAnyEvent = hasBeenUsed // Same check - any Teams record means it's been registered
             });
         }
 
@@ -75,9 +76,20 @@ public class ClubTeamRepository : IClubTeamRepository
             .AnyAsync(ct => ct.ClubId == clubId && ct.ClubTeamName == teamName, cancellationToken);
     }
 
+    public async Task<bool> ExistsByNameExcludingIdAsync(int clubId, string teamName, int excludeClubTeamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ClubTeams
+            .AnyAsync(ct => ct.ClubId == clubId && ct.ClubTeamName == teamName && ct.ClubTeamId != excludeClubTeamId, cancellationToken);
+    }
+
     public void Add(ClubTeams clubTeam)
     {
         _context.ClubTeams.Add(clubTeam);
+    }
+
+    public void Update(ClubTeams clubTeam)
+    {
+        _context.ClubTeams.Update(clubTeam);
     }
 
     public void Remove(ClubTeams clubTeam)
