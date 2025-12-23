@@ -1,6 +1,7 @@
 .step-indicator {
     width: 100%;
     padding: 1rem 0;
+    margin-bottom: 0.75rem; /* add external space before card */
 }
 
 .step-container {
@@ -89,6 +90,7 @@
 @media (max-width: 768px) {
     .step-indicator {
         padding: 0.5rem 0;
+        margin-bottom: 0.5rem;
     }
 
     .step-item {
@@ -123,6 +125,7 @@
 @media (max-width: 576px) {
     .step-indicator {
         padding: 0.35rem 0;
+        margin-bottom: 0.5rem;
     }
 
     .step-label {
