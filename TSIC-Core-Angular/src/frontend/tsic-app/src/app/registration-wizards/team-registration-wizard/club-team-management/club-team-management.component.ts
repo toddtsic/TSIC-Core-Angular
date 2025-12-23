@@ -33,7 +33,7 @@ export class ClubTeamManagementComponent implements OnInit {
     infoAlreadyRead = signal<boolean>(this.userPrefs.isTeamLibraryInfoRead());
 
     searchTerm = signal<string>('');
-    collapsedYears = signal<Set<number>>(new Set());
+    collapsedYears = signal<Set<string>>(new Set());
 
     addTeamModal = viewChild<ClubTeamAddModalComponent>('addTeamModal');
     editTeamModal = viewChild<TeamEditModalComponent>('editTeamModal');
@@ -54,19 +54,19 @@ export class ClubTeamManagementComponent implements OnInit {
     // Group filtered teams by graduation year
     groupedTeams = computed(() => {
         const teams = this.filteredTeams();
-        const groups = new Map<number, ClubTeamManagementDto[]>();
+        const groups = new Map<string, ClubTeamManagementDto[]>();
 
         teams.forEach(team => {
-            const year = team.clubTeamGradYear;
+            const year = String(team.clubTeamGradYear);
             if (!groups.has(year)) {
                 groups.set(year, []);
             }
             groups.get(year)!.push(team);
         });
 
-        // Convert to array and sort by year descending
+        // Convert to array and sort by year ascending
         return Array.from(groups.entries())
-            .sort((a, b) => a[0] - b[0])
+            .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
             .map(([year, teams]) => ({ year, teams }));
     });
 
@@ -129,7 +129,7 @@ export class ClubTeamManagementComponent implements OnInit {
         this.infoExpanded.set(false);
     }
 
-    toggleYearCollapse(year: number): void {
+    toggleYearCollapse(year: string): void {
         const collapsed = new Set(this.collapsedYears());
         if (collapsed.has(year)) {
             collapsed.delete(year);
@@ -139,7 +139,7 @@ export class ClubTeamManagementComponent implements OnInit {
         this.collapsedYears.set(collapsed);
     }
 
-    isYearCollapsed(year: number): boolean {
+    isYearCollapsed(year: string): boolean {
         return this.collapsedYears().has(year);
     }
 

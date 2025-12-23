@@ -67,7 +67,7 @@
                 <i class="bi bi-search"></i>
             </span>
             <input type="text" class="form-control border-start-0" placeholder="Filter teams by name or grad year..."
-                [(ngModel)]="searchTerm" (ngModelChange)="searchTerm.set($event)">
+                [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)">
             @if (searchTerm()) {
             <button class="btn btn-outline-secondary" type="button" (click)="searchTerm.set('')" title="Clear search">
                 <i class="bi bi-x-lg"></i>
