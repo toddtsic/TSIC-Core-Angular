@@ -33,6 +33,7 @@ export class ClubRepLoginStepComponent implements OnInit {
     credentialsCollapsed = true;
 
     registrationForm: FormGroup;
+    loginForm: FormGroup;
     registrationError: string | null = null;
     similarClubs: ClubSearchResult[] = [];
     statesOptions: SelectOption[] = [];
@@ -59,6 +60,11 @@ export class ClubRepLoginStepComponent implements OnInit {
             password: ['', [Validators.required, Validators.minLength(6)]],
             email: ['', [Validators.required, Validators.email]]
         });
+
+        this.loginForm = this.fb.group({
+            username: ['', Validators.required],
+            password: ['', Validators.required]
+        });
     }
 
     ngOnInit(): void {
@@ -70,18 +76,21 @@ export class ClubRepLoginStepComponent implements OnInit {
             const currentUser = this.authService.currentUser();
             if (currentUser?.username) {
                 this.username = currentUser.username;
+                this.loginForm.patchValue({ username: currentUser.username });
             }
         }
     }
 
     private async doInlineLogin(): Promise<void> {
         this.inlineError = null;
-        if (!this.username || !this.password || this.submitting) {
+        const u = (this.loginForm.value.username || '').toString();
+        const p = (this.loginForm.value.password || '').toString();
+        if (!u || !p || this.submitting) {
             return;
         }
         this.submitting = true;
         return new Promise((resolve, reject) => {
-            this.authService.login({ username: this.username.trim(), password: this.password }).subscribe({
+            this.authService.login({ username: u.trim(), password: p }).subscribe({
                 next: () => {
                     this.submitting = false;
                     resolve();
@@ -96,7 +105,7 @@ export class ClubRepLoginStepComponent implements OnInit {
     }
 
     async signInThenProceed(): Promise<void> {
-        if (!this.username || !this.password) {
+        if (this.loginForm.invalid) {
             return;
         }
 
