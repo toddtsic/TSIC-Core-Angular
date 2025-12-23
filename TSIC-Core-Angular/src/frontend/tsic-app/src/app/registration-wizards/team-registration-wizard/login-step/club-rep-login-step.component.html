@@ -47,7 +47,8 @@
         @if (hasClubRepAccount === 'yes') {
         <!-- CREDENTIALS PANEL -->
         <div class="pt-2 pb-3 ps-0 slide-in">
-            <form class="border border-2 rounded p-3 shadow-sm" [formGroup]="loginForm" (ngSubmit)="signInThenProceed()">
+            <form class="border border-2 rounded p-3 shadow-sm" [formGroup]="loginForm"
+                (ngSubmit)="signInThenProceed()">
                 <div class="row g-2 mb-2">
                     <div class="col-12 col-sm-6 col-md-4">
                         <label for="clubRepUsername" class="form-label small mb-1">Username</label>
@@ -66,8 +67,7 @@
 
                 <!-- ACTION BUTTONS -->
                 <div class="mt-3 d-flex flex-column flex-sm-row gap-2 align-items-center justify-content-center">
-                    <button type="submit" class="btn btn-primary btn-sm"
-                        [disabled]="submitting || loginForm.invalid">
+                    <button type="submit" class="btn btn-primary btn-sm" [disabled]="submitting || loginForm.invalid">
                         @if (submitting) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
                         }
