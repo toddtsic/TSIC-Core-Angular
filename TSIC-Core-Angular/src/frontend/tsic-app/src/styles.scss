@@ -544,14 +544,14 @@ body {
     flex-wrap: nowrap;
     gap: .5rem;
     overflow-x: auto;
-    /* Extra space so chip content doesn�t touch the scroll bar */
-    padding-bottom: .50rem;
+    /* Extra space so chip content doesn’t touch the scroll bar and card below */
+    padding-bottom: 1rem;
 }
 
 /* On mobile, increase breathing room below the chips so the scrollbar doesn't overlap */
 @media (max-width: 767.98px) {
     .rw-steps-list {
-        padding-bottom: 1.25rem;
+        padding-bottom: 1.5rem;
     }
 }
 
