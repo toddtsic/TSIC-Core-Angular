@@ -1,18 +1,4 @@
-/* Compact registration inputs on small screens to match the login panel */
-@media (max-width: 575.98px) {
-
-    .club-rep-registration-form .form-control,
-    .club-rep-registration-form .form-select {
-        font-size: 0.875rem;
-        padding: 0.25rem 0.5rem;
-    }
-
-    /* Fine-tune selects for consistent height */
-    .club-rep-registration-form .form-select {
-        padding-top: 0.25rem;
-        padding-bottom: 0.25rem;
-    }
-}
+﻿/* Component-specific mobile spacing removed (handled globally in styles.scss) */
 
 /* Make accordion titles shorter only within this component */
 .accordion-item>.accordion-header .accordion-button {
@@ -47,19 +33,6 @@
     background-color: var(--bs-primary-bg-subtle);
 }
 
-/* Slide-in animation class to replace inline styles */
-@keyframes slideIn {
-    from {
-        transform: translateY(-4px);
-        opacity: 0;
-    }
+/* Component animations removed; no local animation used */
 
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-.slide-in {
-    animation: slideIn 0.3s ease-out;
-}
+/* Generic label/helper and toggle spacing removed; handled globally in styles.scss */
