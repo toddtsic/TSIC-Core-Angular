@@ -18,7 +18,7 @@ if errorlevel 1 (
         
         echo Waiting for API to be ready...
         for /L %%i in (1,1,30) do (
-            timeout /t 1 /nobreak >nul
+            ping 127.0.0.1 -n 2 >nul
             curl -s -k https://localhost:7215/swagger/v1/swagger.json >nul 2>&1
             if not errorlevel 1 goto :api_ready
             curl -s http://localhost:5022/swagger/v1/swagger.json >nul 2>&1

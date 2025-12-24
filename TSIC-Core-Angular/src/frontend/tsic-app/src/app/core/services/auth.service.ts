@@ -70,24 +70,18 @@ export class AuthService {
   }
 
   /**
-   * Command-style login that updates signals instead of returning an Observable
+   * Centralized TOS check and navigation helper.
+   * Call this after successful login to handle TOS requirements consistently.
+   * Returns true if TOS navigation occurred, false otherwise.
    */
-  loginCommand(credentials: LoginRequest): void {
-    this.loginLoading.set(true);
-    this.loginError.set(null);
-    this.http.post<AuthTokenResponse>(`${this.apiUrl}/login`, credentials).subscribe({
-      next: (response) => {
-        this.setToken(response.accessToken!);
-        if (response.refreshToken) this.setRefreshToken(response.refreshToken);
-        this.initializeFromToken();
-        this.loginLoading.set(false);
-      },
-      error: (error: HttpErrorResponse) => {
-        this.loginLoading.set(false);
-        const msg = error?.error?.message || error?.message || 'Login failed. Please check your credentials.';
-        this.loginError.set(msg);
-      }
-    });
+  checkAndNavigateToTosIfRequired(response: AuthTokenResponse, router: Router, returnUrl?: string | null): boolean {
+    const requiresTos = (response as any).requiresTosSignature || false;
+    if (requiresTos) {
+      const queryParams = returnUrl ? { returnUrl } : {};
+      router.navigate(['/tsic/terms-of-service'], { queryParams });
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -348,6 +342,14 @@ export class AuthService {
       if (!environment.production) console.error('Failed to decode token:', error);
       this.currentUser.set(null);
     }
+  }
+
+  /**
+   * Accept Terms of Service for authenticated user
+   * Updates TOS acceptance timestamp in AspNetUsers
+   */
+  acceptTos(): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/accept-tos`, {});
   }
 
   /**

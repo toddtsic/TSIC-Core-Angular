@@ -256,8 +256,13 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
     this.submitting = true;
     return new Promise((resolve, reject) => {
       this.auth.login({ username: this.username.trim(), password: this.password }).subscribe({
-        next: () => {
+        next: (response) => {
           this.submitting = false;
+          // Check TOS requirement before proceeding
+          if (this.auth.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
+            reject(new Error('TOS required')); // Prevent wizard progression until TOS signed
+            return;
+          }
           resolve();
         },
         error: (err) => {

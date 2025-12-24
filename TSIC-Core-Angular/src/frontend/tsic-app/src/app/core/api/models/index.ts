@@ -99,6 +99,7 @@ export interface AuthTokenResponse {
     accessToken: string;
     refreshToken: string | undefined;
     expiresIn: number | undefined;
+    requiresTosSignature: boolean;
 
     [key: string]: any;
 }

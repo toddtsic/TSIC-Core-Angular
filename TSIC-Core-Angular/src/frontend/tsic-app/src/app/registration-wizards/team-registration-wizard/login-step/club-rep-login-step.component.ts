@@ -2,6 +2,7 @@ import { Component, EventEmitter, Output, inject, OnInit, computed } from '@angu
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { ClubService } from '../../../core/services/club.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
@@ -43,6 +44,7 @@ export class ClubRepLoginStepComponent implements OnInit {
     private readonly teamRegService = inject(TeamRegistrationService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly fb = inject(FormBuilder);
+    private readonly router = inject(Router);
 
     private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);
 
@@ -91,8 +93,13 @@ export class ClubRepLoginStepComponent implements OnInit {
         this.submitting = true;
         return new Promise((resolve, reject) => {
             this.authService.login({ username: u.trim(), password: p }).subscribe({
-                next: () => {
+                next: (response) => {
                     this.submitting = false;
+                    // Check TOS requirement before proceeding
+                    if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
+                        reject(new Error('TOS required')); // Prevent wizard progression until TOS signed
+                        return;
+                    }
                     resolve();
                 },
                 error: (err) => {
@@ -171,7 +178,11 @@ export class ClubRepLoginStepComponent implements OnInit {
                     username: request.username,
                     password: request.password
                 }).subscribe({
-                    next: () => {
+                    next: (response) => {
+                        // Check TOS requirement before proceeding
+                        if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
+                            return; // User redirected to TOS
+                        }
                         this.hasClubRepAccount = 'yes';
                         this.registrationSuccess.emit({
                             clubName: request.clubName,

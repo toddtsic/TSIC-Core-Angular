@@ -6,6 +6,7 @@ namespace TSIC.Contracts.Dtos
     public record AuthTokenResponse(
         string AccessToken,
         string? RefreshToken = null,
-        int? ExpiresIn = null
+        int? ExpiresIn = null,
+        bool RequiresTosSignature = false
     );
 }

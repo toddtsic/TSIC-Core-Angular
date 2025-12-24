@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, effect, HostBinding, Input, OnInit } from '@angular/core';
+import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -140,8 +140,27 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
       password: this.form.get('password')?.value ?? ''
     };
 
-    // Signals-driven login; navigation handled via effect below
-    this.authService.loginCommand(credentials);
+    // Login with centralized TOS check
+    this.authService.login(credentials).subscribe({
+      next: (response) => {
+        const user = this.authService.getCurrentUser();
+        if (!user) return;
+
+        const intendedDestination = this._computeReturnUrl(user.jobPath);
+
+        // Check if TOS signature is required (centralized helper)
+        if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, intendedDestination)) {
+          return; // TOS navigation happened
+        }
+
+        // TOS not required, proceed with normal flow
+        this.router.navigateByUrl(intendedDestination);
+      },
+      error: (error) => {
+        this.submitted.set(false);
+        console.error('Login error:', error);
+      }
+    });
   }
 
   toggleShowPassword() {
@@ -154,20 +173,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.passwordInput) this.autofill.stopMonitoring(this.passwordInput);
   }
 
-  // Unified navigation effect with intent-aware sequencing.
-  // For intent=player-register we delay navigating to the wizard returnUrl until after a registration
-  // (regId/jobPath) has been selected, ensuring we don't arrive and then immediately lose context.
-  // Note: This effect performs imperative commands (load registrations, select registration, navigate)
-  // that write to signals inside AuthService. Angular requires allowSignalWrites when effects
-  // trigger writes to avoid NG0600. We guard against infinite loops with early returns and a one-shot
-  // navigation flag.
-  private readonly _navEffect = effect(() => {
-    if (this._navigated) return;
-    const user = this.authService.getCurrentUser();
-    if (this.authService.loginLoading() || !user) return;
-    // Simplified: after login, always go to returnUrl (wizard) or role-selection fallback.
-    this._navigateOnce(this._computeReturnUrl(user.jobPath));
-  });
+
 
   private _computeReturnUrl(jobPathFromToken: string | undefined | null): string {
     // Prefer explicit input returnUrl
@@ -206,16 +212,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private _navigateOnce(target: string): void {
-    if (this._navigated) return;
-    this._navigated = true;
-    this.router.navigateByUrl(target);
-  }
-
   // Internal intent metadata captured at init
   private _intent: string | null = null;
   private _intentJobPath: string | null = null; // retained for future use (may be removed later)
   private _returnUrlFromQuery: string | null = null;
-  private _navigated = false;
 
 }

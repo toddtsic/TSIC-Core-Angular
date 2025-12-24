@@ -10,6 +10,7 @@ using TSIC.Application.Services.Users;
 using FluentValidation;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.API.Services.Auth;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Controllers
 {
@@ -23,6 +24,7 @@ namespace TSIC.API.Controllers
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly ITokenService _tokenService;
+        private readonly IUserRepository _userRepository;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
@@ -30,7 +32,8 @@ namespace TSIC.API.Controllers
             IValidator<LoginRequest> loginValidator,
             IConfiguration configuration,
             IRefreshTokenService refreshTokenService,
-            ITokenService tokenService)
+            ITokenService tokenService,
+            IUserRepository userRepository)
         {
             _userManager = userManager;
             _roleLookupService = roleLookupService;
@@ -38,6 +41,7 @@ namespace TSIC.API.Controllers
             _configuration = configuration;
             _refreshTokenService = refreshTokenService;
             _tokenService = tokenService;
+            _userRepository = userRepository;
         }
 
         /// <summary>
@@ -71,6 +75,9 @@ namespace TSIC.API.Controllers
                 return Unauthorized(new { Error = "Invalid username or password" });
             }
 
+            // Check Terms of Service status via repository
+            bool requiresTosSignature = await _userRepository.RequiresTosSignatureAsync(request.Username);
+
             // Generate Phase 1 JWT token with minimal claims (username only)
             var token = _tokenService.GenerateMinimalJwtToken(user);
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
@@ -79,7 +86,8 @@ namespace TSIC.API.Controllers
             return Ok(new AuthTokenResponse(
                 AccessToken: token,
                 RefreshToken: refreshToken,
-                ExpiresIn: expirationMinutes * 60 // Convert to seconds
+                ExpiresIn: expirationMinutes * 60, // Convert to seconds
+                RequiresTosSignature: requiresTosSignature
             ));
         }
 
@@ -260,6 +268,28 @@ namespace TSIC.API.Controllers
 
             _refreshTokenService.RevokeRefreshToken(request.RefreshToken);
             return Ok(new { Message = "Token revoked successfully" });
+        }
+
+        /// <summary>
+        /// Accept Terms of Service for authenticated user
+        /// </summary>
+        [Authorize]
+        [HttpPost("accept-tos")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
+        public async Task<IActionResult> AcceptTos()
+        {
+            // Extract userId from JWT token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Unauthorized(new { Error = "Invalid token" });
+            }
+
+            await _userRepository.UpdateTosAcceptanceByUserIdAsync(userId);
+            return Ok(new { Message = "Terms of Service accepted successfully" });
         }
     }
 }

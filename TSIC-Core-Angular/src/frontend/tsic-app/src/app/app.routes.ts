@@ -25,6 +25,12 @@ export const routes: Routes = [
 				loadComponent: () => import('./login/login.component').then(m => m.LoginComponent),
 				canActivate: [redirectAuthenticatedGuard]
 			},
+			// Terms of Service acceptance
+			{
+				path: 'terms-of-service',
+				loadComponent: () => import('./terms-of-service/terms-of-service.component').then(m => m.TermsOfServiceComponent),
+				canActivate: [authGuard]
+			},
 			// Role selection page
 			{
 				path: 'role-selection',
