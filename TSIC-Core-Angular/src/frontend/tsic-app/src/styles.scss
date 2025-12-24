@@ -259,6 +259,43 @@
         font-size: 0.875rem;
         padding: 0.25rem 0.5rem;
     }
+
+    /* Mobile segmented toggle: equalize button widths and tidy height */
+    .wizard-theme-player .btn-group.w-100 .btn,
+    .wizard-theme-team .btn-group.w-100 .btn,
+    .wizard-theme-family .btn-group.w-100 .btn,
+    .wizard-theme-login .btn-group.w-100 .btn,
+    .wizard-theme-role-select .btn-group.w-100 .btn,
+    .wizard-theme-landing .btn-group.w-100 .btn {
+        flex: 1 1 0;
+        padding-top: 0.375rem;
+        padding-bottom: 0.375rem;
+    }
+
+    /* Mobile label and helper text spacing for clarity */
+    .wizard-theme-player form .form-label,
+    .wizard-theme-team form .form-label,
+    .wizard-theme-family form .form-label,
+    .wizard-theme-login form .form-label,
+    .wizard-theme-role-select form .form-label,
+    .wizard-theme-landing form .form-label {
+        margin-top: 0.375rem;
+        margin-bottom: 0.25rem;
+        line-height: 1.25;
+    }
+
+    .wizard-theme-player form .form-text,
+    .wizard-theme-team form .form-text,
+    .wizard-theme-family form .form-text,
+    .wizard-theme-login form .form-text,
+    .wizard-theme-role-select form .form-text,
+    .wizard-theme-landing form .form-text {
+        margin-top: 0.0625rem;
+        /* ~1px */
+        margin-bottom: 0;
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
 }
 
 /* Dark-aware text colors */
