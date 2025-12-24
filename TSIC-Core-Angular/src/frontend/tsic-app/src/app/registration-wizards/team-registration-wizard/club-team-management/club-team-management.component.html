@@ -1,9 +1,9 @@
 <div class="club-team-management">
     <!-- Header -->
-    <div class="mb-3 d-flex align-items-center justify-content-between gap-3">
+    <div class="mb-2 d-flex align-items-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-collection"></i>
-            <h5 class="mb-0">Manage Club Teams</h5>
+            <i class="bi bi-collection fs-6"></i>
+            <h5 class="mb-0 fs-6">Manage Club Teams</h5>
         </div>
         <button type="button" class="btn btn-success btn-sm" (click)="requestAddTeam()">
             <i class="bi bi-plus-circle me-1"></i>Add Team
@@ -11,13 +11,13 @@
     </div>
 
     <!-- New Paradigm Info Accordion -->
-    <div class="accordion mb-3" id="teamLibraryInfoAccordion">
+    <div class="accordion mb-2" id="teamLibraryInfoAccordion">
         <div class="accordion-item">
             <h2 class="accordion-header">
                 <button class="accordion-button" [class.collapsed]="!infoExpanded()" type="button"
                     (click)="toggleInfo()" aria-expanded="{{ infoExpanded() }}" aria-controls="teamLibraryInfoContent">
                     <i class="bi bi-lightbulb me-2"></i>
-                    <strong>New: Reusable Team Library</strong>
+                    <strong class="fs-6">New: Reusable Team Library</strong>
                 </button>
             </h2>
             <div id="teamLibraryInfoContent" class="accordion-collapse collapse" [class.show]="infoExpanded()">
@@ -25,14 +25,14 @@
                     <p class="mb-2">
                         Your teams are now saved in a permanent library. Create them once, use them for every event!
                     </p>
-                    <ul class="mb-3 ps-3">
+                    <ul class="mb-2 ps-3">
                         <li><strong>Add teams here</strong> - they'll be available for all future registrations</li>
                         <li><strong>Reuse teams</strong> - no need to recreate teams for each tournament</li>
                         <li><strong>Edit anytime</strong> - changes won't affect past event registrations</li>
                     </ul>
                     @if (!infoAlreadyRead()) {
-                    <div class="text-end">
-                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="acknowledgeInfo()">
+                    <div class="text-end mt-1">
+                        <button type="button" class="btn btn-outline-primary btn-sm" (click)="acknowledgeInfo()">
                             <i class="bi bi-check-circle me-1"></i>Got it!
                         </button>
                     </div>
@@ -61,15 +61,15 @@
     } @else {
 
     <!-- Search Filter -->
-    <div class="mb-3">
-        <div class="input-group">
+    <div class="mb-2">
+        <div class="input-group input-group-sm">
             <span class="input-group-text bg-light border-end-0">
                 <i class="bi bi-search"></i>
             </span>
-            <input type="text" class="form-control border-start-0" placeholder="Filter teams by name or grad year..."
+            <input type="text" class="form-control form-control-sm border-start-0" placeholder="Filter teams by name or grad year..."
                 [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)">
             @if (searchTerm()) {
-            <button class="btn btn-outline-secondary" type="button" (click)="searchTerm.set('')" title="Clear search">
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="searchTerm.set('')" title="Clear search">
                 <i class="bi bi-x-lg"></i>
             </button>
             }
@@ -77,9 +77,9 @@
     </div>
 
     <!-- Tabs -->
-    <ul class="nav nav-tabs mb-3">
+    <ul class="nav nav-tabs mb-2">
         <li class="nav-item">
-            <button class="nav-link" [class.active]="activeTab() === 'active'" (click)="switchTab('active')">
+            <button class="nav-link py-1 px-2" [class.active]="activeTab() === 'active'" (click)="switchTab('active')">
                 Active
                 <span class="badge rounded-pill ms-1" [class.bg-primary]="activeTab() === 'active'"
                     [class.bg-secondary]="activeTab() !== 'active'">
@@ -88,7 +88,7 @@
             </button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" [class.active]="activeTab() === 'inactive'" (click)="switchTab('inactive')">
+            <button class="nav-link py-1 px-2" [class.active]="activeTab() === 'inactive'" (click)="switchTab('inactive')">
                 Inactive
                 <span class="badge rounded-pill ms-1" [class.bg-primary]="activeTab() === 'inactive'"
                     [class.bg-secondary]="activeTab() !== 'inactive'">
@@ -139,12 +139,12 @@
     @for (group of groupedTeams(); track group.year) {
     <div class="mb-3">
         <!-- Year Header -->
-        <div class="year-header d-flex align-items-center justify-content-between p-2 bg-light border rounded"
+        <div class="year-header d-flex align-items-center justify-content-between p-1 bg-light border rounded"
             (click)="toggleYearCollapse(group.year)" role="button" [attr.aria-expanded]="!isYearCollapsed(group.year)">
             <div class="d-flex align-items-center gap-2">
                 <i class="bi" [class.bi-chevron-down]="!isYearCollapsed(group.year)"
                     [class.bi-chevron-right]="isYearCollapsed(group.year)"></i>
-                <strong>{{ group.year }} Teams</strong>
+                <strong class="small">{{ group.year }} Teams</strong>
                 <span class="badge bg-secondary">{{ group.teams.length }}</span>
             </div>
         </div>

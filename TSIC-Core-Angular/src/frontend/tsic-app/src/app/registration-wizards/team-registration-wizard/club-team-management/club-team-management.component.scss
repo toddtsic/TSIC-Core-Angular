@@ -26,7 +26,7 @@
             th {
                 font-weight: 600;
                 color: #495057;
-                padding: 0.75rem;
+                padding: 0.5rem;
             }
         }
 
@@ -39,7 +39,7 @@
 
             td {
                 vertical-align: middle;
-                padding: 0.75rem;
+                padding: 0.5rem;
             }
         }
     }
@@ -137,11 +137,11 @@
     }
 
     .accordion-button {
-        padding: 0.65rem 0.9rem;
+        padding: 0.5rem 0.75rem;
     }
 
     .accordion-body {
-        padding: 0.75rem 1rem;
+        padding: 0.5rem 0.75rem;
     }
 
     // Inline club name styling
@@ -182,7 +182,7 @@
     }
 
     .existing-teams-table {
-        max-height: 300px;
+        max-height: 280px;
         overflow-y: auto;
         overflow-x: hidden;
     }
