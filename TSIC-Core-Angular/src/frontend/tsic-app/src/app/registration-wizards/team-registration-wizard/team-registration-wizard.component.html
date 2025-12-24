@@ -71,10 +71,10 @@
     style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white border-0">
+            <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
                 <div class="d-flex align-items-start w-100">
-                    <i class="bi bi-building me-2 mt-1 flex-shrink-0"></i>
-                    <h4 class="modal-title mb-0 flex-grow-1">
+                    <i class="bi bi-building me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
+                    <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">
                         @if (availableClubs.length === 1) {
                         Confirm Your Club
                         } @else {
@@ -83,7 +83,7 @@
                     </h4>
                 </div>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body p-3 p-md-4">
                 @if (inlineError) {
                 <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
                     <i class="bi bi-exclamation-triangle me-2"></i>{{ inlineError }}
@@ -93,31 +93,31 @@
 
                 @if (availableClubs.length === 1) {
                 <!-- Single Club: Show club name prominently -->
-                <div class="mb-3 py-3 px-3 rounded-3 border-0"
+                <div class="mb-2 py-2 px-2 rounded-3 border-0"
                     style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="p-2 rounded-circle" style="background-color: rgba(var(--bs-primary-rgb), 0.25);">
-                            <i class="bi bi-building fs-4" style="color: var(--bs-primary);"></i>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="p-1 rounded-circle" style="background-color: rgba(var(--bs-primary-rgb), 0.25);">
+                            <i class="bi bi-building fs-5" style="color: var(--bs-primary);"></i>
                         </div>
-                        <div class="fw-bold fs-5 text-primary-content">
+                        <div class="fw-bold fs-6 text-primary-content">
                             {{ availableClubs[0]?.clubName || clubName || selectedClub || 'Club name not available' }}
                         </div>
                     </div>
                 </div>
-                <div class="d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-outline-secondary" (click)="cancelClubSelection()">
+                <div class="d-flex justify-content-end gap-2 mt-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelClubSelection()">
                         <i class="bi bi-x-circle me-1"></i> Cancel
                     </button>
-                    <button type="button" class="btn btn-primary" (click)="continueFromStep1()">
+                    <button type="button" class="btn btn-primary btn-sm" (click)="continueFromStep1()">
                         <i class="bi bi-check-circle me-1"></i> Confirm
                     </button>
                 </div>
                 } @else {
                 <!-- Multiple Clubs: Show dropdown -->
-                <p class="text-muted mb-3">Choose which club you want to manage in this session:</p>
+                <p class="text-muted mb-2 small">Choose which club you want to manage in this session:</p>
                 <div class="mb-3">
-                    <label for="clubSelector" class="form-label fw-semibold">Club</label>
-                    <select id="clubSelector" class="form-select form-select-lg" [(ngModel)]="selectedClub"
+                    <label for="clubSelector" class="form-label fw-semibold small mb-1">Club</label>
+                    <select id="clubSelector" class="form-select form-select-sm" [(ngModel)]="selectedClub"
                         (ngModelChange)="selectedClub && selectClub(selectedClub)">
                         <option [value]="null">-- Choose a club --</option>
                         @for (club of availableClubs; track club.clubName) {
@@ -125,8 +125,8 @@
                         }
                     </select>
                 </div>
-                <div class="mt-4 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-primary" [disabled]="!selectedClub"
+                <div class="mt-2 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedClub"
                         (click)="continueFromStep1()">
                         <i class="bi bi-arrow-right-circle me-1"></i> Continue
                     </button>
