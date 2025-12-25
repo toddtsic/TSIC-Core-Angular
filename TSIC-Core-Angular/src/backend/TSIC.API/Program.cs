@@ -33,10 +33,12 @@ using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.Accounting;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
+using TSIC.API.Authorization;
 using Amazon.SimpleEmail;
 using Amazon;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -188,8 +190,19 @@ builder.Services.AddAuthentication(options =>
 // Add Authorization Policies
 // ARCHITECTURAL PRINCIPLE: APIs under [Authorize(Policy=xx)] should NOT require 
 // parameters that can be derived from JWT token claims
+
+// Register JobPath validation handler
+builder.Services.AddSingleton<IAuthorizationHandler, JobPathMatchHandler>();
+
 builder.Services.AddAuthorization(options =>
 {
+    // Set default policy that applies to ALL [Authorize] attributes
+    // This ensures every authenticated request validates jobPath automatically
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .AddRequirements(new JobPathMatchRequirement())
+        .Build();
+
     options.AddPolicy("SuperUserOnly", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role, RoleConstants.Names.SuperuserName));
 
