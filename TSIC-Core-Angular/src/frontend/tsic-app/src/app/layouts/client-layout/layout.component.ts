@@ -8,12 +8,13 @@ import { JobService } from '../../core/services/job.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { MenusComponent } from '../../shared/menus/menus.component';
+import { ClientHeaderBarComponent } from '../components/client-header-bar/client-header-bar.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, MenusComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, MenusComponent, ClientHeaderBarComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss']
 })

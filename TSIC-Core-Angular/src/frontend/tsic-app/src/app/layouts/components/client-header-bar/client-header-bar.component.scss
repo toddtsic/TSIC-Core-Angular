@@ -1,0 +1,127 @@
+// TSIC Logo Box
+.tsic-brand-box {
+    background: white;
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tsic-logo {
+    height: 28px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+// Job Logo Box
+.job-logo-box {
+    background: white;
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    padding: 3px 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.job-logo {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    max-width: 150px;
+}
+
+// Job Name Button
+.job-name-button {
+    background: transparent;
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--bs-body-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+
+    &:hover {
+        background: rgba(0, 0, 0, 0.03);
+        border-color: var(--brand-border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    &:active {
+        transform: translateY(1px);
+    }
+}
+
+// Mobile Styles
+.mobile-logo-group {
+    .btn {
+        border-color: rgba(0, 0, 0, 0.175);
+    }
+}
+
+.mobile-logo {
+    height: 24px;
+    width: auto;
+    display: block;
+}
+
+.mobile-job-name {
+    text-align: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--bs-success);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 8px;
+}
+
+// User/Role Display
+.user-role-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+
+    strong {
+        color: var(--bs-body-color);
+    }
+
+    .text-muted {
+        font-size: 0.8125rem;
+    }
+}
+
+// Dark Mode
+:host-context([data-bs-theme="dark"]) {
+    .tsic-brand-box {
+        background: white;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .job-logo-box {
+        background: white;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .job-name-button:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
