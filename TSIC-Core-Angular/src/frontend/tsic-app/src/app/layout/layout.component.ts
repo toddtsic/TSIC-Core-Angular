@@ -20,12 +20,13 @@ import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged 
       <div class="container-fluid">
         <div class="row align-items-center py-2 py-md-2 py-1">
           <!-- Left: Hamburger + TSIC + Job Logos (auto-width) -->
-          <div class="col-auto">
+          <div class="col-auto d-flex align-items-center">
             <!-- Hamburger Menu Button (visible when menus exist) -->
             @if (menus() && menus().length > 0) {
               <button 
                 type="button" 
-                class="btn btn-sm btn-outline-secondary me-2" 
+                class="btn btn-sm btn-outline-secondary me-2 d-inline-flex align-items-center justify-content-center" 
+                style="width: 32px; height: 32px; padding: 0;"
                 (click)="toggleSidebar()"
                 [attr.aria-expanded]="sidebarOpen()"
                 aria-label="Toggle navigation">
