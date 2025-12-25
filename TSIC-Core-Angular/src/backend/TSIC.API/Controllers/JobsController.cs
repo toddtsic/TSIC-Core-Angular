@@ -170,9 +170,8 @@ public class JobsController : ControllerBase
             return StatusCode(304); // Not Modified
         }
 
-        // Set caching headers (public, anonymous content - 5 min fresh + 30 min stale)
+        // Set ETag for 304 Not Modified support (no caching - always fresh data)
         Response.Headers.Append("ETag", etag);
-        Response.Headers.Append("Cache-Control", "public, max-age=300, stale-while-revalidate=1800");
 
         return Ok(processedBulletins);
     }
@@ -254,18 +253,8 @@ public class JobsController : ControllerBase
             return StatusCode(304); // Not Modified
         }
 
-        // Set caching headers
+        // Set ETag for 304 Not Modified support (no caching - always fresh data)
         Response.Headers.Append("ETag", etag);
-        if (roleName == null)
-        {
-            // Anonymous menus: aggressive caching (5 minutes)
-            Response.Headers.Append("Cache-Control", "public, max-age=300, stale-while-revalidate=1800");
-        }
-        else
-        {
-            // Role-specific menus: shorter cache (1 minute)
-            Response.Headers.Append("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
-        }
 
         return Ok(menu);
     }

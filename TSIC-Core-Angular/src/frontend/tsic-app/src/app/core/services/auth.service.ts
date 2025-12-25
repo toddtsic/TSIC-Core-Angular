@@ -3,7 +3,7 @@ import { Roles, RoleName } from '../models/roles.constants';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, throwError } from 'rxjs';
-import { tap, map, catchError } from 'rxjs/operators';
+import { tap, map, catchError, shareReplay, finalize } from 'rxjs/operators';
 import {
   LoginRequest,
   LoginResponse,
@@ -22,6 +22,9 @@ export class AuthService {
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
+
+  // Prevent multiple simultaneous refresh attempts
+  private refreshInProgress: Observable<AuthTokenResponse> | null = null;
 
   // Signal for reactive state management
   public readonly currentUser = signal<AuthenticatedUser | null>(null);
@@ -265,15 +268,23 @@ export class AuthService {
 
   /**
    * Refresh the access token using the refresh token
+   * Prevents multiple simultaneous refresh attempts with queuing
    */
   refreshAccessToken(): Observable<AuthTokenResponse> {
+    // If refresh is already in progress, return the same observable to queue all requests
+    if (this.refreshInProgress) {
+      return this.refreshInProgress;
+    }
+
     const refreshToken = this.getRefreshToken();
 
     if (!refreshToken) {
       return throwError(() => new Error('No refresh token available'));
     }
 
-    return this.http.post<AuthTokenResponse>(`${this.apiUrl}/refresh`, { refreshToken })
+    // Mark refresh as in progress and store the observable
+    // Use shareReplay to ensure all subscribers get the same result
+    this.refreshInProgress = this.http.post<AuthTokenResponse>(`${this.apiUrl}/refresh`, { refreshToken })
       .pipe(
         tap(response => {
           this.setToken(response.accessToken!);
@@ -286,8 +297,16 @@ export class AuthService {
           // If refresh fails, logout user
           this.logout();
           return throwError(() => error);
+        }),
+        // Share the result with all subscribers and clear the in-progress flag when complete
+        shareReplay(1),
+        finalize(() => {
+          // Clear the in-progress flag when observable completes or errors
+          this.refreshInProgress = null;
         })
       );
+
+    return this.refreshInProgress;
   }
 
   /**
