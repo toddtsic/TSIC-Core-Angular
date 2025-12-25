@@ -60,7 +60,7 @@ public class JobPathMatchHandler : AuthorizationHandler<JobPathMatchRequirement>
                 context.User.Identity?.Name,
                 tokenJobPath,
                 routeJobPath);
-            
+
             // Set ProblemDetails response following API standard
             httpContext.Response.StatusCode = 403;
             httpContext.Response.ContentType = "application/problem+json";
@@ -70,13 +70,13 @@ public class JobPathMatchHandler : AuthorizationHandler<JobPathMatchRequirement>
                 Type = "JobPathMismatch",
                 Title = "Job Path Access Denied",
                 Detail = $"You are logged into '{tokenJobPath}' but attempted to access '{routeJobPath}'. Please logout first before moving to '{routeJobPath}'.",
-                Extensions = 
+                Extensions =
                 {
                     ["tokenJobPath"] = tokenJobPath,
                     ["routeJobPath"] = routeJobPath
                 }
             });
-            
+
             context.Fail();
         }
     }

@@ -27,16 +27,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                 // Handle 403 Forbidden errors
                 if (error.status === 403) {
                     const errorType = error.error?.type;
-                    
+
                     // Check for specific JobPathMismatch error
                     if (errorType === 'JobPathMismatch') {
-                        const message = error.error?.detail || 
+                        const message = error.error?.detail ||
                             `Access denied: You're logged into '${error.error?.extensions?.tokenJobPath}' but tried to access '${error.error?.extensions?.routeJobPath}'.`;
                         toastService.show(message, 'danger', 7000);
                     } else {
                         // Generic 403 error - try detail then title
-                        const message = error.error?.detail || 
-                            error.error?.title || 
+                        const message = error.error?.detail ||
+                            error.error?.title ||
                             'You do not have permission to access this resource.';
                         toastService.show(message, 'danger', 5000);
                     }
@@ -77,14 +77,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                                     catchError((retryError: HttpErrorResponse) => {
                                         if (retryError.status === 403) {
                                             const errorType = retryError.error?.type;
-                                            
+
                                             if (errorType === 'JobPathMismatch') {
-                                                const msg = retryError.error?.detail || 
+                                                const msg = retryError.error?.detail ||
                                                     `Access denied: You're logged into '${retryError.error?.extensions?.tokenJobPath}' but tried to access '${retryError.error?.extensions?.routeJobPath}'.`;
                                                 toastService.show(msg, 'danger', 7000);
                                             } else {
-                                                const msg = retryError.error?.detail || 
-                                                    retryError.error?.title || 
+                                                const msg = retryError.error?.detail ||
+                                                    retryError.error?.title ||
                                                     'You do not have permission to access this resource.';
                                                 toastService.show(msg, 'danger', 5000);
                                             }
