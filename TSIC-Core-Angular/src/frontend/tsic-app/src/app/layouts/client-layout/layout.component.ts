@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import type { Job } from '../../core/services/job.service';
 import { CommonModule } from '@angular/common';
@@ -12,6 +12,7 @@ import { ClientMenuComponent } from '../components/client-menu/client-menu.compo
 import { ClientBannerComponent } from '../components/client-banner/client-banner.component';
 import { ClientFooterBarComponent } from '../components/client-footer-bar/client-footer-bar.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
+import { isJobLanding } from '../../core/utils/route-segment.utils';
 
 @Component({
   selector: 'app-layout',
@@ -33,6 +34,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   // Observable for auth state changes (must be field initializer for injection context)
   private readonly currentUser$ = toObservable(this.auth.currentUser);
+
+  // Signal to track if we're on the job-landing route
+  showBanner = signal<boolean>(false);
 
   private bestLogoUrl(job: Job | null, userLogo?: string): string {
     // Helper to identify suspicious jobPath-derived filenames like "steps.jpg" that shouldn't be treated as logos.
@@ -79,59 +83,43 @@ export class LayoutComponent implements OnInit, OnDestroy {
     return '';
   }
 
-  // Signals
-  jobLogoPath = signal('');
-  jobBannerPath = signal('');
-  jobName = signal('');
-  username = signal('');
-  // Derived display string for "{username} as {roleName}" (store the STRING, not a function)
-  displayUserRole = signal('');
-  // Separate role name signal so template can distinguish visually
-  roleName = signal('');
-  showRoleMenu = signal(false);
-  isAuthenticated = signal(false);
+  // Computed signals derived from services
+  username = computed(() => this.auth.currentUser()?.username || '');
+  roleName = computed(() => (this.auth.currentUser()?.roles?.[0] ?? this.auth.currentUser()?.role) || '');
+  displayUserRole = computed(() => {
+    const u = this.auth.currentUser();
+    if (!u?.username) return '';
+    const r = (u.roles?.[0] ?? u.role) || '';
+    return r ? `${u.username} as ${r}` : u.username;
+  });
+  showRoleMenu = computed(() => !!this.auth.currentUser()?.regId);
+  isAuthenticated = computed(() => !!this.auth.currentUser());
+
+  // Job-related computed signals
+  jobName = computed(() => {
+    const job = this.jobService.currentJob();
+    const user = this.auth.getCurrentUser();
+    const ctxPath = this.jobContext.jobPath();
+    return (job?.jobPath || ctxPath || user?.jobPath || 'TSIC').toUpperCase();
+  });
+
+  jobLogoPath = computed(() => {
+    const job = this.jobService.currentJob();
+    const user = this.auth.getCurrentUser();
+    return this.bestLogoUrl(job, user?.jobLogo || undefined);
+  });
+
+  jobBannerPath = computed(() => {
+    const job = this.jobService.currentJob();
+    if (!job) return '';
+    const apiBanner = this.buildAssetUrl(job.jobBannerPath);
+    return apiBanner || '';
+  });
+
   roles = signal(['Parent', 'Director', 'Club Rep']);
   currentRole = signal('Parent'); // NOTE: wire to user/role selection from AuthService when implemented
 
   constructor() {
-    const user = this.auth.getCurrentUser();
-    const authenticated = this.auth.isAuthenticated();
-
-    this.isAuthenticated.set(authenticated);
-    this.username.set(user?.username || '');
-    this.showRoleMenu.set(!!user?.regId);
-
-    // Initialize displayUserRole & roleName once with current user
-    {
-      const initialRole = (user?.roles?.[0] ?? user?.role) || '';
-      let initialDisplay = '';
-      if (user?.username) {
-        initialDisplay = initialRole ? `${user.username} as ${initialRole}` : user.username;
-      }
-      this.displayUserRole.set(initialDisplay);
-      this.roleName.set(initialRole);
-    }
-
-    // Mirror AuthService state reactively into header UI (recompute display string)
-    effect(() => {
-      const u = this.auth.currentUser();
-      this.username.set(u?.username || '');
-      const r = (u?.roles?.[0] ?? u?.role) || '';
-      let display = '';
-      if (u?.username) {
-        display = r ? `${u.username} as ${r}` : u.username;
-      }
-      this.displayUserRole.set(display);
-      this.roleName.set(r);
-      this.showRoleMenu.set(!!u?.regId);
-      this.isAuthenticated.set(!!u);
-    });
-
-    // Reactively update header whenever the current job changes
-    effect(() => {
-      const job = this.jobService.currentJob();
-      this.applyJobInfo(job);
-    });
   }
 
   ngOnInit() {
@@ -151,6 +139,15 @@ export class LayoutComponent implements OnInit, OnDestroy {
       distinctUntilChanged(),
       takeUntil(this.destroy$)
     );
+
+    // Track route changes to determine if banner should show (job-landing route only)
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      startWith(null), // Check initial route
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.showBanner.set(this.isJobLandingRoute());
+    });
 
     // Load menus whenever jobPath changes (handles navigation between jobs and app restart)
     jobPath$.subscribe(jobPath => {
@@ -180,24 +177,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
-  }
-
-  private applyJobInfo(job: Job | null) {
-    const user = this.auth.getCurrentUser();
-    // Always display the job label derived from jobPath in ALL CAPS for consistency.
-    // Fallback order: job.jobPath -> JobContextService -> user.jobPath -> 'TSIC'
-    const ctxPath = this.jobContext.jobPath();
-    const display = (job?.jobPath || ctxPath || user?.jobPath || 'TSIC').toUpperCase();
-    this.jobName.set(display);
-
-    // Compute best logo URL from available inputs
-    const bestLogo = this.bestLogoUrl(job, user?.jobLogo || undefined);
-    if (bestLogo) this.jobLogoPath.set(bestLogo);
-    // Banner comes only from API when available
-    if (job) {
-      const apiBanner = this.buildAssetUrl(job.jobBannerPath);
-      if (apiBanner) this.jobBannerPath.set(apiBanner);
-    }
   }
 
   private buildAssetUrl(path?: string): string {
@@ -272,6 +251,15 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Still unknown
     if (claimPath) return claimPath;
     return null;
+  }
+
+
+  /**
+   * Check if the current route is the job-landing route
+   * Uses route segment utilities (jSeg/controller/action convention)
+   */
+  private isJobLandingRoute(): boolean {
+    return isJobLanding(this.router.url || '');
   }
 
   goHome() {

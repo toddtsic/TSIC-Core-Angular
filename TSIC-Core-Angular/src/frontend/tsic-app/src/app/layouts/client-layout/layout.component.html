@@ -11,8 +11,10 @@
 
 <!-- Main Content -->
 <main class="container-fluid py-4">
-  <!-- Banner (before main content) -->
+  <!-- Banner (before main content, only on job-landing route) -->
+  @if (showBanner()) {
   <app-client-banner></app-client-banner>
+  }
 
   <div class="row">
     <!-- Content Area -->
