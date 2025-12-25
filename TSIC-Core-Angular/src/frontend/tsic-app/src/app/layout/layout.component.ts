@@ -1,16 +1,18 @@
-import { Component, effect, inject, signal } from '@angular/core';
-import type { Job } from '../core/services/job.service';
+import { Component, computed, effect, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import type { Job, MenuItemDto } from '../core/services/job.service';
 import { CommonModule } from '@angular/common';
-import { Router, RouterOutlet, RouterLink } from '@angular/router';
+import { Router, RouterOutlet, RouterLink, NavigationEnd } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
 import { JobContextService } from '../core/services/job-context.service';
 import { ThemeService } from '../core/services/theme.service';
+import { MenusComponent } from '../shared/menus/menus.component';
+import { Subject, takeUntil, filter } from 'rxjs';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink],
+  imports: [CommonModule, RouterOutlet, RouterLink, MenusComponent],
   template: `
     <!-- Header -->
     <header class="tsic-header">
@@ -209,7 +211,23 @@ import { ThemeService } from '../core/services/theme.service';
 
     <!-- Main Content -->
     <main class="container-fluid py-4">
-      <router-outlet></router-outlet>
+      <div class="row">
+        <!-- Sidebar Navigation (left) -->
+        @if (menus() && menus().length > 0) {
+        <aside class="col-md-3 col-lg-2 mb-4">
+          <app-menus 
+            [menus]="menus()" 
+            [loading]="menusLoading()" 
+            [error]="menusError()">
+          </app-menus>
+        </aside>
+        }
+
+        <!-- Content Area (right or full width if no menu) -->
+        <div [class]="menus() && menus().length > 0 ? 'col-md-9 col-lg-10' : 'col-12'">
+          <router-outlet></router-outlet>
+        </div>
+      </div>
     </main>
   `,
   styles: [`
@@ -451,7 +469,8 @@ import { ThemeService } from '../core/services/theme.service';
     }
   `]
 })
-export class LayoutComponent {
+export class LayoutComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   private readonly auth = inject(AuthService);
   private readonly jobService = inject(JobService);
   private readonly router = inject(Router);
@@ -459,6 +478,11 @@ export class LayoutComponent {
   readonly themeService = inject(ThemeService);
 
   private readonly STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
+
+  // Computed signals from JobService for menus
+  menus = computed(() => this.jobService.menus());
+  menusLoading = computed(() => this.jobService.menusLoading());
+  menusError = computed(() => this.jobService.menusError());
 
   private bestLogoUrl(job: Job | null, userLogo?: string): string {
     // Helper to identify suspicious jobPath-derived filenames like "steps.jpg" that shouldn't be treated as logos.
@@ -558,13 +582,37 @@ export class LayoutComponent {
       const job = this.jobService.currentJob();
       this.applyJobInfo(job);
     });
+  }
 
-    // One-shot attempt to load job metadata early; later changes to jobPath after init
-    // (e.g. async routing) should be handled elsewhere (kept minimal to reduce effect count).
+  ngOnInit() {
+    // Load job metadata and menus on init
     const jp = this.jobContext.jobPath();
     if (jp && !this.jobService.currentJob()) {
       this.jobService.loadJobMetadata(jp);
     }
+    if (jp && jp !== 'tsic') {
+      this.jobService.loadMenus(jp);
+    }
+
+    // Reload menus when navigating to different job paths
+    this.router.events
+      .pipe(
+        filter(event => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        const jobPath = this.getActiveJobPath();
+        if (jobPath && jobPath !== 'tsic') {
+          this.jobService.loadMenus(jobPath);
+        } else {
+          this.jobService.menus.set([]);
+        }
+      });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private applyJobInfo(job: Job | null) {

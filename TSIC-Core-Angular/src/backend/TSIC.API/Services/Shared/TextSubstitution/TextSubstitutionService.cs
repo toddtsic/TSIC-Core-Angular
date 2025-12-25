@@ -79,6 +79,25 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         _discountEvaluator = discountEvaluator;
     }
 
+    public async Task<string> SubstituteJobTokensAsync(string jobPath, string template)
+    {
+        if (string.IsNullOrWhiteSpace(template)) return template;
+
+        var job = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobPath == jobPath)
+            .Select(j => new { j.JobName, j.UslaxNumberValidThroughDate })
+            .FirstOrDefaultAsync();
+
+        if (job == null) return template;
+
+        var uslaxDate = job.UslaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
+
+        return template
+            .Replace("!JOBNAME", job.JobName, StringComparison.OrdinalIgnoreCase)
+            .Replace("!USLAXVALIDTHROUGHDATE", uslaxDate, StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task<string> SubstituteAsync(
         string jobSegment,
         Guid paymentMethodCreditCardId,

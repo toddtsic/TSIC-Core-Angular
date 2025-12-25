@@ -1,0 +1,47 @@
+.job-menus {
+    .nav-link {
+        color: var(--bs-body-color);
+        transition: all 0.2s ease-in-out;
+
+        &:hover:not(.disabled) {
+            background-color: var(--bs-secondary-bg);
+            color: var(--bs-primary);
+        }
+
+        &.active {
+            background-color: var(--bs-primary);
+            color: var(--bs-white);
+        }
+
+        &.disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        i {
+            font-size: 1rem;
+        }
+
+        .text-wrap {
+            white-space: normal;
+            word-wrap: break-word;
+        }
+    }
+
+    .nav-link-sm {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .nav-item {
+        margin-bottom: 0.25rem;
+    }
+}
+
+.menus-loading {
+    min-height: 60px;
+}
+
+.menus-error {
+    font-size: 0.875rem;
+}

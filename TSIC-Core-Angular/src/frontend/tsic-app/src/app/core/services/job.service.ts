@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import type { RegistrationStatusRequest, RegistrationStatusResponse } from '../api/models';
+import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto } from '../api/models';
 
 export interface JobBulletin {
     id: string;
@@ -27,6 +27,31 @@ export interface Job {
     jobBulletins: JobBulletin[];
 }
 
+export interface MenuItemDto {
+    menuItemId: string;
+    parentMenuItemId?: string | null;
+    index?: number | null;
+    text?: string | null;
+    iconName?: string | null;
+    bCollapsed: boolean;
+    bTextWrap: boolean;
+    routerLink?: string | null;
+    navigateUrl?: string | null;
+    controller?: string | null;
+    action?: string | null;
+    linkTarget?: string | null;
+    children: MenuItemDto[];
+}
+
+export interface MenuDto {
+    menuId: string;
+    jobId: string;
+    roleId?: string | null;
+    menuTypeId: number;
+    tag?: string | null;
+    items: MenuItemDto[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class JobService {
     private readonly http = inject(HttpClient);
@@ -37,6 +62,12 @@ export class JobService {
     public readonly registrationStatuses = signal<RegistrationStatusResponse[]>([]);
     public readonly registrationLoading = signal(false);
     public readonly registrationError = signal<string | null>(null);
+    public readonly bulletins = signal<BulletinDto[]>([]);
+    public readonly bulletinsLoading = signal(false);
+    public readonly bulletinsError = signal<string | null>(null);
+    public readonly menus = signal<MenuItemDto[]>([]);
+    public readonly menusLoading = signal(false);
+    public readonly menusError = signal<string | null>(null);
 
     // Simulate fetching job info (replace with real API call as needed)
     setJob(job: Job) {
@@ -92,5 +123,54 @@ export class JobService {
     checkRegistrationStatus(jobPath: string, registrationTypes: string[]): Observable<RegistrationStatusResponse[]> {
         const request: RegistrationStatusRequest = { jobPath, registrationTypes };
         return this.http.post<RegistrationStatusResponse[]>(`${this.apiUrl}/player-registration/check-status`, request);
+    }
+
+    /**
+     * Load active bulletins for a job.
+     * Updates bulletins signal on success, bulletinsError on failure.
+     * Available for anonymous users.
+     */
+    loadBulletins(jobPath: string): void {
+        this.bulletinsLoading.set(true);
+        this.bulletinsError.set(null);
+        this.http
+            .get<BulletinDto[]>(`${this.apiUrl}/jobs/${jobPath}/bulletins`)
+            .subscribe({
+                next: (bulletins) => {
+                    this.bulletins.set(bulletins);
+                    this.bulletinsLoading.set(false);
+                },
+                error: (err) => {
+                    this.bulletinsError.set(
+                        err?.error?.message || 'Unable to load bulletins. Please try again later.'
+                    );
+                    this.bulletinsLoading.set(false);
+                }
+            });
+    }
+
+    /**
+     * Load role-specific menus for a job.
+     * Updates menus signal on success, menusError on failure.
+     * Available for anonymous users (returns menu with roleId NULL).
+     * JWT token automatically included via HttpClient interceptor.
+     */
+    loadMenus(jobPath: string): void {
+        this.menusLoading.set(true);
+        this.menusError.set(null);
+        this.http
+            .get<MenuDto>(`${this.apiUrl}/jobs/${jobPath}/menus`)
+            .subscribe({
+                next: (menu) => {
+                    this.menus.set(menu.items || []);
+                    this.menusLoading.set(false);
+                },
+                error: (err) => {
+                    this.menusError.set(
+                        err?.error?.message || 'Unable to load menus. Please try again later.'
+                    );
+                    this.menusLoading.set(false);
+                }
+            });
     }
 }

@@ -8,4 +8,10 @@ public interface ITextSubstitutionService
         Guid? registrationId,
         string familyUserId,
         string template);
+
+    /// <summary>
+    /// Substitutes job-level tokens only (e.g., !JOBNAME, !USLAXVALIDTHROUGHDATE).
+    /// Use this for anonymous/public content like bulletins and menus.
+    /// </summary>
+    Task<string> SubstituteJobTokensAsync(string jobPath, string template);
 }

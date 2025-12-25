@@ -1,0 +1,83 @@
+@if (loading()) {
+<div class="menus-loading d-flex align-items-center justify-content-center p-3">
+    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <span class="text-muted small">Loading menu...</span>
+</div>
+}
+
+@if (error()) {
+<div class="menus-error alert alert-warning m-3" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    {{ error() }}
+</div>
+}
+
+@if (menus() && menus().length > 0 && !loading()) {
+<nav class="job-menus">
+    <ul class="nav nav-pills flex-column">
+        @for (item of menus(); track item.menuItemId) {
+        <li class="nav-item">
+            @if (isExternalLink(item)) {
+            <!-- External link -->
+            <a [href]="getLink(item)" [target]="item.linkTarget || '_self'" class="nav-link">
+                @if (item.iconName) {
+                <i class="bi bi-{{ item.iconName }} me-2"></i>
+                }
+                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
+            </a>
+            } @else if (getLink(item)) {
+            <!-- Internal Angular route -->
+            <a [routerLink]="getLink(item)" routerLinkActive="active" class="nav-link">
+                @if (item.iconName) {
+                <i class="bi bi-{{ item.iconName }} me-2"></i>
+                }
+                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
+            </a>
+            } @else {
+            <!-- No link - header/label -->
+            <span class="nav-link disabled">
+                @if (item.iconName) {
+                <i class="bi bi-{{ item.iconName }} me-2"></i>
+                }
+                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
+            </span>
+            }
+
+            <!-- Child items (nested menu - max 1 level) -->
+            @if (hasChildren(item)) {
+            <ul class="nav nav-pills flex-column ms-3">
+                @for (child of item.children; track child.menuItemId) {
+                <li class="nav-item">
+                    @if (isExternalLink(child)) {
+                    <a [href]="getLink(child)" [target]="child.linkTarget || '_self'" class="nav-link nav-link-sm">
+                        @if (child.iconName) {
+                        <i class="bi bi-{{ child.iconName }} me-2"></i>
+                        }
+                        <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
+                    </a>
+                    } @else if (getLink(child)) {
+                    <a [routerLink]="getLink(child)" routerLinkActive="active" class="nav-link nav-link-sm">
+                        @if (child.iconName) {
+                        <i class="bi bi-{{ child.iconName }} me-2"></i>
+                        }
+                        <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
+                    </a>
+                    } @else {
+                    <span class="nav-link nav-link-sm disabled">
+                        @if (child.iconName) {
+                        <i class="bi bi-{{ child.iconName }} me-2"></i>
+                        }
+                        <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
+                    </span>
+                    }
+                </li>
+                }
+            </ul>
+            }
+        </li>
+        }
+    </ul>
+</nav>
+}

@@ -1,0 +1,39 @@
+@if (bulletins() && bulletins().length > 0) {
+<div class="bulletins-section">
+    @for (bulletin of bulletins(); track bulletin.bulletinId) {
+    <div class="bulletin">
+        <div class="bulletin-header">
+            <h3>{{ bulletin.title }}</h3>
+        </div>
+        <div class="bulletin-content">
+            <div [innerHTML]="bulletin.text"></div>
+            @if (bulletin.startDate || bulletin.endDate) {
+            <div class="bulletin-dates">
+                <small>
+                    @if (bulletin.startDate) {
+                    <span>Effective: {{ bulletin.startDate | date:'shortDate' }}</span>
+                    }
+                    @if (bulletin.endDate) {
+                    <span> - Expires: {{ bulletin.endDate | date:'shortDate' }}</span>
+                    }
+                </small>
+            </div>
+            }
+        </div>
+    </div>
+    }
+</div>
+}
+
+@if (loading()) {
+<div class="bulletins-loading">
+    <div class="spinner"></div>
+    <p>Loading bulletins...</p>
+</div>
+}
+
+@if (error()) {
+<div class="bulletins-error">
+    <p class="error-message">{{ error() }}</p>
+</div>
+}

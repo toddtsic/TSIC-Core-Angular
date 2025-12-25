@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, roleGuard, landingPageGuard, redirectAuthenticatedGuard, tsicEntryGuard, anonymousJobGuard, superUserGuard } from './core/guards/auth.guard';
+import { authGuard } from './core/guards/auth.guard';
 import { LayoutComponent } from './layout/layout.component';
 import { PublicLayoutComponent } from './layouts/public-layout/public-layout.component';
 
@@ -11,31 +11,32 @@ export const routes: Routes = [
 	{
 		path: 'tsic',
 		component: PublicLayoutComponent,
-		canActivate: [tsicEntryGuard],
+		canActivate: [authGuard],
+		data: { allowAnonymous: true },
 		children: [
 			// Public landing page
 			{
 				path: '',
 				loadComponent: () => import('./tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent),
-				canActivate: [landingPageGuard]
+				canActivate: [authGuard],
+				data: { redirectAuthenticated: true }
 			},
 			// Login page
 			{
 				path: 'login',
 				loadComponent: () => import('./login/login.component').then(m => m.LoginComponent),
-				canActivate: [redirectAuthenticatedGuard]
+				canActivate: [authGuard],
+				data: { redirectAuthenticated: true }
 			},
 			// Terms of Service acceptance
 			{
 				path: 'terms-of-service',
-				loadComponent: () => import('./terms-of-service/terms-of-service.component').then(m => m.TermsOfServiceComponent),
-				canActivate: [authGuard]
+				loadComponent: () => import('./terms-of-service/terms-of-service.component').then(m => m.TermsOfServiceComponent)
 			},
 			// Role selection page
 			{
 				path: 'role-selection',
-				loadComponent: () => import('./role-selection/role-selection.component').then(m => m.RoleSelectionComponent),
-				canActivate: [authGuard]
+				loadComponent: () => import('./role-selection/role-selection.component').then(m => m.RoleSelectionComponent)
 			},
 			// Family Account wizard (create/manage family + children)
 			{
@@ -50,7 +51,7 @@ export const routes: Routes = [
 					{
 						path: '',
 						loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
-						canActivate: [roleGuard]
+						data: { requirePhase2: true }
 					}
 				]
 			}
@@ -61,34 +62,31 @@ export const routes: Routes = [
 	{
 		path: ':jobPath',
 		component: LayoutComponent,
+		canActivate: [authGuard],
+		data: { allowAnonymous: true },
 		children: [
 			{
 				path: '',
-				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
-				canActivate: [anonymousJobGuard]
+				loadComponent: () => import('./job-landing/job-landing.component').then(m => m.JobLandingComponent)
 			},
 			// Registration entry screen: sign in then choose next action
 			{
 				path: 'registration',
-				loadComponent: () => import('./registration/registration-entry.component').then(m => m.RegistrationEntryComponent),
-				canActivate: [anonymousJobGuard]
+				loadComponent: () => import('./registration/registration-entry.component').then(m => m.RegistrationEntryComponent)
 			},
 			// Registration wizard route (player-specific)
 			{
 				path: 'register-player',
-				loadComponent: () => import('./registration-wizards/player-registration-wizard/player-registration-wizard.component').then(m => m.PlayerRegistrationWizardComponent),
-				canActivate: [anonymousJobGuard]
+				loadComponent: () => import('./registration-wizards/player-registration-wizard/player-registration-wizard.component').then(m => m.PlayerRegistrationWizardComponent)
 			},
 			// Registration wizard route (team-specific)
 			{
 				path: 'register-team',
-				loadComponent: () => import('./registration-wizards/team-registration-wizard/team-registration-wizard.component').then(m => m.TeamRegistrationWizardComponent),
-				canActivate: [anonymousJobGuard]
+				loadComponent: () => import('./registration-wizards/team-registration-wizard/team-registration-wizard.component').then(m => m.TeamRegistrationWizardComponent)
 			},
 			{
 				path: 'home',
-				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
-				canActivate: [anonymousJobGuard]
+				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent)
 			},
 			// Brand preview (design system showcase)
 			{
@@ -98,7 +96,8 @@ export const routes: Routes = [
 			// Admin-only routes for ANY job (SuperUser required)
 			{
 				path: 'admin',
-				canActivate: [superUserGuard],
+				canActivate: [authGuard],
+				data: { requireSuperUser: true },
 				children: [
 					{
 						path: 'profile-migration',

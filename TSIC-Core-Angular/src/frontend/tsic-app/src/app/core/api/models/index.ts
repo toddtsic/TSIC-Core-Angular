@@ -124,6 +124,17 @@ export interface AvailableTeamDto {
     [key: string]: any;
 }
 
+export interface BulletinDto {
+    bulletinId: string;
+    title: string | undefined;
+    text: string | undefined;
+    startDate: Date | undefined;
+    endDate: Date | undefined;
+    createDate: Date;
+
+    [key: string]: any;
+}
+
 export interface CcInfoDto {
     firstName: string | undefined;
     lastName: string | undefined;
@@ -483,6 +494,35 @@ export interface LoginRequest {
 export interface LoginResponseDto {
     userId: string;
     registrations: RegistrationRoleDto[];
+
+    [key: string]: any;
+}
+
+export interface MenuDto {
+    menuId: string;
+    jobId: string;
+    roleId: string | undefined;
+    menuTypeId: number;
+    tag: string | undefined;
+    items: MenuItemDto[];
+
+    [key: string]: any;
+}
+
+export interface MenuItemDto {
+    menuItemId: string;
+    parentMenuItemId: string | undefined;
+    index: number | undefined;
+    text: string | undefined;
+    iconName: string | undefined;
+    bCollapsed: boolean;
+    bTextWrap: boolean;
+    routerLink: string | undefined;
+    navigateUrl: string | undefined;
+    controller: string | undefined;
+    action: string | undefined;
+    linkTarget: string | undefined;
+    children: MenuItemDto[];
 
     [key: string]: any;
 }

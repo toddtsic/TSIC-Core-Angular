@@ -5,6 +5,11 @@ import { JobService } from '../core/services/job.service';
 import type { RegistrationStatusResponse } from '../core/api/models';
 import { AuthService } from '../core/services/auth.service';
 
+/**
+ * TODO: DEPRECATED - Replace with job-landing.component.ts
+ * This component is kept as reference during migration.
+ * Will be removed once job-landing.component is fully tested.
+ */
 @Component({
   selector: 'app-job-home',
   standalone: true,
