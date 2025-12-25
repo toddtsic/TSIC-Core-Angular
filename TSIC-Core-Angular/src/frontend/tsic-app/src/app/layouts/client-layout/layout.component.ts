@@ -1,13 +1,13 @@
 import { Component, computed, effect, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import type { Job, MenuItemDto } from '../core/services/job.service';
+import type { Job, MenuItemDto } from '../../core/services/job.service';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, RouterLink, NavigationEnd, ActivatedRoute } from '@angular/router';
-import { AuthService } from '../core/services/auth.service';
-import { JobService } from '../core/services/job.service';
-import { JobContextService } from '../core/services/job-context.service';
-import { ThemeService } from '../core/services/theme.service';
-import { MenusComponent } from '../shared/menus/menus.component';
+import { AuthService } from '../../core/services/auth.service';
+import { JobService } from '../../core/services/job.service';
+import { JobContextService } from '../../core/services/job-context.service';
+import { ThemeService } from '../../core/services/theme.service';
+import { MenusComponent } from '../../shared/menus/menus.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
 
 @Component({
