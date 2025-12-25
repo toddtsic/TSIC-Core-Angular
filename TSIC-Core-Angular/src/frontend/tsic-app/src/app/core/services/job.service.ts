@@ -154,12 +154,20 @@ export class JobService {
      * Updates menus signal on success, menusError on failure.
      * Available for anonymous users (returns menu with roleId NULL).
      * JWT token automatically included via HttpClient interceptor.
+     * 
+     * @param jobPath - The job path to load menus for
+     * @param bypassCache - Whether to bypass HTTP cache (use when auth state changes)
      */
-    loadMenus(jobPath: string): void {
+    loadMenus(jobPath: string, bypassCache = false): void {
         this.menusLoading.set(true);
         this.menusError.set(null);
+
+        const options = bypassCache
+            ? { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } }
+            : undefined;
+
         this.http
-            .get<MenuDto>(`${this.apiUrl}/jobs/${jobPath}/menus`)
+            .get<MenuDto>(`${this.apiUrl}/jobs/${jobPath}/menus`, options)
             .subscribe({
                 next: (menu) => {
                     this.menus.set(menu.items || []);

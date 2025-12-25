@@ -1,13 +1,14 @@
 import { Component, computed, effect, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import type { Job, MenuItemDto } from '../core/services/job.service';
 import { CommonModule } from '@angular/common';
-import { Router, RouterOutlet, RouterLink, NavigationEnd } from '@angular/router';
+import { Router, RouterOutlet, RouterLink, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
 import { JobContextService } from '../core/services/job-context.service';
 import { ThemeService } from '../core/services/theme.service';
 import { MenusComponent } from '../shared/menus/menus.component';
-import { Subject, takeUntil, filter } from 'rxjs';
+import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
 
 @Component({
   selector: 'app-layout',
@@ -474,10 +475,14 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly jobService = inject(JobService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly jobContext = inject(JobContextService);
   readonly themeService = inject(ThemeService);
 
   private readonly STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
+
+  // Observable for auth state changes (must be field initializer for injection context)
+  private readonly currentUser$ = toObservable(this.auth.currentUser);
 
   // Computed signals from JobService for menus
   menus = computed(() => this.jobService.menus());
@@ -585,27 +590,44 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Load job metadata and menus on init
-    const jp = this.jobContext.jobPath();
-    if (jp && !this.jobService.currentJob()) {
-      this.jobService.loadJobMetadata(jp);
-    }
-    if (jp && jp !== 'tsic') {
-      this.jobService.loadMenus(jp);
+    // Get initial jobPath from route
+    const initialJobPath = this.getActiveJobPath();
+
+    // Load job metadata if jobPath is available and job not already loaded
+    if (initialJobPath && !this.jobService.currentJob()) {
+      this.jobService.loadJobMetadata(initialJobPath);
     }
 
-    // Reload menus when navigating to different job paths
-    this.router.events
+    // Create an observable that tracks jobPath changes from navigation
+    const jobPath$ = this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      startWith(null), // Emit immediately on subscription to handle app restart
+      map(() => this.getActiveJobPath()),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
+    );
+
+    // Load menus whenever jobPath changes (handles navigation between jobs and app restart)
+    jobPath$.subscribe(jobPath => {
+      if (jobPath && jobPath !== 'tsic') {
+        this.jobService.loadMenus(jobPath);
+      } else {
+        this.jobService.menus.set([]);
+      }
+    });
+
+    // Watch for authentication state changes (login/logout)
+    // Reload menus with cache bypass to get role-specific or anonymous menus
+    this.currentUser$
       .pipe(
-        filter(event => event instanceof NavigationEnd),
+        skip(1), // Skip initial emission to avoid duplicate load
         takeUntil(this.destroy$)
       )
       .subscribe(() => {
         const jobPath = this.getActiveJobPath();
         if (jobPath && jobPath !== 'tsic') {
-          this.jobService.loadMenus(jobPath);
-        } else {
-          this.jobService.menus.set([]);
+          // Bypass cache to force fresh menu fetch when auth state changes
+          this.jobService.loadMenus(jobPath, true);
         }
       });
   }
