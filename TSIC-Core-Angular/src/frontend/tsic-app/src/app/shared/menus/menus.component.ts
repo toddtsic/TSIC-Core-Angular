@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { MenuItemDto } from '../../core/services/job.service';
@@ -14,6 +14,32 @@ export class MenusComponent {
     menus = input<MenuItemDto[]>([]);
     loading = input<boolean>(false);
     error = input<string | null>(null);
+
+    // Track which parent menu items are expanded
+    expandedItems = signal<Set<string>>(new Set());
+
+    /**
+     * Toggle expansion state of a parent menu item
+     */
+    toggleExpanded(menuItemId: string): void {
+        const expanded = this.expandedItems();
+        const newExpanded = new Set(expanded);
+        
+        if (newExpanded.has(menuItemId)) {
+            newExpanded.delete(menuItemId);
+        } else {
+            newExpanded.add(menuItemId);
+        }
+        
+        this.expandedItems.set(newExpanded);
+    }
+
+    /**
+     * Check if a menu item is expanded
+     */
+    isExpanded(menuItemId: string): boolean {
+        return this.expandedItems().has(menuItemId);
+    }
 
     /**
      * Get the link for a menu item based on precedence:

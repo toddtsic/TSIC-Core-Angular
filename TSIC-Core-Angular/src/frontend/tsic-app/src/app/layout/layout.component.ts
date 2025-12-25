@@ -19,8 +19,21 @@ import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged 
     <header class="tsic-header">
       <div class="container-fluid">
         <div class="row align-items-center py-2 py-md-2 py-1">
-          <!-- Left: TSIC + Job Logos (auto-width) -->
+          <!-- Left: Hamburger + TSIC + Job Logos (auto-width) -->
           <div class="col-auto">
+            <!-- Hamburger Menu Button (visible when menus exist) -->
+            @if (menus() && menus().length > 0) {
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-secondary me-2" 
+                (click)="toggleSidebar()"
+                [attr.aria-expanded]="sidebarOpen()"
+                aria-label="Toggle navigation">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                </svg>
+              </button>
+            }
             <!-- Button group on mobile -->
             <div class="btn-group d-md-none">
               <button type="button" class="btn btn-sm btn-outline-secondary p-2" style="border-color: rgba(0,0,0,0.175);">
@@ -215,17 +228,25 @@ import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged 
       <div class="row">
         <!-- Sidebar Navigation (left) -->
         @if (menus() && menus().length > 0) {
-        <aside class="col-md-3 col-lg-2 mb-4">
-          <app-menus 
-            [menus]="menus()" 
-            [loading]="menusLoading()" 
-            [error]="menusError()">
-          </app-menus>
+        <aside [class]="sidebarOpen() ? 'col-md-3 col-lg-2 mb-4 sidebar-mobile sidebar-open' : 'mb-4 sidebar-mobile sidebar-collapsed'">
+          <!-- Overlay for mobile sidebar (click to close) -->
+          <div class="sidebar-overlay d-md-none" 
+               [class.show]="sidebarOpen()"
+               (click)="toggleSidebar()"></div>
+          
+          <!-- Sidebar content -->
+          <div class="sidebar-content">
+            <app-menus 
+              [menus]="menus()" 
+              [loading]="menusLoading()" 
+              [error]="menusError()">
+            </app-menus>
+          </div>
         </aside>
         }
 
         <!-- Content Area (right or full width if no menu) -->
-        <div [class]="menus() && menus().length > 0 ? 'col-md-9 col-lg-10' : 'col-12'">
+        <div [class]="menus() && menus().length > 0 ? (sidebarOpen() ? 'col-md-9 col-lg-10' : 'col-12') : 'col-12'">
           <router-outlet></router-outlet>
         </div>
       </div>
@@ -447,6 +468,76 @@ import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged 
       border-color: #6DBE45;
       color: white;
     }
+
+    /* Mobile Sidebar Styles */
+    .sidebar-mobile {
+      position: relative;
+      transition: all 0.3s ease-in-out;
+    }
+
+    /* Desktop collapsed state */
+    @media (min-width: 768px) {
+      .sidebar-collapsed {
+        max-width: 0;
+        padding: 0;
+        overflow: hidden;
+        opacity: 0;
+      }
+
+      .sidebar-collapsed .sidebar-content {
+        display: none;
+      }
+
+      .sidebar-open {
+        opacity: 1;
+      }
+    }
+
+    /* Mobile styles */
+    @media (max-width: 767.98px) {
+      .sidebar-mobile .sidebar-content {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        height: 100vh;
+        background: var(--bs-body-bg);
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+        z-index: 1040;
+        overflow-y: auto;
+        transition: left 0.3s ease-in-out;
+        padding: 1rem;
+      }
+
+      .sidebar-mobile.sidebar-open .sidebar-content {
+        left: 0;
+      }
+
+      .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1039;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+      }
+
+      .sidebar-overlay.show {
+        opacity: 1;
+        visibility: visible;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .sidebar-overlay {
+        display: none !important;
+      }
+    }
+
     /* User/Role badges */
     .user-role-pill { display: inline-flex; align-items: center; }
     .badge.bg-user {
@@ -480,6 +571,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
   readonly themeService = inject(ThemeService);
 
   private readonly STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
+
+  // Signal to track sidebar open/closed state (default: open on desktop, closed on mobile)
+  sidebarOpen = signal<boolean>(true);
 
   // Observable for auth state changes (must be field initializer for injection context)
   private readonly currentUser$ = toObservable(this.auth.currentUser);
@@ -709,6 +803,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   toggleTheme() {
     this.themeService.toggleTheme();
+  }
+
+  toggleSidebar() {
+    this.sidebarOpen.update(open => !open);
   }
 
   private getActiveJobPath(): string | null {

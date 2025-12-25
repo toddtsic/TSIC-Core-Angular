@@ -19,35 +19,23 @@
     <ul class="nav nav-pills flex-column">
         @for (item of menus(); track item.menuItemId) {
         <li class="nav-item">
-            @if (isExternalLink(item)) {
-            <!-- External link -->
-            <a [href]="getLink(item)" [target]="item.linkTarget || '_self'" class="nav-link">
-                @if (item.iconName) {
-                <i class="bi bi-{{ item.iconName }} me-2"></i>
-                }
-                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
-            </a>
-            } @else if (getLink(item)) {
-            <!-- Internal Angular route -->
-            <a [routerLink]="getLink(item)" routerLinkActive="active" class="nav-link">
-                @if (item.iconName) {
-                <i class="bi bi-{{ item.iconName }} me-2"></i>
-                }
-                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
-            </a>
-            } @else {
-            <!-- No link - header/label -->
-            <span class="nav-link disabled">
-                @if (item.iconName) {
-                <i class="bi bi-{{ item.iconName }} me-2"></i>
-                }
-                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
-            </span>
-            }
-
-            <!-- Child items (nested menu - max 1 level) -->
             @if (hasChildren(item)) {
-            <ul class="nav nav-pills flex-column ms-3">
+            <!-- Parent item with children - collapsible -->
+            <button type="button" class="nav-link d-flex justify-content-between align-items-center w-100"
+                (click)="toggleExpanded(item.menuItemId)" [class.active]="isExpanded(item.menuItemId)">
+                <span>
+                    @if (item.iconName) {
+                    <i class="bi bi-{{ item.iconName }} me-2"></i>
+                    }
+                    <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
+                </span>
+                <i class="bi" [class.bi-chevron-down]="!isExpanded(item.menuItemId)"
+                    [class.bi-chevron-up]="isExpanded(item.menuItemId)"></i>
+            </button>
+
+            <!-- Child items (nested menu) - collapsible -->
+            @if (isExpanded(item.menuItemId)) {
+            <ul class="nav nav-pills flex-column ms-3 submenu">
                 @for (child of item.children; track child.menuItemId) {
                 <li class="nav-item">
                     @if (isExternalLink(child)) {
@@ -75,6 +63,34 @@
                 </li>
                 }
             </ul>
+            }
+            } @else {
+            <!-- Standalone item without children -->
+            @if (isExternalLink(item)) {
+            <!-- External link -->
+            <a [href]="getLink(item)" [target]="item.linkTarget || '_self'" class="nav-link">
+                @if (item.iconName) {
+                <i class="bi bi-{{ item.iconName }} me-2"></i>
+                }
+                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
+            </a>
+            } @else if (getLink(item)) {
+            <!-- Internal Angular route -->
+            <a [routerLink]="getLink(item)" routerLinkActive="active" class="nav-link">
+                @if (item.iconName) {
+                <i class="bi bi-{{ item.iconName }} me-2"></i>
+                }
+                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
+            </a>
+            } @else {
+            <!-- No link - header/label -->
+            <span class="nav-link disabled">
+                @if (item.iconName) {
+                <i class="bi bi-{{ item.iconName }} me-2"></i>
+                }
+                <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
+            </span>
+            }
             }
         </li>
         }

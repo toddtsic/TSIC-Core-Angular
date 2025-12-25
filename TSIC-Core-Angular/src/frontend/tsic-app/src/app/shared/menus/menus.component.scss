@@ -2,6 +2,9 @@
     .nav-link {
         color: var(--bs-body-color);
         transition: all 0.2s ease-in-out;
+        border: none;
+        background: transparent;
+        text-align: left;
 
         &:hover:not(.disabled) {
             background-color: var(--bs-secondary-bg);
@@ -26,6 +29,23 @@
             white-space: normal;
             word-wrap: break-word;
         }
+
+        // Chevron icon styling
+        .bi-chevron-down,
+        .bi-chevron-up {
+            font-size: 0.875rem;
+            transition: transform 0.2s ease-in-out;
+        }
+    }
+
+    // Button-style nav links (for collapsible parents)
+    button.nav-link {
+        cursor: pointer;
+
+        &:focus {
+            outline: 2px solid var(--bs-primary);
+            outline-offset: 2px;
+        }
     }
 
     .nav-link-sm {
@@ -35,6 +55,24 @@
 
     .nav-item {
         margin-bottom: 0.25rem;
+    }
+
+    // Submenu styling with animation
+    .submenu {
+        animation: slideDown 0.2s ease-in-out;
+        overflow: hidden;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            max-height: 0;
+        }
+
+        to {
+            opacity: 1;
+            max-height: 1000px;
+        }
     }
 }
 
