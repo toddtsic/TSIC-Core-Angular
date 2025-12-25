@@ -1,20 +1,22 @@
 import { Component, computed, effect, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import type { Job, MenuItemDto } from '../../core/services/job.service';
+import type { Job } from '../../core/services/job.service';
 import { CommonModule } from '@angular/common';
-import { Router, RouterOutlet, RouterLink, RouterLinkActive, NavigationEnd, ActivatedRoute } from '@angular/router';
+import { Router, RouterOutlet, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { JobService } from '../../core/services/job.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { ThemeService } from '../../core/services/theme.service';
-import { MenusComponent } from '../../shared/menus/menus.component';
 import { ClientHeaderBarComponent } from '../components/client-header-bar/client-header-bar.component';
+import { ClientMenuComponent } from '../components/client-menu/client-menu.component';
+import { ClientBannerComponent } from '../components/client-banner/client-banner.component';
+import { ClientFooterBarComponent } from '../components/client-footer-bar/client-footer-bar.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, MenusComponent, ClientHeaderBarComponent],
+  imports: [CommonModule, RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientBannerComponent, ClientFooterBarComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss']
 })
@@ -29,19 +31,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   private readonly STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
 
-  // Signal to track sidebar open/closed state (default: open on desktop, closed on mobile)
-  sidebarOpen = signal<boolean>(true);
-
-  // Track which parent menu items are expanded (for horizontal menu dropdowns)
-  expandedItems = signal<Set<string>>(new Set());
-
   // Observable for auth state changes (must be field initializer for injection context)
   private readonly currentUser$ = toObservable(this.auth.currentUser);
-
-  // Computed signals from JobService for menus
-  menus = computed(() => this.jobService.menus());
-  menusLoading = computed(() => this.jobService.menusLoading());
-  menusError = computed(() => this.jobService.menusError());
 
   private bestLogoUrl(job: Job | null, userLogo?: string): string {
     // Helper to identify suspicious jobPath-derived filenames like "steps.jpg" that shouldn't be treated as logos.
@@ -265,10 +256,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.themeService.toggleTheme();
   }
 
-  toggleSidebar() {
-    this.sidebarOpen.update(open => !open);
-  }
-
   private getActiveJobPath(): string | null {
     // Prefer JobService current job
     const job = this.jobService.getCurrentJob();
@@ -295,65 +282,5 @@ export class LayoutComponent implements OnInit, OnDestroy {
       // If we don't know the job, send to TSIC landing/home
       this.router.navigate(['/tsic']);
     }
-  }
-
-  // Menu helper methods for horizontal navigation
-  /**
-   * Toggle expansion state of a parent menu item
-   */
-  toggleExpanded(menuItemId: string): void {
-    const normalizedId = menuItemId.toLowerCase();
-    const expanded = this.expandedItems();
-    const newExpanded = new Set(expanded);
-
-    if (newExpanded.has(normalizedId)) {
-      newExpanded.delete(normalizedId);
-    } else {
-      newExpanded.add(normalizedId);
-    }
-
-    this.expandedItems.set(newExpanded);
-  }
-
-  /**
-   * Check if a menu item is expanded
-   */
-  isExpanded(menuItemId: string): boolean {
-    const normalizedId = menuItemId.toLowerCase();
-    return this.expandedItems().has(normalizedId);
-  }
-
-  /**
-   * Get the link for a menu item based on precedence:
-   * 1. navigateUrl (external link)
-   * 2. routerLink (Angular route)
-   * 3. controller/action (legacy MVC - map to Angular route)
-   */
-  getLink(item: MenuItemDto): string | null {
-    if (item.navigateUrl) {
-      return item.navigateUrl;
-    }
-    if (item.routerLink) {
-      return item.routerLink;
-    }
-    if (item.controller && item.action) {
-      // Legacy MVC route mapping (1:1 mapping as specified)
-      return `/${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
-    }
-    return null;
-  }
-
-  /**
-   * Check if the link is external (navigateUrl present)
-   */
-  isExternalLink(item: MenuItemDto): boolean {
-    return !!item.navigateUrl;
-  }
-
-  /**
-   * Check if item has children
-   */
-  hasChildren(item: MenuItemDto): boolean {
-    return item.children && item.children.length > 0;
   }
 }

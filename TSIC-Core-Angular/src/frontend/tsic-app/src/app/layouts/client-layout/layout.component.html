@@ -3,107 +3,24 @@
   <div class="container-fluid">
     <app-client-header-bar>
     </app-client-header-bar>
-
-    <!-- Horizontal Navigation Menu (desktop only) -->
-    @if (menus() && menus().length > 0) {
-    <nav class="navbar navbar-expand-lg d-none d-lg-block">
-      <div class="container-fluid">
-        <ul class="navbar-nav">
-          @for (item of menus(); track item.menuItemId) {
-          <li class="nav-item" [class.dropdown]="hasChildren(item)">
-            @if (hasChildren(item)) {
-            <!-- Parent with dropdown -->
-            <a class="nav-link dropdown-toggle" href="#" role="button" [class.expanded]="isExpanded(item.menuItemId)"
-              (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
-              @if (item.iconName) {
-              <i class="bi bi-{{ item.iconName }} me-1"></i>
-              }
-              {{ item.text }}
-            </a>
-            <!-- Dropdown menu -->
-            <ul class="dropdown-menu" [class.show]="isExpanded(item.menuItemId)">
-              @for (child of item.children; track child.menuItemId) {
-              <li>
-                @if (isExternalLink(child)) {
-                <a class="dropdown-item" [href]="getLink(child)" [target]="child.linkTarget || '_self'">
-                  @if (child.iconName) {
-                  <i class="bi bi-{{ child.iconName }} me-2"></i>
-                  }
-                  {{ child.text }}
-                </a>
-                } @else if (getLink(child)) {
-                <a class="dropdown-item" [routerLink]="getLink(child)" routerLinkActive="active">
-                  @if (child.iconName) {
-                  <i class="bi bi-{{ child.iconName }} me-2"></i>
-                  }
-                  {{ child.text }}
-                </a>
-                } @else {
-                <span class="dropdown-item disabled">
-                  @if (child.iconName) {
-                  <i class="bi bi-{{ child.iconName }} me-2"></i>
-                  }
-                  {{ child.text }}
-                </span>
-                }
-              </li>
-              }
-            </ul>
-            } @else {
-            <!-- Standalone item -->
-            @if (isExternalLink(item)) {
-            <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'">
-              @if (item.iconName) {
-              <i class="bi bi-{{ item.iconName }} me-1"></i>
-              }
-              {{ item.text }}
-            </a>
-            } @else if (getLink(item)) {
-            <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active">
-              @if (item.iconName) {
-              <i class="bi bi-{{ item.iconName }} me-1"></i>
-              }
-              {{ item.text }}
-            </a>
-            } @else {
-            <span class="nav-link disabled">
-              @if (item.iconName) {
-              <i class="bi bi-{{ item.iconName }} me-1"></i>
-              }
-              {{ item.text }}
-            </span>
-            }
-            }
-          </li>
-          }
-        </ul>
-      </div>
-    </nav>
-    }
   </div>
 </header>
 
+<!-- Menu (below header) -->
+<app-client-menu></app-client-menu>
+
 <!-- Main Content -->
 <main class="container-fluid py-4">
+  <!-- Banner (before main content) -->
+  <app-client-banner></app-client-banner>
+
   <div class="row">
-    <!-- Sidebar Navigation (mobile/tablet only) -->
-    @if (menus() && menus().length > 0) {
-    <aside class="d-lg-none"
-      [class]="sidebarOpen() ? 'col-md-3 mb-4 sidebar-mobile sidebar-open' : 'mb-4 sidebar-mobile sidebar-collapsed'">
-      <!-- Overlay for mobile sidebar (click to close) -->
-      <div class="sidebar-overlay d-md-none" [class.show]="sidebarOpen()" (click)="toggleSidebar()"></div>
-
-      <!-- Sidebar content -->
-      <div class="sidebar-content">
-        <app-menus [menus]="menus()" [loading]="menusLoading()" [error]="menusError()">
-        </app-menus>
-      </div>
-    </aside>
-    }
-
-    <!-- Content Area (right or full width if no menu) -->
-    <div [class]="menus() && menus().length > 0 ? (sidebarOpen() ? 'col-md-9 col-lg-10' : 'col-12') : 'col-12'">
+    <!-- Content Area -->
+    <div class="col-12">
       <router-outlet></router-outlet>
     </div>
   </div>
 </main>
+
+<!-- Footer -->
+<app-client-footer-bar></app-client-footer-bar>
