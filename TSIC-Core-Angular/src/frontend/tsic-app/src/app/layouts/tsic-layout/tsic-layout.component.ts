@@ -4,13 +4,16 @@ import { RouterOutlet } from '@angular/router';
 import { ThemeService } from '../../core/services/theme.service';
 
 /**
- * PublicLayoutComponent
+ * TsicLayoutComponent
  * 
- * Layout for non-job-specific routes such as:
+ * Layout for TSIC corporate (TeamSportsInfo.com) routes such as:
  * - Login (/tsic/login)
  * - Role selection (/tsic/role-selection)
  * - Help documents
  * - TeamSportsInfo.com marketing/info pages
+ * 
+ * Used for both authenticated and unauthenticated TSIC pages.
+ * Distinction from job layout is organizational context (TSIC vs specific job).
  * 
  * Features:
  * - TeamSportsInfo.com branded header
@@ -19,13 +22,13 @@ import { ThemeService } from '../../core/services/theme.service';
  * - Centered content area for forms and information
  */
 @Component({
-    selector: 'app-public-layout',
+    selector: 'app-tsic-layout',
     standalone: true,
     imports: [CommonModule, RouterOutlet],
-    templateUrl: './public-layout.component.html',
-    styleUrls: ['./public-layout.component.scss']
+    templateUrl: './tsic-layout.component.html',
+    styleUrls: ['./tsic-layout.component.scss']
 })
-export class PublicLayoutComponent {
+export class TsicLayoutComponent {
     readonly themeService = inject(ThemeService);
     readonly currentYear = new Date().getFullYear();
 

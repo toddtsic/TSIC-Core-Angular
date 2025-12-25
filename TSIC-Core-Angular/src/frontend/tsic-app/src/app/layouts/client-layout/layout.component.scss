@@ -1,0 +1,307 @@
+.tsic-header {
+  background: var(--brand-surface);
+  border-bottom: 2px solid #6DBE45;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.tsic-brand-container {
+  background: var(--brand-surface);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 210px;
+  height: 48px;
+}
+
+/* Compact logo on mobile */
+@media (max-width: 767.98px) {
+  .tsic-brand-container {
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+  }
+  
+  .job-brand-container {
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+    flex-grow: 0;
+  }
+  
+  .tsic-logo,
+  .job-logo {
+    height: 28px;
+  }
+  
+  /* Ensure button groups have proper shared borders */
+  .btn-group > .btn {
+    border-radius: 0;
+  }
+  
+  .btn-group > .btn:first-child {
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+  }
+  
+  .btn-group > .btn:last-child {
+    border-top-right-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+  }
+  
+  .btn-group > .btn:not(:last-child) {
+    border-right-width: 0;
+  }
+}
+
+.tsic-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-divider {
+  width: 2px;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.1) 20%, rgba(0, 0, 0, 0.1) 80%, transparent);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.job-logo-container {
+  background: var(--brand-surface);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  height: 40px;
+}
+
+.job-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  max-width: 120px;
+}
+
+.job-logo-inline {
+  height: 20px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.job-button {
+  background: var(--brand-surface);
+  border-color: rgba(0,0,0,0.15);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: background-color .15s, box-shadow .15s;
+  line-height: 1;
+}
+
+.job-button:hover {
+  background: color-mix(in srgb, var(--brand-surface) 85%, #0000);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+.job-name-text {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.job-brand-container {
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 6px 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.job-info {
+  line-height: 1.2;
+}
+
+.tsic-brand {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #6DBE45;
+}
+
+.tsic-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #6DBE45;
+}
+
+.job-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  /* Let the job label grow with its text; don't truncate */
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
+}
+
+.vr {
+  opacity: 0.2;
+  width: 1px;
+  height: 40px;
+}
+
+/* Dark mode support */
+:host-context([data-bs-theme="dark"]) .tsic-header {
+  background: #212529;
+  border-bottom-color: #5aa839;
+}
+
+/* TSIC brand container gets stronger shadow in dark mode */
+:host-context([data-bs-theme="dark"]) .tsic-brand-container {
+  background: var(--brand-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Brand divider in dark mode */
+:host-context([data-bs-theme="dark"]) .brand-divider {
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.15) 20%, rgba(255, 255, 255, 0.15) 80%, transparent);
+}
+
+/* Job logo container in dark mode */
+:host-context([data-bs-theme="dark"]) .job-brand-container {
+  background: #2a2e33;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+:host-context([data-bs-theme="dark"]) .job-button {
+  background: #2f3439;
+  border-color: rgba(255,255,255,0.15);
+  color: #ddd;
+}
+:host-context([data-bs-theme="dark"]) .job-button:hover {
+  background: #3a4046;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+:host-context([data-bs-theme="dark"]) .tsic-label {
+  color: #6DBE45;
+}
+
+:host-context([data-bs-theme="dark"]) .tsic-brand {
+  color: #6DBE45;
+}
+
+/* Button hover states */
+.btn-success {
+  background-color: #6DBE45;
+  border-color: #6DBE45;
+}
+
+.btn-success:hover {
+  background-color: #5aa839;
+  border-color: #5aa839;
+}
+
+.btn-outline-success {
+  color: #6DBE45;
+  border-color: #6DBE45;
+}
+
+.btn-outline-success:hover {
+  background-color: #6DBE45;
+  border-color: #6DBE45;
+  color: white;
+}
+
+/* Mobile Sidebar Styles */
+.sidebar-mobile {
+  position: relative;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Desktop collapsed state */
+@media (min-width: 768px) {
+  .sidebar-collapsed {
+    max-width: 0;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+
+  .sidebar-collapsed .sidebar-content {
+    display: none;
+  }
+
+  .sidebar-open {
+    opacity: 1;
+  }
+}
+
+/* Mobile styles */
+@media (max-width: 767.98px) {
+  .sidebar-mobile .sidebar-content {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100vh;
+    background: var(--bs-body-bg);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    z-index: 1040;
+    overflow-y: auto;
+    transition: left 0.3s ease-in-out;
+    padding: 1rem;
+  }
+
+  .sidebar-mobile.sidebar-open .sidebar-content {
+    left: 0;
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1039;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+  }
+
+  .sidebar-overlay.show {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@media (min-width: 768px) {
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
+/* User/Role badges */
+.user-role-pill { display: inline-flex; align-items: center; }
+.badge.bg-user {
+  background: #e9f7ef; /* light green tint */
+  color: #2e7d32;
+  font-weight: 600;
+}
+.badge.bg-role {
+  background: #e7f1ff; /* light blue tint */
+  color: #0d47a1;
+  font-weight: 600;
+}
+
+:host-context([data-bs-theme="dark"]) .badge.bg-user {
+  background: rgba(109,190,69,.2);
+  color: #9fe28a;
+}
+:host-context([data-bs-theme="dark"]) .badge.bg-role {
+  background: rgba(13,71,161,.25);
+  color: #9ec3ff;
+}

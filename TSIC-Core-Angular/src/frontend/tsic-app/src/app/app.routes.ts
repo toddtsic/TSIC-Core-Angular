@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
-import { LayoutComponent } from './layout/layout.component';
-import { PublicLayoutComponent } from './layouts/public-layout/public-layout.component';
+import { LayoutComponent } from './layouts/client-layout/layout.component';
+import { TsicLayoutComponent } from './layouts/tsic-layout/tsic-layout.component';
 
 export const routes: Routes = [
 	// Default route redirects to TSIC landing page
@@ -10,7 +10,7 @@ export const routes: Routes = [
 	// TSIC-specific routes (non-job-specific activities)
 	{
 		path: 'tsic',
-		component: PublicLayoutComponent,
+		component: TsicLayoutComponent,
 		canActivate: [authGuard],
 		data: { allowAnonymous: true },
 		children: [
