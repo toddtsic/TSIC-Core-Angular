@@ -1,17 +1,110 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpInterceptorFn, HttpErrorResponse, HttpRequest, HttpEvent } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
+import { ToastService } from '../../shared/toast.service';
 import { environment } from '../../../environments/environment';
-import { switchMap, catchError } from 'rxjs';
+import { switchMap, catchError, throwError, Observable } from 'rxjs';
 
 /**
- * HTTP Interceptor that adds JWT token to all outgoing requests
- * Proactively refreshes expired tokens before making requests
+ * HTTP Interceptor that:
+ * - Adds JWT token to all outgoing requests
+ * - Proactively refreshes expired tokens before making requests
+ * - Handles 401 errors by attempting token refresh
+ * - Handles 403 errors with toast notifications
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const authService = inject(AuthService);
+    const toastService = inject(ToastService);
     const token = authService.getToken();
     const refreshToken = authService.getRefreshToken();
+
+    /**
+     * Helper function to execute request with error handling for 401 and 403
+     */
+    const handleRequest = (request: HttpRequest<unknown>): Observable<HttpEvent<unknown>> => {
+        return next(request).pipe(
+            catchError((error: HttpErrorResponse) => {
+                // Handle 403 Forbidden errors
+                if (error.status === 403) {
+                    const errorType = error.error?.type;
+                    
+                    // Check for specific JobPathMismatch error
+                    if (errorType === 'JobPathMismatch') {
+                        const message = error.error?.detail || 
+                            `Access denied: You're logged into '${error.error?.extensions?.tokenJobPath}' but tried to access '${error.error?.extensions?.routeJobPath}'.`;
+                        toastService.show(message, 'danger', 7000);
+                    } else {
+                        // Generic 403 error - try detail then title
+                        const message = error.error?.detail || 
+                            error.error?.title || 
+                            'You do not have permission to access this resource.';
+                        toastService.show(message, 'danger', 5000);
+                    }
+                    return throwError(() => error);
+                }
+
+                // Handle 401 Unauthorized errors
+                if (error.status === 401) {
+                    // Don't try to refresh if the request was to auth endpoints
+                    const isAuthEndpoint = request.url.includes('/auth/login') ||
+                        request.url.includes('/auth/refresh') ||
+                        request.url.includes('/auth/revoke');
+
+                    if (isAuthEndpoint) {
+                        return throwError(() => error);
+                    }
+
+                    // Attempt to refresh the token only if we have a refresh token
+                    const hasRefresh = !!authService.getRefreshToken();
+                    if (!hasRefresh) {
+                        return throwError(() => error);
+                    }
+
+                    // Attempt to refresh the token
+                    return authService.refreshAccessToken().pipe(
+                        switchMap(() => {
+                            // Retry the original request with the new token
+                            const newToken = authService.getToken();
+                            if (newToken) {
+                                const clonedRequest = request.clone({
+                                    setHeaders: {
+                                        Authorization: `Bearer ${newToken}`
+                                    }
+                                });
+                                // Use next() directly for retry to avoid infinite 401 loops
+                                // But still handle 403 errors on the retry
+                                return next(clonedRequest).pipe(
+                                    catchError((retryError: HttpErrorResponse) => {
+                                        if (retryError.status === 403) {
+                                            const errorType = retryError.error?.type;
+                                            
+                                            if (errorType === 'JobPathMismatch') {
+                                                const msg = retryError.error?.detail || 
+                                                    `Access denied: You're logged into '${retryError.error?.extensions?.tokenJobPath}' but tried to access '${retryError.error?.extensions?.routeJobPath}'.`;
+                                                toastService.show(msg, 'danger', 7000);
+                                            } else {
+                                                const msg = retryError.error?.detail || 
+                                                    retryError.error?.title || 
+                                                    'You do not have permission to access this resource.';
+                                                toastService.show(msg, 'danger', 5000);
+                                            }
+                                        }
+                                        return throwError(() => retryError);
+                                    })
+                                );
+                            }
+                            return throwError(() => error);
+                        }),
+                        catchError((refreshError) => {
+                            return throwError(() => refreshError);
+                        })
+                    );
+                }
+
+                return throwError(() => error);
+            })
+        );
+    };
 
     // Skip auth header only for endpoints that must not include it
     // - login: authenticates with credentials
@@ -22,11 +115,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
     if (isAuthEndpoint) {
         // Don't add any auth header to auth endpoints (they handle their own auth via request body)
-        return next(req);
+        return handleRequest(req);
     }
 
     if (!token) {
-        return next(req);
+        return handleRequest(req);
     }
 
     // Check if token is expired
@@ -42,7 +135,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                     }
                 });
             }
-            return next(req);
+            return handleRequest(req);
         }
         if (!environment.production) {
             console.log('Token expired, refreshing before request...');
@@ -58,7 +151,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                         }
                     });
                 }
-                return next(req);
+                return handleRequest(req);
             }),
             catchError((error) => {
                 // If refresh fails, proceed with original request
@@ -70,7 +163,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                         }
                     });
                 }
-                return next(req);
+                return handleRequest(req);
             })
         );
     }
@@ -82,7 +175,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         }
     });
 
-    return next(req);
+    return handleRequest(req);
 };
 
 /**

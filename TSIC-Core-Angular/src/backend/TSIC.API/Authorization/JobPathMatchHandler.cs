@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace TSIC.API.Authorization;
 
@@ -25,7 +26,7 @@ public class JobPathMatchHandler : AuthorizationHandler<JobPathMatchRequirement>
         _logger = logger;
     }
 
-    protected override Task HandleRequirementAsync(
+    protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context,
         JobPathMatchRequirement requirement)
     {
@@ -34,7 +35,7 @@ public class JobPathMatchHandler : AuthorizationHandler<JobPathMatchRequirement>
         {
             _logger.LogWarning("JobPathMatchHandler: HttpContext is null");
             context.Fail();
-            return Task.CompletedTask;
+            return;
         }
 
         // Get jobPath from JWT token claim
@@ -59,9 +60,24 @@ public class JobPathMatchHandler : AuthorizationHandler<JobPathMatchRequirement>
                 context.User.Identity?.Name,
                 tokenJobPath,
                 routeJobPath);
+            
+            // Set ProblemDetails response following API standard
+            httpContext.Response.StatusCode = 403;
+            httpContext.Response.ContentType = "application/problem+json";
+            await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = 403,
+                Type = "JobPathMismatch",
+                Title = "Job Path Access Denied",
+                Detail = $"You are logged into '{tokenJobPath}' but attempted to access '{routeJobPath}'. Please logout first before moving to '{routeJobPath}'.",
+                Extensions = 
+                {
+                    ["tokenJobPath"] = tokenJobPath,
+                    ["routeJobPath"] = routeJobPath
+                }
+            });
+            
             context.Fail();
         }
-
-        return Task.CompletedTask;
     }
 }

@@ -114,12 +114,12 @@ export const authGuard: CanActivateFn = (route, state) => {
     // Authenticated - validate jobPath if URL contains one
     const urlJobPath = route.paramMap.get('jobPath');
     if (urlJobPath && user.jobPath && urlJobPath !== user.jobPath) {
-        authService.logout();
         toastService.show(
-            `You were logged out because you navigated to a different job (${urlJobPath}). Please log in again.`,
-            'warning'
+            `You are logged into '${user.jobPath}' but attempted to access '${urlJobPath}'. Please logout first before moving to '${urlJobPath}'.`,
+            'danger',
+            7000
         );
-        return router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } });
+        return false;
     }
 
     // Authenticated - check if Phase 2 is required
