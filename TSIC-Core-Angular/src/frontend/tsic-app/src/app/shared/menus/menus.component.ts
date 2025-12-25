@@ -24,13 +24,13 @@ export class MenusComponent {
     toggleExpanded(menuItemId: string): void {
         const expanded = this.expandedItems();
         const newExpanded = new Set(expanded);
-        
+
         if (newExpanded.has(menuItemId)) {
             newExpanded.delete(menuItemId);
         } else {
             newExpanded.add(menuItemId);
         }
-        
+
         this.expandedItems.set(newExpanded);
     }
 
