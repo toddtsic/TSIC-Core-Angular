@@ -1,218 +1,185 @@
 <!-- Desktop Navbar (visible on large screens) -->
 <nav class="navbar navbar-expand-lg d-none d-lg-block">
-  <div class="container-fluid">
-    @if (menusLoading()) {
-      <span class="navbar-text">Loading menu...</span>
-    } @else if (menusError()) {
-      <span class="navbar-text text-danger">{{ menusError() }}</span>
-    } @else if (menus() && menus().length > 0) {
-      <ul class="navbar-nav">
-        @for (item of menus(); track item.menuItemId) {
-          <li class="nav-item" [class.dropdown]="hasChildren(item)">
-            @if (hasChildren(item)) {
-              <!-- Parent with dropdown -->
-              <a class="nav-link dropdown-toggle" 
-                 href="#" 
-                 role="button" 
-                 [attr.data-bs-toggle]="'dropdown'"
-                 [attr.aria-expanded]="isExpanded(item.menuItemId)"
-                 (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
-                @if (item.iconName) {
-                  <i class="bi bi-{{ item.iconName }} me-1"></i>
-                }
-                {{ item.text }}
-              </a>
-              <!-- Dropdown menu -->
-              <ul class="dropdown-menu" [class.show]="isExpanded(item.menuItemId)">
-                @for (child of item.children; track child.menuItemId) {
-                  <li>
-                    @if (isExternalLink(child)) {
-                      <a class="dropdown-item" 
-                         [href]="getLink(child)" 
-                         [target]="child.linkTarget || '_self'">
-                        @if (child.iconName) {
-                          <i class="bi bi-{{ child.iconName }} me-2"></i>
-                        }
-                        {{ child.text }}
-                      </a>
-                    } @else if (getLink(child)) {
-                      <a class="dropdown-item" 
-                         [routerLink]="getLink(child)" 
-                         routerLinkActive="active">
-                        @if (child.iconName) {
-                          <i class="bi bi-{{ child.iconName }} me-2"></i>
-                        }
-                        {{ child.text }}
-                      </a>
-                    } @else {
-                      <span class="dropdown-item disabled">
-                        @if (child.iconName) {
-                          <i class="bi bi-{{ child.iconName }} me-2"></i>
-                        }
-                        {{ child.text }}
-                      </span>
+    <div class="container-fluid">
+        @if (menusLoading()) {
+        <span class="navbar-text">Loading menu...</span>
+        } @else if (menusError()) {
+        <span class="navbar-text text-danger">{{ menusError() }}</span>
+        } @else if (menus() && menus().length > 0) {
+        <ul class="navbar-nav">
+            @for (item of menus(); track item.menuItemId) {
+            <li class="nav-item" [class.dropdown]="hasChildren(item)">
+                @if (hasChildren(item)) {
+                <!-- Parent with dropdown -->
+                <a class="nav-link dropdown-toggle" href="#" role="button" [attr.data-bs-toggle]="'dropdown'"
+                    [attr.aria-expanded]="isExpanded(item.menuItemId)"
+                    (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
+                    @if (item.iconName) {
+                    <i class="bi bi-{{ item.iconName }} me-1"></i>
                     }
-                  </li>
-                }
-              </ul>
-            } @else {
-              <!-- Standalone item -->
-              @if (isExternalLink(item)) {
-                <a class="nav-link" 
-                   [href]="getLink(item)" 
-                   [target]="item.linkTarget || '_self'">
-                  @if (item.iconName) {
-                    <i class="bi bi-{{ item.iconName }} me-1"></i>
-                  }
-                  {{ item.text }}
+                    {{ item.text }}
                 </a>
-              } @else if (getLink(item)) {
-                <a class="nav-link" 
-                   [routerLink]="getLink(item)" 
-                   routerLinkActive="active">
-                  @if (item.iconName) {
+                <!-- Dropdown menu -->
+                <ul class="dropdown-menu" [class.show]="isExpanded(item.menuItemId)">
+                    @for (child of item.children; track child.menuItemId) {
+                    <li>
+                        @if (isExternalLink(child)) {
+                        <a class="dropdown-item" [href]="getLink(child)" [target]="child.linkTarget || '_self'">
+                            @if (child.iconName) {
+                            <i class="bi bi-{{ child.iconName }} me-2"></i>
+                            }
+                            {{ child.text }}
+                        </a>
+                        } @else if (getLink(child)) {
+                        <a class="dropdown-item" [routerLink]="getLink(child)" routerLinkActive="active">
+                            @if (child.iconName) {
+                            <i class="bi bi-{{ child.iconName }} me-2"></i>
+                            }
+                            {{ child.text }}
+                        </a>
+                        } @else {
+                        <span class="dropdown-item disabled">
+                            @if (child.iconName) {
+                            <i class="bi bi-{{ child.iconName }} me-2"></i>
+                            }
+                            {{ child.text }}
+                        </span>
+                        }
+                    </li>
+                    }
+                </ul>
+                } @else {
+                <!-- Standalone item -->
+                @if (isExternalLink(item)) {
+                <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'">
+                    @if (item.iconName) {
                     <i class="bi bi-{{ item.iconName }} me-1"></i>
-                  }
-                  {{ item.text }}
+                    }
+                    {{ item.text }}
                 </a>
-              } @else {
+                } @else if (getLink(item)) {
+                <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active">
+                    @if (item.iconName) {
+                    <i class="bi bi-{{ item.iconName }} me-1"></i>
+                    }
+                    {{ item.text }}
+                </a>
+                } @else {
                 <span class="nav-link disabled">
-                  @if (item.iconName) {
+                    @if (item.iconName) {
                     <i class="bi bi-{{ item.iconName }} me-1"></i>
-                  }
-                  {{ item.text }}
+                    }
+                    {{ item.text }}
                 </span>
-              }
+                }
+                }
+            </li>
             }
-          </li>
+        </ul>
         }
-      </ul>
-    }
-  </div>
+    </div>
 </nav>
 
 <!-- Mobile Toggle Button and Offcanvas (visible on small/medium screens) -->
 <div class="d-lg-none">
-  <!-- Hamburger button -->
-  <button class="navbar-toggler" 
-          type="button" 
-          (click)="toggleOffcanvas()"
-          aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-
-  <!-- Offcanvas sidebar -->
-  <div class="offcanvas offcanvas-start" 
-       [class.show]="offcanvasOpen()" 
-       tabindex="-1">
-    <div class="offcanvas-header">
-      <h5 class="offcanvas-title">Menu</h5>
-      <button type="button" 
-              class="btn-close" 
-              (click)="closeOffcanvas()" 
-              aria-label="Close"></button>
-    </div>
-    <div class="offcanvas-body">
-      @if (menusLoading()) {
-        <p>Loading menu...</p>
-      } @else if (menusError()) {
-        <p class="text-danger">{{ menusError() }}</p>
-      } @else if (menus() && menus().length > 0) {
-        <ul class="nav flex-column">
-          @for (item of menus(); track item.menuItemId) {
-            <li class="nav-item">
-              @if (hasChildren(item)) {
-                <!-- Parent with collapsible children -->
-                <a class="nav-link d-flex justify-content-between align-items-center" 
-                   href="#"
-                   (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
-                  <span>
-                    @if (item.iconName) {
-                      <i class="bi bi-{{ item.iconName }} me-2"></i>
-                    }
-                    {{ item.text }}
-                  </span>
-                  <i class="bi" 
-                     [class.bi-chevron-down]="!isExpanded(item.menuItemId)"
-                     [class.bi-chevron-up]="isExpanded(item.menuItemId)"></i>
-                </a>
-                <!-- Collapsible children -->
-                <div class="collapse" [class.show]="isExpanded(item.menuItemId)">
-                  <ul class="nav flex-column ms-3">
-                    @for (child of item.children; track child.menuItemId) {
-                      <li class="nav-item">
-                        @if (isExternalLink(child)) {
-                          <a class="nav-link" 
-                             [href]="getLink(child)" 
-                             [target]="child.linkTarget || '_self'"
-                             (click)="closeOffcanvas()">
-                            @if (child.iconName) {
-                              <i class="bi bi-{{ child.iconName }} me-2"></i>
+    <!-- Offcanvas sidebar (position fixed, doesn't affect layout) -->
+    <div class="offcanvas offcanvas-start" [class.show]="offcanvasOpen()"
+        [style.visibility]="offcanvasOpen() ? 'visible' : 'hidden'" tabindex="-1">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">Menu</h5>
+            <button type="button" class="btn-close" (click)="closeOffcanvas()" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            @if (menusLoading()) {
+            <p>Loading menu...</p>
+            } @else if (menusError()) {
+            <p class="text-danger">{{ menusError() }}</p>
+            } @else if (menus() && menus().length > 0) {
+            <ul class="nav flex-column">
+                @for (item of menus(); track item.menuItemId) {
+                <li class="nav-item">
+                    @if (hasChildren(item)) {
+                    <!-- Parent with collapsible children -->
+                    <a class="nav-link d-flex justify-content-between align-items-center" href="#"
+                        (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
+                        <span>
+                            @if (item.iconName) {
+                            <i class="bi bi-{{ item.iconName }} me-2"></i>
                             }
-                            {{ child.text }}
-                          </a>
-                        } @else if (getLink(child)) {
-                          <a class="nav-link" 
-                             [routerLink]="getLink(child)" 
-                             routerLinkActive="active"
-                             (click)="closeOffcanvas()">
-                            @if (child.iconName) {
-                              <i class="bi bi-{{ child.iconName }} me-2"></i>
+                            {{ item.text }}
+                        </span>
+                        <i class="bi" [class.bi-chevron-down]="!isExpanded(item.menuItemId)"
+                            [class.bi-chevron-up]="isExpanded(item.menuItemId)"></i>
+                    </a>
+                    <!-- Collapsible children -->
+                    <div class="collapse" [class.show]="isExpanded(item.menuItemId)">
+                        <ul class="nav flex-column ms-3">
+                            @for (child of item.children; track child.menuItemId) {
+                            <li class="nav-item">
+                                @if (isExternalLink(child)) {
+                                <a class="nav-link" [href]="getLink(child)" [target]="child.linkTarget || '_self'"
+                                    (click)="closeOffcanvas()">
+                                    @if (child.iconName) {
+                                    <i class="bi bi-{{ child.iconName }} me-2"></i>
+                                    }
+                                    {{ child.text }}
+                                </a>
+                                } @else if (getLink(child)) {
+                                <a class="nav-link" [routerLink]="getLink(child)" routerLinkActive="active"
+                                    (click)="closeOffcanvas()">
+                                    @if (child.iconName) {
+                                    <i class="bi bi-{{ child.iconName }} me-2"></i>
+                                    }
+                                    {{ child.text }}
+                                </a>
+                                } @else {
+                                <span class="nav-link disabled">
+                                    @if (child.iconName) {
+                                    <i class="bi bi-{{ child.iconName }} me-2"></i>
+                                    }
+                                    {{ child.text }}
+                                </span>
+                                }
+                            </li>
                             }
-                            {{ child.text }}
-                          </a>
-                        } @else {
-                          <span class="nav-link disabled">
-                            @if (child.iconName) {
-                              <i class="bi bi-{{ child.iconName }} me-2"></i>
-                            }
-                            {{ child.text }}
-                          </span>
+                        </ul>
+                    </div>
+                    } @else {
+                    <!-- Standalone item -->
+                    @if (isExternalLink(item)) {
+                    <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'"
+                        (click)="closeOffcanvas()">
+                        @if (item.iconName) {
+                        <i class="bi bi-{{ item.iconName }} me-2"></i>
                         }
-                      </li>
+                        {{ item.text }}
+                    </a>
+                    } @else if (getLink(item)) {
+                    <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active"
+                        (click)="closeOffcanvas()">
+                        @if (item.iconName) {
+                        <i class="bi bi-{{ item.iconName }} me-2"></i>
+                        }
+                        {{ item.text }}
+                    </a>
+                    } @else {
+                    <span class="nav-link disabled">
+                        @if (item.iconName) {
+                        <i class="bi bi-{{ item.iconName }} me-2"></i>
+                        }
+                        {{ item.text }}
+                    </span>
                     }
-                  </ul>
-                </div>
-              } @else {
-                <!-- Standalone item -->
-                @if (isExternalLink(item)) {
-                  <a class="nav-link" 
-                     [href]="getLink(item)" 
-                     [target]="item.linkTarget || '_self'"
-                     (click)="closeOffcanvas()">
-                    @if (item.iconName) {
-                      <i class="bi bi-{{ item.iconName }} me-2"></i>
                     }
-                    {{ item.text }}
-                  </a>
-                } @else if (getLink(item)) {
-                  <a class="nav-link" 
-                     [routerLink]="getLink(item)" 
-                     routerLinkActive="active"
-                     (click)="closeOffcanvas()">
-                    @if (item.iconName) {
-                      <i class="bi bi-{{ item.iconName }} me-2"></i>
-                    }
-                    {{ item.text }}
-                  </a>
-                } @else {
-                  <span class="nav-link disabled">
-                    @if (item.iconName) {
-                      <i class="bi bi-{{ item.iconName }} me-2"></i>
-                    }
-                    {{ item.text }}
-                  </span>
+                </li>
                 }
-              }
-            </li>
-          }
-        </ul>
-      }
+            </ul>
+            }
+        </div>
     </div>
-  </div>
 
-  <!-- Offcanvas backdrop -->
-  @if (offcanvasOpen()) {
+    <!-- Offcanvas backdrop -->
+    @if (offcanvasOpen()) {
     <div class="offcanvas-backdrop fade show" (click)="closeOffcanvas()"></div>
-  }
+    }
 </div>

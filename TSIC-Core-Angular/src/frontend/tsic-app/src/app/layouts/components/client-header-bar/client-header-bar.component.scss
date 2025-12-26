@@ -77,6 +77,22 @@
     }
 }
 
+// Hamburger button - consistent with mobile logo buttons (white background)
+.hamburger-btn {
+    background: white;
+    border-color: rgba(0, 0, 0, 0.175);
+    color: var(--bs-body-color);
+
+    &:hover {
+        background: #f8f9fa;
+        border-color: rgba(0, 0, 0, 0.175);
+    }
+
+    &:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 0, 0, 0.1);
+    }
+}
+
 .btn-group {
     .btn-sm {
         padding: 0.2rem 0.4rem;
@@ -132,5 +148,18 @@
 
     .job-name-button:hover {
         background: rgba(255, 255, 255, 0.05);
+    }
+
+    .hamburger-btn {
+        background: white;
+        color: #000;
+
+        &:hover {
+            background: #f8f9fa;
+        }
+
+        &:focus {
+            box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.15);
+        }
     }
 }

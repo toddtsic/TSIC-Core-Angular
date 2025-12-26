@@ -2,7 +2,7 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { Roles, RoleName } from '../models/roles.constants';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, throwError } from 'rxjs';
+import { Observable, throwError, interval, Subscription } from 'rxjs';
 import { tap, map, catchError, shareReplay, finalize } from 'rxjs/operators';
 import {
   LoginRequest,
@@ -25,6 +25,11 @@ export class AuthService {
 
   // Prevent multiple simultaneous refresh attempts
   private refreshInProgress: Observable<AuthTokenResponse> | null = null;
+
+  // Proactive token refresh
+  private tokenRefreshSubscription: Subscription | null = null;
+  private readonly REFRESH_BUFFER_MINUTES = 5; // Refresh 5 min before expiration
+  private readonly CHECK_INTERVAL_MS = 60000; // Check every 60 seconds
 
   // Signal for reactive state management
   public readonly currentUser = signal<AuthenticatedUser | null>(null);
@@ -55,6 +60,8 @@ export class AuthService {
   constructor() {
     // Initialize current user from token on service creation
     this.initializeFromToken();
+    // Start proactive token refresh timer
+    this.startTokenRefreshTimer();
   }
 
   /**
@@ -129,6 +136,7 @@ export class AuthService {
           this.setToken(response.accessToken!);
           if (response.refreshToken) this.setRefreshToken(response.refreshToken);
           this.initializeFromToken();
+          this.startTokenRefreshTimer();
         })
       );
   }
@@ -145,6 +153,7 @@ export class AuthService {
         this.setToken(response.accessToken!);
         if (response.refreshToken) this.setRefreshToken(response.refreshToken);
         this.initializeFromToken();
+        this.startTokenRefreshTimer();
         this.selectLoading.set(false);
       },
       error: (error: HttpErrorResponse) => {
@@ -186,6 +195,7 @@ export class AuthService {
    * Useful for flows that need a clean slate while staying on the same route.
    */
   logoutLocal(): void {
+    this.stopTokenRefreshTimer();
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     this.currentUser.set(null);
@@ -369,6 +379,52 @@ export class AuthService {
    */
   acceptTos(): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/accept-tos`, {});
+  }
+
+  /**
+   * Start proactive token refresh timer
+   * Checks token expiration every 60 seconds and refreshes 5 minutes before expiry
+   */
+  private startTokenRefreshTimer(): void {
+    this.stopTokenRefreshTimer(); // Clear any existing timer
+
+    this.tokenRefreshSubscription = interval(this.CHECK_INTERVAL_MS).subscribe(() => {
+      const token = this.getToken();
+      if (!token || !this.getRefreshToken()) return;
+
+      try {
+        const payload = this.decodeToken(token);
+        if (!payload.exp) return;
+
+        const expirationDate = new Date(payload.exp * 1000);
+        const now = new Date();
+        const minutesUntilExpiration = (expirationDate.getTime() - now.getTime()) / 1000 / 60;
+
+        // Refresh if token expires within buffer period
+        if (minutesUntilExpiration <= this.REFRESH_BUFFER_MINUTES && minutesUntilExpiration > 0) {
+          if (!environment.production) {
+            console.log(`Token expires in ${minutesUntilExpiration.toFixed(1)} minutes, refreshing proactively...`);
+          }
+          this.refreshAccessToken().subscribe({
+            error: (err) => {
+              if (!environment.production) console.error('Proactive token refresh failed:', err);
+            }
+          });
+        }
+      } catch (error) {
+        // Token decode failed, stop timer
+        if (!environment.production) console.error('Token decode failed in refresh timer:', error);
+        this.stopTokenRefreshTimer();
+      }
+    });
+  }
+
+  /**
+   * Stop proactive token refresh timer
+   */
+  private stopTokenRefreshTimer(): void {
+    this.tokenRefreshSubscription?.unsubscribe();
+    this.tokenRefreshSubscription = null;
   }
 
   /**

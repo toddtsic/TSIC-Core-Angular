@@ -119,7 +119,8 @@ export const authGuard: CanActivateFn = (route, state) => {
             'danger',
             7000
         );
-        return false;
+        // Redirect to their current job path instead of blank screen
+        return router.createUrlTree([`/${user.jobPath}`]);
     }
 
     // Authenticated - check if Phase 2 is required

@@ -1,7 +1,13 @@
 <!-- Row 1: Logos + User Actions -->
 <div class="d-flex align-items-center justify-content-between py-2 py-md-2 py-1 gap-2">
     <!-- Left: Hamburger (mobile only) + TSIC + Job Logos (auto-width) -->
-    <div class="d-flex align-items-center flex-shrink-0">
+    <div class="d-flex align-items-center flex-shrink-0 gap-2">
+        <!-- Hamburger button (mobile only) -->
+        <button type="button" class="btn btn-outline-secondary btn-sm hamburger-btn d-lg-none"
+            (click)="toggleOffcanvas()" aria-label="Toggle navigation">
+            <i class="bi bi-list" style="font-size: 1.25rem;"></i>
+        </button>
+
         <!-- Button group on mobile -->
         <div class="btn-group d-md-none mobile-logo-group">
             <button type="button" class="btn btn-sm btn-outline-secondary p-2">

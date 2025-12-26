@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { JobService } from '../../../core/services/job.service';
 import { ThemeService } from '../../../core/services/theme.service';
+import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({
     selector: 'app-client-header-bar',
@@ -17,6 +18,7 @@ export class ClientHeaderBarComponent {
     private readonly jobService = inject(JobService);
     private readonly router = inject(Router);
     readonly themeService = inject(ThemeService);
+    private readonly menuState = inject(MenuStateService);
 
     // (menu/sidebar bindings removed) -- header is decoupled from menus
 
@@ -59,7 +61,10 @@ export class ClientHeaderBarComponent {
         return `${STATIC_BASE_URL}/${noLead}`;
     }
 
-    // No sidebar toggle here; menus are handled by a separate component
+    // Mobile menu toggle
+    toggleOffcanvas() {
+        this.menuState.toggleOffcanvas();
+    }
 
     goHome() {
         const jobPath = this.jobService.currentJob()?.jobPath;
