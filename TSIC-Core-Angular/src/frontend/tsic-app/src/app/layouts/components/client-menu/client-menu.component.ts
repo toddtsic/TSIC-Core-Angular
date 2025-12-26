@@ -1,10 +1,102 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { JobService, MenuItemDto } from '../../../core/services/job.service';
 
 @Component({
-    selector: 'app-client-menu',
-    standalone: true,
-    templateUrl: './client-menu.component.html',
-    styleUrl: './client-menu.component.scss'
+  selector: 'app-client-menu',
+  standalone: true,
+  imports: [CommonModule, RouterLink, RouterLinkActive],
+  templateUrl: './client-menu.component.html',
+  styleUrl: './client-menu.component.scss'
 })
 export class ClientMenuComponent {
+  private readonly jobService = inject(JobService);
+
+  // Access menu data from JobService
+  menus = computed(() => this.jobService.menus());
+  menusLoading = computed(() => this.jobService.menusLoading());
+  menusError = computed(() => this.jobService.menusError());
+
+  // Offcanvas state for mobile
+  offcanvasOpen = signal(false);
+
+  // Track expanded items for desktop dropdown and mobile accordion
+  expandedItems = signal<Set<string>>(new Set());
+
+  /**
+   * Toggle offcanvas sidebar (mobile)
+   */
+  toggleOffcanvas(): void {
+    this.offcanvasOpen.update(open => !open);
+  }
+
+  /**
+   * Close offcanvas (when clicking backdrop or close button)
+   */
+  closeOffcanvas(): void {
+    this.offcanvasOpen.set(false);
+  }
+
+  /**
+   * Toggle expansion state of a parent menu item
+   * Closes all other expanded items (single expansion at a time)
+   */
+  toggleExpanded(menuItemId: string): void {
+    const normalizedId = menuItemId.toLowerCase();
+    const expanded = this.expandedItems();
+    const isCurrentlyExpanded = expanded.has(normalizedId);
+
+    // Close all items
+    const newExpanded = new Set<string>();
+
+    // If the item wasn't expanded, open it (otherwise leave all closed)
+    if (!isCurrentlyExpanded) {
+      newExpanded.add(normalizedId);
+    }
+
+    this.expandedItems.set(newExpanded);
+  }
+
+  /**
+   * Check if a menu item is expanded
+   */
+  isExpanded(menuItemId: string): boolean {
+    const normalizedId = menuItemId.toLowerCase();
+    return this.expandedItems().has(normalizedId);
+  }
+
+  /**
+   * Check if item has children
+   */
+  hasChildren(item: MenuItemDto): boolean {
+    return item.children && item.children.length > 0;
+  }
+
+  /**
+   * Get the link for a menu item based on precedence:
+   * 1. navigateUrl (external link)
+   * 2. routerLink (Angular route)
+   * 3. controller/action (legacy MVC - map to Angular route)
+   */
+  getLink(item: MenuItemDto): string | null {
+    if (item.navigateUrl) {
+      return item.navigateUrl;
+    }
+    if (item.routerLink) {
+      return item.routerLink;
+    }
+    if (item.controller && item.action) {
+      // Legacy MVC route mapping (1:1 mapping)
+      return `/${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
+    }
+    return null;
+  }
+
+  /**
+   * Check if the link is external (navigateUrl present)
+   */
+  isExternalLink(item: MenuItemDto): boolean {
+    return !!item.navigateUrl;
+  }
 }

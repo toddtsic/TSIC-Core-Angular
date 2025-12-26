@@ -1,5 +1,105 @@
-.client-menu {
-    padding: 1rem;
-    background: var(--bs-body-bg);
+// Desktop navbar styles
+.navbar {
+  background: var(--bs-body-bg);
+  border-bottom: 1px solid var(--brand-border);
+  padding: 0.5rem 1rem;
+
+  .navbar-nav {
+    .nav-link {
+      color: var(--brand-text);
+      padding: 0.5rem 1rem;
+
+      &:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+      }
+
+      &.active {
+        font-weight: 600;
+        color: var(--bs-primary);
+      }
+    }
+
+    .dropdown-menu {
+      border: 1px solid var(--brand-border);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+
+      .dropdown-item {
+        &:hover {
+          background-color: rgba(var(--bs-primary-rgb), 0.1);
+        }
+
+        &.active {
+          background-color: var(--bs-primary);
+          color: white;
+        }
+      }
+    }
+  }
+}
+
+// Mobile offcanvas styles
+.navbar-toggler {
+  border: 1px solid var(--brand-border);
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 1rem;
+
+  .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 0, 0, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  }
+}
+
+.offcanvas {
+  &.offcanvas-start {
+    width: 280px;
+  }
+
+  .offcanvas-header {
     border-bottom: 1px solid var(--brand-border);
+    padding: 1rem 1.5rem;
+
+    .offcanvas-title {
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+  }
+
+  .offcanvas-body {
+    padding: 1rem;
+
+    .nav-link {
+      color: var(--brand-text);
+      padding: 0.75rem 1rem;
+      border-radius: 0.375rem;
+      transition: background-color 0.15s ease-in-out;
+
+      &:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+      }
+
+      &.active {
+        font-weight: 600;
+        color: var(--bs-primary);
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+      }
+
+      &.disabled {
+        color: var(--bs-secondary);
+        pointer-events: none;
+      }
+    }
+
+    .collapse {
+      .nav-link {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+      }
+    }
+  }
+}
+
+// Dark mode adjustments
+[data-bs-theme="dark"] {
+  .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  }
 }
