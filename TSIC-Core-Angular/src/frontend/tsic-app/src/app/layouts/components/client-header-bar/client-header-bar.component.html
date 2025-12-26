@@ -1,7 +1,7 @@
 <!-- Row 1: Logos + User Actions -->
-<div class="row align-items-center py-2 py-md-2 py-1">
+<div class="d-flex align-items-center justify-content-between py-2 py-md-2 py-1 gap-2">
     <!-- Left: Hamburger (mobile only) + TSIC + Job Logos (auto-width) -->
-    <div class="col-auto d-flex align-items-center">
+    <div class="d-flex align-items-center flex-shrink-0">
         <!-- Button group on mobile -->
         <div class="btn-group d-md-none mobile-logo-group">
             <button type="button" class="btn btn-sm btn-outline-secondary p-2">
@@ -40,7 +40,7 @@
     </div>
 
     <!-- Middle: Job Name (mobile only) -->
-    <div class="col d-md-none">
+    <div class="d-md-none flex-grow-1" style="min-width: 0;">
         @if (jobName()) {
         <div class="mobile-job-name">
             {{ jobName() }}
@@ -49,8 +49,8 @@
     </div>
 
     <!-- Right: User Actions (auto-width) -->
-    <div class="col-auto">
-        <div class="d-flex align-items-center justify-content-end gap-2">
+    <div class="flex-shrink-0">
+        <div class="d-flex align-items-center justify-content-end gap-1">
             <span class="user-role-pill d-none d-md-inline">
                 <strong class="me-1">{{ user()?.username }}</strong>
                 @if (user()?.role) {
