@@ -3,9 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../../../core/api';
-import { JobContextService } from '../../../core/services/job-context.service';
-import { FormFieldDataService } from '../../../core/services/form-field-data.service';
+import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '@infrastructure/api';
+import { JobContextService } from '@infrastructure/services/job-context.service';
+import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { ClubTeamAddModalComponent } from '../club-team-add-modal/club-team-add-modal.component';
 
 // Helper to safely convert number | string to number

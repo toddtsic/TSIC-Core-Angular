@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { AuthService } from '../core/services/auth.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';

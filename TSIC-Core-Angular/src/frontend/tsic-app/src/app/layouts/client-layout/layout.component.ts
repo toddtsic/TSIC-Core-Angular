@@ -1,18 +1,18 @@
 import { Component, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import type { Job } from '../../core/services/job.service';
+import type { Job } from '@infrastructure/services/job.service';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, NavigationEnd, ActivatedRoute } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
-import { JobService } from '../../core/services/job.service';
-import { JobContextService } from '../../core/services/job-context.service';
-import { ThemeService } from '../../core/services/theme.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
+import { JobContextService } from '@infrastructure/services/job-context.service';
+import { ThemeService } from '@infrastructure/services/theme.service';
 import { ClientHeaderBarComponent } from '../components/client-header-bar/client-header-bar.component';
 import { ClientMenuComponent } from '../components/client-menu/client-menu.component';
 import { ClientBannerComponent } from '../components/client-banner/client-banner.component';
 import { ClientFooterBarComponent } from '../components/client-footer-bar/client-footer-bar.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
-import { isJobLanding } from '../../core/utils/route-segment.utils';
+import { isJobLanding } from '@infrastructure/utils/route-segment.utils';
 
 @Component({
   selector: 'app-layout',

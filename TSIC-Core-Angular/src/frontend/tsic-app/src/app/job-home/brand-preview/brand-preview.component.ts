@@ -1,7 +1,7 @@
 import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LocalStorageService } from '../../core/services/local-storage.service';
-import { LocalStorageKey } from '../../core/shared/local-storage.model';
+import { LocalStorageService } from '@infrastructure/services/local-storage.service';
+import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
 interface ColorPalette {
     name: string;

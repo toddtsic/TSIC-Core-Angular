@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ProfileMigrationService } from '../../core/services/profile-migration.service';
-import { ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '../../core/view-models/profile-migration.models';
+import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
+import { ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '@infrastructure/view-models/profile-migration.models';
 import { ToastService } from '../../shared/toast.service';
 import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-dialog.component';
 import { OptionsPanelComponent } from './options-panel/options-panel.component';
 import { ALLOWED_PROFILE_FIELDS, AllowedField } from './allowed-fields';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 
 type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO' | 'HIDDEN';
 

@@ -2,11 +2,11 @@ import { Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../../../core/services/auth.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { LoginComponent } from '../../../login/login.component';
-import { FamilyService } from '../../../core/services/family.service';
-import type { FamilyRegistrationRequest, FamilyUpdateRequest } from '../../../core/api';
-import { JobService } from '../../../core/services/job.service';
+import { FamilyService } from '@infrastructure/services/family.service';
+import type { FamilyRegistrationRequest, FamilyUpdateRequest } from '@infrastructure/api';
+import { JobService } from '@infrastructure/services/job.service';
 
 @Component({
   selector: 'app-fam-account-step-review',

@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
-import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
+import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 
 @Component({

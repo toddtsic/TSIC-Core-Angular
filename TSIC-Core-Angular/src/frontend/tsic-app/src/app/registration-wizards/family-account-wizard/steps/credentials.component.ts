@@ -2,7 +2,7 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
-import { AuthService } from '../../../core/services/auth.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 
 @Component({
     selector: 'app-fam-account-step-credentials',

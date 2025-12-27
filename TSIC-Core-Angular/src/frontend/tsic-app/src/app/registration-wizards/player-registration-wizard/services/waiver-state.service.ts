@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import type { WaiverDefinition } from '../registration-wizard.service';
-import type { FamilyPlayerDto } from '../../../core/api';
+import type { FamilyPlayerDto } from '@infrastructure/api';
 
 /**
  * WaiverStateService: owns waiver definitions, mapping, acceptance & signature state.

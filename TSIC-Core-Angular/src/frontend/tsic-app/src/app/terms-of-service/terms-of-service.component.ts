@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../core/services/auth.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '../shared/toast.service';
 
 @Component({

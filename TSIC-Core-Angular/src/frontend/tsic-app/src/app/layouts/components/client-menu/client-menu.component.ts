@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { JobService, MenuItemDto } from '../../../core/services/job.service';
+import { JobService, MenuItemDto } from '@infrastructure/services/job.service';
 import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({

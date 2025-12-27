@@ -1,10 +1,10 @@
 import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
-import { Roles } from '../../../core/constants/roles.constants';
+import { Roles } from '@infrastructure/constants/roles.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
-import { AuthService } from '../../../core/services/auth.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { InfoTooltipComponent } from '../../../shared/components/info-tooltip.component';
 
 @Component({

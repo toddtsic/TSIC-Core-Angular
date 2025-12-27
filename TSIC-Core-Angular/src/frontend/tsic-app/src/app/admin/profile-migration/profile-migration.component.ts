@@ -2,10 +2,10 @@ import { FormsModule } from '@angular/forms';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ProfileMigrationService } from '../../core/services/profile-migration.service';
-import { ProfileSummary } from '../../core/view-models/profile-migration.models';
+import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
+import { ProfileSummary } from '@infrastructure/view-models/profile-migration.models';
 import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-dialog.component';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ProfileFormPreviewComponent } from '../../shared/components/profile-form-preview/profile-form-preview.component';
 
 @Component({

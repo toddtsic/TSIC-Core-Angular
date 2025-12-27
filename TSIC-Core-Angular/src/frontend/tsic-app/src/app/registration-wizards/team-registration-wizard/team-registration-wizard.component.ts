@@ -8,11 +8,11 @@ import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TwStepIndicatorComponent, WizardStep } from './step-indicator/tw-step-indicator.component';
 import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
 import { TeamRegistrationService } from './services/team-registration.service';
-import { FormFieldDataService } from '../../core/services/form-field-data.service';
-import { JobService } from '../../core/services/job.service';
-import { JobContextService } from '../../core/services/job-context.service';
-import { AuthService } from '../../core/services/auth.service';
-import type { ClubRepClubDto } from '../../core/api';
+import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
+import { JobService } from '@infrastructure/services/job.service';
+import { JobContextService } from '@infrastructure/services/job-context.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import type { ClubRepClubDto } from '@infrastructure/api';
 
 @Component({
     selector: 'app-team-registration-wizard',

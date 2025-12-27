@@ -1,12 +1,12 @@
 import { Component, EventEmitter, OnInit, Output, inject, input, signal, computed, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { FormFieldDataService } from '../../../core/services/form-field-data.service';
-import { UserPreferencesService } from '../../../core/services/user-preferences.service';
+import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
+import { UserPreferencesService } from '@infrastructure/services/user-preferences.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { ClubTeamAddModalComponent } from '../club-team-add-modal/club-team-add-modal.component';
 import { TeamEditModalComponent } from '../team-edit-modal/team-edit-modal.component';
-import { ClubTeamManagementDto } from '../../../core/api';
+import { ClubTeamManagementDto } from '@infrastructure/api';
 
 @Component({
     selector: 'app-club-team-management',

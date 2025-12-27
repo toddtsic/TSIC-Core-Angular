@@ -2,7 +2,7 @@ import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidationErrors, AbstractControl, FormGroup } from '@angular/forms';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
-import { JobService } from '../../../core/services/job.service';
+import { JobService } from '@infrastructure/services/job.service';
 
 @Component({
   selector: 'app-fam-account-step-account',

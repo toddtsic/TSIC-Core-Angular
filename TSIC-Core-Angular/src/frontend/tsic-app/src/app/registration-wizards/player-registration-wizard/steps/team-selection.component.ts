@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { PlayerStateService } from '../services/player-state.service';
-import { ProfileMigrationService } from '../../../core/services/profile-migration.service';
+import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
 import { TeamService } from '../team.service';
 import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent } from '@syncfusion/ej2-angular-dropdowns';
 

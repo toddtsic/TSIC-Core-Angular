@@ -3,7 +3,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from './insurance-state.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
-import type { InsurancePurchaseRequestDto, InsurancePurchaseResponseDto, CreditCardInfo } from '../../../core/api';
+import type { InsurancePurchaseRequestDto, InsurancePurchaseResponseDto, CreditCardInfo } from '@infrastructure/api';
 import { ToastService } from '../../../shared/toast.service';
 
 @Injectable({ providedIn: 'root' })

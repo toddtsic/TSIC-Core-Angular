@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { ThemeService } from '../../core/services/theme.service';
+import { ThemeService } from '@infrastructure/services/theme.service';
 
 /**
  * TsicLayoutComponent

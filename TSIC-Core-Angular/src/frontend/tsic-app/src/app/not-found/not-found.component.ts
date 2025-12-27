@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { JobService } from '../core/services/job.service';
+import { JobService } from '@infrastructure/services/job.service';
 
 @Component({
     selector: 'app-not-found',

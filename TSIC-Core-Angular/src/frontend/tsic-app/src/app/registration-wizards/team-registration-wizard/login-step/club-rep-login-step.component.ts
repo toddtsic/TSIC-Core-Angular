@@ -3,12 +3,12 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
-import { ClubService } from '../../../core/services/club.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { ClubService } from '@infrastructure/services/club.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
+import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { InfoTooltipComponent } from '../../../shared/components/info-tooltip.component';
-import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '../../../core/api';
+import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '@infrastructure/api';
 
 export interface LoginStepResult {
     clubName: string;

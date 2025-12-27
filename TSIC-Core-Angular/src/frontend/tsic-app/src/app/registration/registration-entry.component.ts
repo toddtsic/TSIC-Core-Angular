@@ -2,8 +2,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AuthService } from '../core/services/auth.service';
-import { JobService } from '../core/services/job.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';
 import { LoginComponent } from '../login/login.component';
 

@@ -1,12 +1,12 @@
 import { ApplicationConfig, APP_INITIALIZER, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { authInterceptor } from './infrastructure/interceptors/auth.interceptor';
 
 import { routes } from './app.routes';
-import { LastLocationService } from './core/services/last-location.service';
-import { ThemeOverridesService } from './core/services/theme-overrides.service';
-import { JobContextService } from './core/services/job-context.service';
+import { LastLocationService } from './infrastructure/services/last-location.service';
+import { ThemeOverridesService } from './infrastructure/services/theme-overrides.service';
+import { JobContextService } from './infrastructure/services/job-context.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [

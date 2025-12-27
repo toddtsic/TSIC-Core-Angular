@@ -16,8 +16,8 @@ import { InsuranceService } from './services/insurance.service';
 import { WaiverStateService } from './services/waiver-state.service';
 // Start step retired; StartChoiceComponent removed from flow
 import { FamilyCheckStepComponent } from './steps/family-check.component';
-import { AuthService } from '../../core/services/auth.service';
-import { JobContextService } from '../../core/services/job-context.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { JobContextService } from '@infrastructure/services/job-context.service';
 import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
 import { RwActionBarComponent } from './action-bar/rw-action-bar.component';
 import { ToastService } from '../../shared/toast.service';

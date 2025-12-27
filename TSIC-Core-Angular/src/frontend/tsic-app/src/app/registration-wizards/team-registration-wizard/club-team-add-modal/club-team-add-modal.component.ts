@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
-import { FormFieldDataService } from '../../../core/services/form-field-data.service';
+import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 
 interface ClubTeamDto {

@@ -1,9 +1,9 @@
 import { Component, effect, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { JobService } from '../core/services/job.service';
-import type { RegistrationStatusResponse } from '../core/api';
-import { AuthService } from '../core/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
+import type { RegistrationStatusResponse } from '@infrastructure/api';
+import { AuthService } from '@infrastructure/services/auth.service';
 
 /**
  * TODO: DEPRECATED - Replace with job-landing.component.ts

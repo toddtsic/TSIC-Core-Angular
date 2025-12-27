@@ -1,9 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
-import { JobService } from '../../../core/services/job.service';
-import { ThemeService } from '../../../core/services/theme.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
+import { ThemeService } from '@infrastructure/services/theme.service';
 import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({

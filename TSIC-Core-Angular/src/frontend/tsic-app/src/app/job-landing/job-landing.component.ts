@@ -1,10 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AuthService } from '../core/services/auth.service';
-import { JobService } from '../core/services/job.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { BulletinsComponent } from '../shared/bulletins/bulletins.component';
-import type { RegistrationStatusResponse } from '../core/api';
+import type { RegistrationStatusResponse } from '@infrastructure/api';
 
 /**
  * Job Landing Page Component

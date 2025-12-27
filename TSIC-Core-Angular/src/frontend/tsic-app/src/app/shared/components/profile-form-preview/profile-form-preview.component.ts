@@ -1,8 +1,8 @@
 import { Component, Input, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ProfileMetadata, ProfileMetadataField } from '../../../core/view-models/profile-migration.models';
-import { FormFieldDataService } from '../../../core/services/form-field-data.service';
+import { ProfileMetadata, ProfileMetadataField } from '@infrastructure/view-models/profile-migration.models';
+import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 
 @Component({
     selector: 'app-profile-form-preview',

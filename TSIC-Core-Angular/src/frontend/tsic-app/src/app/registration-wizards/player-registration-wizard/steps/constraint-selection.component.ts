@@ -2,7 +2,7 @@ import { Component, EventEmitter, Output, inject, signal, effect, computed } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
-import { JobService, Job } from '../../../core/services/job.service';
+import { JobService, Job } from '@infrastructure/services/job.service';
 // Reactive forms were previously layered here but not used in the template; simplified to template-driven.
 
 @Component({
