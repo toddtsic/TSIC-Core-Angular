@@ -9,6 +9,7 @@ public class JobMetadataResponse
     public string? JobBannerPath { get; set; }
     public string? JobBannerText1 { get; set; }
     public string? JobBannerText2 { get; set; }
+    public string? JobBannerBackgroundPath { get; set; }
     public bool? CoreRegformPlayer { get; set; }
     public DateTime? USLaxNumberValidThroughDate { get; set; }
     public DateTime? ExpiryUsers { get; set; }

@@ -67,6 +67,7 @@ public class JobsController : ControllerBase
             JobPath = jobMetadata.JobPath,
             JobLogoPath = jobMetadata.JobLogoPath,
             JobBannerPath = jobMetadata.JobBannerPath,
+            JobBannerBackgroundPath = jobMetadata.JobBannerBackgroundPath,
             JobBannerText1 = jobMetadata.JobBannerText1,
             JobBannerText2 = jobMetadata.JobBannerText2,
             CoreRegformPlayer = jobMetadata.CoreRegformPlayer,

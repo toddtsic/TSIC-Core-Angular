@@ -19,6 +19,9 @@ export interface Job {
     momLabel?: string;
     dadLabel?: string;
     jobBannerPath?: string;
+    jobBannerBackgroundPath?: string;
+    jobBannerText1?: string;
+    jobBannerText2?: string;
     coreRegformPlayer?: boolean;
     usLaxNumberValidThroughDate?: string;
     expiryUsers?: string;

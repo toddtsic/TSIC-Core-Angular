@@ -1,3 +1,50 @@
 <div class="client-banner">
-    <p>Client Banner - Placeholder</p>
+    @if (job(); as currentJob) {
+    @if (bannerBackgroundUrl()) {
+    <!-- Background image with optional banner overlay -->
+    <div class="banner-background-only" [style.background-image]="'url(' + bannerBackgroundUrl() + ')'">
+        @if (bannerImageUrl()) {
+        <!-- Overlay banner image on top of background -->
+        <div class="banner-image-overlay">
+            <img [src]="bannerImageUrl()" [alt]="jobName() + ' Banner'" class="banner-overlay-image" />
+        </div>
+        }
+        <!-- Text overlay on left side -->
+        <div class="banner-text-overlay">
+            @if (jobBannerText1Decoded()) {
+            <h1 class="banner-title" [innerHTML]="jobBannerText1Decoded()"></h1>
+            } @else {
+            <h1 class="banner-title">{{ jobName() }}</h1>
+            }
+            @if (jobBannerText2Decoded()) {
+            <p class="banner-subtitle" [innerHTML]="jobBannerText2Decoded()"></p>
+            }
+        </div>
+    </div>
+    } @else if (bannerImageUrl()) {
+    <!-- Standard banner image if available -->
+    <div class="banner-image-container">
+        <img [src]="bannerImageUrl()" [alt]="jobName() + ' Banner'" class="banner-image" />
+    </div>
+    } @else {
+    <!-- Text-only banner when no images -->
+    <div class="banner-text">
+        @if (jobBannerText1()) {
+        <h1 class="banner-title" [innerHTML]="jobBannerText1()"></h1>
+        } @else {
+        <h1 class="banner-title">{{ jobName() }}</h1>
+        }
+        @if (jobBannerText2()) {
+        <p class="banner-subtitle" [innerHTML]="jobBannerText2()"></p>
+        } @else if (jobPath()) {
+        <p class="banner-subtitle">{{ jobPath().toUpperCase().replaceAll('-', ' ') }}</p>
+        }
+    </div>
+    }
+    } @else {
+    <!-- Fallback for when no job is loaded -->
+    <div class="banner-fallback">
+        <h1 class="banner-title">Welcome</h1>
+    </div>
+    }
 </div>

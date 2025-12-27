@@ -23,7 +23,7 @@ interface ClubTeamDto {
 export class ClubTeamAddModalComponent {
     // Signal input (Angular 21)
     clubName = input.required<string>();
-    
+
     // Signal output (Angular 21)
     teamAdded = output<void>();
 
