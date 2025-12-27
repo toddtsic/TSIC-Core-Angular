@@ -12,7 +12,7 @@ import { InsuranceStateService } from '../services/insurance-state.service';
 import { PaymentStateService } from '../services/payment-state.service';
 import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confirm-modal.component';
 import type { PaymentResponseDto } from '@infrastructure/api';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../../../../environments/environment';
 import { TeamService } from '../team.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { InsuranceService } from '../services/insurance.service';

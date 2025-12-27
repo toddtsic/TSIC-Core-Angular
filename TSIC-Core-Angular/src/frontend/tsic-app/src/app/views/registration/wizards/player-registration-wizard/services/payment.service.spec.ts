@@ -5,7 +5,7 @@ import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../../../../environments/environment';
 
 // Minimal stubs for dependent services
 class RegistrationWizardStub {

@@ -4,7 +4,7 @@ import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto } from '@infrastructure/api';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../../../../environments/environment';
 
 // Helper to safely convert number | string to number
 function toNumber(value: number | string | undefined | null): number {

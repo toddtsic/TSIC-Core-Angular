@@ -37,22 +37,22 @@ export const routes: Routes = [
 			// Family Account wizard (create/manage family + children)
 			{
 				path: 'family-account',
-				loadComponent: () => import('./registration-wizards/family-account-wizard/family-account-wizard.component').then(m => m.FamilyAccountWizardComponent)
+				loadComponent: () => import('./views/registration/wizards/family-account-wizard/family-account-wizard.component').then(m => m.FamilyAccountWizardComponent)
 			},
 			// Registration entry screen: sign in then choose next action
 			{
 				path: 'registration',
-				loadComponent: () => import('./registration/registration-entry.component').then(m => m.RegistrationEntryComponent)
+				loadComponent: () => import('./views/registration/registration-entry/registration-entry.component').then(m => m.RegistrationEntryComponent)
 			},
 			// Registration wizard route (player-specific)
 			{
 				path: 'register-player',
-				loadComponent: () => import('./registration-wizards/player-registration-wizard/player-registration-wizard.component').then(m => m.PlayerRegistrationWizardComponent)
+				loadComponent: () => import('./views/registration/wizards/player-registration-wizard/player-registration-wizard.component').then(m => m.PlayerRegistrationWizardComponent)
 			},
 			// Registration wizard route (team-specific)
 			{
 				path: 'register-team',
-				loadComponent: () => import('./registration-wizards/team-registration-wizard/team-registration-wizard.component').then(m => m.TeamRegistrationWizardComponent)
+				loadComponent: () => import('./views/registration/wizards/team-registration-wizard/team-registration-wizard.component').then(m => m.TeamRegistrationWizardComponent)
 			},
 			{
 				path: 'home',

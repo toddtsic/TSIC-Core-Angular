@@ -1,6 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { environment } from '../../../../../environments/environment';
 import { RegistrationWizardService } from './registration-wizard.service';
 
 // Shared model (aligns with backend AvailableTeamDto)
