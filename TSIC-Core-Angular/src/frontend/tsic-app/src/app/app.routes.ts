@@ -71,15 +71,15 @@ export const routes: Routes = [
 				children: [
 					{
 						path: 'profile-migration',
-						loadComponent: () => import('./admin/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
+						loadComponent: () => import('./views/admin/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
 					},
 					{
 						path: 'profile-editor',
-						loadComponent: () => import('./admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
+						loadComponent: () => import('./views/admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
 					},
 					{
 						path: 'theme',
-						loadComponent: () => import('./admin/theme-editor/theme-editor.component').then(m => m.ThemeEditorComponent)
+						loadComponent: () => import('./views/admin/theme-editor/theme-editor.component').then(m => m.ThemeEditorComponent)
 					}
 				]
 			}
