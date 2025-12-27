@@ -89,6 +89,6 @@ export const routes: Routes = [
 	// Wildcard route - must be last
 	{
 		path: '**',
-		loadComponent: () => import('./not-found/not-found.component').then(m => m.NotFoundComponent)
+		loadComponent: () => import('./views/errors/not-found/not-found.component').then(m => m.NotFoundComponent)
 	}
 ];
