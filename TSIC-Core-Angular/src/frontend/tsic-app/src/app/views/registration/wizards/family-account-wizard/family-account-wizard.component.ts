@@ -1,5 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FamilyAccountWizardService } from './family-account-wizard.service';
 import { FamAccountStepAccountComponent } from './steps/account-info.component';
@@ -15,7 +15,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 @Component({
     selector: 'app-family-account-wizard',
     standalone: true,
-    imports: [CommonModule, RouterModule, WizardThemeDirective, FamAccountStepCredentialsComponent, FamAccountStepAccountComponent, FamAccountStepAddressComponent, FamAccountStepChildrenComponent, FamAccountStepReviewComponent],
+    imports: [RouterModule, WizardThemeDirective, FamAccountStepCredentialsComponent, FamAccountStepAccountComponent, FamAccountStepAddressComponent, FamAccountStepChildrenComponent, FamAccountStepReviewComponent],
     templateUrl: './family-account-wizard.component.html',
     styleUrls: ['./family-account-wizard.component.scss'],
     host: {}

@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import type { Job } from '@infrastructure/services/job.service';
-import { CommonModule } from '@angular/common';
+
 import { Router, RouterOutlet, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
@@ -17,7 +17,7 @@ import { isJobLanding } from '@infrastructure/utils/route-segment.utils';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientBannerComponent, ClientFooterBarComponent],
+  imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientBannerComponent, ClientFooterBarComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss']
 })

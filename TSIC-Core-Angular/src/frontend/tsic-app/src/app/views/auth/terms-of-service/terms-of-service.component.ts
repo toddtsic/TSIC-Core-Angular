@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -8,7 +8,7 @@ import { ToastService } from '@shared-ui/toast.service';
 @Component({
     selector: 'app-terms-of-service',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [FormsModule],
     templateUrl: './terms-of-service.component.html',
     styleUrls: ['./terms-of-service.component.scss']
 })

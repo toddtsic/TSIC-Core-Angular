@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 export interface WizardStep {
     label: string;
@@ -9,7 +9,7 @@ export interface WizardStep {
 @Component({
     selector: 'app-tw-step-indicator',
     standalone: true,
-    imports: [CommonModule],
+    imports: [],
     templateUrl: './tw-step-indicator.component.html',
     styleUrls: ['./tw-step-indicator.component.scss']
 })

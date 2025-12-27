@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 /**
  * Info tooltip component for displaying contextual help messages
@@ -8,7 +8,7 @@ import { CommonModule } from '@angular/common';
 @Component({
     selector: 'app-info-tooltip',
     standalone: true,
-    imports: [CommonModule],
+    imports: [],
     template: `
     <button
       type="button"

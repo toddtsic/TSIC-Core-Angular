@@ -1,12 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
+
 import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 
 @Component({
   selector: 'app-tsic-landing',
   standalone: true,
-  imports: [CommonModule, WizardThemeDirective],
+  imports: [WizardThemeDirective],
   templateUrl: './tsic-landing.component.html',
   styleUrl: './tsic-landing.component.scss'
 })

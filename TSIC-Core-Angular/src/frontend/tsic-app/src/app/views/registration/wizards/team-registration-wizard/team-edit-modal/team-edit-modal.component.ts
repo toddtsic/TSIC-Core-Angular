@@ -1,5 +1,5 @@
 import { Component, Input, computed, inject, signal, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
@@ -8,7 +8,7 @@ import { ClubTeamManagementDto, UpdateClubTeamRequest } from '@infrastructure/ap
 @Component({
     selector: 'app-team-edit-modal',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [FormsModule],
     templateUrl: './team-edit-modal.component.html',
     styleUrls: ['./team-edit-modal.component.scss']
 })

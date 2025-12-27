@@ -1,5 +1,5 @@
 import { Component, Input, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
@@ -10,7 +10,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 @Component({
     selector: 'app-options-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule, DragDropModule, TsicDialogComponent],
+    imports: [FormsModule, DragDropModule, TsicDialogComponent],
     templateUrl: './options-panel.component.html'
 })
 export class OptionsPanelComponent {

@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
@@ -9,7 +9,7 @@ import { MenuStateService } from '../../services/menu-state.service';
 @Component({
     selector: 'app-client-header-bar',
     standalone: true,
-    imports: [CommonModule, RouterLink],
+    imports: [RouterLink],
     templateUrl: './client-header-bar.component.html',
     styleUrls: ['./client-header-bar.component.scss']
 })

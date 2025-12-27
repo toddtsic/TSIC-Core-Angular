@@ -25,18 +25,22 @@ import { CommonModule } from '@angular/common';
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable vi-modal-dialog" role="document">
         <div class="modal-content vi-modal-content">
           <div class="modal-header vi-header">
-            <h5 id="viConfirmTitle" class="modal-title" *ngIf="viCcOnlyFlow; else combinedTitle">Confirm Insurance Purchase</h5>
-            <ng-template #combinedTitle><h5 id="viConfirmTitle" class="modal-title">Confirm Registration Payment + Insurance</h5></ng-template>
+            @if (viCcOnlyFlow) {
+              <h5 id="viConfirmTitle" class="modal-title">Confirm Insurance Purchase</h5>
+            } @else {
+              <h5 id="viConfirmTitle" class="modal-title">Confirm Registration Payment + Insurance</h5>
+            }
             <button type="button" class="btn-close btn-close-white" aria-label="Close" (click)="onCancel()"></button>
           </div>
           <div class="modal-body vi-body" id="viConfirmDesc">
             <ul class="vi-summary-list" aria-label="Insurance purchase summary">
               <li>
                 <span class="vi-summary-icon" aria-hidden="true">🧾</span>
-                <div *ngIf="viCcOnlyFlow; else combinedPremium">Insurance premium(s) for <strong>{{ quotedPlayers.join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span>.</div>
-                <ng-template #combinedPremium>
+                @if (viCcOnlyFlow) {
+                  <div>Insurance premium(s) for <strong>{{ quotedPlayers.join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span>.</div>
+                } @else {
                   <div>The registration insurance premium(s) for <strong>{{ quotedPlayers.join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span> (not <span class="vi-brand">TEAMSPORTSINFO.COM</span>).</div>
-                </ng-template>
+                }
               </li>
               <li>
                 <span class="vi-summary-icon" aria-hidden="true">📧</span>
@@ -44,15 +48,18 @@ import { CommonModule } from '@angular/common';
               </li>
               <li class="vi-total">
                 <span class="vi-summary-icon" aria-hidden="true">💵</span>
-                <div *ngIf="viCcOnlyFlow; else combinedTotal">Total Insurance Premium: <span>{{ premiumTotal | currency }}</span></div>
-                <ng-template #combinedTotal>
+                @if (viCcOnlyFlow) {
+                  <div>Total Insurance Premium: <span>{{ premiumTotal | currency }}</span></div>
+                } @else {
                   <div>Total Insurance Premium (in addition to your TSIC payment): <span>{{ premiumTotal | currency }}</span></div>
-                </ng-template>
+                }
               </li>
-              <li *ngIf="!viCcOnlyFlow">
-                <span class="vi-summary-icon" aria-hidden="true">💳</span>
-                <div>Your TSIC registration payment will also be processed now.</div>
-              </li>
+              @if (!viCcOnlyFlow) {
+                <li>
+                  <span class="vi-summary-icon" aria-hidden="true">💳</span>
+                  <div>Your TSIC registration payment will also be processed now.</div>
+                </li>
+              }
             </ul>
             <div class="vi-section vi-small">
               <div>By clicking <strong>Confirm</strong>, you authorize the charges listed above. Policies are issued by Vertical Insure; for questions, reply to the receipt email.</div>
@@ -68,7 +75,7 @@ import { CommonModule } from '@angular/common';
         </div>
       </div>
     </div>
-  `
+    `
 })
 export class ViChargeConfirmModalComponent {
   @Input() quotedPlayers: string[] = [];

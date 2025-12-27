@@ -46,7 +46,7 @@ import type { LineItem } from '../services/payment.service';
             @if (lastError.errorCode) { <span class="badge bg-danger-subtle text-dark border">{{ lastError.errorCode }}</span> }
           </div>
         }
-
+    
         <app-payment-summary></app-payment-summary>
         <!-- ARB subscription state messaging / option gating -->
         @if (arbHideAllOptions()) {
@@ -78,7 +78,9 @@ import type { LineItem } from '../services/payment.service';
                     <div>
                       @if (insuranceState.verticalInsureConfirmed()) {
                         <div class="fw-semibold mb-0">Insurance Selected</div>
-                        <div class="small text-muted" *ngIf="insuranceState.viConsent()?.policyNumber">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
+                        @if (insuranceState.viConsent()?.policyNumber) {
+                          <div class="small text-muted">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
+                        }
                       } @else {
                         <div class="fw-semibold mb-0">Insurance Declined</div>
                         <div class="small text-muted">You chose not to purchase coverage.</div>
@@ -90,7 +92,7 @@ import type { LineItem } from '../services/payment.service';
             }
           </div>
         }
-
+    
         <!-- RegSaver charge confirmation modal (Bootstrap-style) -->
         @if (showViChargeConfirm) {
           <app-vi-charge-confirm-modal
@@ -100,66 +102,66 @@ import type { LineItem } from '../services/payment.service';
             [viCcOnlyFlow]="isViCcOnlyFlow()"
             (cancelled)="cancelViConfirm()"
             (confirmed)="confirmViAndContinue()" />
-        }
-        
-        <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
-        @if (showNoPaymentInfo()) {
-          <div class="alert alert-info border-0 mb-3" role="status">
-            No payments are due at this time.
-          </div>
-        }
-        @if (state.regSaverDetails()) {
-          <div class="alert alert-info border-0 mb-3" role="status">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-info-subtle text-dark border">RegSaver</span>
-              <div>
-                <div class="fw-semibold">RegSaver policy on file</div>
-                <div class="small text-muted">Policy #: {{ state.regSaverDetails()!.policyNumber }} • Created: {{ state.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}</div>
+          }
+    
+          <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
+          @if (showNoPaymentInfo()) {
+            <div class="alert alert-info border-0 mb-3" role="status">
+              No payments are due at this time.
+            </div>
+          }
+          @if (state.regSaverDetails()) {
+            <div class="alert alert-info border-0 mb-3" role="status">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-info-subtle text-dark border">RegSaver</span>
+                <div>
+                  <div class="fw-semibold">RegSaver policy on file</div>
+                  <div class="small text-muted">Policy #: {{ state.regSaverDetails()!.policyNumber }} • Created: {{ state.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}</div>
+                </div>
               </div>
             </div>
-          </div>
-        }
-
-        @if (showCcSection()) {
-          <section #ccSection class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-            <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
-            @if (isViCcOnlyFlow()) {
-              <div class="alert alert-warning border-0" role="status">
-                <span class="badge bg-warning-subtle text-dark border me-1">Insurance Premium</span>
-                A registration balance is not due, but an insurance premium is. Enter card details and click <strong>Proceed with Insurance Processing</strong>.
-              </div>
-            }
-            <app-credit-card-form
-              (validChange)="onCcValidChange($event)"
-              (valueChange)="onCcValueChange($event)"
-              [viOnly]="isViCcOnlyFlow()"
-              [defaultFirstName]="state.familyUser()?.firstName || state.familyUser()?.ccInfo?.firstName || null"
-              [defaultLastName]="state.familyUser()?.lastName || state.familyUser()?.ccInfo?.lastName || null"
-              [defaultAddress]="state.familyUser()?.address || state.familyUser()?.ccInfo?.streetAddress || null"
-              [defaultZip]="state.familyUser()?.zipCode || state.familyUser()?.zip || state.familyUser()?.ccInfo?.zip || null"
-              [defaultEmail]="state.familyUser()?.ccInfo?.email || state.familyUser()?.email || (state.familyUser()?.userName?.includes('@') ? (state.familyUser()?.userName || null) : null)"
-              [defaultPhone]="state.familyUser()?.ccInfo?.phone || state.familyUser()?.phone || null"
-            ></app-credit-card-form>
-          </section>
-        }
+          }
+    
+          @if (showCcSection()) {
+            <section #ccSection class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+              <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
+              @if (isViCcOnlyFlow()) {
+                <div class="alert alert-warning border-0" role="status">
+                  <span class="badge bg-warning-subtle text-dark border me-1">Insurance Premium</span>
+                  A registration balance is not due, but an insurance premium is. Enter card details and click <strong>Proceed with Insurance Processing</strong>.
+                </div>
+              }
+              <app-credit-card-form
+                (validChange)="onCcValidChange($event)"
+                (valueChange)="onCcValueChange($event)"
+                [viOnly]="isViCcOnlyFlow()"
+                [defaultFirstName]="state.familyUser()?.firstName || state.familyUser()?.ccInfo?.firstName || null"
+                [defaultLastName]="state.familyUser()?.lastName || state.familyUser()?.ccInfo?.lastName || null"
+                [defaultAddress]="state.familyUser()?.address || state.familyUser()?.ccInfo?.streetAddress || null"
+                [defaultZip]="state.familyUser()?.zipCode || state.familyUser()?.zip || state.familyUser()?.ccInfo?.zip || null"
+                [defaultEmail]="state.familyUser()?.ccInfo?.email || state.familyUser()?.email || (state.familyUser()?.userName?.includes('@') ? (state.familyUser()?.userName || null) : null)"
+                [defaultPhone]="state.familyUser()?.ccInfo?.phone || state.familyUser()?.phone || null"
+              ></app-credit-card-form>
+            </section>
+          }
           <!-- Zero-balance Continue button: always shown when there is no TSIC balance and we are NOT in an insurance-only (VI CC) flow.
-               If insurance decision missing, clicking will open the insurance modal; if declined, it advances; if confirmed & still zero (edge), falls back to submit logic. -->
-            @if (arbHideAllOptions() && !isViCcOnlyFlow()) {
-              <!-- Continue button removed; logic relocated to global action bar -->
-            }
-            @if (isViCcOnlyFlow()) {
-              <button type="button" class="btn btn-primary me-2" (click)="submitInsuranceOnly()" [disabled]="!canInsuranceOnlySubmit()">
-                Proceed with Insurance Processing
-              </button>
-            }
-            @if (showPayNowButton()) {
-              <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">
-                Pay Now
-              </button>
-            }
+          If insurance decision missing, clicking will open the insurance modal; if declined, it advances; if confirmed & still zero (edge), falls back to submit logic. -->
+          @if (arbHideAllOptions() && !isViCcOnlyFlow()) {
+            <!-- Continue button removed; logic relocated to global action bar -->
+          }
+          @if (isViCcOnlyFlow()) {
+            <button type="button" class="btn btn-primary me-2" (click)="submitInsuranceOnly()" [disabled]="!canInsuranceOnlySubmit()">
+              Proceed with Insurance Processing
+            </button>
+          }
+          @if (showPayNowButton()) {
+            <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">
+              Pay Now
+            </button>
+          }
+        </div>
       </div>
-    </div>
-  `
+    `
 })
 export class PaymentComponent implements AfterViewInit {
   @ViewChild('viOffer') viOffer?: ElementRef<HTMLDivElement>;

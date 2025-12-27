@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
@@ -9,7 +9,7 @@ import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directi
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [CommonModule, DropDownListModule, WizardThemeDirective],
+  imports: [DropDownListModule, WizardThemeDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss']

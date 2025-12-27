@@ -1,6 +1,6 @@
 import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { LoginRequest } from '@infrastructure/view-models/auth.models';
@@ -12,7 +12,7 @@ import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, TextBoxModule, ButtonModule, RouterModule],
+  imports: [ReactiveFormsModule, TextBoxModule, ButtonModule, RouterModule],
   styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {

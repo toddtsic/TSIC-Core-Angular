@@ -1,11 +1,11 @@
 import { Component, EventEmitter, Output, computed, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RegistrationWizardService } from '../registration-wizard.service';
 
 @Component({
   selector: 'app-rw-confirmation',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">

@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
@@ -7,7 +7,7 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
 @Component({
   selector: 'app-fam-account-step-children',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">

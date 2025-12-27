@@ -1,5 +1,5 @@
 import { Component, EventEmitter, OnInit, Output, inject, input, signal, computed, viewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { UserPreferencesService } from '@infrastructure/services/user-preferences.service';
@@ -11,7 +11,7 @@ import { ClubTeamManagementDto } from '@infrastructure/api';
 @Component({
     selector: 'app-club-team-management',
     standalone: true,
-    imports: [CommonModule, FormsModule, ClubTeamAddModalComponent, TeamEditModalComponent],
+    imports: [FormsModule, ClubTeamAddModalComponent, TeamEditModalComponent],
     templateUrl: './club-team-management.component.html',
     styleUrls: ['./club-team-management.component.scss']
 })

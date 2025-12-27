@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { JobService, MenuItemDto } from '@infrastructure/services/job.service';
 import { MenuStateService } from '../../services/menu-state.service';
@@ -7,7 +7,7 @@ import { MenuStateService } from '../../services/menu-state.service';
 @Component({
     selector: 'app-client-menu',
     standalone: true,
-    imports: [CommonModule, RouterLink, RouterLinkActive],
+    imports: [RouterLink, RouterLinkActive],
     templateUrl: './client-menu.component.html',
     styleUrl: './client-menu.component.scss'
 })

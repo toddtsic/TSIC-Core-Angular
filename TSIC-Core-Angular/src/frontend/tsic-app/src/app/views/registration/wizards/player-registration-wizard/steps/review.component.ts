@@ -1,13 +1,13 @@
 import { TeamService } from '../team.service';
 import { Component, EventEmitter, Output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { JobService } from '@infrastructure/services/job.service';
 
 @Component({
   selector: 'app-rw-review',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {

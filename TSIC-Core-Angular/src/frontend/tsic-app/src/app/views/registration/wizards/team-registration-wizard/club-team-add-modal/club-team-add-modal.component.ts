@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter, computed, inject, signal, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../../../environments/environment';
@@ -16,7 +16,7 @@ interface ClubTeamDto {
 @Component({
     selector: 'app-club-team-add-modal',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [FormsModule],
     templateUrl: './club-team-add-modal.component.html',
     styleUrls: ['./club-team-add-modal.component.scss']
 })

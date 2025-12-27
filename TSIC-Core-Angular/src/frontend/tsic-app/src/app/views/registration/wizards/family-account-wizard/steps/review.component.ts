@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -11,7 +11,7 @@ import { JobService } from '@infrastructure/services/job.service';
 @Component({
   selector: 'app-fam-account-step-review',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoginComponent],
+  imports: [FormsModule, LoginComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">

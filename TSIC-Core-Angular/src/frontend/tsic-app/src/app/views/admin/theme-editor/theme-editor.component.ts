@@ -1,5 +1,5 @@
 import { Component, OnInit, effect, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
@@ -15,7 +15,7 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
 @Component({
     selector: 'app-theme-editor',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, WizardThemeDirective],
+    imports: [ReactiveFormsModule, WizardThemeDirective],
     template: `
   <div class="container py-4">
     <div class="row g-4">
@@ -39,7 +39,9 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
               <div class="col-12 col-md-3">
                 <label class="form-label">Primary</label>
                 <select class="form-select" [formControl]="form.controls['primaryToken']">
-                  <option *ngFor="let t of paletteTokens" [value]="t.key">{{t.label}}</option>
+                  @for (t of paletteTokens; track t) {
+                    <option [value]="t.key">{{t.label}}</option>
+                  }
                 </select>
                 <div class="form-text d-flex align-items-center gap-2 mt-1">
                   <span class="d-inline-block rounded" style="width:18px;height:18px;" [style.background]="'var(' + form.controls['primaryToken'].value + ')'"> </span>
@@ -49,7 +51,9 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
               <div class="col-6 col-md-3">
                 <label class="form-label">Gradient Start</label>
                 <select class="form-select" [formControl]="form.controls['gradientStartToken']">
-                  <option *ngFor="let t of paletteTokens" [value]="t.key">{{t.label}}</option>
+                  @for (t of paletteTokens; track t) {
+                    <option [value]="t.key">{{t.label}}</option>
+                  }
                 </select>
                 <div class="form-text d-flex align-items-center gap-2 mt-1">
                   <span class="d-inline-block rounded" style="width:18px;height:18px;" [style.background]="'var(' + form.controls['gradientStartToken'].value + ')'"> </span>
@@ -58,25 +62,27 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
               <div class="col-6 col-md-3">
                 <label class="form-label">Gradient End</label>
                 <select class="form-select" [formControl]="form.controls['gradientEndToken']">
-                  <option *ngFor="let t of paletteTokens" [value]="t.key">{{t.label}}</option>
+                  @for (t of paletteTokens; track t) {
+                    <option [value]="t.key">{{t.label}}</option>
+                  }
                 </select>
                 <div class="form-text d-flex align-items-center gap-2 mt-1">
                   <span class="d-inline-block rounded" style="width:18px;height:18px;" [style.background]="'var(' + form.controls['gradientEndToken'].value + ')'"> </span>
                 </div>
               </div>
             </div>
-
+  
             <div class="d-flex flex-wrap gap-2 mt-3">
               <button type="button" class="btn btn-primary" (click)="apply()" [disabled]="form.invalid">Apply (Preview + This Tab)</button>
               <button type="button" class="btn btn-success" (click)="save()" [disabled]="form.invalid">Save (LocalStorage)</button>
               <button type="button" class="btn btn-outline-secondary" (click)="reset()">Reset</button>
             </div>
-
+  
             <p class="text-secondary small mt-2 mb-0">Note: Saved themes persist in this browser. Hooking up server persistence can be added later.</p>
           </div>
         </div>
       </div>
-
+  
       <!-- Live Preview -->
       <div class="col-12">
         <div class="card shadow-sm border-0 card-rounded" [wizardTheme]="form.controls['theme'].value">

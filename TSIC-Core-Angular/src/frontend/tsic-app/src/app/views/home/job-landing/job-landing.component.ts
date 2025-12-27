@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
@@ -16,7 +16,7 @@ import type { RegistrationStatusResponse } from '@infrastructure/api';
 @Component({
     selector: 'app-job-landing',
     standalone: true,
-    imports: [CommonModule, BulletinsComponent],
+    imports: [BulletinsComponent],
     templateUrl: './job-landing.component.html',
     styleUrl: './job-landing.component.scss'
 })

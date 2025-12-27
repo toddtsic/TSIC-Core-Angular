@@ -1,10 +1,10 @@
 import { Component, EventEmitter, Input, Output, HostBinding } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
     selector: 'app-tw-action-bar',
     standalone: true,
-    imports: [CommonModule],
+    imports: [],
     templateUrl: './tw-action-bar.component.html',
     styleUrls: ['./tw-action-bar.component.scss']
 })

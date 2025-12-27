@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { Roles } from '@infrastructure/constants/roles.constants';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
@@ -10,7 +10,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
 @Component({
   selector: 'app-rw-family-check',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
   <div class="card shadow-lg border-0 card-rounded">
     <div class="card-body bg-surface px-4 pb-4 pt-3">

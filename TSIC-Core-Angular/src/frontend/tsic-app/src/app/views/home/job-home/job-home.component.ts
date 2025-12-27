@@ -1,5 +1,5 @@
 import { Component, effect, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import type { RegistrationStatusResponse } from '@infrastructure/api';
@@ -13,7 +13,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 @Component({
   selector: 'app-job-home',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [RouterLink],
   templateUrl: './job-home.component.html',
   styleUrl: './job-home.component.scss'
 })

@@ -1,14 +1,14 @@
 import { Component, EventEmitter, Output, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
 
 @Component({
   selector: 'app-credit-card-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
-             style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+      style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
       @if (viOnly) {
         <div class="alert alert-secondary border-0" role="status">
@@ -25,67 +25,89 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
               <option value="VISA">VISA</option>
               <option value="AMEX">AMEX</option>
             </select>
-            <div class="form-text text-danger" *ngIf="err('type')">{{ err('type') }}</div>
+            @if (err('type')) {
+              <div class="form-text text-danger">{{ err('type') }}</div>
+            }
           </div>
           <div class="col-md-4">
             <label class="form-label small mb-1">Card Number</label>
             <input class="form-control form-control-sm" formControlName="number" (input)="formatNumber()">
-            <div class="form-text text-danger" *ngIf="err('number')">{{ err('number') }}</div>
+            @if (err('number')) {
+              <div class="form-text text-danger">{{ err('number') }}</div>
+            }
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1" for="cc-expiry">Expiry (MM / YY)</label>
             <input id="cc-expiry" class="form-control form-control-sm" formControlName="expiry"
-                   (input)="formatExpiry($event)" (blur)="forceMonthLeadingZero()"
-                   placeholder="MM / YY" inputmode="numeric" autocomplete="cc-exp"
-                   aria-describedby="cc-expiry-help">
-            <div id="cc-expiry-help" class="form-text" *ngIf="!err('expiry')">Enter month and year, e.g. 04 / 27</div>
-            <div class="form-text text-danger" *ngIf="err('expiry')">{{ err('expiry') }}</div>
+              (input)="formatExpiry($event)" (blur)="forceMonthLeadingZero()"
+              placeholder="MM / YY" inputmode="numeric" autocomplete="cc-exp"
+              aria-describedby="cc-expiry-help">
+              @if (!err('expiry')) {
+                <div id="cc-expiry-help" class="form-text">Enter month and year, e.g. 04 / 27</div>
+              }
+              @if (err('expiry')) {
+                <div class="form-text text-danger">{{ err('expiry') }}</div>
+              }
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small mb-1">CVV</label>
+              <input class="form-control form-control-sm" formControlName="code" (input)="formatCvv()">
+              @if (err('code')) {
+                <div class="form-text text-danger">{{ err('code') }}</div>
+              }
+            </div>
           </div>
-          <div class="col-md-2">
-            <label class="form-label small mb-1">CVV</label>
-            <input class="form-control form-control-sm" formControlName="code" (input)="formatCvv()">
-            <div class="form-text text-danger" *ngIf="err('code')">{{ err('code') }}</div>
+          <div class="row g-2 mt-2">
+            <div class="col-md-6">
+              <label class="form-label small mb-1">First Name</label>
+              <input class="form-control form-control-sm" formControlName="firstName">
+              @if (err('firstName')) {
+                <div class="form-text text-danger">{{ err('firstName') }}</div>
+              }
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Last Name</label>
+              <input class="form-control form-control-sm" formControlName="lastName">
+              @if (err('lastName')) {
+                <div class="form-text text-danger">{{ err('lastName') }}</div>
+              }
+            </div>
           </div>
-        </div>
-        <div class="row g-2 mt-2">
-          <div class="col-md-6">
-            <label class="form-label small mb-1">First Name</label>
-            <input class="form-control form-control-sm" formControlName="firstName">
-            <div class="form-text text-danger" *ngIf="err('firstName')">{{ err('firstName') }}</div>
+          <div class="row g-2 mt-2">
+            <div class="col-md-8">
+              <label class="form-label small mb-1">Address</label>
+              <input class="form-control form-control-sm" formControlName="address">
+              @if (err('address')) {
+                <div class="form-text text-danger">{{ err('address') }}</div>
+              }
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small mb-1">Zip Code</label>
+              <input class="form-control form-control-sm" formControlName="zip">
+              @if (err('zip')) {
+                <div class="form-text text-danger">{{ err('zip') }}</div>
+              }
+            </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label small mb-1">Last Name</label>
-            <input class="form-control form-control-sm" formControlName="lastName">
-            <div class="form-text text-danger" *ngIf="err('lastName')">{{ err('lastName') }}</div>
+          <div class="row g-2 mt-2">
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Email</label>
+              <input class="form-control form-control-sm" formControlName="email" autocomplete="email">
+              @if (err('email')) {
+                <div class="form-text text-danger">{{ err('email') }}</div>
+              }
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone</label>
+              <input class="form-control" formControlName="phone" (input)="formatPhone()" autocomplete="tel">
+              @if (err('phone')) {
+                <div class="form-text text-danger">{{ err('phone') }}</div>
+              }
+            </div>
           </div>
-        </div>
-        <div class="row g-2 mt-2">
-          <div class="col-md-8">
-            <label class="form-label small mb-1">Address</label>
-            <input class="form-control form-control-sm" formControlName="address">
-            <div class="form-text text-danger" *ngIf="err('address')">{{ err('address') }}</div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small mb-1">Zip Code</label>
-            <input class="form-control form-control-sm" formControlName="zip">
-            <div class="form-text text-danger" *ngIf="err('zip')">{{ err('zip') }}</div>
-          </div>
-        </div>
-        <div class="row g-2 mt-2">
-          <div class="col-md-6">
-            <label class="form-label small mb-1">Email</label>
-            <input class="form-control form-control-sm" formControlName="email" autocomplete="email">
-            <div class="form-text text-danger" *ngIf="err('email')">{{ err('email') }}</div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Phone</label>
-            <input class="form-control" formControlName="phone" (input)="formatPhone()" autocomplete="tel">
-            <div class="form-text text-danger" *ngIf="err('phone')">{{ err('phone') }}</div>
-          </div>
-        </div>
-      </form>
-    </section>
-  `
+        </form>
+      </section>
+    `
 })
 export class CreditCardFormComponent implements OnInit, OnChanges {
   @Input() viOnly: boolean = false;

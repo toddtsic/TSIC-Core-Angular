@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output, inject, OnInit, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -20,7 +20,7 @@ export interface LoginStepResult {
     templateUrl: './club-rep-login-step.component.html',
     styleUrls: ['./club-rep-login-step.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, InfoTooltipComponent]
+    imports: [ReactiveFormsModule, FormsModule, InfoTooltipComponent]
 })
 export class ClubRepLoginStepComponent implements OnInit {
     @Output() loginSuccess = new EventEmitter<LoginStepResult>();
