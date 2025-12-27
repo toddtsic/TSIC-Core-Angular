@@ -18,9 +18,9 @@ import { WaiverStateService } from './services/waiver-state.service';
 import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
-import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
+import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 import { RwActionBarComponent } from './action-bar/rw-action-bar.component';
-import { ToastService } from '../../shared/toast.service';
+import { ToastService } from '@shared-ui/toast.service';
 
 export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment' | 'confirmation';
 

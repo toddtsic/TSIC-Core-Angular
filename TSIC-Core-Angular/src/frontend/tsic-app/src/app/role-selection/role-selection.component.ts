@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
-import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';
+import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 
 @Component({
   selector: 'app-role-selection',

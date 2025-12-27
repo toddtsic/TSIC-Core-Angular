@@ -14,7 +14,7 @@ import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confi
 import type { PaymentResponseDto } from '@infrastructure/api';
 import { environment } from '../../../../environments/environment';
 import { TeamService } from '../team.service';
-import { ToastService } from '../../../shared/toast.service';
+import { ToastService } from '@shared-ui/toast.service';
 import { InsuranceService } from '../services/insurance.service';
 
 declare global {

@@ -8,7 +8,7 @@ import { FamAccountStepReviewComponent } from './steps/review.component';
 import { FamAccountStepAddressComponent } from './steps/address-info.component';
 import { FamAccountStepCredentialsComponent } from './steps/credentials.component';
 import { JobService } from '@infrastructure/services/job.service';
-import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
+import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 import { FamilyService } from '@infrastructure/services/family.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 

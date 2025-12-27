@@ -3,7 +3,7 @@ import { Router, type CanActivateFn } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
-import { ToastService } from '../../shared/toast.service';
+import { ToastService } from '@shared-ui/toast.service';
 
 /**
  * Unified authentication guard that handles all authentication scenarios

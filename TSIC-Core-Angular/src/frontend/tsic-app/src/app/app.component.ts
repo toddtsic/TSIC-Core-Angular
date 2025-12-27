@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { ToastsComponent } from './shared/toasts.component';
+import { ToastsComponent } from '@shared-ui/toasts.component';
 
 @Component({
   selector: 'tsic-root',

@@ -3,7 +3,7 @@ import { InsuranceService } from './insurance.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { ToastService } from '../../../shared/toast.service';
+import { ToastService } from '@shared-ui/toast.service';
 import { environment } from '../../../../environments/environment';
 
 class RegistrationWizardStub {

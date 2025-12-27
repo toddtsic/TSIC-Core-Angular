@@ -1,7 +1,7 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
-import { ToastService } from '../../shared/toast.service';
+import { ToastService } from '@shared-ui/toast.service';
 import { catchError, switchMap, throwError } from 'rxjs';
 
 /**

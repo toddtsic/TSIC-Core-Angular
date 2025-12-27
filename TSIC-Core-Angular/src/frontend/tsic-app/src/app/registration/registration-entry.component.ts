@@ -4,7 +4,7 @@ import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
-import { WizardThemeDirective } from '../shared/directives/wizard-theme.directive';
+import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 import { LoginComponent } from '../login/login.component';
 
 @Component({

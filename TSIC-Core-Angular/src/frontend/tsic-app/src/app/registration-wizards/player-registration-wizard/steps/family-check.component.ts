@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { InfoTooltipComponent } from '../../../shared/components/info-tooltip.component';
+import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 
 @Component({
   selector: 'app-rw-family-check',

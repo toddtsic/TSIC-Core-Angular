@@ -2,7 +2,7 @@ import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { WizardThemeDirective } from '../../shared/directives/wizard-theme.directive';
+import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 
 type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
 

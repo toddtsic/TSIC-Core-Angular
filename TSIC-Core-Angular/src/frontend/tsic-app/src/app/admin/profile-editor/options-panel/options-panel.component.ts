@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
 import { ProfileMetadata, OptionSet, ProfileFieldOption } from '@infrastructure/view-models/profile-migration.models';
-import { ToastService } from '../../../shared/toast.service';
-import { TsicDialogComponent } from '../../../shared/components/tsic-dialog/tsic-dialog.component';
+import { ToastService } from '@shared-ui/toast.service';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 @Component({
     selector: 'app-options-panel',

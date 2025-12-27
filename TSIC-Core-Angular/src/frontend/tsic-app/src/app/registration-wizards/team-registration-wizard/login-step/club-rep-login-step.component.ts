@@ -7,7 +7,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { ClubService } from '@infrastructure/services/club.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
-import { InfoTooltipComponent } from '../../../shared/components/info-tooltip.component';
+import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '@infrastructure/api';
 
 export interface LoginStepResult {
