@@ -5,7 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
-import { LoginComponent } from '../login/login.component';
+import { LoginComponent } from '../views/auth/login/login.component';
 
 @Component({
   selector: 'app-registration-entry',

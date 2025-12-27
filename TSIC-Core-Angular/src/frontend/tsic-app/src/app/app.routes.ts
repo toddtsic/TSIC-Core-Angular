@@ -20,19 +20,19 @@ export const routes: Routes = [
 			// Login page
 			{
 				path: 'login',
-				loadComponent: () => import('./login/login.component').then(m => m.LoginComponent),
+				loadComponent: () => import('./views/auth/login/login.component').then(m => m.LoginComponent),
 				canActivate: [authGuard],
 				data: { redirectAuthenticated: true }
 			},
 			// Terms of Service acceptance
 			{
 				path: 'terms-of-service',
-				loadComponent: () => import('./terms-of-service/terms-of-service.component').then(m => m.TermsOfServiceComponent)
+				loadComponent: () => import('./views/auth/terms-of-service/terms-of-service.component').then(m => m.TermsOfServiceComponent)
 			},
 			// Role selection page
 			{
 				path: 'role-selection',
-				loadComponent: () => import('./role-selection/role-selection.component').then(m => m.RoleSelectionComponent)
+				loadComponent: () => import('./views/auth/role-selection/role-selection.component').then(m => m.RoleSelectionComponent)
 			},
 			// Family Account wizard (create/manage family + children)
 			{

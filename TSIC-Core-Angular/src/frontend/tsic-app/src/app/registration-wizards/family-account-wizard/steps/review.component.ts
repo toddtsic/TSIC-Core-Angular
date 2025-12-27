@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { LoginComponent } from '../../../login/login.component';
+import { LoginComponent } from '../../../views/auth/login/login.component';
 import { FamilyService } from '@infrastructure/services/family.service';
 import type { FamilyRegistrationRequest, FamilyUpdateRequest } from '@infrastructure/api';
 import { JobService } from '@infrastructure/services/job.service';
