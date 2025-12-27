@@ -19,7 +19,23 @@
   <div class="row">
     <!-- Content Area -->
     <div class="col-12">
+      @defer (on immediate) {
       <router-outlet></router-outlet>
+      } @placeholder {
+      <div class="d-flex justify-content-center align-items-center py-5">
+        <div class="text-center">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="text-muted mt-2">Loading content...</p>
+        </div>
+      </div>
+      } @error {
+      <div class="alert alert-warning" role="alert">
+        <i class="bi bi-exclamation-circle-fill me-2"></i>
+        Failed to load page content
+      </div>
+      }
     </div>
   </div>
 </main>

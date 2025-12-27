@@ -1,6 +1,5 @@
 <div class="job-landing-container">
     <!-- Bulletins Section (visible to all users) -->
-    @defer (on viewport) {
     @if (bulletinsError()) {
     <div class="alert alert-danger" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -9,19 +8,6 @@
     } @else {
     <app-bulletins [bulletins]="bulletins()" [loading]="bulletinsLoading()" [error]="bulletinsError()" />
     }
-    } @placeholder {
-    <div class="placeholder-content">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading bulletins...</span>
-        </div>
-        <p class="text-muted mt-2">Loading bulletins...</p>
-    </div>
-    } @error {
-    <div class="alert alert-warning" role="alert">
-        <i class="bi bi-exclamation-circle-fill me-2"></i>
-        Failed to load bulletin component
-    </div>
-    }
 
     <!-- Authenticated User View -->
     @if (isAuthenticated()) {
@@ -29,7 +15,6 @@
         <h2>Welcome back!</h2>
 
         <!-- Registration Status Section -->
-        @defer (on idle) {
         @if (registrationStatuses() && registrationStatuses().length > 0) {
         <div class="registration-status">
             <h3>Your Registrations</h3>
@@ -41,19 +26,6 @@
                 </div>
                 }
             </div>
-        </div>
-        }
-        } @placeholder {
-        <div class="placeholder-content">
-            <div class="spinner-border spinner-border-sm text-secondary" role="status">
-                <span class="visually-hidden">Loading registrations...</span>
-            </div>
-            <span class="text-muted ms-2">Loading your registrations...</span>
-        </div>
-        } @error {
-        <div class="alert alert-warning" role="alert">
-            <i class="bi bi-exclamation-circle-fill me-2"></i>
-            Unable to load registration status
         </div>
         }
     </div>
