@@ -110,13 +110,15 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                             [cssClass]="'rw-teams-single'"
                                             [enabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId)) && filteredTeamsFor(p.userId).length>0 && !(isRegistered(p.userId) && !hasAlternativeOpenTeam(p.userId))"
                                             [value]="selectedTeams()[p.userId] || null"
+                                            [valueTemplate]="singleValueTemplate"
+                                            [itemTemplate]="singleItemTemplate"
                                             (change)="onSyncSingleChange(p.userId, $event)">
-                            <ng-template #valueTemplate let-data>
+                            <ng-template #singleValueTemplate let-data>
                               <span class="rw-item">
                                 <span class="name">{{ data?.teamName }} @if (data?.perRegistrantFee != null) { ({{ data?.perRegistrantFee | currency }}) }</span>
                               </span>
                             </ng-template>
-                            <ng-template #itemTemplate let-data>
+                            <ng-template #singleItemTemplate let-data>
                               <span class="rw-item" [title]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'Team is full and cannot be selected.' : ''">
                                 <span class="name"
                                       [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
@@ -171,6 +173,8 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                        [popupWidth]="'100%'"
                                        [zIndex]="1200"
                                        [cssClass]="'rw-teams-ms'"
+                                       [valueTemplate]="multiValueTemplate"
+                                       [itemTemplate]="multiItemTemplate"
                                        (filtering)="onFiltering($event)"
                                        (beforeSelect)="onMsBeforeSelect(p.userId, $event)"
                                        (select)="onMsSelect(p.userId, $event)"
@@ -179,10 +183,10 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                        [value]="selectedArrayFor(p.userId)"
                                        (change)="onSyncMultiChange(p.userId, $event)">
                         <!-- Selected chip/value template to also display price when present -->
-                        <ng-template #valueTemplate let-data>
+                        <ng-template #multiValueTemplate let-data>
                           <span class="name">{{ data?.teamName }} @if (data?.perRegistrantFee != null) { ({{ data?.perRegistrantFee | currency }}) }</span>
                         </ng-template>
-                        <ng-template #itemTemplate let-data>
+                        <ng-template #multiItemTemplate let-data>
                           <span class="rw-item">
                             <span class="name"
                                   [style.text-decoration]="(data.rosterIsFull || baseRemaining(data.teamId) === 0) ? 'line-through' : null"
