@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { LoginComponent } from '../../../login/login.component';
 import { FamilyService } from '../../../core/services/family.service';
-import type { FamilyRegistrationRequest, FamilyUpdateRequest } from '../../../core/api/models';
+import type { FamilyRegistrationRequest, FamilyUpdateRequest } from '../../../core/api';
 import { JobService } from '../../../core/services/job.service';
 
 @Component({

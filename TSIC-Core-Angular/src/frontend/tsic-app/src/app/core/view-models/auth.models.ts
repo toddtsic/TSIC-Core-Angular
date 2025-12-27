@@ -1,8 +1,8 @@
-import type { FamilyUserSummaryDto as FamilyUserSummary } from '../api/models';
+import type { FamilyUserSummaryDto as FamilyUserSummary } from '../api';
 // Re-export server-generated auth models to avoid duplication
-export type { LoginRequest, RegistrationDto, RegistrationRoleDto, RoleSelectionRequest, RefreshTokenRequest, AuthTokenResponse } from '../api/models';
+export type { LoginRequest, RegistrationDto, RegistrationRoleDto, RoleSelectionRequest, RefreshTokenRequest, AuthTokenResponse } from '../api';
 // Keep existing LoginResponse name by aliasing the generated DTO
-export type { LoginResponseDto as LoginResponse } from '../api/models';
+export type { LoginResponseDto as LoginResponse } from '../api';
 
 export interface AuthenticatedUser {
     username: string;
@@ -17,7 +17,7 @@ export interface AuthenticatedUser {
 
 // Bootstrap payload optionally returned with login to avoid extra API calls.
 // Alias server DTO to existing name
-export type { FamilyUserSummaryDto as FamilyUserSummary } from '../api/models/models/FamilyUserSummaryDto';
+export type { FamilyUserSummaryDto as FamilyUserSummary } from '../api/models/FamilyUserSummaryDto';
 
 export type RegistrationStatus = 'none' | 'in-progress' | 'complete';
 export type ProfileModel = 'PP' | 'CAC';

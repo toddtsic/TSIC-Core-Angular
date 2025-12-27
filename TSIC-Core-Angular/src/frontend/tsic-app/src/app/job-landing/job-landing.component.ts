@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { JobService } from '../core/services/job.service';
 import { BulletinsComponent } from '../shared/bulletins/bulletins.component';
-import type { RegistrationStatusResponse } from '../core/api/models';
+import type { RegistrationStatusResponse } from '../core/api';
 
 /**
  * Job Landing Page Component

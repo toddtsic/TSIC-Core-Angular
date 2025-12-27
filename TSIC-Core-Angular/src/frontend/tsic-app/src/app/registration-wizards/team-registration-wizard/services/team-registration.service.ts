@@ -14,7 +14,7 @@ import {
     ClubTeamManagementDto,
     UpdateClubTeamRequest,
     ClubTeamOperationResponse
-} from '../../../core/api/models';
+} from '../../../core/api';
 
 /**
  * Team Registration Service

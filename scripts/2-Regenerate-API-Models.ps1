@@ -156,9 +156,9 @@ try {
     # Verify generated files
     Write-Host "Verifying generated models..." -ForegroundColor Yellow
     
-    $indexPath = Join-Path $frontendPath "src\app\core\api\models\index.ts"
-    $familyPlayerPath = Join-Path $frontendPath "src\app\core\api\models\models\FamilyPlayerDto.ts"
-    $jobMetadataPath = Join-Path $frontendPath "src\app\core\api\models\models\JobMetadataResponse.ts"
+    $indexPath = Join-Path $frontendPath "src\app\core\api\index.ts"
+    $familyPlayerPath = Join-Path $frontendPath "src\app\core\api\models\FamilyPlayerDto.ts"
+    $jobMetadataPath = Join-Path $frontendPath "src\app\core\api\models\JobMetadataResponse.ts"
     
     if (-not (Test-Path $indexPath)) {
         throw "Barrel export (index.ts) not found"

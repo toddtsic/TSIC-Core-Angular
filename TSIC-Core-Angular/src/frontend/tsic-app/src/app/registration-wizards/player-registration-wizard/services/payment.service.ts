@@ -3,8 +3,14 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto } from '../../../core/api/models';
+import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto } from '../../../core/api';
 import { environment } from '../../../../environments/environment';
+
+// Helper to safely convert number | string to number
+function toNumber(value: number | string | undefined | null): number {
+    if (value === undefined || value === null) return 0;
+    return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
+}
 
 export interface LineItem {
     playerId: string;

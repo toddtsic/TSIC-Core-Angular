@@ -251,7 +251,50 @@ builder.Services.AddAuthorization(options =>
             RoleConstants.Names.StaffName));
 });
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddSchemaTransformer((schema, context, cancellationToken) =>
+    {
+        // Ensure numeric types are exported as number (not number | string)
+        var jsonType = context.JsonTypeInfo;
+        if (jsonType.Type == typeof(int) || jsonType.Type == typeof(int?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
+            schema.Format = "int32";
+        }
+        else if (jsonType.Type == typeof(long) || jsonType.Type == typeof(long?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
+            schema.Format = "int64";
+        }
+        else if (jsonType.Type == typeof(short) || jsonType.Type == typeof(short?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
+            schema.Format = "int32";
+        }
+        else if (jsonType.Type == typeof(byte) || jsonType.Type == typeof(byte?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
+            schema.Format = "int32";
+        }
+        else if (jsonType.Type == typeof(decimal) || jsonType.Type == typeof(decimal?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Number;
+            schema.Format = "double";
+        }
+        else if (jsonType.Type == typeof(double) || jsonType.Type == typeof(double?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Number;
+            schema.Format = "double";
+        }
+        else if (jsonType.Type == typeof(float) || jsonType.Type == typeof(float?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Number;
+            schema.Format = "float";
+        }
+        return Task.CompletedTask;
+    });
+});
 
 // CORS for Angular
 builder.Services.AddCors(options =>

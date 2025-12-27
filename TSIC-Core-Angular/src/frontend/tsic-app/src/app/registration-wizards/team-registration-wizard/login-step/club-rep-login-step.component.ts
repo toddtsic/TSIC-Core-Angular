@@ -8,7 +8,7 @@ import { ClubService } from '../../../core/services/club.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '../../../core/services/form-field-data.service';
 import { InfoTooltipComponent } from '../../../shared/components/info-tooltip.component';
-import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '../../../core/api/models';
+import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '../../../core/api';
 
 export interface LoginStepResult {
     clubName: string;
@@ -186,7 +186,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                         this.hasClubRepAccount = 'yes';
                         this.registrationSuccess.emit({
                             clubName: request.clubName,
-                            availableClubs: [{ clubName: request.clubName, clubId: 0, isInUse: false }]
+                            availableClubs: [{ clubName: request.clubName, isInUse: false }]
                         });
                     },
                     error: (error: HttpErrorResponse) => {

@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import type { BulletinDto } from '../../core/api/models';
+import type { BulletinDto } from '../../core/api';
 
 /**
  * Bulletins Display Component

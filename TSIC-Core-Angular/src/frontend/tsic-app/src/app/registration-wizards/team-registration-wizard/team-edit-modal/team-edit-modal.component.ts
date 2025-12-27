@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import { ClubTeamManagementDto, UpdateClubTeamRequest } from '../../../core/api/models';
+import { ClubTeamManagementDto, UpdateClubTeamRequest } from '../../../core/api';
 
 @Component({
     selector: 'app-team-edit-modal',

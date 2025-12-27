@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../../../core/api/models';
+import type { ClubTeamDto, RegisteredTeamDto, AgeGroupDto } from '../../../core/api';
 import { JobContextService } from '../../../core/services/job-context.service';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
 import { ClubTeamAddModalComponent } from '../club-team-add-modal/club-team-add-modal.component';
@@ -59,7 +59,7 @@ export class TeamsStepComponent implements OnInit {
 
     // Club metadata (clubName from parent wizard, clubId from API)
     clubName = input.required<string>();
-    clubId = signal<number | string | null>(null);
+    clubId = signal<number | null>(null);
 
     // Event display name from jobPath
     eventName = computed(() => {
@@ -446,7 +446,7 @@ interface NewClubTeamData {
 }
 
 interface UnifiedTeamView {
-    clubTeamId: number | string;
+    clubTeamId: number;
     clubTeamName: string;
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;

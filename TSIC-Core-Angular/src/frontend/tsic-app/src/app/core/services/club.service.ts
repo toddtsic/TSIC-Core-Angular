@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult } from '../api/models';
+import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult } from '../api';
 
 @Injectable({
     providedIn: 'root'

@@ -12,7 +12,7 @@ import { FormFieldDataService } from '../../core/services/form-field-data.servic
 import { JobService } from '../../core/services/job.service';
 import { JobContextService } from '../../core/services/job-context.service';
 import { AuthService } from '../../core/services/auth.service';
-import type { ClubRepClubDto } from '../../core/api/models';
+import type { ClubRepClubDto } from '../../core/api';
 
 @Component({
     selector: 'app-team-registration-wizard',
