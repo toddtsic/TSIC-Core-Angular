@@ -1,4 +1,4 @@
-﻿import { inject } from '@angular/core';
+import { inject } from '@angular/core';
 import { Router, type CanActivateFn } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';

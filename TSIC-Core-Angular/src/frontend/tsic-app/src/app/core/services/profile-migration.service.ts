@@ -18,7 +18,7 @@ import {
     OptionSet,
     OptionSetUpdateRequest,
     RenameOptionSetRequest
-} from '../models/profile-migration.models';
+} from '../view-models/profile-migration.models';
 
 @Injectable({
     providedIn: 'root'

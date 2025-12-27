@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ProfileMigrationService } from '../../core/services/profile-migration.service';
-import { ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '../../core/models/profile-migration.models';
+import { ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '../../core/view-models/profile-migration.models';
 import { ToastService } from '../../shared/toast.service';
 import { TsicDialogComponent } from '../../shared/components/tsic-dialog/tsic-dialog.component';
 import { OptionsPanelComponent } from './options-panel/options-panel.component';

@@ -1,6 +1,6 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
-import type { Loadable } from '../../../core/models/state.models';
+import type { Loadable } from '../../../core/shared/state.models';
 import type { VIPlayerObjectResponse } from '../../../core/api/models';
 
 /**

@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { PlayerStateService } from './services/player-state.service';
 import { WaiverStateService } from './services/waiver-state.service';
 import { FormSchemaService } from './services/form-schema.service';
-import type { Loadable } from '../../core/models/state.models';
+import type { Loadable } from '../../core/shared/state.models';
 import type {
     VIPlayerObjectResponse,
     PreSubmitPlayerRegistrationRequestDto,

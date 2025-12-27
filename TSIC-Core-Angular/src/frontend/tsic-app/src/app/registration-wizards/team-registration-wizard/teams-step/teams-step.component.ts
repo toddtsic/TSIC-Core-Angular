@@ -8,6 +8,12 @@ import { JobContextService } from '../../../core/services/job-context.service';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
 import { ClubTeamAddModalComponent } from '../club-team-add-modal/club-team-add-modal.component';
 
+// Helper to safely convert number | string to number
+function toNumber(value: number | string | undefined | null): number {
+    if (value === undefined || value === null) return 0;
+    return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
+}
+
 /**
  * Teams Step Component
  * 
@@ -53,7 +59,7 @@ export class TeamsStepComponent implements OnInit {
 
     // Club metadata (clubName from parent wizard, clubId from API)
     clubName = input.required<string>();
-    clubId = signal<number | null>(null);
+    clubId = signal<number | string | null>(null);
 
     // Event display name from jobPath
     eventName = computed(() => {
@@ -90,15 +96,15 @@ export class TeamsStepComponent implements OnInit {
                 if (name.startsWith('dropped')) return false;
                 // Only include Waitlist if it has spots available
                 if (name.startsWith('waitlist')) {
-                    return (ag.maxTeams - ag.registeredCount) > 0;
+                    return (toNumber(ag.maxTeams) - toNumber(ag.registeredCount)) > 0;
                 }
                 return true;
             })
             .sort((a, b) => {
                 const aName = a.ageGroupName.toLowerCase();
                 const bName = b.ageGroupName.toLowerCase();
-                const aFull = a.registeredCount >= a.maxTeams && !aName.startsWith('waitlist');
-                const bFull = b.registeredCount >= b.maxTeams && !bName.startsWith('waitlist');
+                const aFull = toNumber(a.registeredCount) >= toNumber(a.maxTeams) && !aName.startsWith('waitlist');
+                const bFull = toNumber(b.registeredCount) >= toNumber(b.maxTeams) && !bName.startsWith('waitlist');
                 const aWaitlist = aName.startsWith('waitlist');
                 const bWaitlist = bName.startsWith('waitlist');
 
@@ -118,7 +124,7 @@ export class TeamsStepComponent implements OnInit {
     addTeamModal = viewChild<ClubTeamAddModalComponent>('addTeamModal');
     showAgeGroupModal = signal<boolean>(false);
     selectedClubTeamForRegistration = signal<ClubTeamDto | null>(null);
-    openDropdownTeamId = signal<number | null>(null);
+    openDropdownTeamId = signal<number | string | null>(null);
     isRegistering = signal<boolean>(false);
     selectedAgeGroupId = signal<string | null>(null);
 
@@ -128,7 +134,7 @@ export class TeamsStepComponent implements OnInit {
 
     // Financial summary
     totalOwed = computed(() => {
-        return this.registeredTeams().reduce((sum, team) => sum + (team.owedTotal || 0), 0);
+        return this.registeredTeams().reduce((sum, team) => sum + toNumber(team.owedTotal), 0);
     });
 
     // Unified team view combining available and registered teams
@@ -382,7 +388,7 @@ export class TeamsStepComponent implements OnInit {
      * Deletes the Teams record if it has no payments
      */
     unregisterTeam(team: RegisteredTeamDto): void {
-        if (team.paidTotal > 0) {
+        if (toNumber(team.paidTotal) > 0) {
             this.errorMessage.set('Cannot unregister a team that has payments. Please contact support.');
             return;
         }
@@ -440,7 +446,7 @@ interface NewClubTeamData {
 }
 
 interface UnifiedTeamView {
-    clubTeamId: number;
+    clubTeamId: number | string;
     clubTeamName: string;
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;

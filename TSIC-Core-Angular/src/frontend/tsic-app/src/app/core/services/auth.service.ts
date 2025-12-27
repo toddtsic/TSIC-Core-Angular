@@ -1,5 +1,5 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { Roles, RoleName } from '../models/roles.constants';
+import { Roles, RoleName } from '../constants/roles.constants';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, throwError, interval, Subscription } from 'rxjs';
@@ -10,7 +10,7 @@ import {
   AuthTokenResponse,
   AuthenticatedUser,
   RegistrationRoleDto
-} from '../models/auth.models';
+} from '../view-models/auth.models';
 import { environment } from '../../../environments/environment';
 
 @Injectable({

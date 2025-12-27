@@ -113,8 +113,8 @@ export class PaymentService {
                 next: resp => {
                     this.discountApplying.set(false);
                     const total = resp?.totalDiscount ?? 0;
-                    if (resp?.success && total > 0) {
-                        const applied = Math.round((total + Number.EPSILON) * 100) / 100;
+                    if (resp?.success && toNumber(total) > 0) {
+                        const applied = Math.round((toNumber(total) + Number.EPSILON) * 100) / 100;
                         this.appliedDiscount.set(applied);
                         this.discountMessage.set(`Discount applied: ${applied.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}`);
                     } else {

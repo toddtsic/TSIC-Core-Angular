@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
-import { Roles } from '../../../core/models/roles.constants';
+import { Roles } from '../../../core/constants/roles.constants';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';

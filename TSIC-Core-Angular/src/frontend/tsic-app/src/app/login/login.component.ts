@@ -3,7 +3,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angula
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-import { LoginRequest } from '../core/models/auth.models';
+import { LoginRequest } from '../core/view-models/auth.models';
 import { AutofillMonitor } from '@angular/cdk/text-field';
 import { TextBoxModule } from '@syncfusion/ej2-angular-inputs';
 import { ButtonModule } from '@syncfusion/ej2-angular-buttons';

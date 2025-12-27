@@ -1,7 +1,7 @@
 import { Component, Input, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ProfileMetadata, ProfileMetadataField } from '../../../core/models/profile-migration.models';
+import { ProfileMetadata, ProfileMetadataField } from '../../../core/view-models/profile-migration.models';
 import { FormFieldDataService } from '../../../core/services/form-field-data.service';
 
 @Component({

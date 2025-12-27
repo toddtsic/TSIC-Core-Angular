@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { LocalStorageKey, LocalStorageSchema } from '../models/local-storage.model';
+import { LocalStorageKey, LocalStorageSchema } from '../shared/local-storage.model';
 
 /**
  * Type-safe wrapper for localStorage operations

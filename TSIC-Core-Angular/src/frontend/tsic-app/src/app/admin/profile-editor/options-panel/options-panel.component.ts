@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ProfileMigrationService } from '../../../core/services/profile-migration.service';
-import { ProfileMetadata, OptionSet, ProfileFieldOption } from '../../../core/models/profile-migration.models';
+import { ProfileMetadata, OptionSet, ProfileFieldOption } from '../../../core/view-models/profile-migration.models';
 import { ToastService } from '../../../shared/toast.service';
 import { TsicDialogComponent } from '../../../shared/components/tsic-dialog/tsic-dialog.component';
 
