@@ -1,11 +1,12 @@
 <!-- Desktop Navbar (visible on large screens) -->
+@if (menus() && menus().length > 0) {
 <nav class="navbar navbar-expand-lg d-none d-lg-block">
     <div class="container-fluid">
         @if (menusLoading()) {
         <span class="navbar-text">Loading menu...</span>
         } @else if (menusError()) {
         <span class="navbar-text text-danger">{{ menusError() }}</span>
-        } @else if (menus() && menus().length > 0) {
+        } @else {
         <ul class="navbar-nav">
             @for (item of menus(); track item.menuItemId) {
             <li class="nav-item" [class.dropdown]="hasChildren(item)">
@@ -79,8 +80,10 @@
         }
     </div>
 </nav>
+}
 
 <!-- Mobile Toggle Button and Offcanvas (visible on small/medium screens) -->
+@if (menus() && menus().length > 0) {
 <div class="d-lg-none">
     <!-- Offcanvas sidebar (position fixed, doesn't affect layout) -->
     <div class="offcanvas offcanvas-start" [class.show]="offcanvasOpen()"
@@ -183,3 +186,4 @@
     <div class="offcanvas-backdrop fade show" (click)="closeOffcanvas()"></div>
     }
 </div>
+}
