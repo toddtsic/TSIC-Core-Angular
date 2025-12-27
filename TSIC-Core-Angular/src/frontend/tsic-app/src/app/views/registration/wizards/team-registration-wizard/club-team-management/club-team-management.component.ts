@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output, inject, input, signal, computed, viewChild } from '@angular/core';
+import { Component, OnInit, inject, input, signal, computed, viewChild, output } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
@@ -16,10 +16,12 @@ import { ClubTeamManagementDto } from '@infrastructure/api';
     styleUrls: ['./club-team-management.component.scss']
 })
 export class ClubTeamManagementComponent implements OnInit {
+    // Signal inputs (Angular 21)
     clubName = input.required<string>();
 
-    @Output() teamsLoaded = new EventEmitter<number>();
-    @Output() addTeam = new EventEmitter<void>();
+    // Signal outputs (Angular 21)
+    teamsLoaded = output<number>();
+    addTeam = output<void>();
 
     private readonly fieldData = inject(FormFieldDataService);
     private readonly userPrefs = inject(UserPreferencesService);

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, computed, inject, signal, effect } from '@angular/core';
+import { Component, computed, inject, signal, effect, input, output } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -21,8 +21,11 @@ interface ClubTeamDto {
     styleUrls: ['./club-team-add-modal.component.scss']
 })
 export class ClubTeamAddModalComponent {
-    @Input({ required: true }) clubName!: string;
-    @Output() teamAdded = new EventEmitter<void>();
+    // Signal input (Angular 21)
+    clubName = input.required<string>();
+    
+    // Signal output (Angular 21)
+    teamAdded = output<void>();
 
     private readonly http = inject(HttpClient);
     private readonly fieldData = inject(FormFieldDataService);

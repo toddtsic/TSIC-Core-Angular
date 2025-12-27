@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, HostBinding } from '@angular/core';
+import { Component, HostBinding, input, output, computed, ChangeDetectionStrategy } from '@angular/core';
 
 
 @Component({
@@ -6,25 +6,26 @@ import { Component, EventEmitter, Input, Output, HostBinding } from '@angular/co
     standalone: true,
     imports: [],
     templateUrl: './tw-action-bar.component.html',
-    styleUrls: ['./tw-action-bar.component.scss']
+    styleUrls: ['./tw-action-bar.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush // Angular 21 performance optimization
 })
 export class TwActionBarComponent {
-    @Input() canBack = false;
-    @Input() canContinue = false;
-    @Input() continueLabel = 'Continue';
-    @Input() showContinue = true;
-    @Input() placement: 'top' | 'bottom' = 'top';
+    // Signal inputs - Angular 21 feature
+    canBack = input<boolean>(false);
+    canContinue = input<boolean>(false);
+    continueLabel = input<string>('Continue');
+    showContinue = input<boolean>(true);
+    placement = input<'top' | 'bottom'>('top');
 
-    @Output() back = new EventEmitter<void>();
-    @Output() continue = new EventEmitter<void>();
+    // Signal outputs - Angular 21 feature
+    back = output<void>();
+    continue = output<void>();
 
-    // Determine whether there is any meaningful content to show.
-    private get hasContent(): boolean {
-        return this.canBack || this.showContinue;
-    }
+    // Computed signal to determine whether there is any meaningful content to show
+    private hasContent = computed(() => this.canBack() || this.showContinue());
 
     // Hide host entirely when no content so empty toolbar doesn't consume vertical space.
     @HostBinding('style.display') get hostDisplay(): string {
-        return this.hasContent ? 'block' : 'none';
+        return this.hasContent() ? 'block' : 'none';
     }
 }
