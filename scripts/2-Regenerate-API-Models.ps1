@@ -35,32 +35,60 @@ Write-Host "Frontend path: $frontendPath" -ForegroundColor Gray
 Write-Host ""
 
 # Check if API is running
-Write-Host "Checking API status..." -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Step 1: Verify API Status" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
 
 $apiRunning = $false
 $swaggerUrl = "http://localhost:5022/swagger/v1/swagger.json"
 $swaggerUrlHttps = "https://localhost:7215/swagger/v1/swagger.json"
 
+Write-Host "Checking for API at $swaggerUrl..." -ForegroundColor Yellow
+
 try {
     $response = Invoke-WebRequest -Uri $swaggerUrl -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
     $apiRunning = $response.StatusCode -eq 200
+    if ($apiRunning) {
+        Write-Host "[OK] API is running on HTTP (port 5022)" -ForegroundColor Green
+    }
 } catch {
+    Write-Host "  HTTP endpoint not responding, trying HTTPS..." -ForegroundColor Gray
     try {
         $response = Invoke-WebRequest -Uri $swaggerUrlHttps -UseBasicParsing -SkipCertificateCheck -TimeoutSec 2 -ErrorAction SilentlyContinue
         $apiRunning = $response.StatusCode -eq 200
+        if ($apiRunning) {
+            Write-Host "[OK] API is running on HTTPS (port 7215)" -ForegroundColor Green
+        }
     } catch {
-        # API not running
+        Write-Host "[X] API is not running" -ForegroundColor Red
     }
 }
 
 if (-not $apiRunning) {
-    Write-Host "API not running. Starting API..." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "  Starting API Server" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Starting API in new window..." -ForegroundColor Yellow
+    Write-Host "API Path: $apiPath" -ForegroundColor Gray
     
     Set-Location $apiPath
-    Start-Process pwsh -ArgumentList "-NoExit", "-Command", "dotnet watch run --launch-profile https --non-interactive"
+    
+    # Start API in a new PowerShell window
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = "powershell.exe"
+    $startInfo.Arguments = "-NoExit -Command `"dotnet watch run --launch-profile https --non-interactive`""
+    $startInfo.WorkingDirectory = $apiPath
+    $startInfo.UseShellExecute = $true
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    
     Set-Location $projectRoot
     
-    Write-Host "Waiting for API to be ready..." -ForegroundColor Yellow
+    Write-Host "API process started (PID: $($process.Id))" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Waiting for API to be ready (checking every 2 seconds)..." -ForegroundColor Yellow
     
     $maxAttempts = 30
     $attempt = 0
@@ -68,6 +96,8 @@ if (-not $apiRunning) {
     while ($attempt -lt $maxAttempts -and -not $apiRunning) {
         Start-Sleep -Seconds 2
         $attempt++
+        
+        Write-Host "." -NoNewline
         
         try {
             $response = Invoke-WebRequest -Uri $swaggerUrl -UseBasicParsing -TimeoutSec 1 -ErrorAction SilentlyContinue
@@ -80,23 +110,26 @@ if (-not $apiRunning) {
                 # Still not ready
             }
         }
-        
-        Write-Host "." -NoNewline
     }
     
     Write-Host ""
     
     if (-not $apiRunning) {
+        Write-Host ""
         Write-Host "ERROR: API failed to start within 60 seconds" -ForegroundColor Red
+        Write-Host "Please check the API window for errors" -ForegroundColor Yellow
         exit 1
     }
+    
+    Write-Host ""
+    Write-Host "[OK] API is now ready" -ForegroundColor Green
 }
 
-Write-Host "API is ready" -ForegroundColor Green
 Write-Host ""
-
-# Generate TypeScript models
-Write-Host "Generating TypeScript models with openapi-typescript-codegen..." -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Step 2: Generate TypeScript Models" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
 
 Set-Location $frontendPath
 
@@ -113,6 +146,11 @@ try {
     }
     
     Write-Host "Model generation completed" -ForegroundColor Green
+    Write-Host ""
+    
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "  Step 3: Verify Generated Models" -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
     
     # Verify generated files
@@ -145,10 +183,13 @@ try {
         throw "JobMetadataResponse missing jobBannerText1 field"
     }
     
-    Write-Host "Generated models verified" -ForegroundColor Green
+    Write-Host "[OK] Barrel export verified" -ForegroundColor Green
+    Write-Host "[OK] FamilyPlayerDto verified" -ForegroundColor Green
+    Write-Host "[OK] JobMetadataResponse verified" -ForegroundColor Green
+    Write-Host "[OK] Required fields present" -ForegroundColor Green
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "  Complete" -ForegroundColor Cyan
+    Write-Host "  Complete - All models generated successfully!" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
     
 } catch {
