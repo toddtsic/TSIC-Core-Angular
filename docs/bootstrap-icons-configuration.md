@@ -20,10 +20,12 @@ Use SCSS `@import` instead of angular.json styles array, combined with proper as
 
 ```scss
 /* Bootstrap Icons */
-@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import '../node_modules/bootstrap-icons/font/bootstrap-icons.css';
 ```
 
-**Why this works:** When you import via SCSS, relative paths in the imported CSS are resolved relative to the node_modules location, allowing Angular's build system to properly bundle the fonts.
+**Why this works:** Angular 21's new `application` builder requires relative paths from the importing file. The path resolves correctly and Angular's build system properly bundles the fonts.
+
+**Note:** Prior to Angular 21, `@import 'bootstrap-icons/font/bootstrap-icons.css'` worked, but the new esbuild-based builder requires the explicit relative path.
 
 ### 2. Asset Configuration
 
@@ -77,3 +79,7 @@ Icons will properly display in light and dark modes with appropriate styling.
 ## Date Implemented
 
 December 19, 2025
+
+## Updated for Angular 21
+
+December 27, 2025 - Changed import path from `'bootstrap-icons/font/...'` to `'../node_modules/bootstrap-icons/font/...'` to accommodate Angular 21's new `application` builder which uses esbuild and requires explicit relative paths for node_modules imports.
