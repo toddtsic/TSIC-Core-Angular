@@ -10,6 +10,8 @@ public class JobMetadataDto
     public string JobPath { get; set; } = string.Empty;
     public string? JobLogoPath { get; set; }
     public string? JobBannerPath { get; set; }
+    public string? JobBannerText1 { get; set; }
+    public string? JobBannerText2 { get; set; }
     public bool? CoreRegformPlayer { get; set; }
     public DateTime? USLaxNumberValidThroughDate { get; set; }
     public DateTime? ExpiryUsers { get; set; }
@@ -75,6 +77,8 @@ public class JobLookupService : IJobLookupService
                 JobPath = jdo.Job.JobPath ?? string.Empty,
                 JobLogoPath = jdo.LogoHeader, // Using BannerFile for logo/banner
                 JobBannerPath = jdo.ParallaxSlide1Image,
+                JobBannerText1 = jdo.ParallaxSlide1Text1,
+                JobBannerText2 = jdo.ParallaxSlide1Text2,
                 CoreRegformPlayer = jdo.Job.CoreRegformPlayer == "1",
                 USLaxNumberValidThroughDate = jdo.Job.UslaxNumberValidThroughDate,
                 ExpiryUsers = jdo.Job.ExpiryUsers,

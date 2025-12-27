@@ -67,6 +67,8 @@ public class JobsController : ControllerBase
             JobPath = jobMetadata.JobPath,
             JobLogoPath = jobMetadata.JobLogoPath,
             JobBannerPath = jobMetadata.JobBannerPath,
+            JobBannerText1 = jobMetadata.JobBannerText1,
+            JobBannerText2 = jobMetadata.JobBannerText2,
             CoreRegformPlayer = jobMetadata.CoreRegformPlayer,
             USLaxNumberValidThroughDate = jobMetadata.USLaxNumberValidThroughDate,
             ExpiryUsers = jobMetadata.ExpiryUsers,

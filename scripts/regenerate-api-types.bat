@@ -34,30 +34,30 @@ if errorlevel 1 (
 echo API is ready
 echo.
 
-REM Run NSwag generation
-echo Generating TypeScript types with NSwag...
+REM Run openapi-typescript-codegen generation
+echo Generating TypeScript types with openapi-typescript-codegen...
 
 cd /d "%~dp0..\TSIC-Core-Angular\src\frontend\tsic-app"
-call nswag run nswag.json
+call npm run generate:api
 
 if errorlevel 1 (
-    echo ERROR: NSwag generation failed
+    echo ERROR: Type generation failed
     exit /b 1
 )
 
-echo NSwag generation completed
+echo Type generation completed
 echo.
 
 REM Verify generated types
 echo Verifying generated types...
 
-findstr /c:"playerId: string;" src\app\core\api\models\index.ts >nul 2>&1
+findstr /c:"playerId:" src\app\core\api\models\models\FamilyPlayerDto.ts >nul 2>&1
 if errorlevel 1 (
     echo ERROR: Verification failed - playerId type incorrect
     exit /b 1
 )
 
-findstr /c:"export interface FamilyPlayerDto" src\app\core\api\models\index.ts >nul 2>&1
+findstr /c:"export type FamilyPlayerDto" src\app\core\api\models\models\FamilyPlayerDto.ts >nul 2>&1
 if errorlevel 1 (
     echo ERROR: Verification failed - FamilyPlayerDto not found
     exit /b 1

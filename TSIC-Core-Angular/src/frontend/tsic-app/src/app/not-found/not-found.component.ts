@@ -3,10 +3,10 @@ import { Router, RouterLink } from '@angular/router';
 import { JobService } from '../core/services/job.service';
 
 @Component({
-  selector: 'app-not-found',
-  standalone: true,
-  imports: [RouterLink],
-  template: `
+    selector: 'app-not-found',
+    standalone: true,
+    imports: [RouterLink],
+    template: `
     <div class="container-fluid d-flex align-items-center justify-content-center min-vh-100">
       <div class="text-center">
         <h1 class="display-1 fw-bold">404</h1>
@@ -20,7 +20,7 @@ import { JobService } from '../core/services/job.service';
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
     }
@@ -35,27 +35,27 @@ import { JobService } from '../core/services/job.service';
   `]
 })
 export class NotFoundComponent {
-  private readonly jobService = inject(JobService);
-  private readonly router = inject(Router);
+    private readonly jobService = inject(JobService);
+    private readonly router = inject(Router);
 
-  // Return to current job landing page if available, otherwise TSIC home
-  homeLink = computed(() => {
-    // First try to get from current job signal
-    const job = this.jobService.currentJob();
-    if (job?.jobPath) {
-      return `/${job.jobPath}`;
-    }
+    // Return to current job landing page if available, otherwise TSIC home
+    homeLink = computed(() => {
+        // First try to get from current job signal
+        const job = this.jobService.currentJob();
+        if (job?.jobPath) {
+            return `/${job.jobPath}`;
+        }
 
-    // If not set, try to parse from current URL (first segment)
-    const url = this.router.url;
-    const segments = url.split('/').filter(s => s);
-    
-    // Check if first segment is not 'tsic' (which is TSIC-specific, not a job)
-    if (segments.length > 0 && segments[0] !== 'tsic') {
-      return `/${segments[0]}`;
-    }
+        // If not set, try to parse from current URL (first segment)
+        const url = this.router.url;
+        const segments = url.split('/').filter(s => s);
 
-    // Fall back to TSIC home
-    return '/tsic';
-  });
+        // Check if first segment is not 'tsic' (which is TSIC-specific, not a job)
+        if (segments.length > 0 && segments[0] !== 'tsic') {
+            return `/${segments[0]}`;
+        }
+
+        // Fall back to TSIC home
+        return '/tsic';
+    });
 }
