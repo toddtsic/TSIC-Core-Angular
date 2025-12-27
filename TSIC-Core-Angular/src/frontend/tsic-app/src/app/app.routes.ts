@@ -1,25 +1,21 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
-import { TsicLayoutComponent } from './layouts/tsic-layout/tsic-layout.component';
 
 export const routes: Routes = [
 	// Default route redirects to TSIC landing page
 	{ path: '', redirectTo: '/tsic', pathMatch: 'full' },
 
-	// TSIC-specific routes (non-job-specific activities)
+	// Job-specific routes (includes 'tsic' as special case) - allows both authenticated and anonymous users
 	{
-		path: 'tsic',
-		component: TsicLayoutComponent,
+		path: ':jobPath',
+		component: LayoutComponent,
 		canActivate: [authGuard],
 		data: { allowAnonymous: true },
 		children: [
-			// Public landing page
 			{
 				path: '',
-				loadComponent: () => import('./tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent),
-				canActivate: [authGuard],
-				data: { redirectAuthenticated: true }
+				loadComponent: () => import('./landing-router/landing-router.component').then(m => m.LandingRouterComponent)
 			},
 			// Login page
 			{
@@ -42,32 +38,6 @@ export const routes: Routes = [
 			{
 				path: 'family-account',
 				loadComponent: () => import('./registration-wizards/family-account-wizard/family-account-wizard.component').then(m => m.FamilyAccountWizardComponent)
-			},
-			// TSIC job home when user is registered for TSIC (wrapped in job-specific layout)
-			{
-				path: 'home',
-				component: LayoutComponent,
-				children: [
-					{
-						path: '',
-						loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent),
-						data: { requirePhase2: true }
-					}
-				]
-			}
-		]
-	},
-
-	// Job-specific routes - allows both authenticated and anonymous users (for registration)
-	{
-		path: ':jobPath',
-		component: LayoutComponent,
-		canActivate: [authGuard],
-		data: { allowAnonymous: true },
-		children: [
-			{
-				path: '',
-				loadComponent: () => import('./job-landing/job-landing.component').then(m => m.JobLandingComponent)
 			},
 			// Registration entry screen: sign in then choose next action
 			{

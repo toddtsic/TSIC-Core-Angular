@@ -58,7 +58,8 @@ export const authGuard: CanActivateFn = (route, state) => {
 
             // If authenticated but no job, go to role selection
             if (!jobPath) {
-                return router.createUrlTree(['/tsic/role-selection']);
+                const jobPathForRoleSelect = route.paramMap.get('jobPath') || 'tsic';
+                return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
             }
         } else {
             // Not authenticated - check for force flags or explicit intents
@@ -98,22 +99,37 @@ export const authGuard: CanActivateFn = (route, state) => {
                     const refreshedUser = authService.getCurrentUser();
                     // After refresh, check if Phase 2 is required
                     if (requirePhase2 && (!refreshedUser?.regId || !refreshedUser?.jobPath)) {
-                        return router.createUrlTree(['/tsic/role-selection']);
+                        const jobPathForRoleSelect = route.paramMap.get('jobPath') || 'tsic';
+                        return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
                     }
                     return true;
                 }),
                 catchError(() => {
-                    return [router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } })];
+                    const jobPathForLogin = route.paramMap.get('jobPath') || 'tsic';
+                    return [router.createUrlTree([`/${jobPathForLogin}/login`], { queryParams: { returnUrl: state.url } })];
                 })
             );
         }
 
-        return router.createUrlTree(['/tsic/login'], { queryParams: { returnUrl: state.url } });
+        const jobPathForLogin = route.paramMap.get('jobPath') || 'tsic';
+        return router.createUrlTree([`/${jobPathForLogin}/login`], { queryParams: { returnUrl: state.url } });
     }
 
     // Authenticated - validate jobPath if URL contains one
-    const urlJobPath = route.paramMap.get('jobPath');
+    // Check parent route for jobPath if not on current route (for child routes like role-selection)
+    const urlJobPath = route.paramMap.get('jobPath') || route.parent?.paramMap.get('jobPath');
     if (urlJobPath && user.jobPath && urlJobPath !== user.jobPath) {
+        // Special case: if navigating to 'tsic' but logged into a real job, redirect to that job
+        // This handles app startup where default route goes to /tsic
+        if (urlJobPath === 'tsic' && user.jobPath !== 'tsic') {
+            return router.createUrlTree([`/${user.jobPath}`]);
+        }
+
+        // Special case: allow job switching when navigating to role-selection
+        if (state.url.includes('/role-selection')) {
+            return true;
+        }
+
         toastService.show(
             `You are logged into '${user.jobPath}' but attempted to access '${urlJobPath}'. Please logout first before moving to '${urlJobPath}'.`,
             'danger',
@@ -125,17 +141,20 @@ export const authGuard: CanActivateFn = (route, state) => {
 
     // Authenticated - check if Phase 2 is required
     if (requirePhase2 && (!user.regId || !user.jobPath)) {
-        return router.createUrlTree(['/tsic/role-selection']);
+        const jobPathForRoleSelect = route.paramMap.get('jobPath') || user.jobPath || 'tsic';
+        return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
     }
 
     // Authenticated - check if SuperUser is required
     if (requireSuperUser) {
         if (!authService.isSuperuser()) {
             toastService.show('Access denied. SuperUser privileges required.', 'danger');
-            return router.createUrlTree([user.jobPath ? `/${user.jobPath}/home` : '/tsic/role-selection']);
+            const jobPathForRedirect = user.jobPath || route.paramMap.get('jobPath') || 'tsic';
+            return router.createUrlTree([user.jobPath ? `/${user.jobPath}/home` : `/${jobPathForRedirect}/role-selection`]);
         }
         if (!user.jobPath) {
-            return router.createUrlTree(['/tsic/role-selection']);
+            const jobPathForRoleSelect = route.paramMap.get('jobPath') || 'tsic';
+            return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
         }
     }
 

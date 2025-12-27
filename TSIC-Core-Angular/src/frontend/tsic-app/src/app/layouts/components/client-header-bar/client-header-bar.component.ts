@@ -67,21 +67,18 @@ export class ClientHeaderBarComponent {
     }
 
     goHome() {
-        const jobPath = this.jobService.currentJob()?.jobPath;
-        if (jobPath) {
-            this.router.navigate([`/${jobPath}`]);
-        } else {
-            this.router.navigate(['/tsic']);
-        }
+        const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
+        this.router.navigate([`/${jobPath}`]);
     }
 
     login() {
-        this.router.navigate(['/tsic/login'], { queryParams: { force: 1 } });
+        const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
+        this.router.navigate([`/${jobPath}/login`], { queryParams: { force: 1 } });
     }
 
     logout() {
-        const jobPath = this.jobService.currentJob()?.jobPath;
-        const redirectTo = jobPath ? `/${jobPath}` : '/tsic';
+        const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
+        const redirectTo = `/${jobPath}`;
         this.auth.logout({ redirectTo });
     }
 

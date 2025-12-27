@@ -38,6 +38,21 @@ public class JobPathMatchHandler : AuthorizationHandler<JobPathMatchRequirement>
             return;
         }
 
+        // Exempt endpoints that allow cross-job access (e.g., role-selection for job switching)
+        var path = httpContext.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
+        if (path.Contains("/registrations") && !path.Contains("/register"))
+        {
+            // /api/auth/registrations endpoint - allows querying available registrations across jobs
+            context.Succeed(requirement);
+            return;
+        }
+        if (path.Contains("/select-registration"))
+        {
+            // /api/auth/select-registration endpoint - allows switching to a different job's registration
+            context.Succeed(requirement);
+            return;
+        }
+
         // Get jobPath from JWT token claim
         var tokenJobPath = context.User.FindFirst("jobPath")?.Value;
 
