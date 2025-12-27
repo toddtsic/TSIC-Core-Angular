@@ -82,7 +82,7 @@ export class ClubTeamAddModalComponent {
         const normalizedGradYear = teamData.clubTeamGradYear === 'N/A' ? null : teamData.clubTeamGradYear;
 
         // Strip descriptive text from level of play, keep only the number
-        const lopMatch = teamData.clubTeamLevelOfPlay.match(/^(\d+)/);
+        const lopMatch = /^(\d+)/.exec(teamData.clubTeamLevelOfPlay);
         const normalizedLevelOfPlay = lopMatch ? lopMatch[1] : teamData.clubTeamLevelOfPlay;
 
         this.teamService.addNewClubTeam({

@@ -66,7 +66,7 @@ export class ClubTeamManagementComponent implements OnInit {
 
         // Convert to array and sort by year ascending
         return Array.from(groups.entries())
-            .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
+            .sort((a, b) => Number.parseInt(a[0], 10) - Number.parseInt(b[0], 10))
             .map(([year, teams]) => ({ year, teams }));
     });
 

@@ -1,4 +1,4 @@
-import { Component, Input, computed, inject, signal, effect } from '@angular/core';
+import { Component, computed, inject, signal, effect } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
@@ -103,7 +103,7 @@ export class TeamEditModalComponent {
         this.successMessage.set(null);
 
         // Strip descriptive text from level of play, keep only the number
-        const lopMatch = this.levelOfPlay().match(/^(\d+)/);
+        const lopMatch = /^(\d+)/.exec(this.levelOfPlay());
         const normalizedLevelOfPlay = lopMatch ? lopMatch[1] : this.levelOfPlay();
 
         const request: UpdateClubTeamRequest = {

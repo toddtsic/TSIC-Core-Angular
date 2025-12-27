@@ -66,7 +66,7 @@ export class TeamsStepComponent implements OnInit {
         const jp = this.jobContext.jobPath();
         if (!jp) return 'This Event';
         // Convert jobPath like 'iftc-summer-2026' to 'IFTC SUMMER 2026'
-        return jp.toUpperCase().replace(/-/g, ' ');
+        return jp.toUpperCase().replaceAll('-', ' ');
     });
 
     // Filtered age groups (exclude only Dropped)
