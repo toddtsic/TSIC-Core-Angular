@@ -15,7 +15,7 @@ export const routes: Routes = [
 		children: [
 			{
 				path: '',
-				loadComponent: () => import('./landing-router/landing-router.component').then(m => m.LandingRouterComponent)
+				loadComponent: () => import('./views/home/landing-router/landing-router.component').then(m => m.LandingRouterComponent)
 			},
 			// Login page
 			{
@@ -56,12 +56,12 @@ export const routes: Routes = [
 			},
 			{
 				path: 'home',
-				loadComponent: () => import('./job-home/job-home.component').then(m => m.JobHomeComponent)
+				loadComponent: () => import('./views/home/job-home/job-home.component').then(m => m.JobHomeComponent)
 			},
 			// Brand preview (design system showcase)
 			{
 				path: 'brand-preview',
-				loadComponent: () => import('./job-home/brand-preview/brand-preview.component').then(m => m.BrandPreviewComponent)
+				loadComponent: () => import('./views/home/job-home/brand-preview/brand-preview.component').then(m => m.BrandPreviewComponent)
 			},
 			// Admin-only routes for ANY job (SuperUser required)
 			{
