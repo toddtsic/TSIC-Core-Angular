@@ -62,22 +62,22 @@ export class ClientBannerComponent {
 
     private decodeHtmlText(text: string): string {
         if (!text) return '';
-        
+
         let decoded = text;
-        
+
         // Handle HTML entity encoding (like &lt;br&gt;)
         decoded = decoded
             .replace(/&lt;br&gt;/gi, '<br>')
             .replace(/&lt;br\/&gt;/gi, '<br>')
-            .replace(/&lt;i&gt;/gi, '<i>')
-            .replace(/&lt;\/i&gt;/gi, '</i>')
+            .replace(/&lt;i&gt;/gi, '')
+            .replace(/&lt;\/i&gt;/gi, '')
             .replace(/&lt;b&gt;/gi, '<b>')
             .replace(/&lt;\/b&gt;/gi, '</b>')
             .replace(/&lt;em&gt;/gi, '<em>')
             .replace(/&lt;\/em&gt;/gi, '</em>')
             .replace(/&lt;strong&gt;/gi, '<strong>')
             .replace(/&lt;\/strong&gt;/gi, '</strong>');
-        
+
         // Also handle URL-encoded HTML as backup
         try {
             decoded = decodeURIComponent(decoded);
@@ -91,7 +91,7 @@ export class ClientBannerComponent {
         } catch (e) {
             // If decodeURIComponent fails, just continue with HTML entity decoded version
         }
-        
+
         return decoded;
     }
 }
