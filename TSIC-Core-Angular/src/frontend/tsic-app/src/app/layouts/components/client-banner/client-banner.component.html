@@ -3,14 +3,13 @@
     @if (bannerBackgroundUrl()) {
     <!-- Background image with optional banner overlay -->
     <div class="banner-background-only" [style.background-image]="'url(' + bannerBackgroundUrl() + ')'">
-        @if (bannerImageUrl() && !overlayImageError()) {
+        @if (hasValidOverlayImage()) {
         <!-- Overlay banner image on top of background -->
         <div class="banner-image-overlay">
             <img [src]="bannerImageUrl()" 
                  [alt]="jobName() + ' Banner'" 
                  class="banner-overlay-image"
-                 (load)="onOverlayImageLoad()"
-                 (error)="onOverlayImageError()" />
+                 (error)="$event.target.style.display = 'none'" />
         </div>
         }
         <!-- Text overlay on left side -->
