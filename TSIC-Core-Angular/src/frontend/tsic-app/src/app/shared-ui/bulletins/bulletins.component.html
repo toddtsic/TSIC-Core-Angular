@@ -14,7 +14,7 @@
                     <span>Effective: {{ bulletin.startDate | date:'shortDate' }}</span>
                     }
                     @if (bulletin.endDate) {
-                    <span> - Expires: {{ bulletin.endDate | date:'shortDate' }}</span>
+                    <span> - {{ bulletin.endDate | date:'shortDate' }}</span>
                     }
                 </small>
             </div>

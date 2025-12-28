@@ -3,6 +3,11 @@
     border-bottom: 1px solid var(--brand-border);
     height: 200px; // Fixed height for consistency across all jobs
 
+    // Hide banner completely on mobile devices
+    @media (max-width: 768px) {
+        display: none;
+    }
+
     .banner-background-only {
         position: relative;
         width: 100%;
@@ -37,6 +42,13 @@
                 object-fit: contain;
                 border-radius: 8px;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+                cursor: default;
+                transition: box-shadow 0.3s ease, opacity 0.3s ease;
+
+                &:hover {
+                    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+                    opacity: 0.95;
+                }
             }
         }
 
@@ -48,26 +60,52 @@
             width: 55%;
             color: white;
             text-align: left;
+            cursor: default;
+            user-select: none;
+            transition: all 0.3s ease;
+
+            &:hover {
+                .banner-title {
+                    box-shadow:
+                        0 0 20px rgba(255, 255, 255, 0.8),
+                        0 0 40px rgba(255, 255, 255, 0.4),
+                        0 4px 20px rgba(0, 0, 0, 0.4);
+                    background: rgba(0, 0, 0, 0.8);
+                }
+
+                .banner-subtitle {
+                    box-shadow:
+                        0 0 15px rgba(255, 255, 255, 0.6),
+                        0 0 30px rgba(255, 255, 255, 0.3),
+                        0 4px 15px rgba(0, 0, 0, 0.4);
+                    background: rgba(0, 0, 0, 0.8);
+                }
+            }
 
             .banner-title {
                 margin: 0 0 0.3rem 0;
-                font-size: 2.0rem;
-                font-weight: bold;
+                font-size: 2.2rem;
+                font-weight: 600;
+                letter-spacing: 0.5px;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
-                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(10px);
+                background: rgba(0, 0, 0, 0.6);
                 padding: 0.4rem 0.8rem;
-                border-radius: 4px;
+                border-radius: 6px;
                 display: inline-block;
                 line-height: 1.2;
             }
 
             .banner-subtitle {
                 margin: 0;
-                font-size: 1.2rem;
+                font-size: 1.3rem;
+                font-weight: 500;
+                letter-spacing: 0.3px;
                 text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9);
-                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(8px);
+                background: rgba(0, 0, 0, 0.6);
                 padding: 0.3rem 0.8rem;
-                border-radius: 4px;
+                border-radius: 6px;
                 display: inline-block;
                 line-height: 1.3;
             }
