@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { BulletinDto } from '@infrastructure/api';
 
@@ -12,7 +12,8 @@ import type { BulletinDto } from '@infrastructure/api';
     standalone: true,
     imports: [CommonModule],
     templateUrl: './bulletins.component.html',
-    styleUrl: './bulletins.component.scss'
+    styleUrl: './bulletins.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BulletinsComponent {
     bulletins = input<BulletinDto[]>([]);

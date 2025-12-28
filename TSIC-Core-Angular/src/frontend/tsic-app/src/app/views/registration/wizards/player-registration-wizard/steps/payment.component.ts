@@ -185,7 +185,11 @@ export class PaymentComponent implements AfterViewInit {
   };
   ccValid = false;
 
-  constructor(public state: RegistrationWizardService, private readonly http: HttpClient, private readonly toast: ToastService) { }
+  public readonly state = inject(RegistrationWizardService);
+  private readonly http = inject(HttpClient);
+  private readonly toast = inject(ToastService);
+  
+  constructor() { }
 
   // VerticalInsure legacy instance removed; handled by InsuranceService
   // quotes & user response now supplied by insuranceSvc signals

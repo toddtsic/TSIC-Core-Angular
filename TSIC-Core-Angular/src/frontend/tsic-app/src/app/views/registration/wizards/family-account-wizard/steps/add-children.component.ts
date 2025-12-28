@@ -107,7 +107,9 @@ export class FamAccountStepChildrenComponent {
   private readonly fb = inject(FormBuilder);
   private readonly fieldData = inject(FormFieldDataService);
   submitted = false;
-  constructor(public state: FamilyAccountWizardService) { }
+  public readonly state = inject(FamilyAccountWizardService);
+  
+  constructor() { }
 
   genderOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('genders');
 

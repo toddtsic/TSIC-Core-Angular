@@ -1,9 +1,12 @@
 .client-banner {
-    position: relative;
+    position: sticky;
+    top: 110px; // Below header + menu
+    z-index: 100;
     border-bottom: 1px solid var(--brand-border);
-    height: 200px; // Fixed height for consistency across all jobs
+    height: 200px;
+    background-color: var(--brand-bg);
+    margin-top: -1px; // Overlap to eliminate any gap with menu
 
-    // Hide banner completely on mobile devices
     @media (max-width: 768px) {
         display: none;
     }

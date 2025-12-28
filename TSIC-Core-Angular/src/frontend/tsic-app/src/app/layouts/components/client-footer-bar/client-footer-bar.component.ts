@@ -7,4 +7,5 @@ import { Component } from '@angular/core';
     styleUrl: './client-footer-bar.component.scss'
 })
 export class ClientFooterBarComponent {
+    readonly currentYear = new Date().getFullYear();
 }

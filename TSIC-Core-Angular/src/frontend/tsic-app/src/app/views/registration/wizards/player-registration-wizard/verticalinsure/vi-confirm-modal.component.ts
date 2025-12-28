@@ -24,15 +24,23 @@ import { InsuranceStateService } from '../services/insurance-state.service';
             <p class="mb-3">RegSaver player registration insurance is optional coverage offered for eligible events. It can reimburse certain fees under covered circumstances (e.g., injury, illness). Review the quote details below and choose whether to purchase. Declining will not affect your ability to continue registration.</p>
             <div id="viQuoteContainer" class="border rounded p-3 mb-3">
               <!-- VerticalInsure widget will render into this container via existing Payment component initialization logic -->
-              <div class="text-center text-muted" *ngIf="!ready">Loading insurance options…</div>
+              @if (!ready) {
+              <div class="text-center text-muted">Loading insurance options…</div>
+              }
             </div>
-            <div *ngIf="error" class="alert alert-warning small">{{ error }}</div>
-            <div *ngIf="quotes?.length" class="mb-3">
+            @if (error) {
+            <div class="alert alert-warning small">{{ error }}</div>
+            }
+            @if (quotes?.length) {
+            <div class="mb-3">
               <h6 class="fw-semibold">Available Quotes</h6>
               <ul class="list-unstyled small mb-0">
-                <li *ngFor="let q of quotes">• {{ q?.planName || q?.name || 'Plan' }} – {{ q?.price | currency }}</li>
+                @for (q of quotes; track q.planName || q.name) {
+                <li>• {{ q?.planName || q?.name || 'Plan' }} – {{ q?.price | currency }}</li>
+                }
               </ul>
             </div>
+            }
           </div>
           <div class="modal-footer d-flex flex-column flex-sm-row gap-2">
             <button type="button" class="btn btn-outline-secondary w-100 w-sm-auto" (click)="decline()">Decline Insurance</button>

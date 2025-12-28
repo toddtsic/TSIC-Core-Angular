@@ -67,6 +67,7 @@ export class ClientBannerComponent {
 
         // Handle HTML entity encoding (like &lt;br&gt;)
         decoded = decoded
+            .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
             .replace(/&lt;br&gt;/gi, '<br>')
             .replace(/&lt;br\/&gt;/gi, '<br>')
             .replace(/&lt;i&gt;/gi, '')
@@ -77,6 +78,13 @@ export class ClientBannerComponent {
             .replace(/&lt;\/em&gt;/gi, '</em>')
             .replace(/&lt;strong&gt;/gi, '<strong>')
             .replace(/&lt;\/strong&gt;/gi, '</strong>');
+
+        // Handle literal <br /> that might be in data
+        decoded = decoded
+            .replace(/<br\s*\/?>/gi, '<br>')
+            .replace(/\n/g, '<br>')
+            .replace(/\r\n/g, '<br>')
+            .replace(/\r/g, '<br>');
 
         // Also handle URL-encoded HTML as backup
         try {

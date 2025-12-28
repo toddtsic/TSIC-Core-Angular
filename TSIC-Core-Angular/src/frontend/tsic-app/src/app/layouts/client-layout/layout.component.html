@@ -9,13 +9,13 @@
 <!-- Menu (below header) -->
 <app-client-menu></app-client-menu>
 
-<!-- Main Content -->
-<main class="container-fluid py-2 py-md-4">
-  <!-- Banner (before main content, only on job-landing route) -->
-  @if (showBanner()) {
-  <app-client-banner></app-client-banner>
-  }
+<!-- Banner (outside scrollable content) -->
+@if (showBanner()) {
+<app-client-banner></app-client-banner>
+}
 
+<!-- Main Content -->
+<main class="container-fluid pb-2 pb-md-4">
   <div class="row">
     <!-- Content Area -->
     <div class="col-12">

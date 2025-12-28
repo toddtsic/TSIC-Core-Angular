@@ -1,6 +1,13 @@
 // Minimal overrides - let Bootstrap handle the rest
 .navbar {
     border-bottom: 1px solid var(--brand-border);
+    position: sticky;
+    top: 59px; // Just below header (60px - 1px for overlap)
+    z-index: 500;
+    background-color: var(--brand-bg);
+    margin-top: -1px; // Overlap to eliminate any gap with header
+    margin-bottom: 0; // Remove gap to next component
+    width: 100%;
 }
 
 .navbar-toggler {

@@ -1,6 +1,44 @@
 .client-footer {
-    padding: 2rem 1rem;
-    background: var(--bs-body-bg);
+    padding: var(--space-6) var(--space-4);
+    background: var(--brand-bg);
     border-top: 1px solid var(--brand-border);
-    text-align: center;
+    margin-top: auto; // Push to bottom if using flex layout
+
+    .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+
+        .footer-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            font-size: var(--font-size-sm);
+            color: var(--brand-text-muted);
+
+            // Stack on mobile
+            @media (max-width: 567px) {
+                flex-direction: column;
+                gap: var(--space-1);
+
+                .separator {
+                    display: none;
+                }
+            }
+
+            .copyright {
+                font-weight: var(--font-weight-medium);
+            }
+
+            .separator {
+                color: var(--brand-border);
+                user-select: none;
+            }
+
+            .tagline {
+                font-style: italic;
+                opacity: 0.8;
+            }
+        }
+    }
 }

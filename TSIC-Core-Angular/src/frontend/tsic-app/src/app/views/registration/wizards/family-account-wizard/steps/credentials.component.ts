@@ -63,7 +63,9 @@ export class FamAccountStepCredentialsComponent {
     @Output() next = new EventEmitter<void>();
     private readonly fb = inject(FormBuilder);
     private readonly auth = inject(AuthService);
-    constructor(public state: FamilyAccountWizardService) {
+    public readonly state = inject(FamilyAccountWizardService);
+    
+    constructor() {
         this.form = this.fb.group({
             username: [this.state.username(), [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
             password: [this.state.password(), [Validators.required, Validators.minLength(6)]],

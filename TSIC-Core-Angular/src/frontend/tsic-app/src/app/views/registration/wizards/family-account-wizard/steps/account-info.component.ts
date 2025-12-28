@@ -134,7 +134,9 @@ export class FamAccountStepAccountComponent {
   @Output() next = new EventEmitter<void>();
   private readonly fb = inject(FormBuilder);
   private readonly jobService = inject(JobService);
-  constructor(public state: FamilyAccountWizardService) {
+  public readonly state = inject(FamilyAccountWizardService);
+  
+  constructor() {
     this.form = this.fb.group({
       p1First: [this.state.parent1FirstName(), [Validators.required]],
       p1Last: [this.state.parent1LastName(), [Validators.required]],

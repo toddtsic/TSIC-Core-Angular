@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentService } from '../services/payment.service';
@@ -64,7 +64,10 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 })
 export class PaymentOptionSelectorComponent {
   code = '';
-  constructor(public svc: PaymentService, public state: RegistrationWizardService) { }
+  public readonly svc = inject(PaymentService);
+  public readonly state = inject(RegistrationWizardService);
+  
+  constructor() { }
 
   choose(opt: 'PIF' | 'Deposit' | 'ARB') {
     this.state.paymentOption.set(opt);

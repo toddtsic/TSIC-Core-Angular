@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { CommonModule } from '@angular/common';
 import { PaymentService } from '../services/payment.service';
@@ -88,7 +88,10 @@ import { PaymentService } from '../services/payment.service';
   `
 })
 export class PaymentSummaryComponent {
-  constructor(public svc: PaymentService, private readonly wizard: RegistrationWizardService) { }
+  public readonly svc = inject(PaymentService);
+  private readonly wizard = inject(RegistrationWizardService);
+  
+  constructor() { }
   activeArb(playerId: string): boolean {
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);
     if (!p) return false;

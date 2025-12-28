@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, computed, inject, signal, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import type { Job } from '@infrastructure/services/job.service';
 
@@ -19,7 +19,8 @@ import { isJobLanding } from '@infrastructure/utils/route-segment.utils';
   standalone: true,
   imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientBannerComponent, ClientFooterBarComponent],
   templateUrl: './layout.component.html',
-  styleUrls: ['./layout.component.scss']
+  styleUrls: ['./layout.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LayoutComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();

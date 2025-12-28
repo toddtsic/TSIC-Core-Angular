@@ -29,13 +29,13 @@
     } @else {
     <!-- Text-only banner when no images -->
     <div class="banner-text">
-        @if (jobBannerText1()) {
-        <h1 class="banner-title" [innerHTML]="jobBannerText1()"></h1>
+        @if (jobBannerText1Decoded()) {
+        <h1 class="banner-title" [innerHTML]="jobBannerText1Decoded()"></h1>
         } @else {
         <h1 class="banner-title">{{ jobName() }}</h1>
         }
-        @if (jobBannerText2()) {
-        <p class="banner-subtitle" [innerHTML]="jobBannerText2()"></p>
+        @if (jobBannerText2Decoded()) {
+        <p class="banner-subtitle" [innerHTML]="jobBannerText2Decoded()"></p>
         } @else if (jobPath()) {
         <p class="banner-subtitle">{{ jobPath().toUpperCase().replaceAll('-', ' ') }}</p>
         }

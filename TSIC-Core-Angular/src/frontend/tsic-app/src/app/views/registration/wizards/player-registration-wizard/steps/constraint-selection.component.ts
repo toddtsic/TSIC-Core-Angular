@@ -64,7 +64,9 @@ import { JobService, Job } from '@infrastructure/services/job.service';
 export class ConstraintSelectionComponent {
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
-  constructor(public state: RegistrationWizardService) { }
+  public readonly state = inject(RegistrationWizardService);
+  
+  constructor() { }
 
   // Services
   private readonly jobService = inject(JobService);

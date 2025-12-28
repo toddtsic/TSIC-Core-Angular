@@ -1,3 +1,10 @@
+:host {
+    display: block;
+    background-color: var(--brand-bg);
+    width: 100%;
+    min-height: 60px;
+}
+
 // TSIC Logo Box
 .tsic-brand-box {
     background: white;

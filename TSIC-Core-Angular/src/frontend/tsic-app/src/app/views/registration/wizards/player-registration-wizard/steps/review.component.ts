@@ -14,7 +14,10 @@ export class ReviewComponent {
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
   private readonly jobService = inject(JobService);
-  constructor(public state: RegistrationWizardService, public teamService: TeamService) { }
+  public readonly state = inject(RegistrationWizardService);
+  public readonly teamService = inject(TeamService);
+  
+  constructor() { }
 
 
   selectedPlayers() {
