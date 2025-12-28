@@ -188,7 +188,7 @@ export class PaymentComponent implements AfterViewInit {
   public readonly state = inject(RegistrationWizardService);
   private readonly http = inject(HttpClient);
   private readonly toast = inject(ToastService);
-  
+
   constructor() { }
 
   // VerticalInsure legacy instance removed; handled by InsuranceService

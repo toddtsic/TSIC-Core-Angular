@@ -66,7 +66,7 @@ export class PaymentOptionSelectorComponent {
   code = '';
   public readonly svc = inject(PaymentService);
   public readonly state = inject(RegistrationWizardService);
-  
+
   constructor() { }
 
   choose(opt: 'PIF' | 'Deposit' | 'ARB') {

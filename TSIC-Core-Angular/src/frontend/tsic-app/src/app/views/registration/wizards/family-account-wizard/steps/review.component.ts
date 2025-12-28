@@ -132,7 +132,7 @@ export class FamAccountStepReviewComponent implements OnInit {
   private readonly familyService = inject(FamilyService);
   private readonly jobService = inject(JobService);
   public readonly state = inject(FamilyAccountWizardService);
-  
+
   constructor() { }
 
   // Centralized login component handles its own credentials, errors, and loading state

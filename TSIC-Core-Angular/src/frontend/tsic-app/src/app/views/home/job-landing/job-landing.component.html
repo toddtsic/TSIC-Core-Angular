@@ -9,25 +9,4 @@
     <app-bulletins [bulletins]="bulletins()" [loading]="bulletinsLoading()" [error]="bulletinsError()" />
     }
 
-    <!-- Authenticated User View -->
-    @if (isAuthenticated()) {
-    <div class="authenticated-content">
-        <h2>Welcome back!</h2>
-
-        <!-- Registration Status Section -->
-        @if (registrationStatuses() && registrationStatuses().length > 0) {
-        <div class="registration-status">
-            <h3>Your Registrations</h3>
-            <div class="status-list">
-                @for (status of registrationStatuses(); track $index) {
-                <div class="status-item">
-                    <p><strong>{{ status['registrationType'] }}</strong></p>
-                    <p>Status: {{ status['message'] || 'Available' }}</p>
-                </div>
-                }
-            </div>
-        </div>
-        }
-    </div>
-    }
 </div>

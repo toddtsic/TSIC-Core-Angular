@@ -90,7 +90,7 @@ import { PaymentService } from '../services/payment.service';
 export class PaymentSummaryComponent {
   public readonly svc = inject(PaymentService);
   private readonly wizard = inject(RegistrationWizardService);
-  
+
   constructor() { }
   activeArb(playerId: string): boolean {
     const p = this.wizard.familyPlayers().find(fp => fp.playerId === playerId);

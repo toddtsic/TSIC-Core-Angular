@@ -16,7 +16,7 @@ export class ReviewComponent {
   private readonly jobService = inject(JobService);
   public readonly state = inject(RegistrationWizardService);
   public readonly teamService = inject(TeamService);
-  
+
   constructor() { }
 
 

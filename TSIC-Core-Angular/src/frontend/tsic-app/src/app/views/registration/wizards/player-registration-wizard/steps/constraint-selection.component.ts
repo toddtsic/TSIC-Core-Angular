@@ -65,7 +65,7 @@ export class ConstraintSelectionComponent {
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
   public readonly state = inject(RegistrationWizardService);
-  
+
   constructor() { }
 
   // Services

@@ -16,7 +16,7 @@ main {
     min-height: calc(100vh - 310px); // Account for header+menu+banner height
     overflow: hidden; // Contain all child content strictly
     position: relative; // Establish stacking context
-    
+
     // Inner scrollable container to properly contain content
     .container-fluid {
         height: 100%;
