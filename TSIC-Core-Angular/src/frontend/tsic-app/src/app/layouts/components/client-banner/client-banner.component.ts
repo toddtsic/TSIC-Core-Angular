@@ -27,7 +27,12 @@ export class ClientBannerComponent {
     bannerImageUrl = computed(() => {
         const bannerPath = this.jobBannerPath();
         if (!bannerPath) return null;
-        return this.buildAssetUrl(bannerPath);
+        let url = this.buildAssetUrl(bannerPath);
+        // Fallback: if PDF, try JPG version instead
+        if (url && url.toLowerCase().endsWith('.pdf')) {
+            url = url.slice(0, -4) + '.jpg';
+        }
+        return url;
     });
 
     // Build banner background image URL if available
@@ -99,7 +104,8 @@ export class ClientBannerComponent {
         } catch (e) {
             // If decodeURIComponent fails, just continue with HTML entity decoded version
         }
-
+        // Clean up multiple consecutive <br> tags
+        decoded = decoded.replace(/(<br>\s*){2,}/gi, '<br>');
         return decoded;
     }
 }
