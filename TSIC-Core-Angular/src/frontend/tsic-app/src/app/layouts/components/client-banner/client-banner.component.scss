@@ -2,10 +2,15 @@
     position: sticky;
     top: 110px; // Below header + menu
     z-index: 100;
-    border-bottom: 1px solid var(--brand-border);
+    border-bottom: 1px solid rgba(120, 120, 130, 0.15);
     height: 200px;
     background-color: var(--brand-bg);
     margin-top: -1px; // Overlap to eliminate any gap with menu
+    
+    // Enhanced border visibility in dark mode
+    @media (prefers-color-scheme: dark) {
+        border-bottom-color: rgba(160, 160, 170, 0.25);
+    }
 
     @media (max-width: 768px) {
         display: none;
@@ -19,8 +24,28 @@
         background-position: center;
         background-repeat: no-repeat;
         overflow: hidden;
-        height: 100%;
-        overflow: hidden;
+        border-radius: 12px;
+        box-shadow:
+            0 2px 8px rgba(120, 120, 130, 0.08),
+            0 4px 16px rgba(100, 100, 110, 0.04),
+            0 8px 32px rgba(140, 140, 150, 0.02),
+            inset 0 1px 0 rgba(240, 240, 245, 0.1);
+        
+        // Organic neutral texture overlay
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(240, 240, 245, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(140, 140, 150, 0.05) 0%, transparent 60%),
+                linear-gradient(45deg, 
+                    transparent 0%, 
+                    rgba(120, 120, 130, 0.03) 50%, 
+                    transparent 100%);
+            pointer-events: none;
+            animation: paperShimmer 12s ease-in-out infinite;
+        }
 
         .banner-image {
             width: 100%;
@@ -38,19 +63,29 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 3;
 
             .banner-overlay-image {
                 max-width: 100%;
                 max-height: 100%;
                 object-fit: contain;
-                border-radius: 8px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+                border-radius: 16px;
+                border: 2px solid rgba(120, 120, 130, 0.2);
+                box-shadow: 
+                    0 8px 32px rgba(120, 120, 130, 0.15),
+                    0 4px 16px rgba(100, 100, 110, 0.1),
+                    inset 0 1px 0 rgba(240, 240, 245, 0.2);
                 cursor: default;
-                transition: box-shadow 0.3s ease, opacity 0.3s ease;
+                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+                backdrop-filter: blur(1px);
 
                 &:hover {
-                    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
-                    opacity: 0.95;
+                    transform: translateY(-2px) scale(1.02);
+                    box-shadow: 
+                        0 12px 48px rgba(120, 120, 130, 0.25),
+                        0 8px 24px rgba(100, 100, 110, 0.15),
+                        inset 0 1px 0 rgba(240, 240, 245, 0.3);
+                    border-color: rgba(140, 140, 150, 0.3);
                 }
             }
         }
@@ -63,61 +98,69 @@
             bottom: 0;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: center; // Center vertically
             align-items: flex-start;
             padding: 1rem 3%;
             color: white;
             text-align: left;
             cursor: default;
             user-select: none;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            z-index: 2;
 
             &:hover {
-                .banner-title {
+                .banner-title, .banner-subtitle {
+                    transform: translateY(-1px);
                     box-shadow:
-                        0 0 20px rgba(255, 255, 255, 0.8),
-                        0 0 40px rgba(255, 255, 255, 0.4),
-                        0 4px 20px rgba(0, 0, 0, 0.4);
-                    background: rgba(0, 0, 0, 0.8);
-                }
-
-                .banner-subtitle {
-                    box-shadow:
-                        0 0 15px rgba(255, 255, 255, 0.6),
-                        0 0 30px rgba(255, 255, 255, 0.3),
-                        0 4px 15px rgba(0, 0, 0, 0.4);
-                    background: rgba(0, 0, 0, 0.8);
+                        0 6px 24px rgba(120, 120, 130, 0.3),
+                        0 2px 8px rgba(100, 100, 110, 0.2),
+                        inset 0 1px 0 rgba(240, 240, 245, 0.15);
+                    background: linear-gradient(135deg, 
+                        rgba(120, 120, 130, 0.9) 0%, 
+                        rgba(140, 140, 150, 0.85) 100%);
                 }
             }
 
             .banner-title {
-                margin: 0 0 0.5rem 0;
-                font-size: 2.2rem;
+                margin: 0 0 0.4rem 0;
+                font-size: 1.8rem; // Reduced from 2.2rem
                 font-weight: 700;
                 letter-spacing: 0.5px;
-                text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
+                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
                 backdrop-filter: blur(10px);
-                background: rgba(0, 0, 0, 0.7);
-                padding: 0.5rem 0.8rem;
-                border-radius: 8px;
+                background: linear-gradient(135deg, 
+                    rgba(120, 120, 130, 0.85) 0%, 
+                    rgba(140, 140, 150, 0.8) 100%);
+                padding: 0.5rem 0.8rem; // Reduced padding
+                border-radius: 10px;
                 display: inline-block;
                 line-height: 1.1;
-                border-left: 4px solid rgba(255, 255, 255, 0.8);
+                border: 1px solid rgba(240, 240, 245, 0.2);
+                box-shadow: 
+                    0 4px 16px rgba(120, 120, 130, 0.2),
+                    inset 0 1px 0 rgba(240, 240, 245, 0.1);
+                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
             }
 
             .banner-subtitle {
                 margin: 0;
-                font-size: 1.3rem;
+                font-size: 1.1rem; // Reduced from 1.3rem
                 font-weight: 500;
                 letter-spacing: 0.3px;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+                text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                 backdrop-filter: blur(8px);
-                background: rgba(0, 0, 0, 0.7);
-                padding: 0.4rem 0.7rem;
-                border-radius: 6px;
+                background: linear-gradient(135deg, 
+                    rgba(120, 120, 130, 0.8) 0%, 
+                    rgba(140, 140, 150, 0.75) 100%);
+                padding: 0.4rem 0.7rem; // Reduced padding
+                border-radius: 7px;
                 display: inline-block;
                 line-height: 1.3;
-                border-left: 3px solid rgba(255, 255, 255, 0.6);
+                border: 1px solid rgba(240, 240, 245, 0.15);
+                box-shadow: 
+                    0 3px 12px rgba(120, 120, 130, 0.15),
+                    inset 0 1px 0 rgba(240, 240, 245, 0.08);
+                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
             }
         }
 
@@ -185,5 +228,17 @@
             font-weight: bold;
             color: var(--bs-secondary);
         }
+    }
+}
+
+// Animations matching bulletin aesthetic
+@keyframes paperShimmer {
+    0%, 100% { 
+        opacity: 0.3; 
+        transform: translateX(-5px);
+    }
+    50% { 
+        opacity: 0.7; 
+        transform: translateX(5px);
     }
 }

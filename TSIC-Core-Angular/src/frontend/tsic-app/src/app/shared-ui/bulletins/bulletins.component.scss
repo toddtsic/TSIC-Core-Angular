@@ -4,7 +4,7 @@
     padding: 0 var(--space-4);
     position: relative;
 
-    // Organic paper texture background
+// Organic neutral texture background
     &::before {
         content: '';
         position: fixed;
@@ -12,11 +12,11 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background:
-            radial-gradient(ellipse at top left, rgba(139, 92, 58, 0.02) 0%, transparent 50%),
-            radial-gradient(ellipse at bottom right, rgba(101, 67, 33, 0.015) 0%, transparent 50%),
-            conic-gradient(from 45deg at 20% 80%, rgba(160, 82, 45, 0.008) 0deg, transparent 120deg),
-            linear-gradient(180deg, rgba(245, 245, 220, 0.01) 0%, transparent 100%);
+        background: 
+            radial-gradient(ellipse at top left, rgba(120, 120, 130, 0.02) 0%, transparent 50%),
+            radial-gradient(ellipse at bottom right, rgba(100, 100, 110, 0.015) 0%, transparent 50%),
+            conic-gradient(from 45deg at 20% 80%, rgba(140, 140, 150, 0.008) 0deg, transparent 120deg),
+            linear-gradient(180deg, rgba(240, 240, 245, 0.01) 0%, transparent 100%);
         pointer-events: none;
         z-index: -1;
         animation: paperFloat 25s ease-in-out infinite;
@@ -32,7 +32,7 @@
 
     .bulletin {
         margin-bottom: var(--space-8);
-        border: 1px solid rgba(139, 92, 58, 0.15);
+        border: 1px solid rgba(120, 120, 130, 0.15);
         border-radius: 12px;
         overflow: hidden;
         background: var(--brand-surface);
@@ -43,32 +43,32 @@
 
         // Enhanced border visibility in dark mode
         @media (prefers-color-scheme: dark) {
-            border-color: rgba(205, 133, 63, 0.25);
+            border-color: rgba(160, 160, 170, 0.25);
         }
 
         // Paper texture and subtle shadow
-        box-shadow: 0 1px 3px rgba(139, 92, 58, 0.08),
-        0 4px 12px rgba(101, 67, 33, 0.04),
-        0 8px 24px rgba(160, 82, 45, 0.02),
-        inset 0 1px 0 rgba(245, 245, 220, 0.1);
+        box-shadow: 0 1px 3px rgba(120, 120, 130, 0.08),
+        0 4px 12px rgba(100, 100, 110, 0.04),
+        0 8px 24px rgba(140, 140, 150, 0.02),
+        inset 0 1px 0 rgba(240, 240, 245, 0.1);
 
         // Gentle fold effect on hover
         &:hover {
             transform: translateY(-4px) rotateX(2deg) rotateY(-1deg);
             box-shadow:
-                0 3px 8px rgba(139, 92, 58, 0.12),
-                0 8px 24px rgba(101, 67, 33, 0.08),
-                0 16px 48px rgba(160, 82, 45, 0.04),
-                inset 0 1px 0 rgba(245, 245, 220, 0.15);
+                0 3px 8px rgba(120, 120, 130, 0.12),
+                0 8px 24px rgba(100, 100, 110, 0.08),
+                0 16px 48px rgba(140, 140, 150, 0.04),
+                inset 0 1px 0 rgba(240, 240, 245, 0.15);
         }
 
         .bulletin-header {
-            background: linear-gradient(135deg,
-                    #8B5C3A 0%,
-                    #A0522D 25%,
-                    #D2B48C 50%,
-                    #CD853F 75%,
-                    #8B5C3A 100%);
+            background: linear-gradient(135deg, 
+                #6B7280 0%, 
+                #9CA3AF 25%, 
+                #D1D5DB 50%, 
+                #E5E7EB 75%, 
+                #6B7280 100%);
             color: var(--neutral-0);
             padding: var(--space-4) var(--space-6);
             display: flex;
@@ -78,7 +78,7 @@
             overflow: hidden;
 
             // Elegant embossed border
-            border-bottom: 2px solid rgba(139, 92, 58, 0.3);
+            border-bottom: 2px solid rgba(120, 120, 130, 0.3);
 
             // Organic texture overlay
             &::before {
@@ -86,11 +86,11 @@
                 position: absolute;
                 inset: 0;
                 background:
-                    radial-gradient(ellipse at 20% 20%, rgba(245, 245, 220, 0.15) 0%, transparent 60%),
-                    radial-gradient(ellipse at 80% 80%, rgba(160, 82, 45, 0.1) 0%, transparent 60%),
+                    radial-gradient(ellipse at 20% 20%, rgba(240, 240, 245, 0.15) 0%, transparent 60%),
+                    radial-gradient(ellipse at 80% 80%, rgba(140, 140, 150, 0.1) 0%, transparent 60%),
                     linear-gradient(45deg,
                         transparent 0%,
-                        rgba(139, 92, 58, 0.05) 50%,
+                        rgba(120, 120, 130, 0.05) 50%,
                         transparent 100%);
                 animation: headerShimmer 8s ease-in-out infinite;
             }
@@ -135,21 +135,21 @@
                 }
 
                 small {
-                    background: rgba(245, 245, 220, 0.25);
+                    background: rgba(240, 240, 245, 0.25);
                     padding: 8px 14px;
                     border-radius: 20px;
                     font-weight: 600;
                     font-size: var(--font-size-sm);
-                    border: 1px solid rgba(139, 92, 58, 0.2);
+                    border: 1px solid rgba(120, 120, 130, 0.2);
                     display: inline-block;
                     white-space: nowrap;
                     position: relative;
                     box-shadow:
-                        inset 0 1px 2px rgba(245, 245, 220, 0.2),
-                        0 2px 4px rgba(139, 92, 58, 0.15);
+                        inset 0 1px 2px rgba(240, 240, 245, 0.2),
+                        0 2px 4px rgba(120, 120, 130, 0.15);
 
                     // Subtle letterpress effect
-                    text-shadow: 0 1px 1px rgba(139, 92, 58, 0.2);
+                    text-shadow: 0 1px 1px rgba(120, 120, 130, 0.2);
                     letter-spacing: 0.5px;
                 }
             }
