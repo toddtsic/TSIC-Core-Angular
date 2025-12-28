@@ -1,4 +1,4 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal, effect } from '@angular/core';
 import { JobService } from '@infrastructure/services/job.service';
 
 @Component({
@@ -9,6 +9,17 @@ import { JobService } from '@infrastructure/services/job.service';
 })
 export class ClientBannerComponent {
     private readonly jobService = inject(JobService);
+
+    // Signal to track if overlay image failed to load
+    overlayImageError = signal(false);
+
+    constructor() {
+        // Reset error state when banner image URL changes
+        effect(() => {
+            this.bannerImageUrl(); // Track changes to banner image URL
+            this.overlayImageError.set(false); // Reset error state
+        });
+    }
 
     // Computed properties for reactive job metadata
     job = computed(() => this.jobService.currentJob());
@@ -107,5 +118,15 @@ export class ClientBannerComponent {
         // Clean up multiple consecutive <br> tags
         decoded = decoded.replace(/(<br>\s*){2,}/gi, '<br>');
         return decoded;
+    }
+
+    // Handle overlay image load error
+    onOverlayImageError() {
+        this.overlayImageError.set(true);
+    }
+
+    // Handle overlay image load success (reset error state)
+    onOverlayImageLoad() {
+        this.overlayImageError.set(false);
     }
 }
