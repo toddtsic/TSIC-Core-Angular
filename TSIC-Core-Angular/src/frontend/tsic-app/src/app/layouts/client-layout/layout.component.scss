@@ -16,11 +16,13 @@ main {
     min-height: calc(100vh - 310px); // Account for header+menu+banner height
     overflow: hidden; // Contain all child content strictly
     position: relative; // Establish stacking context
+    background-color: var(--neutral-50); // Ensure subtle off-white background in light mode
 
     // Inner scrollable container to properly contain content
     .container-fluid {
         height: 100%;
         overflow-y: auto;
         padding-top: var(--space-4);
+        background-color: transparent; // Let parent background show through
     }
 }

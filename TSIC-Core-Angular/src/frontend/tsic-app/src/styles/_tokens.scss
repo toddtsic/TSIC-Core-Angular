@@ -53,7 +53,8 @@
     /* Secondary surfaces */
     --brand-surface: #ffffff;
     /* Cards, modals */
-    --brand-text: #292524;
+    --brand-text: #57534e;
+    /* Harmonious with neutral-300 for coordinated palette */
     /* Primary text - warm dark gray */
     --brand-text-muted: #78716c;
     /* Secondary text */
@@ -313,6 +314,8 @@ app-root {
    ============================================ */
 .theme-dark {
     /* Dark neutral palette - warm undertones */
+    --neutral-0: #57534e;
+    /* Harmonious with softer brand-text */
     --neutral-50: #292524;
     --neutral-100: #1c1917;
     --neutral-200: #44403c;
@@ -328,9 +331,10 @@ app-root {
     --brand-bg: #1c1917;
     --brand-bg-secondary: #292524;
     --brand-surface: #292524;
-    --brand-text: #f5f5f4;
+    --brand-text: #ffffff;
+    /* Harmonious with neutral-0 for coordinated palette */
     --brand-text-muted: #a8a29e;
-    --brand-border: #44403c;
+    --brand-border: #78716c;
 
     /* Adjusted brand colors for dark mode */
     --brand-primary: #38bdf8;
@@ -372,6 +376,10 @@ app-root {
 
     /* Card appearance in dark mode */
     .card {
+        background-color: var(--neutral-200) !important;
+        /* Lighter than current surface for better contrast */
+        border: 1px solid #a8a29e !important;
+        /* More visible border for definition */
         box-shadow: var(--shadow-md) !important;
     }
 }

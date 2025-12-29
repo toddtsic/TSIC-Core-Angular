@@ -24,9 +24,25 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
 
+    // Improved dark mode borders
+    :host-context([data-bs-theme="dark"]) & {
+        border: 1px solid #a8a29e !important;
+        /* Much more visible border with !important */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+
     &:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    // Enhanced hover effect for dark mode
+    :host-context([data-bs-theme="dark"]) &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(255, 255, 255, 0.35) !important;
+        /* Much more visible light shadow */
+        border-color: #d6d3d1 !important;
+        /* Lighter border on hover */
     }
 
     .bulletin-header {
