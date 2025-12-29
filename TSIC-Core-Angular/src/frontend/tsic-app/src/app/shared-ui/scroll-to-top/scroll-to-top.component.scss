@@ -4,7 +4,7 @@
     right: 2rem;
     width: 56px;
     height: 56px;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 2rem;
     cursor: pointer;
     z-index: 1000;
@@ -12,26 +12,20 @@
     // Glassmorphic design to match your banner
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
     color: rgba(60, 60, 70, 0.8);
 
-    // Smooth entrance animation
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px) scale(0.8);
+    // Always visible for testing
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
     transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-
-    // Show state
-    &:not([hidden]) {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0) scale(1);
-    }
+    animation: scrollBtnFloat 3s ease-in-out infinite;
 
     // Elegant shadow
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
-    0 4px 16px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        0 4px 16px rgba(0, 0, 0, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
 
     // Icon styling
     svg {
@@ -56,51 +50,6 @@
         }
     }
 
-    // Active state
-    &:active {
-        transform: translateY(-2px) scale(1.02);
-        transition-duration: 0.1s;
-    }
-
-    // Dark mode styling
-    @media (prefers-color-scheme: dark) {
-        background: rgba(40, 40, 50, 0.25);
-        backdrop-filter: blur(20px) saturate(180%);
-        border: 1px solid rgba(60, 60, 70, 0.4);
-        color: rgba(220, 220, 230, 0.9);
-
-        box-shadow:
-            0 8px 32px rgba(0, 0, 0, 0.2),
-            0 4px 16px rgba(0, 0, 0, 0.15),
-            0 0 0 1px rgba(80, 80, 90, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-
-        &:hover {
-            background: rgba(60, 60, 70, 0.4);
-            border-color: rgba(80, 80, 90, 0.6);
-            color: rgba(240, 240, 250, 1);
-            box-shadow:
-                0 16px 48px rgba(0, 0, 0, 0.3),
-                0 8px 24px rgba(0, 0, 0, 0.2),
-                0 0 0 1px rgba(100, 100, 110, 0.4),
-                0 0 12px rgba(120, 120, 130, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-    }
-
-    // Responsive sizing
-    @media (max-width: 768px) {
-        bottom: 1.5rem;
-        right: 1.5rem;
-        width: 48px;
-        height: 48px;
-
-        svg {
-            width: 20px;
-            height: 20px;
-        }
-    }
-
     // Accessibility
     &:focus-visible {
         outline: 2px solid rgba(0, 123, 255, 0.6);
@@ -108,7 +57,7 @@
     }
 }
 
-// Animation for the entrance/exit
+// Animation for the floating effect
 @keyframes scrollBtnFloat {
 
     0%,
@@ -119,8 +68,4 @@
     50% {
         transform: translateY(-3px);
     }
-}
-
-.scroll-to-top-btn {
-    animation: scrollBtnFloat 3s ease-in-out infinite;
 }

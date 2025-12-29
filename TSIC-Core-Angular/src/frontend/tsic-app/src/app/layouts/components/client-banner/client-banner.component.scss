@@ -25,7 +25,7 @@
 
     @media (max-width: 768px) {
         padding: 0 1rem;
-        min-height: 120px;
+        min-height: 160px; // Increased for better text space
     }
 
     .banner-background-only {
@@ -110,6 +110,15 @@
             z-index: 3;
             border-radius: 1.5rem; // Match curved theme
 
+            // Mobile positioning - with breathing room
+            @media (max-width: 768px) {
+                right: 0.5rem; // Add breathing room from edge
+                top: 10%;
+                width: 35%; // Slightly larger on mobile
+                height: 80%;
+                border-radius: 1.5rem 0 0 1.5rem; // Only round left corners when flush right
+            }
+
             // Simple approach - hide if obviously empty
             &:empty {
                 display: none !important;
@@ -173,12 +182,17 @@
             z-index: 2;
             overflow: hidden; // Ensure text doesn't spill out
 
-            // Adaptive padding
+            // Enhanced mobile readability
             @media (max-width: 768px) {
-                padding: 2.5rem 2rem 2rem 2rem; // Increased top padding for mobile
-                right: 20%;
-                min-height: 180px; // Ensure minimum space
+                padding: 1.5rem 1rem; // Optimized padding
+                right: 35%; // Widen text area
+                min-height: 140px;
                 margin-top: 0.5rem;
+                // Add strong text shadows for readability
+                text-shadow:
+                    0 2px 4px rgba(0, 0, 0, 0.8),
+                    0 1px 2px rgba(0, 0, 0, 0.9),
+                    0 4px 8px rgba(0, 0, 0, 0.6);
             }
 
             &:hover {
@@ -231,6 +245,22 @@
                     inset 0 1px 0 rgba(240, 240, 245, 0.1);
                 transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
                 position: relative;
+
+                // Mobile optimization
+                @media (max-width: 768px) {
+                    font-size: 1.1rem; // Further reduced for mobile
+                    font-weight: 800; // Bolder
+                    padding: 0.7rem 1rem; // More padding
+                    margin-bottom: 0.8rem;
+                    // Stronger shadows for mobile readability
+                    text-shadow:
+                        0 3px 6px rgba(0, 0, 0, 0.9),
+                        0 1px 3px rgba(0, 0, 0, 1);
+                    background: linear-gradient(135deg,
+                            rgba(100, 100, 110, 0.95) 0%,
+                            rgba(120, 120, 130, 0.9) 100%);
+                    border: 2px solid rgba(240, 240, 245, 0.3);
+                }
 
                 // Bold sun ray burst effect
                 &::before {
@@ -342,6 +372,24 @@
                 letter-spacing: 0.3px;
                 text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                 position: relative;
+
+                // Mobile optimization
+                @media (max-width: 768px) {
+                    font-size: 0.8rem; // Further reduced for mobile
+                    font-weight: 600; // Bolder
+                    margin-top: 0.5rem;
+                    // Strong shadows for readability
+                    text-shadow:
+                        0 2px 4px rgba(0, 0, 0, 0.9),
+                        0 1px 2px rgba(0, 0, 0, 1);
+                    // Add subtle background for readability
+                    background: rgba(80, 80, 90, 0.6);
+                    padding: 0.3rem 0.6rem;
+                    border-radius: 8px;
+                    display: inline-block;
+                    backdrop-filter: blur(5px);
+                    border: 1px solid rgba(240, 240, 245, 0.2);
+                }
 
                 // Bold sun ray burst effect (smaller)
                 &::before {
