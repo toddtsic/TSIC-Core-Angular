@@ -1,418 +1,131 @@
+// Bulletins component - clean slate
+
 .bulletins-section {
-    margin-top: var(--space-6);
-    margin-bottom: var(--space-8);
-    padding: 0 var(--space-4);
-    position: relative;
-
-    // Organic neutral texture background
-    &::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background:
-            radial-gradient(ellipse at top left, rgba(120, 120, 130, 0.02) 0%, transparent 50%),
-            radial-gradient(ellipse at bottom right, rgba(100, 100, 110, 0.015) 0%, transparent 50%),
-            conic-gradient(from 45deg at 20% 80%, rgba(140, 140, 150, 0.008) 0deg, transparent 120deg),
-            linear-gradient(180deg, rgba(240, 240, 245, 0.01) 0%, transparent 100%);
-        pointer-events: none;
-        z-index: -1;
-        animation: paperFloat 25s ease-in-out infinite;
+    padding: 24px 16px 16px 16px;
+    
+    // Mobile: fill most of the view
+    @media (max-width: 767px) {
+        padding: 16px 8px 8px 8px;
     }
-
-    // Center and limit width on larger screens
+    
+    // Desktop: use percentage of screen width
     @media (min-width: 768px) {
-        max-width: 90%;
-        margin-left: auto;
-        margin-right: auto;
-        padding: 0;
-    }
-
-    .bulletin {
-        margin-bottom: var(--space-8);
-        border: 1px solid rgba(120, 120, 130, 0.15);
-        border-radius: 12px;
-        overflow: hidden;
-        background: var(--brand-surface);
-        position: relative;
-        isolation: isolate;
-        transform-origin: center center;
-        transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-
-        // Enhanced border visibility in dark mode with glow effect
-        @media (prefers-color-scheme: dark) {
-            border: 2px solid rgba(220, 220, 230, 0.6);
-            box-shadow:
-                0 0 0 1px rgba(180, 180, 190, 0.4),
-                0 0 12px rgba(200, 200, 210, 0.25),
-                0 0 24px rgba(160, 160, 170, 0.15),
-                0 1px 3px rgba(120, 120, 130, 0.12),
-                0 4px 12px rgba(100, 100, 110, 0.08),
-                0 8px 24px rgba(140, 140, 150, 0.04),
-                inset 0 1px 0 rgba(240, 240, 245, 0.2),
-                inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-        }
-
-        // Paper texture and subtle shadow
-        box-shadow: 0 1px 3px rgba(120, 120, 130, 0.08),
-        0 4px 12px rgba(100, 100, 110, 0.04),
-        0 8px 24px rgba(140, 140, 150, 0.02),
-        inset 0 1px 0 rgba(240, 240, 245, 0.1);
-
-        // Gentle fold effect on hover
-        &:hover {
-            transform: translateY(-4px) rotateX(2deg) rotateY(-1deg);
-            box-shadow:
-                0 3px 8px rgba(120, 120, 130, 0.12),
-                0 8px 24px rgba(100, 100, 110, 0.08),
-                0 16px 48px rgba(140, 140, 150, 0.04),
-                inset 0 1px 0 rgba(240, 240, 245, 0.15);
-
-            // Enhanced glow in dark mode on hover
-            @media (prefers-color-scheme: dark) {
-                border-color: rgba(220, 220, 230, 0.6);
-                box-shadow:
-                    0 0 0 2px rgba(180, 180, 190, 0.3),
-                    0 0 16px rgba(200, 200, 210, 0.25),
-                    0 0 32px rgba(160, 160, 170, 0.15),
-                    0 3px 8px rgba(120, 120, 130, 0.12),
-                    0 8px 24px rgba(100, 100, 110, 0.08),
-                    0 16px 48px rgba(140, 140, 150, 0.04),
-                    inset 0 1px 0 rgba(240, 240, 245, 0.15);
-            }
-        }
-
-        .bulletin-header {
-            background: linear-gradient(135deg,
-                    #6B7280 0%,
-                    #9CA3AF 25%,
-                    #C5C9D2 50%,
-                    #B0B4BE 75%,
-                    #6B7280 100%);
-            color: var(--neutral-0);
-            padding: var(--space-4) var(--space-6);
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-            position: relative;
-            overflow: hidden;
-
-            // Elegant embossed border
-            border-bottom: 2px solid rgba(120, 120, 130, 0.3);
-
-            // Organic texture overlay
-            &::before {
-                content: '';
-                position: absolute;
-                inset: 0;
-                background:
-                    radial-gradient(ellipse at 20% 20%, rgba(240, 240, 245, 0.15) 0%, transparent 60%),
-                    radial-gradient(ellipse at 80% 80%, rgba(140, 140, 150, 0.1) 0%, transparent 60%),
-                    linear-gradient(45deg,
-                        transparent 0%,
-                        rgba(120, 120, 130, 0.05) 50%,
-                        transparent 100%);
-                animation: headerShimmer 8s ease-in-out infinite;
-            }
-
-            // Desktop: side-by-side layout
-            @media (min-width: 768px) {
-                flex-direction: row;
-                justify-content: space-between;
-                align-items: center;
-                gap: var(--space-4);
-            }
-
-            h3 {
-                margin: 0;
-                font-size: var(--font-size-sm);
-                font-weight: 500;
-                letter-spacing: 0;
-                cursor: default;
-                user-select: none;
-                position: relative;
-                z-index: 2;
-                color: var(--neutral-0);
-                flex: 1;
-                line-height: 1;
-                text-align: center;
-
-                @media (min-width: 768px) {
-                    font-size: var(--font-size-base);
-                    text-align: left;
-                }
-            }
-
-            .bulletin-dates {
-                position: relative;
-                z-index: 2;
-                flex-shrink: 0;
-                white-space: nowrap;
-                text-align: center;
-
-                @media (min-width: 768px) {
-                    text-align: right;
-                }
-
-                small {
-                    background: rgba(240, 240, 245, 0.25);
-                    padding: 8px 14px;
-                    border-radius: 20px;
-                    font-weight: 600;
-                    font-size: var(--font-size-sm);
-                    border: 1px solid rgba(120, 120, 130, 0.2);
-                    display: inline-block;
-                    white-space: nowrap;
-                    position: relative;
-                    box-shadow:
-                        inset 0 1px 2px rgba(240, 240, 245, 0.2),
-                        0 2px 4px rgba(120, 120, 130, 0.15);
-
-                    // Subtle letterpress effect
-                    text-shadow: 0 1px 1px rgba(120, 120, 130, 0.2);
-                    letter-spacing: 0.5px;
-                }
-            }
-        }
-
-        .bulletin-content {
-            padding: var(--space-6) var(--space-6) var(--space-8);
-            background:
-                linear-gradient(135deg, var(--brand-surface) 0%, rgba(245, 245, 220, 0.02) 100%),
-                repeating-linear-gradient(0deg,
-                    transparent,
-                    transparent 24px,
-                    rgba(139, 92, 58, 0.02) 24px,
-                    rgba(139, 92, 58, 0.02) 25px);
-            color: var(--brand-text);
-            font-size: var(--font-size-base);
-            line-height: var(--line-height-relaxed);
-            position: relative;
-
-            // Aged paper effect
-            &::before {
-                content: '';
-                position: absolute;
-                inset: 0;
-                background:
-                    radial-gradient(ellipse at 10% 10%, rgba(139, 92, 58, 0.008) 0%, transparent 50%),
-                    radial-gradient(ellipse at 90% 90%, rgba(160, 82, 45, 0.006) 0%, transparent 50%);
-                pointer-events: none;
-            }
-
-            ::ng-deep {
-                p {
-                    margin-bottom: var(--space-3);
-                    color: var(--brand-text);
-
-                    &:last-child {
-                        margin-bottom: 0;
-                    }
-                }
-
-                ul,
-                ol {
-                    margin-left: var(--space-4);
-                    margin-bottom: var(--space-3);
-                    color: var(--brand-text);
-                }
-
-                strong {
-                    font-weight: 600;
-                    color: var(--brand-text);
-                }
-
-                em {
-                    font-style: italic;
-                    color: var(--brand-text);
-                }
-
-                a {
-                    color: var(--bs-primary);
-                    text-decoration: underline;
-
-                    &:hover {
-                        text-decoration: none;
-                    }
-                }
-            }
-        }
+        max-width: 80%;
+        margin: 0 auto;
+        padding-top: 32px;
     }
 }
 
-.bulletins-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: var(--space-12);
-    color: var(--brand-text-muted);
-    text-align: center;
-    position: relative;
-
-    &::before {
-        content: '';
-        position: absolute;
-        inset: var(--space-4);
-        background:
-            radial-gradient(circle at 30% 30%, rgba(var(--bs-primary-rgb), 0.05) 0%, transparent 50%),
-            radial-gradient(circle at 70% 70%, rgba(var(--bs-primary-rgb), 0.03) 0%, transparent 50%);
-        border-radius: 20px;
-        animation: pulse 3s ease-in-out infinite;
-    }
-
-    .spinner {
-        width: 48px;
-        height: 48px;
-        border: 3px solid rgba(var(--bs-primary-rgb), 0.1);
-        border-top: 3px solid var(--bs-primary);
-        border-radius: 50%;
-        animation:
-            spin 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite,
-            glow 2s ease-in-out infinite alternate;
-        margin-bottom: var(--space-6);
-        position: relative;
-        z-index: 1;
-
-        &::after {
-            content: '';
-            position: absolute;
-            inset: -6px;
-            border-radius: 50%;
-            background: conic-gradient(from 0deg, transparent, rgba(var(--bs-primary-rgb), 0.1), transparent);
-            animation: rotate 3s linear infinite;
-            z-index: -1;
-        }
-    }
-
-    p {
-        font-size: var(--font-size-sm);
-        margin: 0;
-        font-weight: 500;
-        position: relative;
-        z-index: 1;
-        opacity: 0.8;
-    }
-}
-
-@keyframes paperFloat {
-
-    0%,
-    100% {
-        transform: translateY(0px) rotate(0deg);
-        opacity: 0.8;
-    }
-
-    25% {
-        transform: translateY(-8px) rotate(0.2deg);
-        opacity: 1;
-    }
-
-    50% {
-        transform: translateY(-12px) rotate(-0.1deg);
-        opacity: 0.9;
-    }
-
-    75% {
-        transform: translateY(-6px) rotate(0.15deg);
-        opacity: 1;
-    }
-}
-
-@keyframes headerShimmer {
-
-    0%,
-    100% {
-        opacity: 0.3;
-        transform: translateX(-10px);
-    }
-
-    50% {
-        opacity: 0.7;
-        transform: translateX(10px);
-    }
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 0.4;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.8;
-        transform: scale(1.02);
-    }
-}
-
-@keyframes glow {
-    from {
-        filter: drop-shadow(0 0 5px rgba(var(--bs-primary-rgb), 0.3));
-    }
-
-    to {
-        filter: drop-shadow(0 0 15px rgba(var(--bs-primary-rgb), 0.6));
-    }
-}
-
-.bulletins-error {
-    padding: var(--space-8);
-    margin-bottom: var(--space-6);
-    background:
-        linear-gradient(135deg, rgba(255, 245, 245, 0.9) 0%, rgba(254, 242, 242, 0.7) 100%),
-        radial-gradient(circle at top, rgba(220, 38, 38, 0.05) 0%, transparent 70%);
-    border: 2px solid rgba(var(--bs-danger-rgb), 0.15);
-    border-radius: 20px;
-    text-align: center;
-    position: relative;
-    backdrop-filter: blur(20px) saturate(180%);
+.bulletin {
+    border: 1px solid var(--brand-border);
+    border-radius: 12px;
+    margin-bottom: 16px;
     overflow: hidden;
-
-    &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg,
-                var(--bs-danger) 0%,
-                rgba(var(--bs-danger-rgb), 0.6) 50%,
-                var(--bs-danger) 100%);
-        animation: errorPulse 2s ease-in-out infinite;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     }
-
-    &::after {
-        content: '⚠️';
-        position: absolute;
-        top: var(--space-2);
-        right: var(--space-4);
-        font-size: 20px;
-        opacity: 0.6;
-        animation: float 3s ease-in-out infinite;
+    
+    .bulletin-header {
+        background: linear-gradient(135deg,
+                #6B7280 0%,
+                #9CA3AF 25%,
+                #C5C9D2 50%,
+                #B0B4BE 75%,
+                #6B7280 100%);
+        color: white;
+        padding: 12px 16px;
+        border-bottom: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        
+        @media (min-width: 768px) {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+            flex: 1;
+            text-align: center;
+            
+            @media (min-width: 768px) {
+                font-size: 16px;
+                text-align: left;
+            }
+        }
+        
+        .bulletin-dates {
+            flex-shrink: 0;
+            white-space: nowrap;
+            text-align: center;
+            
+            @media (min-width: 768px) {
+                text-align: right;
+            }
+            
+            small {
+                background: rgba(240, 240, 245, 0.25);
+                padding: 8px 14px;
+                border-radius: 20px;
+                font-weight: 600;
+                font-size: 12px;
+                border: 1px solid rgba(120, 120, 130, 0.2);
+                display: inline-block;
+                white-space: nowrap;
+            }
+        }
     }
-
-    .error-message {
-        color: var(--bs-danger);
-        margin: 0;
-        font-size: var(--font-size-sm);
-        font-weight: 600;
-        position: relative;
-        z-index: 1;
-    }
-}
-
-@keyframes errorPulse {
-
-    0%,
-    100% {
-        opacity: 0.6;
-    }
-
-    50% {
-        opacity: 1;
+    
+    .bulletin-content {
+        padding: 16px;
+        background: var(--brand-surface);
+        color: var(--brand-text);
+        font-size: 16px;
+        line-height: 1.6;
+        
+        ::ng-deep {
+            p {
+                margin-bottom: 12px;
+                color: var(--brand-text);
+                
+                &:last-child {
+                    margin-bottom: 0;
+                }
+            }
+            
+            ul, ol {
+                margin-left: 16px;
+                margin-bottom: 12px;
+                color: var(--brand-text);
+            }
+            
+            strong {
+                font-weight: 600;
+                color: var(--brand-text);
+            }
+            
+            em {
+                font-style: italic;
+                color: var(--brand-text);
+            }
+            
+            a {
+                color: var(--bs-primary);
+                text-decoration: underline;
+                
+                &:hover {
+                    text-decoration: none;
+                }
+            }
+        }
     }
 }

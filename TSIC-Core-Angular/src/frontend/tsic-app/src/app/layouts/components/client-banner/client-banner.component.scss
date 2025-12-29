@@ -251,7 +251,7 @@
                     font-size: 1.1rem; // Further reduced for mobile
                     font-weight: 800; // Bolder
                     padding: 0.7rem 1rem; // More padding
-                    margin-bottom: 0.8rem;
+                    margin-bottom: 0.4rem; // Reduced spacing to subtitle
                     // Stronger shadows for mobile readability
                     text-shadow:
                         0 3px 6px rgba(0, 0, 0, 0.9),
@@ -375,9 +375,9 @@
 
                 // Mobile optimization
                 @media (max-width: 768px) {
-                    font-size: 0.8rem; // Further reduced for mobile
+                    font-size: 0.77rem; // Tiny bit larger
                     font-weight: 600; // Bolder
-                    margin-top: 0.5rem;
+                    margin-top: 0.2rem; // Reduced space from title
                     // Strong shadows for readability
                     text-shadow:
                         0 2px 4px rgba(0, 0, 0, 0.9),
