@@ -53,7 +53,7 @@
     font-size: 0.9375rem;
     font-weight: 500;
     line-height: 1.35;
-    color: var(--bs-body-color);
+    color: var(--brand-text);
     cursor: pointer;
     text-align: center;
     transition: all 0.2s ease;
@@ -88,7 +88,7 @@
 .hamburger-btn {
     background: white;
     border-color: rgba(0, 0, 0, 0.175);
-    color: var(--bs-body-color);
+    color: var(--brand-text);
 
     &:hover {
         background: #f8f9fa;
@@ -117,7 +117,7 @@
     text-align: center;
     font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--bs-success);
+    color: var(--brand-text);
     white-space: normal;
     word-wrap: break-word;
     padding: 0 8px;
@@ -133,7 +133,7 @@
     white-space: nowrap;
 
     strong {
-        color: var(--bs-body-color);
+        color: var(--brand-text);
     }
 
     .text-muted {

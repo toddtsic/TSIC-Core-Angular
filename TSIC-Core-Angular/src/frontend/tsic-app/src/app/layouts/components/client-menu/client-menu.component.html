@@ -15,9 +15,7 @@
                 <a class="nav-link dropdown-toggle" href="#" role="button" [attr.data-bs-toggle]="'dropdown'"
                     [attr.aria-expanded]="isExpanded(item.menuItemId)"
                     (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
-                    @if (item.iconName) {
-                    <i class="bi bi-{{ item.iconName }} me-1"></i>
-                    }
+                    <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
                 </a>
                 <!-- Dropdown menu -->
@@ -26,9 +24,7 @@
                     <li>
                         @if (isExternalLink(child)) {
                         <a class="dropdown-item" [href]="getLink(child)" [target]="child.linkTarget || '_self'">
-                            @if (child.iconName) {
-                            <i class="bi bi-{{ child.iconName }} me-2"></i>
-                            }
+                            <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                             {{ child.text }}
                         </a>
                         } @else if (getLink(child)) {
@@ -53,16 +49,12 @@
                 <!-- Standalone item -->
                 @if (isExternalLink(item)) {
                 <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'">
-                    @if (item.iconName) {
-                    <i class="bi bi-{{ item.iconName }} me-1"></i>
-                    }
+                    <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
                 </a>
                 } @else if (getLink(item)) {
                 <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active">
-                    @if (item.iconName) {
-                    <i class="bi bi-{{ item.iconName }} me-1"></i>
-                    }
+                    <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
                 </a>
                 } @else {
@@ -106,9 +98,7 @@
                     <a class="nav-link d-flex justify-content-between align-items-center" href="#"
                         (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
                         <span>
-                            @if (item.iconName) {
-                            <i class="bi bi-{{ item.iconName }} me-2"></i>
-                            }
+                            <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                             {{ item.text }}
                         </span>
                         <i class="bi" [class.bi-chevron-down]="!isExpanded(item.menuItemId)"
@@ -122,17 +112,13 @@
                                 @if (isExternalLink(child)) {
                                 <a class="nav-link" [href]="getLink(child)" [target]="child.linkTarget || '_self'"
                                     (click)="closeOffcanvas()">
-                                    @if (child.iconName) {
-                                    <i class="bi bi-{{ child.iconName }} me-2"></i>
-                                    }
+                                    <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                                     {{ child.text }}
                                 </a>
                                 } @else if (getLink(child)) {
                                 <a class="nav-link" [routerLink]="getLink(child)" routerLinkActive="active"
                                     (click)="closeOffcanvas()">
-                                    @if (child.iconName) {
-                                    <i class="bi bi-{{ child.iconName }} me-2"></i>
-                                    }
+                                    <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                                     {{ child.text }}
                                 </a>
                                 } @else {
@@ -152,17 +138,13 @@
                     @if (isExternalLink(item)) {
                     <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'"
                         (click)="closeOffcanvas()">
-                        @if (item.iconName) {
-                        <i class="bi bi-{{ item.iconName }} me-2"></i>
-                        }
+                        <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                         {{ item.text }}
                     </a>
                     } @else if (getLink(item)) {
                     <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active"
                         (click)="closeOffcanvas()">
-                        @if (item.iconName) {
-                        <i class="bi bi-{{ item.iconName }} me-2"></i>
-                        }
+                        <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                         {{ item.text }}
                     </a>
                     } @else {

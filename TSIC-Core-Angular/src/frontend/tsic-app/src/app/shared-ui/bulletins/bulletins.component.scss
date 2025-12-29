@@ -2,12 +2,12 @@
 
 .bulletins-section {
     padding: 24px 16px 16px 16px;
-    
+
     // Mobile: fill most of the view
     @media (max-width: 767px) {
         padding: 16px 8px 8px 8px;
     }
-    
+
     // Desktop: use percentage of screen width
     @media (min-width: 768px) {
         max-width: 80%;
@@ -23,12 +23,12 @@
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
-    
+
     &:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     }
-    
+
     .bulletin-header {
         background: linear-gradient(135deg,
                 #6B7280 0%,
@@ -42,13 +42,13 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
-        
+
         @media (min-width: 768px) {
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
         }
-        
+
         h3 {
             margin: 0;
             font-size: 14px;
@@ -56,22 +56,22 @@
             color: white;
             flex: 1;
             text-align: center;
-            
+
             @media (min-width: 768px) {
                 font-size: 16px;
                 text-align: left;
             }
         }
-        
+
         .bulletin-dates {
             flex-shrink: 0;
             white-space: nowrap;
             text-align: center;
-            
+
             @media (min-width: 768px) {
                 text-align: right;
             }
-            
+
             small {
                 background: rgba(240, 240, 245, 0.25);
                 padding: 8px 14px;
@@ -84,44 +84,45 @@
             }
         }
     }
-    
+
     .bulletin-content {
         padding: 16px;
         background: var(--brand-surface);
         color: var(--brand-text);
         font-size: 16px;
         line-height: 1.6;
-        
+
         ::ng-deep {
             p {
                 margin-bottom: 12px;
                 color: var(--brand-text);
-                
+
                 &:last-child {
                     margin-bottom: 0;
                 }
             }
-            
-            ul, ol {
+
+            ul,
+            ol {
                 margin-left: 16px;
                 margin-bottom: 12px;
                 color: var(--brand-text);
             }
-            
+
             strong {
                 font-weight: 600;
                 color: var(--brand-text);
             }
-            
+
             em {
                 font-style: italic;
                 color: var(--brand-text);
             }
-            
+
             a {
                 color: var(--bs-primary);
                 text-decoration: underline;
-                
+
                 &:hover {
                     text-decoration: none;
                 }

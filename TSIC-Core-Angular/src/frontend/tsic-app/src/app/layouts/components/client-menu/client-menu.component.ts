@@ -94,4 +94,31 @@ export class ClientMenuComponent {
     isExternalLink(item: MenuItemDto): boolean {
         return !!item.navigateUrl;
     }
+
+    /**
+     * Get icon for menu item with intelligent fallbacks
+     */
+    getMenuIcon(item: MenuItemDto): string {
+        if (item.iconName) {
+            return item.iconName;
+        }
+
+        // Smart fallbacks based on menu text content
+        const text = item.text?.toLowerCase() || '';
+
+        if (text.includes('profile') || text.includes('account')) return 'person-circle';
+        if (text.includes('dashboard') || text.includes('home')) return 'house-door';
+        if (text.includes('registration') || text.includes('register')) return 'person-plus';
+        if (text.includes('schedule') || text.includes('calendar')) return 'calendar-event';
+        if (text.includes('team') || text.includes('roster')) return 'people';
+        if (text.includes('payment') || text.includes('billing')) return 'credit-card';
+        if (text.includes('document') || text.includes('form')) return 'file-earmark-text';
+        if (text.includes('setting') || text.includes('config')) return 'gear';
+        if (text.includes('help') || text.includes('support')) return 'question-circle';
+        if (text.includes('report') || text.includes('stats')) return 'bar-chart';
+        if (text.includes('message') || text.includes('communication')) return 'chat-dots';
+
+        // Default fallback
+        return this.hasChildren(item) ? 'folder' : 'dot';
+    }
 }
