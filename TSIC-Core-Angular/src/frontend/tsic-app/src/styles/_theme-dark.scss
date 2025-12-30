@@ -1,10 +1,10 @@
 /* ============================================
    DARK MODE THEME
-   All dark mode color variables and overrides
+   Dark mode color overrides only
    ============================================ */
 
 [data-bs-theme='dark'] {
-    /* Neutral Scale */
+    /* Neutral Scale - Inverted */
     --neutral-50: #292524;
     --neutral-100: #1c1917;
     --neutral-200: #44403c;
@@ -16,14 +16,7 @@
     --neutral-800: #f5f5f4;
     --neutral-900: #fafaf9;
 
-    /* Brand Colors - Dark Mode */
-    --brand-bg: #1c1917;
-    --brand-bg-secondary: #292524;
-    --brand-surface: #44403c;
-    --brand-text: #f5f5f4;
-    --brand-text-muted: #a8a29e;
-    --brand-border: #44403c;
-
+    /* Brand Colors - Dark Mode Adjustments */
     --brand-primary: #38bdf8;
     --brand-primary-dark: #0ea5e9;
     --brand-primary-light: #7dd3fc;
@@ -33,6 +26,14 @@
     --brand-accent-dark: #f97316;
     --brand-warn: #fbbf24;
     --brand-danger: #f87171;
+
+    /* Brand Semantic Colors */
+    --brand-bg: #1c1917;
+    --brand-bg-secondary: #292524;
+    --brand-surface: #44403c;
+    --brand-text: #f5f5f4;
+    --brand-text-muted: #a8a29e;
+    --brand-border: #44403c;
 
     /* Bootstrap Mappings */
     --bs-body-bg: var(--brand-bg);
@@ -45,24 +46,7 @@
     --bs-warning: var(--brand-warn);
     --bs-border-color: var(--brand-border);
 
-    /* Semantic Colors */
-    --color-bg: var(--neutral-100);
-    --color-surface: var(--neutral-200);
-    --color-surface-alt: var(--neutral-300);
-    --color-text: var(--neutral-600);
-    --color-text-muted: var(--neutral-400);
-    --color-border: var(--neutral-300);
-
-    --bg-primary: var(--color-bg);
-    --bg-secondary: var(--color-surface-alt);
-    --bg-elevated: var(--color-surface);
-    --text-primary: var(--color-text);
-    --text-secondary: var(--color-text-muted);
-    --border-color: var(--color-border);
-    --input-bg: var(--color-surface);
-    --input-border: var(--color-border);
-
-    /* Shadows */
+    /* Shadows - Adjusted for dark backgrounds */
     --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.4);
