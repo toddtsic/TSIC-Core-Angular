@@ -1,0 +1,259 @@
+/* ============================================
+   WIZARD SYSTEM
+   Complete wizard theming and component styles
+   ============================================ */
+
+/* Generate Theme Scopes Using Map */
+@each $theme-name, $theme-props in $wizard-themes {
+    .wizard-theme-#{$theme-name} {
+        --color-primary: #{map-get($theme-props, primary)};
+        --color-primary-rgb: #{map-get($theme-props, primary-rgb)};
+        --gradient-start: #{map-get($theme-props, gradient-start)};
+        --gradient-end: #{map-get($theme-props, gradient-end)};
+        --gradient-primary-start: var(--gradient-start);
+        --gradient-primary-end: var(--gradient-end);
+        --bs-primary: var(--color-primary);
+        --bs-primary-rgb: var(--color-primary-rgb);
+    }
+}
+
+/* Apply Button Themes Using Mixin */
+@each $theme-name, $theme-props in $wizard-themes {
+    @include wizard-button-theme('.wizard-theme-#{$theme-name}');
+}
+
+/* Step Chips */
+.rw-steps-list {
+    list-style: none;
+    padding: 0 0 1rem 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    overflow-x: auto;
+
+    @media (max-width: 767.98px) {
+        padding-bottom: 1.5rem;
+    }
+}
+
+.rw-step {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    padding: .25rem .75rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+    font-size: .875rem;
+
+    &.completed {
+        border-color: var(--bs-success-border-subtle);
+        color: var(--bs-success);
+
+        .rw-step-index {
+            background: var(--bs-success-bg-subtle);
+            border-color: var(--bs-success-border-subtle);
+        }
+    }
+
+    &.active {
+        background: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary);
+        color: var(--bs-primary);
+
+        .rw-step-index {
+            background: var(--bs-primary);
+            color: var(--bs-light);
+            border-color: var(--bs-primary);
+        }
+    }
+}
+
+.rw-step-index {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--bs-border-color);
+    font-weight: 600;
+    font-size: .8rem;
+}
+
+/* Wizard Toolbar */
+.rw-toolbar {
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: .75rem;
+    padding: .75rem 1rem;
+    box-shadow: var(--shadow-xs);
+
+    &.sticky {
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+        backdrop-filter: saturate(120%) blur(6px);
+    }
+}
+
+:root[data-bs-theme='dark'] .rw-toolbar,
+[data-bs-theme='dark'] .rw-toolbar {
+    box-shadow: var(--shadow-md);
+}
+
+/* Sticky Header */
+.rw-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    background-color: var(--bg-elevated);
+    backdrop-filter: saturate(120%) blur(6px);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    border-radius: .75rem;
+    padding: .5rem;
+}
+
+:root[data-bs-theme='dark'] .rw-sticky-header,
+[data-bs-theme='dark'] .rw-sticky-header {
+    box-shadow: var(--shadow-lg);
+}
+
+/* Bottom Navigation */
+.rw-bottom-nav {
+    margin-top: 1.25rem;
+    padding: .75rem 1rem;
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: .75rem;
+    box-shadow: var(--shadow-xs);
+}
+
+:root[data-bs-theme='dark'] .rw-bottom-nav,
+[data-bs-theme='dark'] .rw-bottom-nav {
+    box-shadow: var(--shadow-md);
+}
+
+/* Progress Bars */
+.rw-progress {
+    height: 10px;
+    border: none;
+    border-radius: 999px;
+    overflow: hidden;
+    background-color: var(--bs-secondary-bg);
+    -webkit-appearance: none;
+    appearance: none;
+
+    &::-webkit-progress-bar {
+        background-color: var(--bs-secondary-bg);
+        border-radius: 999px;
+    }
+
+    &::-webkit-progress-value {
+        border-radius: 999px;
+        background-color: var(--bs-body-color);
+    }
+
+    &::-moz-progress-bar {
+        border-radius: 999px;
+        background-color: var(--bs-body-color);
+    }
+}
+
+/* Apply Progress Bar Theme Using Mixin */
+@each $theme-name, $theme-props in $wizard-themes {
+    .wizard-theme-#{$theme-name} progress {
+        @include progress-bar-theme(var(--bs-primary));
+    }
+}
+
+/* Accent Panels & Badges */
+.rw-accent-panel {
+    background-color: var(--bs-primary-bg-subtle);
+    border-left: 4px solid var(--bs-primary);
+    border-radius: .75rem;
+    padding: 1rem;
+    margin: .5rem 0 .75rem 0;
+}
+
+.rw-accent-panel-neutral {
+    background-color: var(--bs-secondary-bg);
+    border-left: 3px solid var(--bs-secondary);
+    border-radius: .75rem;
+    padding: 1rem;
+    margin: .5rem 0 .75rem 0;
+}
+
+.rw-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    border-radius: 999px;
+    padding: .25rem .75rem;
+    font-weight: 600;
+    letter-spacing: .1px;
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%);
+    color: var(--bs-light);
+    box-shadow: 0 2px 10px rgba(var(--bs-primary-rgb), .35);
+
+    &--muted {
+        background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), .08) 0%, rgba(var(--bs-primary-rgb), .18) 100%);
+        color: var(--bs-primary);
+        border-color: rgba(var(--bs-primary-rgb), .35);
+        box-shadow: var(--shadow-xs);
+    }
+
+    i {
+        font-size: .95em;
+    }
+}
+
+.rw-accent-icon {
+    color: var(--bs-primary);
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.rw-accent-icon-neutral {
+    color: var(--bs-secondary);
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+/* Mobile Form Controls - Consolidated using selector list */
+@media (max-width: 575.98px) {
+    $wizard-selectors: '.wizard-theme-player', '.wizard-theme-team', '.wizard-theme-family',
+        '.wizard-theme-login', '.wizard-theme-role-select', '.wizard-theme-landing';
+
+    @each $selector in $wizard-selectors {
+
+        #{$selector} form .form-control,
+        #{$selector} form .form-select {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        #{$selector} .btn-group.w-100 .btn {
+            flex: 1 1 0;
+            padding-top: 0.375rem;
+            padding-bottom: 0.375rem;
+        }
+
+        #{$selector} form .form-label {
+            margin-top: 0.375rem;
+            margin-bottom: 0.25rem;
+            line-height: 1.25;
+        }
+
+        #{$selector} form .form-text {
+            margin-top: 0.0625rem;
+            margin-bottom: 0;
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+    }
+}

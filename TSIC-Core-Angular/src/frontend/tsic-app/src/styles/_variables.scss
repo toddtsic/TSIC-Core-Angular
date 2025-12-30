@@ -1,0 +1,32 @@
+/* ============================================
+   TSIC VARIABLES
+   Color definitions and theme configurations
+   ============================================ */
+
+// Wizard Theme Color Map
+$wizard-themes: (
+    'player': (primary: var(--brand-primary),
+        primary-rgb: 14 165 233,
+        gradient-start: var(--brand-primary),
+        gradient-end: var(--brand-primary-dark)),
+    'team': (primary: var(--brand-primary),
+        primary-rgb: 14 165 233,
+        gradient-start: var(--brand-primary),
+        gradient-end: var(--brand-primary-dark)),
+    'family': (primary: var(--emerald-600),
+        primary-rgb: 5 150 105,
+        gradient-start: var(--emerald-500),
+        gradient-end: var(--emerald-700)),
+    'login': (primary: var(--cyan-600),
+        primary-rgb: 8 145 178,
+        gradient-start: var(--cyan-600),
+        gradient-end: var(--violet-600)),
+    'role-select': (primary: var(--indigo-500),
+        primary-rgb: 79 70 229,
+        gradient-start: var(--indigo-500),
+        gradient-end: var(--cyan-600)),
+    'landing': (primary: var(--violet-600),
+        primary-rgb: 124 58 237,
+        gradient-start: var(--violet-600),
+        gradient-end: var(--indigo-600))
+);

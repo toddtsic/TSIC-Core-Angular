@@ -1,0 +1,22 @@
+/* ============================================
+   LIST GROUPS
+   List group component styles
+   ============================================ */
+
+.list-group-item.selectable:not(.bg-info):hover {
+    background-color: rgba(var(--bs-info-rgb), 0.05);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+.list-group-item.bg-info.bg-opacity-10 {
+    background-color: rgba(var(--bs-info-rgb), 0.08) !important;
+
+    .fw-semibold {
+        color: var(--bs-body-color) !important;
+    }
+}
+
+.list-group-flush>.list-group-item {
+    border-width: 0;
+}

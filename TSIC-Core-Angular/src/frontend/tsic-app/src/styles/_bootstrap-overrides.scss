@@ -1,0 +1,44 @@
+/* ============================================
+   BOOTSTRAP OVERRIDES
+   Bootstrap utility class customizations
+   ============================================ */
+
+.bg-primary {
+    background-color: var(--bs-primary) !important;
+    color: white !important;
+}
+
+.bg-secondary {
+    background-color: var(--bs-secondary) !important;
+    color: white !important;
+}
+
+.bg-success {
+    background-color: var(--bs-success) !important;
+    color: white !important;
+}
+
+.bg-danger {
+    background-color: var(--bs-danger) !important;
+    color: white !important;
+}
+
+.bg-warning {
+    background-color: var(--bs-warning) !important;
+    color: var(--bs-dark) !important;
+}
+
+.bg-info {
+    background-color: var(--bs-info) !important;
+    color: white !important;
+}
+
+.bg-light {
+    background-color: var(--bs-light) !important;
+    color: var(--bs-dark) !important;
+}
+
+.bg-dark {
+    background-color: var(--bs-dark) !important;
+    color: white !important;
+}
