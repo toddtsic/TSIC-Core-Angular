@@ -1,0 +1,43 @@
+{
+  "recommendations": [
+    // .NET Core & C# Development
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.csdevkit",
+    
+    // Angular & TypeScript Development  
+    "angular.ng-template",
+    "ms-vscode.vscode-typescript-next",
+    
+    // Essential Web Development
+    "ecmel.vscode-html-css",
+    "bradlc.vscode-tailwindcss",
+    
+    // Code Quality & Linting
+    "sonarsource.sonarlint-vscode",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-eslint",
+    
+    // AI Coding Assistants
+    "github.copilot",
+    "github.copilot-chat",
+    
+    // Git & Version Control
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    
+    // Development Tools
+    "formulahendry.code-runner",
+    "ms-vscode.powershell",
+    "humao.rest-client",
+    
+    // Bootstrap & UI Framework Support
+    "thekalinga.bootstrap4-vscode",
+    
+    // Docker (if using containers)
+    "ms-azuretools.vscode-docker"
+  ],
+  
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-json"
+  ]
+}

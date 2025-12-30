@@ -26,7 +26,7 @@ public class JobsController : ControllerBase
     // Token constants for text substitution
     private const string JobNameToken = "!JOBNAME";
     private const string UslaxDateToken = "!USLAXVALIDTHROUGHDATE";
-    
+
     private readonly ILogger<JobsController> _logger;
     private readonly IJobLookupService _jobLookupService;
     private readonly ITeamLookupService _teamLookupService;
@@ -228,7 +228,7 @@ public class JobsController : ControllerBase
             };
 
             // Generate ETag for empty menu
-            var emptyEtag = $"\"empty-{roleName ?? "anonymous"}\"";  
+            var emptyEtag = $"\"empty-{roleName ?? "anonymous"}\"";
             var requestEtagEmpty = Request.Headers.IfNoneMatch.ToString();
             if (!string.IsNullOrEmpty(requestEtagEmpty) && requestEtagEmpty == emptyEtag)
             {
@@ -253,7 +253,7 @@ public class JobsController : ControllerBase
                     .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
                     .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
             }
-            
+
             // Process child menu items
             foreach (var child in menu.Items.SelectMany(i => i.Children).Where(c => !string.IsNullOrEmpty(c.Text)))
             {

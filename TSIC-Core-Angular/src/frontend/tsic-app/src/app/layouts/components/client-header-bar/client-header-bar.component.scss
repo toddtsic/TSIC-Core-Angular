@@ -1,7 +1,7 @@
 :host {
     display: block;
-    background: 
-        linear-gradient(135deg, 
+    background:
+        linear-gradient(135deg,
             rgba(var(--brand-primary-rgb, 56, 189, 248), 0.03) 0%,
             transparent 25%,
             transparent 75%,
@@ -21,14 +21,14 @@
         content: '';
         position: absolute;
         inset: 0;
-        background: 
+        background:
             radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04) 0%, transparent 50%),
             radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb, 16, 185, 129), 0.03) 0%, transparent 50%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
         pointer-events: none;
         z-index: 0;
     }
-    
+
     // Subtle animated shimmer effect
     &::after {
         content: '';
@@ -37,10 +37,10 @@
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, 
-            transparent 0%, 
-            rgba(255, 255, 255, 0.03) 50%, 
-            transparent 100%);
+        background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.03) 50%,
+                transparent 100%);
         animation: shimmer 8s ease-in-out infinite;
         pointer-events: none;
         z-index: 1;
@@ -56,9 +56,17 @@
 
 // Shimmer animation
 @keyframes shimmer {
-    0% { left: -100%; }
-    50% { left: 100%; }
-    100% { left: 100%; }
+    0% {
+        left: -100%;
+    }
+
+    50% {
+        left: 100%;
+    }
+
+    100% {
+        left: 100%;
+    }
 }
 
 // Modern TSIC Logo Container - Enhanced for Logo Background Issues
@@ -254,7 +262,7 @@
     transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
-    padding: 0.3rem 0.6rem !important;  // Match btn-sm sizing
+    padding: 0.3rem 0.6rem !important; // Match btn-sm sizing
     box-shadow:
         0 2px 8px rgba(0, 0, 0, 0.06),
         inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.2);
@@ -271,8 +279,9 @@
             inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.1);
     }
 
-    &:focus, &:focus-visible {
-        box-shadow: 
+    &:focus,
+    &:focus-visible {
+        box-shadow:
             0 0 0 0.2rem rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25),
             0 2px 8px rgba(0, 0, 0, 0.06),
             inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.2);
@@ -283,7 +292,7 @@
 
     // Hamburger icon styling - size to match action buttons
     .bi {
-        font-size: 1rem;  // Match action button icon size
+        font-size: 1rem; // Match action button icon size
         font-weight: 600;
         color: inherit;
         filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
@@ -464,7 +473,9 @@
         transition: opacity 0.3s ease;
     }
 
-    &:hover, &:active, &:focus {
+    &:hover,
+    &:active,
+    &:focus {
         transform: translateY(-1px);
         border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25);
         box-shadow:
@@ -491,8 +502,8 @@
 // Comprehensive Dark Mode Theming with Enhanced Logo Background Support
 :host-context([data-bs-theme="dark"]) {
     // Enhanced dark mode background
-    background: 
-        linear-gradient(135deg, 
+    background:
+        linear-gradient(135deg,
             rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 0%,
             transparent 25%,
             transparent 75%,
@@ -500,19 +511,19 @@
         linear-gradient(45deg,
             var(--brand-bg) 0%,
             var(--brand-bg-secondary) 100%);
-            
+
     &::before {
-        background: 
+        background:
             radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08) 0%, transparent 50%),
             radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb, 16, 185, 129), 0.06) 0%, transparent 50%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.005) 100%);
     }
-    
+
     &::after {
-        background: linear-gradient(90deg, 
-            transparent 0%, 
-            rgba(255, 255, 255, 0.015) 50%, 
-            transparent 100%);
+        background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.015) 50%,
+                transparent 100%);
     }
 
     .tsic-brand-box {
@@ -630,8 +641,9 @@
                 inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.03);
         }
 
-        &:focus, &:focus-visible {
-            box-shadow: 
+        &:focus,
+        &:focus-visible {
+            box-shadow:
                 0 0 0 0.2rem rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25),
                 0 2px 8px rgba(0, 0, 0, 0.2),
                 inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.05);
@@ -685,7 +697,9 @@
             0 2px 8px rgba(0, 0, 0, 0.2),
             inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.05);
 
-        &:hover, &:active, &:focus {
+        &:hover,
+        &:active,
+        &:focus {
             border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
             box-shadow:
                 0 4px 12px rgba(0, 0, 0, 0.3),
