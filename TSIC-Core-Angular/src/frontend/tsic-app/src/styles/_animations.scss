@@ -83,7 +83,7 @@
 
     &:hover {
         transform: translateX(2px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: var(--shadow-sm) !important;
         background-color: var(--bs-secondary-bg);
         border-color: var(--bs-primary-border-subtle, var(--bs-primary));
     }
@@ -115,7 +115,7 @@
 
     &:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        box-shadow: var(--shadow-md) !important;
     }
 
     &:active:not(:disabled) {

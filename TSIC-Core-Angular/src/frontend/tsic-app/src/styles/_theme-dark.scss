@@ -46,6 +46,10 @@
     --bs-warning: var(--brand-warn);
     --bs-border-color: var(--brand-border);
 
+    /* Input Variables for Dark Mode */
+    --input-bg: var(--brand-surface);
+    --input-border: var(--brand-border);
+
     /* Shadows - Adjusted for dark backgrounds */
     --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.3);
@@ -105,11 +109,11 @@
     }
 
     .btn-group .btn-outline-secondary {
-        background-color: #e7e5e4 !important;
-        border-color: #a8a29e !important;
+        background-color: var(--neutral-700) !important;
+        border-color: var(--neutral-500) !important;
 
         &:hover {
-            background-color: #d6d3d1 !important;
+            background-color: var(--neutral-600) !important;
         }
     }
 }

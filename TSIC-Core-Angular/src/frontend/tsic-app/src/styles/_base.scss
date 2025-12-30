@@ -3,7 +3,15 @@
    Core body and layout styles
    ============================================ */
 
+html,
+body,
+app-root {
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--brand-text);
+}
+
 body {
     background-color: var(--neutral-50);
-    color: var(--bs-body-color, #212529);
 }
