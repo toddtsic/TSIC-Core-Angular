@@ -23,6 +23,10 @@ namespace TSIC.API.Controllers;
 [Route("api/[controller]")]
 public class JobsController : ControllerBase
 {
+    // Token constants for text substitution
+    private const string JobNameToken = "!JOBNAME";
+    private const string UslaxDateToken = "!USLAXVALIDTHROUGHDATE";
+    
     private readonly ILogger<JobsController> _logger;
     private readonly IJobLookupService _jobLookupService;
     private readonly ITeamLookupService _teamLookupService;
@@ -144,12 +148,12 @@ public class JobsController : ControllerBase
         foreach (var bulletin in bulletins)
         {
             var processedTitle = (bulletin.Title ?? string.Empty)
-                .Replace("!JOBNAME", jobName, StringComparison.OrdinalIgnoreCase)
-                .Replace("!USLAXVALIDTHROUGHDATE", uslaxDate, StringComparison.OrdinalIgnoreCase);
+                .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
+                .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
 
             var processedText = (bulletin.Text ?? string.Empty)
-                .Replace("!JOBNAME", jobName, StringComparison.OrdinalIgnoreCase)
-                .Replace("!USLAXVALIDTHROUGHDATE", uslaxDate, StringComparison.OrdinalIgnoreCase);
+                .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
+                .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
 
             processedBulletins.Add(new BulletinDto
             {
@@ -184,14 +188,14 @@ public class JobsController : ControllerBase
     /// Returns best-fit menu based on JWT roleId claim (role-specific → anonymous fallback).
     /// Public endpoint supports anonymous users (returns menu with roleId NULL).
     /// Implements caching with ETag for efficient bandwidth usage.
+    /// Returns empty menu if no menu is configured for the role.
     /// </summary>
     /// <param name="jobPath">Job path segment (e.g. summer-showcase-2025)</param>
-    /// <returns>Menu with hierarchical items, or 404 if no menu found</returns>
+    /// <returns>Menu with hierarchical items, or empty menu if none configured</returns>
     [AllowAnonymous]
     [HttpGet("{jobPath}/menus")]
     [ProducesResponseType(typeof(MenuDto), 200)]
     [ProducesResponseType(304)]
-    [ProducesResponseType(404)]
     public async Task<ActionResult<MenuDto>> GetJobMenus(string jobPath)
     {
         _logger.LogInformation("Fetching menus for job: {JobPath}", jobPath);
@@ -213,7 +217,26 @@ public class JobsController : ControllerBase
 
         if (menu == null)
         {
-            return NotFound(new { message = $"No menu found for job: {jobPath}" });
+            // Return empty menu instead of 404 - allows frontend to gracefully hide menu
+            var emptyMenu = new MenuDto
+            {
+                MenuId = Guid.Empty,
+                JobId = jobId.Value,
+                MenuTypeId = 0,
+                RoleId = roleName,
+                Items = new List<MenuItemDto>()
+            };
+
+            // Generate ETag for empty menu
+            var emptyEtag = $"\"empty-{roleName ?? "anonymous"}\"";  
+            var requestEtagEmpty = Request.Headers.IfNoneMatch.ToString();
+            if (!string.IsNullOrEmpty(requestEtagEmpty) && requestEtagEmpty == emptyEtag)
+            {
+                return StatusCode(304); // Not Modified
+            }
+
+            Response.Headers.Append("ETag", emptyEtag);
+            return Ok(emptyMenu);
         }
 
         // Load job metadata once for token replacement (in-memory, no repeated DB calls)
@@ -224,25 +247,19 @@ public class JobsController : ControllerBase
             var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
 
             // Process menu item text with job-level token replacement
-            foreach (var item in menu.Items)
+            foreach (var item in menu.Items.Where(i => !string.IsNullOrEmpty(i.Text)))
             {
-                if (!string.IsNullOrEmpty(item.Text))
-                {
-                    item.Text = item.Text
-                        .Replace("!JOBNAME", jobName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("!USLAXVALIDTHROUGHDATE", uslaxDate, StringComparison.OrdinalIgnoreCase);
-                }
-
-                // Process child items
-                foreach (var child in item.Children)
-                {
-                    if (!string.IsNullOrEmpty(child.Text))
-                    {
-                        child.Text = child.Text
-                            .Replace("!JOBNAME", jobName, StringComparison.OrdinalIgnoreCase)
-                            .Replace("!USLAXVALIDTHROUGHDATE", uslaxDate, StringComparison.OrdinalIgnoreCase);
-                    }
-                }
+                item.Text = item.Text!
+                    .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
+                    .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
+            }
+            
+            // Process child menu items
+            foreach (var child in menu.Items.SelectMany(i => i.Children).Where(c => !string.IsNullOrEmpty(c.Text)))
+            {
+                child.Text = child.Text!
+                    .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
+                    .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
             }
         }
 
