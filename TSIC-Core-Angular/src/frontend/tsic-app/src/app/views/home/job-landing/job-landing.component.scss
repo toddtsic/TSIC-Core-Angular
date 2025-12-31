@@ -9,7 +9,7 @@
 
     p {
         font-size: 1.1rem;
-        color: #666;
+        color: var(--neutral-500);
     }
 }
 
@@ -36,9 +36,9 @@
 
             .status-item {
                 padding: 1rem;
-                border: 1px solid #ddd;
+                border: 1px solid var(--neutral-200);
                 border-radius: 4px;
-                background-color: #f8f9fa;
+                background-color: var(--neutral-100);
 
                 p {
                     margin: 0.25rem 0;

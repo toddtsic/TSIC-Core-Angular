@@ -43,48 +43,48 @@
 .step-connector {
     flex: 1;
     height: 2px;
-    background-color: #dee2e6;
+    background-color: var(--neutral-200);
     max-width: 60px;
     transition: background-color 0.3s ease;
 }
 
 /* Future step */
 .step-item.future .step-badge {
-    background-color: #f8f9fa;
-    border-color: #dee2e6;
-    color: #6c757d;
+    background-color: var(--neutral-100);
+    border-color: var(--neutral-200);
+    color: var(--neutral-500);
 }
 
 .step-item.future .step-label {
-    color: #6c757d;
+    color: var(--neutral-500);
 }
 
 /* Active step */
 .step-item.active .step-badge {
-    background-color: var(--bs-primary, #0d6efd);
-    border-color: var(--bs-primary, #0d6efd);
-    color: white;
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: var(--neutral-0);
+    box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.15);
 }
 
 .step-item.active .step-label {
-    color: var(--bs-primary, #0d6efd);
+    color: var(--bs-primary);
     font-weight: 600;
 }
 
 /* Completed step */
 .step-item.completed .step-badge {
-    background-color: var(--bs-success, #198754);
-    border-color: var(--bs-success, #198754);
-    color: white;
+    background-color: var(--bs-success);
+    border-color: var(--bs-success);
+    color: var(--neutral-0);
 }
 
 .step-item.completed .step-label {
-    color: var(--bs-success, #198754);
+    color: var(--bs-success);
 }
 
 .step-connector.completed {
-    background-color: var(--bs-success, #198754);
+    background-color: var(--bs-success);
 }
 
 /* Responsive adjustments */
@@ -94,8 +94,13 @@
         margin-bottom: 0.5rem;
     }
 
+    .step-container {
+        gap: 0.25rem;
+    }
+
     .step-item {
         min-width: 50px;
+        gap: 0.25rem;
     }
 
     .step-badge {
@@ -112,14 +117,6 @@
     .step-connector {
         max-width: 20px;
         height: 1.5px;
-    }
-
-    .step-container {
-        gap: 0.25rem;
-    }
-
-    .step-item {
-        gap: 0.25rem;
     }
 }
 

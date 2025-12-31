@@ -26,7 +26,7 @@
 
     // Improved dark mode borders
     :host-context([data-bs-theme="dark"]) & {
-        border: 1px solid #a8a29e !important;
+        border: 1px solid var(--neutral-400) !important;
         /* Much more visible border with !important */
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
     }
@@ -41,18 +41,18 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 16px rgba(255, 255, 255, 0.35) !important;
         /* Much more visible light shadow */
-        border-color: #d6d3d1 !important;
+        border-color: var(--neutral-300) !important;
         /* Lighter border on hover */
     }
 
     .bulletin-header {
         background: linear-gradient(135deg,
-                #6B7280 0%,
-                #9CA3AF 25%,
-                #C5C9D2 50%,
-                #B0B4BE 75%,
-                #6B7280 100%);
-        color: white;
+                var(--neutral-500) 0%,
+                var(--neutral-400) 25%,
+                var(--neutral-300) 50%,
+                var(--neutral-400) 75%,
+                var(--neutral-500) 100%);
+        color: var(--neutral-0);
         padding: 12px 16px;
         border-bottom: none;
         display: flex;
@@ -69,7 +69,7 @@
             margin: 0;
             font-size: 14px;
             font-weight: 500;
-            color: white;
+            color: var(--neutral-0);
             flex: 1;
             text-align: center;
 

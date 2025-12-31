@@ -2,9 +2,9 @@
     max-width: 1400px;
     margin: 0 auto;
     padding: 1rem;
-    background: #fff;
+    background: var(--brand-surface);
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 
     h2 {
         margin-bottom: 1rem;
@@ -31,22 +31,22 @@
 
         input {
             padding: 0.5rem;
-            border: 1px solid #ccc;
+            border: 1px solid var(--neutral-300);
             border-radius: 4px;
         }
 
         button[type="submit"] {
             align-self: flex-end;
             padding: 0.5rem 1.5rem;
-            background: #1976d2;
-            color: #fff;
+            background: var(--bs-primary);
+            color: var(--neutral-0);
             border: none;
             border-radius: 4px;
             font-weight: 600;
             cursor: pointer;
 
             &:disabled {
-                background: #ccc;
+                background: var(--neutral-300);
                 cursor: not-allowed;
             }
         }
