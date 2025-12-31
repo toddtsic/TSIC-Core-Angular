@@ -113,13 +113,42 @@
 
 // Hamburger button uses global glass-button class styling
 .hamburger-btn {
-    padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5)) !important;
+    // Override for better visibility across themes
+    min-width: 40px;
+    min-height: 40px;
+    background: rgba(var(--brand-text-rgb), 0.08) !important;
+    border-color: rgba(var(--brand-text-rgb), 0.15) !important;
 
     .bi {
-        font-size: var(--font-size-base);
-        font-weight: var(--font-weight-semibold);
-        color: inherit;
-        filter: drop-shadow(var(--shadow-xs));
+        font-size: 1.25rem;
+        line-height: 1;
+        color: var(--bs-body-color);
+    }
+
+    &:hover {
+        background: rgba(var(--brand-text-rgb), 0.12) !important;
+    }
+
+    &:active {
+        background: rgba(var(--brand-text-rgb), 0.15) !important;
+    }
+
+    :host-context([data-bs-theme="dark"]) & {
+        background: rgba(255, 255, 255, 0.15) !important;
+        border-color: rgba(255, 255, 255, 0.25) !important;
+
+        .bi {
+            color: #ffffff;
+            filter: none;
+        }
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+        }
+
+        &:active {
+            background: rgba(255, 255, 255, 0.12) !important;
+        }
     }
 }
 
@@ -311,7 +340,7 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    font-size: var(--font-size-sm);
+    font-size: clamp(0.7rem, 3vw, 0.875rem); // Tighter range for better scaling
     font-weight: var(--font-weight-semibold);
     color: var(--brand-text) !important;
     letter-spacing: 0.025em;
@@ -319,7 +348,8 @@
     text-align: center;
     line-height: 1.4;
     max-width: 85vw;
-    word-break: break-word;
+    white-space: nowrap; // Force single line
+    text-overflow: ellipsis; // Add ellipsis for overflow
 
     &::before {
         content: '';

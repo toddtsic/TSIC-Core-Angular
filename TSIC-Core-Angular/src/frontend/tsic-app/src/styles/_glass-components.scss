@@ -201,21 +201,21 @@
     // Dark mode
     :host-context([data-bs-theme="dark"]) & {
         background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
-            rgba(var(--neutral-0-rgb), 0.1);
-        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.25), rgba(var(--neutral-0-rgb), 0.18)),
+            rgba(var(--neutral-0-rgb), 0.2);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.3);
         box-shadow:
             var(--shadow-sm),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
 
         &:active {
             background:
-                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.08), rgba(var(--neutral-0-rgb), 0.04)),
-                rgba(var(--neutral-0-rgb), 0.06);
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.18), rgba(var(--neutral-0-rgb), 0.12)),
+                rgba(var(--neutral-0-rgb), 0.15);
             border-color: rgba(var(--brand-primary-rgb), 0.3);
             box-shadow:
                 var(--shadow-xs),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.03);
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
         }
 
         &:focus,
@@ -223,7 +223,7 @@
             box-shadow:
                 0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.25),
                 var(--shadow-sm),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
             border-color: rgba(var(--brand-primary-rgb), 0.3);
         }
     }
