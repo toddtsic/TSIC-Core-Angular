@@ -4,10 +4,9 @@
     min-height: 200px;
     max-height: 400px;
     height: auto;
-    padding: 0 2rem;
-    margin-top: 1rem; // Add space from menu above
+    padding: 0 var(--space-8);
+    margin-top: var(--space-4);
 
-    // Remove hard borders for flowing design
     &::after {
         content: '';
         position: absolute;
@@ -16,16 +15,16 @@
         right: 0;
         height: 40px;
         background: linear-gradient(to bottom,
-                rgba(255, 255, 255, 0.8) 0%,
-                rgba(255, 255, 255, 0.4) 50%,
+                rgba(var(--neutral-0-rgb), 0.8) 0%,
+                rgba(var(--neutral-0-rgb), 0.4) 50%,
                 transparent 100%);
         pointer-events: none;
         z-index: -1;
     }
 
     @media (max-width: 768px) {
-        padding: 0 1rem;
-        min-height: 160px; // Increased for better text space
+        padding: 0 var(--space-4);
+        min-height: 160px;
     }
 
     .banner-background-only {
@@ -36,59 +35,44 @@
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
-        overflow: hidden; // Changed back to hidden to contain content
+        overflow: hidden;
 
-        // Modern floating card with organic curves
-        border-radius: 2rem 0.8rem 2rem 0.8rem; // Slightly reduced curves
+        border-radius: var(--radius-xl);
         backdrop-filter: blur(20px);
-        background-color: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background-color: rgba(var(--neutral-0-rgb), 0.1);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.2);
 
         // Premium glassmorphic shadows
         box-shadow:
-            0 8px 32px rgba(0, 0, 0, 0.1),
-            0 2px 8px rgba(0, 0, 0, 0.08),
-            0 1px 4px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3),
+            var(--shadow-lg),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.3),
             inset 0 -1px 0 rgba(0, 0, 0, 0.1);
 
-        // Floating animation
-        // animation: floatingCard 6s ease-in-out infinite; // Removed - too distracting
         transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 
         &:hover {
             transform: translateY(-4px) scale(1.02);
             box-shadow:
-                0 16px 64px rgba(0, 0, 0, 0.15),
-                0 4px 16px rgba(0, 0, 0, 0.12),
-                0 2px 8px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                var(--shadow-xl),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.4),
                 inset 0 -1px 0 rgba(0, 0, 0, 0.15);
             backdrop-filter: blur(25px);
         }
 
-        // Modern gradient mesh overlay (reduced animation)
+        // Subtle neutral gradient overlay
         &::before {
             content: '';
             position: absolute;
             inset: 0;
             border-radius: inherit;
             background:
-                conic-gradient(from 180deg at 20% 30%,
-                    rgba(59, 130, 246, 0.02) 0deg,
-                    rgba(168, 85, 247, 0.015) 72deg,
-                    rgba(236, 72, 153, 0.02) 144deg,
-                    rgba(34, 197, 94, 0.015) 216deg,
-                    rgba(251, 191, 36, 0.02) 288deg,
-                    rgba(59, 130, 246, 0.02) 360deg),
                 radial-gradient(ellipse at 80% 70%,
-                    rgba(255, 255, 255, 0.06) 0%,
+                    rgba(var(--neutral-0-rgb), 0.06) 0%,
                     transparent 60%),
                 linear-gradient(135deg,
-                    rgba(255, 255, 255, 0.04) 0%,
+                    rgba(var(--neutral-0-rgb), 0.04) 0%,
                     rgba(0, 0, 0, 0.015) 100%);
             pointer-events: none;
-            // animation: gradientMesh 20s ease-in-out infinite; // Commented out - too distracting
         }
 
         .banner-image {
@@ -102,24 +86,22 @@
             position: absolute;
             top: 15%;
             right: 8%;
-            width: 30%; // Slightly smaller to fit curved design
+            width: 30%;
             height: 70%;
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 3;
-            border-radius: 1.5rem; // Match curved theme
+            border-radius: var(--radius-lg);
 
-            // Mobile positioning - with breathing room
             @media (max-width: 768px) {
-                right: 0.5rem; // Add breathing room from edge
+                right: var(--space-2);
                 top: 10%;
-                width: 35%; // Slightly larger on mobile
+                width: 35%;
                 height: 80%;
-                border-radius: 1.5rem 0 0 1.5rem; // Only round left corners when flush right
+                border-radius: var(--radius-lg) 0 0 var(--radius-lg);
             }
 
-            // Simple approach - hide if obviously empty
             &:empty {
                 display: none !important;
             }
@@ -128,28 +110,25 @@
                 max-width: 100%;
                 max-height: 100%;
                 object-fit: contain;
-                border-radius: 1.2rem; // More organic curves
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                background: rgba(255, 255, 255, 0.1);
+                border-radius: var(--radius-lg);
+                border: 1px solid rgba(var(--neutral-0-rgb), 0.3);
+                background: rgba(var(--neutral-0-rgb), 0.1);
                 backdrop-filter: blur(10px);
                 box-shadow:
-                    0 8px 32px rgba(0, 0, 0, 0.1),
-                    0 2px 8px rgba(0, 0, 0, 0.08),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+                    var(--shadow-lg),
+                    inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.4);
                 cursor: default;
                 transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-                padding: 0.5rem; // Add some breathing room
+                padding: var(--space-2);
 
-                // Set minimum visible size - hide if too small
                 min-width: 50px;
                 min-height: 50px;
 
                 &:hover {
                     transform: translateY(-3px) scale(1.05);
                     box-shadow:
-                        0 16px 48px rgba(0, 0, 0, 0.15),
-                        0 4px 16px rgba(0, 0, 0, 0.12),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+                        var(--shadow-xl),
+                        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.5);
                     backdrop-filter: blur(15px);
                 }
 
@@ -167,28 +146,26 @@
             position: absolute;
             top: 0;
             left: 0;
-            right: 25%; // Asymmetrical for modern feel
+            right: 25%;
             bottom: 0;
             display: flex;
             flex-direction: column;
-            justify-content: center; // Back to center for better containment
+            justify-content: center;
             align-items: flex-start;
-            padding: 2rem; // Simplified padding to fit within bounds
-            color: white;
+            padding: var(--space-8);
+            color: var(--neutral-0);
             text-align: left;
             cursor: default;
             user-select: none;
             transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
             z-index: 2;
-            overflow: hidden; // Ensure text doesn't spill out
+            overflow: hidden;
 
-            // Enhanced mobile readability
             @media (max-width: 768px) {
-                padding: 1.5rem 1rem; // Optimized padding
-                right: 35%; // Widen text area
+                padding: var(--space-6) var(--space-4);
+                right: 35%;
                 min-height: 140px;
-                margin-top: 0.5rem;
-                // Add strong text shadows for readability
+                margin-top: var(--space-2);
                 text-shadow:
                     0 2px 4px rgba(0, 0, 0, 0.8),
                     0 1px 2px rgba(0, 0, 0, 0.9),
@@ -199,318 +176,97 @@
 
                 .banner-title,
                 .banner-subtitle {
-                    transform: translateY(-2px) scale(1.05);
-
-                    // Activate bold sun ray effects
-                    &::before {
-                        opacity: 1;
-                        transform: scale(1.2) rotate(360deg);
-                        animation: sunRayRotate 3s linear infinite;
-                    }
-
-                    &::after {
-                        opacity: 0.8;
-                        transform: scale(1.5) rotate(-180deg);
-                        animation: sunRayRotate 4s linear infinite reverse;
-                    }
-
-                    box-shadow: 0 0 40px rgba(255, 215, 0, 0.4),
-                    0 0 80px rgba(255, 140, 0, 0.3),
-                    0 6px 24px rgba(120, 120, 130, 0.3),
-                    0 2px 8px rgba(100, 100, 110, 0.2),
-                    inset 0 1px 0 rgba(240, 240, 245, 0.15);
-                    background: linear-gradient(135deg,
-                        rgba(120, 120, 130, 0.9) 0%,
-                        rgba(140, 140, 150, 0.85) 100%);
+                    transform: translateY(-2px) scale(1.02);
                 }
             }
 
             .banner-title {
-                margin: 0 0 0.4rem 0;
-                font-size: 1.8rem; // Reduced from 2.2rem
+                margin: 0 0 var(--space-2) 0;
+                font-size: 1.8rem;
                 font-weight: 700;
                 letter-spacing: 0.5px;
-                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
+                text-shadow: var(--shadow-md);
                 backdrop-filter: blur(10px);
                 background: linear-gradient(135deg,
-                        rgba(120, 120, 130, 0.85) 0%,
-                        rgba(140, 140, 150, 0.8) 100%);
-                padding: 0.5rem 0.8rem; // Reduced padding
-                border-radius: 10px;
+                        rgba(var(--neutral-0-rgb), 0.3) 0%,
+                        rgba(var(--neutral-0-rgb), 0.25) 100%);
+                padding: var(--space-2) var(--space-3);
+                border-radius: var(--radius-md);
                 display: inline-block;
                 line-height: 1.1;
-                border: 1px solid rgba(240, 240, 245, 0.2);
+                border: 1px solid rgba(var(--neutral-0-rgb), 0.2);
                 box-shadow:
-                    0 4px 16px rgba(120, 120, 130, 0.2),
-                    inset 0 1px 0 rgba(240, 240, 245, 0.1);
+                    var(--shadow-md),
+                    inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
                 transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
                 position: relative;
 
-                // Mobile optimization
                 @media (max-width: 768px) {
-                    font-size: 1.1rem; // Further reduced for mobile
-                    font-weight: 800; // Bolder
-                    padding: 0.7rem 1rem; // More padding
-                    margin-bottom: 0.4rem; // Reduced spacing to subtitle
-                    // Stronger shadows for mobile readability
+                    font-size: 1.1rem;
+                    font-weight: 800;
+                    padding: var(--space-3) var(--space-4);
+                    margin-bottom: var(--space-2);
                     text-shadow:
                         0 3px 6px rgba(0, 0, 0, 0.9),
                         0 1px 3px rgba(0, 0, 0, 1);
                     background: linear-gradient(135deg,
-                            rgba(100, 100, 110, 0.95) 0%,
-                            rgba(120, 120, 130, 0.9) 100%);
-                    border: 2px solid rgba(240, 240, 245, 0.3);
+                            rgba(var(--neutral-0-rgb), 0.35) 0%,
+                            rgba(var(--neutral-0-rgb), 0.3) 100%);
+                    border: 2px solid rgba(var(--neutral-0-rgb), 0.3);
                 }
-
-                // Bold sun ray burst effect
-                &::before {
-                    content: '';
-                    position: absolute;
-                    inset: -30px;
-                    background:
-                        conic-gradient(from 0deg at center,
-                            transparent 0deg,
-                            rgba(255, 215, 0, 0.5) 5deg,
-                            transparent 15deg,
-                            rgba(255, 193, 7, 0.4) 20deg,
-                            transparent 30deg,
-                            rgba(255, 235, 59, 0.5) 35deg,
-                            transparent 45deg,
-                            rgba(255, 183, 3, 0.4) 50deg,
-                            transparent 60deg,
-                            rgba(255, 202, 40, 0.5) 65deg,
-                            transparent 75deg,
-                            rgba(255, 160, 0, 0.4) 80deg,
-                            transparent 90deg,
-                            rgba(255, 243, 224, 0.3) 95deg,
-                            transparent 105deg,
-                            rgba(255, 179, 0, 0.4) 110deg,
-                            transparent 120deg,
-                            rgba(255, 215, 0, 0.5) 125deg,
-                            transparent 135deg,
-                            rgba(255, 193, 7, 0.4) 140deg,
-                            transparent 150deg,
-                            rgba(255, 235, 59, 0.5) 155deg,
-                            transparent 165deg,
-                            rgba(255, 183, 3, 0.4) 170deg,
-                            transparent 180deg,
-                            rgba(255, 202, 40, 0.5) 185deg,
-                            transparent 195deg,
-                            rgba(255, 160, 0, 0.4) 200deg,
-                            transparent 210deg,
-                            rgba(255, 243, 224, 0.3) 215deg,
-                            transparent 225deg,
-                            rgba(255, 179, 0, 0.4) 230deg,
-                            transparent 240deg,
-                            rgba(255, 215, 0, 0.5) 245deg,
-                            transparent 255deg,
-                            rgba(255, 193, 7, 0.4) 260deg,
-                            transparent 270deg,
-                            rgba(255, 235, 59, 0.5) 275deg,
-                            transparent 285deg,
-                            rgba(255, 183, 3, 0.4) 290deg,
-                            transparent 300deg,
-                            rgba(255, 202, 40, 0.5) 305deg,
-                            transparent 315deg,
-                            rgba(255, 160, 0, 0.4) 320deg,
-                            transparent 330deg,
-                            rgba(255, 243, 224, 0.3) 335deg,
-                            transparent 345deg,
-                            rgba(255, 179, 0, 0.4) 350deg,
-                            transparent 360deg);
-                    border-radius: 50%;
-                    opacity: 0;
-                    transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-                    transform: scale(0.5) rotate(0deg);
-                    z-index: -1;
-                }
-
-                // Secondary ray layer for depth
-                &::after {
-                    content: '';
-                    position: absolute;
-                    inset: -50px;
-                    background:
-                        conic-gradient(from 45deg at center,
-                            transparent 0deg,
-                            rgba(255, 255, 255, 0.2) 2deg,
-                            transparent 8deg,
-                            rgba(255, 255, 255, 0.15) 10deg,
-                            transparent 16deg,
-                            rgba(255, 255, 255, 0.2) 18deg,
-                            transparent 24deg,
-                            rgba(255, 255, 255, 0.15) 26deg,
-                            transparent 32deg,
-                            rgba(255, 255, 255, 0.2) 34deg,
-                            transparent 40deg,
-                            rgba(255, 255, 255, 0.15) 42deg,
-                            transparent 48deg,
-                            rgba(255, 255, 255, 0.2) 50deg,
-                            transparent 56deg,
-                            rgba(255, 255, 255, 0.15) 58deg,
-                            transparent 64deg,
-                            rgba(255, 255, 255, 0.2) 66deg,
-                            transparent 72deg,
-                            rgba(255, 255, 255, 0.15) 74deg,
-                            transparent 80deg,
-                            rgba(255, 255, 255, 0.2) 82deg,
-                            transparent 88deg,
-                            rgba(255, 255, 255, 0.15) 90deg,
-                            transparent 360deg);
-                    border-radius: 50%;
-                    opacity: 0;
-                    transition: all 1s cubic-bezier(0.23, 1, 0.32, 1);
-                    transform: scale(0.3) rotate(-45deg);
-                    z-index: -2;
-                }
-            }
-
-            .banner-subtitle {
-                margin: 0;
-                font-size: 1.1rem; // Reduced from 1.3rem
-                font-weight: 500;
-                letter-spacing: 0.3px;
-                text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
-                position: relative;
-
-                // Mobile optimization
-                @media (max-width: 768px) {
-                    font-size: 0.77rem; // Tiny bit larger
-                    font-weight: 600; // Bolder
-                    margin-top: 0.2rem; // Reduced space from title
-                    // Strong shadows for readability
-                    text-shadow:
-                        0 2px 4px rgba(0, 0, 0, 0.9),
-                        0 1px 2px rgba(0, 0, 0, 1);
-                    // Add subtle background for readability
-                    background: rgba(80, 80, 90, 0.6);
-                    padding: 0.3rem 0.6rem;
-                    border-radius: 8px;
-                    display: inline-block;
-                    backdrop-filter: blur(5px);
-                    border: 1px solid rgba(240, 240, 245, 0.2);
-                }
-
-                // Bold sun ray burst effect (smaller)
-                &::before {
-                    content: '';
-                    position: absolute;
-                    inset: -25px;
-                    background:
-                        conic-gradient(from 30deg at center,
-                            transparent 0deg,
-                            rgba(255, 215, 0, 0.3) 8deg,
-                            transparent 18deg,
-                            rgba(255, 69, 0, 0.25) 28deg,
-                            transparent 38deg,
-                            rgba(255, 20, 147, 0.3) 48deg,
-                            transparent 58deg,
-                            rgba(138, 43, 226, 0.25) 68deg,
-                            transparent 78deg,
-                            rgba(30, 144, 255, 0.3) 88deg,
-                            transparent 98deg,
-                            rgba(50, 205, 50, 0.25) 108deg,
-                            transparent 118deg,
-                            rgba(255, 215, 0, 0.3) 128deg,
-                            transparent 138deg,
-                            rgba(255, 69, 0, 0.25) 148deg,
-                            transparent 158deg,
-                            rgba(255, 20, 147, 0.3) 168deg,
-                            transparent 178deg,
-                            rgba(138, 43, 226, 0.25) 188deg,
-                            transparent 198deg,
-                            rgba(30, 144, 255, 0.3) 208deg,
-                            transparent 218deg,
-                            rgba(50, 205, 50, 0.25) 228deg,
-                            transparent 238deg,
-                            rgba(255, 215, 0, 0.3) 248deg,
-                            transparent 258deg,
-                            rgba(255, 69, 0, 0.25) 268deg,
-                            transparent 278deg,
-                            rgba(255, 20, 147, 0.3) 288deg,
-                            transparent 298deg,
-                            rgba(138, 43, 226, 0.25) 308deg,
-                            transparent 318deg,
-                            rgba(30, 144, 255, 0.3) 328deg,
-                            transparent 338deg,
-                            rgba(50, 205, 50, 0.25) 348deg,
-                            transparent 358deg);
-                    border-radius: 50%;
-                    opacity: 0;
-                    transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-                    transform: scale(0.4) rotate(0deg);
-                    z-index: -1;
-                }
-
-                // Secondary thin ray layer
-                &::after {
-                    content: '';
-                    position: absolute;
-                    inset: -35px;
-                    background:
-                        conic-gradient(from 60deg at center,
-                            transparent 0deg,
-                            rgba(255, 255, 255, 0.15) 3deg,
-                            transparent 9deg,
-                            rgba(255, 255, 255, 0.12) 15deg,
-                            transparent 21deg,
-                            rgba(255, 255, 255, 0.15) 27deg,
-                            transparent 33deg,
-                            rgba(255, 255, 255, 0.12) 39deg,
-                            transparent 45deg,
-                            rgba(255, 255, 255, 0.15) 51deg,
-                            transparent 57deg,
-                            rgba(255, 255, 255, 0.12) 63deg,
-                            transparent 69deg,
-                            rgba(255, 255, 255, 0.15) 75deg,
-                            transparent 81deg,
-                            rgba(255, 255, 255, 0.12) 87deg,
-                            transparent 93deg,
-                            rgba(255, 255, 255, 0.15) 99deg,
-                            transparent 360deg);
-                    border-radius: 50%;
-                    opacity: 0;
-                    transition: all 1s cubic-bezier(0.23, 1, 0.32, 1);
-                    transform: scale(0.2) rotate(30deg);
-                    z-index: -2;
-                }
-
-                backdrop-filter: blur(8px);
-                background: linear-gradient(135deg,
-                    rgba(120, 120, 130, 0.8) 0%,
-                    rgba(140, 140, 150, 0.75) 100%);
-                padding: 0.4rem 0.7rem; // Reduced padding
-                border-radius: 7px;
-                display: inline-block;
-                line-height: 1.3;
-                border: 1px solid rgba(240, 240, 245, 0.15);
-                box-shadow: 0 3px 12px rgba(120, 120, 130, 0.15),
-                inset 0 1px 0 rgba(240, 240, 245, 0.08);
-                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-            }
-        }
-
-        .banner-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-            color: white;
-            padding: 2rem 1rem 1rem;
-
-            .banner-title {
-                margin: 0 0 0.5rem 0;
-                font-size: 2rem;
-                font-weight: bold;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
             }
 
             .banner-subtitle {
                 margin: 0;
                 font-size: 1.1rem;
-                text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+                font-weight: 500;
+                letter-spacing: 0.3px;
+                text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+                position: relative;
+
+                @media (max-width: 768px) {
+                    font-size: 0.77rem;
+                    font-weight: 600;
+                    margin-top: var(--space-1);
+                    text-shadow:
+                        0 2px 4px rgba(0, 0, 0, 0.9),
+                        0 1px 2px rgba(0, 0, 0, 1);
+                    background: rgba(var(--neutral-0-rgb), 0.15);
+                    padding: var(--space-1) var(--space-2);
+                    border-radius: var(--radius-sm);
+                    display: inline-block;
+                    backdrop-filter: blur(5px);
+                    border: 1px solid rgba(var(--neutral-0-rgb), 0.2);
+                }
+
+                backdrop-filter: blur(8px);
+                background: linear-gradient(135deg,
+                    rgba(var(--neutral-0-rgb), 0.2) 0%,
+                    rgba(var(--neutral-0-rgb), 0.15) 100%);
+                padding: var(--space-2) var(--space-3);
+                border-radius: var(--radius-sm);
+                display: inline-block;
+                line-height: 1.3;
+                border: 1px solid rgba(var(--neutral-0-rgb), 0.15);
+                box-shadow: var(--shadow-sm),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
+                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
             }
+        }
+    }
+
+    .banner-image-container {
+        width: 100%;
+        height: 100%;
+        min-height: inherit;
+        overflow: hidden;
+        border-radius: var(--radius-lg);
+
+        .banner-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
     }
 
@@ -520,15 +276,15 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        padding: 2rem 1rem;
+        padding: var(--space-8) var(--space-4);
         background: var(--bs-light);
         text-align: center;
 
         .banner-title {
-            margin: 0 0 0.5rem 0;
+            margin: 0 0 var(--space-2) 0;
             font-size: 2rem;
             font-weight: bold;
-            color: var(--brand-primary, var(--bs-primary));
+            color: var(--bs-primary);
         }
 
         .banner-subtitle {
@@ -544,7 +300,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 2rem 1rem;
+        padding: var(--space-8) var(--space-4);
         background: var(--bs-light);
         text-align: center;
 
@@ -554,52 +310,5 @@
             font-weight: bold;
             color: var(--bs-secondary);
         }
-    }
-}
-
-// Modern animations
-@keyframes floatingCard {
-
-    0%,
-    100% {
-        transform: translateY(0px) rotateX(0deg);
-    }
-
-    50% {
-        transform: translateY(-8px) rotateX(2deg);
-    }
-}
-
-@keyframes gradientMesh {
-
-    0%,
-    100% {
-        opacity: 0.6;
-        transform: rotate(0deg) scale(1);
-    }
-
-    25% {
-        opacity: 0.8;
-        transform: rotate(90deg) scale(1.05);
-    }
-
-    50% {
-        opacity: 0.7;
-        transform: rotate(180deg) scale(0.95);
-    }
-
-    75% {
-        opacity: 0.9;
-        transform: rotate(270deg) scale(1.02);
-    }
-}
-
-@keyframes sunRayRotate {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
     }
 }
