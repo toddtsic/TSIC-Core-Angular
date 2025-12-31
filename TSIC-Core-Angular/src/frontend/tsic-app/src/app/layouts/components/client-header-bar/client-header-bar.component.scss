@@ -22,9 +22,9 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb, 16, 185, 129), 0.03) 0%, transparent 50%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+            radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb), 0.04) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb), 0.03) 0%, transparent 50%),
+            linear-gradient(180deg, rgba(var(--neutral-0-rgb), 0.05) 0%, rgba(var(--neutral-0-rgb), 0.01) 100%);
         pointer-events: none;
         z-index: 0;
     }
@@ -39,7 +39,7 @@
         height: 100%;
         background: linear-gradient(90deg,
                 transparent 0%,
-                rgba(255, 255, 255, 0.03) 50%,
+                rgba(var(--neutral-0-rgb), 0.03) 50%,
                 transparent 100%);
         animation: shimmer 8s ease-in-out infinite;
         pointer-events: none;
@@ -72,18 +72,17 @@
 // Modern TSIC Logo Container - Enhanced for Logo Background Issues
 .tsic-brand-box {
     background:
-        linear-gradient(135deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.98), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9)),
-        rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.98), rgba(var(--neutral-0-rgb), 0.9)),
+        rgba(var(--neutral-0-rgb), 0.95);
+    border: 1px solid rgba(var(--neutral-0-rgb), 0.3);
     border-radius: var(--radius-lg);
     padding: 8px 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     box-shadow:
-        0 4px 20px rgba(0, 0, 0, 0.08),
-        0 1px 3px rgba(0, 0, 0, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        var(--shadow-lg),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.7);
     backdrop-filter: blur(10px) saturate(180%);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -96,8 +95,8 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95) 20%, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.7) 70%, transparent),
-            linear-gradient(145deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.7));
+            radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.95) 20%, rgba(var(--neutral-0-rgb), 0.7) 70%, transparent),
+            linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.9), rgba(var(--neutral-0-rgb), 0.7));
         opacity: 0.9;
         z-index: -1;
         border-radius: inherit;
@@ -106,19 +105,18 @@
     &:hover {
         transform: translateY(-1px);
         background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 1), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95)),
-            rgba(var(--neutral-0-rgb, 255, 255, 255), 0.98);
-        border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.4);
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 1), rgba(var(--neutral-0-rgb), 0.95)),
+            rgba(var(--neutral-0-rgb), 0.98);
+        border-color: rgba(var(--brand-primary-rgb), 0.4);
         box-shadow:
-            0 6px 25px rgba(0, 0, 0, 0.12),
-            0 2px 5px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            var(--shadow-xl),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.9);
 
         &::before {
             opacity: 1;
             background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 255, 255, 255), 1) 30%, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.85) 80%, transparent),
-                linear-gradient(145deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.8));
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 1) 30%, rgba(var(--neutral-0-rgb), 0.85) 80%, transparent),
+                linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.8));
         }
     }
 }
@@ -128,24 +126,23 @@
     width: auto;
     object-fit: contain;
     display: block;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(var(--shadow-sm));
 }
 
 // Modern Job Logo Container - Enhanced for Logo Background Issues
 .job-logo-box {
     background:
-        linear-gradient(135deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.85)),
-        rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
+        rgba(var(--neutral-0-rgb), 0.9);
+    border: 1px solid rgba(var(--neutral-0-rgb), 0.25);
     border-radius: var(--radius-md);
     padding: 6px 10px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     box-shadow:
-        0 3px 15px rgba(0, 0, 0, 0.06),
-        0 1px 3px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        var(--shadow-md),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.5);
     backdrop-filter: blur(8px) saturate(160%);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -158,8 +155,8 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9) 25%, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.6) 75%, transparent),
-            linear-gradient(140deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.85), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.65));
+            radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.9) 25%, rgba(var(--neutral-0-rgb), 0.6) 75%, transparent),
+            linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.85), rgba(var(--neutral-0-rgb), 0.65));
         opacity: 0.8;
         z-index: -1;
         border-radius: inherit;
@@ -168,19 +165,18 @@
     &:hover {
         transform: translateY(-1px);
         background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.98), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9)),
-            rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95);
-        border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.98), rgba(var(--neutral-0-rgb), 0.9)),
+            rgba(var(--neutral-0-rgb), 0.95);
+        border-color: rgba(var(--brand-primary-rgb), 0.3);
         box-shadow:
-            0 5px 20px rgba(0, 0, 0, 0.1),
-            0 2px 4px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            var(--shadow-lg),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.6);
 
         &::before {
             opacity: 1;
             background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95) 30%, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.75) 80%, transparent),
-                linear-gradient(140deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.75));
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.95) 30%, rgba(var(--neutral-0-rgb), 0.75) 80%, transparent),
+                linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.9), rgba(var(--neutral-0-rgb), 0.75));
         }
     }
 }
@@ -191,13 +187,13 @@
     object-fit: contain;
     display: block;
     max-width: 180px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(var(--shadow-sm));
 }
 
 // Contemporary Job Name Button
 .job-name-button {
-    background: rgba(var(--brand-text-rgb, 41, 37, 36), 0.06);
-    border: 1px solid rgba(var(--brand-text-rgb, 41, 37, 36), 0.12);
+    background: rgba(var(--brand-text-rgb), 0.06);
+    border: 1px solid rgba(var(--brand-text-rgb), 0.12);
     border-radius: var(--radius-md);
     padding: 10px 16px;
     font-size: 0.9375rem;
@@ -220,12 +216,10 @@
     z-index: 1;
 
     &:hover {
-        background: rgba(var(--brand-text-rgb, 41, 37, 36), 0.1);
-        border-color: rgba(var(--brand-text-rgb, 41, 37, 36), 0.2);
+        background: rgba(var(--brand-text-rgb), 0.1);
+        border-color: rgba(var(--brand-text-rgb), 0.2);
         transform: translateY(-1px);
-        box-shadow:
-            0 4px 15px rgba(0, 0, 0, 0.08),
-            0 1px 3px rgba(0, 0, 0, 0.06);
+        box-shadow: var(--shadow-md);
     }
 
     &:active {
@@ -236,15 +230,15 @@
 // Mobile Styles - Modern Approach
 .mobile-logo-group {
     .btn {
-        background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(var(--neutral-0-rgb), 0.9);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.2);
         border-radius: var(--radius-sm);
         padding: 0.4rem 0.6rem !important;
         backdrop-filter: blur(8px);
         transition: all 0.2s ease;
 
         &:hover {
-            background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95);
+            background: rgba(var(--neutral-0-rgb), 0.95);
             transform: translateY(-1px);
         }
     }
@@ -253,9 +247,9 @@
 // Modern Hamburger Button - Mobile Touch Optimized
 .hamburger-btn {
     background:
-        linear-gradient(135deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.95), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.85)),
-        rgba(var(--neutral-0-rgb, 255, 255, 255), 0.9);
-    border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.15);
+        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
+        rgba(var(--neutral-0-rgb), 0.9);
+    border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
     border-radius: var(--radius-md);
     color: var(--brand-text) !important;
     backdrop-filter: blur(12px) saturate(150%);
@@ -264,29 +258,29 @@
     overflow: hidden;
     padding: 0.3rem 0.6rem !important; // Match btn-sm sizing
     box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.06),
-        inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.2);
+        var(--shadow-sm),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.2);
 
     // Touch feedback - active state for mobile taps
     &:active {
         background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb, 255, 255, 255), 0.85), rgba(var(--neutral-0-rgb, 255, 255, 255), 0.75)),
-            rgba(var(--neutral-0-rgb, 255, 255, 255), 0.8);
-        border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25);
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.85), rgba(var(--neutral-0-rgb), 0.75)),
+            rgba(var(--neutral-0-rgb), 0.8);
+        border-color: rgba(var(--brand-primary-rgb), 0.25);
         transform: scale(0.98);
         box-shadow:
-            0 1px 4px rgba(0, 0, 0, 0.1),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.1);
+            var(--shadow-xs),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
     }
 
     &:focus,
     &:focus-visible {
         box-shadow:
-            0 0 0 0.2rem rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25),
-            0 2px 8px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.2);
+            0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.25),
+            var(--shadow-sm),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.2);
         outline: none;
-        border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
+        border-color: rgba(var(--brand-primary-rgb), 0.3);
         color: var(--brand-text) !important;
     }
 
@@ -295,7 +289,7 @@
         font-size: 1rem; // Match action button icon size
         font-weight: 600;
         color: inherit;
-        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
+        filter: drop-shadow(var(--shadow-xs));
     }
 }
 
@@ -311,7 +305,7 @@
     height: 26px;
     width: auto;
     display: block;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(var(--shadow-sm));
 }
 
 // Mobile Job Name Row - Strict Mobile Only
@@ -373,11 +367,11 @@
     gap: 6px;
     font-size: 0.875rem;
     white-space: nowrap;
-    background: rgba(var(--brand-text-rgb, 41, 37, 36), 0.04);
+    background: rgba(var(--brand-text-rgb), 0.04);
     padding: 6px 12px;
     border-radius: var(--radius-full);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(var(--brand-text-rgb, 41, 37, 36), 0.08);
+    border: 1px solid rgba(var(--brand-text-rgb), 0.08);
 
     strong {
         color: var(--brand-text) !important;
@@ -396,15 +390,15 @@
     display: inline-flex;
     align-items: center;
     background:
-        linear-gradient(135deg, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08), rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04)),
-        rgba(255, 255, 255, 0.02);
+        linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.08), rgba(var(--brand-primary-rgb), 0.04)),
+        rgba(var(--neutral-0-rgb), 0.02);
     padding: 8px 16px;
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.15);
+    border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
     backdrop-filter: blur(12px) saturate(150%);
     box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        var(--shadow-sm),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
@@ -424,10 +418,10 @@
 
     &:hover {
         transform: translateY(-1px);
-        border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25);
+        border-color: rgba(var(--brand-primary-rgb), 0.25);
         box-shadow:
-            0 4px 12px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            var(--shadow-md),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.15);
 
         &::before {
             opacity: 1;
@@ -439,7 +433,7 @@
         font-weight: 600;
         font-size: 0.95rem;
         letter-spacing: 0.025em;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        text-shadow: var(--shadow-sm);
     }
 }
 
@@ -447,15 +441,15 @@
 .job-name-display {
     display: inline-block;
     background:
-        linear-gradient(135deg, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08), rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04)),
-        rgba(var(--neutral-0-rgb, 255, 255, 255), 0.02);
+        linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.08), rgba(var(--brand-primary-rgb), 0.04)),
+        rgba(var(--neutral-0-rgb), 0.02);
     padding: 8px 16px;
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.15);
+    border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
     backdrop-filter: blur(12px) saturate(150%);
     box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.1);
+        var(--shadow-sm),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
@@ -467,7 +461,7 @@
         background:
             linear-gradient(45deg,
                 transparent 30%,
-                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.03) 50%,
+                rgba(var(--brand-primary-rgb), 0.03) 50%,
                 transparent 70%);
         opacity: 0;
         transition: opacity 0.3s ease;
@@ -477,10 +471,10 @@
     &:active,
     &:focus {
         transform: translateY(-1px);
-        border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25);
+        border-color: rgba(var(--brand-primary-rgb), 0.25);
         box-shadow:
-            0 4px 12px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.15);
+            var(--shadow-md),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.15);
 
         &::before {
             opacity: 1;
@@ -492,7 +486,7 @@
     font-weight: 600;
     color: var(--brand-text) !important;
     letter-spacing: 0.025em;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    text-shadow: var(--shadow-xs);
     text-align: center;
     line-height: 1.4;
     max-width: 85vw;
@@ -504,162 +498,156 @@
     // Enhanced dark mode background
     background:
         linear-gradient(135deg,
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 0%,
+            rgba(var(--brand-primary-rgb), 0.06) 0%,
             transparent 25%,
             transparent 75%,
-            rgba(var(--brand-secondary-rgb, 16, 185, 129), 0.04) 100%),
+            rgba(var(--brand-secondary-rgb), 0.04) 100%),
         linear-gradient(45deg,
             var(--brand-bg) 0%,
             var(--brand-bg-secondary) 100%);
 
     &::before {
         background:
-            radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb, 16, 185, 129), 0.06) 0%, transparent 50%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.005) 100%);
+            radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb), 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb), 0.06) 0%, transparent 50%),
+            linear-gradient(180deg, rgba(var(--neutral-0-rgb), 0.02) 0%, rgba(var(--neutral-0-rgb), 0.005) 100%);
     }
 
     &::after {
         background: linear-gradient(90deg,
                 transparent 0%,
-                rgba(255, 255, 255, 0.015) 50%,
+                rgba(var(--neutral-0-rgb), 0.015) 50%,
                 transparent 100%);
     }
 
     .tsic-brand-box {
         background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.98), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9)),
-            rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
+            rgba(var(--neutral-0-rgb), 0.1);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.15);
         box-shadow:
-            0 4px 20px rgba(0, 0, 0, 0.4),
-            0 1px 3px rgba(0, 0, 0, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            var(--shadow-lg),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
 
         &::before {
             background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.98) 20%, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.8) 70%, transparent),
-                linear-gradient(145deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.85));
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.15) 20%, rgba(var(--neutral-0-rgb), 0.08) 70%, transparent),
+                linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.06));
             opacity: 0.9;
         }
 
         &:hover {
             background:
-                linear-gradient(135deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 1), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95)),
-                rgba(var(--neutral-0-rgb, 87, 83, 78), 0.98);
-            border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.4);
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.18), rgba(var(--neutral-0-rgb), 0.12)),
+                rgba(var(--neutral-0-rgb), 0.15);
+            border-color: rgba(var(--brand-primary-rgb), 0.4);
             box-shadow:
-                0 6px 25px rgba(0, 0, 0, 0.5),
-                0 2px 5px rgba(0, 0, 0, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+                var(--shadow-xl),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.15);
 
             &::before {
                 opacity: 1;
                 background:
-                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 87, 83, 78), 1) 30%, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9) 80%, transparent),
-                    linear-gradient(145deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.98), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9));
+                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.2) 30%, rgba(var(--neutral-0-rgb), 0.12) 80%, transparent),
+                    linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.18), rgba(var(--neutral-0-rgb), 0.1));
             }
         }
     }
 
     .job-logo-box {
         background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.85)),
-            rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.1), rgba(var(--neutral-0-rgb), 0.06)),
+            rgba(var(--neutral-0-rgb), 0.08);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
         box-shadow:
-            0 3px 15px rgba(0, 0, 0, 0.3),
-            0 1px 3px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            var(--shadow-md),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
 
         &::before {
             background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95) 25%, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.7) 75%, transparent),
-                linear-gradient(140deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.75));
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.12) 25%, rgba(var(--neutral-0-rgb), 0.05) 75%, transparent),
+                linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.1), rgba(var(--neutral-0-rgb), 0.04));
             opacity: 0.8;
         }
 
         &:hover {
             background:
-                linear-gradient(135deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.98), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9)),
-                rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95);
-            border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.15), rgba(var(--neutral-0-rgb), 0.1)),
+                rgba(var(--neutral-0-rgb), 0.12);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
             box-shadow:
-                0 5px 20px rgba(0, 0, 0, 0.4),
-                0 2px 4px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.12);
+                var(--shadow-lg),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.12);
 
             &::before {
                 opacity: 1;
                 background:
-                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.98) 30%, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.8) 80%, transparent),
-                    linear-gradient(140deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.8));
+                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.18) 30%, rgba(var(--neutral-0-rgb), 0.1) 80%, transparent),
+                    linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.15), rgba(var(--neutral-0-rgb), 0.08));
             }
         }
     }
 
     .job-name-button {
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(var(--neutral-0-rgb), 0.06);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
 
         &:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow:
-                0 4px 15px rgba(0, 0, 0, 0.3),
-                0 1px 3px rgba(0, 0, 0, 0.2);
+            background: rgba(var(--neutral-0-rgb), 0.1);
+            border-color: rgba(var(--neutral-0-rgb), 0.2);
+            box-shadow: var(--shadow-md);
         }
     }
 
     .mobile-logo-group .btn {
-        background: rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(var(--neutral-0-rgb), 0.08);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
 
         &:hover {
-            background: rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95);
+            background: rgba(var(--neutral-0-rgb), 0.12);
         }
     }
 
     .hamburger-btn {
         background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.95), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.85)),
-            rgba(var(--neutral-0-rgb, 87, 83, 78), 0.9);
-        border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.2);
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
+            rgba(var(--neutral-0-rgb), 0.1);
+        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
         box-shadow:
-            0 2px 8px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.05);
+            var(--shadow-sm),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
         color: var(--brand-text) !important;
 
         &:active {
             background:
-                linear-gradient(135deg, rgba(var(--neutral-0-rgb, 87, 83, 78), 0.85), rgba(var(--neutral-0-rgb, 87, 83, 78), 0.75)),
-                rgba(var(--neutral-0-rgb, 87, 83, 78), 0.8);
-            border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.08), rgba(var(--neutral-0-rgb), 0.04)),
+                rgba(var(--neutral-0-rgb), 0.06);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
             transform: scale(0.98);
             box-shadow:
-                0 1px 4px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.03);
+                var(--shadow-xs),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.03);
         }
 
         &:focus,
         &:focus-visible {
             box-shadow:
-                0 0 0 0.2rem rgba(var(--brand-primary-rgb, 56, 189, 248), 0.25),
-                0 2px 8px rgba(0, 0, 0, 0.2),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.05);
-            border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
+                0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.25),
+                var(--shadow-sm),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
             color: var(--brand-text) !important;
         }
 
         .bi {
             color: inherit;
-            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+            filter: drop-shadow(var(--shadow-sm));
         }
     }
 
     .user-role-pill {
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(var(--neutral-0-rgb), 0.06);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.1);
 
         strong {
             color: var(--neutral-100);
@@ -668,45 +656,45 @@
 
     .job-name-display-desktop {
         background:
-            linear-gradient(135deg, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12), rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06)),
-            rgba(var(--neutral-0-rgb, 87, 83, 78), 0.03);
-        border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.2);
+            linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.12), rgba(var(--brand-primary-rgb), 0.06)),
+            rgba(var(--neutral-0-rgb), 0.03);
+        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
         box-shadow:
-            0 2px 8px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.05);
+            var(--shadow-sm),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
 
         &:hover {
-            border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
             box-shadow:
-                0 4px 12px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.08);
+                var(--shadow-md),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
         }
 
         .job-name-text {
             color: var(--brand-text) !important;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            text-shadow: var(--shadow-sm);
         }
     }
 
     .job-name-display {
         background:
-            linear-gradient(135deg, rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12), rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06)),
-            rgba(var(--neutral-0-rgb, 87, 83, 78), 0.03);
-        border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.2);
+            linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.12), rgba(var(--brand-primary-rgb), 0.06)),
+            rgba(var(--neutral-0-rgb), 0.03);
+        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
         box-shadow:
-            0 2px 8px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.05);
+            var(--shadow-sm),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
 
         &:hover,
         &:active,
         &:focus {
-            border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
             box-shadow:
-                0 4px 12px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.08);
+                var(--shadow-md),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
         }
 
         color: var(--brand-text) !important;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        text-shadow: var(--shadow-sm);
     }
 }
