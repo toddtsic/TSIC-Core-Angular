@@ -1,8 +1,8 @@
 .client-banner {
     position: relative;
     z-index: 100;
-    min-height: 200px;
-    max-height: 400px;
+    min-height: 200px; // Component-specific: large banner minimum
+    max-height: 400px; // Component-specific: banner maximum
     height: auto;
     padding: 0 var(--space-8);
     margin-top: var(--space-4);
@@ -10,10 +10,10 @@
     &::after {
         content: '';
         position: absolute;
-        bottom: -20px;
+        bottom: calc(-1 * var(--space-5));
         left: 0;
         right: 0;
-        height: 40px;
+        height: calc(var(--space-10) * 2);
         background: linear-gradient(to bottom,
                 rgba(var(--neutral-0-rgb), 0.8) 0%,
                 rgba(var(--neutral-0-rgb), 0.4) 50%,
@@ -24,7 +24,7 @@
 
     @media (max-width: 768px) {
         padding: 0 var(--space-4);
-        min-height: 160px;
+        min-height: 160px; // Component-specific: mobile banner minimum
     }
 
     .banner-background-only {
@@ -38,7 +38,7 @@
         overflow: hidden;
 
         border-radius: var(--radius-xl);
-        backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px); // Component-specific: glassmorphic effect
         background-color: rgba(var(--neutral-0-rgb), 0.1);
         border: 1px solid rgba(var(--neutral-0-rgb), 0.2);
 
@@ -51,12 +51,12 @@
         transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 
         &:hover {
-            transform: translateY(-4px) scale(1.02);
+            transform: translateY(calc(-1 * var(--space-1))) scale(1.02);
             box-shadow:
                 var(--shadow-xl),
                 inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.4),
                 inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(25px);
+            backdrop-filter: blur(25px); // Component-specific: enhanced glassmorphic on hover
         }
 
         // Subtle neutral gradient overlay
@@ -122,11 +122,11 @@
                 transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
                 padding: var(--space-2);
 
-                min-width: 50px;
-                min-height: 50px;
+                min-width: var(--space-12);
+                min-height: var(--space-12);
 
                 &:hover {
-                    transform: translateY(-3px) scale(1.05);
+                    transform: translateY(calc(-1 * var(--space-1))) scale(1.05);
                     box-shadow:
                         var(--shadow-xl),
                         inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.5);
@@ -165,7 +165,7 @@
             @media (max-width: 768px) {
                 padding: var(--space-6) var(--space-4);
                 right: 35%;
-                min-height: 140px;
+                min-height: 140px; // Component-specific: mobile text overlay minimum
                 margin-top: var(--space-2);
                 text-shadow:
                     0 2px 4px rgba(0, 0, 0, 0.8),
@@ -183,8 +183,8 @@
 
             .banner-title {
                 margin: 0 0 var(--space-2) 0;
-                font-size: 1.8rem;
-                font-weight: 700;
+                font-size: var(--font-size-3xl);
+                font-weight: var(--font-weight-bold);
                 letter-spacing: 0.5px;
                 text-shadow:
                     1px 1px 4px rgba(0, 0, 0, 0.8),
@@ -206,8 +206,8 @@
                 position: relative;
 
                 @media (max-width: 768px) {
-                    font-size: 1.1rem;
-                    font-weight: 800;
+                    font-size: var(--font-size-lg);
+                    font-weight: var(--font-weight-bold);
                     padding: var(--space-3) var(--space-4);
                     margin-bottom: var(--space-2);
                     text-shadow:
@@ -222,15 +222,15 @@
 
             .banner-subtitle {
                 margin: 0;
-                font-size: 1.1rem;
-                font-weight: 500;
+                font-size: var(--font-size-lg);
+                font-weight: var(--font-weight-medium);
                 letter-spacing: 0.3px;
                 text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                 position: relative;
 
                 @media (max-width: 768px) {
-                    font-size: 0.77rem;
-                    font-weight: 600;
+                    font-size: var(--font-size-xs);
+                    font-weight: var(--font-weight-semibold);
                     margin-top: var(--space-1);
                     text-shadow:
                         0 2px 4px rgba(0, 0, 0, 0.9),
@@ -286,16 +286,16 @@
 
         .banner-title {
             margin: 0 0 var(--space-2) 0;
-            font-size: 2rem;
-            font-weight: bold;
+            font-size: var(--font-size-4xl);
+            font-weight: var(--font-weight-bold);
             color: var(--bs-primary);
         }
 
         .banner-subtitle {
             margin: 0;
-            font-size: 1.1rem;
+            font-size: var(--font-size-lg);
             color: var(--bs-secondary);
-            font-weight: 500;
+            font-weight: var(--font-weight-medium);
         }
     }
 
@@ -310,8 +310,8 @@
 
         .banner-title {
             margin: 0;
-            font-size: 2rem;
-            font-weight: bold;
+            font-size: var(--font-size-4xl);
+            font-weight: var(--font-weight-bold);
             color: var(--bs-secondary);
         }
     }
