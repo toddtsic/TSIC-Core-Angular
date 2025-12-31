@@ -3,23 +3,18 @@
    Main orchestrator file - imports all partials
    ============================================ */
 
+/* Core Configuration */
+@use 'styles/config' as *;
+@use 'styles/tokens';
+@use 'styles/base';
+@use 'styles/theme-dark';
+@use 'styles/bootstrap-overrides';
+@use 'styles/utilities';
+@use 'styles/animations';
+@use 'styles/wizard';
+@use 'styles/public-layout';
+@use 'styles/tables';
+@use 'styles/list-groups';
+
 /* External Dependencies */
 @import '../node_modules/bootstrap-icons/font/bootstrap-icons.css';
-
-/* Core Configuration */
-@import 'styles/tokens';
-@import 'styles/variables';
-@import 'styles/mixins';
-
-/* Base Styles */
-@import 'styles/base';
-@import 'styles/theme-dark';
-
-/* Component Styles */
-@import 'styles/bootstrap-overrides';
-@import 'styles/utilities';
-@import 'styles/animations';
-@import 'styles/wizard';
-@import 'styles/public-layout';
-@import 'styles/tables';
-@import 'styles/list-groups';

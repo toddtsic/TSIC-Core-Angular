@@ -91,3 +91,35 @@ try {
 } catch {
     Write-Warning ("Angular web.config validation note: {0}" -f $_.Exception.Message)
 }
+
+# Backup published output to zip (only if build was successful)
+if (Test-Path $OutputPath) {
+    $fileCount = (Get-ChildItem $OutputPath -Recurse -File).Count
+    if ($fileCount -gt 0) {
+        Write-Host "Creating backup archive..." -ForegroundColor Cyan
+        $backupDir = "C:\Users\Administrator\Documents\Backups\DOTNETPublishedOutputs"
+        $zipPath = Join-Path $backupDir "TSIC-app.zip"
+
+        # Ensure backup directory exists
+        if (!(Test-Path $backupDir)) {
+            New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+        }
+
+        # Remove old zip if it exists
+        if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+        }
+
+        # Create zip archive
+        Compress-Archive -Path "$OutputPath\*" -DestinationPath $zipPath -CompressionLevel Optimal
+        if ($?) {
+            Write-Host "Backup archive created: $zipPath" -ForegroundColor Green
+        } else {
+            Write-Warning "Failed to create backup archive"
+        }
+    } else {
+        Write-Warning "No files found in output directory, skipping backup archive"
+    }
+} else {
+    Write-Warning "Output path does not exist, skipping backup archive"
+}

@@ -1,5 +1,5 @@
 # All-in-one build and package script for TSIC deployment
-# This script combines: Build-DotNet-API.ps1, Build-Angular.ps1, and Create-iDrive-Package-simple.ps1
+# This script combines: 1a-Build-DotNet-API.ps1, 1b-Build-Angular.ps1, and 1c-Create-iDrive-Package-simple.ps1
 # Run from the scripts directory
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -25,7 +25,7 @@ try {
 
 # Step 1: Build .NET API
 Write-Host "Step 1: Building .NET API..." -ForegroundColor Yellow
-$scriptPath = Join-Path $PSScriptRoot "Build-DotNet-API.ps1"
+$scriptPath = Join-Path $PSScriptRoot "1a-Build-DotNet-API.ps1"
 & $scriptPath
 if ($LASTEXITCODE -ne 0) {
     Write-Host "API build failed!" -ForegroundColor Red
@@ -36,7 +36,7 @@ Write-Host ""
 
 # Step 2: Build Angular
 Write-Host "Step 2: Building Angular..." -ForegroundColor Yellow
-$scriptPath = Join-Path $PSScriptRoot "Build-Angular.ps1"
+$scriptPath = Join-Path $PSScriptRoot "1b-Build-Angular.ps1"
 & $scriptPath
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Angular build failed!" -ForegroundColor Red
@@ -47,7 +47,7 @@ Write-Host ""
 
 # Step 3: Create iDrive Package
 Write-Host "Step 3: Creating iDrive deployment package..." -ForegroundColor Yellow
-$scriptPath = Join-Path $PSScriptRoot "Create-iDrive-Package-simple.ps1"
+$scriptPath = Join-Path $PSScriptRoot "1c-Create-iDrive-Package-simple.ps1"
 & $scriptPath
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Package creation failed!" -ForegroundColor Red

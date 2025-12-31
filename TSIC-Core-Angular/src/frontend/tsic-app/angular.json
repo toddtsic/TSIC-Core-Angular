@@ -55,8 +55,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "8kB",
-                  "maximumError": "16kB"
+                  "maximumWarning": "16kB",
+                  "maximumError": "32kB"
                 }
               ],
               "outputHashing": "all",
@@ -86,7 +86,10 @@
           "options": {
             "ssl": true,
             "sslCert": "ssl/localhost+2.pem",
-            "sslKey": "ssl/localhost+2-key.pem"
+            "sslKey": "ssl/localhost+2-key.pem",
+            "liveReload": true,
+            "hmr": true,
+            "poll": 2000
           },
           "configurations": {
             "production": {

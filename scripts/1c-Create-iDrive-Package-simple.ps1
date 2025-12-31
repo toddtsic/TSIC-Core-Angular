@@ -16,7 +16,7 @@ $AngularSource = Join-Path $OutputPath "angular"
 
 if (!(Test-Path $ApiSource)) {
     Write-Error "API build output not found: $ApiSource"
-    Write-Host "Please run .\Build-DotNet-API.ps1 first" -ForegroundColor Yellow
+    Write-Host "Please run .\1a-Build-DotNet-API.ps1 first" -ForegroundColor Yellow
     exit 1
 }
 

@@ -3,13 +3,16 @@
    Complete wizard theming and component styles
    ============================================ */
 
+@use "sass:map";
+@use "config" as *;
+
 /* Generate Theme Scopes Using Map */
 @each $theme-name, $theme-props in $wizard-themes {
     .wizard-theme-#{$theme-name} {
-        --color-primary: #{map-get($theme-props, primary)};
-        --color-primary-rgb: #{map-get($theme-props, primary-rgb)};
-        --gradient-start: #{map-get($theme-props, gradient-start)};
-        --gradient-end: #{map-get($theme-props, gradient-end)};
+        --color-primary: #{map.get($theme-props, primary)};
+        --color-primary-rgb: #{map.get($theme-props, primary-rgb)};
+        --gradient-start: #{map.get($theme-props, gradient-start)};
+        --gradient-end: #{map.get($theme-props, gradient-end)};
         --gradient-primary-start: var(--gradient-start);
         --gradient-primary-end: var(--gradient-end);
         --bs-primary: var(--color-primary);

@@ -1,0 +1,8 @@
+/* ============================================
+   CONFIGURATION INDEX
+   Forwards all shared configuration (variables, mixins)
+   so other files can import once instead of multiple times
+   ============================================ */
+
+@forward 'variables';
+@forward 'mixins';
