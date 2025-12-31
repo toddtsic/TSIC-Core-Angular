@@ -84,10 +84,10 @@
 
         .banner-image-overlay {
             position: absolute;
-            top: 15%;
-            right: 8%;
-            width: 30%;
-            height: 70%;
+            top: 6%;
+            right: 3%;
+            left: 72%;
+            height: 90%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -96,6 +96,7 @@
 
             @media (max-width: 768px) {
                 right: var(--space-2);
+                left: auto;
                 top: 10%;
                 width: 35%;
                 height: 80%;
