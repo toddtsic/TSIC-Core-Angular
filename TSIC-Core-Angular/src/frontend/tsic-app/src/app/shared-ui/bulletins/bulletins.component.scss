@@ -1,27 +1,27 @@
 // Bulletins component - clean slate
 
 .bulletins-section {
-    padding: 24px 16px 16px 16px;
+    padding: var(--space-6) var(--space-4) var(--space-4) var(--space-4);
 
     // Mobile: fill most of the view
     @media (max-width: 767px) {
-        padding: 16px 8px 8px 8px;
+        padding: var(--space-4) var(--space-2) var(--space-2) var(--space-2);
     }
 
     // Desktop: use percentage of screen width
     @media (min-width: 768px) {
         max-width: 80%;
         margin: 0 auto;
-        padding-top: 32px;
+        padding-top: var(--space-8);
     }
 }
 
 .bulletin {
     border: 1px solid var(--brand-border);
-    border-radius: 12px;
-    margin-bottom: 16px;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
     transition: all 0.3s ease;
 
     // Improved dark mode borders
@@ -32,13 +32,13 @@
     }
 
     &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        transform: translateY(calc(-1 * var(--space-0\.5)));
+        box-shadow: var(--shadow-md);
     }
 
     // Enhanced hover effect for dark mode
     :host-context([data-bs-theme="dark"]) &:hover {
-        transform: translateY(-2px);
+        transform: translateY(calc(-1 * var(--space-0\.5)));
         box-shadow: 0 4px 16px rgba(255, 255, 255, 0.35) !important;
         /* Much more visible light shadow */
         border-color: var(--neutral-300) !important;
@@ -53,11 +53,11 @@
                 var(--neutral-400) 75%,
                 var(--neutral-500) 100%);
         color: var(--neutral-0);
-        padding: 12px 16px;
+        padding: var(--space-3) var(--space-4);
         border-bottom: none;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--space-2);
 
         @media (min-width: 768px) {
             flex-direction: row;
@@ -67,14 +67,14 @@
 
         h3 {
             margin: 0;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
             color: var(--neutral-0);
             flex: 1;
             text-align: center;
 
             @media (min-width: 768px) {
-                font-size: 16px;
+                font-size: var(--font-size-base);
                 text-align: left;
             }
         }
@@ -90,10 +90,10 @@
 
             small {
                 background: rgba(240, 240, 245, 0.25);
-                padding: 8px 14px;
-                border-radius: 20px;
-                font-weight: 600;
-                font-size: 12px;
+                padding: var(--space-2) calc(var(--space-3) + var(--space-0\.5));
+                border-radius: var(--radius-full);
+                font-weight: var(--font-weight-semibold);
+                font-size: var(--font-size-xs);
                 border: 1px solid rgba(120, 120, 130, 0.2);
                 display: inline-block;
                 white-space: nowrap;
@@ -102,15 +102,15 @@
     }
 
     .bulletin-content {
-        padding: 16px;
+        padding: var(--space-4);
         background: var(--brand-surface);
         color: var(--brand-text);
-        font-size: 16px;
+        font-size: var(--font-size-base);
         line-height: 1.6;
 
         ::ng-deep {
             p {
-                margin-bottom: 12px;
+                margin-bottom: var(--space-3);
                 color: var(--brand-text);
 
                 &:last-child {
@@ -120,13 +120,13 @@
 
             ul,
             ol {
-                margin-left: 16px;
-                margin-bottom: 12px;
+                margin-left: var(--space-4);
+                margin-bottom: var(--space-3);
                 color: var(--brand-text);
             }
 
             strong {
-                font-weight: 600;
+                font-weight: var(--font-weight-semibold);
                 color: var(--brand-text);
             }
 

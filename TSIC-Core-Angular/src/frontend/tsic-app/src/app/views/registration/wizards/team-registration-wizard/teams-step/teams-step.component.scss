@@ -2,33 +2,33 @@
 .dropdown-menu {
     position: fixed !important;
     z-index: 1050;
-    max-height: 300px;
+    max-height: 300px; // Component-specific: constrain dropdown height
     overflow-y: auto;
-    min-width: 280px;
+    min-width: 280px; // Component-specific: ensure readable width
     max-width: 90vw;
 
     // Align dropdown to the right side of the button
-    transform: translateX(-100%) translateX(100px) !important;
+    transform: translateX(-100%) translateX(100px) !important; // Component-specific positioning
 }
 
 // On mobile, ensure dropdown aligns properly from the right
 @media (max-width: 767px) {
     .dropdown-menu {
         max-height: 50vh;
-        min-width: 250px;
-        font-size: 0.85rem;
-        transform: translateX(-100%) translateX(80px) !important;
+        min-width: 250px; // Component-specific mobile width
+        font-size: var(--font-size-sm);
+        transform: translateX(-100%) translateX(80px) !important; // Component-specific mobile positioning
 
         .dropdown-item {
-            padding: 0.5rem 0.75rem;
+            padding: var(--space-2) var(--space-3);
 
             small {
-                font-size: 0.75rem;
+                font-size: var(--font-size-xs);
             }
 
             .badge {
-                font-size: 0.65rem;
-                padding: 0.2rem 0.4rem;
+                font-size: calc(var(--font-size-xs) * 0.85); // Component-specific badge sizing
+                padding: calc(var(--space-0\.5) * 0.8) calc(var(--space-1) + var(--space-0\.5));
             }
         }
     }
@@ -44,10 +44,10 @@
 // Table cell horizontal padding
 .table th,
 .table td {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
     vertical-align: middle;
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
 }
 
 // Mobile responsive adjustments
@@ -55,50 +55,50 @@
 
     // Reduce padding on financial summary alert
     .alert {
-        padding: 0.75rem !important;
-        font-size: 0.85rem;
+        padding: var(--space-3) !important;
+        font-size: var(--font-size-sm);
 
         i {
-            font-size: 1.25rem !important;
+            font-size: calc(var(--font-size-base) * 1.25) !important;
         }
 
         .fw-bold {
-            font-size: 1rem !important;
+            font-size: var(--font-size-base) !important;
         }
 
         small {
-            font-size: 0.75rem;
+            font-size: var(--font-size-xs);
         }
     }
 
     // Compact card header
     .card-header {
-        padding: 0.75rem !important;
+        padding: var(--space-3) !important;
 
         h5 {
-            font-size: 1rem;
-            margin-bottom: 0.25rem !important;
+            font-size: var(--font-size-base);
+            margin-bottom: var(--space-1) !important;
         }
 
         .badge {
-            font-size: 0.7rem;
-            padding: 0.25rem 0.5rem;
+            font-size: calc(var(--font-size-xs) * 0.9); // Component-specific badge sizing
+            padding: var(--space-1) var(--space-2);
         }
 
         small {
-            font-size: 0.65rem !important;
+            font-size: calc(var(--font-size-xs) * 0.95) !important;
         }
     }
 
     // Table styling
     .table th,
     .table td {
-        padding: 0.5rem !important;
-        font-size: 0.75rem;
+        padding: var(--space-2) !important;
+        font-size: var(--font-size-xs);
     }
 
     .table th {
-        font-size: 0.7rem;
+        font-size: calc(var(--font-size-xs) * 0.9); // Component-specific header sizing
     }
 
     // Hide Grad Year and LOP columns on mobile
@@ -111,8 +111,8 @@
 
     // Compact buttons
     .btn-sm {
-        padding: 0.35rem 0.6rem;
-        font-size: 0.75rem;
+        padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
+        font-size: var(--font-size-xs);
     }
 
     // Make registered status more compact
@@ -120,22 +120,22 @@
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 0.125rem;
+        gap: calc(var(--space-0\.5) * 0.5); // Component-specific ultra-tight spacing
         line-height: 1.3;
 
         small {
-            font-size: 0.65rem;
+            font-size: calc(var(--font-size-xs) * 0.95); // Component-specific small sizing
         }
 
         i {
-            font-size: 0.85rem;
+            font-size: var(--font-size-sm);
         }
     }
 
     // Reduce spacing in team name mobile details
     .text-muted.small.mt-1 {
-        margin-top: 0.25rem !important;
-        font-size: 0.7rem !important;
+        margin-top: var(--space-1) !important;
+        font-size: calc(var(--font-size-xs) * 0.9) !important;
     }
 }
 
@@ -157,31 +157,31 @@ tr.registered-team {
 .registered-status {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--space-1);
 }
 
 // Compact accordion spacing
 .accordion-item {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-2);
 }
 
 .accordion-button {
-    padding: 0.65rem 0.9rem;
+    padding: calc(var(--space-2) + var(--space-0\.5)) calc(var(--space-3) + var(--space-0\.5));
 }
 
 .accordion-body {
-    padding: 0.75rem 1rem;
+    padding: var(--space-3) var(--space-4);
 }
 
 // Inline club name styling
 .club-name-inline {
-    font-size: 1rem;
+    font-size: var(--font-size-base);
 }
 
 // Compact buttons to fit three actions on one line
 .btn-compact {
-    padding: 0.35rem 0.65rem;
-    font-size: 0.85rem;
+    padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
+    font-size: var(--font-size-sm);
     line-height: 1.05;
     white-space: nowrap;
 }
@@ -197,7 +197,7 @@ tr.registered-team {
 // Accordion visibility tweaks
 .accordion-item {
     border-color: var(--border-color);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
@@ -211,22 +211,22 @@ tr.registered-team {
 }
 
 .existing-teams-table {
-    max-height: 300px;
+    max-height: 300px; // Component-specific: scrollable region height
     overflow-y: auto;
     overflow-x: hidden;
 }
 
 .existing-teams-header {
-    font-size: 0.7rem;
+    font-size: calc(var(--font-size-xs) * 0.9); // Component-specific header sizing
     color: var(--text-secondary);
 }
 
 .existing-teams-row {
-    font-size: 0.85rem;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
-    border-radius: 0.35rem;
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
+    border-radius: calc(var(--radius-sm) * 0.7); // Component-specific row radius
+    padding-left: var(--space-1);
+    padding-right: var(--space-1);
 
     &:nth-child(even) {
         background: var(--bg-elevated);
@@ -236,64 +236,64 @@ tr.registered-team {
 // Modal mobile optimizations
 @media (max-width: 767px) {
     .modal-dialog {
-        margin: 0.5rem;
+        margin: var(--space-2);
     }
 
     .modal-header {
-        padding: 0.75rem !important;
+        padding: var(--space-3) !important;
 
         .modal-title {
-            font-size: 1.1rem !important;
+            font-size: var(--font-size-lg) !important;
         }
 
         .badge {
-            font-size: 0.7rem;
-            padding: 0.25rem 0.5rem;
+            font-size: calc(var(--font-size-xs) * 0.9); // Component-specific badge sizing
+            padding: var(--space-1) var(--space-2);
         }
 
         i.bi-plus-circle-fill {
-            font-size: 1.25rem;
+            font-size: calc(var(--font-size-base) * 1.25); // Component-specific icon sizing
         }
     }
 
     .modal-body {
-        padding: 1rem !important;
+        padding: var(--space-4) !important;
 
         .alert {
-            padding: 0.75rem !important;
-            font-size: 0.85rem;
+            padding: var(--space-3) !important;
+            font-size: var(--font-size-sm);
 
             strong {
-                font-size: 0.9rem;
+                font-size: var(--font-size-sm);
             }
 
             ul {
-                font-size: 0.8rem;
+                font-size: calc(var(--font-size-xs) + var(--space-0\.5));
             }
         }
 
         .form-label {
-            font-size: 0.85rem;
-            margin-bottom: 0.25rem;
+            font-size: var(--font-size-sm);
+            margin-bottom: var(--space-1);
 
             i {
-                font-size: 0.8rem;
+                font-size: calc(var(--font-size-xs) + var(--space-0\.5));
             }
         }
 
         .form-control,
         .form-select {
-            font-size: 0.85rem;
-            padding: 0.5rem 0.75rem;
+            font-size: var(--font-size-sm);
+            padding: var(--space-2) var(--space-3);
         }
 
         .btn-lg {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            padding: var(--space-2) var(--space-4);
+            font-size: var(--font-size-sm);
         }
 
         .row.g-3 {
-            --bs-gutter-y: 0.75rem;
+            --bs-gutter-y: var(--space-3);
         }
     }
 }

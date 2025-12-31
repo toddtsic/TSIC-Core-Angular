@@ -1,14 +1,14 @@
 .profile-form-preview {
     .form-field-preview {
         background: var(--bg-elevated);
-        padding: 1rem;
-        border-radius: 0.375rem;
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
         border: 1px solid var(--border-color);
         transition: all 0.2s ease;
 
         &.admin-only {
             position: relative;
-            border-left: 6px solid var(--bs-warning);
+            border-left: var(--space-1\.5) solid var(--bs-warning);
             /* Strong left accent */
             /* Subtle diagonal stripe background to differentiate */
             background-image: repeating-linear-gradient(45deg,
@@ -20,7 +20,7 @@
 
         &.hidden-field {
             position: relative;
-            border-left: 6px solid var(--bs-info);
+            border-left: var(--space-1\.5) solid var(--bs-info);
             /* Info accent */
             background-image: repeating-linear-gradient(45deg,
                     rgba(var(--bs-info-rgb), 0.12),
@@ -35,11 +35,11 @@
         }
 
         label {
-            font-weight: 500;
-            margin-bottom: 0.5rem;
+            font-weight: var(--font-weight-medium);
+            margin-bottom: var(--space-2);
 
             .badge {
-                font-size: 0.75rem;
+                font-size: var(--font-size-xs);
             }
         }
 
@@ -49,13 +49,13 @@
         }
 
         small {
-            font-size: 0.8rem;
+            font-size: calc(var(--font-size-xs) + var(--space-0\.5));
 
             code {
                 background-color: var(--bs-secondary-bg);
-                padding: 0.125rem 0.25rem;
-                border-radius: 0.2rem;
-                font-size: 0.75rem;
+                padding: calc(var(--space-0\.5) * 0.5) var(--space-1);
+                border-radius: calc(var(--radius-sm) * 0.5);
+                font-size: var(--font-size-xs);
             }
         }
     }
@@ -65,7 +65,7 @@
 
         .form-check-input {
             margin-left: 0;
-            margin-right: 0.5rem;
+            margin-right: var(--space-2);
         }
     }
 }

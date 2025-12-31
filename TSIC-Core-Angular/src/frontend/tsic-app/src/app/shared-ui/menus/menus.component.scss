@@ -1,5 +1,5 @@
 .job-menus {
-    padding: 0.5rem 0.25rem;
+    padding: var(--space-2) var(--space-1);
 
     .nav-link {
         color: var(--bs-body-color);
@@ -7,10 +7,10 @@
         border: none;
         background: transparent;
         text-align: left;
-        border-radius: 6px;
-        padding: 0.5rem 0.75rem;
-        font-weight: 500;
-        font-size: 0.9rem;
+        border-radius: var(--radius-sm);
+        padding: var(--space-2) var(--space-3);
+        font-weight: var(--font-weight-medium);
+        font-size: var(--font-size-sm);
 
         &:hover:not(.disabled) {
             background-color: rgba(var(--bs-primary-rgb), 0.08);
@@ -20,7 +20,7 @@
         &.active {
             background-color: var(--bs-primary);
             color: var(--neutral-0);
-            font-weight: 600;
+            font-weight: var(--font-weight-semibold);
         }
 
         &.disabled {
@@ -29,8 +29,8 @@
         }
 
         i {
-            font-size: 1rem;
-            width: 18px;
+            font-size: var(--font-size-base);
+            width: calc(var(--space-4) + var(--space-0\.5));
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -44,7 +44,7 @@
         // Chevron icon styling
         .bi-chevron-down,
         .bi-chevron-up {
-            font-size: 0.75rem;
+            font-size: var(--font-size-xs);
             opacity: 0.6;
             transition: opacity 0.15s ease;
         }
@@ -69,15 +69,15 @@
     }
 
     .nav-link-sm {
-        font-size: 0.85rem;
-        padding: 0.4rem 0.75rem 0.4rem 2rem;
-        font-weight: 500;
+        font-size: var(--font-size-sm);
+        padding: calc(var(--space-1) + var(--space-0\.5)) var(--space-3) calc(var(--space-1) + var(--space-0\.5)) var(--space-8);
+        font-weight: var(--font-weight-medium);
         position: relative;
 
         &::before {
             content: '•';
             position: absolute;
-            left: 1rem;
+            left: var(--space-4);
             color: var(--bs-secondary);
         }
 
@@ -95,18 +95,18 @@
     }
 
     .nav-item {
-        margin-bottom: 0.25rem;
+        margin-bottom: var(--space-1);
     }
 
     // Submenu styling with animation
     .submenu {
         animation: slideDown 0.2s ease;
         overflow: hidden;
-        margin-top: 0.25rem;
-        padding-left: 0.5rem;
+        margin-top: var(--space-1);
+        padding-left: var(--space-2);
 
         .nav-item {
-            margin-bottom: 0.15rem;
+            margin-bottom: var(--space-0\.5);
         }
     }
 
@@ -124,9 +124,9 @@
 }
 
 .menus-loading {
-    min-height: 60px;
+    min-height: 60px; // Component-specific min-height for loading placeholder
 }
 
 .menus-error {
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
 }

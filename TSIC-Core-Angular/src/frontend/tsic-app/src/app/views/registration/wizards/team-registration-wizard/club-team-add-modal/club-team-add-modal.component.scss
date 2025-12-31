@@ -1,16 +1,16 @@
 // Compact accordion spacing
 .accordion-item {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-2);
     border-color: var(--border-color);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-md);
     overflow: hidden;
 }
 
 .accordion-button {
-    padding: 0.5rem 0.75rem;
+    padding: var(--space-2) var(--space-3);
     background-color: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
 
     &:not(.collapsed) {
         box-shadow: inset 0 -1px 0 var(--border-color);
@@ -18,7 +18,7 @@
 }
 
 .accordion-body {
-    padding: 0.5rem 0.75rem;
+    padding: var(--space-2) var(--space-3);
 }
 
 // Theme-aware section backgrounds
@@ -50,19 +50,19 @@
 
 // Inline club name styling
 .club-name-inline {
-    font-size: 0.95rem;
+    font-size: calc(var(--font-size-sm) + var(--space-0\.5));
 }
 
 // Compact form labels on mobile
 .form-label {
-    font-size: 0.875rem;
-    margin-bottom: 0.3rem;
+    font-size: var(--font-size-sm);
+    margin-bottom: calc(var(--space-1) * 0.6);
 }
 
 // Compact buttons to fit three actions on one line
 .btn-compact {
-    padding: 0.35rem 0.65rem;
-    font-size: 0.75rem;
+    padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
+    font-size: var(--font-size-xs);
     line-height: 1.05;
     white-space: nowrap;
 }
@@ -71,27 +71,27 @@
 .existing-teams-body {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-md);
     color: var(--text-primary);
 }
 
 .existing-teams-table {
-    max-height: 300px;
+    max-height: 300px; // Component-specific: scrollable height
     overflow-y: auto;
     overflow-x: hidden;
 }
 
 .existing-teams-header {
-    font-size: 0.7rem;
+    font-size: calc(var(--font-size-xs) * 0.9);
     color: var(--text-secondary);
 }
 
 .existing-teams-row {
-    font-size: 0.85rem;
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
-    border-radius: 0.35rem;
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
+    border-radius: calc(var(--radius-sm) * 0.7);
+    padding-left: var(--space-1);
+    padding-right: var(--space-1);
 
     &:nth-child(even) {
         background: var(--bg-elevated);

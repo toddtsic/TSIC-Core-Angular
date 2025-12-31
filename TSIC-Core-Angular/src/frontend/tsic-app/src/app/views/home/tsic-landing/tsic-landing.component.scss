@@ -8,11 +8,11 @@
     color: white;
 
     .btn-light {
-        font-weight: 600;
+        font-weight: var(--font-weight-semibold);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
 
         &:hover:not(:disabled) {
-            transform: translateY(-2px);
+            transform: translateY(calc(-1 * var(--space-0\.5)));
             box-shadow: var(--shadow-xl) !important;
         }
 
@@ -32,7 +32,7 @@
     background-color: var(--bg-elevated);
 
     &:hover {
-        transform: translateY(-8px);
+        transform: translateY(calc(-1 * var(--space-2)));
         box-shadow: var(--shadow-2xl) !important;
     }
 

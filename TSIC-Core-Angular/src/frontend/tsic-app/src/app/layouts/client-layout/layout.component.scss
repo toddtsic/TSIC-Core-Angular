@@ -13,7 +13,7 @@
 main {
     margin-top: 0;
     padding-top: 0;
-    min-height: calc(100vh - 310px); // Account for header+menu+banner height
+    min-height: calc(100vh - 310px); // Component-specific: account for header+menu+banner height
     overflow: hidden; // Contain all child content strictly
     position: relative; // Establish stacking context
     background-color: var(--neutral-50); // Ensure subtle off-white background in light mode

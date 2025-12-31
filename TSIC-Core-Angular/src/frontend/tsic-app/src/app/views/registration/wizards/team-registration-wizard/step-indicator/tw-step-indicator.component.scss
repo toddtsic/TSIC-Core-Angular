@@ -1,7 +1,7 @@
 .step-indicator {
     width: 100%;
-    padding: 1rem 0;
-    margin-bottom: 0.75rem;
+    padding: var(--space-4) 0;
+    margin-bottom: var(--space-3);
     /* add external space before card */
 }
 
@@ -9,42 +9,42 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
 }
 
 .step-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    min-width: 80px;
+    gap: var(--space-2);
+    min-width: 80px; // Component-specific: ensure consistent layout width
 }
 
 .step-badge {
-    width: 40px;
-    height: 40px;
+    width: var(--space-10);
+    height: var(--space-10);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
-    font-size: 1rem;
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-base);
     border: 2px solid;
     transition: all 0.3s ease;
 }
 
 .step-label {
-    font-size: 0.85rem;
+    font-size: var(--font-size-sm);
     text-align: center;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     white-space: nowrap;
 }
 
 .step-connector {
     flex: 1;
-    height: 2px;
+    height: var(--space-0\.5);
     background-color: var(--neutral-200);
-    max-width: 60px;
+    max-width: 60px; // Component-specific: connector spacing
     transition: background-color 0.3s ease;
 }
 
@@ -64,12 +64,12 @@
     background-color: var(--bs-primary);
     border-color: var(--bs-primary);
     color: var(--neutral-0);
-    box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.15);
+    box-shadow: 0 0 0 var(--space-1) rgba(var(--bs-primary-rgb), 0.15);
 }
 
 .step-item.active .step-label {
     color: var(--bs-primary);
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
 }
 
 /* Completed step */
@@ -122,8 +122,8 @@
 
 @media (max-width: 576px) {
     .step-indicator {
-        padding: 0.35rem 0;
-        margin-bottom: 0.5rem;
+        padding: calc(var(--space-1) + var(--space-0\.5)) 0;
+        margin-bottom: var(--space-2);
     }
 
     .step-label {
@@ -131,16 +131,16 @@
     }
 
     .step-item {
-        min-width: 28px;
+        min-width: var(--space-7); // Component-specific smallest width
     }
 
     .step-badge {
-        width: 24px;
-        height: 24px;
-        font-size: 0.7rem;
+        width: var(--space-6);
+        height: var(--space-6);
+        font-size: calc(var(--font-size-xs) * 0.9); // Component-specific smallest font
     }
 
     .step-connector {
-        max-width: 15px;
+        max-width: 15px; // Component-specific smallest connector
     }
 }

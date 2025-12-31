@@ -1,0 +1,318 @@
+/* ============================================
+   Glassmorphic Design System Components
+   Reusable glass effects for logos, buttons, surfaces
+   ============================================ */
+
+// Glass Logo Container - For white logo backgrounds
+// Provides solid white backing with gradient and shadow effects
+.glass-logo-box {
+    background:
+        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
+        rgba(var(--neutral-0-rgb), 0.9);
+    border: 1px solid rgba(var(--neutral-0-rgb), 0.25);
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        var(--shadow-md),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.5);
+    backdrop-filter: blur(8px) saturate(160%);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+
+    // Enhanced background support for logo transparency issues
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.9) 25%, rgba(var(--neutral-0-rgb), 0.6) 75%, transparent),
+            linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.85), rgba(var(--neutral-0-rgb), 0.65));
+        opacity: 0.8;
+        z-index: -1;
+        border-radius: inherit;
+    }
+
+    &:hover {
+        transform: translateY(-1px);
+        background:
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.98), rgba(var(--neutral-0-rgb), 0.9)),
+            rgba(var(--neutral-0-rgb), 0.95);
+        border-color: rgba(var(--brand-primary-rgb), 0.3);
+        box-shadow:
+            var(--shadow-lg),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.6);
+
+        &::before {
+            opacity: 1;
+            background:
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.95) 30%, rgba(var(--neutral-0-rgb), 0.75) 80%, transparent),
+                linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.9), rgba(var(--neutral-0-rgb), 0.75));
+        }
+    }
+
+    // Enhanced variant for primary logos (TSIC brand)
+    &.glass-logo-box-primary {
+        background:
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.98), rgba(var(--neutral-0-rgb), 0.9)),
+            rgba(var(--neutral-0-rgb), 0.95);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.3);
+        border-radius: var(--radius-lg);
+        box-shadow:
+            var(--shadow-lg),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.7);
+        backdrop-filter: blur(10px) saturate(180%);
+
+        &::before {
+            background:
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.95) 20%, rgba(var(--neutral-0-rgb), 0.7) 70%, transparent),
+                linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.9), rgba(var(--neutral-0-rgb), 0.7));
+            opacity: 0.9;
+        }
+
+        &:hover {
+            background:
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 1), rgba(var(--neutral-0-rgb), 0.95)),
+                rgba(var(--neutral-0-rgb), 0.98);
+            border-color: rgba(var(--brand-primary-rgb), 0.4);
+            box-shadow:
+                var(--shadow-xl),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.9);
+
+            &::before {
+                opacity: 1;
+                background:
+                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 1) 30%, rgba(var(--neutral-0-rgb), 0.85) 80%, transparent),
+                    linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.8));
+            }
+        }
+    }
+
+    // Dark mode adaptations
+    :host-context([data-bs-theme="dark"]) & {
+        background:
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.1), rgba(var(--neutral-0-rgb), 0.06)),
+            rgba(var(--neutral-0-rgb), 0.08);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
+        box-shadow:
+            var(--shadow-md),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
+
+        &::before {
+            background:
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.12) 25%, rgba(var(--neutral-0-rgb), 0.05) 75%, transparent),
+                linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.1), rgba(var(--neutral-0-rgb), 0.04));
+            opacity: 0.8;
+        }
+
+        &:hover {
+            background:
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.15), rgba(var(--neutral-0-rgb), 0.1)),
+                rgba(var(--neutral-0-rgb), 0.12);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
+            box-shadow:
+                var(--shadow-lg),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.12);
+
+            &::before {
+                opacity: 1;
+                background:
+                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.18) 30%, rgba(var(--neutral-0-rgb), 0.1) 80%, transparent),
+                    linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.15), rgba(var(--neutral-0-rgb), 0.08));
+            }
+        }
+    }
+
+    :host-context([data-bs-theme="dark"]) &.glass-logo-box-primary {
+        background:
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
+            rgba(var(--neutral-0-rgb), 0.1);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.15);
+        box-shadow:
+            var(--shadow-lg),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
+
+        &::before {
+            background:
+                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.15) 20%, rgba(var(--neutral-0-rgb), 0.08) 70%, transparent),
+                linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.06));
+            opacity: 0.9;
+        }
+
+        &:hover {
+            background:
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.18), rgba(var(--neutral-0-rgb), 0.12)),
+                rgba(var(--neutral-0-rgb), 0.15);
+            border-color: rgba(var(--brand-primary-rgb), 0.4);
+            box-shadow:
+                var(--shadow-xl),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.15);
+
+            &::before {
+                opacity: 1;
+                background:
+                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.2) 30%, rgba(var(--neutral-0-rgb), 0.12) 80%, transparent),
+                    linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.18), rgba(var(--neutral-0-rgb), 0.1));
+            }
+        }
+    }
+}
+
+// Glass Button - Mobile hamburger/action buttons
+.glass-button {
+    background:
+        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
+        rgba(var(--neutral-0-rgb), 0.9);
+    border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
+    border-radius: var(--radius-md);
+    color: var(--brand-text);
+    backdrop-filter: blur(12px) saturate(150%);
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        var(--shadow-sm),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.2);
+
+    &:active {
+        background:
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.85), rgba(var(--neutral-0-rgb), 0.75)),
+            rgba(var(--neutral-0-rgb), 0.8);
+        border-color: rgba(var(--brand-primary-rgb), 0.25);
+        transform: scale(0.98);
+        box-shadow:
+            var(--shadow-xs),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
+    }
+
+    &:focus,
+    &:focus-visible {
+        box-shadow:
+            0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.25),
+            var(--shadow-sm),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.2);
+        outline: none;
+        border-color: rgba(var(--brand-primary-rgb), 0.3);
+    }
+
+    // Dark mode
+    :host-context([data-bs-theme="dark"]) & {
+        background:
+            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
+            rgba(var(--neutral-0-rgb), 0.1);
+        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
+        box-shadow:
+            var(--shadow-sm),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
+
+        &:active {
+            background:
+                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.08), rgba(var(--neutral-0-rgb), 0.04)),
+                rgba(var(--neutral-0-rgb), 0.06);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
+            box-shadow:
+                var(--shadow-xs),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.03);
+        }
+
+        &:focus,
+        &:focus-visible {
+            box-shadow:
+                0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.25),
+                var(--shadow-sm),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
+        }
+    }
+}
+
+// Glass Surface - For headers/navbars with subtle gradients
+.glass-surface {
+    background:
+        linear-gradient(135deg,
+            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.03) 0%,
+            transparent 25%,
+            transparent 75%,
+            rgba(var(--brand-secondary-rgb, 16, 185, 129), 0.02) 100%),
+        linear-gradient(45deg,
+            var(--brand-bg) 0%,
+            var(--brand-bg-secondary) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    position: relative;
+    overflow: hidden;
+
+    // Enhanced surface overlay with subtle pattern
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb), 0.04) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb), 0.03) 0%, transparent 50%),
+            linear-gradient(180deg, rgba(var(--neutral-0-rgb), 0.05) 0%, rgba(var(--neutral-0-rgb), 0.01) 100%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    // Subtle animated shimmer effect
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(var(--neutral-0-rgb), 0.03) 50%,
+                transparent 100%);
+        animation: shimmer 8s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    // Dark mode
+    :host-context([data-bs-theme="dark"]) & {
+        background:
+            linear-gradient(135deg,
+                rgba(var(--brand-primary-rgb), 0.06) 0%,
+                transparent 25%,
+                transparent 75%,
+                rgba(var(--brand-secondary-rgb), 0.04) 100%),
+            linear-gradient(45deg,
+                var(--brand-bg) 0%,
+                var(--brand-bg-secondary) 100%);
+
+        &::before {
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb), 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb), 0.06) 0%, transparent 50%),
+                linear-gradient(180deg, rgba(var(--neutral-0-rgb), 0.02) 0%, rgba(var(--neutral-0-rgb), 0.005) 100%);
+        }
+
+        &::after {
+            background: linear-gradient(90deg,
+                    transparent 0%,
+                    rgba(var(--neutral-0-rgb), 0.015) 50%,
+                    transparent 100%);
+        }
+    }
+}
+
+// Shimmer animation - used by glass-surface
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+
+    50% {
+        left: 100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}

@@ -1,203 +1,51 @@
+// Client Header Bar - Modern glassmorphic design using global utilities
 :host {
     display: block;
-    background:
-        linear-gradient(135deg,
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.03) 0%,
-            transparent 25%,
-            transparent 75%,
-            rgba(var(--brand-secondary-rgb, 16, 185, 129), 0.02) 100%),
-        linear-gradient(45deg,
-            var(--brand-bg) 0%,
-            var(--brand-bg-secondary) 100%);
     width: 100%;
-    min-height: 60px;
+    min-height: 60px; // Component-specific: fixed header height
     border-bottom: 1px solid var(--brand-border);
-    backdrop-filter: blur(20px) saturate(180%);
-    position: relative;
-    overflow: hidden;
 
-    // Enhanced modern glass surface overlay with subtle pattern
-    &::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background:
-            radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb), 0.04) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb), 0.03) 0%, transparent 50%),
-            linear-gradient(180deg, rgba(var(--neutral-0-rgb), 0.05) 0%, rgba(var(--neutral-0-rgb), 0.01) 100%);
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    // Subtle animated shimmer effect
-    &::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg,
-                transparent 0%,
-                rgba(var(--neutral-0-rgb), 0.03) 50%,
-                transparent 100%);
-        animation: shimmer 8s ease-in-out infinite;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    // Mobile: only bottom border
     @media (max-width: 767.98px) {
         border: none;
         border-bottom: 1px solid var(--brand-border);
-        min-height: 70px; // Slightly taller for mobile
+        min-height: 70px; // Component-specific: slightly taller for mobile touch targets
     }
 }
 
-// Shimmer animation
-@keyframes shimmer {
-    0% {
-        left: -100%;
-    }
-
-    50% {
-        left: 100%;
-    }
-
-    100% {
-        left: 100%;
-    }
-}
-
-// Modern TSIC Logo Container - Enhanced for Logo Background Issues
+// Logo containers use global glass utilities
 .tsic-brand-box {
-    background:
-        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.98), rgba(var(--neutral-0-rgb), 0.9)),
-        rgba(var(--neutral-0-rgb), 0.95);
-    border: 1px solid rgba(var(--neutral-0-rgb), 0.3);
-    border-radius: var(--radius-lg);
-    padding: 8px 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow:
-        var(--shadow-lg),
-        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.7);
-    backdrop-filter: blur(10px) saturate(180%);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    z-index: 1;
-    overflow: hidden;
-
-    // Enhanced background support for logo transparency/background issues
-    &::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background:
-            radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.95) 20%, rgba(var(--neutral-0-rgb), 0.7) 70%, transparent),
-            linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.9), rgba(var(--neutral-0-rgb), 0.7));
-        opacity: 0.9;
-        z-index: -1;
-        border-radius: inherit;
-    }
-
-    &:hover {
-        transform: translateY(-1px);
-        background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 1), rgba(var(--neutral-0-rgb), 0.95)),
-            rgba(var(--neutral-0-rgb), 0.98);
-        border-color: rgba(var(--brand-primary-rgb), 0.4);
-        box-shadow:
-            var(--shadow-xl),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.9);
-
-        &::before {
-            opacity: 1;
-            background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 1) 30%, rgba(var(--neutral-0-rgb), 0.85) 80%, transparent),
-                linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.8));
-        }
-    }
+    padding: var(--space-2) var(--space-3);
 }
 
 .tsic-logo {
-    height: 32px;
+    height: var(--space-8); // Component-specific: logo height
     width: auto;
     object-fit: contain;
     display: block;
     filter: drop-shadow(var(--shadow-sm));
 }
 
-// Modern Job Logo Container - Enhanced for Logo Background Issues
 .job-logo-box {
-    background:
-        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
-        rgba(var(--neutral-0-rgb), 0.9);
-    border: 1px solid rgba(var(--neutral-0-rgb), 0.25);
-    border-radius: var(--radius-md);
-    padding: 6px 10px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow:
-        var(--shadow-md),
-        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.5);
-    backdrop-filter: blur(8px) saturate(160%);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    z-index: 1;
-    overflow: hidden;
-
-    // Enhanced background support for job logo transparency/background issues
-    &::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background:
-            radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.9) 25%, rgba(var(--neutral-0-rgb), 0.6) 75%, transparent),
-            linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.85), rgba(var(--neutral-0-rgb), 0.65));
-        opacity: 0.8;
-        z-index: -1;
-        border-radius: inherit;
-    }
-
-    &:hover {
-        transform: translateY(-1px);
-        background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.98), rgba(var(--neutral-0-rgb), 0.9)),
-            rgba(var(--neutral-0-rgb), 0.95);
-        border-color: rgba(var(--brand-primary-rgb), 0.3);
-        box-shadow:
-            var(--shadow-lg),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.6);
-
-        &::before {
-            opacity: 1;
-            background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.95) 30%, rgba(var(--neutral-0-rgb), 0.75) 80%, transparent),
-                linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.9), rgba(var(--neutral-0-rgb), 0.75));
-        }
-    }
+    padding: var(--space-2) var(--space-3);
 }
 
 .job-logo {
-    height: 36px;
+    height: var(--space-8); // Component-specific: job logo height - matches TSIC logo
     width: auto;
     object-fit: contain;
     display: block;
-    max-width: 180px;
+    max-width: 180px; // Component-specific: prevent oversized logos
     filter: drop-shadow(var(--shadow-sm));
 }
 
-// Contemporary Job Name Button
+// Job name button styling
 .job-name-button {
     background: rgba(var(--brand-text-rgb), 0.06);
     border: 1px solid rgba(var(--brand-text-rgb), 0.12);
     border-radius: var(--radius-md);
-    padding: 10px 16px;
-    font-size: 0.9375rem;
-    font-weight: 600;
+    padding: var(--space-2\.5) var(--space-4);
+    font-size: calc(var(--font-size-base) * 0.9375);
+    font-weight: var(--font-weight-semibold);
     line-height: 1.4;
     color: var(--brand-text);
     cursor: pointer;
@@ -205,8 +53,8 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: normal;
     word-wrap: break-word;
-    max-width: 400px;
-    min-height: 44px;
+    max-width: 400px; // Component-specific: prevent overflow
+    min-height: 44px; // Component-specific: touch target size
     height: auto;
     display: inline-flex;
     align-items: center;
@@ -225,15 +73,25 @@
     &:active {
         transform: translateY(0);
     }
+
+    :host-context([data-bs-theme="dark"]) & {
+        background: rgba(var(--neutral-0-rgb), 0.06);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
+
+        &:hover {
+            background: rgba(var(--neutral-0-rgb), 0.1);
+            border-color: rgba(var(--neutral-0-rgb), 0.2);
+        }
+    }
 }
 
-// Mobile Styles - Modern Approach
+// Mobile styles
 .mobile-logo-group {
     .btn {
         background: rgba(var(--neutral-0-rgb), 0.9);
         border: 1px solid rgba(var(--neutral-0-rgb), 0.2);
         border-radius: var(--radius-sm);
-        padding: 0.4rem 0.6rem !important;
+        padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5)) !important;
         backdrop-filter: blur(8px);
         transition: all 0.2s ease;
 
@@ -241,53 +99,25 @@
             background: rgba(var(--neutral-0-rgb), 0.95);
             transform: translateY(-1px);
         }
+
+        :host-context([data-bs-theme="dark"]) & {
+            background: rgba(var(--neutral-0-rgb), 0.08);
+            border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
+
+            &:hover {
+                background: rgba(var(--neutral-0-rgb), 0.12);
+            }
+        }
     }
 }
 
-// Modern Hamburger Button - Mobile Touch Optimized
+// Hamburger button uses global glass-button class styling
 .hamburger-btn {
-    background:
-        linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
-        rgba(var(--neutral-0-rgb), 0.9);
-    border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
-    border-radius: var(--radius-md);
-    color: var(--brand-text) !important;
-    backdrop-filter: blur(12px) saturate(150%);
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-    padding: 0.3rem 0.6rem !important; // Match btn-sm sizing
-    box-shadow:
-        var(--shadow-sm),
-        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.2);
+    padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5)) !important;
 
-    // Touch feedback - active state for mobile taps
-    &:active {
-        background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.85), rgba(var(--neutral-0-rgb), 0.75)),
-            rgba(var(--neutral-0-rgb), 0.8);
-        border-color: rgba(var(--brand-primary-rgb), 0.25);
-        transform: scale(0.98);
-        box-shadow:
-            var(--shadow-xs),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
-    }
-
-    &:focus,
-    &:focus-visible {
-        box-shadow:
-            0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.25),
-            var(--shadow-sm),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.2);
-        outline: none;
-        border-color: rgba(var(--brand-primary-rgb), 0.3);
-        color: var(--brand-text) !important;
-    }
-
-    // Hamburger icon styling - size to match action buttons
     .bi {
-        font-size: 1rem; // Match action button icon size
-        font-weight: 600;
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
         color: inherit;
         filter: drop-shadow(var(--shadow-xs));
     }
@@ -295,35 +125,32 @@
 
 .btn-group {
     .btn-sm {
-        padding: 0.3rem 0.6rem;
-        font-size: 0.875rem;
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--font-size-sm);
         backdrop-filter: blur(8px);
     }
 }
 
 .mobile-logo {
-    height: 26px;
+    height: 24px; // Component-specific: mobile logo height - matches button icon size
     width: auto;
     display: block;
     filter: drop-shadow(var(--shadow-sm));
 }
 
-// Mobile Job Name Row - Strict Mobile Only
+// Mobile job name row - strict mobile only
 .mobile-job-name-row {
-
-    // Force mobile only display
     @media (min-width: 768px) {
         display: none !important;
     }
 }
 
-// Enhanced Mobile Job Name - Dedicated Row (Mobile Only)
+// Mobile job name button
 .mobile-job-name-button {
     background: none !important;
     border: none !important;
     color: inherit;
 
-    // Ensure mobile only display
     @media (min-width: 768px) {
         display: none !important;
     }
@@ -343,8 +170,8 @@
 
 .mobile-job-name {
     text-align: center;
-    font-size: 0.9375rem;
-    font-weight: 600;
+    font-size: calc(var(--font-size-base) * 0.9375);
+    font-weight: var(--font-weight-semibold);
     color: var(--brand-text);
     white-space: normal;
     word-wrap: break-word;
@@ -354,45 +181,53 @@
     margin: 0 auto;
     padding: 0;
 
-    // Ensure mobile only display
     @media (min-width: 768px) {
         display: none !important;
     }
 }
 
-// Enhanced User/Role Display
+// User/role pill
 .user-role-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.875rem;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
     white-space: nowrap;
     background: rgba(var(--brand-text-rgb), 0.04);
-    padding: 6px 12px;
+    padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-full);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(var(--brand-text-rgb), 0.08);
 
     strong {
         color: var(--brand-text) !important;
-        font-weight: 600;
+        font-weight: var(--font-weight-semibold);
     }
 
     .text-muted {
-        font-size: 0.8125rem;
+        font-size: calc(var(--font-size-xs) + var(--space-0\.5));
         color: var(--brand-text-muted) !important;
         opacity: 1;
     }
+
+    :host-context([data-bs-theme="dark"]) & {
+        background: rgba(var(--neutral-0-rgb), 0.06);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.1);
+
+        strong {
+            color: var(--neutral-100);
+        }
+    }
 }
 
-// Modern Job Name Display
+// Job name display (desktop)
 .job-name-display-desktop {
     display: inline-flex;
     align-items: center;
     background:
         linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.08), rgba(var(--brand-primary-rgb), 0.04)),
         rgba(var(--neutral-0-rgb), 0.02);
-    padding: 8px 16px;
+    padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-lg);
     border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
     backdrop-filter: blur(12px) saturate(150%);
@@ -430,22 +265,43 @@
 
     .job-name-text {
         color: var(--brand-text) !important;
-        font-weight: 600;
-        font-size: 0.95rem;
+        font-weight: var(--font-weight-semibold);
+        font-size: calc(var(--font-size-sm) + var(--space-0\.5));
         letter-spacing: 0.025em;
         text-shadow:
             0 2px 4px rgba(0, 0, 0, 0.2),
             0 1px 2px rgba(0, 0, 0, 0.15);
     }
+
+    :host-context([data-bs-theme="dark"]) & {
+        background:
+            linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.12), rgba(var(--brand-primary-rgb), 0.06)),
+            rgba(var(--neutral-0-rgb), 0.03);
+        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
+        box-shadow:
+            var(--shadow-sm),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
+
+        &:hover {
+            border-color: rgba(var(--brand-primary-rgb), 0.3);
+            box-shadow:
+                var(--shadow-md),
+                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
+        }
+
+        .job-name-text {
+            text-shadow: var(--shadow-sm);
+        }
+    }
 }
 
-// Mobile Job Name Display - Brand Consistent
+// Job name display (mobile)
 .job-name-display {
     display: inline-block;
     background:
         linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.08), rgba(var(--brand-primary-rgb), 0.04)),
         rgba(var(--neutral-0-rgb), 0.02);
-    padding: 8px 16px;
+    padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-lg);
     border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
     backdrop-filter: blur(12px) saturate(150%);
@@ -455,6 +311,15 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--brand-text) !important;
+    letter-spacing: 0.025em;
+    text-shadow: var(--shadow-xs);
+    text-align: center;
+    line-height: 1.4;
+    max-width: 85vw;
+    word-break: break-word;
 
     &::before {
         content: '';
@@ -483,180 +348,7 @@
         }
     }
 
-    // Text styling
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--brand-text) !important;
-    letter-spacing: 0.025em;
-    text-shadow: var(--shadow-xs);
-    text-align: center;
-    line-height: 1.4;
-    max-width: 85vw;
-    word-break: break-word;
-}
-
-// Comprehensive Dark Mode Theming with Enhanced Logo Background Support
-:host-context([data-bs-theme="dark"]) {
-    // Enhanced dark mode background
-    background:
-        linear-gradient(135deg,
-            rgba(var(--brand-primary-rgb), 0.06) 0%,
-            transparent 25%,
-            transparent 75%,
-            rgba(var(--brand-secondary-rgb), 0.04) 100%),
-        linear-gradient(45deg,
-            var(--brand-bg) 0%,
-            var(--brand-bg-secondary) 100%);
-
-    &::before {
-        background:
-            radial-gradient(ellipse at 20% 50%, rgba(var(--brand-primary-rgb), 0.08) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(var(--brand-secondary-rgb), 0.06) 0%, transparent 50%),
-            linear-gradient(180deg, rgba(var(--neutral-0-rgb), 0.02) 0%, rgba(var(--neutral-0-rgb), 0.005) 100%);
-    }
-
-    &::after {
-        background: linear-gradient(90deg,
-                transparent 0%,
-                rgba(var(--neutral-0-rgb), 0.015) 50%,
-                transparent 100%);
-    }
-
-    .tsic-brand-box {
-        background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
-            rgba(var(--neutral-0-rgb), 0.1);
-        border: 1px solid rgba(var(--neutral-0-rgb), 0.15);
-        box-shadow:
-            var(--shadow-lg),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.1);
-
-        &::before {
-            background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.15) 20%, rgba(var(--neutral-0-rgb), 0.08) 70%, transparent),
-                linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.06));
-            opacity: 0.9;
-        }
-
-        &:hover {
-            background:
-                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.18), rgba(var(--neutral-0-rgb), 0.12)),
-                rgba(var(--neutral-0-rgb), 0.15);
-            border-color: rgba(var(--brand-primary-rgb), 0.4);
-            box-shadow:
-                var(--shadow-xl),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.15);
-
-            &::before {
-                opacity: 1;
-                background:
-                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.2) 30%, rgba(var(--neutral-0-rgb), 0.12) 80%, transparent),
-                    linear-gradient(145deg, rgba(var(--neutral-0-rgb), 0.18), rgba(var(--neutral-0-rgb), 0.1));
-            }
-        }
-    }
-
-    .job-logo-box {
-        background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.1), rgba(var(--neutral-0-rgb), 0.06)),
-            rgba(var(--neutral-0-rgb), 0.08);
-        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
-        box-shadow:
-            var(--shadow-md),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
-
-        &::before {
-            background:
-                radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.12) 25%, rgba(var(--neutral-0-rgb), 0.05) 75%, transparent),
-                linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.1), rgba(var(--neutral-0-rgb), 0.04));
-            opacity: 0.8;
-        }
-
-        &:hover {
-            background:
-                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.15), rgba(var(--neutral-0-rgb), 0.1)),
-                rgba(var(--neutral-0-rgb), 0.12);
-            border-color: rgba(var(--brand-primary-rgb), 0.3);
-            box-shadow:
-                var(--shadow-lg),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.12);
-
-            &::before {
-                opacity: 1;
-                background:
-                    radial-gradient(ellipse at center, rgba(var(--neutral-0-rgb), 0.18) 30%, rgba(var(--neutral-0-rgb), 0.1) 80%, transparent),
-                    linear-gradient(140deg, rgba(var(--neutral-0-rgb), 0.15), rgba(var(--neutral-0-rgb), 0.08));
-            }
-        }
-    }
-
-    .job-name-button {
-        background: rgba(var(--neutral-0-rgb), 0.06);
-        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
-
-        &:hover {
-            background: rgba(var(--neutral-0-rgb), 0.1);
-            border-color: rgba(var(--neutral-0-rgb), 0.2);
-            box-shadow: var(--shadow-md);
-        }
-    }
-
-    .mobile-logo-group .btn {
-        background: rgba(var(--neutral-0-rgb), 0.08);
-        border: 1px solid rgba(var(--neutral-0-rgb), 0.12);
-
-        &:hover {
-            background: rgba(var(--neutral-0-rgb), 0.12);
-        }
-    }
-
-    .hamburger-btn {
-        background:
-            linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
-            rgba(var(--neutral-0-rgb), 0.1);
-        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
-        box-shadow:
-            var(--shadow-sm),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
-        color: var(--brand-text) !important;
-
-        &:active {
-            background:
-                linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.08), rgba(var(--neutral-0-rgb), 0.04)),
-                rgba(var(--neutral-0-rgb), 0.06);
-            border-color: rgba(var(--brand-primary-rgb), 0.3);
-            transform: scale(0.98);
-            box-shadow:
-                var(--shadow-xs),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.03);
-        }
-
-        &:focus,
-        &:focus-visible {
-            box-shadow:
-                0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.25),
-                var(--shadow-sm),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
-            border-color: rgba(var(--brand-primary-rgb), 0.3);
-            color: var(--brand-text) !important;
-        }
-
-        .bi {
-            color: inherit;
-            filter: drop-shadow(var(--shadow-sm));
-        }
-    }
-
-    .user-role-pill {
-        background: rgba(var(--neutral-0-rgb), 0.06);
-        border: 1px solid rgba(var(--neutral-0-rgb), 0.1);
-
-        strong {
-            color: var(--neutral-100);
-        }
-    }
-
-    .job-name-display-desktop {
+    :host-context([data-bs-theme="dark"]) & {
         background:
             linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.12), rgba(var(--brand-primary-rgb), 0.06)),
             rgba(var(--neutral-0-rgb), 0.03);
@@ -664,28 +356,7 @@
         box-shadow:
             var(--shadow-sm),
             inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
-
-        &:hover {
-            border-color: rgba(var(--brand-primary-rgb), 0.3);
-            box-shadow:
-                var(--shadow-md),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
-        }
-
-        .job-name-text {
-            color: var(--brand-text) !important;
-            text-shadow: var(--shadow-sm);
-        }
-    }
-
-    .job-name-display {
-        background:
-            linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.12), rgba(var(--brand-primary-rgb), 0.06)),
-            rgba(var(--neutral-0-rgb), 0.03);
-        border: 1px solid rgba(var(--brand-primary-rgb), 0.2);
-        box-shadow:
-            var(--shadow-sm),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.05);
+        text-shadow: var(--shadow-sm);
 
         &:hover,
         &:active,
@@ -695,8 +366,5 @@
                 var(--shadow-md),
                 inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
         }
-
-        color: var(--brand-text) !important;
-        text-shadow: var(--shadow-sm);
     }
 }

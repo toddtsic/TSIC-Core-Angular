@@ -1,6 +1,6 @@
 .card {
     box-shadow: var(--shadow-sm);
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
 }
 
 .table {
@@ -18,19 +18,19 @@
 /* Native dialog styling for accessibility-friendly modals */
 .tsic-dialog {
     border: none;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-md);
     padding: 0;
-    width: min(720px, 96vw);
+    width: min(720px, 96vw); // Component-specific: modal max width
     max-height: 90vh;
 }
 
 .tsic-dialog.tsic-dialog-lg {
-    width: min(960px, 96vw);
+    width: min(960px, 96vw); // Component-specific: large modal width
 }
 
 .tsic-dialog .modal-content {
     border: none;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-md);
 }
 
 .tsic-dialog::backdrop {
@@ -38,17 +38,17 @@
 }
 
 .btn-group-sm .btn {
-    padding: 0.25rem 0.5rem;
+    padding: var(--space-1) var(--space-2);
 }
 
 code {
     background-color: var(--bg-elevated);
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.25rem;
+    padding: calc(var(--space-0\.5) * 0.8) calc(var(--space-1) + var(--space-0\.5));
+    border-radius: var(--radius-sm);
 }
 
 .badge {
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
 }
 
 /* Apply button visual states */
@@ -65,16 +65,16 @@ code {
 /* Drag & drop handle: icon-only grip (avoid checkbox/button look) */
 .drag-grip {
     display: inline-block;
-    width: 18px;
-    height: 18px;
+    width: calc(var(--space-4) + var(--space-0\.5)); // Component-specific grip size
+    height: calc(var(--space-4) + var(--space-0\.5));
     color: var(--bs-secondary);
     cursor: grab;
     user-select: none;
-    border-radius: 2px;
+    border-radius: var(--space-0\.5);
     opacity: 0.9;
     /* dotted grip made with a radial gradient so it doesn't look like a checkbox */
     background-image: radial-gradient(currentColor 1px, transparent 1px);
-    background-size: 4px 4px;
+    background-size: var(--space-1) var(--space-1);
     background-position: 0 0;
 }
 
@@ -103,12 +103,12 @@ code {
 
 /* Compact, single-row preview to reinforce that only one row moves */
 .drag-preview-row {
-    padding: 6px 10px;
-    border-radius: 6px;
+    padding: var(--space-1\.5) var(--space-2\.5);
+    border-radius: var(--radius-sm);
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color-translucent);
     box-shadow: var(--shadow-lg);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
 }

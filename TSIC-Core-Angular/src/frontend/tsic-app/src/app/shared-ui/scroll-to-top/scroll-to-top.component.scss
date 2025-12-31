@@ -1,17 +1,17 @@
 .scroll-to-top-btn {
     position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    width: 56px;
-    height: 56px;
+    bottom: var(--space-8);
+    right: var(--space-8);
+    width: var(--space-14);
+    height: var(--space-14);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 2rem;
+    border-radius: var(--radius-full);
     cursor: pointer;
     z-index: 1000;
 
     // Glassmorphic design to match your banner
     background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: var(--blur-lg) saturate(180%);
     color: rgba(60, 60, 70, 0.8);
 
     // Always visible for testing
@@ -29,14 +29,14 @@
 
     // Icon styling
     svg {
-        width: 24px;
-        height: 24px;
+        width: var(--space-6);
+        height: var(--space-6);
         transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
     }
 
     // Hover effects
     &:hover {
-        transform: translateY(-4px) scale(1.05);
+        transform: translateY(calc(-1 * var(--space-1))) scale(1.05);
         background: rgba(255, 255, 255, 0.25);
         border-color: rgba(255, 255, 255, 0.4);
         color: rgba(40, 40, 50, 0.9);
@@ -46,7 +46,7 @@
             inset 0 1px 0 rgba(255, 255, 255, 0.5);
 
         svg {
-            transform: translateY(-2px);
+            transform: translateY(calc(-1 * var(--space-0\.5)));
         }
     }
 
@@ -66,6 +66,6 @@
     }
 
     50% {
-        transform: translateY(-3px);
+        transform: translateY(calc(-1 * var(--space-1)));
     }
 }
