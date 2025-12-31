@@ -90,28 +90,28 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .step-indicator {
-        padding: 0.5rem 0;
-        margin-bottom: 0.5rem;
+        padding: var(--space-2) 0;
+        margin-bottom: var(--space-2);
     }
 
     .step-container {
-        gap: 0.25rem;
+        gap: var(--space-1);
     }
 
     .step-item {
         min-width: 50px;
-        gap: 0.25rem;
+        gap: var(--space-1);
     }
 
     .step-badge {
         width: 28px;
         height: 28px;
-        font-size: 0.75rem;
+        font-size: var(--font-size-xs);
         border-width: 1.5px;
     }
 
     .step-label {
-        font-size: 0.7rem;
+        font-size: 0.7rem; // Component-specific: extra small mobile label
     }
 
     .step-connector {
