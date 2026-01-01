@@ -154,5 +154,17 @@ public class TeamRepository : ITeamRepository
             ))
             .SingleOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<Dictionary<Guid, string>> GetTeamNameMapAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0) return new Dictionary<Guid, string>();
+
+        return await _context.Teams
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty, cancellationToken);
+    }
 }
 

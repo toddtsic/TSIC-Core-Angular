@@ -82,4 +82,16 @@ public class UserRepository : IUserRepository
     {
         return _context.AspNetUsers.AsQueryable();
     }
+
+    public async Task<Dictionary<string, UserNameInfo>> GetUserNameMapAsync(
+        IReadOnlyCollection<string> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        var data = await _context.AspNetUsers
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.FirstName, u.LastName })
+            .ToListAsync(cancellationToken);
+
+        return data.ToDictionary(x => x.Id, x => new UserNameInfo(x.FirstName, x.LastName));
+    }
 }

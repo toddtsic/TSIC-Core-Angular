@@ -484,8 +484,22 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Registrations>> GetByJobAndFamilyUserIdAsync(
+        Guid jobId,
+        string familyUserId,
+        bool activePlayersOnly = true,
+        CancellationToken cancellationToken = default)
     {
-        return await _context.SaveChangesAsync(cancellationToken);
+        var query = _context.Registrations
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId);
+
+        if (activePlayersOnly)
+        {
+            query = query.Where(r => r.UserId != null);
+        }
+
+        return await query
+            .OrderByDescending(r => r.Modified)
+            .ToListAsync(cancellationToken);
     }
 }

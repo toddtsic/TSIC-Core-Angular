@@ -33,4 +33,15 @@ public interface IUserRepository
     /// Get a queryable for AspNetUser queries
     /// </summary>
     IQueryable<AspNetUsers> Query();
+
+    /// <summary>
+    /// Get user names by user IDs for display purposes.
+    /// </summary>
+    Task<Dictionary<string, UserNameInfo>> GetUserNameMapAsync(
+        IReadOnlyCollection<string> userIds,
+        CancellationToken cancellationToken = default);
 }
+
+public record UserNameInfo(
+    string? FirstName,
+    string? LastName);

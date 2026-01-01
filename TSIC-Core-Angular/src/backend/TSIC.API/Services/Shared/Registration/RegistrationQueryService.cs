@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Shared.Jobs;
 
 namespace TSIC.API.Services.Shared.Registration;
@@ -9,13 +9,21 @@ namespace TSIC.API.Services.Shared.Registration;
 public sealed class RegistrationQueryService : IRegistrationQueryService
 {
     private readonly IJobLookupService _jobLookupService;
-    private readonly SqlDbContext _db;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly ITeamRepository _teamRepo;
+    private readonly IUserRepository _userRepo;
     private static readonly string IsoDate = "yyyy-MM-dd";
 
-    public RegistrationQueryService(IJobLookupService jobLookupService, SqlDbContext db)
+    public RegistrationQueryService(
+        IJobLookupService jobLookupService,
+        IRegistrationRepository registrationRepo,
+        ITeamRepository teamRepo,
+        IUserRepository userRepo)
     {
         _jobLookupService = jobLookupService;
-        _db = db;
+        _registrationRepo = registrationRepo;
+        _teamRepo = teamRepo;
+        _userRepo = userRepo;
     }
 
     public async Task<object> GetExistingRegistrationAsync(string jobPath, string familyUserId, string callerId)
@@ -26,10 +34,10 @@ public sealed class RegistrationQueryService : IRegistrationQueryService
             throw new KeyNotFoundException($"Job not found: {jobPath}");
         }
 
-        var regsAll = await _db.Registrations
-            .Where(r => r.JobId == jobId.Value && r.FamilyUserId == familyUserId && r.UserId != null)
-            .OrderByDescending(r => r.Modified)
-            .ToListAsync();
+        var regsAll = await _registrationRepo.GetByJobAndFamilyUserIdAsync(
+            jobId.Value,
+            familyUserId,
+            activePlayersOnly: true);
 
         var latestByPlayer = regsAll
             .GroupBy(r => r.UserId!)
@@ -71,10 +79,10 @@ public sealed class RegistrationQueryService : IRegistrationQueryService
         var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
         if (jobId is null) throw new KeyNotFoundException($"Job not found: {jobPath}");
 
-        var regs = await _db.Registrations
-            .Where(r => r.JobId == jobId.Value && r.FamilyUserId == familyUserId && r.UserId != null)
-            .OrderByDescending(r => r.Modified)
-            .ToListAsync();
+        var regs = await _registrationRepo.GetByJobAndFamilyUserIdAsync(
+            jobId.Value,
+            familyUserId,
+            activePlayersOnly: true);
 
         if (regs.Count == 0) return Array.Empty<FamilyRegistrationItemDto>();
 
@@ -87,19 +95,14 @@ public sealed class RegistrationQueryService : IRegistrationQueryService
     {
         var teamIds = regs.Where(r => r.AssignedTeamId.HasValue).Select(r => r.AssignedTeamId!.Value).Distinct().ToList();
         if (teamIds.Count == 0) return new();
-        return await _db.Teams
-            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
-            .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty);
+        return await _teamRepo.GetTeamNameMapAsync(jobId, teamIds);
     }
 
     private async Task<Dictionary<string, (string? First, string? Last)>> BuildUserNameMap(List<Registrations> regs)
     {
         var playerIds = regs.Select(r => r.UserId!).Distinct().ToList();
-        var data = await _db.AspNetUsers
-            .Where(u => playerIds.Contains(u.Id))
-            .Select(u => new { u.Id, u.FirstName, u.LastName })
-            .ToListAsync();
-        return data.ToDictionary(x => x.Id, x => (x.FirstName, x.LastName));
+        var nameMap = await _userRepo.GetUserNameMapAsync(playerIds);
+        return nameMap.ToDictionary(kv => kv.Key, kv => (kv.Value.FirstName, kv.Value.LastName));
     }
 
     private static FamilyRegistrationItemDto ProjectFamilyRegistration(

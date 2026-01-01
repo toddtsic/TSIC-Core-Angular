@@ -112,5 +112,13 @@ public interface ITeamRepository
     Task<TeamFeeData?> GetTeamFeeDataAsync(
         Guid teamId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get team names by team IDs for display purposes.
+    /// </summary>
+    Task<Dictionary<Guid, string>> GetTeamNameMapAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default);
 }
 

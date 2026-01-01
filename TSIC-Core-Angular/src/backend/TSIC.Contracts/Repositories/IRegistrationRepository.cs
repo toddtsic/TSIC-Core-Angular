@@ -197,6 +197,15 @@ public interface IRegistrationRepository
         string familyUserId,
         IReadOnlyCollection<Guid> registrationIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all registrations for a family within a job (with UserId not null).
+    /// </summary>
+    Task<List<Registrations>> GetByJobAndFamilyUserIdAsync(
+        Guid jobId,
+        string familyUserId,
+        bool activePlayersOnly = true,
+        CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData(
