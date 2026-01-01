@@ -4,9 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Repositories;
-using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Application.Services.Players;
 using TSIC.Application.Services.Shared.Html;
 using TSIC.Application.Services.Shared.Text;
@@ -72,13 +70,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     }
 
     private readonly ITextSubstitutionRepository _repo;
-    private readonly SqlDbContext _context;
     private readonly IDiscountCodeEvaluator _discountEvaluator;
 
-    public TextSubstitutionService(ITextSubstitutionRepository repo, SqlDbContext context, IDiscountCodeEvaluator discountEvaluator)
+    public TextSubstitutionService(ITextSubstitutionRepository repo, IDiscountCodeEvaluator discountEvaluator)
     {
         _repo = repo;
-        _context = context;
         _discountEvaluator = discountEvaluator;
     }
 
@@ -112,11 +108,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             template = template.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
         }
 
-        var job = await _context.Jobs.AsNoTracking().Where(j => j.JobPath == jobSegment)
-            .Select(j => new { j.JobId, j.JobName }).SingleOrDefaultAsync();
-        if (job == null) return template; // Unknown job segment
-
-        var fixedFieldList = await LoadFixedFieldsAsync(_context, job.JobId, registrationId, familyUserId);
+        var fixedFieldList = await LoadFixedFieldsAsync(jobSegment, registrationId, familyUserId);
         if (fixedFieldList.Count == 0) return template; // No data to substitute
 
         var first = fixedFieldList[0];
@@ -151,115 +143,77 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         }).ToList();
     }
 
-    private async Task<List<FixedFields>> LoadFixedFieldsAsync(SqlDbContext ctx, Guid jobId, Guid? registrationId, string familyUserId)
+    // Maps repository FixedFieldsData to FixedFields for backward compatibility
+    private static FixedFields MapToFixedFields(FixedFieldsData data)
     {
+        return new FixedFields
+        {
+            RegistrationId = data.RegistrationId,
+            JobId = data.JobId,
+            FamilyUserId = data.FamilyUserId,
+            Person = data.Person,
+            Assignment = data.Assignment,
+            UserName = data.UserName,
+            FeeTotal = data.FeeTotal,
+            PaidTotal = data.PaidTotal,
+            OwedTotal = data.OwedTotal,
+            RegistrationCategory = data.RegistrationCategory,
+            ClubName = data.ClubName,
+            CustomerName = data.CustomerName,
+            Email = data.Email,
+            JobDescription = data.JobDescription,
+            JobName = data.JobName,
+            JobPath = data.JobPath,
+            MailTo = data.MailTo,
+            PayTo = data.PayTo,
+            RoleName = data.RoleName,
+            Season = data.Season,
+            SportName = data.SportName,
+            AssignedTeamId = data.AssignedTeamId,
+            Active = data.Active,
+            Volposition = data.Volposition,
+            UniformNo = data.UniformNo,
+            DayGroup = data.DayGroup,
+            JerseySize = data.JerseySize,
+            ShortsSize = data.ShortsSize,
+            TShirtSize = data.TShirtSize,
+            AdnArb = data.AdnArb,
+            AdnSubscriptionId = data.AdnSubscriptionId,
+            AdnSubscriptionStatus = data.AdnSubscriptionStatus,
+            AdnSubscriptionBillingOccurences = data.AdnSubscriptionBillingOccurences,
+            AdnSubscriptionAmountPerOccurence = data.AdnSubscriptionAmountPerOccurence,
+            AdnSubscriptionStartDate = data.AdnSubscriptionStartDate,
+            AdnSubscriptionIntervalLength = data.AdnSubscriptionIntervalLength,
+            JobLogoHeader = data.JobLogoHeader,
+            JobCode = data.JobCode,
+            UslaxNumberValidThroughDate = data.UslaxNumberValidThroughDate
+        };
+    }
+
+    private async Task<List<FixedFields>> LoadFixedFieldsAsync(string jobPath, Guid? registrationId, string familyUserId)
+    {
+        List<FixedFieldsData> dataList;
+
         // Path A: single registration (familyUserId may be empty)
         if (string.IsNullOrEmpty(familyUserId) && registrationId.HasValue)
         {
-            return await (from r in ctx.Registrations
-                          join u in ctx.AspNetUsers on r.UserId equals u.Id
-                          join roles in ctx.AspNetRoles on r.RoleId equals roles.Id
-                          join j in ctx.Jobs on r.JobId equals j.JobId
-                          join jdo in ctx.JobDisplayOptions on j.JobId equals jdo.JobId
-                          join c in ctx.Customers on j.CustomerId equals c.CustomerId
-                          join s in ctx.Sports on j.SportId equals s.SportId
-                          where r.RegistrationId == registrationId
-                          select new FixedFields
-                          {
-                              RegistrationId = r.RegistrationId,
-                              JobId = j.JobId,
-                              FamilyUserId = r.FamilyUserId,
-                              Person = u.FirstName + " " + u.LastName,
-                              UserName = u.UserName,
-                              Assignment = r.Assignment,
-                              FeeTotal = r.FeeTotal,
-                              OwedTotal = r.OwedTotal,
-                              PaidTotal = r.PaidTotal,
-                              RegistrationCategory = r.RegistrationCategory,
-                              ClubName = r.ClubName,
-                              CustomerName = c.CustomerName,
-                              Email = u.Email,
-                              JobDescription = j.JobDescription,
-                              JobName = j.JobName ?? string.Empty,
-                              JobPath = j.JobPath,
-                              MailTo = j.MailTo,
-                              PayTo = j.PayTo,
-                              RoleName = roles.Name,
-                              Season = j.Season,
-                              SportName = s.SportName,
-                              AssignedTeamId = r.AssignedTeamId,
-                              Active = r.BActive,
-                              Volposition = r.Volposition,
-                              UniformNo = r.UniformNo,
-                              DayGroup = r.DayGroup,
-                              JerseySize = r.JerseySize ?? "?",
-                              ShortsSize = r.ShortsSize ?? "?",
-                              TShirtSize = r.TShirt ?? "?",
-                              AdnArb = j.AdnArb ?? false,
-                              AdnSubscriptionId = r.AdnSubscriptionId,
-                              AdnSubscriptionStatus = r.AdnSubscriptionStatus,
-                              AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
-                              AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
-                              AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
-                              AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength,
-                              JobLogoHeader = jdo.LogoHeader,
-                              JobCode = j.JobCode ?? "?",
-                              UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
-                          }).ToListAsync();
+            dataList = await _repo.LoadFixedFieldsByRegistrationAsync(registrationId.Value);
+        }
+        else
+        {
+            // Path B: family across job - need to resolve jobId from jobPath first
+            var jobInfo = await _repo.GetJobTokenInfoAsync(jobPath);
+            if (jobInfo == null) return new List<FixedFields>();
+
+            // Get a temporary registration to find the JobId
+            var tempList = await _repo.LoadFixedFieldsByFamilyAsync(Guid.Empty, familyUserId);
+            if (tempList.Count == 0) return new List<FixedFields>();
+
+            // Now get the full list with the correct jobId
+            dataList = await _repo.LoadFixedFieldsByFamilyAsync(tempList[0].JobId, familyUserId);
         }
 
-        // Path B: family across job
-        return await (from r in ctx.Registrations
-                      join u in ctx.AspNetUsers on r.UserId equals u.Id
-                      join roles in ctx.AspNetRoles on r.RoleId equals roles.Id
-                      join j in ctx.Jobs on r.JobId equals j.JobId
-                      join jdo in ctx.JobDisplayOptions on j.JobId equals jdo.JobId
-                      join c in ctx.Customers on j.CustomerId equals c.CustomerId
-                      join s in ctx.Sports on j.SportId equals s.SportId
-                      where r.JobId == jobId && r.FamilyUserId == familyUserId
-                      orderby r.RegistrationAi
-                      select new FixedFields
-                      {
-                          RegistrationId = r.RegistrationId,
-                          JobId = j.JobId,
-                          FamilyUserId = r.FamilyUserId,
-                          Person = u.FirstName + " " + u.LastName,
-                          UserName = u.UserName,
-                          Assignment = r.Assignment,
-                          FeeTotal = r.FeeTotal,
-                          OwedTotal = r.OwedTotal,
-                          PaidTotal = r.PaidTotal,
-                          RegistrationCategory = r.RegistrationCategory,
-                          ClubName = r.ClubName,
-                          CustomerName = c.CustomerName,
-                          Email = u.Email,
-                          JobDescription = j.JobDescription,
-                          JobName = j.JobName ?? string.Empty,
-                          JobPath = j.JobPath,
-                          MailTo = j.MailTo,
-                          PayTo = j.PayTo,
-                          RoleName = roles.Name,
-                          Season = j.Season,
-                          SportName = s.SportName,
-                          AssignedTeamId = r.AssignedTeamId,
-                          Active = r.BActive,
-                          Volposition = r.Volposition,
-                          UniformNo = r.UniformNo,
-                          DayGroup = r.DayGroup,
-                          JerseySize = r.JerseySize ?? "?",
-                          ShortsSize = r.ShortsSize ?? "?",
-                          TShirtSize = r.TShirt ?? "?",
-                          AdnArb = j.AdnArb ?? false,
-                          AdnSubscriptionId = r.AdnSubscriptionId,
-                          AdnSubscriptionStatus = r.AdnSubscriptionStatus,
-                          AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
-                          AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
-                          AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
-                          AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength,
-                          JobLogoHeader = jdo.LogoHeader,
-                          JobCode = j.JobCode ?? "?",
-                          UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
-                      }).ToListAsync();
+        return dataList.Select(MapToFixedFields).ToList();
     }
 
     private static void AddSimpleTokens(Dictionary<string, string> tokens, FixedFields f, string jobSegment)
@@ -387,22 +341,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildAccountingTableHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
     {
-        var rows = await (from ra in _context.RegistrationAccounting
-                          join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
-                          join u in _context.AspNetUsers on r.UserId equals u.Id
-                          join pm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals pm.PaymentMethodId
-                          where ra.RegistrationId == registrationId && ra.Active == true
-                          orderby ra.AId
-                          select new
-                          {
-                              ra.AId,
-                              RegistrantName = u.FirstName + " " + u.LastName,
-                              pm.PaymentMethod,
-                              ra.Createdate,
-                              ra.Payamt,
-                              ra.DiscountCodeAi,
-                              ra.PaymentMethodId
-                          }).ToListAsync();
+        var rows = await _repo.GetAccountingTransactionsAsync(registrationId);
         if (rows.Count == 0) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
@@ -435,12 +374,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     {
         if (list.Count == 0) return string.Empty;
         var regIds = list.Select(x => x.RegistrationId).ToList();
-        var teamClubNames = await (from r in _context.Registrations
-                                   join t in _context.Teams on r.AssignedTeamId equals t.TeamId
-                                   join rCR in _context.Registrations on t.ClubrepRegistrationid equals rCR.RegistrationId
-                                   where regIds.Contains(r.RegistrationId)
-                                   select new { r.RegistrationId, rCR.ClubName }).ToListAsync();
-        var clubByReg = teamClubNames.ToDictionary(x => x.RegistrationId, x => x.ClubName);
+        var clubByReg = await _repo.GetTeamClubNamesAsync(regIds);
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, "Registered Family Players", emailMode);
@@ -467,12 +401,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildContactBlockAsync(Guid jobId, bool emailMode)
     {
-        var director = await (from r in _context.Registrations
-                              join roles in _context.AspNetRoles on r.RoleId equals roles.Id
-                              join u in _context.AspNetUsers on r.UserId equals u.Id
-                              where r.JobId == jobId && r.BActive == true && roles.Name == "Director"
-                              orderby r.RegistrationTs
-                              select new { Name = u.FirstName + " " + u.LastName, u.Email }).FirstOrDefaultAsync();
+        var director = await _repo.GetDirectorContactAsync(jobId);
         if (director == null) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
@@ -490,73 +419,36 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     private async Task<string> ResolveFamilyUserNameAsync(string? familyUserId)
     {
         if (string.IsNullOrEmpty(familyUserId)) return "THERE IS NO FAMILY ACCOUNT ATTACHED";
-        var un = await _context.AspNetUsers.Where(u => u.Id == familyUserId).Select(u => u.UserName).SingleOrDefaultAsync();
+        var un = await _repo.GetFamilyUserNameAsync(familyUserId);
         return un ?? string.Empty;
     }
 
     private async Task<string> ResolveTeamNameAsync(Guid? teamId)
     {
         if (!teamId.HasValue) return string.Empty;
-        var rec = await (from t in _context.Teams
-                         join j in _context.Jobs on t.JobId equals j.JobId
-                         join c in _context.Customers on j.CustomerId equals c.CustomerId
-                         where t.TeamId == teamId.Value
-                         select new { Team = t.TeamFullName ?? t.TeamName, Club = c.CustomerName }).SingleOrDefaultAsync();
-        if (rec == null) return string.Empty;
-        return $"{rec.Club}:{rec.Team}";
+        return await _repo.GetTeamNameWithClubAsync(teamId.Value) ?? string.Empty;
     }
 
     private async Task<string> ResolveAgeGroupPlusTeamNameAsync(Guid registrationId)
     {
-        var rec = await (from r in _context.Registrations
-                         join t in _context.Teams on r.AssignedTeamId equals t.TeamId
-                         join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                         where r.RegistrationId == registrationId
-                         select new { ag.AgegroupName, t.TeamName }).SingleOrDefaultAsync();
-        return rec == null ? string.Empty : $"{rec.AgegroupName}:{rec.TeamName}";
+        return await _repo.GetAgeGroupPlusTeamNameAsync(registrationId) ?? string.Empty;
     }
 
     private async Task<string> ResolveAgeGroupNameAsync(Guid? teamId)
     {
         if (!teamId.HasValue) return string.Empty;
-        var name = await (from t in _context.Teams
-                          join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                          where t.TeamId == teamId.Value
-                          select ag.AgegroupName).SingleOrDefaultAsync();
-        return name ?? string.Empty;
+        return await _repo.GetAgeGroupNameAsync(teamId.Value) ?? string.Empty;
     }
 
     private async Task<string> ResolveLeagueNameAsync(Guid? teamId)
     {
         if (!teamId.HasValue) return string.Empty;
-        var name = await (from t in _context.Teams
-                          join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                          join l in _context.Leagues on ag.LeagueId equals l.LeagueId
-                          where t.TeamId == teamId.Value
-                          select l.LeagueName).SingleOrDefaultAsync();
-        return name ?? string.Empty;
+        return await _repo.GetLeagueNameAsync(teamId.Value) ?? string.Empty;
     }
 
     private async Task<string> BuildAccountingAHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, string jobName, bool emailMode)
     {
-        var rows = await (from ra in _context.RegistrationAccounting
-                          join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
-                          join u in _context.AspNetUsers on r.UserId equals u.Id
-                          join pm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals pm.PaymentMethodId
-                          where ra.RegistrationId == registrationId && ra.Active == true
-                          orderby ra.AId
-                          select new
-                          {
-                              ra.AId,
-                              RegistrantName = u.FirstName + " " + u.LastName,
-                              pm.PaymentMethod,
-                              ra.Dueamt,
-                              ra.Payamt,
-                              ra.Createdate,
-                              ra.Comment,
-                              ra.DiscountCodeAi,
-                              ra.PaymentMethodId
-                          }).ToListAsync();
+        var rows = await _repo.GetAccountingTransactionsAsync(registrationId);
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(jobName)}:Most Recent Transaction(s)", emailMode);
@@ -590,11 +482,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildAccountingTeamsHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
     {
-        var clubName = await _context.Registrations.Where(r => r.RegistrationId == registrationId).Select(r => r.ClubName).SingleOrDefaultAsync() ?? string.Empty;
-        var teams = await (from t in _context.Teams
-                           join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                           where t.ClubrepRegistrationid == registrationId && ag.AgegroupName != "Dropped Teams" && t.TeamName != "Club Teams"
-                           select new { t.TeamId, TeamName = ag.AgegroupName + " " + t.TeamName }).ToListAsync();
+        var clubName = await _repo.GetClubNameAsync(registrationId) ?? string.Empty;
+        var teams = await _repo.GetClubTeamsAsync(registrationId);
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(clubName)}:Most Recent Transaction(s)", emailMode);
@@ -603,14 +492,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         HtmlTableBuilder.EndHeadStartBody(sb);
         foreach (var t in teams)
         {
-            var rows = await (from ra in _context.RegistrationAccounting
-                              join tm in _context.Teams on ra.TeamId equals tm.TeamId
-                              join r in _context.Registrations on tm.ClubrepRegistrationid equals r.RegistrationId
-                              join u in _context.AspNetUsers on r.UserId equals u.Id
-                              join pm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals pm.PaymentMethodId
-                              where ra.TeamId == t.TeamId
-                              orderby ra.AId
-                              select new { ra.Active, ra.AId, pm.PaymentMethod, ra.Dueamt, ra.Payamt, ra.Createdate, ra.Comment, ra.DiscountCodeAi, ra.PaymentMethodId }).ToListAsync();
+            var rows = await _repo.GetTeamAccountingTransactionsAsync(t.TeamId);
             foreach (var r in rows)
             {
                 decimal discount = 0m;
@@ -639,22 +521,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildTeamsSummaryHtmlAsync(Guid registrationId, bool emailMode)
     {
-        var teams = await (from t in _context.Teams
-                           join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                           join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId
-                           where t.ClubrepRegistrationid == registrationId && ag.AgegroupName != "Dropped Teams" && t.TeamName != "Club Teams"
-                           select new
-                           {
-                               TeamName = ag.AgegroupName + " " + t.TeamName,
-                               FeeTotal = t.FeeTotal,
-                               PaidTotal = t.PaidTotal,
-                               OwedTotal = t.OwedTotal,
-                               Dow = t.Dow,
-                               ProcessingFees = t.FeeProcessing,
-                               RosterFee = ag.RosterFee,
-                               AdditionalFees = ag.TeamFee,
-                               ClubName = r.ClubName
-                           }).ToListAsync();
+        var teams = await _repo.GetTeamsSummaryAsync(registrationId);
         if (teams.Count == 0) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
@@ -689,11 +556,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildNoMoneyTeamsHtmlAsync(Guid registrationId, bool emailMode)
     {
-        var teams = await (from t in _context.Teams
-                           join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                           join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId
-                           where t.ClubrepRegistrationid == registrationId
-                           select new { TeamName = ag.AgegroupName + " " + t.TeamName, ClubName = r.ClubName }).ToListAsync();
+        var teams = await _repo.GetSimpleTeamsAsync(registrationId);
         if (teams.Count == 0) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
@@ -713,12 +576,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildWaiverHtmlAsync(Guid jobId, string jobName, string? customerName, Func<dynamic, string?> selector, string label)
     {
-        // Use dynamic selector against anonymous projection to avoid building another model.
-        var rec = await _context.Jobs.Where(j => j.JobId == jobId)
-            .Select(j => new { j.PlayerRegRefundPolicy, j.PlayerRegReleaseOfLiability, j.AdultRegReleaseOfLiability, j.PlayerRegCodeOfConduct, j.PlayerRegCovid19Waiver })
-            .SingleOrDefaultAsync();
+        var rec = await _repo.GetJobWaiversAsync(jobId);
         if (rec == null) return string.Empty;
-        string? raw = selector(rec);
+        // Use dynamic casting to call selector with waiver data
+        dynamic waiverData = new { rec.PlayerRegRefundPolicy, rec.PlayerRegReleaseOfLiability, rec.AdultRegReleaseOfLiability, rec.PlayerRegCodeOfConduct, rec.PlayerRegCovid19Waiver };
+        string? raw = selector(waiverData);
         if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
         var html = WebUtility.HtmlDecode(raw) ?? string.Empty;
         html = html.Replace("!JOBNAME", jobName ?? string.Empty).Replace("!CUSTOMERNAME", customerName ?? string.Empty);
@@ -728,8 +590,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildStaffChoicesAsync(Guid registrationId)
     {
-        var keys = await _context.Registrations.Where(r => r.RegistrationId == registrationId)
-            .Select(r => new { r.UserId, r.JobId, r.SpecialRequests }).SingleOrDefaultAsync();
+        var keys = await _repo.GetStaffInfoAsync(registrationId);
         if (keys == null) return string.Empty;
         var sb = new StringBuilder("<ul>");
         sb.AppendFormat("<li>Coaching Requests: {0}</li>", WebUtility.HtmlEncode(keys.SpecialRequests ?? string.Empty));
@@ -739,17 +600,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private async Task<string> BuildCoachFullTeamNameChoicesAsync(Guid registrationId, bool emailMode)
     {
-        var keys = await _context.Registrations.Where(r => r.RegistrationId == registrationId)
-            .Select(r => new { r.UserId, r.JobId }).SingleOrDefaultAsync();
-        if (keys == null) return string.Empty;
-        var choices = await (from r in _context.Registrations
-                             join t in _context.Teams on r.AssignedTeamId equals t.TeamId
-                             join rCR in _context.Registrations on t.ClubrepRegistrationid equals rCR.RegistrationId
-                             join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                             join roles in _context.AspNetRoles on r.RoleId equals roles.Id
-                             where r.JobId == keys.JobId && r.UserId == keys.UserId && roles.Name == "Staff"
-                             orderby ag.AgegroupName, t.TeamName
-                             select new { Club = rCR.ClubName, Age = ag.AgegroupName, Team = t.TeamName }).ToListAsync();
+        var choices = await _repo.GetCoachTeamChoicesAsync(registrationId);
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, "Coach Team Selections", emailMode);
