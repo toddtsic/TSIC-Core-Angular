@@ -227,7 +227,7 @@ export class ExampleComponent {
 ## Current Progress
 
 ### Completed Analysis:
-- ✅ **Centered Card Form** ([login.component.ts](../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/auth/login/login.component.ts)) - Type: Form View > Authentication
+- ✅ **Centered Card Form** ([centered-card-form.md](./component-patterns/centered-card-form.md)) - Type: Form View > Authentication
   - Themeable via `@Input() theme` or query params
   - Signals for state (`submitted`, `showPassword`)
   - Wizard theme classes (`wizard-theme-login`, `wizard-theme-player`, `wizard-theme-family`)
