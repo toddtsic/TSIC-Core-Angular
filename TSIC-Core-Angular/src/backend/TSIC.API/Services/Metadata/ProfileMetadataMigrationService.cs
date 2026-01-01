@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
-using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services.Metadata;
 
@@ -24,7 +24,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     private const string TokenListSizes = "listsizes";
     private const string TokenSizes = "sizes";
 
-    private readonly SqlDbContext _context;
+    private readonly IProfileMetadataRepository _repo;
     private readonly GitHubProfileFetcher _githubFetcher;
     private readonly CSharpToMetadataParser _parser;
     private readonly ILogger<ProfileMetadataMigrationService> _logger;
@@ -52,12 +52,12 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     };
 
     public ProfileMetadataMigrationService(
-        SqlDbContext context,
+        IProfileMetadataRepository repo,
         GitHubProfileFetcher githubFetcher,
         CSharpToMetadataParser parser,
         ILogger<ProfileMetadataMigrationService> logger)
     {
-        _context = context;
+        _repo = repo;
         _githubFetcher = githubFetcher;
         _parser = parser;
         _logger = logger;
@@ -99,11 +99,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         try
         {
             // Get all jobs with a CoreRegformPlayer setting
-            var jobs = await _context.Jobs
-                .AsNoTracking()
-                .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains(CoreRegformExcludeMarker)))
-                .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer })
-                .ToListAsync();
+            var jobs = await _repo.GetJobsWithCoreRegformPlayerAsync();
 
             foreach (var job in jobs)
             {
@@ -177,10 +173,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     private async Task<MigrationResult> MigrateJobAsync(Guid jobId, bool dryRun)
     {
-        var job = await _context.Jobs
-            .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer })
-            .SingleOrDefaultAsync();
+        var job = await _repo.GetJobBasicInfoAsync(jobId);
 
         if (job == null)
         {
@@ -263,16 +256,11 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             if (!dryRun)
             {
-                var jobEntity = await _context.Jobs.FindAsync(jobId);
-                if (jobEntity != null)
-                {
-                    jobEntity.PlayerProfileMetadataJson = metadataJson;
-                    await _context.SaveChangesAsync();
+                await _repo.UpdateJobPlayerMetadataAsync(jobId, metadataJson);
 
-                    _logger.LogInformation(
-                        "Updated PlayerProfileMetadataJson for job {JobName} with {FieldCount} fields",
-                        job.JobName, metadata.Fields.Count);
-                }
+                _logger.LogInformation(
+                    "Updated PlayerProfileMetadataJson for job {JobName} with {FieldCount} fields",
+                    job.JobName, metadata.Fields.Count);
             }
 
             result.Success = true;
@@ -329,11 +317,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public async Task<List<ProfileSummary>> GetProfileSummariesAsync()
     {
-        var jobs = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && (!j.CoreRegformPlayer.Contains(CoreRegformExcludeMarker)))
-            .Select(j => new { j.JobId, j.JobName, j.CoreRegformPlayer, j.PlayerProfileMetadataJson })
-            .ToListAsync();
+        var jobs = await _repo.GetJobsForProfileSummaryAsync();
 
         var profileGroups = jobs
             .Select(j => new
@@ -370,14 +354,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     public async Task<List<string>> GetKnownProfileTypesAsync()
     {
         // Pull the minimal columns needed and process in-memory to reuse ExtractProfileType logic
-        var rows = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.CoreRegformPlayer != null
-                        && j.CoreRegformPlayer != "0"
-                        && j.CoreRegformPlayer != "1"
-                        && !j.CoreRegformPlayer!.Contains(CoreRegformExcludeMarker))
-            .Select(j => new { j.CoreRegformPlayer, j.PlayerProfileMetadataJson })
-            .ToListAsync();
+        var rows = await _repo.GetJobsForKnownProfileTypesAsync();
 
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
@@ -453,11 +430,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             result.GeneratedMetadata = metadata;
 
             // 3. Find ALL jobs using this profile
-            var jobs = await _context.Jobs
-                .Where(j => j.CoreRegformPlayer != null &&
-                           (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
-                            j.CoreRegformPlayer == profileType))
-                .ToListAsync();
+            var jobs = await _repo.GetJobsByProfileTypeAsync(profileType);
 
             result.JobsAffected = jobs.Count;
             result.AffectedJobIds = jobs.Select(j => j.JobId).ToList();
@@ -494,7 +467,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                     job.PlayerProfileMetadataJson = metadataJson;
                 }
 
-                await _context.SaveChangesAsync();
+                await _repo.UpdateMultipleJobsPlayerMetadataAsync(jobs);
 
                 _logger.LogInformation(
                     "Applied {ProfileType} metadata ({FieldCount} fields) to {JobCount} jobs with job-specific dropdown options",
@@ -606,15 +579,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     public async Task<ProfileMetadata?> GetProfileMetadataAsync(string profileType)
     {
         // Get any job using this profile (they all have the same metadata)
-        var job = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.CoreRegformPlayer != null &&
-                        (!j.CoreRegformPlayer.Contains(CoreRegformExcludeMarker)) &&
-                       (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
-                        j.CoreRegformPlayer == profileType) &&
-                       !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
-            .Select(j => j.PlayerProfileMetadataJson)
-            .FirstOrDefaultAsync();
+        var job = await _repo.GetJobWithPlayerMetadataAsync(profileType);
 
         if (string.IsNullOrEmpty(job))
         {
@@ -646,11 +611,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         }
 
         // Get the specific job's JsonOptions
-        var job = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.JsonOptions })
-            .SingleOrDefaultAsync();
+        var job = await _repo.GetJobWithJsonOptionsAsync(jobId);
 
         if (job == null)
         {
@@ -688,9 +649,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     public async Task<(string? ProfileType, ProfileMetadata? Metadata)> GetCurrentJobProfileMetadataAsync(Guid regId)
     {
         // Load the registration and its job
-        var registration = await _context.Registrations
-            .Include(r => r.Job)
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
+        var registration = await _repo.GetRegistrationWithJobAsync(regId);
 
         if (registration?.Job == null)
         {
@@ -713,9 +672,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<List<OptionSet>> GetCurrentJobOptionSetsAsync(Guid regId)
     {
-        var registration = await _context.Registrations
-            .Include(r => r.Job)
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
+        var registration = await _repo.GetRegistrationWithJobAsync(regId);
 
         var optionSets = new List<OptionSet>();
         if (registration?.Job == null || string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
@@ -755,9 +712,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<OptionSet?> UpsertCurrentJobOptionSetAsync(Guid regId, string key, List<ProfileFieldOption> values)
     {
-        var registration = await _context.Registrations
-            .Include(r => r.Job)
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
+        var registration = await _repo.GetRegistrationWithJobAsync(regId);
 
         if (registration?.Job == null)
             return null;
@@ -781,8 +736,8 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         using var doc = JsonDocument.Parse(json);
         dict[key] = doc.RootElement.Clone();
 
-        registration.Job.JsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
-        await _context.SaveChangesAsync();
+        var newJsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
+        await _repo.UpdateJobJsonOptionsAsync(registration.Job.JobId, newJsonOptions);
 
         return new OptionSet
         {
@@ -803,11 +758,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         var results = new Dictionary<string, (Dictionary<string, int> inputTypes, Dictionary<string, int> visibilities, Dictionary<string, int> displayNames, int total)>(StringComparer.OrdinalIgnoreCase);
 
         // Load all metadata jsons present
-        var jsonList = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
-            .Select(j => j.PlayerProfileMetadataJson!)
-            .ToListAsync();
+        var jsonList = await _repo.GetAllJobsPlayerMetadataJsonAsync();
 
         foreach (var json in jsonList)
         {
@@ -888,9 +839,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<bool> DeleteCurrentJobOptionSetAsync(Guid regId, string key)
     {
-        var registration = await _context.Registrations
-            .Include(r => r.Job)
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
+        var registration = await _repo.GetRegistrationWithJobAsync(regId);
 
         if (registration?.Job == null)
             return false;
@@ -911,16 +860,14 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         if (dict == null || !dict.Remove(key))
             return false;
 
-        registration.Job.JsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
-        await _context.SaveChangesAsync();
+        var newJsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
+        await _repo.UpdateJobJsonOptionsAsync(registration.Job.JobId, newJsonOptions);
         return true;
     }
 
     public async Task<bool> RenameCurrentJobOptionSetAsync(Guid regId, string oldKey, string newKey)
     {
-        var registration = await _context.Registrations
-            .Include(r => r.Job)
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
+        var registration = await _repo.GetRegistrationWithJobAsync(regId);
 
         if (registration?.Job == null)
             return false;
@@ -944,8 +891,8 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         dict.Remove(oldKey);
         dict[newKey] = element;
 
-        registration.Job.JsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
-        await _context.SaveChangesAsync();
+        var newJsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
+        await _repo.UpdateJobJsonOptionsAsync(registration.Job.JobId, newJsonOptions);
         return true;
     }
 
@@ -963,15 +910,11 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         }
 
         // Get the jobId from registration
-        var registration = await _context.Registrations
-            .AsNoTracking()
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
-        if (registration == null)
+        var jobId = await _repo.GetRegistrationJobIdAsync(regId);
+        if (jobId == null)
         {
             return results;
         }
-
-        var jobId = registration.JobId;
 
         // Gather candidate fields: SELECT types with a dbColumn to map to Registrations
         var selectFields = metadata.Fields
@@ -991,12 +934,8 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             var column = field.DbColumn!;
             try
             {
-                // Dynamically select the registration property using EF.Property
-                var values = await _context.Registrations
-                    .Where(r => r.JobId == jobId)
-                    .Select(r => EF.Property<string>(r, column))
-                    .Distinct()
-                    .ToListAsync();
+                // Dynamically select the registration property using repository
+                var values = await _repo.GetDistinctRegistrationColumnValuesAsync(jobId.Value, column);
 
                 var options = values
                     .Where(v => !string.IsNullOrWhiteSpace(v))
@@ -1044,11 +983,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             _logger.LogInformation("Updating metadata for profile {ProfileType}", profileType);
 
             // Find ALL jobs using this profile
-            var jobs = await _context.Jobs
-                .Where(j => j.CoreRegformPlayer != null &&
-                           (j.CoreRegformPlayer.StartsWith(profileType + "|") ||
-                            j.CoreRegformPlayer == profileType))
-                .ToListAsync();
+            var jobs = await _repo.GetJobsByProfileTypeAsync(profileType);
 
             if (jobs.Count == 0)
             {
@@ -1105,7 +1040,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 job.PlayerProfileMetadataJson = metadataJson;
             }
 
-            await _context.SaveChangesAsync();
+            await _repo.UpdateMultipleJobsPlayerMetadataAsync(jobs);
 
             _logger.LogInformation(
                 "Updated metadata for {ProfileType}: {FieldCount} fields applied to {JobCount} jobs",
@@ -1266,9 +1201,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             }
 
             // Get the job from the registration
-            var registration = await _context.Registrations
-                .Include(r => r.Job)
-                .FirstOrDefaultAsync(r => r.RegistrationId == regId);
+            var registration = await _repo.GetRegistrationWithJobAsync(regId);
 
             if (registration == null)
             {
@@ -1293,9 +1226,8 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             var metadataJson = JsonSerializer.Serialize(newMetadata);
 
             // Update the current job's CoreRegformPlayer preserving pipe-delimited structure
-            job.CoreRegformPlayer = UpdateCoreRegformPlayer(job.CoreRegformPlayer, newProfileType);
-            job.PlayerProfileMetadataJson = metadataJson;
-            await _context.SaveChangesAsync();
+            var updatedCoreRegform = UpdateCoreRegformPlayer(job.CoreRegformPlayer, newProfileType);
+            await _repo.UpdateJobCoreRegformAndMetadataAsync(job.JobId, updatedCoreRegform, metadataJson);
 
             _logger.LogInformation(
                 "Created new profile type: {NewProfileType} from {SourceProfileType} for job {JobName} (JobId: {JobId})",
@@ -1326,10 +1258,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         var sourceNum = ExtractTrailingNumber(sourceProfileType) ?? 0;
 
         // Gather all CoreRegformPlayer values (ignore null/0/1 sentinel values)
-        var all = await _context.Jobs
-            .Where(j => j.CoreRegformPlayer != null && j.CoreRegformPlayer != "0" && j.CoreRegformPlayer != "1")
-            .Select(j => j.CoreRegformPlayer!)
-            .ToListAsync();
+        var all = await _repo.GetJobsCoreRegformValuesAsync();
 
         int maxNum = 0;
         foreach (var val in all)
@@ -1438,9 +1367,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<(string? ProfileType, string? TeamConstraint, string Raw, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
     {
-        var registration = await _context.Registrations
-            .Include(r => r.Job)
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
+        var registration = await _repo.GetRegistrationWithJobAsync(regId);
         if (registration?.Job == null)
         {
             return (null, null, string.Empty, null);
@@ -1459,9 +1386,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     public async Task<(string ProfileType, string TeamConstraint, string Raw, ProfileMetadata? Metadata)>
         UpdateCurrentJobProfileConfigAsync(Guid regId, string profileType, string teamConstraint)
     {
-        var registration = await _context.Registrations
-            .Include(r => r.Job)
-            .SingleOrDefaultAsync(r => r.RegistrationId == regId);
+        var registration = await _repo.GetRegistrationWithJobAsync(regId);
         if (registration?.Job == null)
         {
             throw new InvalidOperationException("Current job not found for supplied regId");
@@ -1480,7 +1405,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             registration.Job.PlayerProfileMetadataJson = metadataJson;
         }
 
-        await _context.SaveChangesAsync();
+        await _repo.UpdateJobCoreRegformAndMetadataAsync(registration.Job.JobId, newCore, registration.Job.PlayerProfileMetadataJson ?? string.Empty);
 
         return (profileType, teamConstraint, newCore, metadata);
     }
