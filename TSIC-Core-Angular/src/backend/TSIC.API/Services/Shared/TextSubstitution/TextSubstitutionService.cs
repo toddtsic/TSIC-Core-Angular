@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Repositories;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Application.Services.Players;
 using TSIC.Application.Services.Shared.Html;
@@ -70,11 +71,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         public DateTime? UslaxNumberValidThroughDate { get; init; }
     }
 
+    private readonly ITextSubstitutionRepository _repo;
     private readonly SqlDbContext _context;
     private readonly IDiscountCodeEvaluator _discountEvaluator;
 
-    public TextSubstitutionService(SqlDbContext context, IDiscountCodeEvaluator discountEvaluator)
+    public TextSubstitutionService(ITextSubstitutionRepository repo, SqlDbContext context, IDiscountCodeEvaluator discountEvaluator)
     {
+        _repo = repo;
         _context = context;
         _discountEvaluator = discountEvaluator;
     }
@@ -83,12 +86,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     {
         if (string.IsNullOrWhiteSpace(template)) return template;
 
-        var job = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobPath == jobPath)
-            .Select(j => new { j.JobName, j.UslaxNumberValidThroughDate })
-            .FirstOrDefaultAsync();
-
+        var job = await _repo.GetJobTokenInfoAsync(jobPath);
         if (job == null) return template;
 
         var uslaxDate = job.UslaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
