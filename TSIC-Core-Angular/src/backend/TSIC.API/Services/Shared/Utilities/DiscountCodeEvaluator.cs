@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Application.Services.Shared.Discount;
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Shared.Utilities;
 
@@ -22,28 +22,24 @@ public interface IDiscountCodeEvaluator
 /// </summary>
 public sealed class DiscountCodeEvaluatorService : IDiscountCodeEvaluator
 {
-    private readonly SqlDbContext _db;
+    private readonly IJobDiscountCodeRepository _discountCodeRepo;
 
-    public DiscountCodeEvaluatorService(SqlDbContext db) => _db = db;
+    public DiscountCodeEvaluatorService(IJobDiscountCodeRepository discountCodeRepo) => _discountCodeRepo = discountCodeRepo;
 
     public async Task<decimal> EvaluateAsync(int discountCodeAi, decimal baseAmount)
     {
         if (discountCodeAi <= 0 || baseAmount <= 0m) return 0m;
 
-        // Data access: retrieve discount configuration from database
-        var rec = await _db.JobDiscountCodes
-            .AsNoTracking()
-            .Where(d => d.Ai == discountCodeAi)
-            .Select(d => new { d.BAsPercent, d.CodeAmount })
-            .SingleOrDefaultAsync();
+        // Data access: retrieve discount configuration via repository
+        var rec = await _discountCodeRepo.GetByAiAsync(discountCodeAi);
 
         if (rec == null) return 0m;
 
-        var discountValue = rec.CodeAmount ?? 0m;
+        var discountValue = rec.Value.CodeAmount ?? 0m;
         if (discountValue <= 0m) return 0m;
 
         // Business logic: calculate discount using pure business rules
-        return DiscountCalculator.Calculate(baseAmount, discountValue, rec.BAsPercent);
+        return DiscountCalculator.Calculate(baseAmount, discountValue, rec.Value.BAsPercent ?? false);
     }
 }
 
