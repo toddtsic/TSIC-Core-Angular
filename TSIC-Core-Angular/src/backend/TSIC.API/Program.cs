@@ -66,12 +66,18 @@ builder.Services.AddScoped<IFamilyMemberRepository, FamilyMemberRepository>();
 builder.Services.AddScoped<IRegistrationAccountingRepository, RegistrationAccountingRepository>();
 builder.Services.AddScoped<IClubTeamRepository, ClubTeamRepository>();
 builder.Services.AddScoped<IBulletinRepository, BulletinRepository>();
-builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ITextSubstitutionRepository, TextSubstitutionRepository>();
 builder.Services.AddScoped<IProfileMetadataRepository, ProfileMetadataRepository>();
 
 // Application & Infrastructure Services
+builder.Services.AddSingleton<RouteAvailabilityService>(); // Singleton for caching
+builder.Services.AddScoped<IMenuRepository>(sp =>
+{
+    var context = sp.GetRequiredService<SqlDbContext>();
+    var routeService = sp.GetRequiredService<RouteAvailabilityService>();
+    return new MenuRepository(context, routeService.IsRouteImplemented);
+});
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJobLookupService, JobLookupService>();

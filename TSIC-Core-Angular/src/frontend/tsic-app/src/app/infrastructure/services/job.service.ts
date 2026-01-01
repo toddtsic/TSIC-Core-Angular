@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto } from '../api';
+import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto } from '@infrastructure/api';
 
 export interface JobBulletin {
     id: string;
@@ -28,31 +28,6 @@ export interface Job {
     playerProfileMetadataJson?: string;
     jsonOptions?: string;
     jobBulletins: JobBulletin[];
-}
-
-export interface MenuItemDto {
-    menuItemId: string;
-    parentMenuItemId?: string | null;
-    index?: number | null;
-    text?: string | null;
-    iconName?: string | null;
-    bCollapsed: boolean;
-    bTextWrap: boolean;
-    routerLink?: string | null;
-    navigateUrl?: string | null;
-    controller?: string | null;
-    action?: string | null;
-    linkTarget?: string | null;
-    children: MenuItemDto[];
-}
-
-export interface MenuDto {
-    menuId: string;
-    jobId: string;
-    roleId?: string | null;
-    menuTypeId: number;
-    tag?: string | null;
-    items: MenuItemDto[];
 }
 
 @Injectable({ providedIn: 'root' })

@@ -6,7 +6,7 @@ import type {
     FamilyRegistrationResponse,
     FamilyUpdateRequest,
     FamilyProfileResponse
-} from '../api';
+} from '@infrastructure/api';
 
 @Injectable({ providedIn: 'root' })
 export class FamilyService {

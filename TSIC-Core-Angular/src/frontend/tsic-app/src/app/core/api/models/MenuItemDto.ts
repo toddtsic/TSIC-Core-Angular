@@ -15,6 +15,7 @@ export type MenuItemDto = {
     controller?: string | null;
     action?: string | null;
     linkTarget?: string | null;
+    isImplemented?: boolean;
     children?: Array<MenuItemDto>;
 };
 

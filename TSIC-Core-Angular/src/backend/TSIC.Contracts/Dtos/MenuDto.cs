@@ -35,6 +35,12 @@ public class MenuItemDto
     public string? Action { get; set; }
     public string? LinkTarget { get; set; }
 
+    /// <summary>
+    /// Indicates whether the controller/action for this menu item exists in the backend.
+    /// Set by RouteAvailabilityService during menu assembly.
+    /// </summary>
+    public bool IsImplemented { get; set; }
+
     // Hierarchical structure
     public List<MenuItemDto> Children { get; set; } = new();
 }

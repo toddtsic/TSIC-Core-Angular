@@ -53,6 +53,17 @@
                     font-size: var(--font-size-base);
                     opacity: 0.8;
                 }
+
+                // Styling for unimplemented routes
+                &.coming-soon {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+
+                    .badge {
+                        font-size: 0.65rem;
+                        padding: 0.15em 0.4em;
+                    }
+                }
             }
 
             &.dropdown {

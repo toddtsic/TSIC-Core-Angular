@@ -1,7 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { JobService, MenuItemDto } from '@infrastructure/services/job.service';
+import type { MenuItemDto } from '@infrastructure/api';
+import { JobService } from '@infrastructure/services/job.service';
 import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({
@@ -65,7 +66,7 @@ export class ClientMenuComponent {
      * Check if item has children
      */
     hasChildren(item: MenuItemDto): boolean {
-        return item.children && item.children.length > 0;
+        return !!(item.children && item.children.length > 0);
     }
 
     /**

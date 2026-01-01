@@ -95,7 +95,7 @@ export class FamilyAccountWizardComponent implements OnInit {
                     this.state.postalCode.set(p.address?.postalCode ?? '');
 
                     // Children
-                    const kids = (p.children ?? []).map(c => ({
+                    const kids = (p.children ?? []).map((c: any) => ({
                         firstName: c.firstName ?? '',
                         lastName: c.lastName ?? '',
                         gender: c.gender ?? '',

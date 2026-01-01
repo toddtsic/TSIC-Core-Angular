@@ -581,12 +581,12 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         // Get any job using this profile (they all have the same metadata)
         var job = await _repo.GetJobWithPlayerMetadataAsync(profileType);
 
-        if (string.IsNullOrEmpty(job))
+        if (string.IsNullOrEmpty(job?.PlayerProfileMetadataJson))
         {
             return null;
         }
 
-        var metadata = JsonSerializer.Deserialize<ProfileMetadata>(job, s_CaseInsensitive);
+        var metadata = JsonSerializer.Deserialize<ProfileMetadata>(job.PlayerProfileMetadataJson, s_CaseInsensitive);
 
         return metadata;
     }

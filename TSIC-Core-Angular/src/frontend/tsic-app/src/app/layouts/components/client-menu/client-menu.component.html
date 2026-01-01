@@ -22,7 +22,14 @@
                 <ul class="dropdown-menu" [class.show]="isExpanded(item.menuItemId)">
                     @for (child of item.children; track child.menuItemId) {
                     <li>
-                        @if (isExternalLink(child)) {
+                        @if (!child.isImplemented) {
+                        <!-- Unimplemented route - disabled -->
+                        <span class="dropdown-item disabled coming-soon">
+                            <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
+                            {{ child.text }}
+                            <span class="badge bg-secondary ms-2">Coming Soon</span>
+                        </span>
+                        } @else if (isExternalLink(child)) {
                         <a class="dropdown-item" [href]="getLink(child)" [target]="child.linkTarget || '_self'">
                             <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                             {{ child.text }}
@@ -47,7 +54,14 @@
                 </ul>
                 } @else {
                 <!-- Standalone item -->
-                @if (isExternalLink(item)) {
+                @if (!item.isImplemented) {
+                <!-- Unimplemented route - disabled -->
+                <span class="nav-link disabled coming-soon">
+                    <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
+                    {{ item.text }}
+                    <span class="badge bg-secondary ms-2">Soon</span>
+                </span>
+                } @else if (isExternalLink(item)) {
                 <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
@@ -109,7 +123,14 @@
                         <ul class="nav flex-column ms-3">
                             @for (child of item.children; track child.menuItemId) {
                             <li class="nav-item">
-                                @if (isExternalLink(child)) {
+                                @if (!child.isImplemented) {
+                                <!-- Unimplemented route - disabled -->
+                                <span class="nav-link disabled coming-soon">
+                                    <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
+                                    {{ child.text }}
+                                    <span class="badge bg-secondary ms-2">Coming Soon</span>
+                                </span>
+                                } @else if (isExternalLink(child)) {
                                 <a class="nav-link" [href]="getLink(child)" [target]="child.linkTarget || '_self'"
                                     (click)="closeOffcanvas()">
                                     <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
@@ -135,7 +156,14 @@
                     </div>
                     } @else {
                     <!-- Standalone item -->
-                    @if (isExternalLink(item)) {
+                    @if (!item.isImplemented) {
+                    <!-- Unimplemented route - disabled -->
+                    <span class="nav-link disabled coming-soon">
+                        <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
+                        {{ item.text }}
+                        <span class="badge bg-secondary ms-2">Coming Soon</span>
+                    </span>
+                    } @else if (isExternalLink(item)) {
                     <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'"
                         (click)="closeOffcanvas()">
                         <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
