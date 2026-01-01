@@ -1,44 +1,42 @@
 using Microsoft.EntityFrameworkCore;
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Players;
 
 public class PlayerBaseTeamFeeResolverService : IPlayerBaseTeamFeeResolverService
 {
-    private readonly SqlDbContext _db;
-    public PlayerBaseTeamFeeResolverService(SqlDbContext db)
+    private readonly ITeamRepository _teamRepo;
+    private readonly IAgeGroupRepository _ageGroupRepo;
+
+    public PlayerBaseTeamFeeResolverService(ITeamRepository teamRepo, IAgeGroupRepository ageGroupRepo)
     {
-        _db = db;
+        _teamRepo = teamRepo;
+        _ageGroupRepo = ageGroupRepo;
     }
 
     public async Task<decimal> ResolveBaseFeeForTeamAsync(Guid teamId)
     {
         // Pull only the minimal fields needed for fee resolution
-        var data = await _db.Teams
-            .Where(t => t.TeamId == teamId)
-            .Select(t => new
-            {
-                TeamFeeBase = t.FeeBase,
-                TeamPerRegistrant = t.PerRegistrantFee,
-                AgegroupId = t.AgegroupId,
-            })
-            .FirstOrDefaultAsync();
-
-        if (data == null) return 0m;
+        var feeInfo = await _teamRepo.GetTeamFeeInfoAsync(teamId);
 
         // 1) Team-level fee
-        var teamBase = data.TeamFeeBase ?? data.TeamPerRegistrant ?? 0m;
+        var teamBase = feeInfo.FeeBase ?? feeInfo.PerRegistrantFee ?? 0m;
         if (teamBase > 0) return teamBase;
 
-        // 2) AgeGroup-level fee (prefer TeamFee, else RosterFee)
-        var age = await _db.Agegroups
-            .Where(a => a.AgegroupId == data.AgegroupId)
-            .Select(a => new { a.TeamFee, a.RosterFee })
+        // 2) Need AgegroupId to look up age group fees - must query Team entity again
+        var teamWithAgeGroup = await _teamRepo.Query()
+            .Where(t => t.TeamId == teamId)
+            .Select(t => new { t.AgegroupId })
             .FirstOrDefaultAsync();
-        if (age != null)
+
+        if (teamWithAgeGroup != null)
         {
-            var agBase = (age.TeamFee ?? age.RosterFee) ?? 0m;
-            if (agBase > 0) return agBase;
+            var ageFees = await _ageGroupRepo.GetFeeInfoAsync(teamWithAgeGroup.AgegroupId);
+            if (ageFees != null)
+            {
+                var agBase = (ageFees.Value.TeamFee ?? ageFees.Value.RosterFee) ?? 0m;
+                if (agBase > 0) return agBase;
+            }
         }
 
         // 3) League-level fee: no explicit fee fields currently modeled; return 0 for now

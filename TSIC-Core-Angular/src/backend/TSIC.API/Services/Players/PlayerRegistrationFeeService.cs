@@ -1,25 +1,25 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Application.Services.Players;
+using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
-using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.API.Services.Teams;
 
 namespace TSIC.API.Services.Players;
 
 public class PlayerRegistrationFeeService : IPlayerRegistrationFeeService
 {
-    private readonly SqlDbContext _db;
+    private readonly ITeamRepository _teamRepo;
     private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
     private readonly IPlayerFeeCalculator _feeCalculator;
     private readonly ITeamLookupService _teamLookupService;
 
     public PlayerRegistrationFeeService(
-        SqlDbContext db,
+        ITeamRepository teamRepo,
         IPlayerBaseTeamFeeResolverService feeResolver,
         IPlayerFeeCalculator feeCalculator,
         ITeamLookupService teamLookupService)
     {
-        _db = db;
+        _teamRepo = teamRepo;
         _feeResolver = feeResolver;
         _feeCalculator = feeCalculator;
         _teamLookupService = teamLookupService;
@@ -32,14 +32,10 @@ public class PlayerRegistrationFeeService : IPlayerRegistrationFeeService
         if (fee > 0m) return fee;
 
         // Fallback to legacy resolver if centralized logic yields zero, for backward compatibility.
-        var cached = await _db.Teams.Where(x => x.TeamId == teamId)
-            .Select(x => new { x.FeeBase, x.PerRegistrantFee })
-            .FirstOrDefaultAsync();
-        if (cached != null)
-        {
-            var v = cached.FeeBase ?? cached.PerRegistrantFee ?? 0m;
-            if (v > 0m) return v;
-        }
+        var feeInfo = await _teamRepo.GetTeamFeeInfoAsync(teamId);
+        var v = feeInfo.FeeBase ?? feeInfo.PerRegistrantFee ?? 0m;
+        if (v > 0m) return v;
+        
         return await _feeResolver.ResolveBaseFeeForTeamAsync(teamId);
     }
 

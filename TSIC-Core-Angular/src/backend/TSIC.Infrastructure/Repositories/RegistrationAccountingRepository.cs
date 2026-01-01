@@ -30,4 +30,15 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .Join(_context.Registrations, a => a.RegistrationId, r => r.RegistrationId, (a, r) => new { a, r })
             .AnyAsync(x => x.r.JobId == jobId && x.r.FamilyUserId == familyUserId && x.a.AdnInvoiceNo == idempotencyKey, cancellationToken);
     }
+
+    public async Task<string?> GetLatestAdnTransactionIdAsync(IEnumerable<Guid> registrationIds, CancellationToken cancellationToken = default)
+    {
+        var regIdSet = registrationIds.ToHashSet();
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(a => a.RegistrationId != null && regIdSet.Contains(a.RegistrationId.Value) && !string.IsNullOrWhiteSpace(a.AdnTransactionId))
+            .OrderByDescending(a => a.Createdate)
+            .Select(a => a.AdnTransactionId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }
