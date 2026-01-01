@@ -78,6 +78,19 @@ Use this shorthand before any coding request to ensure the AI agent follows all 
 - **LINQ optimization**: Use `Where()` clauses to filter before processing
 - **Documentation**: Update API comments when changing behavior
 
+### Angular/TypeScript API Models
+- **NEVER edit auto-generated files**: Files in `src/app/core/api/models/` are regenerated from Swagger
+- **Always regenerate after DTO changes**: Run `2-Regenerate-API-Models.ps1` after backend changes
+- **NEVER create local DTO duplicates**: Import from `@core/api`, never define locally
+- **Check for stale folders**: Verify no duplicate model folders exist (check tsconfig paths)
+- **Audit after major changes**: Search for duplicate class/type definitions across codebase
+
+### Clean Architecture Enforcement
+- **Repository pattern is mandatory**: Controllers/Services MUST NEVER use `SqlDbContext` directly
+- **Use Func<> delegates for cross-layer behavior**: When Infrastructure needs API layer behavior, inject as `Func<>` delegate from composition root (Program.cs)
+- **Factory pattern for complex DI**: Use `services.AddScoped<IRepo>(sp => new Repo(sp.Get<Dep>(), funcDelegate))`
+- **Layer dependencies flow one way**: API → Infrastructure → Application → Contracts → Domain
+
 ---
 
 ## 🎯 Code Quality Standards
@@ -87,6 +100,9 @@ Use this shorthand before any coding request to ensure the AI agent follows all 
 - **Proper using statements**: Import required namespaces
 - **Variable naming**: Use descriptive names, avoid conflicts
 - **Method complexity**: Keep cognitive complexity under 15
+- **DTO property pattern**: Use `required` keyword with `init` properties (NOT positional parameters) for OpenAPI generation
+- **No positional records for DTOs**: `public record MyDto { public required string Prop { get; init; } }` ✅
+- **Object initializers**: Use `new MyDto { Prop = value }` not positional syntax
 
 ### TypeScript Frontend  
 - **Type safety**: Use proper TypeScript types
@@ -120,6 +136,9 @@ Use this shorthand before any coding request to ensure the AI agent follows all 
 3. **Check docs/** for architectural decisions and patterns
 4. **Review styles.scss** for theming and brand variables
 5. **Understand user flow** and business requirements
+6. **Search for duplicate definitions** - use grep_search to find duplicate classes/types/services
+7. **Verify tsconfig path aliases** - ensure they point to correct locations
+8. **Check for stale folders** - deleted folders may still have imports pointing to them
 
 ### Implementation Strategy
 - **Follow existing patterns** rather than creating new ones
@@ -138,6 +157,11 @@ Use this shorthand before any coding request to ensure the AI agent follows all 
 - ❌ **Never skip reading context** - understand before changing
 - ❌ **Don't use inline styles** - use component SCSS files
 - ❌ **Avoid breaking existing functionality** - maintain backward compatibility
+- ❌ **NEVER edit auto-generated API models** - regenerate with script instead
+- ❌ **Don't create local DTO duplicates** - import from @core/api
+- ❌ **Never bypass repository pattern** - no direct DbContext usage in controllers/services
+- ❌ **Don't sweep errors under rug** - investigate and fix, don't hide problems
+- ❌ **Avoid making assumptions** - verify with searches/reads before major changes
 
 ---
 
@@ -160,4 +184,10 @@ When implementing any feature:
 
 **Usage**: Type **"CWCC"** before any coding request to ensure adherence to these conventions.
 
-**Last Updated**: December 30, 2025
+**Last Updated**: January 1, 2026
+
+**Critical Lessons Learned**:
+- Always verify no duplicate auto-generated model folders exist
+- Stale folders from refactoring can cause TypeScript to use outdated types
+- Deep dive audits prevent catastrophic errors (found 100+ stale files)
+- When major changes occur, audit for duplicates and verify path aliases
