@@ -16,6 +16,31 @@ public record RegisteredTeamInfo(
     decimal PaidTotal,
     decimal OwedTotal);
 
+public record AvailableTeamQueryResult(
+    Guid TeamId,
+    string Name,
+    Guid AgegroupId,
+    string AgegroupName,
+    Guid? DivisionId,
+    string? DivisionName,
+    int MaxCount,
+    decimal? RawPerRegistrantFee,
+    decimal? RawPerRegistrantDeposit,
+    decimal? RawTeamFee,
+    decimal? RawRosterFee,
+    bool? TeamAllowsSelfRostering,
+    bool? AgegroupAllowsSelfRostering,
+    decimal? LeaguePlayerFeeOverride,
+    decimal? AgegroupPlayerFeeOverride);
+
+public record TeamFeeData(
+    decimal? PerRegistrantFee,
+    decimal? PerRegistrantDeposit,
+    decimal? TeamFee,
+    decimal? RosterFee,
+    decimal? LeaguePlayerFeeOverride,
+    decimal? AgegroupPlayerFeeOverride);
+
 /// <summary>
 /// Repository for managing Teams entity data access.
 /// </summary>
@@ -73,5 +98,19 @@ public interface ITeamRepository
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get available teams for a job (for self-rostering).
+    /// </summary>
+    Task<List<AvailableTeamQueryResult>> GetAvailableTeamsQueryResultsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get team fee data for per-registrant fee calculation.
+    /// </summary>
+    Task<TeamFeeData?> GetTeamFeeDataAsync(
+        Guid teamId,
+        CancellationToken cancellationToken = default);
 }
 

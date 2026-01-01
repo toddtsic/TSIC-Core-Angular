@@ -1,59 +1,36 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Teams;
 
 public class TeamLookupService : ITeamLookupService
 {
-    private readonly SqlDbContext _context;
+    private readonly ITeamRepository _teamRepo;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly IJobRepository _jobRepo;
     private readonly ILogger<TeamLookupService> _logger;
 
-    public TeamLookupService(SqlDbContext context, ILogger<TeamLookupService> logger)
+    public TeamLookupService(
+        ITeamRepository teamRepo,
+        IRegistrationRepository registrationRepo,
+        IJobRepository jobRepo,
+        ILogger<TeamLookupService> logger)
     {
-        _context = context;
+        _teamRepo = teamRepo;
+        _registrationRepo = registrationRepo;
+        _jobRepo = jobRepo;
         _logger = logger;
     }
 
     public async Task<IReadOnlyList<AvailableTeamDto>> GetAvailableTeamsForJobAsync(Guid jobId)
     {
-        var now = DateTime.UtcNow;
-
-        var jobUsesWaitlists = await _context.Jobs
+        var jobUsesWaitlists = await _jobRepo.Query()
             .Where(j => j.JobId == jobId)
             .Select(j => j.BUseWaitlists)
             .SingleOrDefaultAsync();
 
-        var baseQuery = _context.Teams
-            .AsNoTracking()
-            .Include(t => t.Agegroup)
-            .Include(t => t.Div)
-            .Where(t => t.JobId == jobId)
-            .Where(t => (t.Active ?? true))
-            .Where(t => (t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-            .Where(t => (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
-                        && (t.Expireondate == null || t.Expireondate >= now));
-
-        var teamsRaw = await baseQuery
-            .Select(t => new
-            {
-                t.TeamId,
-                Name = t.TeamName ?? t.DisplayName ?? "(Unnamed Team)",
-                t.AgegroupId,
-                AgegroupName = t.Agegroup.AgegroupName,
-                DivisionId = t.DivId,
-                DivisionName = t.Div != null ? t.Div.DivName : null,
-                t.MaxCount,
-                RawPerRegistrantFee = t.PerRegistrantFee,
-                RawPerRegistrantDeposit = t.PerRegistrantDeposit,
-                RawTeamFee = t.Agegroup.TeamFee,
-                RawRosterFee = t.Agegroup.RosterFee,
-                TeamAllowsSelfRostering = t.BAllowSelfRostering,
-                AgegroupAllowsSelfRostering = t.Agegroup.BAllowSelfRostering,
-                LeaguePlayerFeeOverride = t.League.PlayerFeeOverride,
-                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride
-            })
-            .ToListAsync();
+        var teamsRaw = await _teamRepo.GetAvailableTeamsQueryResultsAsync(jobId);
 
         if (teamsRaw.Count == 0)
         {
@@ -62,19 +39,23 @@ public class TeamLookupService : ITeamLookupService
         }
 
         var teamIds = teamsRaw.Select(t => t.TeamId).ToList();
-        var rosterCounts = await _context.Registrations
-            .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value))
-            .GroupBy(r => r.AssignedTeamId!.Value)
-            .Select(g => new { TeamId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.TeamId, x => x.Count);
+        var rosterCounts = await _registrationRepo.GetRosterCountsByTeamAsync(teamIds);
 
         var dtos = teamsRaw.Select(t =>
         {
             var current = rosterCounts.TryGetValue(t.TeamId, out var c) ? c : 0;
             var rosterFull = current >= t.MaxCount && t.MaxCount > 0;
 
-            var fee = ComputePerRegistrantFee(t.RawPerRegistrantFee, t.RawTeamFee, t.RawRosterFee, t.LeaguePlayerFeeOverride, t.AgegroupPlayerFeeOverride);
-            var deposit = ComputePerRegistrantDeposit(t.RawPerRegistrantDeposit, t.RawTeamFee, t.RawRosterFee);
+            var fee = ComputePerRegistrantFee(
+                t.RawPerRegistrantFee, 
+                t.RawTeamFee, 
+                t.RawRosterFee, 
+                t.LeaguePlayerFeeOverride, 
+                t.AgegroupPlayerFeeOverride);
+            var deposit = ComputePerRegistrantDeposit(
+                t.RawPerRegistrantDeposit, 
+                t.RawTeamFee, 
+                t.RawRosterFee);
 
             return new AvailableTeamDto
             {
@@ -101,20 +82,7 @@ public class TeamLookupService : ITeamLookupService
 
     public async Task<(decimal Fee, decimal Deposit)> ResolvePerRegistrantAsync(Guid teamId)
     {
-        var data = await _context.Teams
-            .AsNoTracking()
-            .Include(t => t.Agegroup)
-            .Where(t => t.TeamId == teamId)
-            .Select(t => new
-            {
-                t.PerRegistrantFee,
-                t.PerRegistrantDeposit,
-                TeamFee = t.Agegroup.TeamFee,
-                RosterFee = t.Agegroup.RosterFee,
-                LeaguePlayerFeeOverride = t.League.PlayerFeeOverride,
-                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride
-            })
-            .SingleOrDefaultAsync();
+        var data = await _teamRepo.GetTeamFeeDataAsync(teamId);
 
         if (data == null)
         {
@@ -122,8 +90,16 @@ public class TeamLookupService : ITeamLookupService
             return (0m, 0m);
         }
 
-        var fee = ComputePerRegistrantFee(data.PerRegistrantFee, data.TeamFee, data.RosterFee, data.LeaguePlayerFeeOverride, data.AgegroupPlayerFeeOverride);
-        var deposit = ComputePerRegistrantDeposit(data.PerRegistrantDeposit, data.TeamFee, data.RosterFee);
+        var fee = ComputePerRegistrantFee(
+            data.PerRegistrantFee, 
+            data.TeamFee, 
+            data.RosterFee, 
+            data.LeaguePlayerFeeOverride, 
+            data.AgegroupPlayerFeeOverride);
+        var deposit = ComputePerRegistrantDeposit(
+            data.PerRegistrantDeposit, 
+            data.TeamFee, 
+            data.RosterFee);
         return (fee, deposit);
     }
 

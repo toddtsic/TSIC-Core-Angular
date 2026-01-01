@@ -5,8 +5,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Xunit;
+using Moq;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.Tests;
 
@@ -33,12 +35,9 @@ public sealed class AdnArbSubscriptionTests
         };
         var config = new ConfigurationBuilder().AddInMemoryCollection(inMemory).Build();
         var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AdnApiService>();
-        // Minimal in-memory context for constructor; not used for sandbox path
-        var dbOpts = new DbContextOptionsBuilder<TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext>()
-            .UseInMemoryDatabase($"tsic-tests-{Guid.NewGuid()}")
-            .Options;
-        var context = new TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext(dbOpts);
-        var service = new AdnApiService(new DevEnv(), logger, config, context);
+        // Mock customer repository (not used for sandbox path)
+        var mockCustomerRepo = new Mock<ICustomerRepository>();
+        var service = new AdnApiService(new DevEnv(), logger, config, mockCustomerRepo.Object);
         var env = service.GetADNEnvironment(); // should be SANDBOX under Development
 
         // Use test VISA; service maps 4242.. -> 4111.. for sandbox

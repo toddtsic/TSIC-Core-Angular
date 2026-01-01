@@ -67,6 +67,7 @@ builder.Services.AddScoped<IRegistrationAccountingRepository, RegistrationAccoun
 builder.Services.AddScoped<IClubTeamRepository, ClubTeamRepository>();
 builder.Services.AddScoped<IBulletinRepository, BulletinRepository>();
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();

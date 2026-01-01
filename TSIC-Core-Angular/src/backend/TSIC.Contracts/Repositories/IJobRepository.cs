@@ -18,6 +18,36 @@ public record JobMetadata(
     string? JsonOptions,
     string? CoreRegformPlayer);
 
+public record JobMetadataDto(
+    Guid JobId,
+    string JobName,
+    string JobPath,
+    string? JobLogoPath,
+    string? JobBannerPath,
+    string? JobBannerText1,
+    string? JobBannerText2,
+    string? JobBannerBackgroundPath,
+    bool? CoreRegformPlayer,
+    DateTime? USLaxNumberValidThroughDate,
+    DateTime? ExpiryUsers,
+    string? PlayerProfileMetadataJson,
+    string? JsonOptions,
+    string? MomLabel,
+    string? DadLabel,
+    string? PlayerRegReleaseOfLiability,
+    string? PlayerRegCodeOfConduct,
+    string? PlayerRegCovid19Waiver,
+    string? PlayerRegRefundPolicy,
+    bool OfferPlayerRegsaverInsurance,
+    bool? AdnArb,
+    int? AdnArbBillingOccurences,
+    int? AdnArbIntervalLength,
+    DateTime? AdnArbStartDate);
+
+public record JobRegistrationStatus(
+    bool BRegistrationAllowPlayer,
+    DateTime? ExpiryUsers);
+
 /// <summary>
 /// Repository for managing Jobs entity data access.
 /// </summary>
@@ -47,4 +77,14 @@ public interface IJobRepository
     /// Find job by JobPath (case-insensitive).
     /// </summary>
     Task<Guid?> GetJobIdByPathAsync(string jobPath, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get job registration status (is player registration active).
+    /// </summary>
+    Task<JobRegistrationStatus?> GetRegistrationStatusAsync(Guid jobId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Get full job metadata with display options for frontend rendering.
+    /// </summary>
+    Task<JobMetadataDto?> GetJobMetadataByPathAsync(string jobPath, CancellationToken cancellationToken = default);
 }

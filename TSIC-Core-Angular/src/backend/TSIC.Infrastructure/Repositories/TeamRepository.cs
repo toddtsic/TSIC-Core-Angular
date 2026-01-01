@@ -100,5 +100,59 @@ public class TeamRepository : ITeamRepository
     {
         return await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<List<AvailableTeamQueryResult>> GetAvailableTeamsQueryResultsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+
+        return await _context.Teams
+            .AsNoTracking()
+            .Include(t => t.Agegroup)
+            .Include(t => t.Div)
+            .Where(t => t.JobId == jobId)
+            .Where(t => (t.Active ?? true))
+            .Where(t => (t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
+            .Where(t => (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
+                        && (t.Expireondate == null || t.Expireondate >= now))
+            .Select(t => new AvailableTeamQueryResult(
+                t.TeamId,
+                t.TeamName ?? t.DisplayName ?? "(Unnamed Team)",
+                t.AgegroupId,
+                t.Agegroup.AgegroupName,
+                t.DivId,
+                t.Div != null ? t.Div.DivName : null,
+                t.MaxCount,
+                t.PerRegistrantFee,
+                t.PerRegistrantDeposit,
+                t.Agegroup.TeamFee,
+                t.Agegroup.RosterFee,
+                t.BAllowSelfRostering,
+                t.Agegroup.BAllowSelfRostering,
+                t.League.PlayerFeeOverride,
+                t.Agegroup.PlayerFeeOverride
+            ))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<TeamFeeData?> GetTeamFeeDataAsync(
+        Guid teamId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Include(t => t.Agegroup)
+            .Where(t => t.TeamId == teamId)
+            .Select(t => new TeamFeeData(
+                t.PerRegistrantFee,
+                t.PerRegistrantDeposit,
+                t.Agegroup.TeamFee,
+                t.Agegroup.RosterFee,
+                t.League.PlayerFeeOverride,
+                t.Agegroup.PlayerFeeOverride
+            ))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 }
 

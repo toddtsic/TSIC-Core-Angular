@@ -166,6 +166,13 @@ public interface IRegistrationRepository
         Guid registrationId,
         Guid jobId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get roster counts by team ID for a collection of teams.
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetRosterCountsByTeamAsync(
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData(

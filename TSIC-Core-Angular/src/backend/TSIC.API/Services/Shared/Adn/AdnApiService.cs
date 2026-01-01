@@ -1,12 +1,11 @@
 using AuthorizeNet.Api.Contracts.V1;
 using AuthorizeNet.Api.Controllers;
 using AuthorizeNet.Api.Controllers.Bases;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using TSIC.Contracts.Dtos;
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Shared.Adn;
 
@@ -17,14 +16,14 @@ public class AdnApiService : IAdnApiService
     private readonly IHostEnvironment _env;
     private readonly ILogger<AdnApiService> _logger;
     private readonly IConfiguration _config;
-    private readonly SqlDbContext _context;
+    private readonly ICustomerRepository _customerRepo;
 
-    public AdnApiService(IHostEnvironment env, ILogger<AdnApiService> logger, IConfiguration config, SqlDbContext context)
+    public AdnApiService(IHostEnvironment env, ILogger<AdnApiService> logger, IConfiguration config, ICustomerRepository customerRepo)
     {
         _env = env;
         _logger = logger;
         _config = config;
-        _context = context;
+        _customerRepo = customerRepo;
     }
 
     public AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false)
@@ -55,16 +54,7 @@ public class AdnApiService : IAdnApiService
         }
 
         // Production: fetch from associated customer; fail fast if missing.
-        var creds = await (
-            from j in _context.Jobs
-            join c in _context.Customers on j.CustomerId equals c.CustomerId
-            where j.JobId == jobId
-            select new AdnCredentialsViewModel
-            {
-                AdnLoginId = c.AdnLoginId,
-                AdnTransactionKey = c.AdnTransactionKey
-            }
-        ).AsNoTracking().SingleOrDefaultAsync();
+        var creds = await _customerRepo.GetAdnCredentialsByJobIdAsync(jobId);
 
         if (creds == null || string.IsNullOrWhiteSpace(creds.AdnLoginId) || string.IsNullOrWhiteSpace(creds.AdnTransactionKey))
         {
@@ -90,15 +80,7 @@ public class AdnApiService : IAdnApiService
             return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };
         }
 
-        var creds = await _context.Customers
-            .AsNoTracking()
-            .Where(c => c.CustomerId == customerId)
-            .Select(c => new AdnCredentialsViewModel
-            {
-                AdnLoginId = c.AdnLoginId,
-                AdnTransactionKey = c.AdnTransactionKey
-            })
-            .SingleOrDefaultAsync();
+        var creds = await _customerRepo.GetAdnCredentialsAsync(customerId);
 
         if (creds == null || string.IsNullOrWhiteSpace(creds.AdnLoginId) || string.IsNullOrWhiteSpace(creds.AdnTransactionKey))
         {

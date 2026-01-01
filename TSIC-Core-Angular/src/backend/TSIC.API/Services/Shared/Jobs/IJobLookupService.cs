@@ -1,3 +1,5 @@
+using TSIC.Contracts.Repositories;
+
 namespace TSIC.API.Services.Shared.Jobs;
 
 public interface IJobLookupService

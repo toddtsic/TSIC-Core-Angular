@@ -412,4 +412,15 @@ public class RegistrationRepository : IRegistrationRepository
             .AsNoTracking()
             .SingleOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<Dictionary<Guid, int>> GetRosterCountsByTeamAsync(
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value))
+            .GroupBy(r => r.AssignedTeamId!.Value)
+            .Select(g => new { TeamId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);
+    }
 }
