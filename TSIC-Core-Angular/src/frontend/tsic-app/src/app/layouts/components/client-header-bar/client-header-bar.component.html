@@ -1,11 +1,11 @@
 <!-- Clean Header Structure -->
-<div class="container-fluid glass-surface">
+<div class="container-fluid header-surface">
     <!-- Main Header Row -->
     <div class="d-flex align-items-center justify-content-between py-2 gap-2">
         <!-- Left: Hamburger + Logos -->
         <div class="d-flex align-items-center gap-2">
             <!-- Hamburger -->
-            <button type="button" class="btn btn-outline-secondary btn-sm hamburger-btn glass-button d-lg-none"
+            <button type="button" class="btn btn-outline-secondary btn-sm hamburger-btn icon-button d-lg-none"
                 (click)="toggleOffcanvas()" aria-label="Toggle navigation">
                 <i class="bi bi-list"></i>
             </button>
@@ -13,7 +13,7 @@
             <!-- Logos -->
             <div class="d-flex align-items-center gap-2">
                 <!-- TSIC Logo -->
-                <div class="tsic-brand-box glass-logo-box glass-logo-box-primary d-none d-md-block">
+                <div class="tsic-brand-box logo-box logo-box-primary d-none d-md-block">
                     <img src="images/tsic-logo.png" alt="TSIC" class="tsic-logo" />
                 </div>
 
@@ -24,7 +24,7 @@
 
                 <!-- Job Logo -->
                 @if (jobLogoPath()) {
-                <div class="job-logo-box glass-logo-box d-none d-md-block">
+                <div class="job-logo-box logo-box d-none d-md-block">
                     <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo" />
                 </div>
 

@@ -441,6 +441,139 @@ As of the latest update, **100% of the codebase** adheres to design system stand
 
 ---
 
+## 🏗️ **Elevation System**
+
+### **Semantic Elevated Components**
+The design system uses **semantic naming** for elevated surface treatments (formerly "glass" effects):
+
+**Available Classes:**
+- `.logo-box` - Logo containers with elevated backing
+- `.logo-box-primary` - Enhanced variant for primary brand logos
+- `.icon-button` - Action buttons (hamburger, icons) with elevated treatment
+- `.header-surface` - Navigation headers with gradient depth
+
+**Characteristics:**
+- Semi-transparent layered backgrounds
+- Subtle backdrop blur for depth (GPU-accelerated)
+- Palette-responsive (adapts to theme changes)
+- Inset highlights for premium feel
+- Smooth transitions and hover states
+
+**Usage Example:**
+```html
+<!-- Logo with elevated treatment -->
+<div class="logo-box">
+  <img src="logo.png" alt="Logo" />
+</div>
+
+<!-- Primary brand logo (enhanced elevation) -->
+<div class="logo-box logo-box-primary">
+  <img src="brand-logo.png" alt="Brand" />
+</div>
+```
+
+**When to Use:**
+- Chrome components (headers, navigation)
+- Logo containers requiring high contrast
+- Icon-only action buttons
+- Surfaces that need visual separation from page content
+
+**Performance Note:**
+- Uses `backdrop-filter` (GPU-intensive) - use sparingly
+- Automatically disabled for users with `prefers-reduced-motion`
+
+---
+
+## ♿ **Accessibility Guidelines**
+
+### **WCAG AA Compliance**
+All components must meet **WCAG 2.1 Level AA** standards:
+
+**Contrast Ratios:**
+- ✅ Normal text: **4.5:1** minimum
+- ✅ Large text (18px+): **3:1** minimum
+- ✅ UI components: **3:1** minimum
+
+**Testing Contrast:**
+```scss
+// ✅ GOOD - High contrast on solid background
+color: var(--neutral-900);  // Dark text
+background: var(--neutral-0);  // White bg = 21:1 ratio
+
+// ⚠️ CAUTION - Test elevated surfaces carefully
+background: rgba(255, 255, 255, 0.9);  // Semi-transparent
+// Contrast ratio depends on background behind the element
+```
+
+### **Focus States (REQUIRED)**
+Every interactive element must have a visible focus indicator:
+
+```scss
+// ✅ REQUIRED for buttons, links, inputs
+.my-element:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);  // 3px primary ring
+}
+
+// ❌ NEVER do this globally
+*:focus { outline: none; }
+```
+
+### **Reduced Motion Support**
+Respect user motion preferences:
+
+```scss
+@media (prefers-reduced-motion: reduce) {
+    .animated-element {
+        animation: none !important;
+        transition: none !important;
+        backdrop-filter: none !important;  // Disable expensive GPU effects
+    }
+}
+```
+
+**Built-in Support:**
+- All elevated components (`.logo-box`, `.icon-button`, `.header-surface`) automatically disable animations and backdrop-filter for reduced-motion users
+- Wizard transitions simplified
+- Shimmer effects disabled
+
+### **Keyboard Navigation**
+- All interactive elements must be keyboard-accessible
+- Tab order must follow visual order
+- Skip links for repetitive navigation
+- `aria-label` required for icon-only buttons
+
+### **Screen Reader Support**
+```html
+<!-- ✅ GOOD - Descriptive labels -->
+<button aria-label="Toggle navigation menu">
+  <i class="bi bi-list"></i>
+</button>
+
+<!-- ❌ BAD - No context -->
+<button>
+  <i class="bi bi-list"></i>
+</button>
+```
+
+### **Color Independence**
+Never rely on color alone to convey information:
+
+```html
+<!-- ✅ GOOD - Icon + color -->
+<div class="alert alert-danger">
+  <i class="bi bi-exclamation-triangle"></i>
+  Error: Invalid input
+</div>
+
+<!-- ❌ BAD - Color only -->
+<div class="text-danger">
+  Invalid input
+</div>
+```
+
+---
+
 ## 🧪 **Testing Your Components**
 
 Before committing:

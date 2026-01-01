@@ -1,11 +1,11 @@
 /* ============================================
-   Glassmorphic Design System Components
-   Reusable glass effects for logos, buttons, surfaces
+   Elevated Surface Components
+   Semantic components with elevated visual treatment
    ============================================ */
 
-// Glass Logo Container - For white logo backgrounds
-// Provides solid white backing with gradient and shadow effects
-.glass-logo-box {
+// Logo Container - Elevated background for logo visibility
+// Provides high-contrast backing with depth and shadow effects
+.logo-box {
     background:
         linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
         rgba(var(--neutral-0-rgb), 0.9);
@@ -55,7 +55,7 @@
     }
 
     // Enhanced variant for primary logos (TSIC brand)
-    &.glass-logo-box-primary {
+    &.logo-box-primary {
         background:
             linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.98), rgba(var(--neutral-0-rgb), 0.9)),
             rgba(var(--neutral-0-rgb), 0.95);
@@ -126,7 +126,7 @@
         }
     }
 
-    :host-context([data-bs-theme="dark"]) &.glass-logo-box-primary {
+    :host-context([data-bs-theme="dark"]) &.logo-box-primary {
         background:
             linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.12), rgba(var(--neutral-0-rgb), 0.08)),
             rgba(var(--neutral-0-rgb), 0.1);
@@ -161,8 +161,8 @@
     }
 }
 
-// Glass Button - Mobile hamburger/action buttons
-.glass-button {
+// Icon Button - Mobile hamburger and action buttons with elevated treatment
+.icon-button {
     background:
         linear-gradient(135deg, rgba(var(--neutral-0-rgb), 0.95), rgba(var(--neutral-0-rgb), 0.85)),
         rgba(var(--neutral-0-rgb), 0.9);
@@ -229,8 +229,8 @@
     }
 }
 
-// Glass Surface - For headers/navbars with subtle gradients
-.glass-surface {
+// Header Surface - Elevated treatment for navigation headers with subtle gradients
+.header-surface {
     background:
         linear-gradient(135deg,
             rgba(var(--brand-primary-rgb, 56, 189, 248), 0.03) 0%,
@@ -302,7 +302,7 @@
     }
 }
 
-// Shimmer animation - used by glass-surface
+// Shimmer animation - used by header-surface
 @keyframes shimmer {
     0% {
         left: -100%;
@@ -314,5 +314,31 @@
 
     100% {
         left: 100%;
+    }
+}
+/* ============================================
+   Accessibility: Reduced Motion Support
+   Disables expensive effects for users who prefer reduced motion
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    .logo-box,
+    .logo-box-primary,
+    .icon-button,
+    .header-surface {
+        // Disable backdrop-filter (GPU-intensive)
+        backdrop-filter: none !important;
+        // Disable transitions
+        transition: none !important;
+        // Disable transform animations
+        transform: none !important;
+        
+        &:hover {
+            transform: none !important;
+        }
+        
+        &::after {
+            // Disable shimmer animation
+            animation: none !important;
+        }
     }
 }

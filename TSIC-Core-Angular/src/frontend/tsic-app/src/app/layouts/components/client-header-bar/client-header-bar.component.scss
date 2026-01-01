@@ -111,7 +111,7 @@
     }
 }
 
-// Hamburger button uses global glass-button class styling
+// Hamburger button uses global icon-button class styling
 .hamburger-btn {
     // Override for better visibility across themes
     min-width: 40px;
@@ -254,9 +254,9 @@
     display: inline-flex;
     align-items: center;
     padding: var(--space-3) var(--space-5);
-    background: linear-gradient(135deg, 
-        rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08) 0%, 
-        rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04) 100%);
+    background: linear-gradient(135deg,
+            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08) 0%,
+            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04) 100%);
     border-radius: var(--radius-md);
     border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.2);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -265,9 +265,9 @@
     transition: all 0.2s ease;
 
     &:hover {
-        background: linear-gradient(135deg, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
+        background: linear-gradient(135deg,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
         border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.35);
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
     }
@@ -281,16 +281,16 @@
     }
 
     :host-context([data-bs-theme="dark"]) & {
-        background: linear-gradient(135deg, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
+        background: linear-gradient(135deg,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
         border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 
         &:hover {
-            background: linear-gradient(135deg, 
-                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.18) 0%, 
-                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.1) 100%);
+            background: linear-gradient(135deg,
+                    rgba(var(--brand-primary-rgb, 56, 189, 248), 0.18) 0%,
+                    rgba(var(--brand-primary-rgb, 56, 189, 248), 0.1) 100%);
             border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.45);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
@@ -311,9 +311,9 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    background: linear-gradient(135deg, 
-        rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08) 0%, 
-        rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04) 100%);
+    background: linear-gradient(135deg,
+            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.08) 0%,
+            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.04) 100%);
     border-radius: var(--radius-md);
     border: 1px solid rgba(var(--brand-primary-rgb, 56, 189, 248), 0.2);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -322,24 +322,24 @@
     transition: all 0.2s ease;
 
     &:hover {
-        background: linear-gradient(135deg, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
+        background: linear-gradient(135deg,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
         border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.35);
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
 
     :host-context([data-bs-theme="dark"]) & {
-        background: linear-gradient(135deg, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%, 
-            rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
+        background: linear-gradient(135deg,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.12) 0%,
+                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.06) 100%);
         border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.3);
         box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 
         &:hover {
-            background: linear-gradient(135deg, 
-                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.18) 0%, 
-                rgba(var(--brand-primary-rgb, 56, 189, 248), 0.1) 100%);
+            background: linear-gradient(135deg,
+                    rgba(var(--brand-primary-rgb, 56, 189, 248), 0.18) 0%,
+                    rgba(var(--brand-primary-rgb, 56, 189, 248), 0.1) 100%);
             border-color: rgba(var(--brand-primary-rgb, 56, 189, 248), 0.45);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
         }
