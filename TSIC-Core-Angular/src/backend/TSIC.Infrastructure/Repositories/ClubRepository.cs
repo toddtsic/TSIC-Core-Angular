@@ -50,6 +50,29 @@ public class ClubRepository : IClubRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
+        string? state,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Clubs.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(state))
+        {
+            query = query.Where(c => c.LebUser!.State == state);
+        }
+
+        return await query
+            .Select(c => new ClubSearchCandidate
+            {
+                ClubId = c.ClubId,
+                ClubName = c.ClubName!,
+                State = c.LebUser!.State,
+                TeamCount = c.ClubTeams.Count
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
     public void Add(Clubs club)
     {
         _context.Clubs.Add(club);

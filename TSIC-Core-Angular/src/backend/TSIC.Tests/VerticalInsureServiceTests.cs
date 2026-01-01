@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
+using TSIC.Contracts.Repositories;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using Xunit;
 
@@ -28,10 +29,13 @@ public class VerticalInsureServiceTests
 
     private static VerticalInsureService BuildService(SqlDbContext db, IHostEnvironment env)
     {
+        var mockJobRepo = new Mock<IJobRepository>();
+        var mockRegRepo = new Mock<IRegistrationRepository>();
+        var mockFamilyRepo = new Mock<IFamilyRepository>();
         var logger = new Mock<ILogger<VerticalInsureService>>().Object;
         var teamLookup = new Mock<ITeamLookupService>();
         // Team lookup not used in purchase stub
-        return new VerticalInsureService(db, env, logger, teamLookup.Object);
+        return new VerticalInsureService(mockJobRepo.Object, mockRegRepo.Object, mockFamilyRepo.Object, env, logger, teamLookup.Object);
     }
 
     [Fact]

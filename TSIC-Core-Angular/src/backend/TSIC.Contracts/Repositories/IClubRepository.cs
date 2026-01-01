@@ -28,6 +28,13 @@ public interface IClubRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get candidate clubs for search matching, optionally filtered by state.
+    /// </summary>
+    Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
+        string? state,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add new club (does NOT call SaveChanges).
     /// </summary>
     void Add(Clubs club);

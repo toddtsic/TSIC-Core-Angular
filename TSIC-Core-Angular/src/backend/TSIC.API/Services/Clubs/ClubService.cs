@@ -3,29 +3,32 @@ using Microsoft.EntityFrameworkCore;
 using System.Transactions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Repositories;
 using TSIC.Application.Services.Users;
 using TSIC.Application.Services.Clubs;
 using TSIC.Application.Services.Shared.Mapping;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
-using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.API.Services.Clubs;
 
 public sealed class ClubService : IClubService
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SqlDbContext _db;
+    private readonly IClubRepository _clubRepo;
+    private readonly IClubRepRepository _clubRepRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
 
     public ClubService(
         UserManager<ApplicationUser> userManager,
-        SqlDbContext db,
+        IClubRepository clubRepo,
+        IClubRepRepository clubRepRepo,
         IUserPrivilegeLevelService privilegeService)
     {
         _userManager = userManager;
-        _db = db;
+        _clubRepo = clubRepo;
+        _clubRepRepo = clubRepRepo;
         _privilegeService = privilegeService;
     }
 
@@ -134,8 +137,8 @@ public sealed class ClubService : IClubService
             LebUserId = user.Id, // Primary owner/contact
             Modified = DateTime.UtcNow
         };
-        _db.Clubs.Add(club);
-        await _db.SaveChangesAsync();
+        _clubRepo.Add(club);
+        await _clubRepo.SaveChangesAsync();
 
         // Create ClubReps entry linking user to club
         var clubRep = new ClubReps
@@ -143,8 +146,8 @@ public sealed class ClubService : IClubService
             ClubId = club.ClubId,
             ClubRepUserId = user.Id
         };
-        _db.ClubReps.Add(clubRep);
-        await _db.SaveChangesAsync();
+        _clubRepRepo.Add(clubRep);
+        await _clubRepRepo.SaveChangesAsync();
 
         scope.Complete();
         return new ClubRepRegistrationResponse { Success = true, ClubId = club.ClubId, UserId = user.Id, Message = null, SimilarClubs = similarClubs.Any() ? similarClubs : null };
@@ -160,19 +163,8 @@ public sealed class ClubService : IClubService
         // Business logic: normalize search query
         var normalized = ClubNameMatcher.NormalizeClubName(query);
 
-        // Data access: query all clubs (optionally filtered by state)
-        var clubsQuery = _db.Clubs
-            .Where(c => state == null || c.LebUser!.State == state);
-
-        var clubs = await clubsQuery
-            .Select(c => new
-            {
-                c.ClubId,
-                c.ClubName,
-                State = c.LebUser!.State,
-                TeamCount = c.ClubTeams.Count
-            })
-            .ToListAsync();
+        // Data access: query clubs via repository
+        var clubs = await _clubRepo.GetSearchCandidatesAsync(state);
 
         // Business logic: calculate similarity scores using Application layer
         var results = clubs

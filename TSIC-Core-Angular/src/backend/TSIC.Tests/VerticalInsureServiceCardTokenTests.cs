@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using TSIC.Contracts.Dtos; // CreditCardInfo
 using TSIC.API.Services.Shared.VerticalInsure;
+using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Domain.Entities;
@@ -67,10 +68,13 @@ public class VerticalInsureServiceCardTokenTests
         var factory = new Mock<IHttpClientFactory>();
         var client = new HttpClient(handler) { BaseAddress = new Uri("https://example.test/") };
         factory.Setup(f => f.CreateClient("verticalinsure")).Returns(client);
+        var mockJobRepo = new Mock<IJobRepository>();
+        var mockRegRepo = new Mock<IRegistrationRepository>();
+        var mockFamilyRepo = new Mock<IFamilyRepository>();
         var logger = new Mock<ILogger<VerticalInsureService>>().Object;
         var teamLookup = new Mock<ITeamLookupService>();
         teamLookup.Setup(t => t.ResolvePerRegistrantAsync(It.IsAny<Guid>())).ReturnsAsync((Fee: 50m, Deposit: 0m));
-        return new VerticalInsureService(db, env, logger, teamLookup.Object, factory.Object);
+        return new VerticalInsureService(mockJobRepo.Object, mockRegRepo.Object, mockFamilyRepo.Object, env, logger, teamLookup.Object, factory.Object);
     }
 
     [Fact]
