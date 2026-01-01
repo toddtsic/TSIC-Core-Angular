@@ -206,6 +206,14 @@ public interface IRegistrationRepository
         string familyUserId,
         bool activePlayersOnly = true,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get registration confirmation data for a family within a job.
+    /// </summary>
+    Task<List<RegistrationConfirmationData>> GetConfirmationDataAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData(
@@ -231,3 +239,19 @@ public record DirectorContactInfo(
     string? OrgName,
     bool PaymentPlan);
 
+public record RegistrationConfirmationData(
+    Guid RegistrationId,
+    string PlayerFirst,
+    string PlayerLast,
+    string TeamName,
+    decimal FeeTotal,
+    decimal PaidTotal,
+    decimal OwedTotal,
+    string? RegsaverPolicyId,
+    DateTime? RegsaverPolicyIdCreateDate,
+    string? AdnSubscriptionId,
+    string? AdnSubscriptionStatus,
+    DateTime? AdnSubscriptionStartDate,
+    int? AdnSubscriptionIntervalLength,
+    int? AdnSubscriptionBillingOccurences,
+    decimal? AdnSubscriptionAmountPerOccurence);

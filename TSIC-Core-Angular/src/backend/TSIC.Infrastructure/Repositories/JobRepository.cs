@@ -112,4 +112,30 @@ public class JobRepository : IJobRepository
                 j.BOfferPlayerRegsaverInsurance ?? false))
             .SingleOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<JobConfirmationInfo?> GetConfirmationInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var result = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationOnScreen })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return result != null
+            ? new JobConfirmationInfo(result.JobId, result.JobName, result.JobPath, result.AdnArb, result.PlayerRegConfirmationOnScreen)
+            : null;
+    }
+
+    public async Task<JobConfirmationEmailInfo?> GetConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var result = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationEmail })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return result != null
+            ? new JobConfirmationEmailInfo(result.JobId, result.JobName, result.JobPath, result.AdnArb, result.PlayerRegConfirmationEmail)
+            : null;
+    }
 }

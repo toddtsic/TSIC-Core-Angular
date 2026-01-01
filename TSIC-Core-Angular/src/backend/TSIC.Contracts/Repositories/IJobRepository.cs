@@ -92,8 +92,32 @@ public interface IJobRepository
     /// Get insurance offer info for VerticalInsure.
     /// </summary>
     Task<InsuranceOfferInfo?> GetInsuranceOfferInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job confirmation info for on-screen display.
+    /// </summary>
+    Task<JobConfirmationInfo?> GetConfirmationInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job confirmation info for email.
+    /// </summary>
+    Task<JobConfirmationEmailInfo?> GetConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
 
 public record InsuranceOfferInfo(
     string? JobName,
     bool BOfferPlayerRegsaverInsurance);
+
+public record JobConfirmationInfo(
+    Guid JobId,
+    string? JobName,
+    string JobPath,
+    bool? AdnArb,
+    string? PlayerRegConfirmationOnScreen);
+
+public record JobConfirmationEmailInfo(
+    Guid JobId,
+    string? JobName,
+    string JobPath,
+    bool? AdnArb,
+    string? PlayerRegConfirmationEmail);

@@ -1,72 +1,63 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Shared.TextSubstitution;
 
 namespace TSIC.API.Services.Players;
 
 public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
 {
-    private sealed record RegRow(
-        Guid RegistrationId,
-        string PlayerFirst,
-        string PlayerLast,
-        string TeamName,
-        decimal FeeTotal,
-        decimal PaidTotal,
-        decimal OwedTotal,
-        string? RegsaverPolicyId,
-        DateTime? RegsaverPolicyIdCreateDate,
-        string? AdnSubscriptionId,
-        string? AdnSubscriptionStatus,
-        DateTime? AdnSubscriptionStartDate,
-        int? AdnSubscriptionIntervalLength,
-        int? AdnSubscriptionBillingOccurences,
-        decimal? AdnSubscriptionAmountPerOccurence);
-    private readonly SqlDbContext _db;
+    private readonly IJobRepository _jobRepo;
+    private readonly IRegistrationRepository _regRepo;
+    private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly ITextSubstitutionService _subs;
     private readonly ILogger<PlayerRegConfirmationService> _logger;
 
-    public PlayerRegConfirmationService(SqlDbContext db, ITextSubstitutionService subs, ILogger<PlayerRegConfirmationService> logger)
+    public PlayerRegConfirmationService(
+        IJobRepository jobRepo,
+        IRegistrationRepository regRepo,
+        IRegistrationAccountingRepository accountingRepo,
+        ITextSubstitutionService subs,
+        ILogger<PlayerRegConfirmationService> logger)
     {
-        _db = db;
+        _jobRepo = jobRepo;
+        _regRepo = regRepo;
+        _accountingRepo = accountingRepo;
         _subs = subs;
         _logger = logger;
     }
 
     public async Task<PlayerRegConfirmationDto> BuildAsync(Guid jobId, string familyUserId, CancellationToken ct)
     {
-        var job = await LoadJobAsync(jobId, ct);
+        var job = await _jobRepo.GetConfirmationInfoAsync(jobId, ct);
         if (job == null)
         {
             _logger.LogWarning("Confirmation build: job {JobId} not found", jobId);
             return EmptyDto();
         }
-        // Deconstruct tuple to avoid nullable tuple member access issues.
-        var (_, _, jobPath, _, confirmationTemplate) = job.Value; // jobName unused; confirmationTemplate may be null
 
-        var regs = await LoadRegistrationsAsync(jobId, familyUserId, ct);
+        var regs = await _regRepo.GetConfirmationDataAsync(jobId, familyUserId, ct);
         var tsic = await BuildTsicFinancialAsync(regs, ct);
         var insurance = BuildInsuranceStatus(regs);
         Guid? firstRegistrationId = regs.FirstOrDefault()?.RegistrationId;
-        var html = await BuildConfirmationHtmlAsync(jobPath, confirmationTemplate, familyUserId, firstRegistrationId);
+        var html = await BuildConfirmationHtmlAsync(job.JobPath, job.PlayerRegConfirmationOnScreen, familyUserId, firstRegistrationId);
         return new PlayerRegConfirmationDto(tsic, insurance, html);
     }
 
     public async Task<(string Subject, string Html)> BuildEmailAsync(Guid jobId, string familyUserId, CancellationToken ct)
     {
         // For email, use the Job.PlayerRegConfirmationEmail template (not the on-screen variant)
-        var job = await LoadJobEmailAsync(jobId, ct);
+        var job = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
         if (job == null)
         {
             _logger.LogWarning("Email confirmation build: job {JobId} not found", jobId);
             return (string.Empty, string.Empty);
         }
-        var (_, jobName, jobPath, _, confirmationTemplate) = job.Value;
-        var regs = await LoadRegistrationsAsync(jobId, familyUserId, ct);
+
+        var regs = await _regRepo.GetConfirmationDataAsync(jobId, familyUserId, ct);
         Guid? firstRegistrationId = regs.FirstOrDefault()?.RegistrationId;
-        string subject = string.IsNullOrWhiteSpace(jobName) ? "Registration Confirmation" : $"{jobName} Registration Confirmation";
-        string? template = confirmationTemplate;
+        string subject = string.IsNullOrWhiteSpace(job.JobName) ? "Registration Confirmation" : $"{job.JobName} Registration Confirmation";
+        string? template = job.PlayerRegConfirmationEmail;
         if (string.IsNullOrWhiteSpace(template)) return (subject, string.Empty);
         // Ensure email mode token present for inline-styled email output
         if (!template.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase))
@@ -76,60 +67,17 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         try
         {
             Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-            var html = await _subs.SubstituteAsync(jobPath, ccPaymentMethodId, firstRegistrationId, familyUserId, template);
+            var html = await _subs.SubstituteAsync(job.JobPath, ccPaymentMethodId, firstRegistrationId, familyUserId, template);
             return (subject, html);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Email substitution failed for jobPath {JobPath}", jobPath);
+            _logger.LogError(ex, "Email substitution failed for jobPath {JobPath}", job.JobPath);
             return (subject, string.Empty);
         }
     }
 
-    private async Task<(Guid JobId, string? JobName, string JobPath, bool? AdnArb, string? PlayerRegConfirmationOnScreen)?> LoadJobAsync(Guid jobId, CancellationToken ct)
-    {
-        var x = await _db.Jobs.AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationOnScreen })
-            .FirstOrDefaultAsync(ct);
-        if (x == null) return null;
-        return (x.JobId, x.JobName, x.JobPath, x.AdnArb, x.PlayerRegConfirmationOnScreen);
-    }
-
-    private async Task<(Guid JobId, string? JobName, string JobPath, bool? AdnArb, string? PlayerRegConfirmationEmail)?> LoadJobEmailAsync(Guid jobId, CancellationToken ct)
-    {
-        var x = await _db.Jobs.AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationEmail })
-            .FirstOrDefaultAsync(ct);
-        if (x == null) return null;
-        return (x.JobId, x.JobName, x.JobPath, x.AdnArb, x.PlayerRegConfirmationEmail);
-    }
-
-    private Task<List<RegRow>> LoadRegistrationsAsync(Guid jobId, string familyUserId, CancellationToken ct)
-    {
-        return _db.Registrations.AsNoTracking()
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
-            .Select(r => new RegRow(
-                r.RegistrationId,
-                (r.User != null ? r.User.FirstName : string.Empty) ?? string.Empty,
-                (r.User != null ? r.User.LastName : string.Empty) ?? string.Empty,
-                (r.AssignedTeam != null ? r.AssignedTeam.TeamName : string.Empty) ?? string.Empty,
-                r.FeeTotal,
-                r.PaidTotal,
-                r.OwedTotal,
-                r.RegsaverPolicyId,
-                r.RegsaverPolicyIdCreateDate,
-                r.AdnSubscriptionId,
-                r.AdnSubscriptionStatus,
-                r.AdnSubscriptionStartDate,
-                r.AdnSubscriptionIntervalLength,
-                r.AdnSubscriptionBillingOccurences,
-                r.AdnSubscriptionAmountPerOccurence))
-            .ToListAsync(ct);
-    }
-
-    private async Task<PlayerRegTsicFinancialDto> BuildTsicFinancialAsync(List<RegRow> regs, CancellationToken ct)
+    private async Task<PlayerRegTsicFinancialDto> BuildTsicFinancialAsync(List<RegistrationConfirmationData> regs, CancellationToken ct)
     {
         var totalOriginal = regs.Sum(r => r.FeeTotal);
         var totalDiscounts = 0m;
@@ -137,12 +85,8 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         bool wasArb = regs.Exists(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId) && string.Equals(r.AdnSubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase));
         decimal amountCharged = regs.Sum(r => r.PaidTotal);
         bool wasImmediateCharge = amountCharged > 0m && !wasArb;
-        var regIds = regs.Select(r => r.RegistrationId).ToHashSet();
-        string? transactionId = await _db.RegistrationAccounting.AsNoTracking()
-            .Where(a => a.RegistrationId != null && regIds.Contains(a.RegistrationId.Value) && !string.IsNullOrWhiteSpace(a.AdnTransactionId))
-            .OrderByDescending(a => a.Createdate)
-            .Select(a => a.AdnTransactionId)
-            .FirstOrDefaultAsync(ct);
+        var regIds = regs.Select(r => r.RegistrationId).ToList();
+        string? transactionId = await _accountingRepo.GetLatestAdnTransactionIdAsync(regIds, ct);
         DateTime? nextArbBillDate = null;
         if (wasArb)
         {
@@ -173,7 +117,7 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         return new PlayerRegTsicFinancialDto(wasImmediateCharge, wasArb, amountCharged, "USD", transactionId, null, nextArbBillDate, totalOriginal, totalDiscounts, totalNet, lines);
     }
 
-    private static PlayerRegInsuranceStatusDto BuildInsuranceStatus(List<RegRow> regs)
+    private static PlayerRegInsuranceStatusDto BuildInsuranceStatus(List<RegistrationConfirmationData> regs)
     {
         var policies = regs
             .Where(r => !string.IsNullOrWhiteSpace(r.RegsaverPolicyId))

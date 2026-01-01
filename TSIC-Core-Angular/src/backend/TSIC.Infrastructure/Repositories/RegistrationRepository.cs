@@ -502,4 +502,31 @@ public class RegistrationRepository : IRegistrationRepository
             .OrderByDescending(r => r.Modified)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<RegistrationConfirmationData>> GetConfirmationDataAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
+            .Select(r => new RegistrationConfirmationData(
+                r.RegistrationId,
+                (r.User != null ? r.User.FirstName : string.Empty) ?? string.Empty,
+                (r.User != null ? r.User.LastName : string.Empty) ?? string.Empty,
+                (r.AssignedTeam != null ? r.AssignedTeam.TeamName : string.Empty) ?? string.Empty,
+                r.FeeTotal,
+                r.PaidTotal,
+                r.OwedTotal,
+                r.RegsaverPolicyId,
+                r.RegsaverPolicyIdCreateDate,
+                r.AdnSubscriptionId,
+                r.AdnSubscriptionStatus,
+                r.AdnSubscriptionStartDate,
+                r.AdnSubscriptionIntervalLength,
+                r.AdnSubscriptionBillingOccurences,
+                r.AdnSubscriptionAmountPerOccurence))
+            .ToListAsync(cancellationToken);
+    }
 }
