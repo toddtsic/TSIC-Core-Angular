@@ -101,4 +101,15 @@ public class JobRepository : IJobRepository
                 jdo.Job.AdnArbstartDate))
             .SingleOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<InsuranceOfferInfo?> GetInsuranceOfferInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new InsuranceOfferInfo(
+                j.JobName,
+                j.BOfferPlayerRegsaverInsurance ?? false))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 }

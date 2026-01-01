@@ -25,4 +25,18 @@ public interface IFamilyRepository
     /// Get raw queryable for advanced filtering
     /// </summary>
     IQueryable<Families> Query();
+
+    /// <summary>
+    /// Get family contact information for insurance purposes.
+    /// </summary>
+    Task<FamilyContactInfo?> GetFamilyContactAsync(string familyUserId, CancellationToken cancellationToken = default);
 }
+
+public record FamilyContactInfo(
+    string? FirstName,
+    string? LastName,
+    string? Email,
+    string? Phone,
+    string? City,
+    string? State,
+    string? Zip);

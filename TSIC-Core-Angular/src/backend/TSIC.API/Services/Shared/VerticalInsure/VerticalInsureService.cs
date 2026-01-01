@@ -3,10 +3,10 @@ using Microsoft.Extensions.Hosting;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using TSIC.Contracts.Dtos; // Unified DTO namespace (PreSubmitInsuranceDto, VerticalInsurePurchaseResult, CreditCardInfo)
-using TSIC.Contracts.Dtos.VerticalInsure; // VI specific DTOs
-using TSIC.Domain.Entities; // Registrations entity
-using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.VerticalInsure;
+using TSIC.Domain.Entities;
+using TSIC.Contracts.Repositories;
 using TSIC.Application.Services.Shared.Insurance;
 using TSIC.API.Services.Teams;
 
@@ -18,15 +18,26 @@ namespace TSIC.API.Services.Shared.VerticalInsure;
 /// </summary>
 public sealed class VerticalInsureService : IVerticalInsureService
 {
-    private readonly SqlDbContext _db;
+    private readonly IJobRepository _jobRepo;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly IFamilyRepository _familyRepo;
     private readonly IHostEnvironment _env;
     private readonly ILogger<VerticalInsureService> _logger;
     private readonly ITeamLookupService _teamLookupService;
-    private readonly IHttpClientFactory? _httpClientFactory; // optional factory for real purchase
+    private readonly IHttpClientFactory? _httpClientFactory;
 
-    public VerticalInsureService(SqlDbContext db, IHostEnvironment env, ILogger<VerticalInsureService> logger, ITeamLookupService teamLookupService, IHttpClientFactory? httpClientFactory = null)
+    public VerticalInsureService(
+        IJobRepository jobRepo,
+        IRegistrationRepository registrationRepo,
+        IFamilyRepository familyRepo,
+        IHostEnvironment env,
+        ILogger<VerticalInsureService> logger,
+        ITeamLookupService teamLookupService,
+        IHttpClientFactory? httpClientFactory = null)
     {
-        _db = db;
+        _jobRepo = jobRepo;
+        _registrationRepo = registrationRepo;
+        _familyRepo = familyRepo;
         _env = env;
         _logger = logger;
         _teamLookupService = teamLookupService;
@@ -37,23 +48,20 @@ public sealed class VerticalInsureService : IVerticalInsureService
     {
         try
         {
-            var jobOffer = await _db.Jobs
-                .Where(j => j.JobId == jobId)
-                .Select(j => new { j.JobName, j.BOfferPlayerRegsaverInsurance })
-                .SingleOrDefaultAsync();
-            if (jobOffer == null || !(jobOffer.BOfferPlayerRegsaverInsurance ?? false))
+            var jobOffer = await _jobRepo.GetInsuranceOfferInfoAsync(jobId);
+            if (jobOffer == null || !jobOffer.BOfferPlayerRegsaverInsurance)
             {
                 return new PreSubmitInsuranceDto { Available = false };
             }
 
-            var regs = await GetEligibleRegistrationsAsync(jobId, familyUserId);
+            var regs = await _registrationRepo.GetEligibleInsuranceRegistrationsAsync(jobId, familyUserId);
             if (regs.Count == 0)
             {
                 return new PreSubmitInsuranceDto { Available = false };
             }
 
-            var family = await GetFamilyContactAsync(familyUserId);
-            var director = await GetDirectorContactAsync(jobId);
+            var family = await _familyRepo.GetFamilyContactAsync(familyUserId);
+            var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
             var products = await BuildProductsAsync(regs, family, director, jobOffer.JobName);
             var playerObj = BuildPlayerObject(products);
             return new PreSubmitInsuranceDto
@@ -88,7 +96,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
             else
             {
                 ApplyStubPurchase(regs, familyUserId, result);
-                await _db.SaveChangesAsync(ct);
+                await _registrationRepo.SaveChangesAsync(ct);
             }
         }
         catch (Exception ex)
@@ -118,7 +126,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
         {
             result.Success = false; result.Error = "Registration / quote count mismatch."; return new();
         }
-        var regs = await _db.Registrations.Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && registrationIds.Contains(r.RegistrationId)).ToListAsync(ct);
+        var regs = await _registrationRepo.ValidateRegistrationsForInsuranceAsync(jobId, familyUserId, registrationIds, ct);
         if (regs.Count == 0)
         {
             result.Success = false; result.Error = "No matching registrations found."; return new();
@@ -174,7 +182,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
                 }
             }
         }
-        await _db.SaveChangesAsync(ct);
+        await _registrationRepo.SaveChangesAsync(ct);
         result.Success = true;
     }
 
@@ -228,70 +236,10 @@ public sealed class VerticalInsureService : IVerticalInsureService
         result.Success = true;
     }
 
-    private async Task<List<(Guid RegistrationId, Guid AssignedTeamId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)>> GetEligibleRegistrationsAsync(Guid jobId, string familyUserId)
-    {
-        var cutoff = DateTime.Now.AddHours(24);
-        var regs = await _db.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.FeeTotal > 0 && r.RegsaverPolicyId == null && r.AssignedTeam != null && r.AssignedTeam.Expireondate > cutoff)
-            .Select(r => new
-            {
-                r.RegistrationId,
-                AssignedTeamId = r.AssignedTeamId!.Value,
-                r.Assignment,
-                FirstName = r.User != null ? r.User.FirstName : null,
-                LastName = r.User != null ? r.User.LastName : null,
-                PerRegistrantFee = r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
-                TeamFee = (r.AssignedTeam != null && r.AssignedTeam.Agegroup != null) ? r.AssignedTeam.Agegroup.TeamFee : null,
-                r.FeeTotal
-            })
-            .ToListAsync();
-        return regs.Select(r => (r.RegistrationId, r.AssignedTeamId, r.Assignment, r.FirstName, r.LastName, r.PerRegistrantFee, r.TeamFee, r.FeeTotal)).ToList();
-    }
-
-    private async Task<(string? FirstName, string? LastName, string? Email, string? Phone, string? City, string? State, string? Zip)?> GetFamilyContactAsync(string familyUserId)
-    {
-        var f = await _db.Families.AsNoTracking()
-            .Where(x => x.FamilyUserId == familyUserId)
-            .Select(x => new
-            {
-                FirstName = x.MomFirstName,
-                LastName = x.MomLastName,
-                Email = x.MomEmail,
-                Phone = x.MomCellphone,
-                City = x.FamilyUser.City,
-                State = x.FamilyUser.State,
-                Zip = x.FamilyUser.PostalCode
-            })
-            .SingleOrDefaultAsync();
-        if (f == null) return null;
-        return (f.FirstName, f.LastName, f.Email, f.Phone, f.City, f.State, f.Zip);
-    }
-
-    private async Task<(string? Email, string? FirstName, string? LastName, string? Cellphone, string? OrgName, bool PaymentPlan)?> GetDirectorContactAsync(Guid jobId)
-    {
-        var d = await _db.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.Role != null && r.Role.Name == "Director" && r.BActive == true)
-            .OrderBy(r => r.RegistrationTs)
-            .Select(r => new
-            {
-                Email = r.User != null ? r.User.Email : null,
-                FirstName = r.User != null ? r.User.FirstName : null,
-                LastName = r.User != null ? r.User.LastName : null,
-                Cellphone = r.User != null ? r.User.Cellphone : null,
-                OrgName = r.Job != null ? r.Job.JobName : null,
-                PaymentPlan = r.Job != null && (r.Job.AdnArb == true)
-            })
-            .FirstOrDefaultAsync();
-        if (d == null) return null;
-        return (d.Email, d.FirstName, d.LastName, d.Cellphone, d.OrgName, d.PaymentPlan);
-    }
-
     private async Task<List<VIPlayerProductDto>> BuildProductsAsync(
-        List<(Guid RegistrationId, Guid AssignedTeamId, string? Assignment, string? FirstName, string? LastName, decimal? PerRegistrantFee, decimal? TeamFee, decimal FeeTotal)> regs,
-        (string? FirstName, string? LastName, string? Email, string? Phone, string? City, string? State, string? Zip)? family,
-        (string? Email, string? FirstName, string? LastName, string? Cellphone, string? OrgName, bool PaymentPlan)? director,
+        List<EligibleInsuranceRegistration> regs,
+        FamilyContactInfo? family,
+        DirectorContactInfo? director,
         string? jobName)
     {
         var products = new List<VIPlayerProductDto>();

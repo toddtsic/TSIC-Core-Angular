@@ -47,14 +47,14 @@ public class TeamLookupService : ITeamLookupService
             var rosterFull = current >= t.MaxCount && t.MaxCount > 0;
 
             var fee = ComputePerRegistrantFee(
-                t.RawPerRegistrantFee, 
-                t.RawTeamFee, 
-                t.RawRosterFee, 
-                t.LeaguePlayerFeeOverride, 
+                t.RawPerRegistrantFee,
+                t.RawTeamFee,
+                t.RawRosterFee,
+                t.LeaguePlayerFeeOverride,
                 t.AgegroupPlayerFeeOverride);
             var deposit = ComputePerRegistrantDeposit(
-                t.RawPerRegistrantDeposit, 
-                t.RawTeamFee, 
+                t.RawPerRegistrantDeposit,
+                t.RawTeamFee,
                 t.RawRosterFee);
 
             return new AvailableTeamDto
@@ -91,14 +91,14 @@ public class TeamLookupService : ITeamLookupService
         }
 
         var fee = ComputePerRegistrantFee(
-            data.PerRegistrantFee, 
-            data.TeamFee, 
-            data.RosterFee, 
-            data.LeaguePlayerFeeOverride, 
+            data.PerRegistrantFee,
+            data.TeamFee,
+            data.RosterFee,
+            data.LeaguePlayerFeeOverride,
             data.AgegroupPlayerFeeOverride);
         var deposit = ComputePerRegistrantDeposit(
-            data.PerRegistrantDeposit, 
-            data.TeamFee, 
+            data.PerRegistrantDeposit,
+            data.TeamFee,
             data.RosterFee);
         return (fee, deposit);
     }

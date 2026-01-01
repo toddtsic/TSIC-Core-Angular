@@ -173,10 +173,52 @@ public interface IRegistrationRepository
     Task<Dictionary<Guid, int>> GetRosterCountsByTeamAsync(
         IReadOnlyCollection<Guid> teamIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get eligible registrations for insurance (positive fee, no existing policy, active team).
+    /// </summary>
+    Task<List<EligibleInsuranceRegistration>> GetEligibleInsuranceRegistrationsAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get Director contact info for insurance purposes.
+    /// </summary>
+    Task<DirectorContactInfo?> GetDirectorContactForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validate and load registrations for insurance purchase.
+    /// </summary>
+    Task<List<Registrations>> ValidateRegistrationsForInsuranceAsync(
+        Guid jobId,
+        string familyUserId,
+        IReadOnlyCollection<Guid> registrationIds,
+        CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData(
     int CustomerAi,
     int JobAi,
     int RegistrationAi);
+
+public record EligibleInsuranceRegistration(
+    Guid RegistrationId,
+    Guid AssignedTeamId,
+    string? Assignment,
+    string? FirstName,
+    string? LastName,
+    decimal? PerRegistrantFee,
+    decimal? TeamFee,
+    decimal FeeTotal);
+
+public record DirectorContactInfo(
+    string? Email,
+    string? FirstName,
+    string? LastName,
+    string? Cellphone,
+    string? OrgName,
+    bool PaymentPlan);
 

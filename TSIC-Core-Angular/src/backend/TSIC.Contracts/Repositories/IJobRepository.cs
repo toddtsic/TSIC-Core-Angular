@@ -77,14 +77,23 @@ public interface IJobRepository
     /// Find job by JobPath (case-insensitive).
     /// </summary>
     Task<Guid?> GetJobIdByPathAsync(string jobPath, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get job registration status (is player registration active).
     /// </summary>
     Task<JobRegistrationStatus?> GetRegistrationStatusAsync(Guid jobId, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get full job metadata with display options for frontend rendering.
     /// </summary>
     Task<JobMetadataDto?> GetJobMetadataByPathAsync(string jobPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get insurance offer info for VerticalInsure.
+    /// </summary>
+    Task<InsuranceOfferInfo?> GetInsuranceOfferInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
+
+public record InsuranceOfferInfo(
+    string? JobName,
+    bool BOfferPlayerRegsaverInsurance);

@@ -423,4 +423,69 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);
     }
+
+    public async Task<List<EligibleInsuranceRegistration>> GetEligibleInsuranceRegistrationsAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var cutoff = DateTime.Now.AddHours(24);
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId 
+                && r.FamilyUserId == familyUserId 
+                && r.FeeTotal > 0 
+                && r.RegsaverPolicyId == null 
+                && r.AssignedTeam != null 
+                && r.AssignedTeam.Expireondate > cutoff)
+            .Select(r => new EligibleInsuranceRegistration(
+                r.RegistrationId,
+                r.AssignedTeamId!.Value,
+                r.Assignment,
+                r.User != null ? r.User.FirstName : null,
+                r.User != null ? r.User.LastName : null,
+                r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
+                (r.AssignedTeam != null && r.AssignedTeam.Agegroup != null) ? r.AssignedTeam.Agegroup.TeamFee : null,
+                r.FeeTotal))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<DirectorContactInfo?> GetDirectorContactForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId 
+                && r.Role != null 
+                && r.Role.Name == "Director" 
+                && r.BActive == true)
+            .OrderBy(r => r.RegistrationTs)
+            .Select(r => new DirectorContactInfo(
+                r.User != null ? r.User.Email : null,
+                r.User != null ? r.User.FirstName : null,
+                r.User != null ? r.User.LastName : null,
+                r.User != null ? r.User.Cellphone : null,
+                r.Job != null ? r.Job.JobName : null,
+                r.Job != null && (r.Job.AdnArb == true)))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<List<Registrations>> ValidateRegistrationsForInsuranceAsync(
+        Guid jobId,
+        string familyUserId,
+        IReadOnlyCollection<Guid> registrationIds,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.JobId == jobId 
+                && r.FamilyUserId == familyUserId 
+                && registrationIds.Contains(r.RegistrationId))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
 }

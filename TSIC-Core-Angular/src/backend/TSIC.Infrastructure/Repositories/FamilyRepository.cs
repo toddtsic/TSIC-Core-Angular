@@ -43,4 +43,22 @@ public class FamilyRepository : IFamilyRepository
     {
         return _context.Families.AsQueryable();
     }
+
+    public async Task<FamilyContactInfo?> GetFamilyContactAsync(
+        string familyUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Families
+            .AsNoTracking()
+            .Where(f => f.FamilyUserId == familyUserId)
+            .Select(f => new FamilyContactInfo(
+                f.MomFirstName,
+                f.MomLastName,
+                f.MomEmail,
+                f.MomCellphone,
+                f.FamilyUser.City,
+                f.FamilyUser.State,
+                f.FamilyUser.PostalCode))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
 }
