@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import type { Loadable } from '@infrastructure/shared/state.models';
-import type { VIPlayerObjectResponse } from '@infrastructure/api';
+import type { VIPlayerObjectResponse } from '@core/api';
 
 /**
  * Facade service for insurance-related state (offer, modal, consent).

@@ -16,8 +16,8 @@ import type {
     FamilyPlayerRegistrationDto,
     RegSaverDetailsDto,
     PlayerRegConfirmationDto
-} from '@infrastructure/api';
-import { environment } from '../../../../../environments/environment';
+} from '@core/api';
+import { environment } from '@environments/environment';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 

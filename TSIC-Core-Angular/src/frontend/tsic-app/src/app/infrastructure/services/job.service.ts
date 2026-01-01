@@ -1,8 +1,8 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto } from '@infrastructure/api';
+import { environment } from '@environments/environment';
+import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto } from '@core/api';
 
 export interface JobBulletin {
     id: string;

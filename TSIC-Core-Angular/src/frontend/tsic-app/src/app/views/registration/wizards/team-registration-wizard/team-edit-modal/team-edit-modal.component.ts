@@ -3,7 +3,7 @@ import { Component, computed, inject, signal, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import { ClubTeamManagementDto, UpdateClubTeamRequest } from '@infrastructure/api';
+import { ClubTeamManagementDto, UpdateClubTeamRequest } from '@core/api';
 
 @Component({
     selector: 'app-team-edit-modal',

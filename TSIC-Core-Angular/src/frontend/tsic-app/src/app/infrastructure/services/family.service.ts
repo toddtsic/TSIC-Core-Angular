@@ -1,12 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { environment } from '@environments/environment';
 import type {
     FamilyRegistrationRequest,
     FamilyRegistrationResponse,
     FamilyUpdateRequest,
     FamilyProfileResponse
-} from '@infrastructure/api';
+} from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class FamilyService {

@@ -2,7 +2,7 @@ import { Component, computed, inject, signal, effect, input, output } from '@ang
 
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../../../environments/environment';
+import { environment } from '@environments/environment';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 

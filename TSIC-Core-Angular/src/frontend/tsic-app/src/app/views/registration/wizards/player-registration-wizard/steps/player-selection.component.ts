@@ -2,7 +2,7 @@ import { Component, EventEmitter, Output, inject, computed, OnInit } from '@angu
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { FormsModule } from '@angular/forms';
-import { environment } from '../../../../../../environments/environment';
+import { environment } from '@environments/environment';
 
 @Component({
   selector: 'app-rw-player-selection',

@@ -11,7 +11,7 @@ import {
   AuthenticatedUser,
   RegistrationRoleDto
 } from '../view-models/auth.models';
-import { environment } from '../../../environments/environment';
+import { environment } from '@environments/environment';
 
 @Injectable({
   providedIn: 'root'

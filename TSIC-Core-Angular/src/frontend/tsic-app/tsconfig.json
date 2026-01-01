@@ -21,7 +21,8 @@
     "module": "ES2022",
     "paths": {
       "@app/*": ["src/app/*"],
-      "@infrastructure/api": ["src/app/core/api"],
+      "@core/*": ["src/app/core/*"],
+      "@environments/*": ["src/environments/*"],
       "@infrastructure/*": ["src/app/infrastructure/*"],
       "@shared-ui/*": ["src/app/shared-ui/*"],
       "@layouts/*": ["src/app/layouts/*"],

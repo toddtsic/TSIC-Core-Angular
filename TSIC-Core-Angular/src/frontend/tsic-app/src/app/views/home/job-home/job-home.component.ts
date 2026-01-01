@@ -2,7 +2,7 @@ import { Component, effect, inject, OnInit, signal } from '@angular/core';
 
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
-import type { RegistrationStatusResponse } from '@infrastructure/api';
+import type { RegistrationStatusResponse } from '@core/api';
 import { AuthService } from '@infrastructure/services/auth.service';
 
 /**

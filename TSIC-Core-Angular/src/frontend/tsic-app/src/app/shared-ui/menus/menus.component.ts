@@ -1,7 +1,7 @@
 import { Component, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import type { MenuItemDto } from '@infrastructure/api';
+import type { MenuItemDto } from '@core/api';
 
 @Component({
     selector: 'app-menus',

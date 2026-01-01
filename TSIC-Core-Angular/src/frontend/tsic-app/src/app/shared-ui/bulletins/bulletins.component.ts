@@ -1,6 +1,6 @@
 import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import type { BulletinDto } from '@infrastructure/api';
+import type { BulletinDto } from '@core/api';
 
 /**
  * Bulletins Display Component

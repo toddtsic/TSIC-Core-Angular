@@ -11,7 +11,7 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import type { ClubRepClubDto } from '@infrastructure/api';
+import type { ClubRepClubDto } from '@core/api';
 
 @Component({
     selector: 'app-team-registration-wizard',

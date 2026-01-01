@@ -6,7 +6,7 @@ import { UserPreferencesService } from '@infrastructure/services/user-preference
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { ClubTeamAddModalComponent } from '../club-team-add-modal/club-team-add-modal.component';
 import { TeamEditModalComponent } from '../team-edit-modal/team-edit-modal.component';
-import { ClubTeamManagementDto } from '@infrastructure/api';
+import { ClubTeamManagementDto } from '@core/api';
 
 @Component({
     selector: 'app-club-team-management',
