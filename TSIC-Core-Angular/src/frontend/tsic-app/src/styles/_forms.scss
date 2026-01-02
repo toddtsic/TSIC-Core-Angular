@@ -1,0 +1,27 @@
+/* ============================================
+   FORM ELEMENTS & INPUTS
+   Global form styling and utilities
+   ============================================ */
+
+/* Form input placeholder styling - muted to distinguish from actual input */
+input::placeholder,
+textarea::placeholder,
+select::placeholder,
+.form-control::placeholder,
+.form-select::placeholder {
+    color: var(--neutral-400);
+    opacity: 1;
+}
+
+/* Dark mode placeholders */
+[data-bs-theme='dark'] {
+
+    input::placeholder,
+    textarea::placeholder,
+    select::placeholder,
+    .form-control::placeholder,
+    .form-select::placeholder {
+        color: var(--neutral-500);
+        opacity: 1;
+    }
+}
