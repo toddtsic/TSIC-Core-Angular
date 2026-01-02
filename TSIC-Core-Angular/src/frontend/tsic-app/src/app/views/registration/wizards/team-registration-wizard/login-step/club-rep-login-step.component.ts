@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, OnInit, computed } from '@angular/core';
+import { Component, EventEmitter, Output, inject, OnInit, computed, signal } from '@angular/core';
 
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -26,17 +26,17 @@ export class ClubRepLoginStepComponent implements OnInit {
     @Output() loginSuccess = new EventEmitter<LoginStepResult>();
     @Output() registrationSuccess = new EventEmitter<LoginStepResult>();
 
-    hasClubRepAccount: 'yes' | 'no' | null = null;
+    hasClubRepAccount = signal<'yes' | 'no' | null>(null);
     username = '';
     password = '';
-    submitting = false;
-    inlineError: string | null = null;
-    credentialsCollapsed = true;
+    submitting = signal(false);
+    inlineError = signal<string | null>(null);
+    credentialsCollapsed = signal(true);
 
     registrationForm: FormGroup;
     loginForm: FormGroup;
-    registrationError: string | null = null;
-    similarClubs: ClubSearchResult[] = [];
+    registrationError = signal<string | null>(null);
+    similarClubs = signal<ClubSearchResult[]>([]);
     statesOptions: SelectOption[] = [];
 
     private readonly authService = inject(AuthService);
@@ -74,7 +74,7 @@ export class ClubRepLoginStepComponent implements OnInit {
 
         const loggedIn = this.isLoggedIn();
         if (loggedIn) {
-            this.hasClubRepAccount = 'yes';
+            this.hasClubRepAccount.set('yes');
             const currentUser = this.authService.currentUser();
             if (currentUser?.username) {
                 this.username = currentUser.username;
@@ -84,17 +84,19 @@ export class ClubRepLoginStepComponent implements OnInit {
     }
 
     private async doInlineLogin(): Promise<void> {
-        this.inlineError = null;
+        this.inlineError.set(null);
         const u = (this.loginForm.value.username || '').toString();
         const p = (this.loginForm.value.password || '').toString();
-        if (!u || !p || this.submitting) {
+        if (!u || !p || this.submitting()) {
             return;
         }
-        this.submitting = true;
+        this.submitting.set(true);
+        console.error('club-rep inline login start', { username: u });
         return new Promise((resolve, reject) => {
             this.authService.login({ username: u.trim(), password: p }).subscribe({
                 next: (response) => {
-                    this.submitting = false;
+                    this.submitting.set(false);
+                    console.error('club-rep inline login success', { submitting: this.submitting(), inlineError: this.inlineError() });
                     // Check TOS requirement before proceeding
                     if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
                         reject(new Error('TOS required')); // Prevent wizard progression until TOS signed
@@ -103,14 +105,36 @@ export class ClubRepLoginStepComponent implements OnInit {
                     resolve();
                 },
                 error: (err) => {
-                    this.submitting = false;
-                    this.inlineError = err?.error?.message || 'Login failed. Please check your username and password.';
+                    this.submitting.set(false);
+                    console.error('club-rep inline login error', {
+                        status: err?.status,
+                        topLevelMessage: err?.message,
+                        errorShape: err?.error,
+                        nestedError: err?.error?.error,
+                        submitting: this.submitting
+                    });
+                    // Handle various error response structures
+                    let errorMessage = 'Login failed. Please check your username and password.';
+                    if (err?.error) {
+                        if (typeof err.error === 'string') {
+                            errorMessage = err.error;
+                        } else if (err.error.error) {
+                            // Nested error structure: {error: {error: 'message'}}
+                            errorMessage = err.error.error;
+                        } else if (err.error.message) {
+                            errorMessage = err.error.message;
+                        }
+                    }
+                    this.inlineError.set(errorMessage);
+                    console.error('club-rep inline login set inlineError', {
+                        inlineError: this.inlineError(),
+                        submitting: this.submitting()
+                    });
                     reject(err);
                 }
             });
         });
     }
-
     async signInThenProceed(): Promise<void> {
         if (this.loginForm.invalid) {
             return;
@@ -118,16 +142,16 @@ export class ClubRepLoginStepComponent implements OnInit {
 
         try {
             await this.doInlineLogin();
-            if (this.inlineError) return;
+            if (this.inlineError()) return;
 
             this.teamRegService.getMyClubs().subscribe({
                 next: (clubs) => {
                     if (clubs.length === 0) {
-                        this.inlineError = 'You are not registered as a club representative.';
+                        this.inlineError.set('You are not registered as a club representative.');
                         return;
                     }
 
-                    this.hasClubRepAccount = 'yes';
+                    this.hasClubRepAccount.set('yes');
 
                     // Emit success with club data - parent handles club selection modal
                     this.loginSuccess.emit({
@@ -136,7 +160,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                     });
                 },
                 error: (err) => {
-                    this.inlineError = 'Failed to load your clubs. Please try again.';
+                    this.inlineError.set('Failed to load your clubs. Please try again.');
                     console.error('Failed to load clubs:', err);
                 }
             });
@@ -148,9 +172,9 @@ export class ClubRepLoginStepComponent implements OnInit {
     submitRegistration(): void {
         if (this.registrationForm.invalid) return;
 
-        this.submitting = true;
-        this.registrationError = null;
-        this.similarClubs = [];
+        this.submitting.set(true);
+        this.registrationError.set(null);
+        this.similarClubs.set([]);
 
         const request: ClubRepRegistrationRequest = {
             clubName: this.registrationForm.value.clubName,
@@ -168,10 +192,10 @@ export class ClubRepLoginStepComponent implements OnInit {
 
         this.clubService.registerClub(request).subscribe({
             next: (response) => {
-                this.submitting = false;
+                this.submitting.set(false);
 
                 if (response.similarClubs && response.similarClubs.length > 0) {
-                    this.similarClubs = response.similarClubs;
+                    this.similarClubs.set(response.similarClubs);
                 }
 
                 this.authService.login({
@@ -183,20 +207,20 @@ export class ClubRepLoginStepComponent implements OnInit {
                         if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
                             return; // User redirected to TOS
                         }
-                        this.hasClubRepAccount = 'yes';
+                        this.hasClubRepAccount.set('yes');
                         this.registrationSuccess.emit({
                             clubName: request.clubName,
                             availableClubs: [{ clubName: request.clubName, isInUse: false }]
                         });
                     },
                     error: (error: HttpErrorResponse) => {
-                        this.registrationError = 'Account created successfully, but auto-login failed. Please use the login form above.';
-                        this.hasClubRepAccount = 'yes';
+                        this.registrationError.set('Account created successfully, but auto-login failed. Please use the login form above.');
+                        this.hasClubRepAccount.set('yes');
                     }
                 });
             },
             error: (error: HttpErrorResponse) => {
-                this.submitting = false;
+                this.submitting.set(false);
                 console.error('Club registration error:', error);
 
                 let errorMessage = 'Registration failed. Please try again.';
@@ -221,12 +245,16 @@ export class ClubRepLoginStepComponent implements OnInit {
                     errorMessage += ` (Server Error ${error.status})`;
                 }
 
-                this.registrationError = errorMessage;
+                this.registrationError.set(errorMessage);
             }
         });
     }
 
     dismissSimilarClubsWarning(): void {
-        this.similarClubs = [];
+        this.similarClubs.set([]);
+    }
+
+    toggleCredentialsCollapsed(): void {
+        this.credentialsCollapsed.update((v) => !v);
     }
 }

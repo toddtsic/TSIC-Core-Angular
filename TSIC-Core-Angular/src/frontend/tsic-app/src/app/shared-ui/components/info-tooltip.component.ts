@@ -6,13 +6,14 @@ import { Component, Input } from '@angular/core';
  * Usage: <app-info-tooltip message="Your help text here" />
  */
 @Component({
-    selector: 'app-info-tooltip',
-    standalone: true,
-    imports: [],
-    template: `
+  selector: 'app-info-tooltip',
+  standalone: true,
+  imports: [],
+  template: `
     <button
       type="button"
       class="btn btn-link p-0 ms-2 text-decoration-none info-tooltip-btn"
+      tabindex="-1"
       [attr.aria-label]="'Information: ' + message"
       [title]="message"
       data-bs-toggle="tooltip"
@@ -21,7 +22,7 @@ import { Component, Input } from '@angular/core';
       <i class="bi bi-info-circle text-info" aria-hidden="true"></i>
     </button>
   `,
-    styles: [`
+  styles: [`
     .info-tooltip-btn {
       font-size: 1rem;
       line-height: 1;
@@ -41,5 +42,5 @@ import { Component, Input } from '@angular/core';
   `]
 })
 export class InfoTooltipComponent {
-    @Input() message: string = '';
+  @Input() message: string = '';
 }

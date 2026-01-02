@@ -2,13 +2,13 @@
     <div class="accordion-item accordion-item-info border-2">
         <h2 class="accordion-header">
             <button class="accordion-button accordion-button-info" type="button"
-                [class.collapsed]="credentialsCollapsed" (click)="credentialsCollapsed = !credentialsCollapsed"
-                [attr.aria-expanded]="!credentialsCollapsed" aria-controls="credentialsCollapse">
+                [class.collapsed]="credentialsCollapsed()" (click)="toggleCredentialsCollapsed()"
+                [attr.aria-expanded]="!credentialsCollapsed()" aria-controls="credentialsCollapse">
                 <i class="bi bi-info-circle accordion-icon-info text-primary me-2"></i>
                 <span class="accordion-title-info">Club Rep Credentials</span>
             </button>
         </h2>
-        <div id="credentialsCollapse" class="accordion-collapse collapse" [class.show]="!credentialsCollapsed">
+        <div id="credentialsCollapse" class="accordion-collapse collapse" [class.show]="!credentialsCollapsed()">
             <div class="accordion-body">
                 <ul class="mb-0 small ps-3">
                     <li>Use Club Rep credentials only. Do not use coach or director login.</li>
@@ -33,18 +33,18 @@
         <div class="mb-3">
             <div class="btn-group w-100" role="group" aria-label="Club Rep account availability">
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes"
-                    [(ngModel)]="hasClubRepAccount" [value]="'yes'" />
+                    [ngModel]="hasClubRepAccount()" (ngModelChange)="hasClubRepAccount.set($event)" [value]="'yes'" />
                 <label class="btn btn-outline-primary" for="seg-hasClubRep-yes">Yes</label>
 
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-no"
-                    [(ngModel)]="hasClubRepAccount" [value]="'no'" />
+                    [ngModel]="hasClubRepAccount()" (ngModelChange)="hasClubRepAccount.set($event)" [value]="'no'" />
                 <label class="btn btn-outline-primary" for="seg-hasClubRep-no">No</label>
             </div>
         </div>
 
         <!-- YES/NO cards removed (replaced by segmented toggle globally) -->
 
-        @if (hasClubRepAccount === 'yes') {
+        @if (hasClubRepAccount() === 'yes') {
         <!-- CREDENTIALS PANEL -->
         <div class="pt-2 pb-3 ps-0">
             <form class="border border-2 rounded p-3 shadow-sm" [formGroup]="loginForm"
@@ -61,18 +61,18 @@
                             formControlName="password" autocomplete="current-password" />
                     </div>
                 </div>
-                @if (inlineError) {
-                <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div>
+                @if (inlineError()) {
+                <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError() }}</div>
                 }
 
                 <!-- ACTION BUTTONS -->
                 <div class="mt-4 d-flex flex-column flex-sm-row gap-2 align-items-center justify-content-center">
-                    <button type="submit" class="btn btn-primary btn-sm" [disabled]="submitting || loginForm.invalid">
-                        @if (submitting) {
+                    <button type="submit" class="btn btn-primary btn-sm" [disabled]="submitting() || loginForm.invalid">
+                        @if (submitting()) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
                         }
                         <i class="bi bi-box-arrow-in-right me-1"></i>
-                        <span>{{ submitting ? 'Signing in…' : 'Login as Club Rep' }}</span>
+                        <span>{{ submitting() ? 'Signing in…' : 'Login as Club Rep' }}</span>
                     </button>
                 </div>
             </form>
@@ -81,21 +81,21 @@
 
 
 
-        @if (hasClubRepAccount === 'no') {
+        @if (hasClubRepAccount() === 'no') {
         <div class="pt-2 pb-3 ps-0">
             <div class="border border-2 rounded p-3 bg-body shadow-sm">
-                @if (registrationError) {
+                @if (registrationError()) {
                 <div class="alert alert-danger py-2 mb-3" role="alert">
-                    {{ registrationError }}
+                    {{ registrationError() }}
                 </div>
                 }
-                @if (similarClubs.length > 0) {
+                @if (similarClubs().length > 0) {
                 <div class="alert alert-warning py-2 mb-3" role="alert">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <strong>Warning:</strong> Similar clubs already exist:
                             <ul class="mb-0 mt-1">
-                                @for (club of similarClubs; track club.clubId) {
+                                @for (club of similarClubs(); track club.clubId) {
                                 <li>{{ club.clubName }} ({{ club.state }}) - {{
                                     club.matchScore }}% match</li>
                                 }
@@ -214,10 +214,10 @@
                         </div>
                     </fieldset>
                     <button type="submit" class="btn btn-primary btn-sm d-block mx-auto"
-                        [disabled]="registrationForm.invalid || submitting">
-                        @if (submitting) { <span class="spinner-border spinner-border-sm me-2" role="status"
+                        [disabled]="registrationForm.invalid || submitting()">
+                        @if (submitting()) { <span class="spinner-border spinner-border-sm me-2" role="status"
                             aria-hidden="true"></span> }
-                        <span>{{ submitting ? 'Creating Account…' : 'Create Club Rep Account'
+                        <span>{{ submitting() ? 'Creating Account…' : 'Create Club Rep Account'
                             }}</span>
                     </button>
                 </form>
