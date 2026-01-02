@@ -31,5 +31,8 @@
       "icon": "terminal-powershell"
     }
   },
-  "terminal.integrated.defaultProfile.windows": "PowerShell"
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "github.copilot.advanced": {
+    "allowEdit": true
+  }
 }

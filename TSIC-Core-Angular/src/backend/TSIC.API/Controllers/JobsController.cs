@@ -30,7 +30,6 @@ public class JobsController : ControllerBase
     private readonly ILogger<JobsController> _logger;
     private readonly IJobLookupService _jobLookupService;
     private readonly ITeamLookupService _teamLookupService;
-    private readonly IBulletinRepository _bulletinRepository;
     private readonly IMenuRepository _menuRepository;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -38,14 +37,12 @@ public class JobsController : ControllerBase
         ILogger<JobsController> logger,
         IJobLookupService jobLookupService,
         ITeamLookupService teamLookupService,
-        IBulletinRepository bulletinRepository,
         IMenuRepository menuRepository,
         IHttpContextAccessor httpContextAccessor)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
         _teamLookupService = teamLookupService;
-        _bulletinRepository = bulletinRepository;
         _menuRepository = menuRepository;
         _httpContextAccessor = httpContextAccessor;
     }
@@ -116,71 +113,6 @@ public class JobsController : ControllerBase
 
         var teams = await _teamLookupService.GetAvailableTeamsForJobAsync(jobId.Value);
         return Ok(teams);
-    }
-
-    /// <summary>
-    /// Get active bulletins for a job, sorted by start date (newest first).
-    /// Public endpoint for anonymous users on job landing page.
-    /// </summary>
-    /// <param name="jobPath">Job path segment (e.g. summer-showcase-2025)</param>
-    /// <returns>Collection of active bulletins</returns>
-    [AllowAnonymous]
-    [HttpGet("{jobPath}/bulletins")]
-    [ProducesResponseType(typeof(IEnumerable<BulletinDto>), 200)]
-    [ProducesResponseType(404)]
-    public async Task<ActionResult<IEnumerable<BulletinDto>>> GetJobBulletins(string jobPath)
-    {
-        _logger.LogInformation("Fetching active bulletins for job: {JobPath}", jobPath);
-
-        var jobMetadata = await _jobLookupService.GetJobMetadataAsync(jobPath);
-        if (jobMetadata == null)
-        {
-            return NotFound(new { message = $"Job not found: {jobPath}" });
-        }
-
-        var bulletins = await _bulletinRepository.GetActiveBulletinsForJobAsync(jobMetadata.JobId);
-
-        // Process bulletin title and text with job-level token replacement (in-memory, no DB calls)
-        var jobName = jobMetadata.JobName;
-        var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
-
-        var processedBulletins = new List<BulletinDto>();
-        foreach (var bulletin in bulletins)
-        {
-            var processedTitle = (bulletin.Title ?? string.Empty)
-                .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
-                .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
-
-            var processedText = (bulletin.Text ?? string.Empty)
-                .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
-                .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
-
-            processedBulletins.Add(new BulletinDto
-            {
-                BulletinId = bulletin.BulletinId,
-                Title = processedTitle,
-                Text = processedText,
-                StartDate = bulletin.StartDate,
-                EndDate = bulletin.EndDate,
-                CreateDate = bulletin.CreateDate
-            });
-        }
-
-        // Generate ETag based on job path and bulletin IDs (changes when bulletins added/removed)
-        var bulletinIds = string.Join("-", processedBulletins.Select(b => b.BulletinId));
-        var etag = $"\"{jobPath}-bulletins-{bulletinIds}\"";
-
-        // Check If-None-Match header
-        var requestEtag = Request.Headers.IfNoneMatch.ToString();
-        if (!string.IsNullOrEmpty(requestEtag) && requestEtag == etag)
-        {
-            return StatusCode(304); // Not Modified
-        }
-
-        // Set ETag for 304 Not Modified support (no caching - always fresh data)
-        Response.Headers.Append("ETag", etag);
-
-        return Ok(processedBulletins);
     }
 
     /// <summary>

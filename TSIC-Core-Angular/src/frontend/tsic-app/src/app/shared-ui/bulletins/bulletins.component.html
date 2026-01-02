@@ -17,8 +17,8 @@
             </div>
             }
         </div>
-        <div class="bulletin-content">
-            <div [innerHTML]="bulletin.text"></div>
+        <div class="bulletin-content" appInternalLink [jobPath]="jobPath()">
+            <div [innerHTML]="bulletin.text | translateLegacyUrls:jobPath()"></div>
         </div>
     </div>
     }

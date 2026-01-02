@@ -112,7 +112,7 @@ export class JobService {
         this.bulletinsLoading.set(true);
         this.bulletinsError.set(null);
         this.http
-            .get<BulletinDto[]>(`${this.apiUrl}/jobs/${jobPath}/bulletins`)
+            .get<BulletinDto[]>(`${this.apiUrl}/bulletins/job/${jobPath}`)
             .subscribe({
                 next: (bulletins) => {
                     this.bulletins.set(bulletins);

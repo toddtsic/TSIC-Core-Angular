@@ -6,7 +6,8 @@
         {{ bulletinsError() }}
     </div>
     } @else {
-    <app-bulletins [bulletins]="bulletins()" [loading]="bulletinsLoading()" [error]="bulletinsError()" />
+    <app-bulletins [bulletins]="bulletins()" [loading]="bulletinsLoading()" [error]="bulletinsError()"
+        [jobPath]="jobPath()" />
     }
 
 </div>

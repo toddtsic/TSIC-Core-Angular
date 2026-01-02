@@ -31,6 +31,7 @@ using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.Accounting;
+using TSIC.API.Services.Shared.Bulletins;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Authorization;
@@ -98,6 +99,7 @@ builder.Services.AddScoped<IPlayerRegistrationMetadataService, PlayerRegistratio
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();
+builder.Services.AddScoped<IBulletinService, BulletinService>();
 builder.Services.AddScoped<IPlayerRegConfirmationService, PlayerRegConfirmationService>();
 // VerticalInsure named HttpClient registration (base address only; secrets via env vars VI_DEV_SECRET/VI_PROD_SECRET)
 builder.Services.AddHttpClient("verticalinsure", (sp, c) =>

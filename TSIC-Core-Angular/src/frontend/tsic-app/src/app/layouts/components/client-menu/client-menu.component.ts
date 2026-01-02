@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { MenuItemDto } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
+import { LegacyUrlTranslationService } from '@core/services/legacy-url-translation.service';
 import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({
@@ -74,19 +75,27 @@ export class ClientMenuComponent {
      * 1. navigateUrl (external link)
      * 2. routerLink (Angular route)
      * 3. controller/action (legacy MVC - map to Angular route)
+     * Translates legacy URLs to Angular routes
      */
     getLink(item: MenuItemDto): string | null {
+        let link: string | null = null;
+
         if (item.navigateUrl) {
-            return item.navigateUrl;
-        }
-        if (item.routerLink) {
-            return item.routerLink;
-        }
-        if (item.controller && item.action) {
+            link = item.navigateUrl;
+        } else if (item.routerLink) {
+            link = item.routerLink;
+        } else if (item.controller && item.action) {
             // Legacy MVC route mapping (1:1 mapping)
-            return `/${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
+            link = `/${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
         }
-        return null;
+
+        if (!link) {
+            return null;
+        }
+
+        // Translate legacy URLs if applicable
+        const jobPath = this.jobService.currentJob()?.jobPath || '';
+        return LegacyUrlTranslationService.translateUrl(link, jobPath);
     }
 
     /**
