@@ -1,230 +1,230 @@
 :root {
-    /* ============================================
+   /* ============================================
        Neutral Palette (Warm Grays - Friendly)
        ============================================ */
-    --neutral-0: #ffffff;
-    --neutral-0-rgb: 255, 255, 255;
-    --neutral-50: #fafaf9;
-    --neutral-100: #f5f5f4;
-    --neutral-200: #e7e5e4;
-    --neutral-300: #d6d3d1;
-    --neutral-400: #a8a29e;
-    --neutral-500: #78716c;
-    --neutral-600: #57534e;
-    --neutral-700: #44403c;
-    --neutral-800: #292524;
-    --neutral-900: #1c1917;
+   --neutral-0: #ffffff;
+   --neutral-0-rgb: 255, 255, 255;
+   --neutral-50: #fafaf9;
+   --neutral-100: #f5f5f4;
+   --neutral-200: #e7e5e4;
+   --neutral-300: #d6d3d1;
+   --neutral-400: #a8a29e;
+   --neutral-500: #78716c;
+   --neutral-600: #57534e;
+   --neutral-700: #44403c;
+   --neutral-800: #292524;
+   --neutral-900: #1c1917;
 
-    /* ============================================
+   /* ============================================
        Brand Colors (Friendly & Approachable)
        ============================================ */
-    /* Primary: Warm blue - trustworthy yet welcoming */
-    --brand-primary: #0ea5e9;
-    /* Sky-500 - bright, friendly blue */
-    --brand-primary-dark: #0284c7;
-    /* Sky-600 - hover/active */
-    --brand-primary-light: #7dd3fc;
-    /* Sky-300 - subtle accents */
+   /* Primary: Warm blue - trustworthy yet welcoming */
+   --brand-primary: #0ea5e9;
+   /* Sky-500 - bright, friendly blue */
+   --brand-primary-dark: #0284c7;
+   /* Sky-600 - hover/active */
+   --brand-primary-light: #7dd3fc;
+   /* Sky-300 - subtle accents */
 
-    /* Success: Friendly green */
-    --brand-success: #22c55e;
-    /* Green-500 - positive, encouraging */
-    --brand-success-dark: #16a34a;
-    /* Green-600 */
+   /* Success: Friendly green */
+   --brand-success: #22c55e;
+   /* Green-500 - positive, encouraging */
+   --brand-success-dark: #16a34a;
+   /* Green-600 */
 
-    /* Accent: Warm coral/orange - adds personality */
-    --brand-accent: #f97316;
-    /* Orange-500 - warm CTA color */
-    --brand-accent-dark: #ea580c;
-    /* Orange-600 */
+   /* Accent: Warm coral/orange - adds personality */
+   --brand-accent: #f97316;
+   /* Orange-500 - warm CTA color */
+   --brand-accent-dark: #ea580c;
+   /* Orange-600 */
 
-    /* Warning & Danger */
-    --brand-warn: #f59e0b;
-    /* Amber-500 - friendly warning */
-    --brand-danger: #ef4444;
-    /* Red-500 - clear but not harsh */
+   /* Warning & Danger */
+   --brand-warn: #f59e0b;
+   /* Amber-500 - friendly warning */
+   --brand-danger: #ef4444;
+   /* Red-500 - clear but not harsh */
 
-    /* ============================================
+   /* ============================================
        Semantic Surfaces & Text
        ============================================ */
-    /* Light mode: Neutral, warm backgrounds */
-    --brand-bg: #fafaf9;
-    /* Very subtle warm off-white */
-    --brand-bg-secondary: #f5f5f4;
-    /* Secondary surfaces */
-    --brand-surface: #ffffff;
-    /* Cards, modals */
-    --brand-text: #57534e;
-    /* Harmonious with neutral-300 for coordinated palette */
-    /* Primary text - warm dark gray */
-    --brand-text-rgb: 87, 83, 78;
-    /* RGB values for --brand-text */
-    --brand-text-muted: #78716c;
-    /* Secondary text */
-    --brand-border: #e7e5e4;
-    /* Subtle borders */
+   /* Light mode: Neutral, warm backgrounds */
+   --brand-bg: #fafaf9;
+   /* Very subtle warm off-white */
+   --brand-bg-secondary: #f5f5f4;
+   /* Secondary surfaces */
+   --brand-surface: #ffffff;
+   /* Cards, modals */
+   --brand-text: #57534e;
+   /* Harmonious with neutral-300 for coordinated palette */
+   /* Primary text - warm dark gray */
+   --brand-text-rgb: 87, 83, 78;
+   /* RGB values for --brand-text */
+   --brand-text-muted: #78716c;
+   /* Secondary text */
+   --brand-border: #e7e5e4;
+   /* Subtle borders */
 
-    /* ============================================
+   /* ============================================
        Typography Scale
        ============================================ */
-    --font-family-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    --font-family-mono: "Fira Code", "Consolas", "Monaco", monospace;
+   --font-family-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+   --font-family-mono: "Fira Code", "Consolas", "Monaco", monospace;
 
-    /* Font sizes - use semantic names in components */
-    --font-size-xs: 0.75rem;
-    /* 12px */
-    --font-size-sm: 0.875rem;
-    /* 14px */
-    --font-size-base: 1rem;
-    /* 16px */
-    --font-size-lg: 1.125rem;
-    /* 18px */
-    --font-size-xl: 1.25rem;
-    /* 20px */
-    --font-size-2xl: 1.5rem;
-    /* 24px */
-    --font-size-3xl: 1.875rem;
-    /* 30px */
-    --font-size-4xl: 2.25rem;
-    /* 36px */
-    --font-size-5xl: 3rem;
-    /* 48px */
+   /* Font sizes - use semantic names in components */
+   --font-size-xs: 0.75rem;
+   /* 12px */
+   --font-size-sm: 0.875rem;
+   /* 14px */
+   --font-size-base: 1rem;
+   /* 16px */
+   --font-size-lg: 1.125rem;
+   /* 18px */
+   --font-size-xl: 1.25rem;
+   /* 20px */
+   --font-size-2xl: 1.5rem;
+   /* 24px */
+   --font-size-3xl: 1.875rem;
+   /* 30px */
+   --font-size-4xl: 2.25rem;
+   /* 36px */
+   --font-size-5xl: 3rem;
+   /* 48px */
 
-    /* Font weights */
-    --font-weight-normal: 400;
-    --font-weight-medium: 500;
-    --font-weight-semibold: 600;
-    --font-weight-bold: 700;
+   /* Font weights */
+   --font-weight-normal: 400;
+   --font-weight-medium: 500;
+   --font-weight-semibold: 600;
+   --font-weight-bold: 700;
 
-    /* Line heights */
-    --line-height-tight: 1.25;
-    --line-height-normal: 1.5;
-    --line-height-relaxed: 1.75;
+   /* Line heights */
+   --line-height-tight: 1.25;
+   --line-height-normal: 1.5;
+   --line-height-relaxed: 1.75;
 
-    /* Legacy typography (deprecated) */
-    --brand-font-sans: var(--font-family-sans);
-    --brand-font-size: var(--font-size-base);
-    --brand-line-height: var(--line-height-normal);
+   /* Legacy typography (deprecated) */
+   --brand-font-sans: var(--font-family-sans);
+   --brand-font-size: var(--font-size-base);
+   --brand-line-height: var(--line-height-normal);
 
-    /* ============================================
+   /* ============================================
        Spacing Scale (Use these, not arbitrary values)
        ============================================ */
-    --space-0: 0;
-    --space-1: 0.25rem;
-    /* 4px */
-    --space-2: 0.5rem;
-    /* 8px */
-    --space-3: 0.75rem;
-    /* 12px */
-    --space-4: 1rem;
-    /* 16px - base */
-    --space-5: 1.25rem;
-    /* 20px */
-    --space-6: 1.5rem;
-    /* 24px */
-    --space-8: 2rem;
-    /* 32px */
-    --space-10: 2.5rem;
-    /* 40px */
-    --space-12: 3rem;
-    /* 48px */
-    --space-16: 4rem;
-    /* 64px */
-    --space-20: 5rem;
-    /* 80px */
+   --space-0: 0;
+   --space-1: 0.25rem;
+   /* 4px */
+   --space-2: 0.5rem;
+   /* 8px */
+   --space-3: 0.75rem;
+   /* 12px */
+   --space-4: 1rem;
+   /* 16px - base */
+   --space-5: 1.25rem;
+   /* 20px */
+   --space-6: 1.5rem;
+   /* 24px */
+   --space-8: 2rem;
+   /* 32px */
+   --space-10: 2.5rem;
+   /* 40px */
+   --space-12: 3rem;
+   /* 48px */
+   --space-16: 4rem;
+   /* 64px */
+   --space-20: 5rem;
+   /* 80px */
 
-    /* Legacy spacing (deprecated - use space-* instead) */
-    --space-xs: var(--space-1);
-    --space-sm: var(--space-2);
-    --space-md: var(--space-4);
-    --space-lg: var(--space-6);
-    --space-xl: var(--space-8);
+   /* Legacy spacing (deprecated - use space-* instead) */
+   --space-xs: var(--space-1);
+   --space-sm: var(--space-2);
+   --space-md: var(--space-4);
+   --space-lg: var(--space-6);
+   --space-xl: var(--space-8);
 
-    /* Border Radius (Friendly, consistent roundness) */
-    --radius-none: 0;
-    --radius-sm: 0.375rem;
-    /* 6px - buttons, inputs */
-    --radius-md: 0.5rem;
-    /* 8px - cards, dropdowns */
-    --radius-lg: 0.75rem;
-    /* 12px - modals, large containers */
-    --radius-xl: 1rem;
-    /* 16px - hero sections */
-    --radius-full: 9999px;
-    /* Pills, badges */
+   /* Border Radius (Friendly, consistent roundness) */
+   --radius-none: 0;
+   --radius-sm: 0.375rem;
+   /* 6px - buttons, inputs */
+   --radius-md: 0.5rem;
+   /* 8px - cards, dropdowns */
+   --radius-lg: 0.75rem;
+   /* 12px - modals, large containers */
+   --radius-xl: 1rem;
+   /* 16px - hero sections */
+   --radius-full: 9999px;
+   /* Pills, badges */
 
-    /* ============================================
+   /* ============================================
        Elevation (Shadows) - Subtle, Professional
        ============================================ */
-    --shadow-none: none;
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+   --shadow-none: none;
+   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
 
-    /* Focused state */
-    --shadow-focus: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15);
+   /* Focused state */
+   --shadow-focus: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15);
 
-    /* ============================================
+   /* ============================================
        Accent Color Scales (for wizard themes)
        ============================================ */
-    --indigo-400: #6366f1;
-    --indigo-500: #4f46e5;
-    --indigo-600: #4338ca;
-    --violet-500: #8b5cf6;
-    --violet-600: #7c3aed;
-    --emerald-500: #10b981;
-    --emerald-600: #059669;
-    --emerald-700: #047857;
-    --cyan-500: #06b6d4;
-    --cyan-600: #0891b2;
+   --indigo-400: #6366f1;
+   --indigo-500: #4f46e5;
+   --indigo-600: #4338ca;
+   --violet-500: #8b5cf6;
+   --violet-600: #7c3aed;
+   --emerald-500: #10b981;
+   --emerald-600: #059669;
+   --emerald-700: #047857;
+   --cyan-500: #06b6d4;
+   --cyan-600: #0891b2;
 
-    /* ============================================
+   /* ============================================
        Semantic Tokens (aliases for backwards compatibility)
        ============================================ */
-    --color-bg: var(--brand-bg);
-    --color-surface: var(--brand-surface);
-    --color-surface-alt: var(--brand-bg-secondary);
-    --color-text: var(--brand-text);
-    --color-text-muted: var(--brand-text-muted);
-    --color-border: var(--brand-border);
-    --color-primary: var(--brand-primary);
-    --color-primary-rgb: 14, 165, 233;
-    --gradient-start: var(--indigo-500);
-    --gradient-end: var(--violet-600);
-    --gradient-primary-start: var(--gradient-start);
-    --gradient-primary-end: var(--gradient-end);
+   --color-bg: var(--brand-bg);
+   --color-surface: var(--brand-surface);
+   --color-surface-alt: var(--brand-bg-secondary);
+   --color-text: var(--brand-text);
+   --color-text-muted: var(--brand-text-muted);
+   --color-border: var(--brand-border);
+   --color-primary: var(--brand-primary);
+   --color-primary-rgb: 14, 165, 233;
+   --gradient-start: var(--indigo-500);
+   --gradient-end: var(--violet-600);
+   --gradient-primary-start: var(--gradient-start);
+   --gradient-primary-end: var(--gradient-end);
 
-    /* Legacy variable names */
-    --bg-primary: var(--brand-bg);
-    --bg-secondary: var(--brand-bg-secondary);
-    --bg-elevated: var(--brand-surface);
-    --text-primary: var(--brand-text);
-    --text-secondary: var(--brand-text-muted);
-    --border-color: var(--brand-border);
-    --input-bg: var(--brand-surface);
-    --input-border: var(--brand-border);
+   /* Legacy variable names */
+   --bg-primary: var(--brand-bg);
+   --bg-secondary: var(--brand-bg-secondary);
+   --bg-elevated: var(--brand-surface);
+   --text-primary: var(--brand-text);
+   --text-secondary: var(--brand-text-muted);
+   --border-color: var(--brand-border);
+   --input-bg: var(--brand-surface);
+   --input-border: var(--brand-border);
 
-    /* ============================================
+   /* ============================================
        Bootstrap CSS Variable Mapping
        ============================================ */
-    --bs-body-bg: var(--brand-bg);
-    --bs-body-color: var(--brand-text);
-    --bs-card-bg: var(--brand-surface);
-    --bs-card-color: var(--brand-text);
-    --bs-card-border-color: var(--brand-border);
-    --bs-primary: var(--brand-primary);
-    --bs-primary-rgb: 14, 165, 233;
-    --bs-secondary: var(--neutral-600);
-    --bs-secondary-color: var(--brand-text);
-    --bs-secondary-color-rgb: var(--brand-text-rgb);
-    --bs-secondary-rgb: var(--brand-text-rgb);
-    --bs-success: var(--brand-success);
-    --bs-info: var(--brand-primary-light);
-    --bs-warning: var(--brand-warn);
-    --bs-danger: var(--brand-danger);
-    --bs-border-radius: var(--radius-sm);
-    --bs-btn-border-radius: var(--radius-sm);
+   --bs-body-bg: var(--brand-bg);
+   --bs-body-color: var(--brand-text);
+   --bs-card-bg: var(--brand-surface);
+   --bs-card-color: var(--brand-text);
+   --bs-card-border-color: var(--brand-border);
+   --bs-primary: var(--brand-primary);
+   --bs-primary-rgb: 14, 165, 233;
+   --bs-secondary: var(--neutral-600);
+   --bs-secondary-color: var(--brand-text);
+   --bs-secondary-color-rgb: var(--brand-text-rgb);
+   --bs-secondary-rgb: var(--brand-text-rgb);
+   --bs-success: var(--brand-success);
+   --bs-info: var(--brand-primary-light);
+   --bs-warning: var(--brand-warn);
+   --bs-danger: var(--brand-danger);
+   --bs-border-radius: var(--radius-sm);
+   --bs-btn-border-radius: var(--radius-sm);
 }

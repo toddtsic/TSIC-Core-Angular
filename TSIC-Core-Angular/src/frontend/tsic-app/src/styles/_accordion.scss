@@ -1,0 +1,55 @@
+/* ============================================
+   ACCORDION COMPONENT STYLES
+   Reusable accordion variants for consistent styling
+   ============================================ */
+
+/* Info variant - prominent styling for important information */
+.accordion-item-info {
+    border-left: 3px solid var(--bs-info);
+    background-color: var(--bs-info-bg-subtle);
+}
+
+.accordion-item-info .accordion-button-info {
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--bs-info-bg-subtle);
+    color: var(--bs-emphasis-color);
+    border: none;
+    transition: all 120ms ease-in-out;
+
+    .accordion-title-info {
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-base);
+    }
+
+    .accordion-icon-info {
+        font-size: var(--font-size-lg);
+        color: var(--bs-info);
+        line-height: 1;
+    }
+}
+
+/* Collapsed state - draw attention */
+.accordion-item-info .accordion-button-info.collapsed {
+    background-color: var(--bs-info-bg-subtle);
+
+    &:hover {
+        background-color: var(--bs-info-border-subtle);
+        transform: translateX(2px);
+    }
+}
+
+/* Expanded state */
+.accordion-item-info .accordion-button-info:not(.collapsed) {
+    background-color: var(--bs-info-border-subtle);
+    color: var(--bs-info-text-emphasis);
+
+    .accordion-icon-info {
+        color: var(--bs-info-text-emphasis);
+    }
+}
+
+/* Focus state - maintain accessibility */
+.accordion-item-info .accordion-button-info:focus {
+    box-shadow: 0 0 0 3px var(--bs-info-border-subtle);
+    outline: none;
+}

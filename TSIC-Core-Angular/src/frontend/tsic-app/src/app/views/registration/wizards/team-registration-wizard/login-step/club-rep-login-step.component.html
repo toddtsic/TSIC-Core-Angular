@@ -1,11 +1,11 @@
 <div class="accordion mt-2 mb-4" id="wizardAccordion">
-    <div class="accordion-item border-2">
+    <div class="accordion-item accordion-item-info border-2">
         <h2 class="accordion-header">
-            <button class="accordion-button" type="button" [class.collapsed]="credentialsCollapsed"
-                (click)="credentialsCollapsed = !credentialsCollapsed" [attr.aria-expanded]="!credentialsCollapsed"
-                aria-controls="credentialsCollapse">
-                <i class="bi bi-info-circle text-primary fs-4 me-2 fw-bold"></i>
-                <span class="fw-bold">Club Rep Credentials</span>
+            <button class="accordion-button accordion-button-info" type="button"
+                [class.collapsed]="credentialsCollapsed" (click)="credentialsCollapsed = !credentialsCollapsed"
+                [attr.aria-expanded]="!credentialsCollapsed" aria-controls="credentialsCollapse">
+                <i class="bi bi-info-circle accordion-icon-info text-primary me-2"></i>
+                <span class="accordion-title-info">Club Rep Credentials</span>
             </button>
         </h2>
         <div id="credentialsCollapse" class="accordion-collapse collapse" [class.show]="!credentialsCollapsed">
