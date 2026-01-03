@@ -33,11 +33,13 @@ export class ClubRepLoginStepComponent implements OnInit {
     registrationSubmitting = signal(false);
     inlineError = signal<string | null>(null);
     credentialsCollapsed = signal(true);
+    duplicateModalOpen = signal(false);
+    duplicateModalMessage = signal<string | null>(null);
+    duplicateClub = signal<ClubSearchResult[]>([]);
 
     registrationForm: FormGroup;
     loginForm: FormGroup;
     registrationError = signal<string | null>(null);
-    similarClubs = signal<ClubSearchResult[]>([]);
     statesOptions: SelectOption[] = [];
 
     private readonly authService = inject(AuthService);
@@ -175,7 +177,7 @@ export class ClubRepLoginStepComponent implements OnInit {
 
         this.registrationSubmitting.set(true);
         this.registrationError.set(null);
-        this.similarClubs.set([]);
+        this.duplicateClub.set([]);
 
         const request: ClubRepRegistrationRequest = {
             clubName: this.registrationForm.value.clubName,
@@ -195,8 +197,23 @@ export class ClubRepLoginStepComponent implements OnInit {
             next: (response) => {
                 this.registrationSubmitting.set(false);
 
-                if (response.similarClubs && response.similarClubs.length > 0) {
-                    this.similarClubs.set(response.similarClubs);
+                const similarClubResults = (response.similarClubs ?? []) as ClubSearchResult[];
+
+                if (!response.success) {
+                    if (similarClubResults.length > 0) {
+                        this.duplicateClub.set(similarClubResults);
+                    }
+
+                    this.duplicateModalMessage.set(
+                        response.message
+                        ?? 'A club with a very similar name already exists. Please verify before creating a new club rep.'
+                    );
+                    this.duplicateModalOpen.set(true);
+                    return; // do not proceed to auto-login
+                }
+
+                if (similarClubResults.length > 0) {
+                    this.duplicateClub.set(similarClubResults);
                 }
 
                 this.authService.login({
@@ -223,6 +240,20 @@ export class ClubRepLoginStepComponent implements OnInit {
             error: (error: HttpErrorResponse) => {
                 this.registrationSubmitting.set(false);
                 console.error('Club registration error:', error);
+
+                // Handle duplicate/similar club conflict (409)
+                if (error.status === 409 && error.error) {
+                    const similar = (error.error.similarClubs ?? []) as ClubSearchResult[];
+                    if (similar.length > 0) {
+                        this.duplicateClub.set(similar);
+                    }
+                    this.duplicateModalMessage.set(
+                        error.error.message
+                        ?? 'A club with a very similar name already exists. Please verify before creating a new club rep.'
+                    );
+                    this.duplicateModalOpen.set(true);
+                    return;
+                }
 
                 let errorMessage = 'Registration failed. Please try again.';
 
@@ -251,11 +282,18 @@ export class ClubRepLoginStepComponent implements OnInit {
         });
     }
 
-    dismissSimilarClubsWarning(): void {
-        this.similarClubs.set([]);
+    dismissDuplicateWarning(): void {
+        this.duplicateClub.set([]);
     }
 
     toggleCredentialsCollapsed(): void {
         this.credentialsCollapsed.update((v) => !v);
+    }
+
+    closeDuplicateModal(): void {
+        this.duplicateModalOpen.set(false);
+        this.hasClubRepAccount.set(null);
+        this.duplicateClub.set([]);
+        this.duplicateModalMessage.set(null);
     }
 }

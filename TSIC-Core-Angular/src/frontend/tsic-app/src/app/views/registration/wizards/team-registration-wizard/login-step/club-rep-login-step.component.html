@@ -90,13 +90,13 @@
                     {{ registrationError() }}
                 </div>
                 }
-                @if (similarClubs().length > 0) {
+                @if (duplicateClub().length > 0) {
                 <div class="alert alert-warning py-2 mb-3" role="alert">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <strong>Warning:</strong> Similar clubs already exist:
                             <ul class="mb-0 mt-1">
-                                @for (club of similarClubs(); track club.clubId) {
+                                @for (club of duplicateClub(); track club.clubId) {
                                 <li>{{ club.clubName }} ({{ club.state }}) - {{
                                     club.matchScore }}% match</li>
                                 }
@@ -106,7 +106,7 @@
                                 club.</small>
                         </div>
                         <button type="button" class="btn-close btn-sm" aria-label="Dismiss"
-                            (click)="dismissSimilarClubsWarning()"></button>
+                            (click)="dismissDuplicateWarning()"></button>
                     </div>
                 </div>
                 }
@@ -227,3 +227,42 @@
         }
     </div>
 </fieldset>
+
+@if (duplicateModalOpen()) {
+<div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-label="Duplicate club warning">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                    Possible Duplicate Club
+                </h5>
+                <button type="button" class="btn-close" aria-label="Close" (click)="closeDuplicateModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" role="alert">
+                    {{ duplicateModalMessage() }}
+                </div>
+
+                @if (duplicateClub().length > 0) {
+                <div class="mb-2">
+                    <h6 class="fw-semibold mb-2">Similar clubs found</h6>
+                    <ul class="mb-0 ps-3">
+                        @for (club of duplicateClub(); track club.clubId) {
+                        <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
+                        }
+                    </ul>
+                </div>
+                }
+
+                <p class="small text-muted mb-0">If this is your club, please log in with the existing Club Rep account
+                    or contact support to recover access. Creating duplicates can lead to team removal.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="closeDuplicateModal()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}

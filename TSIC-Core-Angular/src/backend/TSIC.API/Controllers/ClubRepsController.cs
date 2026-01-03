@@ -29,13 +29,19 @@ public class ClubRepsController : ControllerBase
     [HttpPost("register")]
     [ProducesResponseType(typeof(ClubRepRegistrationResponse), 200)]
     [ProducesResponseType(typeof(ClubRepRegistrationResponse), 400)]
+    [ProducesResponseType(typeof(ClubRepRegistrationResponse), 409)]
     [ProducesResponseType(typeof(ProblemDetails), 500)]
     public async Task<IActionResult> Register([FromBody] ClubRepRegistrationRequest request)
     {
         try
         {
             var result = await _clubService.RegisterAsync(request);
-            if (!result.Success) return BadRequest(result);
+            // If the service flags a duplicate/similar club, surface as conflict so client can branch explicitly
+            if (!result.Success)
+            {
+                return StatusCode(StatusCodes.Status409Conflict, result);
+            }
+
             return Ok(result);
         }
         catch (Exception ex)
