@@ -88,7 +88,7 @@ public sealed class ClubService : IClubService
                 Success = false,
                 ClubId = null,
                 UserId = null,
-                Message = $"A club with a very similar name already exists: '{exactMatch.ClubName}'. If this is a duplicate registration, your teams may be dropped. Please verify this is a NEW club or login to the existing club instead.",
+                Message = $"A club with a very similar name to '{exactMatch.ClubName}' already exists.",
                 SimilarClubs = similarClubs
             };
         }

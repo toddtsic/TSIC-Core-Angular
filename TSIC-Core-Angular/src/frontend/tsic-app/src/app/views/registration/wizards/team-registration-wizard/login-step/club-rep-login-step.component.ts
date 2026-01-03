@@ -100,13 +100,13 @@ export class ClubRepLoginStepComponent implements OnInit {
         this.inlineError.set(null);
         const u = (this.loginForm.value.username || '').toString().trim();
         const p = (this.loginForm.value.password || '').toString();
-        
+
         // Defensive: explicit validation with user feedback
         if (!u || !p) {
             this.inlineError.set('Username and password are required.');
             return;
         }
-        
+
         if (this.loginSubmitting()) {
             // Silent skip—UI spinner already shows in-flight state
             return;
@@ -114,7 +114,7 @@ export class ClubRepLoginStepComponent implements OnInit {
 
         this.loginSubmitting.set(true);
         console.debug('ClubRep login flow', { event: 'login_start', username: u });
-        
+
         return new Promise((resolve, reject) => {
             this.authService.login({ username: u, password: p }).subscribe({
                 next: (response) => {
@@ -220,7 +220,7 @@ export class ClubRepLoginStepComponent implements OnInit {
 
                 // Registration succeeded; reset form and attempt auto-login
                 this.registrationForm.reset();
-                
+
                 if (similarClubResults.length > 0) {
                     console.debug('ClubRep registration', { event: 'similar_clubs_found', count: similarClubResults.length });
                 }
@@ -290,7 +290,7 @@ export class ClubRepLoginStepComponent implements OnInit {
     }
 
     dismissDuplicateWarning(): void {
-        this.duplicateClub.set([]);
+        this.setDuplicateModalState({ isOpen: false, message: null, clubs: [] });
     }
 
     /**

@@ -241,22 +241,22 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning" role="alert">
-                    {{ duplicateModalMessage() }}
+                    @if (duplicateClub().length > 0) {
+                    <div class="mb-2">
+                        <h6 class="fw-semibold mb-2">Similar clubs found</h6>
+                        <ul class="mb-0 ps-3">
+                            @for (club of duplicateClub(); track club.clubId) {
+                            <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
+                            }
+                        </ul>
+                    </div>
+                    <p class="small text-muted mb-0">If this is your club, please log in with the existing Club Rep
+                        account
+                        or contact support to recover access. Creating duplicate club reps for the same club can cause
+                        big
+                        problems for tournaments, especially if multiple reps register the same teams.</p>
+                    }
                 </div>
-
-                @if (duplicateClub().length > 0) {
-                <div class="mb-2">
-                    <h6 class="fw-semibold mb-2">Similar clubs found</h6>
-                    <ul class="mb-0 ps-3">
-                        @for (club of duplicateClub(); track club.clubId) {
-                        <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
-                        }
-                    </ul>
-                </div>
-                }
-
-                <p class="small text-muted mb-0">If this is your club, please log in with the existing Club Rep account
-                    or contact support to recover access. Creating duplicates can lead to team removal.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" (click)="closeDuplicateModal()">Close</button>
