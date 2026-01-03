@@ -43,8 +43,7 @@ public sealed class ClubService : IClubService
         }
 
         // Check if user already exists (by username or email)
-        var existingUser = await _userManager.FindByNameAsync(request.Username)
-            ?? await _userManager.FindByEmailAsync(request.Email);
+        var existingUser = await _userManager.FindByNameAsync(request.Username);
 
         if (existingUser != null)
         {

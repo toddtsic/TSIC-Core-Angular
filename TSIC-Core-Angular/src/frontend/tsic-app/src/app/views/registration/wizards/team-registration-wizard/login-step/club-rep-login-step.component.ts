@@ -29,7 +29,8 @@ export class ClubRepLoginStepComponent implements OnInit {
     hasClubRepAccount = signal<'yes' | 'no' | null>(null);
     username = '';
     password = '';
-    submitting = signal(false);
+    loginSubmitting = signal(false);
+    registrationSubmitting = signal(false);
     inlineError = signal<string | null>(null);
     credentialsCollapsed = signal(true);
 
@@ -87,16 +88,16 @@ export class ClubRepLoginStepComponent implements OnInit {
         this.inlineError.set(null);
         const u = (this.loginForm.value.username || '').toString();
         const p = (this.loginForm.value.password || '').toString();
-        if (!u || !p || this.submitting()) {
+        if (!u || !p || this.loginSubmitting()) {
             return;
         }
-        this.submitting.set(true);
+        this.loginSubmitting.set(true);
         console.error('club-rep inline login start', { username: u });
         return new Promise((resolve, reject) => {
             this.authService.login({ username: u.trim(), password: p }).subscribe({
                 next: (response) => {
-                    this.submitting.set(false);
-                    console.error('club-rep inline login success', { submitting: this.submitting(), inlineError: this.inlineError() });
+                    this.loginSubmitting.set(false);
+                    console.error('club-rep inline login success', { submitting: this.loginSubmitting(), inlineError: this.inlineError() });
                     // Check TOS requirement before proceeding
                     if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
                         reject(new Error('TOS required')); // Prevent wizard progression until TOS signed
@@ -105,13 +106,13 @@ export class ClubRepLoginStepComponent implements OnInit {
                     resolve();
                 },
                 error: (err) => {
-                    this.submitting.set(false);
+                    this.loginSubmitting.set(false);
                     console.error('club-rep inline login error', {
                         status: err?.status,
                         topLevelMessage: err?.message,
                         errorShape: err?.error,
                         nestedError: err?.error?.error,
-                        submitting: this.submitting
+                        submitting: this.loginSubmitting()
                     });
                     // Handle various error response structures
                     let errorMessage = 'Login failed. Please check your username and password.';
@@ -128,7 +129,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                     this.inlineError.set(errorMessage);
                     console.error('club-rep inline login set inlineError', {
                         inlineError: this.inlineError(),
-                        submitting: this.submitting()
+                        submitting: this.loginSubmitting()
                     });
                     reject(err);
                 }
@@ -141,8 +142,8 @@ export class ClubRepLoginStepComponent implements OnInit {
         }
 
         try {
-            await this.doInlineLogin();
-            if (this.inlineError()) return;
+            const loginSucceeded = await this.doInlineLogin().then(() => true).catch(() => false);
+            if (!loginSucceeded || this.inlineError()) return;
 
             this.teamRegService.getMyClubs().subscribe({
                 next: (clubs) => {
@@ -172,7 +173,7 @@ export class ClubRepLoginStepComponent implements OnInit {
     submitRegistration(): void {
         if (this.registrationForm.invalid) return;
 
-        this.submitting.set(true);
+        this.registrationSubmitting.set(true);
         this.registrationError.set(null);
         this.similarClubs.set([]);
 
@@ -192,7 +193,7 @@ export class ClubRepLoginStepComponent implements OnInit {
 
         this.clubService.registerClub(request).subscribe({
             next: (response) => {
-                this.submitting.set(false);
+                this.registrationSubmitting.set(false);
 
                 if (response.similarClubs && response.similarClubs.length > 0) {
                     this.similarClubs.set(response.similarClubs);
@@ -220,7 +221,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                 });
             },
             error: (error: HttpErrorResponse) => {
-                this.submitting.set(false);
+                this.registrationSubmitting.set(false);
                 console.error('Club registration error:', error);
 
                 let errorMessage = 'Registration failed. Please try again.';

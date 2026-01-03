@@ -67,12 +67,13 @@
 
                 <!-- ACTION BUTTONS -->
                 <div class="mt-4 d-flex flex-column flex-sm-row gap-2 align-items-center justify-content-center">
-                    <button type="submit" class="btn btn-primary btn-sm" [disabled]="submitting() || loginForm.invalid">
-                        @if (submitting()) {
+                    <button type="submit" class="btn btn-primary btn-sm"
+                        [disabled]="loginSubmitting() || loginForm.invalid">
+                        @if (loginSubmitting()) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
                         }
                         <i class="bi bi-box-arrow-in-right me-1"></i>
-                        <span>{{ submitting() ? 'Signing in…' : 'Login as Club Rep' }}</span>
+                        <span>{{ loginSubmitting() ? 'Signing in…' : 'Login as Club Rep' }}</span>
                     </button>
                 </div>
             </form>
@@ -214,10 +215,10 @@
                         </div>
                     </fieldset>
                     <button type="submit" class="btn btn-primary btn-sm d-block mx-auto"
-                        [disabled]="registrationForm.invalid || submitting()">
-                        @if (submitting()) { <span class="spinner-border spinner-border-sm me-2" role="status"
-                            aria-hidden="true"></span> }
-                        <span>{{ submitting() ? 'Creating Account…' : 'Create Club Rep Account'
+                        [disabled]="registrationForm.invalid || registrationSubmitting()">
+                        @if (registrationSubmitting()) { <span class="spinner-border spinner-border-sm me-2"
+                            role="status" aria-hidden="true"></span> }
+                        <span>{{ registrationSubmitting() ? 'Creating Account…' : 'Create Club Rep Account'
                             }}</span>
                     </button>
                 </form>
