@@ -1,9 +1,13 @@
 using AuthorizeNet.Api.Contracts.V1;
 using AuthorizeNet.Api.Controllers;
 using AuthorizeNet.Api.Controllers.Bases;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using TSIC.API.Configuration;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 
@@ -15,14 +19,14 @@ public class AdnApiService : IAdnApiService
 {
     private readonly IHostEnvironment _env;
     private readonly ILogger<AdnApiService> _logger;
-    private readonly IConfiguration _config;
+    private readonly AdnSettings _settings;
     private readonly ICustomerRepository _customerRepo;
 
-    public AdnApiService(IHostEnvironment env, ILogger<AdnApiService> logger, IConfiguration config, ICustomerRepository customerRepo)
+    public AdnApiService(IHostEnvironment env, ILogger<AdnApiService> logger, IOptions<AdnSettings> options, ICustomerRepository customerRepo)
     {
         _env = env;
         _logger = logger;
-        _config = config;
+        _settings = options.Value;
         _customerRepo = customerRepo;
     }
 
@@ -41,15 +45,7 @@ public class AdnApiService : IAdnApiService
         var isSandbox = _env.IsDevelopment() && !bProdOnly;
         if (isSandbox)
         {
-            // Prefer configuration / env vars over hard-coded fallbacks.
-            var login = _config["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
-            var key = _config["AuthorizeNet:SandboxTransactionKey"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
-            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(key))
-            {
-                _logger.LogWarning("Sandbox Authorize.Net credentials missing; using legacy hard-coded fallback. Configure AuthorizeNet:SandboxLoginId and SandboxTransactionKey.");
-                login = login ?? "4dE5m4WR9ey";
-                key = key ?? "6zmzD35C47kv45Sn";
-            }
+            var (login, key) = ResolveCredentials();
             return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };
         }
 
@@ -69,14 +65,7 @@ public class AdnApiService : IAdnApiService
         var isSandbox = _env.IsDevelopment() && !bProdOnly;
         if (isSandbox)
         {
-            var login = _config["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
-            var key = _config["AuthorizeNet:SandboxTransactionKey"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
-            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(key))
-            {
-                _logger.LogWarning("Sandbox Authorize.Net credentials missing (customer scope). Using legacy fallback.");
-                login = login ?? "4dE5m4WR9ey";
-                key = key ?? "6zmzD35C47kv45Sn";
-            }
+            var (login, key) = ResolveCredentials();
             return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };
         }
 
@@ -88,6 +77,21 @@ public class AdnApiService : IAdnApiService
             throw new InvalidOperationException($"Authorize.Net production credentials not configured for Customer {customerId}.");
         }
         return creds;
+    }
+
+    private (string login, string key) ResolveCredentials()
+    {
+        // Priority: configuration (from user-secrets) -> environment variables -> fail fast
+        var login = _settings.SandboxLoginId ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
+        var key = _settings.SandboxTransactionKey ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
+
+        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(key))
+        {
+            _logger.LogError("Authorize.Net sandbox credentials not configured. Set AdnSettings:SandboxLoginId and SandboxTransactionKey in user-secrets or environment variables.");
+            throw new InvalidOperationException("Authorize.Net sandbox credentials not configured.");
+        }
+
+        return (login, key);
     }
 
     // Legacy authorize method removed; request-based wrapper used instead.

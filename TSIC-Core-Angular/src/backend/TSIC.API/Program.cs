@@ -23,6 +23,7 @@ using TSIC.API.Services.Payments;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Configuration;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.Email;
@@ -146,6 +147,9 @@ builder.Services.AddHttpClient("uslax", (sp, client) =>
 
 // VerticalInsure settings
 builder.Services.Configure<VerticalInsureSettings>(builder.Configuration.GetSection("VerticalInsure"));
+
+// Authorize.Net settings (sandbox credentials only - production comes from database)
+builder.Services.Configure<AdnSettings>(builder.Configuration.GetSection("AuthorizeNet"));
 
 // Profile Migration Services
 builder.Services.AddHttpClient<IGitHubProfileFetcher, GitHubProfileFetcher>();

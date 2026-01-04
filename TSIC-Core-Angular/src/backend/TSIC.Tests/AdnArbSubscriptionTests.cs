@@ -4,8 +4,10 @@ using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Xunit;
 using Moq;
+using TSIC.API.Configuration;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -26,25 +28,42 @@ public sealed class AdnArbSubscriptionTests
     [Fact]
     public void ARB_CreateSubscription_Sandbox_ReturnsResponse()
     {
-        // Arrange sandbox creds (override with env vars if present)
-        var login = Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID") ?? "4dE5m4WR9ey";
-        var key = Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY") ?? "6zmzD35C47kv45Sn";
+        // Load credentials from environment variables (no hardcoded fallbacks for security)
+        var login = Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
+        var key = Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
+
+        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(key))
+        {
+            throw new InvalidOperationException(
+                "Authorize.Net sandbox credentials not configured. " +
+                "Set ADN_SANDBOX_LOGINID and ADN_SANDBOX_TRANSACTIONKEY environment variables.");
+        }
+
         var inMemory = new List<KeyValuePair<string, string?>>
         {
             new("AuthorizeNet:SandboxLoginId", login),
             new("AuthorizeNet:SandboxTransactionKey", key)
         };
         var config = new ConfigurationBuilder().AddInMemoryCollection(inMemory).Build();
-        var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AdnApiService>();
         
+        // Wrap configuration in IOptions<AdnSettings>
+        var settings = new AdnSettings 
+        { 
+            SandboxLoginId = login, 
+            SandboxTransactionKey = key 
+        };
+        var options = Options.Create(settings);
+        
+        var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AdnApiService>();
+
         // Use REAL CustomerRepository with in-memory database
         var opts = new DbContextOptionsBuilder<TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext>()
             .UseInMemoryDatabase($"adn-arb-test-{Guid.NewGuid()}")
             .Options;
         var db = new TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext(opts);
         var customerRepo = new TSIC.Infrastructure.Repositories.CustomerRepository(db);
-        
-        var service = new AdnApiService(new DevEnv(), logger, config, customerRepo);
+
+        var service = new AdnApiService(new DevEnv(), logger, options, customerRepo);
         var env = service.GetADNEnvironment(); // should be SANDBOX under Development
 
         // Use test VISA; service maps 4242.. -> 4111.. for sandbox

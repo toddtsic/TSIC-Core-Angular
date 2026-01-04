@@ -432,11 +432,11 @@ public class RegistrationRepository : IRegistrationRepository
         var cutoff = DateTime.Now.AddHours(24);
         return await _context.Registrations
             .AsNoTracking()
-            .Where(r => r.JobId == jobId 
-                && r.FamilyUserId == familyUserId 
-                && r.FeeTotal > 0 
-                && r.RegsaverPolicyId == null 
-                && r.AssignedTeam != null 
+            .Where(r => r.JobId == jobId
+                && r.FamilyUserId == familyUserId
+                && r.FeeTotal > 0
+                && r.RegsaverPolicyId == null
+                && r.AssignedTeam != null
                 && r.AssignedTeam.Expireondate > cutoff)
             .Select(r => new EligibleInsuranceRegistration(
                 r.RegistrationId,
@@ -456,9 +456,9 @@ public class RegistrationRepository : IRegistrationRepository
     {
         return await _context.Registrations
             .AsNoTracking()
-            .Where(r => r.JobId == jobId 
-                && r.Role != null 
-                && r.Role.Name == "Director" 
+            .Where(r => r.JobId == jobId
+                && r.Role != null
+                && r.Role.Name == "Director"
                 && r.BActive == true)
             .OrderBy(r => r.RegistrationTs)
             .Select(r => new DirectorContactInfo(
@@ -478,8 +478,8 @@ public class RegistrationRepository : IRegistrationRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
-            .Where(r => r.JobId == jobId 
-                && r.FamilyUserId == familyUserId 
+            .Where(r => r.JobId == jobId
+                && r.FamilyUserId == familyUserId
                 && registrationIds.Contains(r.RegistrationId))
             .ToListAsync(cancellationToken);
     }

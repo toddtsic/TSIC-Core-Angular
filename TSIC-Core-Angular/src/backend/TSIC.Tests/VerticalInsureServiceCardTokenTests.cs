@@ -69,12 +69,12 @@ public class VerticalInsureServiceCardTokenTests
         var factory = new Mock<IHttpClientFactory>();
         var client = new HttpClient(handler) { BaseAddress = new Uri("https://example.test/") };
         factory.Setup(f => f.CreateClient("verticalinsure")).Returns(client);
-        
+
         // Use REAL repository implementations - no mocks
         var jobRepo = new JobRepository(db);
         var regRepo = new RegistrationRepository(db);
         var familyRepo = new FamilyRepository(db);
-        
+
         var logger = new Mock<ILogger<VerticalInsureService>>().Object;
         var teamLookup = new Mock<ITeamLookupService>();
         teamLookup.Setup(t => t.ResolvePerRegistrantAsync(It.IsAny<Guid>())).ReturnsAsync((Fee: 50m, Deposit: 0m));
@@ -85,7 +85,7 @@ public class VerticalInsureServiceCardTokenTests
             ProdClientId = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS",
             ProdSecret = "live_PP6xn8fImrpBNj4YqTU8vlAwaqQ7Q8oSRxcVQkf419saU4OuQVCXQSuP4yUNyBMCwilStIsWDaaZnMlfJ1HqVJPBWydR5qE3yNr4HxBVr7rCYxl4ofgIesZbsAS0TfED"
         });
-        
+
         return new VerticalInsureService(jobRepo, regRepo, familyRepo, env, logger, teamLookup.Object, mockOptions, factory.Object);
     }
 
