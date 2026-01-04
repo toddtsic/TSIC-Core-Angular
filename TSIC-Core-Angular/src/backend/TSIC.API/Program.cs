@@ -172,7 +172,7 @@ builder.Services.Configure<VerticalInsureSettings>(builder.Configuration.GetSect
 builder.Services.Configure<AdnSettings>(builder.Configuration.GetSection("AuthorizeNet"));
 
 // Profile Migration Services
-builder.Services.AddHttpClient<IGitHubProfileFetcher, GitHubProfileFetcher>();
+builder.Services.AddScoped<IGitHubProfileFetcher, GitHubProfileFetcher>();
 builder.Services.AddScoped<CSharpToMetadataParser>();
 builder.Services.AddScoped<ProfileMetadataMigrationService>();
 

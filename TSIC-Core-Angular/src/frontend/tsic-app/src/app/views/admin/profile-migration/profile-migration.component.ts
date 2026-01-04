@@ -122,6 +122,12 @@ export class ProfileMigrationComponent implements OnInit {
         return this.profiles().filter(p => p.allJobsMigrated);
     }
 
+    // Computed: Check if all profiles are fully migrated
+    allMigrated = computed(() => {
+        const profs = this.profiles();
+        return profs.length > 0 && profs.every(p => p.allJobsMigrated);
+    });
+
     ngOnInit(): void {
         this.loadProfiles();
     }
@@ -320,6 +326,29 @@ export class ProfileMigrationComponent implements OnInit {
 
     toggleJsonView(): void {
         this.showJsonView.update(current => !current);
+    }
+
+    exportSql(): void {
+        this.errorMessage.set(null);
+
+        this.migrationService.exportMigrationSql(
+            (blob) => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `profile-migration-${new Date().toISOString().split('T')[0]}.sql`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                this.successMessage.set('SQL script downloaded successfully');
+            },
+            (error) => {
+                this.errorMessage.set(error.error?.message || 'Failed to export SQL script');
+            }
+        );
     }
 
     clearMessages(): void {

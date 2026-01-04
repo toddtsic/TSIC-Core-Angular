@@ -763,7 +763,7 @@ public sealed class FamilyService : IFamilyService
 
             constraintType = ExtractConstraintType(coreProfile);
 
-            var versionSeed = $"{jobId}-{metadataJson?.Length ?? 0}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";
+            var versionSeed = $"{jobId}-{metadataJson.Length}-{rawJsonOptions?.Length ?? 0}-{typedFields.Count}";
             var version = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(versionSeed))).Substring(0, 16);
 
             return new JobRegFormDto

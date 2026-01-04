@@ -104,6 +104,14 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .ToListAsync();
     }
 
+    public async Task<List<Jobs>> GetJobsWithProfileMetadataAsync()
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
+            .ToListAsync();
+    }
+
     public async Task<List<string>> GetJobsCoreRegformValuesAsync()
     {
         return await _context.Jobs

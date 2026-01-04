@@ -26,7 +26,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             Source = new ProfileMetadataSource
             {
                 SourceFile = $"{profileType}ViewModel.cs",
-                Repository = "toddtsic/TSIC-Unify-2024",
+                Repository = "reference/TSIC-Unify-2024 (local)",
                 CommitSha = commitSha,
                 MigratedAt = DateTime.UtcNow,
                 MigratedBy = "VIEW-FIRST ALGORITHM v1.0"

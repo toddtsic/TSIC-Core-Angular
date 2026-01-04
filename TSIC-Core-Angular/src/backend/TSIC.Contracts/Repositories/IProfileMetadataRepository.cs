@@ -50,6 +50,11 @@ public interface IProfileMetadataRepository
     Task<List<string>> GetAllJobsPlayerMetadataJsonAsync();
 
     /// <summary>
+    /// Get all jobs with PlayerProfileMetadataJson (for SQL export)
+    /// </summary>
+    Task<List<Jobs>> GetJobsWithProfileMetadataAsync();
+
+    /// <summary>
     /// Get CoreRegformPlayer values for next profile type computation
     /// </summary>
     Task<List<string>> GetJobsCoreRegformValuesAsync();

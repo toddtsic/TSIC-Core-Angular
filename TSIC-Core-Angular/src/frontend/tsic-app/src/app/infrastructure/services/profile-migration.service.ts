@@ -117,6 +117,24 @@ export class ProfileMigrationService {
         );
     }
 
+    exportMigrationSql(onSuccess: (blob: Blob) => void, onError?: (error: any) => void): void {
+        this._isLoading.set(true);
+        this._errorMessage.set(null);
+
+        this.http.post(`${this.apiUrl}/export-sql`, {}, { responseType: 'blob' }).subscribe({
+            next: (blob: Blob) => {
+                this._isLoading.set(false);
+                onSuccess(blob);
+            },
+            error: (err: any) => {
+                this._isLoading.set(false);
+                const msg = err?.error?.message || 'Failed to export SQL script';
+                this._errorMessage.set(msg);
+                if (onError) onError(err);
+            }
+        });
+    }
+
     // ============================================================================
     // PROFILE EDITOR APIs
     // ============================================================================

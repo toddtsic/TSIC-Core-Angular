@@ -1,7 +1,46 @@
 # GitHub Authentication Setup
 
+**⚠️ OBSOLETE AS OF JANUARY 4, 2026**
+
+This document is preserved for historical reference only. The system now uses a local git submodule instead of GitHub API access.
+
 **Date:** November 1, 2025  
-**Purpose:** Configure GitHub Personal Access Token for fetching private repository files
+**Original Purpose:** Configure GitHub Personal Access Token for fetching private repository files
+
+---
+
+## ⚠️ MIGRATION NOTICE
+
+**The GitHub API integration has been replaced with a local git submodule.**
+
+### What Changed (January 2026)
+
+- **Old approach:** Fetched files via GitHub API (required authentication token)
+- **New approach:** Reads files directly from `reference/TSIC-Unify-2024/` submodule
+- **No token needed:** Files are accessed from local filesystem
+- **No API limits:** No rate limiting or authentication issues
+
+### Setup Instructions (New Approach)
+
+The TSIC-Unify-2024 repository is now included as a git submodule:
+
+```bash
+# Already added - no action needed
+git submodule update --init --recursive
+
+# To update to latest code from production
+git submodule update --remote reference/TSIC-Unify-2024
+```
+
+Files are accessed at:
+- Models: `reference/TSIC-Unify-2024/TSIC-Unify-Models/`
+- Views: `reference/TSIC-Unify-2024/TSIC-Unify/Views/`
+
+---
+
+## Historical Documentation (Obsolete)
+
+The following content describes the old GitHub API authentication system.
 
 ## Overview
 

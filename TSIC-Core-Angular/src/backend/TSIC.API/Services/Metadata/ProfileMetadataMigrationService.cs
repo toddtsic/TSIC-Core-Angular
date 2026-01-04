@@ -36,9 +36,6 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         "PP1_Player_Regform"
     };
 
-    // Special legacy CoreRegformPlayer marker to exclude at query-time
-    private const string CoreRegformExcludeMarker = "PP1_Player_RegForm";
-
     // Shared JSON serializer options
     private static readonly JsonSerializerOptions s_IndentedCamelCase = new()
     {
@@ -367,6 +364,53 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         }
 
         return set.OrderBy(t => t).ToList();
+    }
+
+    /// <summary>
+    /// Generate SQL script to apply profile migrations to production database
+    /// </summary>
+    public async Task<string> GenerateMigrationSqlScriptAsync()
+    {
+        var jobs = await _repo.GetJobsWithProfileMetadataAsync();
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("-- =====================================================");
+        sb.AppendLine("-- Profile Migration SQL Export");
+        sb.AppendLine($"-- Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+        sb.AppendLine($"-- Jobs with metadata: {jobs.Count}");
+        sb.AppendLine("-- =====================================================");
+        sb.AppendLine();
+        sb.AppendLine("-- Instructions:");
+        sb.AppendLine("-- 1. Backup production database before running");
+        sb.AppendLine("-- 2. Review the updates below");
+        sb.AppendLine("-- 3. For large migrations, consider running in batches");
+        sb.AppendLine("-- 4. Transaction wrapper is optional - uncomment if desired");
+        sb.AppendLine();
+        sb.AppendLine("-- BEGIN TRANSACTION;");
+        sb.AppendLine();
+
+        foreach (var job in jobs.Where(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson)))
+        {
+            var escapedJson = job.PlayerProfileMetadataJson!.Replace("'", "''");
+            sb.AppendLine($"-- {job.JobName ?? "Unnamed"} (Job ID: {job.JobId})");
+            sb.AppendLine("UPDATE [Jobs].[Jobs]");
+            sb.AppendLine($"SET [PlayerProfileMetadataJson] = '{escapedJson}'");
+            sb.AppendLine($"WHERE [jobID] = '{job.JobId}';");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("-- If using transaction wrapper above, commit here:");
+        sb.AppendLine("-- COMMIT TRANSACTION;");
+        sb.AppendLine();
+        sb.AppendLine("-- Or to rollback (must run BEFORE commit):");
+        sb.AppendLine("-- ROLLBACK TRANSACTION;");
+        sb.AppendLine();
+        sb.AppendLine($"-- Migration completed: {jobs.Count(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))} jobs updated");
+        sb.AppendLine();
+        sb.AppendLine("-- Verify results:");
+        sb.AppendLine("-- SELECT COUNT(*) FROM [Jobs].[Jobs] WHERE [PlayerProfileMetadataJson] IS NOT NULL;");
+
+        return sb.ToString();
     }
 
     /// <summary>
@@ -1108,13 +1152,10 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     private static void ValidateRequiredTrue(ProfileMetadataField field, string testValue, ValidationTestResult result)
     {
-        if (field.Validation?.RequiredTrue == true)
+        if (field.Validation?.RequiredTrue == true && (!bool.TryParse(testValue, out var boolValue) || !boolValue))
         {
-            if (!bool.TryParse(testValue, out var boolValue) || !boolValue)
-            {
-                result.IsValid = false;
-                result.Messages.Add("Checkbox must be checked (value must be true)");
-            }
+            result.IsValid = false;
+            result.Messages.Add("Checkbox must be checked (value must be true)");
         }
     }
 
@@ -1263,14 +1304,11 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         int maxNum = 0;
         foreach (var val in all)
         {
-            foreach (var part in SplitCoreRegform(val))
+            foreach (var part in SplitCoreRegform(val).Where(p => p.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
             {
-                if (part.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    var n = ExtractTrailingNumber(part);
-                    if (n.HasValue && n.Value > maxNum)
-                        maxNum = n.Value;
-                }
+                var n = ExtractTrailingNumber(part);
+                if (n.HasValue && n.Value > maxNum)
+                    maxNum = n.Value;
             }
         }
 
@@ -1344,10 +1382,10 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             !string.IsNullOrWhiteSpace(p) && (p.StartsWith("PP", StringComparison.OrdinalIgnoreCase) || p.StartsWith("CAC", StringComparison.OrdinalIgnoreCase));
 
         // Identify profile type as the first PP##/CAC## segment
-        string? profileType = parts.FirstOrDefault(IsProfileType);
+        string? profileType = Array.Find(parts, IsProfileType);
 
         // Team constraint: first non-empty, non-profileType, non-ALLOWPIF segment
-        string? teamConstraint = parts.FirstOrDefault(p =>
+        string? teamConstraint = Array.Find(parts, p =>
             !string.IsNullOrWhiteSpace(p)
             && !IsProfileType(p)
         );

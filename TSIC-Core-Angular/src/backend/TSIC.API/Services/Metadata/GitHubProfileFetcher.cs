@@ -1,127 +1,101 @@
-using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace TSIC.API.Services.Metadata;
 
 /// <summary>
-/// GitHub API response for file contents
-/// </summary>
-public class GitHubFileContent
-{
-    public string name { get; set; } = string.Empty;
-    public string path { get; set; } = string.Empty;
-    public string sha { get; set; } = string.Empty;
-    public long size { get; set; }
-    public string content { get; set; } = string.Empty;
-    public string encoding { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// GitHub API item for directory listings
-/// </summary>
-public class GitHubContentItem
-{
-    public string name { get; set; } = string.Empty;
-    public string path { get; set; } = string.Empty;
-    public string sha { get; set; } = string.Empty;
-    public string type { get; set; } = string.Empty; // "file" | "dir"
-}
-
-/// <summary>
-/// Fetches POCO class source files from GitHub repository
+/// Fetches POCO class source files from local git submodule
 /// </summary>
 public class GitHubProfileFetcher : IGitHubProfileFetcher
 {
-    private readonly HttpClient _httpClient;
     private readonly IMemoryCache _cache;
     private readonly ILogger<GitHubProfileFetcher> _logger;
-    private readonly IConfiguration _configuration;
-    private readonly string _repoBranch;
+    private readonly IWebHostEnvironment _environment;
+    private readonly string _repoBasePath;
 
     private const string BaseClassFileName = "BaseRegForm_ViewModels.cs";
-    private const string CacheKeyPrefix = "GitHub_";
-    private const string TargetRepoName = "TSIC-Unify-2024";
-    private const string ConfigRepoOwner = "GitHub:RepoOwner";
-    private const string ConfigRepoName = "GitHub:RepoName";
-    private const string ConfigRepoBranch = "GitHub:RepoBranch";
-    private const string ConfigToken = "GitHub:Token";
-    private const string DefaultRepoOwner = "toddtsic";
+    private const string CacheKeyPrefix = "LocalProfile_";
 
     public GitHubProfileFetcher(
-        HttpClient httpClient,
         IMemoryCache cache,
         ILogger<GitHubProfileFetcher> logger,
-        IConfiguration configuration)
+        IWebHostEnvironment environment)
     {
-        _httpClient = httpClient;
         _cache = cache;
         _logger = logger;
-        _configuration = configuration;
+        _environment = environment;
 
-        // Branch used when querying TSIC-Unify-2024 (configurable)
-        _repoBranch = _configuration[ConfigRepoBranch] ?? "master2025";
-        _logger.LogInformation("Using GitHub repo branch: {Branch}", _repoBranch);
+        // Navigate from API project to repo root: ../../../../ then to reference/TSIC-Unify-2024
+        var apiPath = _environment.ContentRootPath; // C:\...\TSIC-Core-Angular\src\backend\TSIC.API
+        var backendPath = Path.GetDirectoryName(apiPath); // C:\...\TSIC-Core-Angular\src\backend
+        var srcPath = Path.GetDirectoryName(backendPath); // C:\...\TSIC-Core-Angular\src
+        var innerRoot = Path.GetDirectoryName(srcPath); // C:\...\TSIC-Core-Angular\TSIC-Core-Angular
+        var repoRoot = Path.GetDirectoryName(innerRoot); // C:\...\TSIC-Core-Angular
+        _repoBasePath = Path.Combine(repoRoot!, "reference", "TSIC-Unify-2024");
 
-        // GitHub API requires User-Agent header
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("TSIC-ProfileMigration", "1.0"));
-
-        // Add auth token if configured
-        var githubToken = _configuration[ConfigToken];
-        if (!string.IsNullOrEmpty(githubToken))
+        if (!Directory.Exists(_repoBasePath))
         {
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", githubToken);
-            _logger.LogInformation("GitHub authentication configured");
+            _logger.LogError("Local reference repository not found at: {Path}", _repoBasePath);
+            throw new DirectoryNotFoundException($"TSIC-Unify-2024 submodule not found at {_repoBasePath}");
         }
-        else
-        {
-            _logger.LogWarning("GitHub Token not configured - can only access public repositories");
-        }
+
+        _logger.LogInformation("Using local repository at: {Path}", _repoBasePath);
     }
 
     /// <summary>
-    /// Fetch profile POCO source code from GitHub
+    /// Fetch profile POCO source code from local submodule
     /// </summary>
     /// <param name="profileType">e.g., "PP10", "PP17", "CAC05"</param>
     public async Task<(string sourceCode, string commitSha)> FetchProfileSourceAsync(string profileType)
     {
+        var cacheKey = $"{CacheKeyPrefix}{profileType}";
+
+        if (_cache.TryGetValue<(string, string)>(cacheKey, out var cached))
+        {
+            _logger.LogDebug("Using cached profile source for {ProfileType}", profileType);
+            return cached;
+        }
+
         try
         {
-            var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
-            var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
-
-            // Determine path based on profile type
             string folder;
             string fileName;
 
             if (profileType.StartsWith("CAC"))
             {
                 folder = "RegPlayersMulti_ViewModels";
-                // CAC files are named like "CAC04ViewModels.cs" (plural)
                 fileName = $"{profileType}ViewModels.cs";
             }
             else // PP profiles
             {
                 folder = "RegPlayersSingle_ViewModels";
-                // PP files are named like "PP10ViewModel.cs"
                 fileName = $"{profileType}ViewModel.cs";
             }
 
-            var path = $"TSIC-Unify-Models/ViewModels/{folder}/{fileName}";
+            var filePath = Path.Combine(_repoBasePath, "TSIC-Unify-Models", "ViewModels", folder, fileName);
 
-            _logger.LogInformation("Fetching {ProfileType} from GitHub: {Path}", profileType, path);
+            _logger.LogInformation("Fetching {ProfileType} from local file: {Path}", profileType, filePath);
 
-            var content = await FetchFileContentAsync(repoOwner, repoName, path);
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"Profile source file not found: {filePath}");
+            }
 
-            return (DecodeBase64Content(content.content), content.sha);
+            var sourceCode = await File.ReadAllTextAsync(filePath);
+            var commitSha = ComputeFileHash(filePath);
+
+            var result = (sourceCode, commitSha);
+
+            // Cache for 5 minutes (files won't change during development session)
+            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(5));
+
+            return result;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to fetch profile source for {ProfileType}", profileType);
-            throw new InvalidOperationException($"Could not fetch {profileType} from GitHub: {ex.Message}", ex);
+            throw new InvalidOperationException($"Could not fetch {profileType} from local repository: {ex.Message}", ex);
         }
     }
 
@@ -130,8 +104,7 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
     /// </summary>
     public async Task<(string sourceCode, string commitSha)> FetchBaseClassSourceAsync()
     {
-        // Include branch in cache key to avoid cross-branch pollution
-        var cacheKey = $"{CacheKeyPrefix}{_repoBranch}_{BaseClassFileName}";
+        var cacheKey = $"{CacheKeyPrefix}{BaseClassFileName}";
 
         if (_cache.TryGetValue<(string, string)>(cacheKey, out var cached))
         {
@@ -141,14 +114,19 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
 
         try
         {
-            var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
-            var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
-            var path = $"TSIC-Unify-Models/ViewModels/RegForm_ViewModels/{BaseClassFileName}";
+            var filePath = Path.Combine(_repoBasePath, "TSIC-Unify-Models", "ViewModels", "RegForm_ViewModels", BaseClassFileName);
 
-            _logger.LogInformation("Fetching base class from GitHub: {Path}", path);
+            _logger.LogInformation("Fetching base class from local file: {Path}", filePath);
 
-            var content = await FetchFileContentAsync(repoOwner, repoName, path);
-            var result = (DecodeBase64Content(content.content), content.sha);
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"Base class file not found: {filePath}");
+            }
+
+            var sourceCode = await File.ReadAllTextAsync(filePath);
+            var commitSha = ComputeFileHash(filePath);
+
+            var result = (sourceCode, commitSha);
 
             // Cache for 1 hour (base class rarely changes)
             _cache.Set(cacheKey, result, TimeSpan.FromHours(1));
@@ -158,69 +136,45 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to fetch base class source");
-            throw new InvalidOperationException($"Could not fetch base class from GitHub: {ex.Message}", ex);
+            throw new InvalidOperationException($"Could not fetch base class from local repository: {ex.Message}", ex);
         }
     }
 
     /// <summary>
-    /// List all profile types (PP## and CAC##) by enumerating the repository directories
+    /// List all profile types (PP## and CAC##) by scanning local directories
     /// </summary>
     public async Task<List<string>> ListAllProfileTypesAsync()
     {
-        var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
-        var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
-
-        var ppPath = "TSIC-Unify-Models/ViewModels/RegPlayersSingle_ViewModels";
-        var cacPath = "TSIC-Unify-Models/ViewModels/RegPlayersMulti_ViewModels";
-
-        var ppItems = await FetchDirectoryListingAsync(repoOwner, repoName, ppPath);
-        var cacItems = await FetchDirectoryListingAsync(repoOwner, repoName, cacPath);
+        var ppPath = Path.Combine(_repoBasePath, "TSIC-Unify-Models", "ViewModels", "RegPlayersSingle_ViewModels");
+        var cacPath = Path.Combine(_repoBasePath, "TSIC-Unify-Models", "ViewModels", "RegPlayersMulti_ViewModels");
 
         var result = new List<string>();
 
         // PP files are like PP10ViewModel.cs
-        foreach (var item in ppItems.Where(i => string.Equals(i.type, "file", StringComparison.OrdinalIgnoreCase)))
+        if (Directory.Exists(ppPath))
         {
-            var m = System.Text.RegularExpressions.Regex.Match(item.name, @"^(PP\d+)ViewModel\.cs$");
-            if (m.Success) result.Add(m.Groups[1].Value);
+            foreach (var file in Directory.GetFiles(ppPath, "PP*ViewModel.cs"))
+            {
+                var fileName = Path.GetFileNameWithoutExtension(file);
+                var m = System.Text.RegularExpressions.Regex.Match(fileName, @"^(PP\d+)ViewModel$");
+                if (m.Success) result.Add(m.Groups[1].Value);
+            }
         }
 
-        // CAC files are like CAC04ViewModels.cs
-        foreach (var item in cacItems.Where(i => string.Equals(i.type, "file", StringComparison.OrdinalIgnoreCase)))
+        // CAC files are like CAC04ViewModels.cs (note plural)
+        if (Directory.Exists(cacPath))
         {
-            var m = System.Text.RegularExpressions.Regex.Match(item.name, @"^(CAC\d+)ViewModels\.cs$");
-            if (m.Success) result.Add(m.Groups[1].Value);
+            foreach (var file in Directory.GetFiles(cacPath, "CAC*ViewModels.cs"))
+            {
+                var fileName = Path.GetFileNameWithoutExtension(file);
+                var m = System.Text.RegularExpressions.Regex.Match(fileName, @"^(CAC\d+)ViewModels$");
+                if (m.Success) result.Add(m.Groups[1].Value);
+            }
         }
 
-        return result.Distinct(StringComparer.OrdinalIgnoreCase)
+        return await Task.FromResult(result.Distinct(StringComparer.OrdinalIgnoreCase)
                      .OrderBy(x => x)
-                     .ToList();
-    }
-
-    private async Task<List<GitHubContentItem>> FetchDirectoryListingAsync(string owner, string repo, string path)
-    {
-        var baseUrl = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
-        // Only enforce branch for TSIC-Unify-2024 repository
-        var url = string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase)
-            ? $"{baseUrl}?ref={Uri.EscapeDataString(_repoBranch)}"
-            : baseUrl;
-
-        _logger.LogDebug("Requesting GitHub directory URL: {Url}", url);
-
-        var response = await _httpClient.GetAsync(url);
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            _logger.LogError("GitHub directory request failed. URL: {Url}, Status: {Status}, Response: {Response}",
-                url, response.StatusCode, error);
-            throw new HttpRequestException($"GitHub API returned {response.StatusCode}: {error}");
-        }
-
-        var json = await response.Content.ReadAsStringAsync();
-        var items = JsonSerializer.Deserialize<List<GitHubContentItem>>(json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<GitHubContentItem>();
-
-        return items;
+                     .ToList());
     }
     /// <summary>
     /// Fetch .cshtml view file for a profile to extract hidden fields
@@ -230,17 +184,18 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
     {
         try
         {
-            var repoOwner = _configuration[ConfigRepoOwner] ?? DefaultRepoOwner;
-            var repoName = _configuration[ConfigRepoName] ?? TargetRepoName;
-
-            // Determine path based on profile type
             string folder = profileType.StartsWith("CAC") ? "PlayerMulti" : "PlayerSingle";
-            var path = $"TSIC-Unify/Views/PlayerRegistrationForms/{folder}/{profileType}.cshtml";
+            var filePath = Path.Combine(_repoBasePath, "TSIC-Unify", "Views", "PlayerRegistrationForms", folder, $"{profileType}.cshtml");
 
-            _logger.LogInformation("Fetching view file for {ProfileType} from GitHub: {Path}", profileType, path);
+            _logger.LogInformation("Fetching view file for {ProfileType} from local file: {Path}", profileType, filePath);
 
-            var content = await FetchFileContentAsync(repoOwner, repoName, path);
-            return DecodeBase64Content(content.content);
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning("View file not found for {ProfileType} at {Path}", profileType, filePath);
+                return null;
+            }
+
+            return await File.ReadAllTextAsync(filePath);
         }
         catch (Exception ex)
         {
@@ -250,45 +205,14 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
         }
     }
 
-    private async Task<GitHubFileContent> FetchFileContentAsync(string owner, string repo, string path)
+    /// <summary>
+    /// Compute a simple hash of the file for versioning/tracking
+    /// </summary>
+    private string ComputeFileHash(string filePath)
     {
-        var baseUrl = $"https://api.github.com/repos/{owner}/{repo}/contents/{path}";
-        // Only enforce branch for TSIC-Unify-2024 repository
-        var url = string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase)
-            ? $"{baseUrl}?ref={Uri.EscapeDataString(_repoBranch)}"
-            : baseUrl;
-
-        _logger.LogDebug("Requesting GitHub URL: {Url}", url);
-        _logger.LogDebug("Path components - Owner: {Owner}, Repo: {Repo}, Path: {Path}, Branch: {Branch}", owner, repo, path, string.Equals(repo, TargetRepoName, StringComparison.OrdinalIgnoreCase) ? _repoBranch : "(default)");
-
-        var response = await _httpClient.GetAsync(url);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            _logger.LogError("GitHub API request failed. URL: {Url}, Status: {Status}, Response: {Response}",
-                url, response.StatusCode, error);
-            throw new HttpRequestException(
-                $"GitHub API returned {response.StatusCode}: {error}");
-        }
-
-        var json = await response.Content.ReadAsStringAsync();
-        var content = JsonSerializer.Deserialize<GitHubFileContent>(json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        if (content == null)
-        {
-            throw new InvalidOperationException("Failed to deserialize GitHub response");
-        }
-
-        return content;
-    }
-
-    private static string DecodeBase64Content(string base64Content)
-    {
-        // GitHub returns content with newlines in the base64 string
-        var cleanedBase64 = base64Content.Replace("\n", "").Replace("\r", "");
-        var bytes = Convert.FromBase64String(cleanedBase64);
-        return Encoding.UTF8.GetString(bytes);
+        using var sha = SHA256.Create();
+        using var stream = File.OpenRead(filePath);
+        var hash = sha.ComputeHash(stream);
+        return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant()[..16]; // First 16 chars like Git
     }
 }
