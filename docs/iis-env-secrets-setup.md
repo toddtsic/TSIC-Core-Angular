@@ -3,11 +3,11 @@
 Use IIS app pool environment variables so secrets never live in appsettings or web.config. Apply on the server hosting TSIC API.
 
 ## 1) Set variables on the App Pool
-Replace `TSIC-API` with your app pool name.
+Replace `TSIC-API` with your app pool name. APPPOOL SHOULD BE TSIC.API
 
 ```powershell
 # Run in elevated PowerShell on the server
-$appPool = "TSIC-API"
+$appPool = "TSIC.API"
 $envVars = @{
   "AWS_ACCESS_KEY_ID"     = "<your_access_key>"
   "AWS_SECRET_ACCESS_KEY" = "<your_secret_key>"
@@ -23,15 +23,15 @@ $envVars = @{
 
 Import-Module WebAdministration
 $envVars.GetEnumerator() | ForEach-Object {
-    Write-Host "Setting $($_.Key) on app pool $appPool"
-    # Remove existing entry if present
-    Remove-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' \
-        -filter "system.applicationHost/applicationPools/add[@name='$appPool']/environmentVariables" \
-        -name "add" -AtElement @{name=$_.Key} -ErrorAction SilentlyContinue
-    # Add new value
-    Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' \
-        -filter "system.applicationHost/applicationPools/add[@name='$appPool']/environmentVariables" \
-        -name "add" -value @{name=$_.Key; value=$_.Value}
+  Write-Host "Setting $($_.Key) on app pool $appPool"
+  # Remove existing entry if present (use double-quoted filter so $appPool expands)
+  Remove-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' `
+    -filter "system.applicationHost/applicationPools/add[@name='$appPool']/environmentVariables" `
+    -name "add" -AtElement @{name=$_.Key} -ErrorAction SilentlyContinue
+  # Add new value
+  Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' `
+    -filter "system.applicationHost/applicationPools/add[@name='$appPool']/environmentVariables" `
+    -name "add" -value @{name=$_.Key; value=$_.Value}
 }
 
 # Recycle the pool to apply
