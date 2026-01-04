@@ -45,15 +45,15 @@ public sealed class AdnArbSubscriptionTests
             new("AuthorizeNet:SandboxTransactionKey", key)
         };
         var config = new ConfigurationBuilder().AddInMemoryCollection(inMemory).Build();
-        
+
         // Wrap configuration in IOptions<AdnSettings>
-        var settings = new AdnSettings 
-        { 
-            SandboxLoginId = login, 
-            SandboxTransactionKey = key 
+        var settings = new AdnSettings
+        {
+            SandboxLoginId = login,
+            SandboxTransactionKey = key
         };
         var options = Options.Create(settings);
-        
+
         var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AdnApiService>();
 
         // Use REAL CustomerRepository with in-memory database
