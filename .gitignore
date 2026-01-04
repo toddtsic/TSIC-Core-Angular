@@ -36,3 +36,6 @@ tmp_backup_files.txt
 # Local configuration files with secrets
 **/appsettings.Development.json
 **/appsettings.Local.json
+
+# Documentation with real secrets (keep local only)
+docs/iis-env-secrets-setup.md
