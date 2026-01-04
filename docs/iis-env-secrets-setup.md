@@ -5,6 +5,17 @@ Use IIS app pool environment variables so secrets never live in appsettings or w
 ## 1) Set variables on the App Pool
 Replace `TSIC-API` with your app pool name. APPPOOL SHOULD BE TSIC.API
 
+Value mapping (user-secrets ➜ IIS env var):
+- AWS:AccessKey ➜ AWS_ACCESS_KEY_ID
+- AWS:SecretKey ➜ AWS_SECRET_ACCESS_KEY
+- AWS:Region ➜ AWS_REGION
+- VerticalInsure:DevClientId ➜ VI_DEV_CLIENT_ID
+- VerticalInsure:DevSecret ➜ VI_DEV_SECRET
+- VerticalInsure:ProdClientId ➜ VI_PROD_CLIENT_ID
+- VerticalInsure:ProdSecret ➜ VI_PROD_SECRET
+- AuthorizeNet:SandboxLoginId ➜ ADN_SANDBOX_LOGINID
+- AuthorizeNet:SandboxTransactionKey ➜ ADN_SANDBOX_TRANSACTIONKEY
+
 ```powershell
 # Run in elevated PowerShell on the server
 $appPool = "TSIC.API"
