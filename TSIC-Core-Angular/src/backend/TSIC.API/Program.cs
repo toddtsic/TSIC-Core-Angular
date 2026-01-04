@@ -145,7 +145,7 @@ builder.Services.AddHttpClient("uslax", (sp, client) =>
 });
 
 // Profile Migration Services
-builder.Services.AddHttpClient<GitHubProfileFetcher>();
+builder.Services.AddHttpClient<IGitHubProfileFetcher, GitHubProfileFetcher>();
 builder.Services.AddScoped<CSharpToMetadataParser>();
 builder.Services.AddScoped<ProfileMetadataMigrationService>();
 

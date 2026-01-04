@@ -33,3 +33,6 @@ Thumbs.db
 tsic-deployment*/
 test-deployment/
 tmp_backup_files.txt
+# Local configuration files with secrets
+**/appsettings.Development.json
+**/appsettings.Local.json

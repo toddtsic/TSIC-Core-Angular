@@ -25,7 +25,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     private const string TokenSizes = "sizes";
 
     private readonly IProfileMetadataRepository _repo;
-    private readonly GitHubProfileFetcher _githubFetcher;
+    private readonly IGitHubProfileFetcher _githubFetcher;
     private readonly CSharpToMetadataParser _parser;
     private readonly ILogger<ProfileMetadataMigrationService> _logger;
 
@@ -53,7 +53,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public ProfileMetadataMigrationService(
         IProfileMetadataRepository repo,
-        GitHubProfileFetcher githubFetcher,
+        IGitHubProfileFetcher githubFetcher,
         CSharpToMetadataParser parser,
         ILogger<ProfileMetadataMigrationService> logger)
     {

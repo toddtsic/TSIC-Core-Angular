@@ -67,7 +67,7 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .Select(j => new JobForProfileSummary(
                 j.JobId,
                 j.JobName,
-                j.RegformNamePlayer,
+                j.CoreRegformPlayer,
                 j.PlayerProfileMetadataJson))
             .ToListAsync();
     }
