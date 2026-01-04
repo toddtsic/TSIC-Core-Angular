@@ -144,6 +144,9 @@ builder.Services.AddHttpClient("uslax", (sp, client) =>
     client.BaseAddress = new Uri(baseUrl);
 });
 
+// VerticalInsure settings
+builder.Services.Configure<VerticalInsureSettings>(builder.Configuration.GetSection("VerticalInsure"));
+
 // Profile Migration Services
 builder.Services.AddHttpClient<IGitHubProfileFetcher, GitHubProfileFetcher>();
 builder.Services.AddScoped<CSharpToMetadataParser>();

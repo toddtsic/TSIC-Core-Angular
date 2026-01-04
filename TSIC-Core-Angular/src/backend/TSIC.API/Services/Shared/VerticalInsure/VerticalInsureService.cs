@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -25,6 +26,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
     private readonly ILogger<VerticalInsureService> _logger;
     private readonly ITeamLookupService _teamLookupService;
     private readonly IHttpClientFactory? _httpClientFactory;
+    private readonly IOptions<VerticalInsureSettings> _options;
 
     public VerticalInsureService(
         IJobRepository jobRepo,
@@ -33,6 +35,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
         IHostEnvironment env,
         ILogger<VerticalInsureService> logger,
         ITeamLookupService teamLookupService,
+        IOptions<VerticalInsureSettings> options,
         IHttpClientFactory? httpClientFactory = null)
     {
         _jobRepo = jobRepo;
@@ -41,6 +44,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
         _env = env;
         _logger = logger;
         _teamLookupService = teamLookupService;
+        _options = options;
         _httpClientFactory = httpClientFactory;
     }
 
@@ -142,14 +146,7 @@ public sealed class VerticalInsureService : IVerticalInsureService
     private async Task ExecuteHttpPurchaseAsync(List<Registrations> regs, string familyUserId, IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card, VerticalInsurePurchaseResult result, CancellationToken ct)
     {
         var client = _httpClientFactory!.CreateClient("verticalinsure");
-        // Hard-coded credentials per instruction (dev vs prod selected by environment).
-        // NOTE: Replace with secure secret management before release.
-        const string DEV_CLIENT_ID = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U";
-        const string DEV_SECRET = "test_JtlEEBkFNNybGLyOwCCFUeQq9j3zK9dUEJfJMeyqPMRjMsWfzUk0JRqoHypxofZJqeH5nuK0042Yd5TpXMZOf8yVj9X9YDFi7LW50ADsVXDyzuiiq9HLVopbwaNXwqWI"; // provided dev secret
-        const string PROD_CLIENT_ID = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
-        const string PROD_SECRET = "live_PP6xn8fImrpBNj4YqTU8vlAwaqQ7Q8oSRxcVQkf419saU4OuQVCXQSuP4yUNyBMCwilStIsWDaaZnMlfJ1HqVJPBWydR5qE3yNr4HxBVr7rCYxl4ofgIesZbsAS0TfED";
-        var clientId = _env.IsDevelopment() ? DEV_CLIENT_ID : PROD_CLIENT_ID;
-        var clientSecret = _env.IsDevelopment() ? DEV_SECRET : PROD_SECRET;
+        var (clientId, clientSecret) = ResolveCredentials();
         var authString = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
 
         var payload = BuildBatchPayload(quoteIds, token, card);
@@ -315,6 +312,20 @@ public sealed class VerticalInsureService : IVerticalInsureService
         };
     }
 
+    private (string clientId, string clientSecret) ResolveCredentials()
+    {
+        var s = _options.Value;
+        if (_env.IsDevelopment())
+        {
+            var clientId = s.DevClientId ?? Environment.GetEnvironmentVariable("VI_DEV_CLIENT_ID") ?? string.Empty;
+            var clientSecret = s.DevSecret ?? Environment.GetEnvironmentVariable("VI_DEV_SECRET") ?? string.Empty;
+            return (clientId, clientSecret);
+        }
+        else
+        {
+            var clientId = s.ProdClientId ?? Environment.GetEnvironmentVariable("VI_PROD_CLIENT_ID") ?? string.Empty;
+            var clientSecret = s.ProdSecret ?? Environment.GetEnvironmentVariable("VI_PROD_SECRET") ?? string.Empty;
+            return (clientId, clientSecret);
+        }
+    }
 }
-
-

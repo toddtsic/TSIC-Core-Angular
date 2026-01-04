@@ -7,10 +7,11 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
-using TSIC.Contracts.Repositories;
+using TSIC.Infrastructure.Repositories;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using Xunit;
 
@@ -29,13 +30,22 @@ public class VerticalInsureServiceTests
 
     private static VerticalInsureService BuildService(SqlDbContext db, IHostEnvironment env)
     {
-        var mockJobRepo = new Mock<IJobRepository>();
-        var mockRegRepo = new Mock<IRegistrationRepository>();
-        var mockFamilyRepo = new Mock<IFamilyRepository>();
+        // Use REAL repository implementations - no mocks
+        var jobRepo = new JobRepository(db);
+        var regRepo = new RegistrationRepository(db);
+        var familyRepo = new FamilyRepository(db);
+        
         var logger = new Mock<ILogger<VerticalInsureService>>().Object;
         var teamLookup = new Mock<ITeamLookupService>();
-        // Team lookup not used in purchase stub
-        return new VerticalInsureService(mockJobRepo.Object, mockRegRepo.Object, mockFamilyRepo.Object, env, logger, teamLookup.Object);
+        var mockOptions = Options.Create(new VerticalInsureSettings
+        {
+            DevClientId = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U",
+            DevSecret = "test_JtlEEBkFNNybGLyOwCCFUeQq9j3zK9dUEJfJMeyqPMRjMsWfzUk0JRqoHypxofZJqeH5nuK0042Yd5TpXMZOf8yVj9X9YDFi7LW50ADsVXDyzuiiq9HLVopbwaNXwqWI",
+            ProdClientId = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS",
+            ProdSecret = "live_PP6xn8fImrpBNj4YqTU8vlAwaqQ7Q8oSRxcVQkf419saU4OuQVCXQSuP4yUNyBMCwilStIsWDaaZnMlfJ1HqVJPBWydR5qE3yNr4HxBVr7rCYxl4ofgIesZbsAS0TfED"
+        });
+        
+        return new VerticalInsureService(jobRepo, regRepo, familyRepo, env, logger, teamLookup.Object, mockOptions);
     }
 
     [Fact]

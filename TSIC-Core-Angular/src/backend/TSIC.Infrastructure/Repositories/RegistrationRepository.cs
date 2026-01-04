@@ -393,9 +393,9 @@ public class RegistrationRepository : IRegistrationRepository
             query = query.Where(r => r.UserId != null);
         }
 
+        // IMPORTANT: Remove AsNoTracking() so entities can be modified and persisted
         return await query
             .Include(r => r.User)
-            .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
 
