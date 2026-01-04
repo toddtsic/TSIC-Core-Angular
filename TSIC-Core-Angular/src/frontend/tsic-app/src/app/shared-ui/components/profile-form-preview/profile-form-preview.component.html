@@ -65,7 +65,7 @@
 
                     <!-- SELECT Input -->
                     @else if (field.inputType === 'SELECT') {
-                    <select class="form-select" [id]="field.name" [formControlName]="field.name" [disabled]="readonly">
+                    <select class="form-select" [id]="field.name" [formControlName]="field.name">
                         <option value="">-- Select {{ field.displayName }} --</option>
                         @for (option of getDropdownOptions(field); track option.value) {
                         <option [value]="option.value">{{ option.label }}</option>
@@ -79,8 +79,7 @@
                     <!-- CHECKBOX Input -->
                     @else if (field.inputType === 'CHECKBOX') {
                     <div class="form-check">
-                        <input type="checkbox" class="form-check-input" [id]="field.name" [formControlName]="field.name"
-                            [disabled]="readonly">
+                        <input type="checkbox" class="form-check-input" [id]="field.name" [formControlName]="field.name">
                         <label class="form-check-label" [for]="field.name">
                             {{ field.displayName }}
                         </label>

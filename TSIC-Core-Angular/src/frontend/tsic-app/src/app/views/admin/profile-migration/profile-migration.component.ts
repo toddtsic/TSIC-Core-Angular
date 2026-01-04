@@ -266,6 +266,7 @@ export class ProfileMigrationComponent implements OnInit {
         this.selectedProfile.set(null);
         this.selectedJobId.set(null);
         this.jobSpecificOptions.set(null);
+        this.migrationService.clearPreviewResult();
     }
 
     /**

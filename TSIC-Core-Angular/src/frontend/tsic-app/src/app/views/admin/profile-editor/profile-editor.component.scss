@@ -64,18 +64,11 @@ code {
 
 /* Drag & drop handle: icon-only grip (avoid checkbox/button look) */
 .drag-grip {
-    display: inline-block;
-    width: calc(var(--space-4) + var(--space-0\.5)); // Component-specific grip size
-    height: calc(var(--space-4) + var(--space-0\.5));
     color: var(--bs-secondary);
     cursor: grab;
     user-select: none;
-    border-radius: var(--space-0\.5);
-    opacity: 0.9;
-    /* dotted grip made with a radial gradient so it doesn't look like a checkbox */
-    background-image: radial-gradient(currentColor 1px, transparent 1px);
-    background-size: var(--space-1) var(--space-1);
-    background-position: 0 0;
+    opacity: 0.6;
+    font-size: 1.2rem;
 }
 
 .drag-grip:hover {

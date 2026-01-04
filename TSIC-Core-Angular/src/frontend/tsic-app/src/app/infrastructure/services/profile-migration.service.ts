@@ -314,5 +314,16 @@ export class ProfileMigrationService {
         );
     }
 
+    // ============================================================================
+    // STATE MANAGEMENT
+    // ============================================================================
+
+    /**
+     * Clear preview result (used when closing preview dialog)
+     */
+    clearPreviewResult(): void {
+        this._previewResult.set(null);
+    }
+
     // (Removed) Current job option sources APIs – UI no longer exposes these
 }
