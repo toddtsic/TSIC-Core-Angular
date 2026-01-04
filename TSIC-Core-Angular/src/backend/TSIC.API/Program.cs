@@ -37,6 +37,7 @@ using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Authorization;
 using Amazon.SimpleEmail;
+using Amazon.Runtime;
 using Amazon;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -122,13 +123,32 @@ builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 // Email (Amazon SES only)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddSingleton<IAmazonSimpleEmailService>(sp =>
 {
     var opts = sp.GetRequiredService<IOptions<EmailSettings>>().Value;
-    // If region specified use it, else default chain.
-    if (!string.IsNullOrWhiteSpace(opts.AwsRegion))
+    var aws = sp.GetRequiredService<IOptions<AwsSettings>>().Value;
+
+    // Region priority: EmailSettings.AwsRegion -> AwsSettings.Region -> ENV (AWS_REGION/AWS_DEFAULT_REGION) -> SDK default chain
+    var regionName = opts.AwsRegion
+                     ?? aws.Region
+                     ?? Environment.GetEnvironmentVariable("AWS_REGION")
+                     ?? Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION");
+    var region = !string.IsNullOrWhiteSpace(regionName) ? Amazon.RegionEndpoint.GetBySystemName(regionName) : null;
+
+    // Credentials priority: secrets (AwsSettings) -> SDK default chain
+    var haveKeys = !string.IsNullOrWhiteSpace(aws.AccessKey) && !string.IsNullOrWhiteSpace(aws.SecretKey);
+
+    if (haveKeys && region != null)
     {
-        var region = Amazon.RegionEndpoint.GetBySystemName(opts.AwsRegion);
+        return new AmazonSimpleEmailServiceClient(new BasicAWSCredentials(aws.AccessKey!, aws.SecretKey!), region);
+    }
+    if (haveKeys)
+    {
+        return new AmazonSimpleEmailServiceClient(new BasicAWSCredentials(aws.AccessKey!, aws.SecretKey!));
+    }
+    if (region != null)
+    {
         return new AmazonSimpleEmailServiceClient(region);
     }
     return new AmazonSimpleEmailServiceClient();
