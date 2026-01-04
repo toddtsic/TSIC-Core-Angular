@@ -16,6 +16,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IJobLeagueRepository _jobLeagues;
     private readonly IAgeGroupRepository _agegroups;
     private readonly ITeamRepository _teams;
+    private readonly IRegistrationRepository _registrations;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -25,7 +26,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         IJobRepository jobs,
         IJobLeagueRepository jobLeagues,
         IAgeGroupRepository agegroups,
-        ITeamRepository teams)
+        ITeamRepository teams,
+        IRegistrationRepository registrations)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -35,6 +37,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _jobLeagues = jobLeagues;
         _agegroups = agegroups;
         _teams = teams;
+        _registrations = registrations;
     }
 
     public async Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId)
@@ -195,6 +198,53 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("This team is already registered for this event");
         }
 
+        // CRITICAL BUSINESS RULE: One club rep per event
+        // Check if another club rep has already registered teams for this event+club combination
+        var existingTeamsForClub = await _teams.Query()
+            .Where(t => t.JobId == jobId && t.ClubTeam!.ClubId == clubId && t.ClubrepRegistrationid != null)
+            .Include(t => t.ClubrepRegistration)
+            .ToListAsync();
+
+        // Get or create club rep registration for this user+job
+        var clubRepRegistration = await _registrations.Query()
+            .Where(r => r.UserId == userId && r.JobId == jobId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
+            .FirstOrDefaultAsync();
+
+        if (clubRepRegistration == null)
+        {
+            // Create new club rep registration for this event
+            clubRepRegistration = new Domain.Entities.Registrations
+            {
+                RegistrationId = Guid.NewGuid(),
+                UserId = userId,
+                JobId = jobId.Value,
+                RoleId = Domain.Constants.RoleConstants.ClubRep,
+                BActive = true,
+                BConfirmationSent = false,
+                RegistrationTs = DateTime.UtcNow,
+                Modified = DateTime.UtcNow,
+                FeeBase = 0,
+                FeeProcessing = 0
+            };
+            _registrations.Add(clubRepRegistration);
+            await _registrations.SaveChangesAsync();
+            _logger.LogInformation("Created club rep registration {RegistrationId} for user {UserId} in job {JobId}",
+                clubRepRegistration.RegistrationId, userId, jobId);
+        }
+
+        // Validate one-rep-per-event rule
+        var differentRepTeams = existingTeamsForClub
+            .Where(t => t.ClubrepRegistrationid != clubRepRegistration.RegistrationId)
+            .ToList();
+
+        if (differentRepTeams.Any())
+        {
+            var otherRepUsername = differentRepTeams[0].ClubrepRegistration?.User?.UserName ?? "another club rep";
+            _logger.LogWarning("One-rep-per-event violation: User {UserId} (regId {RegistrationId}) attempted to register team for event {JobId} club {ClubId}, but {OtherRepUser} already has teams registered",
+                userId, clubRepRegistration.RegistrationId, jobId, clubId, otherRepUsername);
+            throw new InvalidOperationException($"Only one club representative can register teams per event. {otherRepUsername} has already registered teams for this club in this event. Please contact your organization administrator.");
+        }
+
         // Determine age group
         Guid ageGroupId;
         decimal rosterFee = 0;
@@ -276,6 +326,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             LeagueId = leagueId,
             AgegroupId = ageGroupId,
             ClubTeamId = request.ClubTeamId,
+            ClubrepRegistrationid = clubRepRegistration.RegistrationId,  // Track which club rep registered this team
             FeeBase = feeBase,
             FeeProcessing = feeProcessing,
             PaidTotal = 0,

@@ -1,25 +1,4 @@
-// Compact accordion spacing
-.accordion-item {
-    margin-bottom: var(--space-2);
-    border-color: var(--border-color);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.accordion-button {
-    padding: var(--space-2) var(--space-3);
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: var(--font-size-sm);
-
-    &:not(.collapsed) {
-        box-shadow: inset 0 -1px 0 var(--border-color);
-    }
-}
-
-.accordion-body {
-    padding: var(--space-2) var(--space-3);
-}
+// Component-specific styles only - no global selector overrides
 
 // Theme-aware section backgrounds
 .info-section {
@@ -53,20 +32,6 @@
     font-size: calc(var(--font-size-sm) + var(--space-0\.5));
 }
 
-// Compact form labels on mobile
-.form-label {
-    font-size: var(--font-size-sm);
-    margin-bottom: calc(var(--space-1) * 0.6);
-}
-
-// Compact buttons to fit three actions on one line
-.btn-compact {
-    padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
-    font-size: var(--font-size-xs);
-    line-height: 1.05;
-    white-space: nowrap;
-}
-
 // Existing teams table styling
 .existing-teams-body {
     background: var(--bg-secondary);
@@ -98,9 +63,10 @@
     }
 }
 
-// Subtle placeholder styling for inputs and selects
-.placeholder-subtle::placeholder {
-    color: var(--neutral-400) !important;
-    opacity: 0.7 !important;
-    font-style: italic !important;
+// Responsive button sizing: small on mobile, normal on larger screens
+.btn-md-regular {
+    @media (min-width: 576px) {
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+    }
 }

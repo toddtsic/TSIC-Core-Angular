@@ -84,6 +84,21 @@
 
         @if (hasClubRepAccount() === 'no') {
         <div class="pt-2 pb-3 ps-0">
+            <div class="alert alert-info mb-3" role="alert">
+                <h6 class="alert-heading fw-bold mb-2">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>IMPORTANT: Club-Specific Registration
+                </h6>
+                <ul class="mb-0 small ps-3">
+                    <li class="fw-bold">Club Reps are specific to ONE individual club, not parent organizations or club
+                        networks.</li>
+                    <li class="fw-bold">If your club has a parent organization that owns multiple clubs (e.g., "Acme
+                        NJ", "Acme CA"), each club
+                        MUST have its own dedicated Club Rep with an address in that club's state.</li>
+                    <li>DO NOT use a corporate/headquarters address. Use an address in the state where the club
+                        operates.</li>
+                    <li>Each regional club needs a local representative who knows that club's teams and operations.</li>
+                </ul>
+            </div>
             <div class="border border-2 rounded p-3 bg-body shadow-sm">
                 @if (registrationError()) {
                 <div class="alert alert-danger py-2 mb-3" role="alert">
@@ -177,7 +192,8 @@
                         </div>
                     </fieldset>
                     <fieldset class="mt-1">
-                        <legend class="visually-hidden">Club Rep Address</legend>
+                        <legend class="small fw-bold text-danger">Club Address (Must be in club's state - NOT corporate
+                            HQ)</legend>
                         <div class="row g-2 mb-2 mt-1">
                             <div class="col-12">
                                 <label for="reg-street" class="form-label font-medium">Street
@@ -195,16 +211,20 @@
                                     placeholder="Enter city" autocomplete="address-level2" required />
                             </div>
                             <div class="col-12 col-md-3">
-                                <label for="reg-state" class="form-label font-medium">State
+                                <label for="reg-state" class="form-label font-medium d-flex align-items-center">
+                                    State
                                     <span class="text-danger">*</span>
+                                    <app-info-tooltip
+                                        message="CRITICAL: Must be the state where your CLUB operates, NOT your corporate headquarters or parent organization. Multi-state organizations must create separate Club Rep accounts for each state/regional club." />
                                 </label>
                                 <select id="reg-state" formControlName="state" class="form-select"
                                     autocomplete="address-level1" required>
-                                    <option value="" disabled>Select state</option>
+                                    <option value="" disabled>Select club's state</option>
                                     @for (s of statesOptions; track s.value) {
                                     <option [value]="s.value">{{ s.label }}</option>
                                     }
                                 </select>
+                                <div class="form-text small text-danger fw-semibold">Must match your club's state</div>
                             </div>
                             <div class="col-12 col-md-4">
                                 <label for="reg-zip" class="form-label font-medium">ZIP Code
