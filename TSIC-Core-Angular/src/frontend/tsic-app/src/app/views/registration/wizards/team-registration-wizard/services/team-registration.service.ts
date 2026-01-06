@@ -13,7 +13,8 @@ import {
     AddClubToRepResponse,
     ClubTeamManagementDto,
     UpdateClubTeamRequest,
-    ClubTeamOperationResponse
+    ClubTeamOperationResponse,
+    CheckExistingRegistrationsResponse
 } from '@core/api';
 
 /**
@@ -44,6 +45,20 @@ export class TeamRegistrationService {
      */
     getMyClubs(): Observable<ClubRepClubDto[]> {
         return this.http.get<ClubRepClubDto[]>(`${this.apiUrl}/my-clubs`);
+    }
+
+    /**
+     * Check if another club rep has already registered teams for this event+club.
+     * Returns conflict info if another rep has teams registered.
+     * 
+     * @param jobPath - The event identifier (e.g., "summer-2025-soccer")
+     * @param clubName - The club name to check
+     */
+    checkExistingRegistrations(jobPath: string, clubName: string): Observable<CheckExistingRegistrationsResponse> {
+        const params = new HttpParams()
+            .set('jobPath', jobPath)
+            .set('clubName', clubName);
+        return this.http.get<CheckExistingRegistrationsResponse>(`${this.apiUrl}/check-existing`, { params });
     }
 
     /**

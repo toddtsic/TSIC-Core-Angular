@@ -1,10 +1,4 @@
-.step-indicator {
-    width: 100%;
-    padding: var(--space-4) 0;
-    margin-bottom: var(--space-3);
-    /* add external space before card */
-}
-
+/* Minimal component-specific layout - all colors/spacing use global design system */
 .step-container {
     display: flex;
     align-items: center;
@@ -17,7 +11,7 @@
     flex-direction: column;
     align-items: center;
     gap: var(--space-2);
-    min-width: 80px; // Component-specific: ensure consistent layout width
+    min-width: 80px;
 }
 
 .step-badge {
@@ -27,120 +21,26 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: var(--font-weight-semibold);
-    font-size: var(--font-size-base);
     border: 2px solid;
     transition: all 0.3s ease;
 }
 
-.step-label {
-    font-size: var(--font-size-sm);
-    text-align: center;
-    font-weight: var(--font-weight-medium);
-    white-space: nowrap;
-}
-
 .step-connector {
     flex: 1;
-    height: var(--space-0\.5);
-    background-color: var(--neutral-200);
-    max-width: 60px; // Component-specific: connector spacing
+    height: 2px;
+    max-width: 60px;
     transition: background-color 0.3s ease;
 }
 
-/* Future step */
-.step-item.future .step-badge {
-    background-color: var(--neutral-100);
-    border-color: var(--neutral-200);
-    color: var(--neutral-500);
-}
-
-.step-item.future .step-label {
-    color: var(--neutral-500);
-}
-
-/* Active step */
-.step-item.active .step-badge {
-    background-color: var(--bs-primary);
-    border-color: var(--bs-primary);
-    color: var(--neutral-0);
-    box-shadow: 0 0 0 var(--space-1) rgba(var(--bs-primary-rgb), 0.15);
-}
-
-.step-item.active .step-label {
-    color: var(--bs-primary);
-    font-weight: var(--font-weight-semibold);
-}
-
-/* Completed step */
-.step-item.completed .step-badge {
-    background-color: var(--bs-success);
-    border-color: var(--bs-success);
-    color: var(--neutral-0);
-}
-
-.step-item.completed .step-label {
-    color: var(--bs-success);
-}
-
-.step-connector.completed {
-    background-color: var(--bs-success);
-}
-
-/* Responsive adjustments */
 @media (max-width: 768px) {
-    .step-indicator {
-        padding: var(--space-2) 0;
-        margin-bottom: var(--space-2);
-    }
-
-    .step-container {
-        gap: var(--space-1);
-    }
-
-    .step-item {
-        min-width: 50px;
-        gap: var(--space-1);
-    }
-
-    .step-badge {
-        width: 28px;
-        height: 28px;
-        font-size: var(--font-size-xs);
-        border-width: 1.5px;
-    }
-
-    .step-label {
-        font-size: 0.7rem; // Component-specific: extra small mobile label
-    }
-
-    .step-connector {
-        max-width: 20px;
-        height: 1.5px;
-    }
+    .step-item { min-width: 50px; gap: var(--space-1); }
+    .step-badge { width: 28px; height: 28px; border-width: 1.5px; }
+    .step-connector { max-width: 20px; }
 }
 
 @media (max-width: 576px) {
-    .step-indicator {
-        padding: calc(var(--space-1) + var(--space-0\.5)) 0;
-        margin-bottom: var(--space-2);
-    }
-
-    .step-label {
-        display: none;
-    }
-
-    .step-item {
-        min-width: var(--space-7); // Component-specific smallest width
-    }
-
-    .step-badge {
-        width: var(--space-6);
-        height: var(--space-6);
-        font-size: calc(var(--font-size-xs) * 0.9); // Component-specific smallest font
-    }
-
-    .step-connector {
-        max-width: 15px; // Component-specific smallest connector
-    }
+    .step-label { display: none; }
+    .step-item { min-width: var(--space-7); }
+    .step-badge { width: var(--space-6); height: var(--space-6); }
+    .step-connector { max-width: 15px; }
 }

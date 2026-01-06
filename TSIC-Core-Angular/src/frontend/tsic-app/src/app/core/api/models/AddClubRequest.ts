@@ -4,7 +4,7 @@
 /* eslint-disable */
 export type AddClubRequest = {
     clubName: string;
-    state?: string;
+    state?: string | null;
     useExistingClubId?: number;
 };
 

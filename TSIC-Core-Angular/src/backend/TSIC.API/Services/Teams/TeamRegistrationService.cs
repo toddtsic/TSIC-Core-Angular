@@ -54,6 +54,71 @@ public class TeamRegistrationService : ITeamRegistrationService
         return clubs;
     }
 
+    public async Task<CheckExistingRegistrationsResponse> CheckExistingRegistrationsAsync(string jobPath, string clubName, string userId)
+    {
+        _logger.LogInformation("Checking existing registrations for user {UserId}, job {JobPath}, club {ClubName}", userId, jobPath, clubName);
+
+        // Get club rep association
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        var clubRep = myClubs.FirstOrDefault(c => string.Equals(c.ClubName, clubName, StringComparison.OrdinalIgnoreCase));
+
+        if (clubRep == null)
+        {
+            _logger.LogWarning("User {UserId} is not a rep for club {ClubName}", userId, clubName);
+            throw new InvalidOperationException("User is not authorized for this club");
+        }
+
+        // Get job ID
+        var jobId = await _jobs.GetJobIdByPathAsync(jobPath);
+        if (jobId == null)
+        {
+            _logger.LogWarning("Job not found: {JobPath}", jobPath);
+            throw new InvalidOperationException($"Event not found: {jobPath}");
+        }
+
+        // Get current user's registration for this event (if exists)
+        var currentUserRegistration = await _registrations.Query()
+            .Where(r => r.UserId == userId && r.JobId == jobId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
+            .FirstOrDefaultAsync();
+
+        // Check if other club reps have registered teams for this event+club
+        var existingTeamsQuery = _teams.Query()
+            .Where(t => t.JobId == jobId && t.ClubTeam!.ClubId == clubRep.ClubId && t.ClubrepRegistrationid != null);
+
+        // Exclude current user's teams if they have a registration
+        if (currentUserRegistration != null)
+        {
+            existingTeamsQuery = existingTeamsQuery.Where(t => t.ClubrepRegistrationid != currentUserRegistration.RegistrationId);
+        }
+
+        var otherRepTeams = await existingTeamsQuery
+            .Include(t => t.ClubrepRegistration)
+            .ThenInclude(r => r!.User)
+            .ToListAsync();
+
+        if (otherRepTeams.Any())
+        {
+            var otherRepUsername = otherRepTeams.First().ClubrepRegistration?.User?.UserName ?? "another club rep";
+            _logger.LogInformation("Found conflict: {OtherRep} has {Count} teams registered for job {JobId} club {ClubId}",
+                otherRepUsername, otherRepTeams.Count, jobId, clubRep.ClubId);
+
+            return new CheckExistingRegistrationsResponse
+            {
+                HasConflict = true,
+                OtherRepUsername = otherRepUsername,
+                TeamCount = otherRepTeams.Count
+            };
+        }
+
+        _logger.LogInformation("No conflicts found for user {UserId}, job {JobPath}, club {ClubName}", userId, jobPath, clubName);
+        return new CheckExistingRegistrationsResponse
+        {
+            HasConflict = false,
+            OtherRepUsername = null,
+            TeamCount = 0
+        };
+    }
+
     public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName)
     {
         _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}", jobPath, userId, clubName);

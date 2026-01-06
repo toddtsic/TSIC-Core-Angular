@@ -45,6 +45,14 @@ export class ClubRepLoginStepComponent implements OnInit {
         clubs: ClubSearchResult[];
     }>({ isOpen: false, message: null, clubs: [] });
 
+    /** Conflict warning modal state: shows when another rep has already registered teams */
+    private readonly conflictWarningState = signal<{
+        isOpen: boolean;
+        otherRepUsername: string | null;
+        teamCount: number;
+        pendingEmit: LoginStepResult | null;
+    }>({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
+
     registrationForm: FormGroup;
     loginForm: FormGroup;
 
@@ -52,6 +60,11 @@ export class ClubRepLoginStepComponent implements OnInit {
     duplicateModalOpen = computed(() => this.duplicateModalState().isOpen);
     duplicateModalMessage = computed(() => this.duplicateModalState().message);
     duplicateClub = computed(() => this.duplicateModalState().clubs);
+
+    // Expose conflict warning modal state for template binding
+    conflictWarningOpen = computed(() => this.conflictWarningState().isOpen);
+    conflictWarningUsername = computed(() => this.conflictWarningState().otherRepUsername);
+    conflictWarningTeamCount = computed(() => this.conflictWarningState().teamCount);
 
     private readonly authService = inject(AuthService);
     private readonly clubService = inject(ClubService);
@@ -168,11 +181,40 @@ export class ClubRepLoginStepComponent implements OnInit {
 
                     this.hasClubRepAccount.set('yes');
 
-                    // Emit success with club data - parent handles club selection modal
-                    this.loginSuccess.emit({
+                    const result: LoginStepResult = {
                         clubName: clubs.length === 1 ? clubs[0].clubName : '',
                         availableClubs: clubs
-                    });
+                    };
+
+                    // Check for existing registrations conflict before proceeding
+                    // Only check if we have a single club (multi-club will be checked per-club in wizard)
+                    if (clubs.length === 1) {
+                        const jobPath = this.router.url.split('/').pop() || '';
+                        this.teamRegService.checkExistingRegistrations(jobPath, clubs[0].clubName).subscribe({
+                            next: (conflictCheck) => {
+                                if (conflictCheck.hasConflict) {
+                                    // Show conflict warning modal with option to proceed
+                                    this.conflictWarningState.set({
+                                        isOpen: true,
+                                        otherRepUsername: conflictCheck.otherRepUsername || 'another club rep',
+                                        teamCount: conflictCheck.teamCount ?? 0,
+                                        pendingEmit: result
+                                    });
+                                } else {
+                                    // No conflict, proceed normally
+                                    this.loginSuccess.emit(result);
+                                }
+                            },
+                            error: (err) => {
+                                console.error('Failed to check existing registrations:', err);
+                                // On error, proceed anyway (don't block login)
+                                this.loginSuccess.emit(result);
+                            }
+                        });
+                    } else {
+                        // Multi-club, proceed to club selection
+                        this.loginSuccess.emit(result);
+                    }
                 },
                 error: (err) => {
                     this.inlineError.set('Failed to load your clubs. Please try again.');
@@ -316,5 +358,25 @@ export class ClubRepLoginStepComponent implements OnInit {
 
     toggleCredentialsCollapsed(): void {
         this.credentialsCollapsed.update((v) => !v);
+    }
+
+    /**
+     * User acknowledges conflict warning and proceeds anyway.
+     */
+    proceedDespiteConflict(): void {
+        const state = this.conflictWarningState();
+        if (state.pendingEmit) {
+            this.loginSuccess.emit(state.pendingEmit);
+        }
+        this.conflictWarningState.set({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
+    }
+
+    /**
+     * User cancels due to conflict warning.
+     */
+    cancelDueToConflict(): void {
+        this.conflictWarningState.set({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
+        this.hasClubRepAccount.set(null);
+        this.loginForm.reset();
     }
 }

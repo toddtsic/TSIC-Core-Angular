@@ -39,6 +39,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
     addClubError = signal<string | null>(null);
     addClubSuccess = signal<string | null>(null);
     similarClubs = signal<ClubSearchResult[]>([]);
+    clubInfoCollapsed = signal(true);
 
     stepLabels: Record<number, string> = {
         1: 'Login',
@@ -149,6 +150,10 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
     goToTeamsStep(): void {
         this.step = 3;
+    }
+
+    toggleClubInfoCollapsed(): void {
+        this.clubInfoCollapsed.update((v) => !v);
     }
 
     showAddClubForm(): void {

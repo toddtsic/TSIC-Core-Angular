@@ -248,6 +248,13 @@ public class DeleteClubTeamRequestValidator : AbstractValidator<DeleteClubTeamRe
     }
 }
 
+public sealed record CheckExistingRegistrationsResponse
+{
+    public required bool HasConflict { get; init; }
+    public string? OtherRepUsername { get; init; }
+    public int TeamCount { get; init; }
+}
+
 public sealed record ClubTeamOperationResponse
 {
     public required bool Success { get; init; }

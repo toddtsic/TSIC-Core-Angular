@@ -19,6 +19,7 @@ export type { AuthTokenResponse } from './models/AuthTokenResponse';
 export type { AvailableTeamDto } from './models/AvailableTeamDto';
 export type { BulletinDto } from './models/BulletinDto';
 export type { CcInfoDto } from './models/CcInfoDto';
+export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
 export type { ChildDto } from './models/ChildDto';
 export type { CloneProfileRequest } from './models/CloneProfileRequest';
 export type { CloneProfileResult } from './models/CloneProfileResult';

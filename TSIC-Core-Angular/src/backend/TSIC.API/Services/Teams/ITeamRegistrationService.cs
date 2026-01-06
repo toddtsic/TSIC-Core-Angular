@@ -10,6 +10,12 @@ public interface ITeamRegistrationService
     Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId);
 
     /// <summary>
+    /// Check if another club rep has already registered teams for this event+club.
+    /// Returns conflict info if another rep has teams registered.
+    /// </summary>
+    Task<CheckExistingRegistrationsResponse> CheckExistingRegistrationsAsync(string jobPath, string clubName, string userId);
+
+    /// <summary>
     /// Get teams metadata for the current club and event.
     /// Returns club info, available ClubTeams, registered Teams, and age groups.
     /// </summary>

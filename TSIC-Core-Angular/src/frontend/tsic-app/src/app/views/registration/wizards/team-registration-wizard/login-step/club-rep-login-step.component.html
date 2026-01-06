@@ -291,3 +291,70 @@
 </div>
 <div class="modal-backdrop fade show"></div>
 }
+
+<!-- CONFLICT WARNING MODAL -->
+@if (conflictWarningOpen()) {
+<div class="modal show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="conflictModalTitle">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger-subtle">
+                <h5 class="modal-title" id="conflictModalTitle">
+                    <i class="bi bi-exclamation-octagon text-danger me-2"></i>
+                    Another Rep Has Already Registered Teams
+                </h5>
+                <button type="button" class="btn-close" aria-label="Close" (click)="cancelDueToConflict()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger mb-3" role="alert">
+                    <h6 class="fw-bold mb-2">Registration Conflict Detected</h6>
+                    <p class="mb-2">
+                        <strong>{{ conflictWarningUsername() }}</strong> has already registered
+                        <strong>{{ conflictWarningTeamCount() }}</strong>
+                        {{ conflictWarningTeamCount() === 1 ? 'team' : 'teams' }}
+                        for this event under your club.
+                    </p>
+                    <p class="mb-0 fw-semibold text-danger">
+                        Only ONE club rep can register teams per event to avoid duplicates and potential
+                        disqualification.
+                    </p>
+                </div>
+
+                <div class="bg-light border border-warning rounded p-3 mb-3">
+                    <h6 class="fw-semibold mb-2">
+                        <i class="bi bi-info-circle text-primary me-1"></i>
+                        What This Means:
+                    </h6>
+                    <ul class="mb-0 small ps-3">
+                        <li>If you proceed, you will be <strong>BLOCKED</strong> from registering teams because another
+                            rep has already claimed this event.</li>
+                        <li>Attempting to register will result in an error message.</li>
+                        <li>You should coordinate with {{ conflictWarningUsername() }} to determine who will handle team
+                            registration.</li>
+                        <li>Only ONE person should register teams for your club in each event.</li>
+                    </ul>
+                </div>
+
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-lightbulb text-warning me-1"></i>
+                    <strong>Recommendation:</strong> Contact your organization administrator or {{
+                    conflictWarningUsername() }}
+                    before proceeding. If you need to take over registration, {{ conflictWarningUsername() }} must
+                    contact
+                    support to transfer their teams first.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" (click)="cancelDueToConflict()">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Cancel Login
+                </button>
+                <button type="button" class="btn btn-warning" (click)="proceedDespiteConflict()">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    I Understand, Proceed Anyway
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show"></div>
+}

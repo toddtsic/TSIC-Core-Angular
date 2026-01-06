@@ -90,6 +90,33 @@
         </div>
         }
 
+        <!-- Info Accordion -->
+        <div class="accordion mb-3" id="clubInfoAccordion">
+          <div class="accordion-item accordion-item-info border-2">
+            <h2 class="accordion-header">
+              <button class="accordion-button accordion-button-info" type="button"
+                [class.collapsed]="clubInfoCollapsed()" (click)="toggleClubInfoCollapsed()"
+                [attr.aria-expanded]="!clubInfoCollapsed()" aria-controls="clubInfoCollapse">
+                <i class="bi bi-info-circle accordion-icon-info text-primary me-2"></i>
+                <span class="accordion-title-info">Multiple Club Rep Information</span>
+              </button>
+            </h2>
+            <div id="clubInfoCollapse" class="accordion-collapse collapse" [class.show]="!clubInfoCollapsed()">
+              <div class="accordion-body">
+                <ul class="mb-0 small ps-3">
+                  <li><strong>Multiple Clubs:</strong> A club rep can represent multiple clubs (e.g., ACME-NJ, ACME-CA).
+                  </li>
+                  <li><strong>One Rep Per Tournament:</strong> While a single club CAN have multiple club reps, <strong
+                      class="text-danger">ONLY ONE REP CAN REGISTER TEAMS</strong> for an individual tournament to avoid
+                    duplicate registrations.</li>
+                  <li><strong>Coordination:</strong> If your club has multiple reps, coordinate before registering to
+                    ensure only one person registers for each event.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
         @if (availableClubs.length === 1) {
         <!-- Single Club: Show club name prominently -->
         <div class="mb-2 py-2 px-2 rounded-3 border-0" style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
@@ -107,7 +134,7 @@
         <p class="text-muted mb-2 small">Choose which club you want to manage in this session:</p>
         <div class="mb-3">
           <label for="clubSelector" class="form-label fw-semibold small mb-1">Club</label>
-          <select id="clubSelector" class="form-select" [(ngModel)]="selectedClub" 
+          <select id="clubSelector" class="form-select" [(ngModel)]="selectedClub"
             [size]="availableClubs.length > 5 ? 5 : availableClubs.length"
             (ngModelChange)="selectedClub && selectClub(selectedClub)">
             @for (club of availableClubs; track club.clubName) {
@@ -119,83 +146,87 @@
 
         <!-- Add Club Form (revealed inline when showAddClubModal = true) -->
         @if (showAddClubModal) {
-          <hr class="my-3">
-          <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2"></i>Add Another Club</h6>
-          
-          @if (addClubError()) {
-            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-              <i class="bi bi-exclamation-circle me-2"></i>{{ addClubError() }}
-              <button type="button" class="btn-close" (click)="addClubError.set(null)"></button>
-            </div>
-          }
-          @if (addClubSuccess()) {
-            <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-              <i class="bi bi-check-circle me-2"></i>{{ addClubSuccess() }}
-              <button type="button" class="btn-close" (click)="addClubSuccess.set(null)"></button>
-            </div>
-          }
+        <hr class="my-3">
+        <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2"></i>Add Another Club</h6>
 
-          <form [formGroup]="addClubForm">
-            <div class="mb-3">
-              <label for="addClubName" class="form-label fw-semibold">Club Name</label>
-              <input type="text" id="addClubName" class="form-control" formControlName="clubName" placeholder="Enter club name">
-            </div>
+        @if (addClubError()) {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+          <i class="bi bi-exclamation-circle me-2"></i>{{ addClubError() }}
+          <button type="button" class="btn-close" (click)="addClubError.set(null)"></button>
+        </div>
+        }
+        @if (addClubSuccess()) {
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+          <i class="bi bi-check-circle me-2"></i>{{ addClubSuccess() }}
+          <button type="button" class="btn-close" (click)="addClubSuccess.set(null)"></button>
+        </div>
+        }
 
-            @if (similarClubs().length > 0) {
-              <div class="alert alert-warning" role="alert">
-                <div class="d-flex align-items-start">
-                  <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0"></i>
-                  <div>
-                    <strong>Similar clubs found:</strong>
-                    <ul class="mb-2 mt-1 ps-3">
-                      @for (club of similarClubs(); track club.clubId) {
-                        <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
-                      }
-                    </ul>
-                    <p class="mb-0 small">Is one of these your club?</p>
-                  </div>
-                </div>
+        <form [formGroup]="addClubForm">
+          <div class="mb-3">
+            <label for="addClubName" class="form-label fw-semibold">Club Name</label>
+            <input type="text" id="addClubName" class="form-control" formControlName="clubName"
+              placeholder="Enter club name">
+          </div>
+
+          @if (similarClubs().length > 0) {
+          <div class="alert alert-warning" role="alert">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0"></i>
+              <div>
+                <strong>Similar clubs found:</strong>
+                <ul class="mb-2 mt-1 ps-3">
+                  @for (club of similarClubs(); track club.clubId) {
+                  <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
+                  }
+                </ul>
+                <p class="mb-0 small">Is one of these your club?</p>
               </div>
-            }
-
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelAddClub()">
-                <i class="bi bi-x me-1"></i> Cancel
-              </button>
-              <button type="button" class="btn btn-primary btn-sm" [disabled]="addClubForm.invalid || addClubSubmitting()" (click)="submitAddClub()">
-                @if (addClubSubmitting()) {
-                  <span class="spinner-border spinner-border-sm me-1"></span>
-                }
-                <i class="bi bi-plus-circle me-1"></i> Add Club
-              </button>
             </div>
-          </form>
+          </div>
+          }
+
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelAddClub()">
+              <i class="bi bi-x me-1"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="addClubForm.invalid || addClubSubmitting()"
+              (click)="submitAddClub()">
+              @if (addClubSubmitting()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              <i class="bi bi-plus-circle me-1"></i> Add Club
+            </button>
+          </div>
+        </form>
         }
 
         <!-- Bottom Actions -->
         <div class="d-flex justify-content-between align-items-center mt-3">
           @if (!showAddClubModal) {
-            <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
-              <i class="bi bi-plus-circle me-1"></i> Add another club{{ availableClubs.length === 1 ? ' to this account' : '' }}
-            </button>
+          <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
+            <i class="bi bi-plus-circle me-1"></i> Add another club{{ availableClubs.length === 1 ? ' to this account' :
+            '' }}
+          </button>
           } @else {
-            <div></div>
+          <div></div>
           }
           @if (!showAddClubModal) {
-            <div class="d-flex gap-2">
-              @if (availableClubs.length === 1) {
-                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelClubSelection()">
-                  <i class="bi bi-x-circle me-1"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-primary btn-sm" (click)="continueFromStep1()">
-                  <i class="bi bi-check-circle me-1"></i> Confirm
-                </button>
-              } @else {
-                <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedClub" (click)="continueFromStep1()">
-                  <i class="bi bi-arrow-right-circle me-1"></i> Continue
-                </button>
-              }
-            </div>
+          <div class="d-flex gap-2">
+            @if (availableClubs.length === 1) {
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelClubSelection()">
+              <i class="bi bi-x-circle me-1"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" (click)="continueFromStep1()">
+              <i class="bi bi-check-circle me-1"></i> Confirm
+            </button>
+            } @else {
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedClub"
+              (click)="continueFromStep1()">
+              <i class="bi bi-arrow-right-circle me-1"></i> Continue
+            </button>
+            }
+          </div>
           }
         </div>
       </div>

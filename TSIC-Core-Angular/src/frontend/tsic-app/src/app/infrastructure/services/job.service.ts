@@ -37,6 +37,7 @@ export class JobService {
 
     // Signal for reactive state management
     public readonly currentJob = signal<Job | null>(null);
+    public readonly jobMetadataLoading = signal(false);
     public readonly registrationStatuses = signal<RegistrationStatusResponse[]>([]);
     public readonly registrationLoading = signal(false);
     public readonly registrationError = signal<string | null>(null);
@@ -63,10 +64,15 @@ export class JobService {
 
     // Command-style load that updates the currentJob signal
     loadJobMetadata(jobPath: string): void {
+        this.jobMetadataLoading.set(true);
         this.http.get<Job>(`${this.apiUrl}/jobs/${jobPath}`).subscribe({
-            next: (job) => this.currentJob.set(job),
+            next: (job) => {
+                this.currentJob.set(job);
+                this.jobMetadataLoading.set(false);
+            },
             error: () => {
                 // Leave currentJob as-is on failure
+                this.jobMetadataLoading.set(false);
             }
         });
     }
