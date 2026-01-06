@@ -59,7 +59,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
             // Registration CLOSED - Build mode only
             return {
                 1: 'Login',
-                2: 'Build Your Roster'
+                2: 'Build Your Library'
             };
         }
     });
@@ -81,7 +81,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
             // Registration CLOSED - Build mode
             return [
                 { stepNumber: 1, label: 'Login' },
-                { stepNumber: 2, label: 'Build Roster' }
+                { stepNumber: 2, label: 'Build Library' }
             ];
         }
     });
@@ -187,7 +187,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
             // Registration OPEN - Continue to event registration (step 3)
             this.step = 3;
         } else {
-            // Registration CLOSED - Navigate back to job home (build mode complete)
+            // Registration CLOSED - Navigate back to job home (library management complete)
             const jobPath = this.jobContext.resolveFromRoute(this.route);
             this.router.navigate([`/${jobPath}/home`]);
         }

@@ -215,7 +215,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                             }
                         });
                     } else {
-                        // Multi-club OR registration closed - proceed without conflict check
+                        // Multi-club OR registration closed (library management) - proceed without conflict check
                         this.loginSuccess.emit(result);
                     }
                 },
