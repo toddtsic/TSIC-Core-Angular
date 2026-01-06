@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
+import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
 import type { RegistrationStatusResponse } from '@core/api';
 
 /**
@@ -16,7 +17,7 @@ import type { RegistrationStatusResponse } from '@core/api';
 @Component({
     selector: 'app-job-landing',
     standalone: true,
-    imports: [BulletinsComponent],
+    imports: [BulletinsComponent, ClientBannerComponent],
     templateUrl: './job-landing.component.html',
     styleUrl: './job-landing.component.scss'
 })
@@ -34,6 +35,9 @@ export class JobLandingComponent {
     bulletinsLoading = computed(() => this.jobService.bulletinsLoading());
     bulletinsError = computed(() => this.jobService.bulletinsError());
     registrationStatuses = computed(() => this.jobService.registrationStatuses());
+
+    // Ready when job loaded and bulletins finished loading (success or error)
+    dataReady = computed(() => !!this.currentJob() && !this.bulletinsLoading());
 
     ngOnInit() {
         // Get jobPath from route

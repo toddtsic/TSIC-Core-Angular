@@ -18,7 +18,7 @@ import { isJobLanding } from '@infrastructure/utils/route-segment.utils';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientBannerComponent, ClientFooterBarComponent, ScrollToTopComponent],
+  imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientFooterBarComponent, ScrollToTopComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -36,9 +36,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   // Observable for auth state changes (must be field initializer for injection context)
   private readonly currentUser$ = toObservable(this.auth.currentUser);
-
-  // Signal to track if we're on the job-landing route
-  showBanner = signal<boolean>(false);
 
   private bestLogoUrl(job: Job | null, userLogo?: string): string {
     // Helper to identify suspicious jobPath-derived filenames like "steps.jpg" that shouldn't be treated as logos.
@@ -141,15 +138,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
       distinctUntilChanged(),
       takeUntil(this.destroy$)
     );
-
-    // Track route changes to determine if banner should show (job-landing route only)
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd),
-      startWith(null), // Check initial route
-      takeUntil(this.destroy$)
-    ).subscribe(() => {
-      this.showBanner.set(this.isJobLandingRoute());
-    });
 
     // Load menus whenever jobPath changes (handles navigation between jobs and app restart)
     jobPath$.subscribe(jobPath => {
