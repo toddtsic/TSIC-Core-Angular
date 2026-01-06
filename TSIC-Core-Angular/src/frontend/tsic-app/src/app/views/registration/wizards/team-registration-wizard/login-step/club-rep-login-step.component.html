@@ -94,9 +94,8 @@
                     <li class="fw-bold">If your club has a parent organization that owns multiple clubs (e.g., "Acme
                         NJ", "Acme CA"), each club
                         MUST have its own dedicated Club Rep with an address in that club's state.</li>
-                    <li>DO NOT use a corporate/headquarters address. Use an address in the state where the club
-                        operates.</li>
-                    <li>Each regional club needs a local representative who knows that club's teams and operations.</li>
+                    <li>A single club rep <strong>CAN</strong> represent multiple clubs using a <strong>single</strong>
+                        login.</li>
                 </ul>
             </div>
             <div class="border border-2 rounded p-3 bg-body shadow-sm">
@@ -192,8 +191,6 @@
                         </div>
                     </fieldset>
                     <fieldset class="mt-1">
-                        <legend class="small fw-bold text-danger">Club Address (Must be in club's state - NOT corporate
-                            HQ)</legend>
                         <div class="row g-2 mb-2 mt-1">
                             <div class="col-12">
                                 <label for="reg-street" class="form-label font-medium">Street
@@ -224,7 +221,6 @@
                                     <option [value]="s.value">{{ s.label }}</option>
                                     }
                                 </select>
-                                <div class="form-text small text-danger fw-semibold">Must match your club's state</div>
                             </div>
                             <div class="col-12 col-md-4">
                                 <label for="reg-zip" class="form-label font-medium">ZIP Code

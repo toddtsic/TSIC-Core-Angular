@@ -19,7 +19,7 @@ public interface ITeamRegistrationService
     /// Register a ClubTeam for the current event.
     /// Creates a Teams record linking the ClubTeam to the Job.
     /// </summary>
-    Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId);
+    Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId, int? clubId = null);
 
     /// <summary>
     /// Unregister a Team from the current event.

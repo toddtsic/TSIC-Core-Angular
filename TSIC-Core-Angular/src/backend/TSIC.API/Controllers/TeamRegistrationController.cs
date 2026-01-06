@@ -116,9 +116,17 @@ public class TeamRegistrationController : ControllerBase
             return Unauthorized(new { Message = "User not authenticated" });
         }
 
+        // Extract clubId from JWT token (for ClubRep users)
+        var clubIdClaim = User.FindFirst("clubId")?.Value;
+        int? clubId = null;
+        if (!string.IsNullOrEmpty(clubIdClaim) && int.TryParse(clubIdClaim, out var parsedClubId))
+        {
+            clubId = parsedClubId;
+        }
+
         try
         {
-            var response = await _teamRegistrationService.RegisterTeamForEventAsync(request, userId);
+            var response = await _teamRegistrationService.RegisterTeamForEventAsync(request, userId, clubId);
             if (!response.Success)
             {
                 return BadRequest(response);

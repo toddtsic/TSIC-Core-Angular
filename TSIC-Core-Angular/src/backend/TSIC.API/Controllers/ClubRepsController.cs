@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.API.Services.Players;
@@ -51,6 +53,42 @@ public class ClubRepsController : ControllerBase
             {
                 Status = 500,
                 Title = "Club Registration Failed",
+                Detail = ex.Message,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1"
+            });
+        }
+    }
+
+    [Authorize]
+    [HttpPost("add-club")]
+    [ProducesResponseType(typeof(AddClubResponse), 200)]
+    [ProducesResponseType(typeof(AddClubResponse), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(ProblemDetails), 500)]
+    public async Task<IActionResult> AddClub([FromBody] AddClubRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            var result = await _clubService.AddClubAsync(request, userId);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ProblemDetails
+            {
+                Status = 500,
+                Title = "Add Club Failed",
                 Detail = ex.Message,
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1"
             });

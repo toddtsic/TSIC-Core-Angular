@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult } from '@core/api';
+import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult, AddClubRequest, AddClubResponse } from '@core/api';
 
 @Injectable({
     providedIn: 'root'
@@ -18,6 +18,14 @@ export class ClubService {
      */
     registerClub(request: ClubRepRegistrationRequest): Observable<ClubRepRegistrationResponse> {
         return this.http.post<ClubRepRegistrationResponse>(`${this.clubRepsApiUrl}/register`, request);
+    }
+
+    /**
+     * Add an additional club to an existing ClubRep user
+     * Supports both creating new clubs and attaching to existing clubs
+     */
+    addClub(request: AddClubRequest): Observable<AddClubResponse> {
+        return this.http.post<AddClubResponse>(`${this.clubRepsApiUrl}/add-club`, request);
     }
 
     /**

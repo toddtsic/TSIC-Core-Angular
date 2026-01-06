@@ -137,15 +137,30 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    public async Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId)
+    public async Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId, int? clubId = null)
     {
-        _logger.LogInformation("Registering team for event. JobPath: {JobPath}, ClubTeamId: {ClubTeamId}, User: {UserId}",
-            request.JobPath, request.ClubTeamId, userId);
+        _logger.LogInformation("Registering team for event. JobPath: {JobPath}, ClubTeamId: {ClubTeamId}, User: {UserId}, ClubId: {ClubId}",
+            request.JobPath, request.ClubTeamId, userId, clubId);
 
-        // Get club rep
-        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-        var clubId = myClubs.FirstOrDefault()?.ClubId;
-        if (clubId == null)
+        // Get club rep - use clubId from JWT if provided, otherwise get first club (backward compatibility)
+        int? effectiveClubId = clubId;
+        if (effectiveClubId == null)
+        {
+            var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+            effectiveClubId = myClubs.FirstOrDefault()?.ClubId;
+        }
+        else
+        {
+            // Validate that user has access to the specified club
+            var hasAccess = await _clubReps.ExistsAsync(userId, effectiveClubId.Value);
+            if (!hasAccess)
+            {
+                _logger.LogWarning("User {UserId} attempted to access club {ClubId} without permission", userId, effectiveClubId);
+                throw new UnauthorizedAccessException("User does not have access to this club");
+            }
+        }
+
+        if (effectiveClubId == null)
         {
             _logger.LogWarning("User {UserId} is not a club rep", userId);
             throw new InvalidOperationException("User is not authorized as a club representative");
@@ -160,7 +175,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Club team not found");
         }
 
-        if (clubTeamEntity.ClubId != clubId)
+        if (clubTeamEntity.ClubId != effectiveClubId)
         {
             _logger.LogWarning("Club team {ClubTeamId} does not belong to user's club", request.ClubTeamId);
             throw new InvalidOperationException("You can only register teams from your own club");

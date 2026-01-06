@@ -76,22 +76,14 @@ public sealed class ClubService : IClubService
             }
         }
 
-        // Check for similar existing clubs (fuzzy match)
-        var similarClubs = await SearchClubsAsync(request.ClubName, request.State);
+        // Check for similar existing clubs (fuzzy match) - search ALL states to find duplicates
+        var similarClubs = await SearchClubsAsync(request.ClubName, null);
 
-        // If exact match found (90%+ similarity), warn user
-        var exactMatch = similarClubs.FirstOrDefault(c => c.MatchScore >= 90);
-        if (exactMatch != null)
-        {
-            return new ClubRepRegistrationResponse
-            {
-                Success = false,
-                ClubId = null,
-                UserId = null,
-                Message = $"A club with a very similar name to '{exactMatch.ClubName}' already exists.",
-                SimilarClubs = similarClubs
-            };
-        }
+        // Return similar clubs for user to review - DON'T block registration
+        // Frontend will present matches and ask: "Is this your club?"
+        // User can choose to:
+        //   A) Attach to existing club (create ClubRep record with existing ClubId)
+        //   B) Create new club (proceed with new Clubs + ClubRep records)
 
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
@@ -152,6 +144,102 @@ public sealed class ClubService : IClubService
         return new ClubRepRegistrationResponse { Success = true, ClubId = club.ClubId, UserId = user.Id, Message = null, SimilarClubs = similarClubs.Any() ? similarClubs : null };
     }
 
+    public async Task<AddClubResponse> AddClubAsync(AddClubRequest request, string userId)
+    {
+        // Check for similar existing clubs (fuzzy match) - search ALL states
+        var similarClubs = await SearchClubsAsync(request.ClubName, null);
+
+        // If user confirmed they want to use existing club
+        if (request.UseExistingClubId.HasValue)
+        {
+            var existingClub = await _clubRepo.GetByIdAsync(request.UseExistingClubId.Value);
+            if (existingClub == null)
+            {
+                return new AddClubResponse
+                {
+                    Success = false,
+                    Message = "Selected club not found",
+                    ClubRepId = null,
+                    ClubId = null,
+                    SimilarClubs = null
+                };
+            }
+
+            // Check if user already has access to this club
+            var alreadyExists = await _clubRepRepo.ExistsAsync(userId, request.UseExistingClubId.Value);
+            if (alreadyExists)
+            {
+                return new AddClubResponse
+                {
+                    Success = false,
+                    Message = "You already have access to this club",
+                    ClubRepId = null,
+                    ClubId = request.UseExistingClubId.Value,
+                    SimilarClubs = null
+                };
+            }
+
+            // Create ClubRep association with existing club
+            var clubRep = new ClubReps
+            {
+                ClubId = request.UseExistingClubId.Value,
+                ClubRepUserId = userId
+            };
+            _clubRepRepo.Add(clubRep);
+            await _clubRepRepo.SaveChangesAsync();
+
+            return new AddClubResponse
+            {
+                Success = true,
+                Message = "Club added successfully",
+                ClubRepId = clubRep.Aid,
+                ClubId = existingClub.ClubId,
+                SimilarClubs = null
+            };
+        }
+
+        // User wants to create new club - get user info for club address
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return new AddClubResponse
+            {
+                Success = false,
+                Message = "User not found",
+                ClubRepId = null,
+                ClubId = null,
+                SimilarClubs = null
+            };
+        }
+
+        // Create new club with user's address info
+        var club = new TSIC.Domain.Entities.Clubs
+        {
+            ClubName = request.ClubName,
+            LebUserId = user.Id
+        };
+        _clubRepo.Add(club);
+        await _clubRepo.SaveChangesAsync();
+
+        // Create ClubRep association
+        var newClubRep = new TSIC.Domain.Entities.ClubReps
+        {
+            ClubId = club.ClubId,
+            ClubRepUserId = userId
+        };
+        _clubRepRepo.Add(newClubRep);
+        await _clubRepRepo.SaveChangesAsync();
+
+        return new AddClubResponse
+        {
+            Success = true,
+            Message = "New club created and added successfully",
+            ClubRepId = newClubRep.Aid,
+            ClubId = club.ClubId,
+            SimilarClubs = similarClubs.Any() ? similarClubs : null
+        };
+    }
+
     public async Task<List<ClubSearchResult>> SearchClubsAsync(string query, string? state)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 3)
@@ -162,8 +250,8 @@ public sealed class ClubService : IClubService
         // Business logic: normalize search query
         var normalized = ClubNameMatcher.NormalizeClubName(query);
 
-        // Data access: query clubs via repository
-        var clubs = await _clubRepo.GetSearchCandidatesAsync(state);
+        // Data access: query clubs via repository (search all states to find duplicates)
+        var clubs = await _clubRepo.GetSearchCandidatesAsync();
 
         // Business logic: calculate similarity scores using Application layer
         var results = clubs

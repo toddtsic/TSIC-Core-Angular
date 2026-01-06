@@ -1,17 +1,19 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { ClubTeamManagementComponent } from './club-team-management/club-team-management.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TwStepIndicatorComponent, WizardStep } from './step-indicator/tw-step-indicator.component';
 import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
-import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
+import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import type { ClubRepClubDto } from '@core/api';
+import { ClubService } from '@infrastructure/services/club.service';
+import { TeamRegistrationService } from './services/team-registration.service';
+import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
 
 @Component({
     selector: 'app-team-registration-wizard',
@@ -27,7 +29,16 @@ export class TeamRegistrationWizardComponent implements OnInit {
     selectedClub: string | null = null;
     hasTeamsInLibrary = false;
     showClubSelectionModal = false;
+    showAddClubModal = false;
     inlineError: string | null = null;
+    addClubForm!: FormGroup;
+    statesOptions: SelectOption[] = [];
+
+    // Add club signals
+    addClubSubmitting = signal(false);
+    addClubError = signal<string | null>(null);
+    addClubSuccess = signal<string | null>(null);
+    similarClubs = signal<ClubSearchResult[]>([]);
 
     stepLabels: Record<number, string> = {
         1: 'Login',
@@ -50,9 +61,21 @@ export class TeamRegistrationWizardComponent implements OnInit {
     private readonly jobService = inject(JobService);
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
+    private readonly fb = inject(FormBuilder);
+    private readonly clubService = inject(ClubService);
+    private readonly teamRegService = inject(TeamRegistrationService);
     readonly authService = inject(AuthService);
 
+    constructor() {
+        this.addClubForm = this.fb.group({
+            clubName: ['', Validators.required]
+        });
+    }
+
     ngOnInit(): void {
+        // Load state options for add club form
+        this.statesOptions = this.fieldData.getOptionsForDataSource('states');
+
         // Get jobPath from route params using service
         const jobPath = this.jobContext.resolveFromRoute(this.route);
 
@@ -126,5 +149,69 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
     goToTeamsStep(): void {
         this.step = 3;
+    }
+
+    showAddClubForm(): void {
+        this.showClubSelectionModal = false;
+        this.showAddClubModal = true;
+        this.addClubError.set(null);
+        this.addClubSuccess.set(null);
+        this.similarClubs.set([]);
+        this.addClubForm.reset();
+    }
+
+    cancelAddClub(): void {
+        this.showAddClubModal = false;
+        this.showClubSelectionModal = true;
+    }
+
+    submitAddClub(): void {
+        if (this.addClubForm.invalid) return;
+
+        this.addClubSubmitting.set(true);
+        this.addClubError.set(null);
+        this.addClubSuccess.set(null);
+
+        const request = {
+            clubName: this.addClubForm.value.clubName,
+            useExistingClubId: undefined
+        };
+
+        this.clubService.addClub(request).subscribe({
+            next: (response) => {
+                if (response.success) {
+                    this.addClubSuccess.set('Club added successfully!');
+                    // Reload available clubs
+                    this.teamRegService.getMyClubs().subscribe({
+                        next: (clubs) => {
+                            this.availableClubs = clubs;
+                            setTimeout(() => {
+                                this.showAddClubModal = false;
+                                this.showClubSelectionModal = true;
+                            }, 1500);
+                        },
+                        error: (err) => {
+                            console.error('Error reloading clubs:', err);
+                            // Still close modal even if reload fails
+                            setTimeout(() => {
+                                this.showAddClubModal = false;
+                                this.showClubSelectionModal = true;
+                            }, 1500);
+                        }
+                    });
+                } else {
+                    this.addClubError.set(response.message || 'Failed to add club');
+                    if (response.similarClubs) {
+                        this.similarClubs.set(response.similarClubs);
+                    }
+                }
+                this.addClubSubmitting.set(false);
+            },
+            error: (err) => {
+                this.addClubError.set('Failed to add club. Please try again.');
+                this.addClubSubmitting.set(false);
+                console.error('Add club error:', err);
+            }
+        });
     }
 }

@@ -3,6 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export type { AddClubRequest } from './models/AddClubRequest';
+export type { AddClubResponse } from './models/AddClubResponse';
 export type { AddClubTeamRequest } from './models/AddClubTeamRequest';
 export type { AddClubTeamResponse } from './models/AddClubTeamResponse';
 export type { AddClubToRepRequest } from './models/AddClubToRepRequest';

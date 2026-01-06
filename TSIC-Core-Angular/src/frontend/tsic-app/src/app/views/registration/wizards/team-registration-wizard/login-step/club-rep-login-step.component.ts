@@ -8,6 +8,7 @@ import { ClubService } from '@infrastructure/services/club.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
+import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
 
 export interface LoginStepResult {
@@ -58,6 +59,7 @@ export class ClubRepLoginStepComponent implements OnInit {
     private readonly fieldData = inject(FormFieldDataService);
     private readonly fb = inject(FormBuilder);
     private readonly router = inject(Router);
+    private readonly toast = inject(ToastService);
 
     private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);
 
@@ -234,6 +236,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                         if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
                             return; // User redirected to TOS
                         }
+                        this.toast.show('Account created successfully! Please login with your new credentials to continue.', 'success', 5000);
                         this.hasClubRepAccount.set('yes');
                         this.registrationSuccess.emit({
                             clubName: request.clubName,
@@ -241,6 +244,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                         });
                     },
                     error: (error: HttpErrorResponse) => {
+                        this.toast.show('Account created successfully! Please use your new credentials to login.', 'success', 5000);
                         this.registrationError.set('Account created successfully, but auto-login failed. Please use the login form above.');
                         this.hasClubRepAccount.set('yes');
                     }
