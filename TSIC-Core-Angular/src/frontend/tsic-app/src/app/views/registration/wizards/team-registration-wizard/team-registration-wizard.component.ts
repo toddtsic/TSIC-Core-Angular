@@ -41,21 +41,50 @@ export class TeamRegistrationWizardComponent implements OnInit {
     similarClubs = signal<ClubSearchResult[]>([]);
     clubInfoCollapsed = signal(true);
 
-    stepLabels: Record<number, string> = {
-        1: 'Login',
-        2: 'Manage Club Teams',
-        3: 'Register Teams',
-        4: 'Payment',
-        5: 'Confirmation'
-    };
+    // Conditional step configuration based on registration status
+    stepLabels = computed(() => {
+        const isOpen = this.teamRegService.registrationOpen();
+        if (isOpen === null) return {}; // Loading
+        
+        if (isOpen) {
+            // Registration OPEN - Full wizard flow
+            return {
+                1: 'Login',
+                2: 'Manage Club Teams',
+                3: 'Register Teams',
+                4: 'Payment',
+                5: 'Confirmation'
+            };
+        } else {
+            // Registration CLOSED - Build mode only
+            return {
+                1: 'Login',
+                2: 'Build Your Roster'
+            };
+        }
+    });
 
-    wizardSteps: WizardStep[] = [
-        { stepNumber: 1, label: 'Login' },
-        { stepNumber: 2, label: 'Manage Teams' },
-        { stepNumber: 3, label: 'Register' },
-        { stepNumber: 4, label: 'Payment' },
-        { stepNumber: 5, label: 'Confirmation' }
-    ];
+    wizardSteps = computed(() => {
+        const isOpen = this.teamRegService.registrationOpen();
+        if (isOpen === null) return []; // Loading
+        
+        if (isOpen) {
+            // Registration OPEN - Full flow
+            return [
+                { stepNumber: 1, label: 'Login' },
+                { stepNumber: 2, label: 'Manage Teams' },
+                { stepNumber: 3, label: 'Register' },
+                { stepNumber: 4, label: 'Payment' },
+                { stepNumber: 5, label: 'Confirmation' }
+            ];
+        } else {
+            // Registration CLOSED - Build mode
+            return [
+                { stepNumber: 1, label: 'Login' },
+                { stepNumber: 2, label: 'Build Roster' }
+            ];
+        }
+    });
 
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
@@ -81,6 +110,9 @@ export class TeamRegistrationWizardComponent implements OnInit {
         const jobPath = this.jobContext.resolveFromRoute(this.route);
 
         if (jobPath) {
+            // Load registration status first
+            this.teamRegService.loadRegistrationStatus(jobPath).subscribe();
+
             // Load job metadata and set JsonOptions for dropdowns
             this.jobService.fetchJobMetadata(jobPath).subscribe({
                 next: (job) => {
@@ -149,7 +181,16 @@ export class TeamRegistrationWizardComponent implements OnInit {
     }
 
     goToTeamsStep(): void {
-        this.step = 3;
+        const isOpen = this.teamRegService.registrationOpen();
+        
+        if (isOpen) {
+            // Registration OPEN - Continue to event registration (step 3)
+            this.step = 3;
+        } else {
+            // Registration CLOSED - Navigate back to job home (build mode complete)
+            const jobPath = this.jobContext.resolveFromRoute(this.route);
+            this.router.navigate([`/${jobPath}/home`]);
+        }
     }
 
     toggleClubInfoCollapsed(): void {

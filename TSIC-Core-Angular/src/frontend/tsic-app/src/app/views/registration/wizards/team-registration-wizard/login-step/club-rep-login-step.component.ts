@@ -186,9 +186,12 @@ export class ClubRepLoginStepComponent implements OnInit {
                         availableClubs: clubs
                     };
 
-                    // Check for existing registrations conflict before proceeding
-                    // Only check if we have a single club (multi-club will be checked per-club in wizard)
-                    if (clubs.length === 1) {
+                    // Check for existing registrations conflict ONLY when registration is open
+                    // Skip this check in Build Mode (registration closed)
+                    const isRegistrationOpen = this.teamRegService.registrationOpen();
+                    
+                    if (clubs.length === 1 && isRegistrationOpen) {
+                        // Registration OPEN - enforce one-rep-per-event rule
                         const jobPath = this.router.url.split('/').pop() || '';
                         this.teamRegService.checkExistingRegistrations(jobPath, clubs[0].clubName).subscribe({
                             next: (conflictCheck) => {
@@ -212,7 +215,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                             }
                         });
                     } else {
-                        // Multi-club, proceed to club selection
+                        // Multi-club OR registration closed - proceed without conflict check
                         this.loginSuccess.emit(result);
                     }
                 },

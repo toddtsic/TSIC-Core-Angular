@@ -22,6 +22,27 @@
           }}%</progress>
       </div>
       <div class="card shadow-lg border-0 card-rounded wizard-theme-team">
+        <!-- Registration Status Banner -->
+        @if (teamRegService.registrationOpen() !== null) {
+          @if (teamRegService.registrationOpen()) {
+            <!-- Registration OPEN banner -->
+            <div class="alert alert-success mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+              <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+              <div class="flex-grow-1">
+                <strong>Registration is OPEN!</strong> Select teams from your roster to register for this event.
+              </div>
+            </div>
+          } @else {
+            <!-- Registration CLOSED banner - Build Mode -->
+            <div class="alert alert-info mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+              <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+              <div class="flex-grow-1">
+                <strong>Build Your Roster Now!</strong> Registration isn't open yet, but you can prepare by creating your club's teams. When registration opens, you'll be ready to go!
+              </div>
+            </div>
+          }
+        }
+        
         <div class="card-body bg-surface px-4 pb-4 pt-2">
           @if (step === 1) {
           <app-club-rep-login-step (loginSuccess)="handleLoginSuccess($event)"
@@ -50,7 +71,7 @@
         <div class="col-auto">
           @if (step === 2) {
           <app-tw-action-bar [canBack]="true" [showContinue]="hasTeamsInLibrary" [canContinue]="hasTeamsInLibrary"
-            continueLabel="Next" (back)="goBackToStep1()" (continue)="goToTeamsStep()">
+            [continueLabel]="teamRegService.registrationOpen() ? 'Next' : 'Done'" (back)="goBackToStep1()" (continue)="goToTeamsStep()">
           </app-tw-action-bar>
           }
           @if (step === 3) {

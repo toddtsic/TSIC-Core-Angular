@@ -42,7 +42,8 @@ public record JobMetadataDto(
     bool? AdnArb,
     int? AdnArbBillingOccurences,
     int? AdnArbIntervalLength,
-    DateTime? AdnArbStartDate);
+    DateTime? AdnArbStartDate,
+    bool BRegistrationAllowTeam);
 
 public record JobRegistrationStatus(
     bool BRegistrationAllowPlayer,
