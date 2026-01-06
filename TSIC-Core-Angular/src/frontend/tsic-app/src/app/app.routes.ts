@@ -6,6 +6,12 @@ export const routes: Routes = [
 	// Default route redirects to TSIC landing page
 	{ path: '', redirectTo: '/tsic', pathMatch: 'full' },
 
+	// 404 route (must be before :jobPath to prevent matching as a jobPath)
+	{
+		path: 'not-found',
+		loadComponent: () => import('./views/errors/not-found/not-found.component').then(m => m.NotFoundComponent)
+	},
+
 	// Job-specific routes (includes 'tsic' as special case) - allows both authenticated and anonymous users
 	{
 		path: ':jobPath',

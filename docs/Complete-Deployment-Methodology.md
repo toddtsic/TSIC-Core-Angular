@@ -119,6 +119,103 @@ Set-ItemProperty IIS:\Sites\Default Web Site -name applicationPool -value "TSIC-
 Write-Host "IIS configuration completed!"
 ```
 
+## SQL Server Database Permissions (ApplicationPoolIdentity)
+
+### Security Best Practice
+
+The IIS Application Pool should run under **ApplicationPoolIdentity** (least-privilege account) instead of LocalSystem or NetworkService. This requires granting SQL Server database permissions to the app pool identity.
+
+### Step-by-Step GUI Instructions
+
+#### Part 1: Create SQL Server Login for App Pool
+
+1. **Open SQL Server Management Studio (SSMS)**
+2. **Connect** to your SQL Server instance
+3. **Expand** your server → **Security** → **Logins**
+4. **Right-click Logins** → **New Login...**
+
+5. **In the Login - New dialog**:
+   - Select **Windows authentication** (should be default)
+   - In **Login name** field, type: `IIS AppPool\TSIC.Api`
+     - Replace `TSIC.Api` with your actual app pool name from IIS
+   - Click **User Mapping** in left sidebar
+
+6. **In User Mapping page**:
+   - Check the box next to your database (e.g., `TSICV5`)
+   - In **Database role membership** section below, check:
+     - `db_datareader` (read data)
+     - `db_datawriter` (write data)
+   - Click **OK**
+
+7. **Grant EXECUTE permission** (for stored procedures):
+   - Expand **Databases** → **[YourDatabase]** → **Security** → **Users**
+   - Right-click `IIS AppPool\TSIC.Api` → **Properties**
+   - Click **Securables** in left sidebar
+   - Click **Search...** button
+   - Select **All objects of the types...** → Click **OK**
+   - Check **Stored Procedures** → Click **OK**
+   - In bottom panel, find **Execute** row
+   - Check the **Grant** column
+   - Click **OK**
+
+#### Part 2: Configure IIS App Pool Identity (GUI)
+
+1. **Open IIS Manager**
+2. Click **Application Pools** in left panel
+3. **Right-click your API app pool** (e.g., `TSIC.Api`) → **Advanced Settings...**
+4. Under **Process Model** section:
+   - Click **Identity** row
+   - Click the **...** button on the right
+5. **In Application Pool Identity dialog**:
+   - Select **ApplicationPoolIdentity**
+   - Click **OK**
+6. Click **OK** to close Advanced Settings
+7. **Right-click the app pool** → **Stop**
+8. **Right-click the app pool** → **Start**
+
+#### Repeat for Angular App Pool (Optional)
+
+If your Angular app pool also needs database access (uncommon), repeat the above steps for `IIS AppPool\TSIC.App`.
+
+### Verification
+
+**Test API connectivity**:
+```powershell
+# Should return 200 OK if SQL connection works
+Invoke-WebRequest -Uri "http://localhost:5000/api/health" -UseBasicParsing
+```
+
+**Check Event Viewer** if issues occur:
+- Windows Logs → Application
+- Look for errors from "IIS" or ".NET Runtime"
+
+### Permissions Summary
+
+**What the app pool CAN do**:
+- ✅ Read/write data (all API operations)
+- ✅ Execute stored procedures
+- ✅ Connect to database
+
+**What the app pool CANNOT do** (security benefits):
+- ❌ Drop/create tables (safer)
+- ❌ Create logins/users (safer)
+- ❌ Backup/restore database (safer)
+- ❌ Modify database schema (safer)
+
+### Connection String Requirements
+
+Ensure your `appsettings.json` uses **Integrated Security**:
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=YOUR_SERVER;Database=TSICV5;Integrated Security=true;TrustServerCertificate=true;"
+  }
+}
+```
+
+**Remove** any `User ID` or `Password` parameters (Windows authentication only).
+
 ## Configuration Files
 
 ### API Web.config

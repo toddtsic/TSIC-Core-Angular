@@ -50,13 +50,22 @@ export class JobLandingComponent {
         // Check authentication status
         this.isAuthenticated.set(this.authService.isAuthenticated());
 
-        // Always load job metadata and bulletins (available for anonymous users)
-        this.jobService.loadJobMetadata(this.jobPath());
-        this.jobService.loadBulletins(this.jobPath());
+        // Fetch job metadata first - if job doesn't exist, redirect to not-found
+        this.jobService.fetchJobMetadata(this.jobPath()).subscribe({
+            next: (job) => {
+                // Job exists - set it and load additional data
+                this.jobService.setJob(job);
+                this.jobService.loadBulletins(this.jobPath());
 
-        // Only load registration status if authenticated
-        if (this.isAuthenticated()) {
-            this.jobService.loadRegistrationStatus(this.jobPath(), ['Player', 'Team']);
-        }
+                // Only load registration status if authenticated
+                if (this.isAuthenticated()) {
+                    this.jobService.loadRegistrationStatus(this.jobPath(), ['Player', 'Team']);
+                }
+            },
+            error: () => {
+                // Job not found - navigate to dedicated 404 route
+                this.router.navigate(['/not-found']);
+            }
+        });
     }
 }

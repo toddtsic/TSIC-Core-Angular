@@ -14,7 +14,14 @@ export class LastLocationService {
                 const url = e.urlAfterRedirects || e.url;
                 const path = (url.split('?')[0] || '').split('#')[0] || '';
                 const first = path.split('/').find(Boolean) || '';
-                // Only persist when it's a job path (not 'tsic') and looks safe
+
+                // Clear stored path if landing on error pages
+                if (first === 'not-found' || path === '**') {
+                    localStorage.removeItem(this.STORAGE_KEY);
+                    return;
+                }
+
+                // Only persist when it's a valid job path (not 'tsic', not error routes)
                 if (first && first !== 'tsic' && this.isSafeJobPath(first)) {
                     localStorage.setItem(this.STORAGE_KEY, first);
                 }
@@ -27,6 +34,11 @@ export class LastLocationService {
     }
 
     private isSafeJobPath(s: string): boolean {
+        // Exclude error/system routes
+        const excludedRoutes = ['not-found', 'error', 'unauthorized', 'login', 'register'];
+        if (excludedRoutes.includes(s.toLowerCase())) {
+            return false;
+        }
         // Basic allowlist for job path tokens: letters, numbers, dashes
         return /^[A-Za-z0-9-]+$/.test(s);
     }
