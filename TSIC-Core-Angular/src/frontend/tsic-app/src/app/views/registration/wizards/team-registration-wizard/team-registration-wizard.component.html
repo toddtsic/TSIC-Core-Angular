@@ -3,38 +3,38 @@
     <div class="col-12">
       <div class="text-center mb-2 mb-md-3">
         @if (clubName) {
-          <!-- Mobile: single compact line -->
-          <h2 id="tw-title" class="d-block d-md-none mb-0 fw-bold fs-6">
-            <span class="text-primary">{{ clubName }}</span> • Team Registration
-          </h2>
-          <!-- Desktop: two lines -->
-          <div id="tw-title-desktop" class="d-none d-md-block mb-1">
-            <div class="fw-bold fs-4 text-primary">{{ clubName }}</div>
-            <h2 class="mb-0 fw-bold">Team Registration</h2>
-          </div>
+        <!-- Mobile: single compact line -->
+        <h2 id="tw-title" class="d-block d-md-none mb-0 fw-bold fs-6">
+          <span class="text-primary">{{ clubName }}</span> • Team Registration
+        </h2>
+        <!-- Desktop: two lines -->
+        <div id="tw-title-desktop" class="d-none d-md-block mb-1">
+          <div class="fw-bold fs-4 text-primary">{{ clubName }}</div>
+          <h2 class="mb-0 fw-bold">Team Registration</h2>
+        </div>
         } @else {
-          <h2 id="tw-title" class="mb-1 fw-bold fs-5 fs-md-3">Team Registration</h2>
+        <h2 id="tw-title" class="mb-1 fw-bold fs-5 fs-md-3">Team Registration</h2>
         }
       </div>
       <app-tw-step-indicator [steps]="wizardSteps" [currentStep]="step"></app-tw-step-indicator>
       <div class="rw-sticky-header mb-2 mb-md-4 d-none d-md-block">
         <progress class="w-100 rw-progress" [value]="step * 20" max="100">{{ step * 20 | number:'1.0-0'
-        }}%</progress>
+          }}%</progress>
       </div>
       <div class="card shadow-lg border-0 card-rounded wizard-theme-team">
         <div class="card-body bg-surface px-4 pb-4 pt-2">
           @if (step === 1) {
-            <app-club-rep-login-step (loginSuccess)="handleLoginSuccess($event)"
+          <app-club-rep-login-step (loginSuccess)="handleLoginSuccess($event)"
             (registrationSuccess)="handleRegistrationSuccess($event)"></app-club-rep-login-step>
           }
 
           @if (step === 2) {
-            <app-club-team-management [clubName]="clubName || ''" (teamsLoaded)="onTeamsLoaded($event)"
+          <app-club-team-management [clubName]="clubName || ''" (teamsLoaded)="onTeamsLoaded($event)"
             (addTeam)="hasTeamsInLibrary = true"></app-club-team-management>
           }
 
           @if (step === 3) {
-            <app-teams-step [clubName]="clubName || ''"></app-teams-step>
+          <app-teams-step [clubName]="clubName || ''"></app-teams-step>
           }
         </div> <!-- /card-body -->
       </div> <!-- /card -->
@@ -43,169 +43,168 @@
 
   <!-- Fixed Bottom Navigation -->
   @if (step === 2 || step === 3) {
-    <div class="position-fixed bottom-0 start-0 end-0 py-2"
-      style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
-      <div class="container-fluid px-2">
-        <div class="row justify-content-center">
-          <div class="col-auto">
-            @if (step === 2) {
-              <app-tw-action-bar [canBack]="true" [showContinue]="hasTeamsInLibrary"
-                [canContinue]="hasTeamsInLibrary" continueLabel="Next" (back)="goBackToStep1()"
-                (continue)="goToTeamsStep()">
-              </app-tw-action-bar>
-            }
-            @if (step === 3) {
-              <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step = 2">
-              </app-tw-action-bar>
-            }
-          </div>
+  <div class="position-fixed bottom-0 start-0 end-0 py-2"
+    style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
+    <div class="container-fluid px-2">
+      <div class="row justify-content-center">
+        <div class="col-auto">
+          @if (step === 2) {
+          <app-tw-action-bar [canBack]="true" [showContinue]="hasTeamsInLibrary" [canContinue]="hasTeamsInLibrary"
+            continueLabel="Next" (back)="goBackToStep1()" (continue)="goToTeamsStep()">
+          </app-tw-action-bar>
+          }
+          @if (step === 3) {
+          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step = 2">
+          </app-tw-action-bar>
+          }
         </div>
       </div>
     </div>
+  </div>
   }
 </main>
 
 <!-- Club Selection Modal -->
 @if (showClubSelectionModal) {
-  <div class="modal d-block" tabindex="-1" role="dialog"
-    style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-      <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
-          <div class="d-flex align-items-start w-100">
-            <i class="bi bi-building me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
-            <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">
-              @if (availableClubs.length === 1) {
-                Confirm Your Club
-              } @else {
-                Select Your Club
-              }
-            </h4>
+<div class="modal d-block" tabindex="-1" role="dialog"
+  style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
+        <div class="d-flex align-items-start w-100">
+          <i class="bi bi-building me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
+          <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">
+            @if (availableClubs.length === 1) {
+            Confirm Your Club
+            } @else {
+            Select Your Club
+            }
+          </h4>
+        </div>
+      </div>
+      <div class="modal-body p-3 p-md-4">
+        @if (inlineError) {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>{{ inlineError }}
+          <button type="button" class="btn-close" (click)="inlineError = null"></button>
+        </div>
+        }
+
+        @if (availableClubs.length === 1) {
+        <!-- Single Club: Show club name prominently -->
+        <div class="mb-2 py-2 px-2 rounded-3 border-0" style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
+          <div class="d-flex align-items-center gap-2">
+            <div class="p-1 rounded-circle" style="background-color: rgba(var(--bs-primary-rgb), 0.25);">
+              <i class="bi bi-building fs-5" style="color: var(--bs-primary);"></i>
+            </div>
+            <div class="fw-bold fs-6 text-primary-content">
+              {{ availableClubs[0]?.clubName || clubName || selectedClub || 'Club name not available' }}
+            </div>
           </div>
         </div>
-        <div class="modal-body p-3 p-md-4">
-          @if (inlineError) {
-            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-              <i class="bi bi-exclamation-triangle me-2"></i>{{ inlineError }}
-              <button type="button" class="btn-close" (click)="inlineError = null"></button>
-            </div>
-          }
-
-          @if (availableClubs.length === 1) {
-            <!-- Single Club: Show club name prominently -->
-            <div class="mb-2 py-2 px-2 rounded-3 border-0"
-              style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
-              <div class="d-flex align-items-center gap-2">
-                <div class="p-1 rounded-circle" style="background-color: rgba(var(--bs-primary-rgb), 0.25);">
-                  <i class="bi bi-building fs-5" style="color: var(--bs-primary);"></i>
-                </div>
-                <div class="fw-bold fs-6 text-primary-content">
-                  {{ availableClubs[0]?.clubName || clubName || selectedClub || 'Club name not available' }}
-                </div>
-              </div>
-            </div>
-            <div class="d-flex justify-content-between align-items-center mt-3">
-              <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
-                <i class="bi bi-plus-circle me-1"></i> Add another club to this account
-              </button>
-              <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelClubSelection()">
-                  <i class="bi bi-x-circle me-1"></i> Cancel
-                </button>
-                <button type="button" class="btn btn-primary btn-sm" (click)="continueFromStep1()">
-                  <i class="bi bi-check-circle me-1"></i> Confirm
-                </button>
-              </div>
-            </div>
-          } @else {
-            <!-- Multiple Clubs: Show dropdown -->
-            <p class="text-muted mb-2 small">Choose which club you want to manage in this session:</p>
-            <div class="mb-3">
-              <label for="clubSelector" class="form-label fw-semibold small mb-1">Club</label>
-              <select id="clubSelector" class="form-select form-select-sm" [(ngModel)]="selectedClub"
-                (ngModelChange)="selectedClub && selectClub(selectedClub)">
-                <option [value]="null">-- Choose a club --</option>
-                @for (club of availableClubs; track club.clubName) {
-                  <option [value]="club.clubName">{{ club.clubName }}</option>
-                }
-              </select>
-            </div>
-            <div class="mt-2 d-flex justify-content-between align-items-center">
-              <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
-                <i class="bi bi-plus-circle me-1"></i> Add another club
-              </button>
-              <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedClub"
-                (click)="continueFromStep1()">
-                <i class="bi bi-arrow-right-circle me-1"></i> Continue
-              </button>
-            </div>
-          }
+        <div class="d-flex justify-content-between align-items-center mt-3">
+          <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
+            <i class="bi bi-plus-circle me-1"></i> Add another club to this account
+          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelClubSelection()">
+              <i class="bi bi-x-circle me-1"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" (click)="continueFromStep1()">
+              <i class="bi bi-check-circle me-1"></i> Confirm
+            </button>
+          </div>
         </div>
+        } @else {
+        <!-- Multiple Clubs: Show dropdown -->
+        <p class="text-muted mb-2 small">Choose which club you want to manage in this session:</p>
+        <div class="mb-3">
+          <label for="clubSelector" class="form-label fw-semibold small mb-1">Club</label>
+          <select id="clubSelector" class="form-select form-select-sm" [(ngModel)]="selectedClub"
+            (ngModelChange)="selectedClub && selectClub(selectedClub)">
+            <option [value]="null">-- Choose a club --</option>
+            @for (club of availableClubs; track club.clubName) {
+            <option [value]="club.clubName">{{ club.clubName }}</option>
+            }
+          </select>
+        </div>
+        <div class="mt-2 d-flex justify-content-between align-items-center">
+          <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
+            <i class="bi bi-plus-circle me-1"></i> Add another club
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedClub" (click)="continueFromStep1()">
+            <i class="bi bi-arrow-right-circle me-1"></i> Continue
+          </button>
+        </div>
+        }
       </div>
     </div>
   </div>
+</div>
 }
 <!-- Add Club Modal -->
 @if (showAddClubModal) {
-  <div class="modal d-block" tabindex="-1" role="dialog"
-    style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-      <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
-          <div class="d-flex align-items-start w-100">
-            <i class="bi bi-plus-circle me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
-            <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">Add Another Club</h4>
+<div class="modal d-block" tabindex="-1" role="dialog"
+  style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
+        <div class="d-flex align-items-start w-100">
+          <i class="bi bi-plus-circle me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
+          <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">Add Another Club</h4>
+        </div>
+      </div>
+      <div class="modal-body p-3 p-md-4">
+        @if (addClubError()) {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>{{ addClubError() }}
+          <button type="button" class="btn-close" (click)="addClubError.set(null)"></button>
+        </div>
+        }
+        @if (addClubSuccess()) {
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+          <i class="bi bi-check-circle me-2"></i>{{ addClubSuccess() }}
+          <button type="button" class="btn-close" (click)="addClubSuccess.set(null)"></button>
+        </div>
+        }
+
+        <form [formGroup]="addClubForm">
+          <div class="mb-3">
+            <label for="addClubName" class="form-label fw-semibold">Club Name</label>
+            <input type="text" id="addClubName" class="form-control" formControlName="clubName"
+              placeholder="Enter club name">
           </div>
-        </div>
-        <div class="modal-body p-3 p-md-4">
-          @if (addClubError()) {
-            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-              <i class="bi bi-exclamation-triangle me-2"></i>{{ addClubError() }}
-              <button type="button" class="btn-close" (click)="addClubError.set(null)"></button>
-            </div>
-          }
-          @if (addClubSuccess()) {
-            <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-              <i class="bi bi-check-circle me-2"></i>{{ addClubSuccess() }}
-              <button type="button" class="btn-close" (click)="addClubSuccess.set(null)"></button>
-            </div>
-          }
 
-          <form [formGroup]="addClubForm">
-            <div class="mb-3">
-              <label for="addClubName" class="form-label fw-semibold">Club Name</label>
-              <input type="text" id="addClubName" class="form-control" formControlName="clubName" placeholder="Enter club name">
-            </div>
-
-            @if (similarClubs().length > 0) {
-              <div class="alert alert-warning" role="alert">
-                <div class="d-flex align-items-start">
-                  <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0"></i>
-                  <div>
-                    <strong>Similar clubs found:</strong>
-                    <ul class="mb-2 mt-1 ps-3">
-                      @for (club of similarClubs(); track club.clubId) {
-                        <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
-                      }
-                    </ul>
-                    <p class="mb-0 small">Is one of these your club?</p>
-                  </div>
-                </div>
+          @if (similarClubs().length > 0) {
+          <div class="alert alert-warning" role="alert">
+            <div class="d-flex align-items-start">
+              <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0"></i>
+              <div>
+                <strong>Similar clubs found:</strong>
+                <ul class="mb-2 mt-1 ps-3">
+                  @for (club of similarClubs(); track club.clubId) {
+                  <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
+                  }
+                </ul>
+                <p class="mb-0 small">Is one of these your club?</p>
               </div>
-            }
-
-            <div class="mt-3 d-flex justify-content-end gap-2">
-              <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelAddClub()">Cancel</button>
-              <button type="button" class="btn btn-primary btn-sm" [disabled]="addClubForm.invalid || addClubSubmitting()" (click)="submitAddClub()">
-                @if (addClubSubmitting()) {
-                  <span class="spinner-border spinner-border-sm me-1"></span>
-                }
-                Add Club
-              </button>
             </div>
-          </form>
-        </div>
+          </div>
+          }
+
+          <div class="mt-3 d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelAddClub()">Cancel</button>
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="addClubForm.invalid || addClubSubmitting()"
+              (click)="submitAddClub()">
+              @if (addClubSubmitting()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Add Club
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
+</div>
 }
