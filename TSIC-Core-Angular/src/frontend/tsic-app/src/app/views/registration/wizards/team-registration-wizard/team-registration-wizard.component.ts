@@ -152,7 +152,6 @@ export class TeamRegistrationWizardComponent implements OnInit {
     }
 
     showAddClubForm(): void {
-        this.showClubSelectionModal = false;
         this.showAddClubModal = true;
         this.addClubError.set(null);
         this.addClubSuccess.set(null);
@@ -162,7 +161,10 @@ export class TeamRegistrationWizardComponent implements OnInit {
 
     cancelAddClub(): void {
         this.showAddClubModal = false;
-        this.showClubSelectionModal = true;
+        this.addClubForm.reset();
+        this.addClubError.set(null);
+        this.addClubSuccess.set(null);
+        this.similarClubs.set([]);
     }
 
     submitAddClub(): void {
@@ -187,15 +189,15 @@ export class TeamRegistrationWizardComponent implements OnInit {
                             this.availableClubs = clubs;
                             setTimeout(() => {
                                 this.showAddClubModal = false;
-                                this.showClubSelectionModal = true;
+                                this.addClubForm.reset();
                             }, 1500);
                         },
                         error: (err) => {
                             console.error('Error reloading clubs:', err);
-                            // Still close modal even if reload fails
+                            // Still close form even if reload fails
                             setTimeout(() => {
                                 this.showAddClubModal = false;
-                                this.showClubSelectionModal = true;
+                                this.addClubForm.reset();
                             }, 1500);
                         }
                     });
