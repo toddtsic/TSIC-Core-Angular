@@ -1,8 +1,8 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto } from '@core/api';
+import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto, JobMetadataDto } from '@core/api';
 
 export interface JobBulletin {
     id: string;
@@ -37,6 +37,7 @@ export class JobService {
 
     // Signal for reactive state management
     public readonly currentJob = signal<Job | null>(null);
+    private readonly _jobMetadata = signal<JobMetadataDto | null>(null);
     public readonly jobMetadataLoading = signal(false);
     public readonly registrationStatuses = signal<RegistrationStatusResponse[]>([]);
     public readonly registrationLoading = signal(false);
@@ -47,6 +48,11 @@ export class JobService {
     public readonly menus = signal<MenuItemDto[]>([]);
     public readonly menusLoading = signal(false);
     public readonly menusError = signal<string | null>(null);
+
+    // Computed: Team registration status from job metadata
+    public readonly isTeamRegistrationOpen = computed(() =>
+        this._jobMetadata()?.bRegistrationAllowTeam ?? false
+    );
 
     // Simulate fetching job info (replace with real API call as needed)
     setJob(job: Job) {
@@ -78,8 +84,21 @@ export class JobService {
     }
 
     // Legacy Observable return (kept temporarily for callers that still expect it)
-    fetchJobMetadata(jobPath: string): Observable<Job> {
-        return this.http.get<Job>(`${this.apiUrl}/jobs/${jobPath}`);
+    fetchJobMetadata(jobPath: string): Observable<JobMetadataDto> {
+        // Clear stale metadata immediately to prevent showing wrong data during load
+        this._jobMetadata.set(null);
+        this.jobMetadataLoading.set(true);
+        return this.http.get<JobMetadataDto>(`${this.apiUrl}/jobs/${jobPath}/metadata`).pipe(
+            tap({
+                next: metadata => {
+                    this._jobMetadata.set(metadata);
+                    this.jobMetadataLoading.set(false);
+                },
+                error: () => {
+                    this.jobMetadataLoading.set(false);
+                }
+            })
+        );
     }
 
     // Command-style load for registration status using signals

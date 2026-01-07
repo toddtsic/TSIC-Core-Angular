@@ -1,11 +1,9 @@
-import { Component, EventEmitter, Output, inject, OnInit, computed, signal } from '@angular/core';
-
+import { Component, EventEmitter, Output, Input, inject, OnInit, OnDestroy, computed, signal } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { HttpErrorResponse } from '@angular/common/http';
-import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { ClubService } from '@infrastructure/services/club.service';
-import { TeamRegistrationService } from '../services/team-registration.service';
+import { JobService } from '@infrastructure/services/job.service';
+import { ClubRepWorkflowService } from '../services/club-rep-workflow.service';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import { ToastService } from '@shared-ui/toast.service';
@@ -23,14 +21,13 @@ export interface LoginStepResult {
     standalone: true,
     imports: [ReactiveFormsModule, FormsModule, InfoTooltipComponent]
 })
-export class ClubRepLoginStepComponent implements OnInit {
+export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
+    @Input() jobPath: string | null = null;
     @Output() loginSuccess = new EventEmitter<LoginStepResult>();
     @Output() registrationSuccess = new EventEmitter<LoginStepResult>();
 
     /** UI state: 'yes' = has account, 'no' = needs registration, null = not selected */
     hasClubRepAccount = signal<'yes' | 'no' | null>(null);
-    username = signal('');
-    password = signal('');
     loginSubmitting = signal(false);
     registrationSubmitting = signal(false);
     inlineError = signal<string | null>(null);
@@ -56,6 +53,9 @@ export class ClubRepLoginStepComponent implements OnInit {
     registrationForm: FormGroup;
     loginForm: FormGroup;
 
+    // Single subscription for workflow operations
+    private workflowSubscription?: Subscription;
+
     // Expose modal state for template binding
     duplicateModalOpen = computed(() => this.duplicateModalState().isOpen);
     duplicateModalMessage = computed(() => this.duplicateModalState().message);
@@ -67,11 +67,10 @@ export class ClubRepLoginStepComponent implements OnInit {
     conflictWarningTeamCount = computed(() => this.conflictWarningState().teamCount);
 
     private readonly authService = inject(AuthService);
-    private readonly clubService = inject(ClubService);
-    private readonly teamRegService = inject(TeamRegistrationService);
+    private readonly jobService = inject(JobService);
+    private readonly workflowService = inject(ClubRepWorkflowService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly fb = inject(FormBuilder);
-    private readonly router = inject(Router);
     private readonly toast = inject(ToastService);
 
     private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);
@@ -105,132 +104,91 @@ export class ClubRepLoginStepComponent implements OnInit {
             this.hasClubRepAccount.set('yes');
             const currentUser = this.authService.currentUser();
             if (currentUser?.username) {
-                this.username.set(currentUser.username);
                 this.loginForm.patchValue({ username: currentUser.username });
             }
         }
     }
 
-    private async doInlineLogin(): Promise<void> {
-        this.inlineError.set(null);
-        const u = (this.loginForm.value.username || '').toString().trim();
-        const p = (this.loginForm.value.password || '').toString();
-
-        // Defensive: explicit validation with user feedback
-        if (!u || !p) {
-            this.inlineError.set('Username and password are required.');
-            return;
-        }
-
-        if (this.loginSubmitting()) {
-            // Silent skip—UI spinner already shows in-flight state
-            return;
-        }
-
-        this.loginSubmitting.set(true);
-        console.debug('ClubRep login flow', { event: 'login_start', username: u });
-
-        return new Promise((resolve, reject) => {
-            this.authService.login({ username: u, password: p }).subscribe({
-                next: (response) => {
-                    this.loginSubmitting.set(false);
-                    console.debug('ClubRep login flow', { event: 'login_success', submitting: this.loginSubmitting() });
-                    // Check TOS requirement before proceeding
-                    if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
-                        reject(new Error('TOS required')); // Prevent wizard progression until TOS signed
-                        return;
-                    }
-                    resolve();
-                },
-                error: (err) => {
-                    this.loginSubmitting.set(false);
-                    console.debug('ClubRep login flow', { event: 'login_error', status: err?.status });
-                    // Handle various error response structures
-                    let errorMessage = 'Login failed. Please check your username and password.';
-                    if (err?.error) {
-                        if (typeof err.error === 'string') {
-                            errorMessage = err.error;
-                        } else if (err.error.error) {
-                            // Nested error structure: {error: {error: 'message'}}
-                            errorMessage = err.error.error;
-                        } else if (err.error.message) {
-                            errorMessage = err.error.message;
-                        }
-                    }
-                    this.inlineError.set(errorMessage);
-                    reject(err);
-                }
-            });
-        });
+    ngOnDestroy(): void {
+        // Clean up workflow subscription to prevent memory leaks
+        this.workflowSubscription?.unsubscribe();
     }
-    async signInThenProceed(): Promise<void> {
+
+    signInThenProceed(): void {
         if (this.loginForm.invalid) {
             return;
         }
 
-        try {
-            const loginSucceeded = await this.doInlineLogin().then(() => true).catch(() => false);
-            if (!loginSucceeded || this.inlineError()) return;
+        // Cancel any in-flight login to prevent race condition
+        this.workflowSubscription?.unsubscribe();
 
-            this.teamRegService.getMyClubs().subscribe({
-                next: (clubs) => {
-                    if (clubs.length === 0) {
-                        this.inlineError.set('You are not registered as a club representative.');
-                        return;
-                    }
+        this.inlineError.set(null);
+        this.loginSubmitting.set(true);
 
-                    this.hasClubRepAccount.set('yes');
+        const credentials = {
+            username: this.loginForm.value.username?.toString().trim() || '',
+            password: this.loginForm.value.password?.toString() || ''
+        };
 
-                    const result: LoginStepResult = {
-                        clubName: clubs.length === 1 ? clubs[0].clubName : '',
-                        availableClubs: clubs
-                    };
-
-                    // Check for existing registrations conflict ONLY when registration is open
-                    // Skip this check in Build Mode (registration closed)
-                    const isRegistrationOpen = this.teamRegService.registrationOpen();
-                    
-                    if (clubs.length === 1 && isRegistrationOpen) {
-                        // Registration OPEN - enforce one-rep-per-event rule
-                        const jobPath = this.router.url.split('/').pop() || '';
-                        this.teamRegService.checkExistingRegistrations(jobPath, clubs[0].clubName).subscribe({
-                            next: (conflictCheck) => {
-                                if (conflictCheck.hasConflict) {
-                                    // Show conflict warning modal with option to proceed
-                                    this.conflictWarningState.set({
-                                        isOpen: true,
-                                        otherRepUsername: conflictCheck.otherRepUsername || 'another club rep',
-                                        teamCount: conflictCheck.teamCount ?? 0,
-                                        pendingEmit: result
-                                    });
-                                } else {
-                                    // No conflict, proceed normally
-                                    this.loginSuccess.emit(result);
-                                }
-                            },
-                            error: (err) => {
-                                console.error('Failed to check existing registrations:', err);
-                                // On error, proceed anyway (don't block login)
-                                this.loginSuccess.emit(result);
-                            }
-                        });
-                    } else {
-                        // Multi-club OR registration closed (library management) - proceed without conflict check
-                        this.loginSuccess.emit(result);
-                    }
-                },
-                error: (err) => {
-                    this.inlineError.set('Failed to load your clubs. Please try again.');
-                    console.error('Failed to load clubs:', err);
-                }
-            });
-        } finally {
-            // doInlineLogin handles submitting state
+        // Validate credentials aren't empty (could be stale if form was reset)
+        if (!credentials.username || !credentials.password) {
+            this.loginSubmitting.set(false);
+            this.inlineError.set('Please enter both username and password.');
+            return;
         }
+
+        this.workflowSubscription = this.workflowService.loginAndPrepareClubs(
+            credentials,
+            this.jobPath,
+            this.jobService.isTeamRegistrationOpen()
+        ).subscribe({
+            next: (result) => {
+                this.loginSubmitting.set(false);
+                this.hasClubRepAccount.set('yes');
+
+                const loginResult: LoginStepResult = {
+                    clubName: result.clubs.length === 1 ? result.clubs[0].clubName : '',
+                    availableClubs: result.clubs
+                };
+
+                if (result.hasConflict && result.conflictDetails) {
+                    // Show conflict warning modal
+                    this.conflictWarningState.set({
+                        isOpen: true,
+                        otherRepUsername: result.conflictDetails.otherRepUsername || 'another club rep',
+                        teamCount: result.conflictDetails.teamCount ?? 0,
+                        pendingEmit: loginResult
+                    });
+                } else {
+                    // No conflict, proceed normally
+                    this.loginSuccess.emit(loginResult);
+                }
+            },
+            error: (err) => {
+                this.loginSubmitting.set(false);
+
+                // Handle specific error types
+                if (err.type === 'TOS_REQUIRED') {
+                    // User redirected to TOS page, no error message needed
+                    return;
+                }
+
+                if (err.type === 'NOT_A_CLUB_REP') {
+                    this.inlineError.set('You are not registered as a club representative.');
+                    return;
+                }
+
+                // Generic error
+                this.inlineError.set(err.message || 'Login failed. Please try again.');
+            }
+        });
     }
 
     submitRegistration(): void {
         if (this.registrationForm.invalid) return;
+
+        // Cancel any in-flight registration to prevent race condition
+        this.workflowSubscription?.unsubscribe();
 
         this.registrationSubmitting.set(true);
         this.registrationError.set(null);
@@ -250,96 +208,52 @@ export class ClubRepLoginStepComponent implements OnInit {
             cellphone: this.registrationForm.value.cellphone
         };
 
-        this.clubService.registerClub(request).subscribe({
-            next: (response) => {
+        this.workflowSubscription = this.workflowService.registerAndAutoLogin(request).subscribe({
+            next: (result) => {
                 this.registrationSubmitting.set(false);
-
-                const similarClubResults = (response.similarClubs ?? []) as ClubSearchResult[];
-
-                if (!response.success) {
-                    this.setDuplicateModalState({
-                        isOpen: true,
-                        message: response.message ?? 'A club with a very similar name already exists. Please verify before creating a new club rep.',
-                        clubs: similarClubResults
-                    });
-                    return; // do not proceed to auto-login
-                }
-
-                // Registration succeeded; reset form and attempt auto-login
                 this.registrationForm.reset();
 
-                if (similarClubResults.length > 0) {
-                    console.debug('ClubRep registration', { event: 'similar_clubs_found', count: similarClubResults.length });
+                if (result.autoLoginFailed) {
+                    // Registration succeeded but auto-login failed
+                    this.toast.show('Account created successfully! Please use your new credentials to login.', 'success', 5000);
+                    this.registrationError.set('Account created successfully, but auto-login failed. Please use the login form above.');
+                    this.hasClubRepAccount.set('yes');
+                } else if (result.clubs) {
+                    // Full success - registered and logged in
+                    this.toast.show('Account created successfully!', 'success', 5000);
+                    this.hasClubRepAccount.set('yes');
+                    this.registrationSuccess.emit({
+                        clubName: request.clubName,
+                        availableClubs: result.clubs
+                    });
+                } else {
+                    // TOS redirect happened
+                    this.hasClubRepAccount.set('yes');
                 }
-
-                this.authService.login({
-                    username: request.username,
-                    password: request.password
-                }).subscribe({
-                    next: (response) => {
-                        // Check TOS requirement before proceeding
-                        if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
-                            return; // User redirected to TOS
-                        }
-                        this.toast.show('Account created successfully! Please login with your new credentials to continue.', 'success', 5000);
-                        this.hasClubRepAccount.set('yes');
-                        this.registrationSuccess.emit({
-                            clubName: request.clubName,
-                            availableClubs: [{ clubName: request.clubName, isInUse: false }]
-                        });
-                    },
-                    error: (error: HttpErrorResponse) => {
-                        this.toast.show('Account created successfully! Please use your new credentials to login.', 'success', 5000);
-                        this.registrationError.set('Account created successfully, but auto-login failed. Please use the login form above.');
-                        this.hasClubRepAccount.set('yes');
-                    }
-                });
             },
-            error: (error: HttpErrorResponse) => {
+            error: (err) => {
                 this.registrationSubmitting.set(false);
-                console.debug('ClubRep registration error', { status: error.status, hasMessage: !!error.error?.message });
 
-                // Handle duplicate/similar club conflict (409 or 400 with similarClubs payload)
-                const hasSimilarClubsPayload = error.error && Array.isArray(error.error.similarClubs);
-                if ((error.status === 409 || (error.status === 400 && hasSimilarClubsPayload)) && error.error) {
-                    const similar = (error.error.similarClubs ?? []) as ClubSearchResult[];
+                // Handle duplicate/similar club conflict
+                if (err.type === 'REGISTRATION_FAILED' && err.similarClubs) {
                     this.setDuplicateModalState({
                         isOpen: true,
-                        message: error.error.message ?? 'A club with a very similar name already exists. Please verify before creating a new club rep.',
-                        clubs: similar
+                        message: err.message || 'A club with a very similar name already exists. Please verify before creating a new club rep.',
+                        clubs: err.similarClubs
                     });
                     return;
                 }
 
-                // Generic error handling for other failures
-                let errorMessage = 'Registration failed. Please try again.';
-                if (error.error) {
-                    if (typeof error.error === 'string') {
-                        errorMessage = error.error;
-                    } else if (error.error.message) {
-                        errorMessage = error.error.message;
-                    } else if (error.error.title) {
-                        errorMessage = error.error.title;
-                        if (error.error.detail) {
-                            errorMessage += ': ' + error.error.detail;
-                        }
-                    } else if (error.error.errors) {
-                        const errors = Object.values(error.error.errors).flat();
-                        errorMessage = errors.join(', ');
-                    }
-                }
-
-                if (error.status >= 500) {
-                    errorMessage += ` (Server Error ${error.status})`;
-                }
-
-                this.registrationError.set(errorMessage);
+                // Generic error handling
+                this.registrationError.set(err.message || 'Registration failed. Please try again.');
             }
         });
     }
 
     dismissDuplicateWarning(): void {
         this.setDuplicateModalState({ isOpen: false, message: null, clubs: [] });
+        // Reset clubName to prevent resubmission of duplicate name
+        this.registrationForm.patchValue({ clubName: '' });
     }
 
     /**
@@ -376,10 +290,11 @@ export class ClubRepLoginStepComponent implements OnInit {
 
     /**
      * User cancels due to conflict warning.
+     * Resets UI state but keeps authentication (user successfully logged in).
      */
     cancelDueToConflict(): void {
         this.conflictWarningState.set({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
         this.hasClubRepAccount.set(null);
-        this.loginForm.reset();
+        // Note: Don't reset loginForm - user is already authenticated
     }
 }

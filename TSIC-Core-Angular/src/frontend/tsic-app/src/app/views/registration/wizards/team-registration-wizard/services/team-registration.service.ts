@@ -1,8 +1,7 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import { JobService } from '@infrastructure/services/job.service';
 import {
     TeamsMetadataResponse,
     RegisterTeamRequest,
@@ -39,24 +38,6 @@ import {
 export class TeamRegistrationService {
     private readonly apiUrl = `${environment.apiUrl}/team-registration`;
     private readonly http = inject(HttpClient);
-    private readonly jobService = inject(JobService);
-
-    // Registration status signal
-    private readonly _registrationOpen = signal<boolean | null>(null);
-    public readonly registrationOpen = computed(() => this._registrationOpen());
-
-    /**
-     * Initialize registration status from job metadata.
-     * Call this when wizard loads with jobPath.
-     */
-    loadRegistrationStatus(jobPath: string): Observable<void> {
-        return this.jobService.fetchJobMetadata(jobPath).pipe(
-            tap(metadata => {
-                this._registrationOpen.set(metadata.bRegistrationAllowTeam);
-            }),
-            tap(() => {}) // Convert to Observable<void>
-        );
-    }
 
     /**
      * Get list of clubs the current user is a rep for, with usage status

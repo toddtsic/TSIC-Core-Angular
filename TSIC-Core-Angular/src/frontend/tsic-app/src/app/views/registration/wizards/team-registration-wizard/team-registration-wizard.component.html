@@ -2,60 +2,91 @@
   <div class="row justify-content-center">
     <div class="col-12">
       <div class="text-center mb-2 mb-md-3">
-        @if (clubName) {
+        @if (clubName()) {
         <!-- Mobile: single compact line -->
         <h2 id="tw-title" class="d-block d-md-none mb-0 fw-bold fs-6">
-          <span class="text-primary">{{ clubName }}</span> • Team Registration
+          <span class="text-primary">{{ clubName() }}</span> • Team Registration
         </h2>
         <!-- Desktop: two lines -->
         <div id="tw-title-desktop" class="d-none d-md-block mb-1">
-          <div class="fw-bold fs-4 text-primary">{{ clubName }}</div>
+          <div class="fw-bold fs-4 text-primary">{{ clubName() }}</div>
           <h2 class="mb-0 fw-bold">Team Registration</h2>
         </div>
         } @else {
         <h2 id="tw-title" class="mb-1 fw-bold fs-5 fs-md-3">Team Registration</h2>
         }
       </div>
-      <app-tw-step-indicator [steps]="wizardSteps" [currentStep]="step"></app-tw-step-indicator>
+      @if (!isLoadingMetadata() && !metadataError()) {
+      <app-tw-step-indicator [steps]="wizardSteps()" [currentStep]="step()"></app-tw-step-indicator>
       <div class="rw-sticky-header mb-2 mb-md-4 d-none d-md-block">
-        <progress class="w-100 rw-progress" [value]="step * 20" max="100">{{ step * 20 | number:'1.0-0'
+        <progress class="w-100 rw-progress" [value]="step() * 20" max="100">{{ step() * 20 | number:'1.0-0'
           }}%</progress>
       </div>
+      }
       <div class="card shadow-lg border-0 card-rounded wizard-theme-team">
         <!-- Registration Status Banner -->
-        @if (teamRegService.registrationOpen() !== null) {
-          @if (teamRegService.registrationOpen()) {
-            <!-- Registration OPEN banner -->
-            <div class="alert alert-success mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
-              <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-              <div class="flex-grow-1">
-                <strong>Registration is OPEN!</strong> Select teams from your roster to register for this event.
-              </div>
-            </div>
-          } @else {
-            <!-- Registration CLOSED banner - Build Mode -->
-            <div class="alert alert-info mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
-              <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-              <div class="flex-grow-1">
-                <strong>Build Your Roster Now!</strong> Registration isn't open yet, but you can prepare by creating your club's teams. When registration opens, you'll be ready to go!
-              </div>
-            </div>
-          }
+        @if (isLoadingMetadata()) {
+        <!-- Loading state -->
+        <div class="alert alert-secondary mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+          <div class="flex-grow-1">
+            <strong>Loading...</strong> Checking registration status.
+          </div>
+        </div>
+        } @else if (isTeamRegistrationOpen()) {
+        <!-- Registration OPEN banner -->
+        <div class="alert alert-success mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+          <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+          <div class="flex-grow-1">
+            <strong>Registration is OPEN!</strong> Select teams from your roster to register for this event.
+          </div>
+        </div>
+        } @else {
+        <!-- Registration CLOSED banner - Build Mode -->
+        <div class="alert alert-info mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+          <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+          <div class="flex-grow-1">
+            <strong>Build Your Roster Now!</strong> Registration isn't open yet, but you can prepare by creating your
+            club's teams. When registration opens, you'll be ready to go!
+          </div>
+        </div>
         }
-        
+
         <div class="card-body bg-surface px-4 pb-4 pt-2">
-          @if (step === 1) {
-          <app-club-rep-login-step (loginSuccess)="handleLoginSuccess($event)"
+          @if (metadataError()) {
+          <!-- Error state - show retry -->
+          <div class="alert alert-danger d-flex align-items-start" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+            <div class="flex-grow-1">
+              <strong>Error:</strong> {{ metadataError() }}
+            </div>
+          </div>
+          <div class="text-center py-4">
+            <button type="button" class="btn btn-primary" (click)="loadMetadata(jobPath() || '')"
+              [disabled]="!jobPath()">
+              <i class="bi bi-arrow-clockwise me-1"></i> Retry
+            </button>
+          </div>
+          } @else if (isLoadingMetadata()) {
+          <!-- Loading state - block interaction -->
+          <div class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted">Preparing registration wizard...</p>
+          </div>
+          } @else if (step() === 1) {
+          <app-club-rep-login-step [jobPath]="jobPath()" (loginSuccess)="handleLoginSuccess($event)"
             (registrationSuccess)="handleRegistrationSuccess($event)"></app-club-rep-login-step>
           }
 
-          @if (step === 2) {
-          <app-club-team-management [clubName]="clubName || ''" (teamsLoaded)="onTeamsLoaded($event)"
-            (addTeam)="hasTeamsInLibrary = true"></app-club-team-management>
+          @if (step() === 2) {
+          <app-club-team-management [clubName]="clubName() || ''" (teamsLoaded)="onTeamsLoaded($event)"
+            (addTeam)="hasTeamsInLibrary.set(true)"></app-club-team-management>
           }
 
-          @if (step === 3) {
-          <app-teams-step [clubName]="clubName || ''"></app-teams-step>
+          @if (step() === 3) {
+          <app-teams-step [clubName]="clubName() || ''"></app-teams-step>
           }
         </div> <!-- /card-body -->
       </div> <!-- /card -->
@@ -63,19 +94,20 @@
   </div> <!-- /row -->
 
   <!-- Fixed Bottom Navigation -->
-  @if (step === 2 || step === 3) {
+  @if (step() === 2 || step() === 3) {
   <div class="position-fixed bottom-0 start-0 end-0 py-2"
     style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
     <div class="container-fluid px-2">
       <div class="row justify-content-center">
         <div class="col-auto">
-          @if (step === 2) {
-          <app-tw-action-bar [canBack]="true" [showContinue]="hasTeamsInLibrary" [canContinue]="hasTeamsInLibrary"
-            [continueLabel]="teamRegService.registrationOpen() ? 'Next' : 'Done'" (back)="goBackToStep1()" (continue)="goToTeamsStep()">
+          @if (step() === 2) {
+          <app-tw-action-bar [canBack]="true" [showContinue]="hasTeamsInLibrary()" [canContinue]="hasTeamsInLibrary()"
+            [continueLabel]="isTeamRegistrationOpen() ? 'Next' : 'Done'" (back)="goBackToStep1()"
+            (continue)="goToTeamsStep()">
           </app-tw-action-bar>
           }
-          @if (step === 3) {
-          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step = 2">
+          @if (step() === 3) {
+          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(2)">
           </app-tw-action-bar>
           }
         </div>
@@ -86,7 +118,7 @@
 </main>
 
 <!-- Club Selection Modal -->
-@if (showClubSelectionModal) {
+@if (showClubSelectionModal()) {
 <div class="modal d-block" tabindex="-1" role="dialog"
   style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
   <div class="modal-dialog modal-dialog-centered" role="document">
@@ -95,7 +127,7 @@
         <div class="d-flex align-items-start w-100">
           <i class="bi bi-building me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
           <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">
-            @if (availableClubs.length === 1) {
+            @if (availableClubs().length === 1) {
             Confirm Your Club
             } @else {
             Select Your Club
@@ -104,10 +136,10 @@
         </div>
       </div>
       <div class="modal-body p-3 p-md-4">
-        @if (inlineError) {
+        @if (inlineError()) {
         <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-          <i class="bi bi-exclamation-triangle me-2"></i>{{ inlineError }}
-          <button type="button" class="btn-close" (click)="inlineError = null"></button>
+          <i class="bi bi-exclamation-triangle me-2"></i>{{ inlineError() }}
+          <button type="button" class="btn-close" (click)="inlineError.set(null)"></button>
         </div>
         }
 
@@ -138,7 +170,7 @@
           </div>
         </div>
 
-        @if (availableClubs.length === 1) {
+        @if (availableClubs().length === 1) {
         <!-- Single Club: Show club name prominently -->
         <div class="mb-2 py-2 px-2 rounded-3 border-0" style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
           <div class="d-flex align-items-center gap-2">
@@ -146,7 +178,7 @@
               <i class="bi bi-building fs-5" style="color: var(--bs-primary);"></i>
             </div>
             <div class="fw-bold fs-6 text-primary-content">
-              {{ availableClubs[0]?.clubName || clubName || selectedClub || 'Club name not available' }}
+              {{ availableClubs()[0]?.clubName || clubName() || selectedClub() || 'Club name not available' }}
             </div>
           </div>
         </div>
@@ -155,10 +187,10 @@
         <p class="text-muted mb-2 small">Choose which club you want to manage in this session:</p>
         <div class="mb-3">
           <label for="clubSelector" class="form-label fw-semibold small mb-1">Club</label>
-          <select id="clubSelector" class="form-select" [(ngModel)]="selectedClub"
-            [size]="availableClubs.length > 5 ? 5 : availableClubs.length"
-            (ngModelChange)="selectedClub && selectClub(selectedClub)">
-            @for (club of availableClubs; track club.clubName) {
+          <select id="clubSelector" class="form-select" [ngModel]="selectedClub()"
+            [size]="availableClubs().length > 5 ? 5 : availableClubs().length"
+            (ngModelChange)="selectedClub.set($event); selectClub($event)">
+            @for (club of availableClubs(); track club.clubName) {
             <option [value]="club.clubName">{{ club.clubName }}</option>
             }
           </select>
@@ -166,7 +198,7 @@
         }
 
         <!-- Add Club Form (revealed inline when showAddClubModal = true) -->
-        @if (showAddClubModal) {
+        @if (showAddClubModal()) {
         <hr class="my-3">
         <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2"></i>Add Another Club</h6>
 
@@ -224,17 +256,18 @@
 
         <!-- Bottom Actions -->
         <div class="d-flex justify-content-between align-items-center mt-3">
-          @if (!showAddClubModal) {
+          @if (!showAddClubModal()) {
           <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
-            <i class="bi bi-plus-circle me-1"></i> Add another club{{ availableClubs.length === 1 ? ' to this account' :
+            <i class="bi bi-plus-circle me-1"></i> Add another club{{ availableClubs().length === 1 ? ' to this account'
+            :
             '' }}
           </button>
           } @else {
           <div></div>
           }
-          @if (!showAddClubModal) {
+          @if (!showAddClubModal()) {
           <div class="d-flex gap-2">
-            @if (availableClubs.length === 1) {
+            @if (availableClubs().length === 1) {
             <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelClubSelection()">
               <i class="bi bi-x-circle me-1"></i> Cancel
             </button>
@@ -242,7 +275,7 @@
               <i class="bi bi-check-circle me-1"></i> Confirm
             </button>
             } @else {
-            <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedClub"
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedClub()"
               (click)="continueFromStep1()">
               <i class="bi bi-arrow-right-circle me-1"></i> Continue
             </button>

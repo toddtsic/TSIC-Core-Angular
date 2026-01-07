@@ -1,16 +1,16 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription, switchMap, catchError, of } from 'rxjs';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { ClubTeamManagementComponent } from './club-team-management/club-team-management.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
-import { TwStepIndicatorComponent, WizardStep } from './step-indicator/tw-step-indicator.component';
+import { TwStepIndicatorComponent } from './step-indicator/tw-step-indicator.component';
 import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
-import { AuthService } from '@infrastructure/services/auth.service';
 import { ClubService } from '@infrastructure/services/club.service';
 import { TeamRegistrationService } from './services/team-registration.service';
 import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
@@ -22,52 +22,35 @@ import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
     standalone: true,
     imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, ClubTeamManagementComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent]
 })
-export class TeamRegistrationWizardComponent implements OnInit {
-    step = 1;
-    clubName: string | null = null;
-    availableClubs: ClubRepClubDto[] = [];
-    selectedClub: string | null = null;
-    hasTeamsInLibrary = false;
-    showClubSelectionModal = false;
-    showAddClubModal = false;
-    inlineError: string | null = null;
+export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
+    // All reactive state as signals
+    readonly step = signal(1);
+    readonly clubName = signal<string | null>(null);
+    readonly availableClubs = signal<ClubRepClubDto[]>([]);
+    readonly selectedClub = signal<string | null>(null);
+    readonly hasTeamsInLibrary = signal(false);
+    readonly showClubSelectionModal = signal(false);
+    readonly showAddClubModal = signal(false);
+    readonly inlineError = signal<string | null>(null);
+    readonly jobPath = signal<string | null>(null);
+    readonly addClubSubmitting = signal(false);
+    readonly addClubError = signal<string | null>(null);
+    readonly addClubSuccess = signal<string | null>(null);
+    readonly similarClubs = signal<ClubSearchResult[]>([]);
+    readonly clubInfoCollapsed = signal(true);
+    readonly metadataError = signal<string | null>(null);
+
+    // Non-reactive properties
     addClubForm!: FormGroup;
     statesOptions: SelectOption[] = [];
-
-    // Add club signals
-    addClubSubmitting = signal(false);
-    addClubError = signal<string | null>(null);
-    addClubSuccess = signal<string | null>(null);
-    similarClubs = signal<ClubSearchResult[]>([]);
-    clubInfoCollapsed = signal(true);
+    private metadataSubscription?: Subscription;
+    private addClubSubscription?: Subscription;
+    private addClubTimeoutId?: number;
 
     // Conditional step configuration based on registration status
-    stepLabels = computed(() => {
-        const isOpen = this.teamRegService.registrationOpen();
-        if (isOpen === null) return {}; // Loading
-        
-        if (isOpen) {
-            // Registration OPEN - Full wizard flow
-            return {
-                1: 'Login',
-                2: 'Manage Club Teams',
-                3: 'Register Teams',
-                4: 'Payment',
-                5: 'Confirmation'
-            };
-        } else {
-            // Registration CLOSED - Build mode only
-            return {
-                1: 'Login',
-                2: 'Build Your Library'
-            };
-        }
-    });
-
     wizardSteps = computed(() => {
-        const isOpen = this.teamRegService.registrationOpen();
-        if (isOpen === null) return []; // Loading
-        
+        const isOpen = this.isTeamRegistrationOpen();
+
         if (isOpen) {
             // Registration OPEN - Full flow
             return [
@@ -94,7 +77,10 @@ export class TeamRegistrationWizardComponent implements OnInit {
     private readonly fb = inject(FormBuilder);
     private readonly clubService = inject(ClubService);
     private readonly teamRegService = inject(TeamRegistrationService);
-    readonly authService = inject(AuthService);
+
+    // Expose registration status and loading state to template
+    readonly isTeamRegistrationOpen = computed(() => this.jobService.isTeamRegistrationOpen());
+    readonly isLoadingMetadata = computed(() => this.jobService.jobMetadataLoading());
 
     constructor() {
         this.addClubForm = this.fb.group({
@@ -107,98 +93,122 @@ export class TeamRegistrationWizardComponent implements OnInit {
         this.statesOptions = this.fieldData.getOptionsForDataSource('states');
 
         // Get jobPath from route params using service
-        const jobPath = this.jobContext.resolveFromRoute(this.route);
+        const resolvedPath = this.jobContext.resolveFromRoute(this.route);
+        this.jobPath.set(resolvedPath);
 
-        if (jobPath) {
-            // Load registration status first
-            this.teamRegService.loadRegistrationStatus(jobPath).subscribe();
+        if (resolvedPath) {
+            this.loadMetadata(resolvedPath);
+        }
+    }
 
-            // Load job metadata and set JsonOptions for dropdowns
-            this.jobService.fetchJobMetadata(jobPath).subscribe({
-                next: (job) => {
-                    this.fieldData.setJobOptions(job.jsonOptions);
-                },
-                error: (err) => {
-                    console.error('Failed to load job metadata:', err);
-                }
-            });
+    loadMetadata(jobPath: string): void {
+        // Validate jobPath before attempting fetch
+        if (!jobPath) {
+            this.metadataError.set('Invalid job path. Please refresh the page.');
+            return;
+        }
+
+        // Cancel any pending request to prevent duplicate calls
+        this.metadataSubscription?.unsubscribe();
+
+        this.metadataError.set(null);
+        // Single fetch - sets both JsonOptions and registration status
+        this.metadataSubscription = this.jobService.fetchJobMetadata(jobPath).subscribe({
+            next: (job) => {
+                this.fieldData.setJobOptions(job.jsonOptions);
+                // Registration status now available via jobService.isTeamRegistrationOpen()
+            },
+            error: (err) => {
+                console.error('Failed to load job metadata:', err);
+                this.metadataError.set('Failed to load registration information. Please try again.');
+            }
+        });
+    }
+
+    ngOnDestroy(): void {
+        // Clean up subscriptions to prevent memory leaks
+        this.metadataSubscription?.unsubscribe();
+        this.addClubSubscription?.unsubscribe();
+
+        // Clear any pending timeouts
+        if (this.addClubTimeoutId) {
+            clearTimeout(this.addClubTimeoutId);
         }
     }
 
     handleLoginSuccess(result: LoginStepResult): void {
-        this.availableClubs = result.availableClubs;
+        this.availableClubs.set(result.availableClubs);
 
         // Auto-select if only one club, otherwise require selection
         if (result.availableClubs.length === 1) {
-            this.selectedClub = result.availableClubs[0].clubName;
-            this.clubName = result.availableClubs[0].clubName;
+            this.selectedClub.set(result.availableClubs[0].clubName);
+            this.clubName.set(result.availableClubs[0].clubName);
         } else {
-            this.selectedClub = null;
+            this.selectedClub.set(null);
         }
 
         // Show modal for club confirmation/selection
-        this.showClubSelectionModal = true;
+        this.showClubSelectionModal.set(true);
     }
 
     handleRegistrationSuccess(result: LoginStepResult): void {
-        this.clubName = result.clubName;
-        this.availableClubs = result.availableClubs;
-        this.step = 2;
+        this.clubName.set(result.clubName);
+        this.availableClubs.set(result.availableClubs);
+        this.step.set(2);
     }
 
     goBackToStep1() {
-        this.step = 1;
+        this.step.set(1);
     }
 
     prevStep() {
-        this.step--;
+        this.step.update(s => s - 1);
     }
 
     selectClub(clubName: string): void {
-        this.selectedClub = clubName;
-        this.clubName = clubName;
+        this.selectedClub.set(clubName);
+        this.clubName.set(clubName);
     }
 
     continueFromStep1(): void {
-        if (!this.selectedClub) {
-            this.inlineError = 'Please select a club before continuing.';
+        if (!this.selectedClub()) {
+            this.inlineError.set('Please select a club before continuing.');
             return;
         }
-        this.clubName = this.selectedClub;
-        this.inlineError = null;
-        this.showClubSelectionModal = false;
-        this.step = 2;
+        this.clubName.set(this.selectedClub());
+        this.inlineError.set(null);
+        this.showClubSelectionModal.set(false);
+        this.step.set(2);
     }
 
     cancelClubSelection(): void {
-        this.showClubSelectionModal = false;
-        this.selectedClub = null;
-        this.inlineError = null;
+        this.showClubSelectionModal.set(false);
+        this.selectedClub.set(null);
+        this.inlineError.set(null);
     }
 
     onTeamsLoaded(count: number): void {
-        this.hasTeamsInLibrary = count > 0;
-    }
-
-    goToTeamsStep(): void {
-        const isOpen = this.teamRegService.registrationOpen();
-        
-        if (isOpen) {
-            // Registration OPEN - Continue to event registration (step 3)
-            this.step = 3;
-        } else {
-            // Registration CLOSED - Navigate back to job home (library management complete)
-            const jobPath = this.jobContext.resolveFromRoute(this.route);
-            this.router.navigate([`/${jobPath}/home`]);
-        }
+        this.hasTeamsInLibrary.set(count > 0);
     }
 
     toggleClubInfoCollapsed(): void {
-        this.clubInfoCollapsed.update((v) => !v);
+        this.clubInfoCollapsed.update(collapsed => !collapsed);
+    }
+
+    goToTeamsStep(): void {
+        const isOpen = this.isTeamRegistrationOpen();
+
+        if (isOpen) {
+            // Registration OPEN - Continue to event registration (step 3)
+            this.step.set(3);
+        } else if (this.jobPath()) {
+            // Registration CLOSED - Navigate back to job home (library management complete)
+            this.router.navigate([`/${this.jobPath()}/home`]);
+        }
     }
 
     showAddClubForm(): void {
-        this.showAddClubModal = true;
+        this.showAddClubModal.set(true);
         this.addClubError.set(null);
         this.addClubSuccess.set(null);
         this.similarClubs.set([]);
@@ -206,7 +216,7 @@ export class TeamRegistrationWizardComponent implements OnInit {
     }
 
     cancelAddClub(): void {
-        this.showAddClubModal = false;
+        this.showAddClubModal.set(false);
         this.addClubForm.reset();
         this.addClubError.set(null);
         this.addClubSuccess.set(null);
@@ -225,40 +235,52 @@ export class TeamRegistrationWizardComponent implements OnInit {
             useExistingClubId: undefined
         };
 
-        this.clubService.addClub(request).subscribe({
-            next: (response) => {
+        // Cancel any pending add club request
+        this.addClubSubscription?.unsubscribe();
+
+        this.addClubSubscription = this.clubService.addClub(request).pipe(
+            switchMap((response) => {
                 if (response.success) {
                     this.addClubSuccess.set('Club added successfully!');
-                    // Reload available clubs
-                    this.teamRegService.getMyClubs().subscribe({
-                        next: (clubs) => {
-                            this.availableClubs = clubs;
-                            setTimeout(() => {
-                                this.showAddClubModal = false;
-                                this.addClubForm.reset();
-                            }, 1500);
-                        },
-                        error: (err) => {
-                            console.error('Error reloading clubs:', err);
-                            // Still close form even if reload fails
-                            setTimeout(() => {
-                                this.showAddClubModal = false;
-                                this.addClubForm.reset();
-                            }, 1500);
-                        }
-                    });
+                    // Chain the clubs reload
+                    return this.teamRegService.getMyClubs();
                 } else {
                     this.addClubError.set(response.message || 'Failed to add club');
                     if (response.similarClubs) {
                         this.similarClubs.set(response.similarClubs);
                     }
+                    this.addClubSubmitting.set(false);
+                    // Return empty observable to complete the chain
+                    return of(null);
                 }
-                this.addClubSubmitting.set(false);
-            },
-            error: (err) => {
+            }),
+            catchError((err) => {
                 this.addClubError.set('Failed to add club. Please try again.');
                 this.addClubSubmitting.set(false);
                 console.error('Add club error:', err);
+                return of(null);
+            })
+        ).subscribe({
+            next: (clubs) => {
+                if (clubs) {
+                    // Successfully added and reloaded clubs
+                    this.availableClubs.set(clubs);
+                    // Clear any existing timeout
+                    if (this.addClubTimeoutId) {
+                        clearTimeout(this.addClubTimeoutId);
+                    }
+                    this.addClubTimeoutId = globalThis.setTimeout(() => {
+                        this.showAddClubModal.set(false);
+                        this.addClubForm.reset();
+                        this.addClubSubmitting.set(false);
+                        this.addClubTimeoutId = undefined;
+                    }, 1500);
+                }
+            },
+            error: (err) => {
+                // This should be caught by catchError above, but just in case
+                console.error('Unexpected error in submitAddClub:', err);
+                this.addClubSubmitting.set(false);
             }
         });
     }
