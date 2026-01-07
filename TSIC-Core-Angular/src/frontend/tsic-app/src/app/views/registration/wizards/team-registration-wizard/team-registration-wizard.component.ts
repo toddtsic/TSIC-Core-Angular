@@ -90,6 +90,85 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     readonly isTeamRegistrationOpen = computed(() => this.jobService.isTeamRegistrationOpen());
     readonly isLoadingMetadata = computed(() => this.jobService.jobMetadataLoading());
 
+    // Step-specific banner messaging
+    readonly stepBannerConfig = computed(() => {
+        const currentStep = this.step();
+        const isOpen = this.isTeamRegistrationOpen();
+
+        if (isOpen) {
+            // Registration OPEN - Full 5-step flow
+            switch (currentStep) {
+                case 1:
+                    return {
+                        icon: 'bi-box-arrow-in-right',
+                        alertClass: 'alert-primary',
+                        title: 'Club Rep Login',
+                        message: 'Log in with your Club Rep credentials to access your <strong>club team library</strong> and register for this event.'
+                    };
+                case 2:
+                    return {
+                        icon: 'bi-collection',
+                        alertClass: 'alert-info',
+                        title: 'Manage Your Team Library',
+                        message: 'Add, edit, or organize your club\'s teams. This is your <strong>club team library</strong> for future registrations.'
+                    };
+                case 3:
+                    return {
+                        icon: 'bi-check-circle-fill',
+                        alertClass: 'alert-success',
+                        title: 'Registration is OPEN!',
+                        message: 'Select teams from your <strong>club team library</strong> to register for this event.'
+                    };
+                case 4:
+                    return {
+                        icon: 'bi-credit-card',
+                        alertClass: 'alert-warning',
+                        title: 'Payment',
+                        message: 'Review your team registrations and submit payment to complete registration.'
+                    };
+                case 5:
+                    return {
+                        icon: 'bi-check-circle-fill',
+                        alertClass: 'alert-success',
+                        title: 'Registration Complete!',
+                        message: 'Your teams are registered for this event. Confirmation details have been sent.'
+                    };
+                default:
+                    return {
+                        icon: 'bi-info-circle-fill',
+                        alertClass: 'alert-info',
+                        title: '',
+                        message: ''
+                    };
+            }
+        } else {
+            // Registration CLOSED - Build mode (2 steps)
+            switch (currentStep) {
+                case 1:
+                    return {
+                        icon: 'bi-box-arrow-in-right',
+                        alertClass: 'alert-primary',
+                        title: 'Club Rep Login',
+                        message: 'Log in with your Club Rep credentials to build your <strong>club team library</strong> for when registration opens.'
+                    };
+                case 2:
+                    return {
+                        icon: 'bi-info-circle-fill',
+                        alertClass: 'alert-info',
+                        title: 'Build Your Club Team Library!',
+                        message: 'Registration isn\'t open yet, but you can prepare by creating your club\'s teams. When registration opens, you\'ll be ready to go!'
+                    };
+                default:
+                    return {
+                        icon: 'bi-info-circle-fill',
+                        alertClass: 'alert-info',
+                        title: '',
+                        message: ''
+                    };
+            }
+        }
+    });
+
     constructor() {
         this.addClubForm = this.fb.group({
             clubName: ['', Validators.required]

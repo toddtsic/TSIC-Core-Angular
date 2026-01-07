@@ -33,21 +33,15 @@
             <strong>Loading...</strong> Checking registration status.
           </div>
         </div>
-        } @else if (isTeamRegistrationOpen()) {
-        <!-- Registration OPEN banner -->
-        <div class="alert alert-success mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
-          <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-          <div class="flex-grow-1">
-            <strong>Registration is OPEN!</strong> Select teams from your roster to register for this event.
-          </div>
-        </div>
         } @else {
-        <!-- Registration CLOSED banner - Build Mode -->
-        <div class="alert alert-info mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
-          <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+        <!-- Step-specific banner with contextual messaging -->
+        <div class="alert {{ stepBannerConfig().alertClass }} mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+          <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
           <div class="flex-grow-1">
-            <strong>Build Your Roster Now!</strong> Registration isn't open yet, but you can prepare by creating your
-            club's teams. When registration opens, you'll be ready to go!
+            @if (stepBannerConfig().title) {
+            <strong>{{ stepBannerConfig().title }}</strong>{{ ' ' }}
+            }
+            <span [innerHTML]="stepBannerConfig().message"></span>
           </div>
         </div>
         }

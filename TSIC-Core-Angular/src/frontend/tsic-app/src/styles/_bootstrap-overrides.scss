@@ -42,3 +42,14 @@
     background-color: var(--bs-dark) !important;
     color: white !important;
 }
+
+/* ============================================
+   BUTTON DISABLED STATE ENHANCEMENT
+   Make disabled buttons more visually obvious
+   ============================================ */
+.btn:disabled,
+.btn.disabled {
+    opacity: 0.3 !important;
+    cursor: not-allowed !important;
+    pointer-events: auto !important; // Override Bootstrap's pointer-events: none to show cursor
+}

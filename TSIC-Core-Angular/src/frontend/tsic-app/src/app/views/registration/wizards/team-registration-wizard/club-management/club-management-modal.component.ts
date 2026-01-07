@@ -36,13 +36,7 @@ export class ClubManagementModalComponent implements OnInit, OnDestroy {
     readonly editClubName = signal('');
     readonly isEditingSubmitting = signal(false);
     readonly clubToDelete = signal<ClubRepClubDto | null>(null);
-    readonly deleteConfirmText = signal('');
     readonly isDeletingSubmitting = signal(false);
-
-    // Computed
-    readonly deleteConfirmValid = computed(() =>
-        this.deleteConfirmText().trim().toUpperCase() === 'DELETE'
-    );
 
     private loadClubsSubscription?: Subscription;
     private editClubSubscription?: Subscription;
@@ -205,23 +199,16 @@ export class ClubManagementModalComponent implements OnInit, OnDestroy {
         }
 
         this.clubToDelete.set(club);
-        this.deleteConfirmText.set('');
     }
 
     cancelDelete(): void {
         this.clubToDelete.set(null);
-        this.deleteConfirmText.set('');
     }
 
     confirmDelete(): void {
         const club = this.clubToDelete();
 
         if (!club) return;
-
-        if (!this.deleteConfirmValid()) {
-            this.toast.show('Please type DELETE to confirm', 'warning', 3000);
-            return;
-        }
 
         this.isDeletingSubmitting.set(true);
 

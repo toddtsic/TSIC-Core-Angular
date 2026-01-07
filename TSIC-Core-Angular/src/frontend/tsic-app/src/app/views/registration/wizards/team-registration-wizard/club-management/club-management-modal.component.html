@@ -95,9 +95,13 @@
                     }
                 </div>
 
-                <button type="button" class="btn btn-primary w-100" (click)="openAddClubForm()">
+                <button type="button" class="btn btn-primary w-100 mb-2" (click)="openAddClubForm()">
                     <i class="bi bi-plus-circle me-1"></i>
                     Add Another Club
+                </button>
+                <button type="button" class="btn btn-secondary w-100" (click)="close()">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Close
                 </button>
                 }
 
@@ -135,21 +139,13 @@
                     This action cannot be undone.
                 </p>
 
-                <p class="small text-muted mb-3">
-                    Type <strong>DELETE</strong> to confirm:
-                </p>
-
-                <input type="text" class="form-control form-control-sm mb-3" placeholder="Type DELETE"
-                    [(ngModel)]="deleteConfirmText" [disabled]="isDeletingSubmitting()" (keyup.enter)="confirmDelete()"
-                    (keyup.escape)="cancelDelete()" aria-label="Confirm deletion" />
-
                 <div class="d-flex gap-2 justify-content-end">
                     <button type="button" class="btn btn-secondary btn-sm" (click)="cancelDelete()"
                         [disabled]="isDeletingSubmitting()">
                         Cancel
                     </button>
                     <button type="button" class="btn btn-danger btn-sm" (click)="confirmDelete()"
-                        [disabled]="!deleteConfirmValid() || isDeletingSubmitting()">
+                        [disabled]="isDeletingSubmitting()">
                         @if (isDeletingSubmitting()) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
                         }
