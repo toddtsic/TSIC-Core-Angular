@@ -62,9 +62,13 @@ export class JobLandingComponent {
                     this.jobService.loadRegistrationStatus(this.jobPath(), ['Player', 'Team']);
                 }
             },
-            error: () => {
-                // Job not found - navigate to dedicated 404 route
-                this.router.navigate(['/not-found']);
+            error: (err) => {
+                // Only redirect to 404 if it's a genuine 404 (job not found)
+                // Network errors (status 0) are handled by the interceptor with a toast
+                if (err.status === 404) {
+                    this.router.navigate(['/not-found']);
+                }
+                // For other errors (500, 0/network, etc.), stay on page - user will see error toast
             }
         });
     }

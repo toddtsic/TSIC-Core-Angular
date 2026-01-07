@@ -32,6 +32,9 @@ export class LandingRouterComponent {
         { initialValue: '' }
     );
 
-    // Check if we're in TSIC context
-    isTsic = computed(() => this.jobPath() === 'tsic');
+    // Check if we're in TSIC context (empty string treated as tsic during initialization)
+    isTsic = computed(() => {
+        const path = this.jobPath();
+        return path === 'tsic' || path === '';
+    });
 }

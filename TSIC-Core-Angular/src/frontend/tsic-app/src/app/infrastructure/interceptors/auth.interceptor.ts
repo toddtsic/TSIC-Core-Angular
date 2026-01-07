@@ -24,6 +24,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     const handleRequest = (request: HttpRequest<unknown>): Observable<HttpEvent<unknown>> => {
         return next(request).pipe(
             catchError((error: HttpErrorResponse) => {
+                // Handle network errors (API is down)
+                if (error.status === 0 && error.error instanceof ProgressEvent) {
+                    toastService.show(
+                        '⚠️ Unable to connect to the server. Please check your connection or try again later.',
+                        'danger',
+                        0  // Don't auto-dismiss - critical error
+                    );
+                    return throwError(() => error);
+                }
+
                 // Handle 403 Forbidden errors
                 if (error.status === 403) {
                     const errorType = error.error?.type;
