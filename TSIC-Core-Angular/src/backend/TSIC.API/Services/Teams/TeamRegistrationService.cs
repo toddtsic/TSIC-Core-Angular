@@ -624,6 +624,56 @@ public class TeamRegistrationService : ITeamRegistrationService
         return true;
     }
 
+    public async Task<bool> UpdateClubNameAsync(string userId, string oldClubName, string newClubName)
+    {
+        _logger.LogInformation("Updating club name from {OldName} to {NewName} for user {UserId}",
+            oldClubName, newClubName, userId);
+
+        // Find club by old name
+        var club = await _clubs.GetByNameAsync(oldClubName);
+
+        if (club == null)
+        {
+            _logger.LogWarning("Club not found: {OldClubName}", oldClubName);
+            throw new InvalidOperationException("Club not found");
+        }
+
+        // Verify user is rep for this club
+        var clubRep = await _clubReps.GetClubRepForUserAndClubAsync(userId, club.ClubId);
+
+        if (clubRep == null)
+        {
+            _logger.LogWarning("User {UserId} is not a rep for club {ClubId}", userId, club.ClubId);
+            throw new InvalidOperationException("You are not a representative for this club");
+        }
+
+        // Check if club has ANY teams (prevent rename if teams exist)
+        var hasTeams = await _teams.Query().AnyAsync(t => t.ClubTeam!.ClubId == club.ClubId);
+
+        if (hasTeams)
+        {
+            _logger.LogWarning("Cannot rename club {ClubId} - has registered teams", club.ClubId);
+            throw new InvalidOperationException("Cannot rename club - teams have been registered under this club");
+        }
+
+        // Check if new name already exists (different club)
+        var existingClub = await _clubs.GetByNameAsync(newClubName);
+
+        if (existingClub != null && existingClub.ClubId != club.ClubId)
+        {
+            _logger.LogWarning("Club name {NewClubName} already exists", newClubName);
+            throw new InvalidOperationException("A club with this name already exists");
+        }
+
+        // Update club name
+        club.ClubName = newClubName.Trim();
+        await _clubs.SaveChangesAsync();
+
+        _logger.LogInformation("Club {ClubId} renamed successfully from {OldName} to {NewName}",
+            club.ClubId, oldClubName, newClubName);
+        return true;
+    }
+
     private async Task<List<ClubSearchResult>> SearchClubsAsync(string query)
     {
         if (string.IsNullOrWhiteSpace(query))

@@ -1,0 +1,86 @@
+.club-list {
+    max-height: 400px;
+    overflow-y: auto;
+
+    .club-item {
+        transition: all 0.2s ease;
+        background-color: var(--bs-card-bg);
+
+        &.editing {
+            background-color: rgba(var(--bs-info-rgb), 0.05);
+            border-color: var(--bs-info) !important;
+        }
+
+        &:hover:not(.editing) {
+            background-color: rgba(var(--bs-primary-rgb), 0.03);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-group {
+            .btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+        }
+    }
+
+    .club-edit-form {
+        padding: 0.5rem;
+        background-color: var(--bs-light);
+        border-radius: 0.25rem;
+    }
+}
+
+.add-club-section {
+    padding: 1rem;
+    background-color: var(--bs-light);
+    border-radius: 0.375rem;
+}
+
+.gradient-header {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary) 100%);
+    filter: brightness(0.9);
+}
+
+// Responsive adjustments
+@media (max-width: 576px) {
+    .club-item {
+        padding: 0.75rem !important;
+        
+        // Single-line layout on mobile
+        .d-flex {
+            flex-direction: row !important;
+            align-items: center !important;
+            
+            .flex-grow-1 {
+                min-width: 0;
+                flex: 1;
+                
+                .d-flex {
+                    gap: 0.5rem;
+                }
+                
+                .fw-semibold {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    font-size: 0.9rem;
+                }
+                
+                .badge {
+                    font-size: 0.65rem;
+                    padding: 0.2rem 0.4rem;
+                }
+            }
+        }
+
+        .btn-group {
+            flex-shrink: 0;
+            
+            .btn {
+                padding: 0.35rem 0.5rem;
+            }
+        }
+    }
+}

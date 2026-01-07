@@ -37,6 +37,26 @@ public class RemoveClubFromRepRequestValidator : AbstractValidator<RemoveClubFro
     }
 }
 
+public sealed record UpdateClubNameRequest
+{
+    public required string OldClubName { get; init; }
+    public required string NewClubName { get; init; }
+}
+
+public class UpdateClubNameRequestValidator : AbstractValidator<UpdateClubNameRequest>
+{
+    public UpdateClubNameRequestValidator()
+    {
+        RuleFor(x => x.OldClubName)
+            .NotEmpty().WithMessage("Old club name is required")
+            .MaximumLength(200).WithMessage("Club name cannot exceed 200 characters");
+        
+        RuleFor(x => x.NewClubName)
+            .NotEmpty().WithMessage("New club name is required")
+            .MaximumLength(200).WithMessage("Club name cannot exceed 200 characters");
+    }
+}
+
 public sealed record TeamsMetadataResponse
 {
     public required int ClubId { get; init; }

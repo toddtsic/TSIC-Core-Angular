@@ -8,11 +8,14 @@ import { ClubTeamManagementComponent } from './club-team-management/club-team-ma
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TwStepIndicatorComponent } from './step-indicator/tw-step-indicator.component';
 import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
+import { ClubManagementModalComponent } from './club-management/club-management-modal.component';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ClubService } from '@infrastructure/services/club.service';
 import { TeamRegistrationService } from './services/team-registration.service';
+import { UserPreferencesService } from '@infrastructure/services/user-preferences.service';
+import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
 
 @Component({
@@ -20,7 +23,7 @@ import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, ClubTeamManagementComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, ClubTeamManagementComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent, ClubManagementModalComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     // All reactive state as signals
@@ -31,13 +34,15 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     readonly hasTeamsInLibrary = signal(false);
     readonly showClubSelectionModal = signal(false);
     readonly showAddClubModal = signal(false);
+    readonly showManageClubsModal = signal(false);
     readonly inlineError = signal<string | null>(null);
     readonly jobPath = signal<string | null>(null);
     readonly addClubSubmitting = signal(false);
     readonly addClubError = signal<string | null>(null);
     readonly addClubSuccess = signal<string | null>(null);
     readonly similarClubs = signal<ClubSearchResult[]>([]);
-    readonly clubInfoCollapsed = signal(true);
+    readonly clubInfoCollapsed = signal(false);
+    readonly clubRepInfoAlreadyRead = signal(false);
     readonly metadataError = signal<string | null>(null);
 
     // Non-reactive properties
@@ -45,6 +50,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     statesOptions: SelectOption[] = [];
     private metadataSubscription?: Subscription;
     private addClubSubscription?: Subscription;
+    private reloadClubsSubscription?: Subscription;
     private addClubTimeoutId?: ReturnType<typeof setTimeout>;
 
     // Conditional step configuration based on registration status
@@ -77,6 +83,8 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     private readonly fb = inject(FormBuilder);
     private readonly clubService = inject(ClubService);
     private readonly teamRegService = inject(TeamRegistrationService);
+    private readonly userPrefs = inject(UserPreferencesService);
+    private readonly toast = inject(ToastService);
 
     // Expose registration status and loading state to template
     readonly isTeamRegistrationOpen = computed(() => this.jobService.isTeamRegistrationOpen());
@@ -86,6 +94,10 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         this.addClubForm = this.fb.group({
             clubName: ['', Validators.required]
         });
+        // Initialize accordion state based on whether user has read it before
+        const hasRead = this.userPrefs.isClubRepModalInfoRead();
+        this.clubInfoCollapsed.set(hasRead);
+        this.clubRepInfoAlreadyRead.set(hasRead);
     }
 
     ngOnInit(): void {
@@ -129,6 +141,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         // Clean up subscriptions to prevent memory leaks
         this.metadataSubscription?.unsubscribe();
         this.addClubSubscription?.unsubscribe();
+        this.reloadClubsSubscription?.unsubscribe();
 
         // Clear any pending timeouts
         if (this.addClubTimeoutId) {
@@ -170,6 +183,19 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         this.clubName.set(clubName);
     }
 
+    loadClubs(): void {
+        this.reloadClubsSubscription?.unsubscribe();
+        
+        this.reloadClubsSubscription = this.teamRegService.getMyClubs().subscribe({
+            next: (clubs) => {
+                this.availableClubs.set(clubs);
+            },
+            error: (err) => {
+                console.error('Failed to reload clubs:', err);
+            }
+        });
+    }
+
     continueFromStep1(): void {
         if (!this.selectedClub()) {
             this.inlineError.set('Please select a club before continuing.');
@@ -193,6 +219,12 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
     toggleClubInfoCollapsed(): void {
         this.clubInfoCollapsed.update(collapsed => !collapsed);
+    }
+
+    acknowledgeClubRepInfo(): void {
+        this.userPrefs.markClubRepModalInfoAsRead();
+        this.clubRepInfoAlreadyRead.set(true);
+        this.clubInfoCollapsed.set(true);
     }
 
     goToTeamsStep(): void {
@@ -281,6 +313,49 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                 // This should be caught by catchError above, but just in case
                 console.error('Unexpected error in submitAddClub:', err);
                 this.addClubSubmitting.set(false);
+            }
+        });
+    }
+
+    openManageClubsModal(): void {
+        this.showManageClubsModal.set(true);
+    }
+
+    closeManageClubsModal(): void {
+        this.showManageClubsModal.set(false);
+    }
+
+    handleClubsChanged(): void {
+        // Reload clubs from server and handle selected club removal
+        const currentSelected = this.selectedClub();
+        
+        this.reloadClubsSubscription?.unsubscribe();
+        
+        this.reloadClubsSubscription = this.teamRegService.getMyClubs().subscribe({
+            next: (clubs) => {
+                this.availableClubs.set(clubs);
+                
+                // Check if currently selected club still exists
+                if (currentSelected) {
+                    const stillExists = clubs.some(c => c.clubName === currentSelected);
+                    if (!stillExists) {
+                        // Selected club was removed OR renamed - clear selection
+                        this.selectedClub.set(null);
+                        this.clubName.set(null);
+                        
+                        // Auto-select if only one club remains
+                        if (clubs.length === 1) {
+                            const onlyClub = clubs[0];
+                            this.selectedClub.set(onlyClub.clubName);
+                            this.clubName.set(onlyClub.clubName);
+                            this.selectClub(onlyClub.clubName);
+                        }
+                    }
+                }
+            },
+            error: (err) => {
+                console.error('Failed to reload clubs after change:', err);
+                this.toast.show('Failed to reload clubs. Please try refreshing the page.', 'danger', 5000);
             }
         });
     }

@@ -1,0 +1,88 @@
+<div class="add-club-form-container">
+    @if (errorMessage()) {
+    <div class="alert alert-danger py-2 mb-3" role="alert">
+        <i class="bi bi-exclamation-circle me-1"></i>
+        {{ errorMessage() }}
+    </div>
+    }
+
+    @if (successMessage()) {
+    <div class="alert alert-success py-2 mb-3" role="alert">
+        <i class="bi bi-check-circle me-1"></i>
+        {{ successMessage() }}
+    </div>
+    }
+
+    @if (similarClubs().length > 0) {
+    <div class="alert alert-warning py-2 mb-3" role="alert">
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <h6 class="fw-semibold mb-2">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Similar clubs found:
+                </h6>
+                <p class="small mb-2">To prevent duplicates, you can select an existing club or create a new one:</p>
+                <div class="similar-clubs-list mb-3">
+                    @for (club of similarClubs(); track club.clubId) {
+                    <button type="button" class="btn btn-sm btn-outline-primary d-block w-100 mb-2 text-start"
+                        (click)="selectExistingClub(club.clubId)" [disabled]="isSubmitting()">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-building me-2"></i>
+                                <strong>{{ club.clubName }}</strong>
+                                @if (club.state) {
+                                <span class="text-muted ms-2">({{ club.state }})</span>
+                                }
+                            </div>
+                            <span class="badge bg-info">{{ club.matchScore }}% match</span>
+                        </div>
+                    </button>
+                    }
+                </div>
+                <p class="small text-muted mb-2">
+                    <strong>Are none of these your club?</strong> You can proceed with creating a new club, but please
+                    verify this is not a duplicate. Duplicate club reps can cause registration issues.
+                </p>
+                <button type="button" class="btn btn-sm btn-warning" (click)="createNewClubAnyway()"
+                    [disabled]="isSubmitting()">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Create New Club Anyway
+                </button>
+            </div>
+            <button type="button" class="btn-close btn-sm ms-2" aria-label="Dismiss"
+                (click)="dismissSimilarClubs()"></button>
+        </div>
+    </div>
+    }
+
+    <form [formGroup]="addClubForm" (ngSubmit)="submitAddClub()">
+        <div class="mb-3">
+            <label for="addClubName" class="form-label fw-semibold">
+                Club Name
+                <span class="text-danger">*</span>
+            </label>
+            <input id="addClubName" type="text" class="form-control" formControlName="clubName"
+                placeholder="Enter club name" [disabled]="isSubmitting()" maxlength="200" autocomplete="organization" />
+            @if (addClubForm.get('clubName')?.hasError('maxlength') &&
+            addClubForm.get('clubName')?.touched) {
+            <div class="form-text text-danger">
+                Club name cannot exceed 200 characters
+            </div>
+            }
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="isSubmitting()">
+                Cancel
+            </button>
+            <button type="submit" class="btn btn-primary"
+                [disabled]="addClubForm.invalid || isSubmitting()">
+                @if (isSubmitting()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                <i class="bi bi-plus-circle me-1"></i>
+                Add Club
+            </button>
+        </div>
+    </form>
+</div>

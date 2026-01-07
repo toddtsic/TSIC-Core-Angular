@@ -97,6 +97,7 @@ export type { RenameOptionSetRequest } from './models/RenameOptionSetRequest';
 export type { RoleSelectionRequest } from './models/RoleSelectionRequest';
 export type { TeamsMetadataResponse } from './models/TeamsMetadataResponse';
 export type { TestValidationRequest } from './models/TestValidationRequest';
+export type { UpdateClubNameRequest } from './models/UpdateClubNameRequest';
 export type { UpdateClubTeamRequest } from './models/UpdateClubTeamRequest';
 export type { UpdateCurrentJobProfileConfigRequest } from './models/UpdateCurrentJobProfileConfigRequest';
 export type { ValidationTestResult } from './models/ValidationTestResult';

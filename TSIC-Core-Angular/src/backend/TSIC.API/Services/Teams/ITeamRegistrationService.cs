@@ -52,6 +52,12 @@ public interface ITeamRegistrationService
     Task<bool> RemoveClubFromRepAsync(string userId, string clubName);
 
     /// <summary>
+    /// Update/rename a club name for the current user's rep account.
+    /// Only allowed if the club has no team registrations.
+    /// </summary>
+    Task<bool> UpdateClubNameAsync(string userId, string oldClubName, string newClubName);
+
+    /// <summary>
     /// Get all club teams for all clubs the user is a rep for.
     /// </summary>
     Task<List<ClubTeamManagementDto>> GetClubTeamsAsync(string userId);

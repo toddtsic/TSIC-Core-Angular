@@ -321,6 +321,43 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Update/rename a club name for the current user's rep account.
+    /// </summary>
+    [HttpPatch("update-club-name")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> UpdateClubName([FromBody] UpdateClubNameRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.OldClubName) || string.IsNullOrWhiteSpace(request.NewClubName))
+        {
+            return BadRequest(new { Message = "Old and new club names are required" });
+        }
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        try
+        {
+            await _teamRegistrationService.UpdateClubNameAsync(userId, request.OldClubName, request.NewClubName);
+            return Ok(new { Success = true, Message = "Club name updated successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation while updating club name for user {UserId}", userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating club name for user {UserId}", userId);
+            return StatusCode(500, new { Message = "An error occurred while updating the club name" });
+        }
+    }
+
+    /// <summary>
     /// Get all club teams for all clubs the user is a rep for.
     /// </summary>
     [HttpGet("club-library-teams")]

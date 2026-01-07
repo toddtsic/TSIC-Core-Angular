@@ -5,6 +5,7 @@ import { Injectable } from '@angular/core';
  */
 export interface UserPreferences {
     teamLibraryInfoRead?: boolean;
+    clubRepModalInfoRead?: boolean;
     // Add more preferences as needed
 }
 
@@ -70,5 +71,19 @@ export class UserPreferencesService {
      */
     markTeamLibraryInfoAsRead(): void {
         this.setPreference('teamLibraryInfoRead', true);
+    }
+
+    /**
+     * Check if club rep modal info has been read
+     */
+    isClubRepModalInfoRead(): boolean {
+        return this.getPreference('clubRepModalInfoRead') === true;
+    }
+
+    /**
+     * Mark club rep modal info as read
+     */
+    markClubRepModalInfoAsRead(): void {
+        this.setPreference('clubRepModalInfoRead', true);
     }
 }

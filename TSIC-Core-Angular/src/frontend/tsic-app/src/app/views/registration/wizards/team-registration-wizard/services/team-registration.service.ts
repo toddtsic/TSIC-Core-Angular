@@ -137,6 +137,19 @@ export class TeamRegistrationService {
     }
 
     /**
+     * Update/rename a club name
+     * 
+     * Only allowed if the club has no registered teams.
+     * 
+     * @param oldClubName - Current name of the club
+     * @param newClubName - New name for the club
+     */
+    updateClubName(oldClubName: string, newClubName: string): Observable<void> {
+        const request = { oldClubName, newClubName };
+        return this.http.patch<void>(`${this.apiUrl}/update-club-name`, request);
+    }
+
+    /**
      * Get all club teams for all clubs the user is a rep for
      * 
      * Returns teams with metadata including usage and registration status

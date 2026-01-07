@@ -23,7 +23,7 @@
           }}%</progress>
       </div>
       }
-      <div class="card shadow-lg border-0 card-rounded wizard-theme-team">
+      <div class="card shadow-lg border-0 card-rounded wizard-theme-team mt-3">
         <!-- Registration Status Banner -->
         @if (isLoadingMetadata()) {
         <!-- Loading state -->
@@ -133,6 +133,8 @@
             Select Your Club
             }
           </h4>
+          <button type="button" class="btn-close btn-close-white" (click)="cancelClubSelection()"
+            aria-label="Close"></button>
         </div>
       </div>
       <div class="modal-body p-3 p-md-4">
@@ -151,20 +153,31 @@
                 [class.collapsed]="clubInfoCollapsed()" (click)="toggleClubInfoCollapsed()"
                 [attr.aria-expanded]="!clubInfoCollapsed()" aria-controls="clubInfoCollapse">
                 <i class="bi bi-info-circle accordion-icon-info text-primary me-2"></i>
-                <span class="accordion-title-info">Multiple Club Rep Information</span>
+                <span class="accordion-title-info">Important Club Rep Information</span>
               </button>
             </h2>
             <div id="clubInfoCollapse" class="accordion-collapse collapse" [class.show]="!clubInfoCollapsed()">
               <div class="accordion-body">
-                <ul class="mb-0 small ps-3">
-                  <li><strong>Multiple Clubs:</strong> A club rep can represent multiple clubs (e.g., ACME-NJ, ACME-CA).
+                <ul class="mb-2 small ps-3">
+                  <li><strong>Multiple Clubs:</strong> A club rep <strong>CAN</strong> represent multiple clubs (e.g.,
+                    ACME-NJ, ACME-CA).
                   </li>
-                  <li><strong>One Rep Per Tournament:</strong> While a single club CAN have multiple club reps, <strong
-                      class="text-danger">ONLY ONE REP CAN REGISTER TEAMS</strong> for an individual tournament to avoid
+                  <li><strong>One Rep Per Tournament:</strong> While a single club <strong>CAN</strong> have multiple
+                    club reps, <strong class="text-danger">ONLY ONE REP CAN REGISTER TEAMS FOR AN INDIVIDUAL
+                      TOURNAMENT</strong> to avoid
                     duplicate registrations.</li>
                   <li><strong>Coordination:</strong> If your club has multiple reps, coordinate before registering to
                     ensure only one person registers for each event.</li>
+                  <li class="fw-bold text-danger">DO NOT create a new club name with slightly different name to
+                    circumvent this warning. Your teams may be dropped.</li>
                 </ul>
+                @if (!clubRepInfoAlreadyRead()) {
+                <div class="text-end mt-1">
+                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="acknowledgeClubRepInfo()">
+                    <i class="bi bi-check-circle me-1"></i>Got it!
+                  </button>
+                </div>
+                }
               </div>
             </div>
           </div>
@@ -182,7 +195,7 @@
             </div>
           </div>
         </div>
-        } @else {
+        } @else if (availableClubs().length > 1) {
         <!-- Multiple Clubs: Show list with 5 visible rows -->
         <p class="text-muted mb-2 small">Choose which club you want to manage in this session:</p>
         <div class="mb-3">
@@ -194,6 +207,12 @@
             <option [value]="club.clubName">{{ club.clubName }}</option>
             }
           </select>
+        </div>
+        } @else {
+        <!-- Zero Clubs: Show message -->
+        <div class="alert alert-warning mb-3" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>No clubs available.</strong> Use "Manage Clubs" below to add a club.
         </div>
         }
 
@@ -257,10 +276,8 @@
         <!-- Bottom Actions -->
         <div class="d-flex justify-content-between align-items-center mt-3">
           @if (!showAddClubModal()) {
-          <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="showAddClubForm()">
-            <i class="bi bi-plus-circle me-1"></i> Add another club{{ availableClubs().length === 1 ? ' to this account'
-            :
-            '' }}
+          <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="openManageClubsModal()">
+            <i class="bi bi-pencil-square me-1"></i> Manage Clubs
           </button>
           } @else {
           <div></div>
@@ -287,4 +304,12 @@
     </div>
   </div>
 </div>
+}
+
+<!-- Club Management Modal -->
+@if (showManageClubsModal()) {
+<app-club-management-modal
+  (clubsChanged)="handleClubsChanged()"
+  (closed)="closeManageClubsModal()">
+</app-club-management-modal>
 }
