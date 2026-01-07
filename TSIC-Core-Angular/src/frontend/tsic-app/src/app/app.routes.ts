@@ -3,7 +3,7 @@ import { authGuard } from './infrastructure/guards/auth.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 
 export const routes: Routes = [
-	// Default route redirects to TSIC landing page
+	// Default route - redirect to last visited job or /tsic
 	{ path: '', redirectTo: '/tsic', pathMatch: 'full' },
 
 	// 404 route (must be before :jobPath to prevent matching as a jobPath)

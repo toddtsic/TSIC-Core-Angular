@@ -12,6 +12,49 @@
     align-items: center;
     gap: var(--space-2);
     min-width: 80px;
+
+    // Future step - muted
+    &.future {
+        .step-badge {
+            background-color: var(--bs-body-bg);
+            border-color: var(--bs-gray-400);
+            color: var(--bs-gray-500);
+            font-weight: 400;
+        }
+        .step-label {
+            color: var(--bs-gray-500);
+            font-weight: 400;
+        }
+    }
+
+    // Active step - highlighted
+    &.active {
+        .step-badge {
+            background-color: var(--bs-primary);
+            border-color: var(--bs-primary);
+            color: var(--bs-white);
+            font-weight: 700;
+            box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.15);
+        }
+        .step-label {
+            color: var(--bs-primary);
+            font-weight: 700;
+        }
+    }
+
+    // Completed step - success
+    &.completed {
+        .step-badge {
+            background-color: var(--bs-success);
+            border-color: var(--bs-success);
+            color: var(--bs-white);
+            font-size: 1.25rem;
+        }
+        .step-label {
+            color: var(--bs-success);
+            font-weight: 600;
+        }
+    }
 }
 
 .step-badge {
@@ -25,11 +68,23 @@
     transition: all 0.3s ease;
 }
 
+.step-label {
+    font-size: 0.875rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
 .step-connector {
     flex: 1;
     height: 2px;
     max-width: 60px;
     transition: background-color 0.3s ease;
+    background-color: var(--bs-gray-400);
+
+    // Connector after completed step should be success color
+    .step-item.completed + & {
+        background-color: var(--bs-success);
+    }
 }
 
 @media (max-width: 768px) {

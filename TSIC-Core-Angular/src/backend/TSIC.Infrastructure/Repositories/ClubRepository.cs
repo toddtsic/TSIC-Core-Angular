@@ -32,7 +32,7 @@ public class ClubRepository : IClubRepository
     {
         return await _context.Clubs
             .Where(c => c.ClubName == clubName)
-            .SingleOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
