@@ -2,7 +2,8 @@ import { Component, EventEmitter, Output, inject, signal, effect, computed } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
-import { JobService, Job } from '@infrastructure/services/job.service';
+import { JobService } from '@infrastructure/services/job.service';
+import type { JobMetadataResponse } from '@core/api';
 // Reactive forms were previously layered here but not used in the template; simplified to template-driven.
 
 @Component({
@@ -75,7 +76,7 @@ export class ConstraintSelectionComponent {
   submitted = signal(false);
 
   // Reactive option state
-  private readonly _rawJob = signal<Job | null>(null);
+  private readonly _rawJob = signal<JobMetadataResponse | null>(null);
   private readonly _teamConstraintType = signal<string | null>(null);
   private readonly _eligibleOptions = signal<Array<{ value: string; label: string }>>([]);
   loading = signal(true);
@@ -143,7 +144,7 @@ export class ConstraintSelectionComponent {
   });
 
   // Heuristic detection (temporary until backend-configured type exposed)
-  private detectConstraintType(job: Job): string {
+  private detectConstraintType(job: JobMetadataResponse): string {
     const existing = this.state.teamConstraintType();
     if (existing) return existing;
     const raw = job.jsonOptions;
@@ -164,7 +165,7 @@ export class ConstraintSelectionComponent {
     return null as any; // signal null upstream; cast to any to satisfy legacy return type signature
   }
 
-  private getJobOptionsRaw(job: Job): string | null {
+  private getJobOptionsRaw(job: JobMetadataResponse): string | null {
     const raw = job.jsonOptions
       ?? (job as any).jobOptions
       ?? (job as any).JsonOptions
@@ -174,7 +175,7 @@ export class ConstraintSelectionComponent {
     return typeof raw === 'string' && raw.trim() ? raw : null;
   }
 
-  private extractEligibleOptions(job: Job, type: string): Array<{ value: string; label: string }> {
+  private extractEligibleOptions(job: JobMetadataResponse, type: string): Array<{ value: string; label: string }> {
     const raw = this.getJobOptionsRaw(job);
     if (!raw) return [];
     let parsed: any;

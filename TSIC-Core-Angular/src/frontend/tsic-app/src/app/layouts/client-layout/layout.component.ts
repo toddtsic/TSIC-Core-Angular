@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import type { Job } from '@infrastructure/services/job.service';
+import type { JobMetadataResponse } from '@core/api';
 
 import { Router, RouterOutlet, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -37,9 +37,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
   // Observable for auth state changes (must be field initializer for injection context)
   private readonly currentUser$ = toObservable(this.auth.currentUser);
 
-  private bestLogoUrl(job: Job | null, userLogo?: string): string {
+  private bestLogoUrl(job: JobMetadataResponse | null, userLogo?: string): string {
     // Helper to identify suspicious jobPath-derived filenames like "steps.jpg" that shouldn't be treated as logos.
-    const isSuspiciousDerived = (raw: string | undefined, j: Job | null) => {
+    const isSuspiciousDerived = (raw: string | null | undefined, j: JobMetadataResponse | null) => {
       if (!raw || !j?.jobPath) return false;
       const lower = raw.trim().toLowerCase();
       const jp = j.jobPath.toLowerCase();
@@ -49,7 +49,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
     // 1) API provided logo (skip if suspicious jobPath-derived)
     const apiLogoRaw = job?.jobLogoPath;
-    if (!isSuspiciousDerived(apiLogoRaw, job)) {
+    if (apiLogoRaw && !isSuspiciousDerived(apiLogoRaw, job)) {
       const apiLogo = this.buildAssetUrl(apiLogoRaw);
       if (apiLogo) return apiLogo;
     }
@@ -110,7 +110,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   jobBannerPath = computed(() => {
     const job = this.jobService.currentJob();
-    if (!job) return '';
+    if (!job?.jobBannerPath) return '';
     const apiBanner = this.buildAssetUrl(job.jobBannerPath);
     return apiBanner || '';
   });

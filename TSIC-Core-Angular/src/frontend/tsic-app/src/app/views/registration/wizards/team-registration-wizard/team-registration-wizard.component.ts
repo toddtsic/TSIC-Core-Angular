@@ -45,7 +45,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     statesOptions: SelectOption[] = [];
     private metadataSubscription?: Subscription;
     private addClubSubscription?: Subscription;
-    private addClubTimeoutId?: number;
+    private addClubTimeoutId?: ReturnType<typeof setTimeout>;
 
     // Conditional step configuration based on registration status
     wizardSteps = computed(() => {

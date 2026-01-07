@@ -86,7 +86,8 @@ public class JobsController : ControllerBase
             AdnArb = jobMetadata.AdnArb,
             AdnArbBillingOccurences = jobMetadata.AdnArbBillingOccurences,
             AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,
-            AdnArbStartDate = jobMetadata.AdnArbStartDate
+            AdnArbStartDate = jobMetadata.AdnArbStartDate,
+            BRegistrationAllowTeam = jobMetadata.BRegistrationAllowTeam
         };
 
         return Ok(response);

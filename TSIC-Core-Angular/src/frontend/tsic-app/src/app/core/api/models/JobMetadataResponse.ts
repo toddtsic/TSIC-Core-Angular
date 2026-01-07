@@ -27,5 +27,6 @@ export type JobMetadataResponse = {
     adnArbBillingOccurences?: number;
     adnArbIntervalLength?: number;
     adnArbStartDate?: string | null;
+    bRegistrationAllowTeam?: boolean;
 };
 

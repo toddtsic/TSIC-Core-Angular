@@ -2,33 +2,7 @@ import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto, JobMetadataDto } from '@core/api';
-
-export interface JobBulletin {
-    id: string;
-    title: string;
-    content: string;
-    postedAt: string; // ISO date
-}
-
-export interface Job {
-    jobId: string;
-    jobPath: string;
-    jobName: string;
-    jobLogoPath?: string;
-    momLabel?: string;
-    dadLabel?: string;
-    jobBannerPath?: string;
-    jobBannerBackgroundPath?: string;
-    jobBannerText1?: string;
-    jobBannerText2?: string;
-    coreRegformPlayer?: boolean;
-    usLaxNumberValidThroughDate?: string;
-    expiryUsers?: string;
-    playerProfileMetadataJson?: string;
-    jsonOptions?: string;
-    jobBulletins: JobBulletin[];
-}
+import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto, JobMetadataResponse } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class JobService {
@@ -36,8 +10,7 @@ export class JobService {
     private readonly apiUrl = environment.apiUrl;
 
     // Signal for reactive state management
-    public readonly currentJob = signal<Job | null>(null);
-    private readonly _jobMetadata = signal<JobMetadataDto | null>(null);
+    public readonly currentJob = signal<JobMetadataResponse | null>(null);
     public readonly jobMetadataLoading = signal(false);
     public readonly registrationStatuses = signal<RegistrationStatusResponse[]>([]);
     public readonly registrationLoading = signal(false);
@@ -51,47 +24,39 @@ export class JobService {
 
     // Computed: Team registration status from job metadata
     public readonly isTeamRegistrationOpen = computed(() =>
-        this._jobMetadata()?.bRegistrationAllowTeam ?? false
+        this.currentJob()?.bRegistrationAllowTeam ?? false
     );
 
-    // Simulate fetching job info (replace with real API call as needed)
-    setJob(job: Job) {
+    // Set current job metadata
+    setJob(job: JobMetadataResponse) {
         this.currentJob.set(job);
     }
 
-    // Example: fetch job details from API (to be implemented)
-    // fetchJob(jobPath: string): Observable<Job> {
-    //   return this.http.get<Job>(`/api/jobs/${jobPath}`);
-    // }
-
-    getCurrentJob(): Job | null {
+    getCurrentJob(): JobMetadataResponse | null {
         return this.currentJob();
     }
 
     // Command-style load that updates the currentJob signal
     loadJobMetadata(jobPath: string): void {
         this.jobMetadataLoading.set(true);
-        this.http.get<Job>(`${this.apiUrl}/jobs/${jobPath}`).subscribe({
-            next: (job) => {
-                this.currentJob.set(job);
+        this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).subscribe({
+            next: (metadata) => {
+                this.currentJob.set(metadata);
                 this.jobMetadataLoading.set(false);
             },
             error: () => {
-                // Leave currentJob as-is on failure
                 this.jobMetadataLoading.set(false);
             }
         });
     }
 
-    // Legacy Observable return (kept temporarily for callers that still expect it)
-    fetchJobMetadata(jobPath: string): Observable<JobMetadataDto> {
-        // Clear stale metadata immediately to prevent showing wrong data during load
-        this._jobMetadata.set(null);
+    // Observable-style fetch that returns Observable and updates currentJob signal
+    fetchJobMetadata(jobPath: string): Observable<JobMetadataResponse> {
         this.jobMetadataLoading.set(true);
-        return this.http.get<JobMetadataDto>(`${this.apiUrl}/jobs/${jobPath}/metadata`).pipe(
+        return this.http.get<JobMetadataResponse>(`${this.apiUrl}/jobs/${jobPath}`).pipe(
             tap({
                 next: metadata => {
-                    this._jobMetadata.set(metadata);
+                    this.currentJob.set(metadata);
                     this.jobMetadataLoading.set(false);
                 },
                 error: () => {

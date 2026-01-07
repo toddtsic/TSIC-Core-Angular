@@ -28,4 +28,6 @@ public class JobMetadataResponse
     public int? AdnArbBillingOccurences { get; set; }
     public int? AdnArbIntervalLength { get; set; }
     public DateTime? AdnArbStartDate { get; set; }
+    // Team registration
+    public bool BRegistrationAllowTeam { get; set; }
 }
