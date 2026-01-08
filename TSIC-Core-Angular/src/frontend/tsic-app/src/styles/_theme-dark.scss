@@ -27,9 +27,9 @@
     --neutral-900-rgb: 250, 250, 249;
 
     /* Brand Colors - Dark Mode Adjustments */
-    --brand-primary: #38bdf8;
-    --brand-primary-dark: #0ea5e9;
-    --brand-primary-light: #7dd3fc;
+    --brand-primary: #0891b2;  /* Cyan-600 - much more muted for dark mode */
+    --brand-primary-dark: #0e7490;  /* Cyan-700 */
+    --brand-primary-light: #06b6d4;  /* Cyan-500 */
     --brand-success: #4ade80;
     --brand-success-dark: #22c55e;
     --brand-accent: #fb923c;
@@ -42,23 +42,23 @@
     --brand-bg-secondary: #292524;
     --brand-surface: #44403c;
     --brand-text: #f5f5f4;
-    --brand-text-muted: #a8a29e;
-    --brand-border: #44403c;
+    --brand-text-muted: #d6d3d1;  /* Lighter for better contrast on dark surfaces */
+    --brand-border: #57534e;  /* Distinct from surface for definition */
 
     /* Bootstrap Mappings */
     --bs-body-bg: var(--brand-bg);
     --bs-body-color: var(--brand-text);
     --bs-primary: var(--brand-primary);
-    --bs-primary-rgb: 56, 189, 248;
+    --bs-primary-rgb: 8, 145, 178;  /* Updated RGB for new primary */
     --bs-secondary: var(--neutral-400);
     --bs-success: var(--brand-success);
     --bs-danger: var(--brand-danger);
     --bs-warning: var(--brand-warn);
     --bs-border-color: var(--brand-border);
 
-    /* Input Variables for Dark Mode */
-    --input-bg: var(--brand-surface);
-    --input-border: var(--brand-border);
+    /* Input Variables for Dark Mode - CRITICAL: needs visible borders */
+    --input-bg: #292524;  /* Slightly darker than surface */
+    --input-border: #78716c;  /* Much lighter for definition */
 
     /* Shadows - Adjusted for dark backgrounds */
     --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -125,5 +125,36 @@
         &:hover {
             background-color: var(--neutral-600) !important;
         }
+    }
+
+    /* Alert overrides - subdued backgrounds with brighter text */
+    .alert-primary {
+        background-color: rgba(8, 145, 178, 0.15) !important;
+        border-color: rgba(8, 145, 178, 0.3) !important;
+        color: #67e8f9 !important;  /* Cyan-300 - brighter for readability */
+    }
+
+    .alert-warning {
+        background-color: rgba(245, 158, 11, 0.12) !important;
+        border-color: rgba(245, 158, 11, 0.25) !important;
+        color: #fcd34d !important;  /* Yellow-300 */
+    }
+
+    .alert-info {
+        background-color: rgba(6, 182, 212, 0.12) !important;
+        border-color: rgba(6, 182, 212, 0.25) !important;
+        color: #67e8f9 !important;  /* Cyan-300 */
+    }
+
+    .alert-success {
+        background-color: rgba(34, 197, 94, 0.12) !important;
+        border-color: rgba(34, 197, 94, 0.25) !important;
+        color: #86efac !important;  /* Green-300 */
+    }
+
+    .alert-danger {
+        background-color: rgba(239, 68, 68, 0.12) !important;
+        border-color: rgba(239, 68, 68, 0.25) !important;
+        color: #fca5a5 !important;  /* Red-300 */
     }
 }

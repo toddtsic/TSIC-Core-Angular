@@ -23,6 +23,11 @@
     object-fit: contain;
     display: block;
     filter: drop-shadow(var(--shadow-sm));
+
+    :host-context([data-bs-theme="dark"]) & {
+        filter: brightness(0.75) contrast(0.85) drop-shadow(var(--shadow-sm));
+        opacity: 0.9;
+    }
 }
 
 .job-logo-box {
@@ -36,6 +41,11 @@
     display: block;
     max-width: 180px; // Component-specific: prevent oversized logos
     filter: drop-shadow(var(--shadow-sm));
+
+    :host-context([data-bs-theme="dark"]) & {
+        filter: brightness(0.75) contrast(0.85) drop-shadow(var(--shadow-sm));
+        opacity: 0.9;
+    }
 }
 
 // Job name button styling
