@@ -420,6 +420,28 @@ WHERE ISNUMERIC(j.Year) = 1
   AND t.clubrep_registrationId IS NOT NULL
   AND cr.ClubId IS NOT NULL;
 
+DECLARE @Phase1Count INT = @@ROWCOUNT;
+
+-- Diagnostic: Check for teams that were excluded due to missing ClubReps
+DECLARE @ExcludedTeamsCount INT;
+SELECT @ExcludedTeamsCount = COUNT(*)
+FROM Leagues.Teams t
+INNER JOIN Jobs.Jobs j ON t.JobId = j.JobId
+INNER JOIN Jobs.Registrations r ON t.clubrep_registrationId = r.RegistrationId
+LEFT JOIN Clubs.Clubs c ON COALESCE(LTRIM(RTRIM(r.club_name)), 'N.A.') = c.ClubName
+LEFT JOIN Clubs.ClubReps cr ON r.UserId = cr.ClubRepUserId AND c.ClubId = cr.ClubId
+WHERE ISNUMERIC(j.Year) = 1
+  AND CAST(j.Year AS INT) >= @StartYear
+  AND CAST(j.Year AS INT) <= @EndYear
+  AND t.clubrep_registrationId IS NOT NULL
+  AND (c.ClubId IS NULL OR cr.ClubId IS NULL);
+
+IF @ExcludedTeamsCount > 0
+BEGIN
+    PRINT '  ⚠ WARNING: ' + CAST(@ExcludedTeamsCount AS VARCHAR) + ' teams excluded due to missing Club or ClubRep records';
+    PRINT '    (This may indicate ClubReps were not created for all users in STEP 3)';
+END
+
 -- Phase 1.5: Pre-compute club name tokens and abbreviations (once per club instead of per team)
 IF OBJECT_ID('tempdb..#ClubTokens') IS NOT NULL DROP TABLE #ClubTokens;
 SELECT DISTINCT
@@ -633,13 +655,14 @@ SELECT
     ClubId,
     ClubTeamName,
     ClubTeamGradYear,
-    MAX(NormalizedLevelOfPlay) AS LevelOfPlay,  -- Pick MAX LOP (most competitive) when consolidating
+    NormalizedLevelOfPlay AS LevelOfPlay,
     COUNT(*) AS TeamCount
 FROM #TeamIdentities
 GROUP BY 
     ClubId,
     ClubTeamName,
-    ClubTeamGradYear;
+    ClubTeamGradYear,
+    NormalizedLevelOfPlay;
 
 DECLARE @UniqueIdentitiesCount INT = @@ROWCOUNT;
 PRINT '  ✓ Found ' + CAST(@UniqueIdentitiesCount AS VARCHAR) + ' unique club team identities';
@@ -687,7 +710,7 @@ BEGIN TRY
         ui.ClubId,
         ui.ClubTeamName,
         ui.ClubTeamGradYear,
-        ui.LevelOfPlay,
+        NULLIF(ui.LevelOfPlay, ''),  -- Convert empty string to NULL for consistency
         1 AS Active, -- Set as active by default
         @LebUserId,
         @Now
@@ -698,7 +721,10 @@ BEGIN TRY
         WHERE ct.ClubId = ui.ClubId 
           AND ct.ClubTeamName = ui.ClubTeamName 
           AND ct.ClubTeamGradYear = ui.ClubTeamGradYear
-          AND ISNULL(ct.ClubTeamLevelOfPlay, '') = ISNULL(ui.LevelOfPlay, '')
+          AND (ct.ClubTeamLevelOfPlay = ui.LevelOfPlay 
+               OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay IS NULL)
+               OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay = '')
+               OR (ct.ClubTeamLevelOfPlay = '' AND ui.LevelOfPlay IS NULL))
     );
 
     DECLARE @NewClubTeamsInserted INT = @@ROWCOUNT;
@@ -718,7 +744,10 @@ BEGIN TRY
             ON ct.ClubId = ui.ClubId
             AND ct.ClubTeamName = ui.ClubTeamName
             AND ct.ClubTeamGradYear = ui.ClubTeamGradYear
-            AND ISNULL(ct.ClubTeamLevelOfPlay, '') = ISNULL(ui.LevelOfPlay, '')
+            AND (ct.ClubTeamLevelOfPlay = ui.LevelOfPlay 
+                 OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay IS NULL)
+                 OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay = '')
+                 OR (ct.ClubTeamLevelOfPlay = '' AND ui.LevelOfPlay IS NULL))
     ),
     -- Deduplicate by actual ClubTeam identity (not by source identity)
     RankedByIdentity AS (
@@ -802,7 +831,8 @@ BEGIN TRY
         INNER JOIN #CanonicalTeams ct 
             ON ti.ClubId = ct.ClubId
             AND ti.ClubTeamName = ct.ClubTeamName
-            AND ISNULL(ti.NormalizedLevelOfPlay, '') = ct.ClubTeamLevelOfPlay
+            AND (ISNULL(ti.NormalizedLevelOfPlay, '') = ct.ClubTeamLevelOfPlay
+                 OR (ti.NormalizedLevelOfPlay IS NULL AND ct.ClubTeamLevelOfPlay = ''))
         WHERE ti.ClubTeamGradYear = 'N.A.';
 
         DECLARE @TeamIdentitiesUpdated INT = @@ROWCOUNT;
@@ -814,7 +844,8 @@ BEGIN TRY
         INNER JOIN #CanonicalTeams ct 
             ON nct.ClubId = ct.ClubId
             AND nct.ClubTeamName = ct.ClubTeamName
-            AND ISNULL(nct.ClubTeamLevelOfPlay, '') = ct.ClubTeamLevelOfPlay
+            AND (ISNULL(nct.ClubTeamLevelOfPlay, '') = ct.ClubTeamLevelOfPlay
+                 OR (nct.ClubTeamLevelOfPlay IS NULL AND ct.ClubTeamLevelOfPlay = ''))
         WHERE nct.ClubTeamGradYear = 'N.A.';
 
         DECLARE @NADuplicatesRemoved INT = @@ROWCOUNT;
@@ -826,7 +857,8 @@ BEGIN TRY
         INNER JOIN #CanonicalTeams can 
             ON ct.ClubId = can.ClubId
             AND ct.ClubTeamName = can.ClubTeamName
-            AND ISNULL(ct.ClubTeamLevelOfPlay, '') = can.ClubTeamLevelOfPlay
+            AND (ISNULL(ct.ClubTeamLevelOfPlay, '') = can.ClubTeamLevelOfPlay
+                 OR (ct.ClubTeamLevelOfPlay IS NULL AND can.ClubTeamLevelOfPlay = ''))
         WHERE ct.ClubTeamGradYear = 'N.A.'
           AND ct.ClubTeamId NOT IN (SELECT ClubTeamId FROM #NewClubTeams); -- Don't delete canonical version
 
@@ -858,7 +890,11 @@ BEGIN TRY
         ON ti.ClubId = nct.ClubId
         AND ti.ClubTeamName = nct.ClubTeamName
         AND ti.ClubTeamGradYear = nct.ClubTeamGradYear
-        AND ISNULL(ti.NormalizedLevelOfPlay, '') = ISNULL(nct.ClubTeamLevelOfPlay, '');
+        AND (ti.NormalizedLevelOfPlay = nct.ClubTeamLevelOfPlay
+             OR (ti.NormalizedLevelOfPlay IS NULL AND nct.ClubTeamLevelOfPlay IS NULL)
+             OR (ti.NormalizedLevelOfPlay IS NULL AND nct.ClubTeamLevelOfPlay = '')
+             OR (ti.NormalizedLevelOfPlay = '' AND nct.ClubTeamLevelOfPlay IS NULL))
+    WHERE t.ClubTeamId IS NULL;  -- Only update teams that don't have ClubTeamId yet
 
     SET @TeamsUpdated = @@ROWCOUNT;
     PRINT '  ✓ Updated ' + CAST(@TeamsUpdated AS VARCHAR) + ' Teams.ClubTeamId references';

@@ -125,6 +125,6 @@ export class ClubTeamAddModalComponent {
         const startYear = new Date().getFullYear();
         const span = 10; // current year through current year + 9
         const rollingYears = Array.from({ length: span }, (_, i) => startYear + i);
-        return [...rollingYears, 'N/A'];
+        return [...rollingYears, 'N.A.'];
     }
 }

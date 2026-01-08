@@ -21,11 +21,19 @@ public class JobLeagueRepository : IJobLeagueRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.JobLeagues
-            .Where(jl => jl.JobId == jobId && jl.BIsPrimary)
+        // Get all leagues for this job
+        var jobLeagues = await _context.JobLeagues
+            .Where(jl => jl.JobId == jobId)
             .Include(jl => jl.League)
             .ThenInclude(l => l!.Agegroups)
             .AsNoTracking()
-            .SingleOrDefaultAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        // If only one league exists, return it
+        if (jobLeagues.Count == 1)
+            return jobLeagues[0];
+
+        // If multiple leagues, return the primary one
+        return jobLeagues.SingleOrDefault(jl => jl.BIsPrimary);
     }
 }

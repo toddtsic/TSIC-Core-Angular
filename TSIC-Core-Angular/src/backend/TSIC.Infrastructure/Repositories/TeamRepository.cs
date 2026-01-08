@@ -47,13 +47,15 @@ public class TeamRepository : ITeamRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.Teams
-            .Where(t => t.JobId == jobId && t.ClubTeam!.ClubId == clubId)
+            .Where(t => t.JobId == jobId
+                     && t.ClubrepRegistration != null
+                     && t.ClubrepRegistration.ClubReps.Any(cr => cr.ClubId == clubId))
             .Select(t => new RegisteredTeamInfo(
                 t.TeamId,
-                t.ClubTeamId!.Value,
-                t.ClubTeam!.ClubTeamName!,
-                t.ClubTeam!.ClubTeamGradYear,
-                t.ClubTeam!.ClubTeamLevelOfPlay,
+                t.ClubTeamId ?? Guid.Empty,
+                t.ClubTeam != null ? t.ClubTeam.ClubTeamName! : t.TeamName ?? string.Empty,
+                t.ClubTeam != null ? t.ClubTeam.ClubTeamGradYear : t.Agegroup!.AgegroupName ?? string.Empty,
+                t.ClubTeam != null ? t.ClubTeam.ClubTeamLevelOfPlay : t.LevelOfPlay,
                 t.AgegroupId,
                 t.Agegroup!.AgegroupName ?? string.Empty,
                 t.FeeBase ?? 0,

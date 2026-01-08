@@ -184,4 +184,15 @@
         color: #fecdd3 !important;
         /* Rose-200 - softer */
     }
+
+    /* Year header overrides for team library */
+    .year-header.bg-light {
+        background-color: rgba(87, 83, 78, 0.4) !important;
+        border-color: var(--brand-border) !important;
+        color: var(--brand-text) !important;
+
+        &:hover {
+            background-color: rgba(87, 83, 78, 0.5) !important;
+        }
+    }
 }
