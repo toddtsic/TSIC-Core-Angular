@@ -27,12 +27,12 @@
     --neutral-900-rgb: 250, 250, 249;
 
     /* Brand Colors - Dark Mode Adjustments */
-    --brand-primary: #14b8a6;
-    /* Teal-500 - athletic, professional, fresh */
-    --brand-primary-dark: #0d9488;
-    /* Teal-600 */
-    --brand-primary-light: #2dd4bf;
-    /* Teal-400 */
+    --brand-primary: #94a3b8;
+    /* Slate-400 - neutral, let darkness be the accent */
+    --brand-primary-dark: #64748b;
+    /* Slate-500 */
+    --brand-primary-light: #cbd5e1;
+    /* Slate-300 */
     --brand-success: #059669;
     /* Emerald-600 - deeper green, distinct from teal */
     --brand-success-dark: #047857;
@@ -60,7 +60,7 @@
     --bs-body-bg: var(--brand-bg);
     --bs-body-color: var(--brand-text);
     --bs-primary: var(--brand-primary);
-    --bs-primary-rgb: 20, 184, 166;
+    --bs-primary-rgb: 148, 163, 184;
     /* Teal-500 RGB */
     --bs-secondary: var(--neutral-400);
     --bs-success: var(--brand-success);
@@ -176,7 +176,8 @@
         color: #fda4af !important;
         /* Rose-300 */
     }
-        color: #fca5a5 !important;
-        /* Red-300 */
-    }
+
+    color: #fca5a5 !important;
+    /* Red-300 */
+}
 }

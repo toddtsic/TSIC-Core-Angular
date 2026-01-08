@@ -154,16 +154,17 @@
     }
 
     :host-context([data-bs-theme="dark"]) & {
-        background: rgba(255, 255, 255, 0.15) !important;
-        border-color: rgba(255, 255, 255, 0.25) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        border-color: rgba(255, 255, 255, 0.12) !important;
 
         .bi {
             color: #ffffff;
             filter: none;
+            opacity: 0.85;
         }
 
         &:hover {
-            background: rgba(255, 255, 255, 0.2) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
         }
 
         &:active {
