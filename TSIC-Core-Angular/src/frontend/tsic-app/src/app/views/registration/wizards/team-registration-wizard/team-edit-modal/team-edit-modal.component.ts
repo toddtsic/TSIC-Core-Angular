@@ -31,7 +31,10 @@ export class TeamEditModalComponent {
     hasBeenRegistered = computed(() => this.team()?.hasBeenRegisteredForAnyEvent ?? false);
     isActive = computed(() => this.team()?.isActive ?? true);
     canEditName = computed(() => !this.hasBeenRegistered());
-    canEditGradYear = computed(() => !this.hasBeenRegistered());
+    canEditGradYear = computed(() => {
+        // Allow editing if never registered OR if current value is "N.A." (migration fallback)
+        return !this.hasBeenRegistered() || this.team()?.clubTeamGradYear === 'N.A.';
+    });
 
     // Options
     gradYearOptions = signal<(string | number)[]>(this.buildGradYears());

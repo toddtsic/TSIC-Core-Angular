@@ -27,7 +27,7 @@ export class ClubTeamManagementComponent implements OnInit {
     private readonly userPrefs = inject(UserPreferencesService);
     private readonly teamRegService = inject(TeamRegistrationService);
 
-    teams = signal<ClubTeamManagementDto[]>([]);
+    allTeams = signal<ClubTeamManagementDto[]>([]);
     isLoading = signal<boolean>(false);
     errorMessage = signal<string | null>(null);
     activeTab = signal<'active' | 'inactive'>('active');
@@ -39,6 +39,12 @@ export class ClubTeamManagementComponent implements OnInit {
 
     addTeamModal = viewChild<ClubTeamAddModalComponent>('addTeamModal');
     editTeamModal = viewChild<TeamEditModalComponent>('editTeamModal');
+
+    // Filter teams to only show the selected club's teams
+    teams = computed(() => {
+        const selectedClub = this.clubName();
+        return this.allTeams().filter(t => t.clubName === selectedClub);
+    });
 
     // Computed signals for filtered teams
     activeTeams = computed(() => this.teams().filter(t => t.isActive));
@@ -88,8 +94,11 @@ export class ClubTeamManagementComponent implements OnInit {
 
         this.teamRegService.getClubTeams().subscribe({
             next: (teams) => {
-                this.teams.set(teams);
-                this.teamsLoaded.emit(teams.length);
+                this.allTeams.set(teams);
+                // Emit the filtered count for the selected club
+                const selectedClub = this.clubName();
+                const filteredCount = teams.filter(t => t.clubName === selectedClub).length;
+                this.teamsLoaded.emit(filteredCount);
                 this.isLoading.set(false);
             },
             error: (err) => {
@@ -112,11 +121,11 @@ export class ClubTeamManagementComponent implements OnInit {
     modifyTeam(team: ClubTeamManagementDto): void {
         this.editTeamModal()?.open(team, (updatedTeam) => {
             // Update the team in the local array
-            const index = this.teams().findIndex(t => t.clubTeamId === updatedTeam.clubTeamId);
+            const index = this.allTeams().findIndex(t => t.clubTeamId === updatedTeam.clubTeamId);
             if (index !== -1) {
-                const updated = [...this.teams()];
+                const updated = [...this.allTeams()];
                 updated[index] = updatedTeam;
-                this.teams.set(updated);
+                this.allTeams.set(updated);
             }
         });
     }

@@ -5,13 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
-
-interface ClubTeamDto {
-    clubTeamId: number;
-    clubTeamName: string;
-    clubTeamGradYear: string;
-    clubTeamLevelOfPlay: string;
-}
+import { ClubTeamManagementDto } from '@core/api';
 
 @Component({
     selector: 'app-club-team-add-modal',
@@ -32,11 +26,17 @@ export class ClubTeamAddModalComponent {
     private readonly teamService = inject(TeamRegistrationService);
 
     visible = signal<boolean>(false);
-    teams = signal<ClubTeamDto[]>([]);
+    allTeams = signal<ClubTeamManagementDto[]>([]);
     errorMessage = signal<string | null>(null);
     guidelinesCollapsed = true;
     existingTeamsCollapsed = true;
     stayOpenOnSubmit = false;
+
+    // Filter teams to only show the selected club's teams
+    teams = computed(() => {
+        const selectedClub = this.clubName();
+        return this.allTeams().filter(t => t.clubName === selectedClub);
+    });
 
     gradYearOptions = signal<(string | number)[]>(this.buildGradYears());
     levelOfPlayOptions = computed(() => this.fieldData.getOptionsForDataSource('List_Lops'));
@@ -63,9 +63,9 @@ export class ClubTeamAddModalComponent {
     private loadTeams(): void {
         const url = `${environment.apiUrl}/team-registration/club-library-teams`;
 
-        this.http.get<ClubTeamDto[]>(url).subscribe({
+        this.http.get<ClubTeamManagementDto[]>(url).subscribe({
             next: (teams) => {
-                this.teams.set(teams);
+                this.allTeams.set(teams);
             },
             error: (err) => {
                 console.error('Error loading club teams:', err);

@@ -762,11 +762,12 @@ public class TeamRegistrationService : ITeamRegistrationService
                     Success = false,
                     ClubTeamId = request.ClubTeamId,
                     ClubTeamName = clubTeam.ClubTeamName,
-                    Message = "Cannot change team name - this team has registration history"
+                    Message = "Cannot change team name - this team has registration history. Only level of play can be modified."
                 };
             }
 
-            if (clubTeam.ClubTeamGradYear != request.ClubTeamGradYear)
+            // Allow grad year edit ONLY if current value is "N.A." (migration fallback)
+            if (clubTeam.ClubTeamGradYear != request.ClubTeamGradYear && clubTeam.ClubTeamGradYear != "N.A.")
             {
                 _logger.LogWarning("Cannot change grad year of club team {ClubTeamId} - has registration history", request.ClubTeamId);
                 return new ClubTeamOperationResponse
@@ -774,11 +775,12 @@ public class TeamRegistrationService : ITeamRegistrationService
                     Success = false,
                     ClubTeamId = request.ClubTeamId,
                     ClubTeamName = clubTeam.ClubTeamName,
-                    Message = "Cannot change graduation year - this team has registration history"
+                    Message = "Cannot change graduation year - this team has registration history. Only level of play can be modified."
                 };
             }
 
-            // Only update level of play
+            // Update allowed fields: grad year (if N.A.) and level of play
+            clubTeam.ClubTeamGradYear = request.ClubTeamGradYear;
             clubTeam.ClubTeamLevelOfPlay = request.ClubTeamLevelOfPlay;
         }
         else

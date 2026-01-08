@@ -4,6 +4,8 @@
 /* eslint-disable */
 export type ClubTeamManagementDto = {
     clubTeamId: number;
+    clubId: number;
+    clubName: string;
     clubTeamName: string;
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;

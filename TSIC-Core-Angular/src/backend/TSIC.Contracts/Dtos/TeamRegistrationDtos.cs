@@ -50,7 +50,7 @@ public class UpdateClubNameRequestValidator : AbstractValidator<UpdateClubNameRe
         RuleFor(x => x.OldClubName)
             .NotEmpty().WithMessage("Old club name is required")
             .MaximumLength(200).WithMessage("Club name cannot exceed 200 characters");
-        
+
         RuleFor(x => x.NewClubName)
             .NotEmpty().WithMessage("New club name is required")
             .MaximumLength(200).WithMessage("Club name cannot exceed 200 characters");
@@ -189,6 +189,8 @@ public sealed record ValidateClubRepResponse
 public sealed record ClubTeamManagementDto
 {
     public required int ClubTeamId { get; init; }
+    public required int ClubId { get; init; }
+    public required string ClubName { get; init; }
     public required string ClubTeamName { get; init; }
     public required string ClubTeamGradYear { get; init; }
     public required string ClubTeamLevelOfPlay { get; init; }

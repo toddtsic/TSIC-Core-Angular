@@ -29,9 +29,10 @@ public class ClubTeamRepository : IClubTeamRepository
 
     public async Task<List<ClubTeamManagementDto>> GetClubTeamsWithMetadataAsync(int clubId, CancellationToken cancellationToken = default)
     {
-        // Get all club teams for this club (active + inactive)
+        // Get all active club teams for this club (filter inactive teams)
         var teams = await _context.ClubTeams
-            .Where(ct => ct.ClubId == clubId)
+            .Include(ct => ct.Club)
+            .Where(ct => ct.ClubId == clubId && ct.Active == true)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
@@ -45,6 +46,8 @@ public class ClubTeamRepository : IClubTeamRepository
             result.Add(new ClubTeamManagementDto
             {
                 ClubTeamId = team.ClubTeamId,
+                ClubId = team.ClubId,
+                ClubName = team.Club.ClubName,
                 ClubTeamName = team.ClubTeamName,
                 ClubTeamGradYear = team.ClubTeamGradYear,
                 ClubTeamLevelOfPlay = team.ClubTeamLevelOfPlay,

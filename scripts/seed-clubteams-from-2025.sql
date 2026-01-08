@@ -577,6 +577,20 @@ DROP TABLE #Phase2;
 DECLARE @StagedCount INT = @@ROWCOUNT;
 PRINT '  ✓ Staged ' + CAST(@StagedCount AS VARCHAR) + ' Teams records with resolved ClubId';
 
+-- Phase 4: Infer grad year from team name when GradYear is "N.A."
+-- This MUST happen before #UniqueIdentities is created to avoid mismatches
+UPDATE ti
+SET ti.ClubTeamGradYear = LEFT(ti.ClubTeamName, 4)
+FROM #TeamIdentities ti
+WHERE ti.ClubTeamGradYear = 'N.A.'
+  AND LEN(ti.ClubTeamName) >= 4
+  AND ISNUMERIC(LEFT(ti.ClubTeamName, 4)) = 1
+  AND LEFT(ti.ClubTeamName, 4) BETWEEN '2020' AND '2040';
+
+DECLARE @InferredFromNameEarly INT = @@ROWCOUNT;
+IF @InferredFromNameEarly > 0
+    PRINT '  ✓ Inferred grad year from team name for ' + CAST(@InferredFromNameEarly AS VARCHAR) + ' teams';
+
 -- Show sample of staging data
 PRINT '';
 PRINT '  Sample staging data (first 5 rows):';
@@ -619,14 +633,13 @@ SELECT
     ClubId,
     ClubTeamName,
     ClubTeamGradYear,
-    NormalizedLevelOfPlay,  -- Use normalized values for grouping
+    MAX(NormalizedLevelOfPlay) AS LevelOfPlay,  -- Pick MAX LOP (most competitive) when consolidating
     COUNT(*) AS TeamCount
 FROM #TeamIdentities
 GROUP BY 
     ClubId,
     ClubTeamName,
-    ClubTeamGradYear,
-    NormalizedLevelOfPlay;
+    ClubTeamGradYear;
 
 DECLARE @UniqueIdentitiesCount INT = @@ROWCOUNT;
 PRINT '  ✓ Found ' + CAST(@UniqueIdentitiesCount AS VARCHAR) + ' unique club team identities';
@@ -691,34 +704,141 @@ BEGIN TRY
     DECLARE @NewClubTeamsInserted INT = @@ROWCOUNT;
     
     -- Populate #NewClubTeams by matching back (includes both newly created AND pre-existing)
-    -- Use ROW_NUMBER to handle duplicate ClubTeams with same identity (pick MIN ClubTeamId)
-    WITH RankedMatches AS (
+    -- Use nested ROW_NUMBER to handle both duplicate ClubTeams AND duplicate matches
+    WITH AllMatches AS (
         SELECT 
             ct.ClubTeamId,
-            ui.ClubId,
-            ui.ClubTeamName,
-            ui.ClubTeamGradYear,
+            ct.ClubId,
+            ct.ClubTeamName,
+            ct.ClubTeamGradYear,
             ct.ClubTeamLevelOfPlay,
-            ROW_NUMBER() OVER (
-                PARTITION BY ui.ClubId, ui.ClubTeamName, ui.ClubTeamGradYear, ui.LevelOfPlay 
-                ORDER BY ct.ClubTeamId
-            ) AS rn
+            ui.LevelOfPlay AS UILevelOfPlay
         FROM #UniqueIdentities ui
         INNER JOIN Clubs.ClubTeams ct 
             ON ct.ClubId = ui.ClubId
             AND ct.ClubTeamName = ui.ClubTeamName
             AND ct.ClubTeamGradYear = ui.ClubTeamGradYear
             AND ISNULL(ct.ClubTeamLevelOfPlay, '') = ISNULL(ui.LevelOfPlay, '')
+    ),
+    -- Deduplicate by actual ClubTeam identity (not by source identity)
+    RankedByIdentity AS (
+        SELECT 
+            ClubTeamId,
+            ClubId,
+            ClubTeamName,
+            ClubTeamGradYear,
+            ClubTeamLevelOfPlay,
+            ROW_NUMBER() OVER (
+                PARTITION BY ClubId, ClubTeamName, ClubTeamGradYear, ISNULL(ClubTeamLevelOfPlay, '')
+                ORDER BY ClubTeamId
+            ) AS rn
+        FROM AllMatches
     )
     INSERT INTO #NewClubTeams (ClubTeamId, ClubId, ClubTeamName, ClubTeamGradYear, ClubTeamLevelOfPlay)
     SELECT ClubTeamId, ClubId, ClubTeamName, ClubTeamGradYear, ClubTeamLevelOfPlay
-    FROM RankedMatches
+    FROM RankedByIdentity
     WHERE rn = 1;
 
     DECLARE @TotalClubTeamsResolved INT = @@ROWCOUNT;
     SET @ClubTeamsCreated = @NewClubTeamsInserted;
     PRINT '  ✓ Created ' + CAST(@ClubTeamsCreated AS VARCHAR) + ' new ClubTeams';
     PRINT '  ✓ Resolved ' + CAST(@TotalClubTeamsResolved AS VARCHAR) + ' total ClubTeams (new + existing)';
+    PRINT '';
+
+    -- ============================================================================
+    -- STEP 6.5: Deduplicate "N.A." ClubTeams - Consolidate to canonical versions
+    -- ============================================================================
+    PRINT 'STEP 6.5: Deduplicating "N.A." ClubTeams...';
+    PRINT '';
+
+    -- Identify canonical ClubTeams (non-"N.A." grad year versions)
+    -- For each (ClubId, ClubTeamName, LevelOfPlay) combo, prefer the version with a real grad year
+    IF OBJECT_ID('tempdb..#CanonicalTeams') IS NOT NULL DROP TABLE #CanonicalTeams;
+    
+    CREATE TABLE #CanonicalTeams (
+        ClubId INT NOT NULL,
+        ClubTeamName NVARCHAR(255) NOT NULL,
+        ClubTeamLevelOfPlay NVARCHAR(50) NOT NULL DEFAULT '',  -- NOT NULL to support PRIMARY KEY
+        CanonicalGradYear NVARCHAR(50) NOT NULL,
+        CanonicalClubTeamId INT NOT NULL,
+        HasNADuplicate BIT NOT NULL,
+        PRIMARY KEY (ClubId, ClubTeamName, ClubTeamLevelOfPlay)
+    );
+
+    -- Find canonical versions: For each (ClubId, ClubTeamName, LevelOfPlay), pick the non-"N.A." version
+    -- If multiple non-"N.A." versions exist, pick MIN(ClubTeamId) to be deterministic
+    WITH TeamGroups AS (
+        SELECT 
+            ClubId,
+            ClubTeamName,
+            ISNULL(ClubTeamLevelOfPlay, '') AS ClubTeamLevelOfPlay,
+            MIN(CASE WHEN ClubTeamGradYear <> 'N.A.' THEN ClubTeamGradYear ELSE NULL END) AS CanonicalGradYear,
+            MIN(CASE WHEN ClubTeamGradYear <> 'N.A.' THEN ClubTeamId ELSE NULL END) AS CanonicalClubTeamId,
+            MAX(CASE WHEN ClubTeamGradYear = 'N.A.' THEN 1 ELSE 0 END) AS HasNADuplicate
+        FROM #NewClubTeams
+        GROUP BY ClubId, ClubTeamName, ISNULL(ClubTeamLevelOfPlay, '')
+        HAVING MAX(CASE WHEN ClubTeamGradYear = 'N.A.' THEN 1 ELSE 0 END) = 1  -- Only groups with N.A. duplicates
+           AND MIN(CASE WHEN ClubTeamGradYear <> 'N.A.' THEN ClubTeamId ELSE NULL END) IS NOT NULL  -- Must have canonical version
+    )
+    INSERT INTO #CanonicalTeams (ClubId, ClubTeamName, ClubTeamLevelOfPlay, CanonicalGradYear, CanonicalClubTeamId, HasNADuplicate)
+    SELECT 
+        ClubId,
+        ClubTeamName,
+        ClubTeamLevelOfPlay,
+        CanonicalGradYear,
+        CanonicalClubTeamId,
+        1 AS HasNADuplicate
+    FROM TeamGroups;
+
+    DECLARE @TeamsWithDuplicates INT = @@ROWCOUNT;
+    PRINT '  Found ' + CAST(@TeamsWithDuplicates AS VARCHAR) + ' ClubTeams with "N.A." duplicates';
+
+    IF @TeamsWithDuplicates > 0
+    BEGIN
+        -- Update #TeamIdentities to use canonical grad year instead of "N.A."
+        UPDATE ti
+        SET ti.ClubTeamGradYear = ct.CanonicalGradYear
+        FROM #TeamIdentities ti
+        INNER JOIN #CanonicalTeams ct 
+            ON ti.ClubId = ct.ClubId
+            AND ti.ClubTeamName = ct.ClubTeamName
+            AND ISNULL(ti.NormalizedLevelOfPlay, '') = ct.ClubTeamLevelOfPlay
+        WHERE ti.ClubTeamGradYear = 'N.A.';
+
+        DECLARE @TeamIdentitiesUpdated INT = @@ROWCOUNT;
+        PRINT '  ✓ Updated ' + CAST(@TeamIdentitiesUpdated AS VARCHAR) + ' #TeamIdentities rows to use canonical grad year';
+
+        -- Delete "N.A." duplicates from #NewClubTeams (they won't be referenced anymore)
+        DELETE nct
+        FROM #NewClubTeams nct
+        INNER JOIN #CanonicalTeams ct 
+            ON nct.ClubId = ct.ClubId
+            AND nct.ClubTeamName = ct.ClubTeamName
+            AND ISNULL(nct.ClubTeamLevelOfPlay, '') = ct.ClubTeamLevelOfPlay
+        WHERE nct.ClubTeamGradYear = 'N.A.';
+
+        DECLARE @NADuplicatesRemoved INT = @@ROWCOUNT;
+        PRINT '  ✓ Removed ' + CAST(@NADuplicatesRemoved AS VARCHAR) + ' "N.A." duplicate ClubTeams from staging table';
+
+        -- Delete "N.A." duplicates from actual ClubTeams table (if they were inserted)
+        DELETE ct
+        FROM Clubs.ClubTeams ct
+        INNER JOIN #CanonicalTeams can 
+            ON ct.ClubId = can.ClubId
+            AND ct.ClubTeamName = can.ClubTeamName
+            AND ISNULL(ct.ClubTeamLevelOfPlay, '') = can.ClubTeamLevelOfPlay
+        WHERE ct.ClubTeamGradYear = 'N.A.'
+          AND ct.ClubTeamId NOT IN (SELECT ClubTeamId FROM #NewClubTeams); -- Don't delete canonical version
+
+        DECLARE @NADuplicatesDeletedFromDB INT = @@ROWCOUNT;
+        PRINT '  ✓ Deleted ' + CAST(@NADuplicatesDeletedFromDB AS VARCHAR) + ' "N.A." duplicate ClubTeams from database';
+    END
+    ELSE
+    BEGIN
+        PRINT '  ✓ No "N.A." duplicates found - all ClubTeams have unique identities';
+    END
+
+    DROP TABLE #CanonicalTeams;
     PRINT '';
 
     -- ============================================================================
