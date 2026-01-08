@@ -18,10 +18,6 @@
       </div>
       @if (!isLoadingMetadata() && !metadataError()) {
       <app-tw-step-indicator [steps]="wizardSteps()" [currentStep]="step()"></app-tw-step-indicator>
-      <div class="rw-sticky-header mb-2 mb-md-4 d-none d-md-block">
-        <progress class="w-100 rw-progress" [value]="step() * 20" max="100">{{ step() * 20 | number:'1.0-0'
-          }}%</progress>
-      </div>
       }
       <div class="card shadow-lg border-0 card-rounded wizard-theme-team mt-3">
         <!-- Registration Status Banner -->
