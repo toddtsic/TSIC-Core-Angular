@@ -31,9 +31,6 @@ export class ClubTeamManagementComponent implements OnInit {
     isLoading = signal<boolean>(false);
     errorMessage = signal<string | null>(null);
     activeTab = signal<'active' | 'inactive'>('active');
-    infoExpanded = signal<boolean>(!this.userPrefs.isTeamLibraryInfoRead());
-    infoAlreadyRead = signal<boolean>(this.userPrefs.isTeamLibraryInfoRead());
-
     searchTerm = signal<string>('');
     collapsedYears = signal<Set<string>>(new Set());
 
@@ -128,16 +125,6 @@ export class ClubTeamManagementComponent implements OnInit {
                 this.allTeams.set(updated);
             }
         });
-    }
-
-    toggleInfo(): void {
-        this.infoExpanded.set(!this.infoExpanded());
-    }
-
-    acknowledgeInfo(): void {
-        this.userPrefs.markTeamLibraryInfoAsRead();
-        this.infoAlreadyRead.set(true);
-        this.infoExpanded.set(false);
     }
 
     toggleYearCollapse(year: string): void {

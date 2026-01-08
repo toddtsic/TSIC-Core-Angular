@@ -33,9 +33,10 @@
             <strong>Loading...</strong> Checking registration status.
           </div>
         </div>
-        } @else {
-        <!-- Step-specific banner with contextual messaging -->
-        <div class="alert {{ stepBannerConfig().alertClass }} mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+        } @else if (step() !== 2) {
+        <!-- Step-specific banner with contextual messaging (suppressed for step 2) -->
+        <div class="alert {{ stepBannerConfig().alertClass }} mb-0 rounded-0 rounded-top d-flex align-items-center"
+          role="alert">
           <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
           <div class="flex-grow-1">
             @if (stepBannerConfig().title) {
@@ -75,6 +76,13 @@
           }
 
           @if (step() === 2) {
+          <!-- Custom warning banner for Step 2 -->
+          <div class="alert alert-warning d-flex align-items-start mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0 fs-5"></i>
+            <div>
+              <strong>Important:</strong> This page is for building your <strong>permanent club team library</strong>. You <strong>do not register teams for an event here</strong>. That happens in the next step.
+            </div>
+          </div>
           <app-club-team-management [clubName]="clubName() || ''" (teamsLoaded)="onTeamsLoaded($event)"
             (addTeam)="hasTeamsInLibrary.set(true)"></app-club-team-management>
           }
@@ -196,7 +204,8 @@
           <label for="clubSelector" class="form-label fw-semibold small mb-1">Club</label>
           <select id="clubSelector" class="form-select" [ngModel]="selectedClub()"
             [size]="availableClubs().length > 5 ? 5 : availableClubs().length"
-            (ngModelChange)="selectedClub.set($event); selectClub($event)">
+            (ngModelChange)="selectedClub.set($event); selectClub($event)"
+            (dblclick)="selectedClub() && continueFromStep1()">
             @for (club of availableClubs(); track club.clubName) {
             <option [value]="club.clubName">{{ club.clubName }}</option>
             }
@@ -302,8 +311,6 @@
 
 <!-- Club Management Modal -->
 @if (showManageClubsModal()) {
-<app-club-management-modal
-  (clubsChanged)="handleClubsChanged()"
-  (closed)="closeManageClubsModal()">
+<app-club-management-modal (clubsChanged)="handleClubsChanged()" (closed)="closeManageClubsModal()">
 </app-club-management-modal>
 }

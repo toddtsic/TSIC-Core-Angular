@@ -61,7 +61,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
             // Registration OPEN - Full flow
             return [
                 { stepNumber: 1, label: 'Login' },
-                { stepNumber: 2, label: 'Manage Teams' },
+                { stepNumber: 2, label: 'Club Team Library' },
                 { stepNumber: 3, label: 'Register' },
                 { stepNumber: 4, label: 'Payment' },
                 { stepNumber: 5, label: 'Confirmation' }
@@ -70,7 +70,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
             // Registration CLOSED - Build mode
             return [
                 { stepNumber: 1, label: 'Login' },
-                { stepNumber: 2, label: 'Build Library' }
+                { stepNumber: 2, label: 'Club Team Library' }
             ];
         }
     });
@@ -264,7 +264,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
     loadClubs(): void {
         this.reloadClubsSubscription?.unsubscribe();
-        
+
         this.reloadClubsSubscription = this.teamRegService.getMyClubs().subscribe({
             next: (clubs) => {
                 this.availableClubs.set(clubs);
@@ -407,13 +407,13 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     handleClubsChanged(): void {
         // Reload clubs from server and handle selected club removal
         const currentSelected = this.selectedClub();
-        
+
         this.reloadClubsSubscription?.unsubscribe();
-        
+
         this.reloadClubsSubscription = this.teamRegService.getMyClubs().subscribe({
             next: (clubs) => {
                 this.availableClubs.set(clubs);
-                
+
                 // Check if currently selected club still exists
                 if (currentSelected) {
                     const stillExists = clubs.some(c => c.clubName === currentSelected);
@@ -421,7 +421,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                         // Selected club was removed OR renamed - clear selection
                         this.selectedClub.set(null);
                         this.clubName.set(null);
-                        
+
                         // Auto-select if only one club remains
                         if (clubs.length === 1) {
                             const onlyClub = clubs[0];
