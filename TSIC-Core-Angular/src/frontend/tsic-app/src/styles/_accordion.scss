@@ -58,11 +58,12 @@
 [data-bs-theme='dark'] {
     .accordion-item-info {
         border-left-color: var(--brand-border);
-        background-color: rgba(87, 83, 78, 0.2);
+        background-color: rgba(68, 64, 60, 0.3);
     }
 
     .accordion-item-info .accordion-button-info {
-        background-color: rgba(87, 83, 78, 0.2);
+        background-color: rgba(87, 83, 78, 0.4);
+        border-bottom: 1px solid rgba(120, 113, 108, 0.3);
 
         .accordion-icon-info {
             color: var(--brand-primary);
@@ -70,15 +71,16 @@
     }
 
     .accordion-item-info .accordion-button-info.collapsed {
-        background-color: rgba(87, 83, 78, 0.2);
+        background-color: rgba(87, 83, 78, 0.4);
+        border-bottom: none;
 
         &:hover {
-            background-color: rgba(87, 83, 78, 0.3);
+            background-color: rgba(87, 83, 78, 0.5);
         }
     }
 
     .accordion-item-info .accordion-button-info:not(.collapsed) {
-        background-color: rgba(87, 83, 78, 0.3);
+        background-color: rgba(87, 83, 78, 0.5);
         color: var(--bs-body-color);
 
         .accordion-icon-info {
