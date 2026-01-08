@@ -61,11 +61,19 @@
     --bs-body-color: var(--brand-text);
     --bs-primary: var(--brand-primary);
     --bs-primary-rgb: 148, 163, 184;
-    /* Teal-500 RGB */
+    /* Slate-400 RGB */
     --bs-secondary: var(--neutral-400);
     --bs-success: var(--brand-success);
     --bs-danger: var(--brand-danger);
     --bs-warning: var(--brand-warn);
+    --bs-info: var(--brand-primary);
+    /* Info uses neutral slate */
+    --bs-info-rgb: 148, 163, 184;
+    --bs-info-bg-subtle: rgba(68, 64, 60, 0.3);
+    /* Content area - lighter */
+    --bs-info-border-subtle: rgba(87, 83, 78, 0.5);
+    /* Header - darker for contrast */
+    --bs-info-text-emphasis: var(--brand-text);
     --bs-border-color: var(--brand-border);
 
     /* Input Variables for Dark Mode - CRITICAL: needs visible borders */
