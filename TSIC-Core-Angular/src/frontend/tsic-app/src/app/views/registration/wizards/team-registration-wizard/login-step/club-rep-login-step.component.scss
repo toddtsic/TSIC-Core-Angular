@@ -1,1 +1,17 @@
 ﻿/* Accordion styles extracted to global styles/_accordion.scss */
+
+/* Login button respects dark mode primary */
+.btn-login {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: var(--bs-light);
+
+    &:hover:not(:disabled) {
+        background-color: var(--brand-primary-dark);
+        border-color: var(--brand-primary-dark);
+    }
+
+    &:disabled {
+        opacity: 0.65;
+    }
+}

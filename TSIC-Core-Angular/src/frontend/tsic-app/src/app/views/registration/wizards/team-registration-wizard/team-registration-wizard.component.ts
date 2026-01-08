@@ -101,7 +101,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                 case 1:
                     return {
                         icon: 'bi-box-arrow-in-right',
-                        alertClass: 'alert-primary',
+                        alertClass: 'alert-warning',
                         title: 'Club Rep Login',
                         message: 'Log in with your Club Rep credentials to access your <strong>club team library</strong> and register for this event.'
                     };
