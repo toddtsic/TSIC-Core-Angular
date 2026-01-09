@@ -179,9 +179,48 @@
         font-size: var(--font-size-sm);
         backdrop-filter: blur(8px);
 
+        // Uniform neutral borders for all button variants
+        background: rgba(var(--brand-text-rgb), 0.04);
+        border: 1px solid rgba(var(--brand-text-rgb), 0.15) !important;
+
+        &:hover {
+            background: rgba(var(--brand-text-rgb), 0.08);
+            border-color: rgba(var(--brand-text-rgb), 0.25) !important;
+        }
+
+        &:active {
+            background: rgba(var(--brand-text-rgb), 0.12);
+        }
+
+        // Keep colored icons but override border colors
+        &.btn-outline-primary,
+        &.btn-outline-success,
+        &.btn-outline-danger,
+        &.btn-outline-secondary {
+            border-color: rgba(var(--brand-text-rgb), 0.15) !important;
+
+            &:hover {
+                border-color: rgba(var(--brand-text-rgb), 0.25) !important;
+            }
+        }
+
         .bi {
             :host-context([data-bs-theme="dark"]) & {
                 opacity: 0.8;
+            }
+        }
+
+        :host-context([data-bs-theme="dark"]) & {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.15) !important;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.08);
+                border-color: rgba(255, 255, 255, 0.25) !important;
+            }
+
+            &:active {
+                background: rgba(255, 255, 255, 0.12);
             }
         }
     }

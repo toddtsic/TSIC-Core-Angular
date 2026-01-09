@@ -17,6 +17,8 @@ public partial class Sports
 
     public int Ai { get; set; }
 
+    public virtual ICollection<Clubs1> Clubs1 { get; set; } = new List<Clubs1>();
+
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
 
     public virtual ICollection<Leagues> Leagues { get; set; } = new List<Leagues>();

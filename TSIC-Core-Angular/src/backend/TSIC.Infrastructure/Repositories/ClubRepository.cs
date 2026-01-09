@@ -38,16 +38,42 @@ public class ClubRepository : IClubRepository
     public async Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
         CancellationToken cancellationToken = default)
     {
-        return await _context.Clubs
-            .Select(c => new ClubSearchCandidate
+        // Need to do this as a group join since we can't directly access ClubReps from Registrations
+        var clubs = await _context.Clubs
+            .Select(c => new
             {
-                ClubId = c.ClubId,
-                ClubName = c.ClubName!,
-                State = c.LebUser!.State,
-                TeamCount = c.ClubTeams.Count
+                c.ClubId,
+                c.ClubName,
+                State = c.LebUser!.State
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        var result = new List<ClubSearchCandidate>();
+        foreach (var c in clubs)
+        {
+            var teamCount = await _context.ClubReps
+                .Where(cr => cr.ClubId == c.ClubId)
+                .Join(_context.Registrations,
+                    cr => cr.ClubRepUserId,
+                    reg => reg.UserId,
+                    (cr, reg) => reg.RegistrationId)
+                .Join(_context.Teams,
+                    regId => regId,
+                    team => team.ClubrepRegistrationid,
+                    (regId, team) => team)
+                .CountAsync(cancellationToken);
+
+            result.Add(new ClubSearchCandidate
+            {
+                ClubId = c.ClubId,
+                ClubName = c.ClubName!,
+                State = c.State,
+                TeamCount = teamCount
+            });
+        }
+
+        return result;
     }
 
     public async Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
@@ -61,16 +87,41 @@ public class ClubRepository : IClubRepository
             query = query.Where(c => c.LebUser!.State == state);
         }
 
-        return await query
-            .Select(c => new ClubSearchCandidate
+        var clubs = await query
+            .Select(c => new
             {
-                ClubId = c.ClubId,
-                ClubName = c.ClubName!,
-                State = c.LebUser!.State,
-                TeamCount = c.ClubTeams.Count
+                c.ClubId,
+                c.ClubName,
+                State = c.LebUser!.State
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        var result = new List<ClubSearchCandidate>();
+        foreach (var c in clubs)
+        {
+            var teamCount = await _context.ClubReps
+                .Where(cr => cr.ClubId == c.ClubId)
+                .Join(_context.Registrations,
+                    cr => cr.ClubRepUserId,
+                    reg => reg.UserId,
+                    (cr, reg) => reg.RegistrationId)
+                .Join(_context.Teams,
+                    regId => regId,
+                    team => team.ClubrepRegistrationid,
+                    (regId, team) => team)
+                .CountAsync(cancellationToken);
+
+            result.Add(new ClubSearchCandidate
+            {
+                ClubId = c.ClubId,
+                ClubName = c.ClubName!,
+                State = c.State,
+                TeamCount = teamCount
+            });
+        }
+
+        return result;
     }
 
     public void Add(Clubs club)

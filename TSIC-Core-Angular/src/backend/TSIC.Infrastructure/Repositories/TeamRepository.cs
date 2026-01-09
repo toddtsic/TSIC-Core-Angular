@@ -46,23 +46,25 @@ public class TeamRepository : ITeamRepository
         int clubId,
         CancellationToken cancellationToken = default)
     {
+        // Join Teams → Registrations → ClubReps to filter by ClubId
         return await _context.Teams
-            .Where(t => t.JobId == jobId
-                     && t.ClubrepRegistration != null
-                     && t.ClubrepRegistration.ClubReps.Any(cr => cr.ClubId == clubId))
-            .Select(t => new RegisteredTeamInfo(
-                t.TeamId,
-                t.ClubTeamId ?? Guid.Empty,
-                t.ClubTeam != null ? t.ClubTeam.ClubTeamName! : t.TeamName ?? string.Empty,
-                t.ClubTeam != null ? t.ClubTeam.ClubTeamGradYear : t.Agegroup!.AgegroupName ?? string.Empty,
-                t.ClubTeam != null ? t.ClubTeam.ClubTeamLevelOfPlay : t.LevelOfPlay,
-                t.AgegroupId,
-                t.Agegroup!.AgegroupName ?? string.Empty,
-                t.FeeBase ?? 0,
-                t.FeeProcessing ?? 0,
-                (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0),
-                t.PaidTotal ?? 0,
-                ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0)
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null)
+            .Join(_context.Registrations,
+                t => t.ClubrepRegistrationid,
+                reg => reg.RegistrationId,
+                (t, reg) => new { Team = t, Registration = reg })
+            .Where(tr => _context.ClubReps.Any(cr => cr.ClubRepUserId == tr.Registration.UserId && cr.ClubId == clubId))
+            .Select(tr => new RegisteredTeamInfo(
+                tr.Team.TeamId,
+                tr.Team.TeamName ?? string.Empty,
+                tr.Team.AgegroupId,
+                tr.Team.Agegroup!.AgegroupName ?? string.Empty,
+                tr.Team.LevelOfPlay,
+                tr.Team.FeeBase ?? 0,
+                tr.Team.FeeProcessing ?? 0,
+                (tr.Team.FeeBase ?? 0) + (tr.Team.FeeProcessing ?? 0),
+                tr.Team.PaidTotal ?? 0,
+                ((tr.Team.FeeBase ?? 0) + (tr.Team.FeeProcessing ?? 0)) - (tr.Team.PaidTotal ?? 0)
             ))
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -83,7 +85,6 @@ public class TeamRepository : ITeamRepository
     {
         return await _context.Teams
             .Where(t => t.TeamId == teamId)
-            .Include(t => t.ClubTeam)
             .Include(t => t.Agegroup)
             .SingleOrDefaultAsync(cancellationToken);
     }

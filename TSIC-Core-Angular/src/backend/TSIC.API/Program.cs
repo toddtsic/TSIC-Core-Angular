@@ -67,7 +67,6 @@ builder.Services.AddScoped<IClubRepository, ClubRepository>();
 builder.Services.AddScoped<IFamiliesRepository, FamiliesRepository>();
 builder.Services.AddScoped<IFamilyMemberRepository, FamilyMemberRepository>();
 builder.Services.AddScoped<IRegistrationAccountingRepository, RegistrationAccountingRepository>();
-builder.Services.AddScoped<IClubTeamRepository, ClubTeamRepository>();
 builder.Services.AddScoped<IBulletinRepository, BulletinRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ITextSubstitutionRepository, TextSubstitutionRepository>();

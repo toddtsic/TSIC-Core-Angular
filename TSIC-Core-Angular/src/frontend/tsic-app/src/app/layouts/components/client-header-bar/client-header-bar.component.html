@@ -56,11 +56,11 @@
 
             <!-- Mobile Buttons -->
             <div class="btn-group d-md-none">
-                <button type="button" class="btn btn-sm btn-outline-primary" (click)="goHome()" title="Home">
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="goHome()" title="Home">
                     <i class="bi bi-house-fill"></i>
                 </button>
                 @if (user()?.regId) {
-                <button type="button" class="btn btn-sm btn-outline-success" [routerLink]="['role-selection']"
+                <button type="button" class="btn btn-sm btn-outline-secondary" [routerLink]="['role-selection']"
                     (click)="onSwitchRole($event)" title="Switch Role">
                     <i class="bi bi-person-fill-add"></i>
                 </button>
@@ -74,7 +74,7 @@
                     }
                 </button>
                 @if (user()) {
-                <button type="button" class="btn btn-sm btn-outline-danger" (click)="logout()" title="Logout">
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="logout()" title="Logout">
                     <i class="bi bi-box-arrow-right"></i>
                 </button>
                 } @else {

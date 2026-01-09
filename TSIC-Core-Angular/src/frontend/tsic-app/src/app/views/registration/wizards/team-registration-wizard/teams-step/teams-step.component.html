@@ -4,7 +4,7 @@
     <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading teams...</span>
     </div>
-    <p class="mt-3 text-muted">Loading your teams...</p>
+    <p class="mt-3 text-muted">Loading registration data...</p>
 </div>
 } @else {
 
@@ -17,8 +17,8 @@
 }
 
 <!-- Main content -->
-<div class="teams-step-container" (click)="closeDropdown()">
-    <!-- Financial summary - always visible -->
+<div class="teams-step-container">
+    <!-- Financial summary -->
     <div
         class="alert border-0 shadow-sm d-flex justify-content-between align-items-center mb-3 bg-secondary-subtle flex-wrap gap-2">
         <div class="d-flex align-items-center gap-2 gap-md-3">
@@ -31,33 +31,103 @@
         </div>
     </div>
 
-    <!-- Single unified table -->
+    <!-- Inline Registration Form -->
+    <div class="card border shadow-sm mb-3">
+        <div class="card-header border-bottom bg-body">
+            <h5 class="mb-0 fw-semibold d-flex align-items-center">
+                <i class="bi bi-plus-circle me-2"></i>
+                Register Team for {{ eventName() }}
+            </h5>
+        </div>
+        <div class="card-body">
+            <form (ngSubmit)="registerTeam()">
+                <div class="row g-3">
+                    <!-- Team Name Input with Suggestions -->
+                    <div class="col-md-4">
+                        <label for="teamName" class="form-label fw-semibold">Team Name <span
+                                class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="teamName" [(ngModel)]="teamNameInput"
+                            [ngModelOptions]="{standalone: true}" placeholder="Enter team name"
+                            list="teamNameSuggestions" required>
+                        <datalist id="teamNameSuggestions">
+                            @for (suggestion of filteredSuggestions(); track suggestion.teamName) {
+                            <option [value]="suggestion.teamName">Used {{ suggestion.usageCount }}x</option>
+                            }
+                        </datalist>
+                        @if (suggestedTeamNames().length > 0 && teamNameInput().length === 0) {
+                        <div class="mt-2">
+                            <small class="text-muted d-block mb-1">Suggestions from history:</small>
+                            <div class="d-flex flex-wrap gap-1">
+                                @for (suggestion of suggestedTeamNames().slice(0, 5); track suggestion.teamName) {
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    (click)="selectSuggestion(suggestion)"
+                                    title="Used {{ suggestion.usageCount }} time(s)">
+                                    {{ suggestion.teamName }}
+                                </button>
+                                }
+                            </div>
+                        </div>
+                        }
+                    </div>
+
+                    <!-- Age Group Dropdown -->
+                    <div class="col-md-4">
+                        <label for="ageGroup" class="form-label fw-semibold">Age Group <span
+                                class="text-danger">*</span></label>
+                        <select class="form-select" id="ageGroup" [(ngModel)]="selectedAgeGroupId"
+                            [ngModelOptions]="{standalone: true}" required>
+                            <option value="">Select age group...</option>
+                            @for (ag of displayedAgeGroups(); track ag.ageGroupId) {
+                            @let isFull = ag.registeredCount >= ag.maxTeams;
+                            <option [value]="ag.ageGroupId.toString()" [disabled]="isFull">
+                                {{ ag.ageGroupName }} - {{ ag.teamFee | currency }}
+                                @if (isFull) { (Full) }
+                            </option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Level of Play Input -->
+                    <div class="col-md-2">
+                        <label for="levelOfPlay" class="form-label fw-semibold">Level</label>
+                        <select class="form-select" id="levelOfPlay" [(ngModel)]="levelOfPlayInput"
+                            [ngModelOptions]="{standalone: true}">
+                            <option value="">Optional</option>
+                            @for (lop of availableLevelsOfPlay(); track lop) {
+                            <option [value]="lop">{{ lop }}</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Register Button -->
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100"
+                            [disabled]="isRegistering() || !teamNameInput() || !selectedAgeGroupId()">
+                            @if (isRegistering()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Register
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Registered Teams List -->
     <div class="card border shadow-sm">
         <div class="card-header border-bottom bg-body">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                <div>
-                    <h5 class="mb-1 fw-semibold d-flex align-items-center">
-                        <i class="bi bi-collection me-2"></i>
-                        <span class="text-muted me-2">Teams for</span>
-                        <span class="badge border border-secondary text-body bg-transparent">{{ clubName() }}</span>
-                    </h5>
-                    <small class="text-muted fst-italic d-flex align-items-center" style="font-size: 0.7rem;">
-                        <i class="bi bi-collection me-2 opacity-0"></i>Registered teams appear at top
-                    </small>
-                </div>
-                <div class="d-none"></div>
-            </div>
+            <h5 class="mb-0 fw-semibold d-flex align-items-center">
+                <i class="bi bi-list-check me-2"></i>
+                Registered Teams for {{ clubName() }}
+            </h5>
         </div>
         <div class="card-body p-0">
-            @if (filteredUnifiedTeams().length === 0) {
+            @if (registeredTeams().length === 0) {
             <div class="p-4 text-center text-muted">
                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                @if (availableClubTeams().length === 0 && registeredTeams().length === 0) {
-                <p class="mb-0">No teams in your library yet.</p>
-                <p class="small">Use the Add Team action from Manage Club Teams.</p>
-                } @else {
-                <p>No teams match your filters</p>
-                }
+                <p class="mb-0">No teams registered yet.</p>
+                <p class="small">Use the form above to register your first team.</p>
             </div>
             } @else {
             <div class="table-responsive">
@@ -65,76 +135,27 @@
                     <thead>
                         <tr>
                             <th class="text-uppercase fw-bold small">Team</th>
-                            <th class="text-uppercase fw-bold small d-none d-md-table-cell">Grad Year</th>
-                            <th class="text-uppercase fw-bold small d-none d-md-table-cell">LOP</th>
-                            <th class="text-uppercase fw-bold small">Status</th>
+                            <th class="text-uppercase fw-bold small">Age Group</th>
+                            <th class="text-uppercase fw-bold small d-none d-md-table-cell">Level</th>
+                            <th class="text-uppercase fw-bold small text-end">Fee</th>
                             <th class="text-end"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        @for (team of filteredUnifiedTeams(); track team.clubTeamId) {
-                        <tr [class.registered-team]="team.isRegistered">
-                            <td class="fw-semibold">
-                                {{ team.clubTeamName }}
-                                <div class="d-md-none text-muted small mt-1">
-                                    {{ team.clubTeamGradYear }} LOP: {{ team.clubTeamLevelOfPlay }}/5
-                                </div>
-                            </td>
-                            <td class="text-muted d-none d-md-table-cell">{{ team.clubTeamGradYear }}</td>
-                            <td class="text-muted d-none d-md-table-cell">{{ team.clubTeamLevelOfPlay }}</td>
-                            <td>
-                                @if (team.isRegistered && team.registeredTeam) {
-                                <span class="registered-status">
-                                    <i class="bi bi-check-circle-fill text-success me-1"></i>
-                                    <span class="fw-semibold">{{ team.registeredTeam.ageGroupName }}</span>
-                                    <small class="text-muted ms-2">{{ team.registeredTeam.feeTotal | currency }}</small>
-                                </span>
-                                } @else {
-                                <span class="text-muted fst-italic">Not registered</span>
-                                }
-                            </td>
+                        @for (team of registeredTeams(); track team.teamId) {
+                        <tr>
+                            <td class="fw-semibold">{{ team.teamName }}</td>
+                            <td>{{ team.ageGroupName }}</td>
+                            <td class="text-muted d-none d-md-table-cell">{{ team.levelOfPlay || 'N/A' }}</td>
+                            <td class="text-end">{{ team.feeTotal | currency }}</td>
                             <td class="text-end">
-                                @if (team.isRegistered && team.registeredTeam) {
-                                @if (team.registeredTeam.paidTotal === 0) {
+                                @if (team.paidTotal === 0) {
                                 <button type="button" class="btn btn-sm btn-outline-danger"
-                                    (click)="unregisterTeam(team.registeredTeam)" title="Remove from event">
+                                    (click)="unregisterTeam(team)" title="Remove from event">
                                     <i class="bi bi-x-circle me-1"></i>Remove
                                 </button>
                                 } @else {
                                 <span class="badge bg-success">Paid</span>
-                                }
-                                } @else {
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-primary btn-sm dropdown-toggle"
-                                        (click)="toggleDropdown(team, $event)">
-                                        <i class="bi bi-plus-circle me-1"></i>Register
-                                    </button>
-                                    @if (openDropdownTeamId() === team.clubTeamId) {
-                                    <ul class="dropdown-menu show">
-                                        @for (ag of filteredAgeGroupsForModal(); track ag.ageGroupId) {
-                                        @let isFull = ag.registeredCount >= ag.maxTeams;
-                                        @let isWaitlist = ag.ageGroupName.toLowerCase().startsWith('waitlist');
-                                        <li>
-                                            <a class="dropdown-item" href="javascript:void(0)"
-                                                [class.disabled]="isFull && !isWaitlist"
-                                                [class.text-muted]="isFull && !isWaitlist"
-                                                (click)="registerTeamWithAgeGroup(ag.ageGroupId.toString(), team)">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span>{{ ag.ageGroupName }}</span>
-                                                    <div class="ms-3">
-                                                        <small class="text-muted me-2">{{ ag.teamFee | currency
-                                                            }}</small>
-                                                        @if (isFull && !isWaitlist) {
-                                                        <span class="badge bg-danger">Full</span>
-                                                        }
-                                                    </div>
-                                                </div>
-                                            </a>
-                                        </li>
-                                        }
-                                    </ul>
-                                    }
-                                </div>
                                 }
                             </td>
                         </tr>
@@ -143,110 +164,6 @@
                 </table>
             </div>
             }
-        </div>
-    </div>
-</div>
-}
-
-<!-- Add New Team Modal -->
-<app-club-team-add-modal #addTeamModal [clubName]="clubName()"></app-club-team-add-modal>
-
-<!-- Age Group Selection Modal -->
-@if (showAgeGroupModal()) {
-<div class="modal d-block" tabindex="-1" role="dialog"
-    style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-success text-white border-0">
-                <h4 class="modal-title mb-0">
-                    <i class="bi bi-trophy-fill me-2"></i>
-                    Select Age Group for <span class="badge bg-white text-success ms-2">{{ eventName() }}</span>
-                </h4>
-                <button type="button" class="btn-close btn-close-white" (click)="closeAgeGroupModal()"
-                    aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                @if (selectedClubTeamForRegistration(); as team) {
-                <div class="alert alert-info border-0 mb-4 d-flex align-items-center">
-                    <i class="bi bi-info-circle-fill me-2 flex-shrink-0"></i>
-                    <div class="w-100">
-                        <div class="row mb-2">
-                            <div class="col-2">
-                                <strong>Club:</strong>
-                            </div>
-                            <div class="col">
-                                <span class="badge border border-secondary text-body">{{ clubName() }}</span>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-2">
-                                <strong>Team:</strong>
-                            </div>
-                            <div class="col">
-                                <span class="badge border border-secondary text-body">{{ team.clubTeamName }}</span>
-                                <span class="badge border border-secondary text-body ms-2">Grad Year: {{
-                                    team.clubTeamGradYear }}</span>
-                                <span class="badge border border-secondary text-body ms-2">LOP: {{
-                                    team.clubTeamLevelOfPlay }}/5</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <p class="mb-3 fw-semibold">Select the age group you are requesting:</p>
-
-                <form>
-                    test radio button:
-                    <input type="radio" value="x">
-                    <div class="list-group">
-                        @for (ag of filteredAgeGroupsForModal(); track ag.ageGroupId) {
-                        @let isFull = ag.registeredCount >= ag.maxTeams;
-                        @let isWaitlist = ag.ageGroupName.toLowerCase().startsWith('waitlist');
-                        <label class="list-group-item py-2 cursor-pointer age-group-option"
-                            [class.bg-secondary-subtle]="isFull && !isWaitlist"
-                            [class.text-muted]="isFull && !isWaitlist" [class.disabled]="isFull && !isWaitlist"
-                            [class.selected]="selectedAgeGroupId() === ag.ageGroupId.toString()">
-                            <div class="row align-items-center g-2">
-                                <div class="col-1">
-                                    <input class="form-check-input" type="radio" name="ageGroup"
-                                        [value]="ag.ageGroupId.toString()" [disabled]="isFull && !isWaitlist"
-                                        [checked]="selectedAgeGroupId() === ag.ageGroupId.toString()"
-                                        (change)="selectedAgeGroupId.set(ag.ageGroupId.toString())">
-                                </div>
-                                <div class="col-6">
-                                    <span class="fw-semibold">{{ ag.ageGroupName }}</span>
-                                </div>
-                                <div class="col-3 text-end">
-                                    <span class="text-muted">{{ ag.teamFee | currency }}</span>
-                                </div>
-                                <div class="col-2 text-end">
-                                    @if (isFull && !isWaitlist) {
-                                    <span class="badge bg-danger">Full</span>
-                                    } @else if (isWaitlist) {
-                                    <span class="badge bg-warning text-dark">Waitlist</span>
-                                    }
-                                </div>
-                            </div>
-                        </label>
-                        }
-                    </div>
-                    <div class="mt-3 d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary" (click)="closeAgeGroupModal()"
-                            [disabled]="isRegistering()">
-                            Cancel
-                        </button>
-                        <button type="button" class="btn btn-success"
-                            [disabled]="!selectedAgeGroupId() || isRegistering()"
-                            (click)="registerTeamWithAgeGroup(selectedAgeGroupId()!)">
-                            @if (isRegistering()) {
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            {{ isRegistering() ? 'Registering...' : 'Confirm Registration' }}
-                        </button>
-                    </div>
-                </form>
-                }
-            </div>
         </div>
     </div>
 </div>

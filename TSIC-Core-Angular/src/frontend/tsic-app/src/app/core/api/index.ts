@@ -5,8 +5,6 @@
 
 export type { AddClubRequest } from './models/AddClubRequest';
 export type { AddClubResponse } from './models/AddClubResponse';
-export type { AddClubTeamRequest } from './models/AddClubTeamRequest';
-export type { AddClubTeamResponse } from './models/AddClubTeamResponse';
 export type { AddClubToRepRequest } from './models/AddClubToRepRequest';
 export type { AddClubToRepResponse } from './models/AddClubToRepResponse';
 export type { AddressDto } from './models/AddressDto';
@@ -27,9 +25,6 @@ export type { ClubRepClubDto } from './models/ClubRepClubDto';
 export type { ClubRepRegistrationRequest } from './models/ClubRepRegistrationRequest';
 export type { ClubRepRegistrationResponse } from './models/ClubRepRegistrationResponse';
 export type { ClubSearchResult } from './models/ClubSearchResult';
-export type { ClubTeamDto } from './models/ClubTeamDto';
-export type { ClubTeamManagementDto } from './models/ClubTeamManagementDto';
-export type { ClubTeamOperationResponse } from './models/ClubTeamOperationResponse';
 export type { CreditCardInfo } from './models/CreditCardInfo';
 export type { EmailHealthStatus } from './models/EmailHealthStatus';
 export type { FamilyPlayerDto } from './models/FamilyPlayerDto';
@@ -95,10 +90,10 @@ export type { RegistrationStatusResponse } from './models/RegistrationStatusResp
 export type { RegSaverDetailsDto } from './models/RegSaverDetailsDto';
 export type { RenameOptionSetRequest } from './models/RenameOptionSetRequest';
 export type { RoleSelectionRequest } from './models/RoleSelectionRequest';
+export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { TeamsMetadataResponse } from './models/TeamsMetadataResponse';
 export type { TestValidationRequest } from './models/TestValidationRequest';
 export type { UpdateClubNameRequest } from './models/UpdateClubNameRequest';
-export type { UpdateClubTeamRequest } from './models/UpdateClubTeamRequest';
 export type { UpdateCurrentJobProfileConfigRequest } from './models/UpdateCurrentJobProfileConfigRequest';
 export type { ValidationTestResult } from './models/ValidationTestResult';
 export type { VIColorsDto } from './models/VIColorsDto';

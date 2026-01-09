@@ -4,12 +4,10 @@ namespace TSIC.Contracts.Repositories;
 
 public record RegisteredTeamInfo(
     Guid TeamId,
-    int ClubTeamId,
-    string ClubTeamName,
-    string ClubTeamGradYear,
-    string ClubTeamLevelOfPlay,
+    string TeamName,
     Guid AgeGroupId,
     string AgeGroupName,
+    string? LevelOfPlay,
     decimal FeeBase,
     decimal FeeProcessing,
     decimal FeeTotal,

@@ -4,12 +4,10 @@
 /* eslint-disable */
 export type RegisteredTeamDto = {
     teamId: string;
-    clubTeamId: number;
-    clubTeamName: string;
-    clubTeamGradYear: string;
-    clubTeamLevelOfPlay: string;
+    teamName: string;
     ageGroupId: string;
     ageGroupName: string;
+    levelOfPlay: string | null;
     feeBase: number;
     feeProcessing: number;
     feeTotal: number;

@@ -15,7 +15,5 @@ public partial class Clubs
 
     public virtual ICollection<ClubReps> ClubReps { get; set; } = new List<ClubReps>();
 
-    public virtual ICollection<ClubTeams> ClubTeams { get; set; } = new List<ClubTeams>();
-
     public virtual AspNetUsers? LebUser { get; set; }
 }

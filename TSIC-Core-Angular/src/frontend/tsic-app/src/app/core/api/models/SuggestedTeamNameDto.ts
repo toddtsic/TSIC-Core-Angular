@@ -2,9 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AddClubTeamResponse = {
-    clubTeamId: number;
-    success: boolean;
-    message?: string | null;
+export type SuggestedTeamNameDto = {
+    teamName: string;
+    usageCount: number;
+    lastUsedDate: string | null;
 };
 

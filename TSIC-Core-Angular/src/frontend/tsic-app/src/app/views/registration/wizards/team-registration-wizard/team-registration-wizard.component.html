@@ -72,26 +72,6 @@
           }
 
           @if (step() === 2) {
-          <!-- Custom warning banner for Step 2 -->
-          <div class="alert alert-warning d-flex align-items-start mb-3" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0 fs-5"></i>
-            <div>
-              <ul class="mb-0 ps-3 small">
-                <li><strong>Important:</strong> This page is for building your <strong>permanent club team
-                    library</strong>. You <strong>do not register teams for an event here</strong>. That happens in the
-                  next step.</li>
-                <li><strong class="text-primary">You first manage your club team library on this
-                    page</strong>&nbsp;<em>(add teams, edit details, saved forever and reusable)</em></li>
-                <li><strong>Then you register for events in the next step</strong>&nbsp;<em>(select
-                    teams from library, choose age groups, complete payment)</em></li>
-              </ul>
-            </div>
-          </div>
-          <app-club-team-management [clubName]="clubName() || ''" (teamsLoaded)="onTeamsLoaded($event)"
-            (addTeam)="hasTeamsInLibrary.set(true)"></app-club-team-management>
-          }
-
-          @if (step() === 3) {
           <app-teams-step [clubName]="clubName() || ''"></app-teams-step>
           }
         </div> <!-- /card-body -->
@@ -100,22 +80,14 @@
   </div> <!-- /row -->
 
   <!-- Fixed Bottom Navigation -->
-  @if (step() === 2 || step() === 3) {
+  @if (step() === 2) {
   <div class="position-fixed bottom-0 start-0 end-0 py-2"
     style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
     <div class="container-fluid px-2">
       <div class="row justify-content-center">
         <div class="col-auto">
-          @if (step() === 2) {
-          <app-tw-action-bar [canBack]="true" [showContinue]="hasTeamsInLibrary()" [canContinue]="hasTeamsInLibrary()"
-            [continueLabel]="isTeamRegistrationOpen() ? 'Next' : 'Done'" (back)="goBackToStep1()"
-            (continue)="goToTeamsStep()">
+          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(1)">
           </app-tw-action-bar>
-          }
-          @if (step() === 3) {
-          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(2)">
-          </app-tw-action-bar>
-          }
         </div>
       </div>
     </div>
@@ -282,13 +254,7 @@
 
         <!-- Bottom Actions -->
         <div class="d-flex justify-content-between align-items-center mt-3">
-          @if (!showAddClubModal()) {
-          <button type="button" class="btn btn-link btn-sm text-muted p-0" (click)="openManageClubsModal()">
-            <i class="bi bi-pencil-square me-1"></i> Manage Clubs
-          </button>
-          } @else {
           <div></div>
-          }
           @if (!showAddClubModal()) {
           <div class="d-flex gap-2">
             @if (availableClubs().length === 1) {
@@ -311,10 +277,4 @@
     </div>
   </div>
 </div>
-}
-
-<!-- Club Management Modal -->
-@if (showManageClubsModal()) {
-<app-club-management-modal (clubsChanged)="handleClubsChanged()" (closed)="closeManageClubsModal()">
-</app-club-management-modal>
 }

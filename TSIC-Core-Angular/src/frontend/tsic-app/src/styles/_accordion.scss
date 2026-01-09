@@ -1,55 +1,120 @@
 /* ============================================
    ACCORDION COMPONENT STYLES
-   Reusable accordion variants for consistent styling
+   Reusable accordion variants with glassmorphic design
+   Inspired by bulletin section styling
    ============================================ */
 
-/* Info variant - neutral slate styling, especially for dark mode */
+/* Info variant - glassmorphic styling with depth */
 .accordion-item-info {
-    border-left: 3px solid var(--bs-info);
-    background-color: var(--bs-info-bg-subtle);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    margin-bottom: var(--space-3);
+    background: transparent;
+
+    // Enhanced dark mode borders and depth
+    :host-context([data-bs-theme="dark"]) & {
+        border: 1px solid var(--neutral-400) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    &:hover {
+        transform: translateY(calc(-1 * var(--space-0\.5)));
+        box-shadow: var(--shadow-md);
+    }
+
+    // Enhanced hover effect for dark mode
+    :host-context([data-bs-theme="dark"]) &:hover {
+        box-shadow: 0 4px 16px rgba(255, 255, 255, 0.35) !important;
+        border-color: var(--neutral-300) !important;
+    }
 }
 
 .accordion-item-info .accordion-button-info {
     padding: var(--space-3) var(--space-4);
-    background-color: var(--bs-info-bg-subtle);
-    color: var(--bs-emphasis-color);
+    background: linear-gradient(135deg,
+            var(--neutral-500) 0%,
+            var(--neutral-400) 25%,
+            var(--neutral-300) 50%,
+            var(--neutral-400) 75%,
+            var(--neutral-500) 100%);
+    color: var(--neutral-0);
     border: none;
     transition: all 120ms ease-in-out;
+    border-radius: 0;
 
     .accordion-title-info {
-        font-weight: var(--font-weight-bold);
+        font-weight: var(--font-weight-semibold);
         font-size: var(--font-size-base);
+        color: var(--neutral-0);
     }
 
     .accordion-icon-info {
         font-size: var(--font-size-lg);
-        color: var(--bs-info);
+        color: rgba(13, 202, 240, 0.9); // Info blue with slight transparency
         line-height: 1;
+    }
+
+    &::after {
+        filter: brightness(0) invert(1); // Make chevron white
     }
 }
 
-/* Collapsed state - draw attention */
+/* Collapsed state - subtle depth */
 .accordion-item-info .accordion-button-info.collapsed {
-    background-color: var(--bs-info-bg-subtle);
+    background: linear-gradient(135deg,
+            var(--neutral-500) 0%,
+            var(--neutral-400) 25%,
+            var(--neutral-300) 50%,
+            var(--neutral-400) 75%,
+            var(--neutral-500) 100%);
 
     &:hover {
-        background-color: var(--bs-info-border-subtle);
-        transform: translateX(2px);
+        background: linear-gradient(135deg,
+                var(--neutral-600) 0%,
+                var(--neutral-500) 25%,
+                var(--neutral-400) 50%,
+                var(--neutral-500) 75%,
+                var(--neutral-600) 100%);
     }
 }
 
 /* Expanded state */
 .accordion-item-info .accordion-button-info:not(.collapsed) {
-    background-color: var(--bs-info-border-subtle);
-    color: var(--bs-info-text-emphasis);
+    background: linear-gradient(135deg,
+            var(--neutral-500) 0%,
+            var(--neutral-400) 25%,
+            var(--neutral-300) 50%,
+            var(--neutral-400) 75%,
+            var(--neutral-500) 100%);
+    color: var(--neutral-0);
 
     .accordion-icon-info {
-        color: var(--bs-info-text-emphasis);
+        color: var(--neutral-0);
     }
 }
 
 /* Focus state - maintain accessibility */
 .accordion-item-info .accordion-button-info:focus {
-    box-shadow: 0 0 0 3px var(--bs-info-border-subtle);
+    box-shadow: 0 0 0 3px rgba(120, 120, 130, 0.3);
     outline: none;
+}
+
+/* Accordion body - glassmorphic surface */
+.accordion-item-info .accordion-body {
+    background: linear-gradient(180deg,
+            rgba(13, 202, 240, 0.03) 0%,
+            var(--brand-surface) 100%);
+    color: var(--brand-text);
+    padding: var(--space-4);
+    border-top: 1px solid var(--brand-border);
+
+    :host-context([data-bs-theme="dark"]) & {
+        background: linear-gradient(180deg,
+                rgba(13, 202, 240, 0.05) 0%,
+                var(--brand-surface) 100%);
+        border-top: 1px solid var(--neutral-400);
+    }
 }

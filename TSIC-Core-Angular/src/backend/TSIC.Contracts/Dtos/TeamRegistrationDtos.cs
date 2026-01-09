@@ -61,28 +61,25 @@ public sealed record TeamsMetadataResponse
 {
     public required int ClubId { get; init; }
     public required string ClubName { get; init; }
-    public required List<ClubTeamDto> AvailableClubTeams { get; init; }
+    public required List<SuggestedTeamNameDto> SuggestedTeamNames { get; init; }
     public required List<RegisteredTeamDto> RegisteredTeams { get; init; }
     public required List<AgeGroupDto> AgeGroups { get; init; }
 }
 
-public sealed record ClubTeamDto
+public sealed record SuggestedTeamNameDto
 {
-    public required int ClubTeamId { get; init; }
-    public required string ClubTeamName { get; init; }
-    public required string ClubTeamGradYear { get; init; }
-    public required string ClubTeamLevelOfPlay { get; init; }
+    public required string TeamName { get; init; }
+    public required int UsageCount { get; init; }
+    public required DateTime? LastUsedDate { get; init; }
 }
 
 public sealed record RegisteredTeamDto
 {
     public required Guid TeamId { get; init; }
-    public required int ClubTeamId { get; init; }
-    public required string ClubTeamName { get; init; }
-    public required string ClubTeamGradYear { get; init; }
-    public required string ClubTeamLevelOfPlay { get; init; }
+    public required string TeamName { get; init; }
     public required Guid AgeGroupId { get; init; }
     public required string AgeGroupName { get; init; }
+    public required string? LevelOfPlay { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeTotal { get; init; }
@@ -102,21 +99,26 @@ public sealed record AgeGroupDto
 
 public sealed record RegisterTeamRequest
 {
-    public required int ClubTeamId { get; init; }
+    public required string TeamName { get; init; }
     public required string JobPath { get; init; }
-    public Guid? AgeGroupId { get; init; }
+    public required Guid AgeGroupId { get; init; }
+    public string? LevelOfPlay { get; init; }
 }
 
 public class RegisterTeamRequestValidator : AbstractValidator<RegisterTeamRequest>
 {
     public RegisterTeamRequestValidator()
     {
-        RuleFor(x => x.ClubTeamId)
-            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
+        RuleFor(x => x.TeamName)
+            .NotEmpty().WithMessage("Team name is required")
+            .MaximumLength(100).WithMessage("Team name cannot exceed 100 characters");
 
         RuleFor(x => x.JobPath)
             .NotEmpty().WithMessage("JobPath is required")
             .MaximumLength(100).WithMessage("JobPath cannot exceed 100 characters");
+
+        RuleFor(x => x.AgeGroupId)
+            .NotEmpty().WithMessage("Age group is required");
     }
 }
 
@@ -127,42 +129,7 @@ public sealed record RegisterTeamResponse
     public string? Message { get; init; }
 }
 
-public sealed record AddClubTeamRequest
-{
-    public required string ClubTeamName { get; init; }
-    public required string ClubTeamGradYear { get; init; }
-    public required string ClubTeamLevelOfPlay { get; init; }
-}
 
-public class AddClubTeamRequestValidator : AbstractValidator<AddClubTeamRequest>
-{
-    public AddClubTeamRequestValidator()
-    {
-        RuleFor(x => x.ClubTeamName)
-            .NotEmpty().WithMessage("Team name is required")
-            .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters");
-
-        RuleFor(x => x.ClubTeamGradYear)
-            .NotEmpty().WithMessage("Graduation year is required")
-            .Matches(@"^\d{4}$").WithMessage("Graduation year must be a 4-digit year");
-
-        RuleFor(x => x.ClubTeamLevelOfPlay)
-            .NotEmpty().WithMessage("Level of play is required")
-            .MaximumLength(50).WithMessage("Level of play cannot exceed 50 characters");
-    }
-}
-
-public sealed record AddClubTeamResponse
-{
-    public required int ClubTeamId { get; init; }
-    public required bool Success { get; init; }
-    public string? Message { get; init; }
-}
-
-public sealed record RenameClubTeamRequest
-{
-    public required string NewName { get; init; }
-}
 
 public sealed record AddClubToRepResponse
 {
@@ -185,102 +152,9 @@ public sealed record ValidateClubRepResponse
     public required string? ClubName { get; init; }
     public string? Message { get; init; }
 }
-// Club Team Management DTOs
-public sealed record ClubTeamManagementDto
-{
-    public required int ClubTeamId { get; init; }
-    public required int ClubId { get; init; }
-    public required string ClubName { get; init; }
-    public required string ClubTeamName { get; init; }
-    public required string ClubTeamGradYear { get; init; }
-    public required string ClubTeamLevelOfPlay { get; init; }
-    public required bool IsActive { get; init; }
-    public required bool HasBeenUsed { get; init; }
-    public required bool HasBeenRegisteredForAnyEvent { get; init; }
-}
-
-public sealed record InactivateClubTeamRequest
-{
-    public required int ClubTeamId { get; init; }
-}
-
-public class InactivateClubTeamRequestValidator : AbstractValidator<InactivateClubTeamRequest>
-{
-    public InactivateClubTeamRequestValidator()
-    {
-        RuleFor(x => x.ClubTeamId)
-            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
-    }
-}
-
-public sealed record ActivateClubTeamRequest
-{
-    public required int ClubTeamId { get; init; }
-}
-
-public class ActivateClubTeamRequestValidator : AbstractValidator<ActivateClubTeamRequest>
-{
-    public ActivateClubTeamRequestValidator()
-    {
-        RuleFor(x => x.ClubTeamId)
-            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
-    }
-}
-
-public sealed record UpdateClubTeamRequest
-{
-    public required int ClubTeamId { get; init; }
-    public required string ClubTeamName { get; init; }
-    public required string ClubTeamGradYear { get; init; }
-    public required string ClubTeamLevelOfPlay { get; init; }
-}
-
-public class UpdateClubTeamRequestValidator : AbstractValidator<UpdateClubTeamRequest>
-{
-    public UpdateClubTeamRequestValidator()
-    {
-        RuleFor(x => x.ClubTeamId)
-            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
-
-        RuleFor(x => x.ClubTeamName)
-            .NotEmpty().WithMessage("Team name is required")
-            .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters");
-
-        RuleFor(x => x.ClubTeamGradYear)
-            .NotEmpty().WithMessage("Graduation year is required")
-            .Matches(@"^\d{4}$").WithMessage("Graduation year must be a 4-digit year");
-
-        RuleFor(x => x.ClubTeamLevelOfPlay)
-            .NotEmpty().WithMessage("Level of play is required")
-            .MaximumLength(50).WithMessage("Level of play cannot exceed 50 characters");
-    }
-}
-
-public sealed record DeleteClubTeamRequest
-{
-    public required int ClubTeamId { get; init; }
-}
-
-public class DeleteClubTeamRequestValidator : AbstractValidator<DeleteClubTeamRequest>
-{
-    public DeleteClubTeamRequestValidator()
-    {
-        RuleFor(x => x.ClubTeamId)
-            .GreaterThan(0).WithMessage("ClubTeamId must be greater than 0");
-    }
-}
-
 public sealed record CheckExistingRegistrationsResponse
 {
     public required bool HasConflict { get; init; }
     public string? OtherRepUsername { get; init; }
     public int TeamCount { get; init; }
-}
-
-public sealed record ClubTeamOperationResponse
-{
-    public required bool Success { get; init; }
-    public required int ClubTeamId { get; init; }
-    public required string ClubTeamName { get; init; }
-    public string? Message { get; init; }
 }

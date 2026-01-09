@@ -4,11 +4,9 @@ import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } 
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
-import { ClubTeamManagementComponent } from './club-team-management/club-team-management.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TwStepIndicatorComponent } from './step-indicator/tw-step-indicator.component';
 import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
-import { ClubManagementModalComponent } from './club-management/club-management-modal.component';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
@@ -23,7 +21,7 @@ import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, ClubTeamManagementComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent, ClubManagementModalComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     // All reactive state as signals
@@ -31,10 +29,8 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     readonly clubName = signal<string | null>(null);
     readonly availableClubs = signal<ClubRepClubDto[]>([]);
     readonly selectedClub = signal<string | null>(null);
-    readonly hasTeamsInLibrary = signal(false);
     readonly showClubSelectionModal = signal(false);
     readonly showAddClubModal = signal(false);
-    readonly showManageClubsModal = signal(false);
     readonly inlineError = signal<string | null>(null);
     readonly jobPath = signal<string | null>(null);
     readonly addClubSubmitting = signal(false);
@@ -53,26 +49,12 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     private reloadClubsSubscription?: Subscription;
     private addClubTimeoutId?: ReturnType<typeof setTimeout>;
 
-    // Conditional step configuration based on registration status
+    // Simplified 2-step flow: Login → Register Teams
     wizardSteps = computed(() => {
-        const isOpen = this.isTeamRegistrationOpen();
-
-        if (isOpen) {
-            // Registration OPEN - Full flow
-            return [
-                { stepNumber: 1, label: 'Login' },
-                { stepNumber: 2, label: 'Club Team Library' },
-                { stepNumber: 3, label: 'Register for This Event' },
-                { stepNumber: 4, label: 'Payment' },
-                { stepNumber: 5, label: 'Confirmation' }
-            ];
-        } else {
-            // Registration CLOSED - Build mode
-            return [
-                { stepNumber: 1, label: 'Login' },
-                { stepNumber: 2, label: 'Club Team Library' }
-            ];
-        }
+        return [
+            { stepNumber: 1, label: 'Login' },
+            { stepNumber: 2, label: 'Register Teams' }
+        ];
     });
 
     private readonly route = inject(ActivatedRoute);
@@ -93,79 +75,29 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     // Step-specific banner messaging
     readonly stepBannerConfig = computed(() => {
         const currentStep = this.step();
-        const isOpen = this.isTeamRegistrationOpen();
 
-        if (isOpen) {
-            // Registration OPEN - Full 5-step flow
-            switch (currentStep) {
-                case 1:
-                    return {
-                        icon: 'bi-box-arrow-in-right',
-                        alertClass: 'alert-warning',
-                        title: 'Club Rep Login',
-                        message: 'Log in with your Club Rep credentials to access your <strong>club team library</strong> and register for this event.'
-                    };
-                case 2:
-                    return {
-                        icon: 'bi-collection',
-                        alertClass: 'alert-info',
-                        title: 'Manage Your Team Library',
-                        message: 'Add, edit, or organize your club\'s teams. This is your <strong>club team library</strong> for future registrations.'
-                    };
-                case 3:
-                    return {
-                        icon: 'bi-check-circle-fill',
-                        alertClass: 'alert-success',
-                        title: 'Registration is OPEN!',
-                        message: 'Select teams from your <strong>club team library</strong> to register for this event.'
-                    };
-                case 4:
-                    return {
-                        icon: 'bi-credit-card',
-                        alertClass: 'alert-warning',
-                        title: 'Payment',
-                        message: 'Review your team registrations and submit payment to complete registration.'
-                    };
-                case 5:
-                    return {
-                        icon: 'bi-check-circle-fill',
-                        alertClass: 'alert-success',
-                        title: 'Registration Complete!',
-                        message: 'Your teams are registered for this event. Confirmation details have been sent.'
-                    };
-                default:
-                    return {
-                        icon: 'bi-info-circle-fill',
-                        alertClass: 'alert-info',
-                        title: '',
-                        message: ''
-                    };
-            }
-        } else {
-            // Registration CLOSED - Build mode (2 steps)
-            switch (currentStep) {
-                case 1:
-                    return {
-                        icon: 'bi-box-arrow-in-right',
-                        alertClass: 'alert-primary',
-                        title: 'Club Rep Login',
-                        message: 'Log in with your Club Rep credentials to build your <strong>club team library</strong> for when registration opens.'
-                    };
-                case 2:
-                    return {
-                        icon: 'bi-info-circle-fill',
-                        alertClass: 'alert-info',
-                        title: 'Build Your Club Team Library!',
-                        message: 'Registration isn\'t open yet, but you can prepare by creating your club\'s teams. When registration opens, you\'ll be ready to go!'
-                    };
-                default:
-                    return {
-                        icon: 'bi-info-circle-fill',
-                        alertClass: 'alert-info',
-                        title: '',
-                        message: ''
-                    };
-            }
+        switch (currentStep) {
+            case 1:
+                return {
+                    icon: 'bi-box-arrow-in-right',
+                    alertClass: 'alert-primary',
+                    title: 'Club Rep Login',
+                    message: 'Log in with your Club Rep credentials to register your teams.'
+                };
+            case 2:
+                return {
+                    icon: 'bi-trophy-fill',
+                    alertClass: 'alert-success',
+                    title: 'Register Teams',
+                    message: 'Enter your team details and select age groups to register for this event.'
+                };
+            default:
+                return {
+                    icon: 'bi-info-circle-fill',
+                    alertClass: 'alert-info',
+                    title: '',
+                    message: ''
+                };
         }
     });
 
@@ -283,17 +215,13 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         this.clubName.set(this.selectedClub());
         this.inlineError.set(null);
         this.showClubSelectionModal.set(false);
-        this.step.set(2);
+        this.step.set(2); // Go directly to register teams
     }
 
     cancelClubSelection(): void {
         this.showClubSelectionModal.set(false);
         this.selectedClub.set(null);
         this.inlineError.set(null);
-    }
-
-    onTeamsLoaded(count: number): void {
-        this.hasTeamsInLibrary.set(count > 0);
     }
 
     toggleClubInfoCollapsed(): void {
@@ -304,18 +232,6 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         this.userPrefs.markClubRepModalInfoAsRead();
         this.clubRepInfoAlreadyRead.set(true);
         this.clubInfoCollapsed.set(true);
-    }
-
-    goToTeamsStep(): void {
-        const isOpen = this.isTeamRegistrationOpen();
-
-        if (isOpen) {
-            // Registration OPEN - Continue to event registration (step 3)
-            this.step.set(3);
-        } else if (this.jobPath()) {
-            // Registration CLOSED - Navigate back to job home (library management complete)
-            this.router.navigate([`/${this.jobPath()}/home`]);
-        }
     }
 
     showAddClubForm(): void {
@@ -392,49 +308,6 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                 // This should be caught by catchError above, but just in case
                 console.error('Unexpected error in submitAddClub:', err);
                 this.addClubSubmitting.set(false);
-            }
-        });
-    }
-
-    openManageClubsModal(): void {
-        this.showManageClubsModal.set(true);
-    }
-
-    closeManageClubsModal(): void {
-        this.showManageClubsModal.set(false);
-    }
-
-    handleClubsChanged(): void {
-        // Reload clubs from server and handle selected club removal
-        const currentSelected = this.selectedClub();
-
-        this.reloadClubsSubscription?.unsubscribe();
-
-        this.reloadClubsSubscription = this.teamRegService.getMyClubs().subscribe({
-            next: (clubs) => {
-                this.availableClubs.set(clubs);
-
-                // Check if currently selected club still exists
-                if (currentSelected) {
-                    const stillExists = clubs.some(c => c.clubName === currentSelected);
-                    if (!stillExists) {
-                        // Selected club was removed OR renamed - clear selection
-                        this.selectedClub.set(null);
-                        this.clubName.set(null);
-
-                        // Auto-select if only one club remains
-                        if (clubs.length === 1) {
-                            const onlyClub = clubs[0];
-                            this.selectedClub.set(onlyClub.clubName);
-                            this.clubName.set(onlyClub.clubName);
-                            this.selectClub(onlyClub.clubName);
-                        }
-                    }
-                }
-            },
-            error: (err) => {
-                console.error('Failed to reload clubs after change:', err);
-                this.toast.show('Failed to reload clubs. Please try refreshing the page.', 'danger', 5000);
             }
         });
     }

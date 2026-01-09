@@ -3,12 +3,12 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AgeGroupDto } from './AgeGroupDto';
-import type { ClubTeamDto } from './ClubTeamDto';
 import type { RegisteredTeamDto } from './RegisteredTeamDto';
+import type { SuggestedTeamNameDto } from './SuggestedTeamNameDto';
 export type TeamsMetadataResponse = {
     clubId: number;
     clubName: string;
-    availableClubTeams: Array<ClubTeamDto>;
+    suggestedTeamNames: Array<SuggestedTeamNameDto>;
     registeredTeams: Array<RegisteredTeamDto>;
     ageGroups: Array<AgeGroupDto>;
 };
