@@ -46,7 +46,17 @@ FROM Jobs.Registrations r
 INNER JOIN Jobs.Jobs j ON r.JobId = j.JobId
 WHERE j.JobName = 'Live Love Lax:Girls Summer 2026'
   AND r.club_name = '3d Georgoa';
-*/
+
+update r set Userid = '344b58cf-863b-4441-b906-7fa642ef4ad1'
+from
+	Jobs.Registrations r 
+	inner join Jobs.Jobs j on r.jobId = j.jobId
+	inner join dbo.AspNetUsers u on r.Userid = u.Id
+	inner join dbo.AspNetRoles roles on r.RoleID = roles.id
+where
+	u.username = 'stepsnj'
+	and roles.Name = 'club rep'
+	and j.jobName like '%isp%'*/
 
 -- Add additional data cleanup queries here as needed
 -- Template:
@@ -1092,187 +1102,173 @@ PRINT '';
 PRINT '----------------------------------------';
 PRINT '';
 
--- Diagnostic 1: Orphaned Teams (have clubrep but no ClubTeamId after migration)
-PRINT '1. Orphaned Teams - Teams that should have been linked but were not:';
-PRINT '   (These teams have a club rep assigned but failed to link to a ClubTeam)';
-PRINT '   (Possible causes: non-numeric grade year, missing Agegroup, or ClubRep lookup failure)';
+-- ============================================================================
+-- BURN SCENARIO #1: Teams missing ClubTeamId after script
+-- ============================================================================
+PRINT 'BURN #1: Teams with clubrep but missing ClubTeamId';
+PRINT '   Risk: Valid teams excluded from library';
+PRINT '   Expected: 0 rows';
 PRINT '';
-SELECT '1. Orphaned Teams - Teams that should have been linked but were not' AS DiagnosticDescription;
+SELECT 'BURN #1: Teams missing ClubTeamId' AS BurnScenario;
 SELECT 
     j.JobName,
-    c.ClubName,
+    j.Year,
+    t.TeamName,
     ag.AgegroupName,
-    t.TeamName,
     t.level_of_play,
+    r.club_name AS RegistrationClubName,
     u.UserName AS ClubRepUsername,
-    t.TeamId
-FROM Leagues.Teams t
-INNER JOIN Jobs.Jobs j ON t.JobId = j.JobId
-LEFT JOIN Leagues.Agegroups ag ON t.AgegroupId = ag.AgegroupId
-LEFT JOIN Jobs.Registrations r ON t.clubrep_registrationId = r.RegistrationId
-LEFT JOIN dbo.AspNetUsers u ON r.UserId = u.Id
-LEFT JOIN Clubs.Clubs c ON COALESCE(LTRIM(RTRIM(r.club_name)), 'N.A.') = c.ClubName
-LEFT JOIN Clubs.ClubReps cr ON r.UserId = cr.ClubRepUserId AND cr.ClubId = c.ClubId
-WHERE ISNUMERIC(j.Year) = 1
-  AND CAST(j.Year AS INT) >= @StartYear
-  AND CAST(j.Year AS INT) <= @EndYear
-  AND t.clubrep_registrationId IS NOT NULL
-  AND t.ClubTeamId IS NULL
-ORDER BY c.ClubName, ag.AgegroupName, t.TeamName;
-
--- Diagnostic 2: Distribution of Teams per Club
-PRINT '';
-PRINT '2. Teams per Club - Shows which clubs have the most team registrations:';
-PRINT '   (Helps identify major clubs vs one-off registrations)';
-PRINT '';
-SELECT '2. Teams per Club - Shows which clubs have the most team registrations' AS DiagnosticDescription;
-SELECT 
-    c.ClubName,
-    COUNT(DISTINCT ct.ClubTeamId) AS UniqueClubTeams,
-    COUNT(t.TeamId) AS TotalTeamsLinked
-FROM Clubs.Clubs c
-INNER JOIN Clubs.ClubTeams ct ON c.ClubId = ct.ClubId
-LEFT JOIN Leagues.Teams t ON ct.ClubTeamId = t.ClubTeamId
-GROUP BY c.ClubId, c.ClubName
-ORDER BY TotalTeamsLinked DESC;
-
--- Diagnostic 3: Clubs with no Teams linked
-PRINT '';
-PRINT '3. Clubs with Orphaned ClubTeams - ClubTeams created but not used by any Teams:';
-PRINT '   (Unusual - suggests ClubTeam was created but Teams failed to link)';
-PRINT '';
-SELECT '3. Clubs with Orphaned ClubTeams - ClubTeams created but not used by any Teams' AS DiagnosticDescription;
-SELECT 
-    c.ClubId,
-    c.ClubName,
-    COUNT(ct.ClubTeamId) AS ClubTeamsCreated
-FROM Clubs.Clubs c
-LEFT JOIN Clubs.ClubTeams ct ON c.ClubId = ct.ClubId
-LEFT JOIN Leagues.Teams t ON ct.ClubTeamId = t.ClubTeamId
-WHERE t.TeamId IS NULL
-GROUP BY c.ClubId, c.ClubName
-HAVING COUNT(ct.ClubTeamId) > 0
-ORDER BY ClubTeamsCreated DESC;
-
--- Diagnostic 4: Duplicate ClubTeam identities (sanity check)
-PRINT '';
-PRINT '4. Duplicate ClubTeam Identities - SHOULD BE EMPTY (sanity check):';
-PRINT '   (Multiple ClubTeams with same ClubId+Name+GradYear+LevelOfPlay)';
-PRINT '   (Indicates a bug in our deduplication logic if rows appear here)';
-PRINT '';
-SELECT '4. Duplicate ClubTeam Identities - SHOULD BE EMPTY (sanity check)' AS DiagnosticDescription;
-SELECT 
-    ClubId,
-    ClubTeamName,
-    ClubTeamGradYear,
-    ClubTeamLevelOfPlay,
-    COUNT(*) AS DuplicateCount
-FROM Clubs.ClubTeams
-GROUP BY ClubId, ClubTeamName, ClubTeamGradYear, ClubTeamLevelOfPlay
-HAVING COUNT(*) > 1
-ORDER BY DuplicateCount DESC;
-
--- Diagnostic 5: Invalid clubrep_registrationId references
-PRINT '';
-PRINT '5. Invalid Club Rep References - Teams pointing to non-existent Registrations:';
-PRINT '   (Data integrity issue: clubrep_registrationId does not match any Registration record)';
-PRINT '   (These Teams were excluded from migration - requires manual cleanup)';
-PRINT '';
-SELECT '5. Invalid Club Rep References - Teams pointing to non-existent Registrations' AS DiagnosticDescription;
-SELECT 
     t.TeamId,
-    t.TeamName,
     t.clubrep_registrationId,
-    j.Year
-FROM Leagues.Teams t
-INNER JOIN Jobs.Jobs j ON t.JobId = j.JobId
-LEFT JOIN Jobs.Registrations r ON t.clubrep_registrationId = r.RegistrationId
-WHERE ISNUMERIC(j.Year) = 1
-  AND CAST(j.Year AS INT) >= @StartYear
-  AND CAST(j.Year AS INT) <= @EndYear
-  AND t.clubrep_registrationId IS NOT NULL
-  AND r.RegistrationId IS NULL
-ORDER BY j.Year, t.TeamName;
-
--- Diagnostic 6: Level of Play distribution
-PRINT '';
-PRINT '6. Level of Play Values - Shows what level_of_play values are in use:';
-PRINT '   (Standard numeric scale: 1-5)';
-PRINT '   (Text values normalized: "competitive"→2, "intermediate"→3, "very competitive"→4, "most competitive"→5)';
-PRINT '';
-SELECT '6. Level of Play Values - Shows what level_of_play values are in use' AS DiagnosticDescription;
-SELECT 
-    COALESCE(ct.ClubTeamLevelOfPlay, '<NULL>') AS LevelOfPlay,
-    COUNT(DISTINCT ct.ClubTeamId) AS ClubTeamsCount,
-    COUNT(t.TeamId) AS LinkedTeamsCount
-FROM Clubs.ClubTeams ct
-LEFT JOIN Leagues.Teams t ON ct.ClubTeamId = t.ClubTeamId
-GROUP BY ct.ClubTeamLevelOfPlay
-ORDER BY ClubTeamsCount DESC;
-
--- Diagnostic 7: Teams with null/empty TeamName
-PRINT '';
-PRINT '7. Teams with Missing Names - Teams auto-named "Unnamed Team":';
-PRINT '   (TeamName was NULL or empty, so migration used fallback name)';
-PRINT '   (Club reps may want to provide proper team names for these)';
-PRINT '';
-SELECT '7. Teams with Missing Names - Teams auto-named "Unnamed Team"' AS DiagnosticDescription;
-SELECT 
-    t.TeamId,
-    ag.AgegroupName,
-    t.level_of_play,
-    u.UserName AS ClubRepUsername,
-    c.ClubName AS AssociatedClub
-FROM Leagues.Teams t
-INNER JOIN Jobs.Jobs j ON t.JobId = j.JobId
-LEFT JOIN Leagues.Agegroups ag ON t.AgegroupId = ag.AgegroupId
-LEFT JOIN Jobs.Registrations r ON t.clubrep_registrationId = r.RegistrationId
-LEFT JOIN dbo.AspNetUsers u ON r.UserId = u.Id
-LEFT JOIN Clubs.Clubs c ON COALESCE(LTRIM(RTRIM(r.club_name)), 'N.A.') = c.ClubName
-LEFT JOIN Clubs.ClubReps cr ON r.UserId = cr.ClubRepUserId AND cr.ClubId = c.ClubId
-WHERE ISNUMERIC(j.Year) = 1
-  AND CAST(j.Year AS INT) >= @StartYear
-  AND CAST(j.Year AS INT) <= @EndYear
-  AND t.clubrep_registrationId IS NOT NULL
-  AND (t.TeamName IS NULL OR LTRIM(RTRIM(t.TeamName)) = '')
-ORDER BY c.ClubName, ag.AgegroupName;
-
--- Diagnostic 8: Teams with Non-standard Agegroup Names (included with GradYear = N.A.)
-PRINT '';
-PRINT '8. Teams with Non-standard Agegroup Names - Assigned GradYear = N.A.:';
-PRINT '   (These teams have non-standard AgegroupName values like U12, Varsity, DROPPED, etc.)';
-PRINT '   (They ARE included in migration with ClubTeamGradYear = N.A.)';
-PRINT '   (Shows which teams could not be assigned a numeric graduation year)';
-PRINT '';
-SELECT '8. Teams with Non-standard Agegroup Names - Assigned GradYear = N.A.' AS DiagnosticDescription;
-SELECT 
-    ag.AgegroupName AS NonStandardAgegroupName,
-    COUNT(DISTINCT t.TeamId) AS TeamsExcluded,
-    COUNT(DISTINCT LTRIM(RTRIM(r.club_name))) AS AffectedClubs,
-    STRING_AGG(j.JobName, '; ') WITHIN GROUP (ORDER BY j.JobName) AS JobsAffected
+    t.ClubTeamId
 FROM Leagues.Teams t
 INNER JOIN Jobs.Jobs j ON t.JobId = j.JobId
 INNER JOIN Leagues.Agegroups ag ON t.AgegroupId = ag.AgegroupId
 INNER JOIN Jobs.Registrations r ON t.clubrep_registrationId = r.RegistrationId
+INNER JOIN dbo.AspNetUsers u ON r.UserId = u.Id
 WHERE ISNUMERIC(j.Year) = 1
-  AND CAST(j.Year AS INT) >= @StartYear
-  AND CAST(j.Year AS INT) <= @EndYear
+  AND CAST(j.Year AS INT) BETWEEN @StartYear AND @EndYear
   AND t.clubrep_registrationId IS NOT NULL
-  AND NOT (
-      -- This is the filter from Phase 2 - shows what's being excluded
-      ISNUMERIC(
-          CASE WHEN ag.AgegroupName LIKE 'WAITLIST - %' AND LEN(ag.AgegroupName) > 11
-               THEN LTRIM(SUBSTRING(ag.AgegroupName, 12, LEN(ag.AgegroupName) - 11))
-               ELSE ag.AgegroupName END
-      ) = 1
-      AND LEN(
-          CASE WHEN ag.AgegroupName LIKE 'WAITLIST - %' AND LEN(ag.AgegroupName) > 11
-               THEN LTRIM(SUBSTRING(ag.AgegroupName, 12, LEN(ag.AgegroupName) - 11))
-               ELSE ag.AgegroupName END
-      ) = 4
-  )
-GROUP BY ag.AgegroupName
-ORDER BY TeamsExcluded DESC;
+  AND t.ClubTeamId IS NULL
+ORDER BY r.club_name, ag.AgegroupName, t.TeamName;
+
+PRINT '';
+PRINT '----------------------------------------';
+PRINT '';
+
+-- ============================================================================
+-- BURN SCENARIO #2: Wrong ClubTeamId assignment (mismatch between clubs)
+-- ============================================================================
+PRINT 'BURN #2: Teams linked to ClubTeam from different Club';
+PRINT '   Risk: Team shows up in wrong club''s library';
+PRINT '   Expected: 0 rows';
+PRINT '';
+SELECT 'BURN #2: Wrong ClubTeamId assignment' AS BurnScenario;
+SELECT 
+    j.JobName,
+    j.Year,
+    t.TeamName,
+    ag.AgegroupName,
+    r.club_name AS RegistrationClubName,
+    c1.ClubId AS RegistrationClubId,
+    c1.ClubName AS RegistrationClubNameResolved,
+    ct.ClubTeamId,
+    ct.ClubId AS ClubTeamClubId,
+    c2.ClubName AS ClubTeamClubName,
+    ct.ClubTeamName,
+    ct.ClubTeamGradYear,
+    t.TeamId
+FROM Leagues.Teams t
+INNER JOIN Jobs.Jobs j ON t.JobId = j.JobId
+INNER JOIN Leagues.Agegroups ag ON t.AgegroupId = ag.AgegroupId
+INNER JOIN Jobs.Registrations r ON t.clubrep_registrationId = r.RegistrationId
+INNER JOIN Clubs.Clubs c1 ON COALESCE(LTRIM(RTRIM(r.club_name)), 'N.A.') = c1.ClubName
+INNER JOIN Clubs.ClubTeams ct ON t.ClubTeamId = ct.ClubTeamId
+INNER JOIN Clubs.Clubs c2 ON ct.ClubId = c2.ClubId
+WHERE ISNUMERIC(j.Year) = 1
+  AND CAST(j.Year AS INT) BETWEEN @StartYear AND @EndYear
+  AND t.clubrep_registrationId IS NOT NULL
+  AND t.ClubTeamId IS NOT NULL
+  AND c1.ClubId <> ct.ClubId  -- Mismatch: Registration club != ClubTeam club
+ORDER BY r.club_name, ag.AgegroupName, t.TeamName;
+
+PRINT '';
+PRINT '----------------------------------------';
+PRINT '';
+
+-- ============================================================================
+-- BURN SCENARIO #3: Duplicate ClubTeams for same logical team
+-- ============================================================================
+PRINT 'BURN #3: Duplicate ClubTeams (same Club, Name, Year, LOP)';
+PRINT '   Risk: Teams split across multiple ClubTeam records';
+PRINT '   Expected: 0 rows';
+PRINT '';
+SELECT 'BURN #3: Duplicate ClubTeams' AS BurnScenario;
+SELECT 
+    c.ClubName,
+    ct.ClubTeamName,
+    ct.ClubTeamGradYear,
+    ISNULL(ct.ClubTeamLevelOfPlay, '') AS ClubTeamLevelOfPlay,
+    COUNT(*) AS DuplicateCount,
+    STRING_AGG(CAST(ct.ClubTeamId AS VARCHAR), ', ') AS ClubTeamIds
+FROM Clubs.ClubTeams ct
+INNER JOIN Clubs.Clubs c ON ct.ClubId = c.ClubId
+GROUP BY 
+    ct.ClubId,
+    c.ClubName,
+    ct.ClubTeamName,
+    ct.ClubTeamGradYear,
+    ISNULL(ct.ClubTeamLevelOfPlay, '')
+HAVING COUNT(*) > 1
+ORDER BY c.ClubName, ct.ClubTeamName, ct.ClubTeamGradYear;
+
+PRINT '';
+PRINT '----------------------------------------';
+PRINT '';
+
+-- ============================================================================
+-- BURN SCENARIO #4: Orphaned ClubTeams (no Teams reference them)
+-- ============================================================================
+PRINT 'BURN #4: ClubTeams with no linked Teams';
+PRINT '   Risk: Dead records cluttering library';
+PRINT '   Expected: 0 rows (or only manually-created placeholders)';
+PRINT '';
+SELECT 'BURN #4: Orphaned ClubTeams' AS BurnScenario;
+SELECT 
+    c.ClubName,
+    ct.ClubTeamId,
+    ct.ClubTeamName,
+    ct.ClubTeamGradYear,
+    ct.ClubTeamLevelOfPlay,
+    ct.Active,
+    ct.Modified
+FROM Clubs.ClubTeams ct
+INNER JOIN Clubs.Clubs c ON ct.ClubId = c.ClubId
+WHERE NOT EXISTS (
+    SELECT 1 FROM Leagues.Teams t WHERE t.ClubTeamId = ct.ClubTeamId
+)
+ORDER BY c.ClubName, ct.ClubTeamName, ct.ClubTeamGradYear;
+
+PRINT '';
+PRINT '----------------------------------------';
+PRINT '';
+
+-- ============================================================================
+-- BURN SCENARIO #5: ClubId chain mismatch (Team→Registration→Club vs Team→ClubTeam→Club)
+-- ============================================================================
+PRINT 'BURN #5: ClubId chain mismatch (Registration vs ClubTeam path)';
+PRINT '   Risk: Navigation broken - team in library but wrong club lineage';
+PRINT '   Expected: 0 rows';
+PRINT '';
+SELECT 'BURN #5: ClubId chain mismatch' AS BurnScenario;
+SELECT 
+    j.JobName,
+    j.Year,
+    t.TeamName,
+    ag.AgegroupName,
+    r.club_name AS RegistrationClubName,
+    c1.ClubId AS RegistrationClubId,
+    c1.ClubName AS RegistrationClubNameResolved,
+    ct.ClubTeamId,
+    ct.ClubId AS ClubTeamClubId,
+    c2.ClubName AS ClubTeamClubName,
+    ct.ClubTeamName,
+    ct.ClubTeamGradYear,
+    t.TeamId,
+    t.clubrep_registrationId
+FROM Leagues.Teams t
+INNER JOIN Jobs.Jobs j ON t.JobId = j.JobId
+INNER JOIN Leagues.Agegroups ag ON t.AgegroupId = ag.AgegroupId
+INNER JOIN Jobs.Registrations r ON t.clubrep_registrationId = r.RegistrationId
+INNER JOIN Clubs.Clubs c1 ON COALESCE(LTRIM(RTRIM(r.club_name)), 'N.A.') = c1.ClubName
+INNER JOIN Clubs.ClubTeams ct ON t.ClubTeamId = ct.ClubTeamId
+INNER JOIN Clubs.Clubs c2 ON ct.ClubId = c2.ClubId
+WHERE ISNUMERIC(j.Year) = 1
+  AND CAST(j.Year AS INT) BETWEEN @StartYear AND @EndYear
+  AND t.clubrep_registrationId IS NOT NULL
+  AND t.ClubTeamId IS NOT NULL
+  AND c1.ClubId <> c2.ClubId  -- Paths diverge: Registration path vs ClubTeam path
+ORDER BY r.club_name, ag.AgegroupName, t.TeamName;
 
 PRINT '';
 PRINT '========================================';
