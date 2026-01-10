@@ -154,7 +154,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var leagueId = jobLeague.LeagueId;
 
-        // Get already registered teams for this club and event
+        // Get already registered teams for this club and event (sorted by age group, then team name)
         var regInfos = await _teams.GetRegisteredTeamsForClubAndJobAsync(jobId, clubRep.ClubId);
         var registeredTeams = regInfos.Select(info => new RegisteredTeamDto
         {
@@ -168,9 +168,13 @@ public class TeamRegistrationService : ITeamRegistrationService
             FeeTotal = info.FeeTotal,
             PaidTotal = info.PaidTotal,
             OwedTotal = info.OwedTotal
-        }).ToList();
+        })
+        .OrderBy(t => t.AgeGroupName)
+        .ThenBy(t => t.TeamName)
+        .ToList();
 
         // Get suggested team names from historical registrations for this club (via join to ClubReps)
+        // Sorted alphabetically by name for easier scanning
         var suggestedTeamNames = await (from t in _teams.Query()
                                         join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
                                         where t.ClubrepRegistrationid != null
@@ -184,7 +188,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 UsageCount = g.Count(),
                 LastUsedDate = g.Max(t => t.Createdate)
             })
-            .OrderByDescending(x => x.LastUsedDate)
+            .OrderBy(x => x.TeamName)
             .Take(20)
             .ToListAsync();
 

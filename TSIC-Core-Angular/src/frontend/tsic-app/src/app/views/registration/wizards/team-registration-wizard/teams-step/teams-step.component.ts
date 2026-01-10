@@ -195,6 +195,17 @@ export class TeamsStepComponent implements OnInit {
     }
 
     /**
+     * Select team name from visible list
+     */
+    selectFromList(event: Event): void {
+        const select = event.target as HTMLSelectElement;
+        if (select.value) {
+            this.teamNameInput.set(select.value);
+            select.selectedIndex = 0; // Reset to placeholder
+        }
+    }
+
+    /**
      * Register a new team for this event
      */
     registerTeam(): void {
