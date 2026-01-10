@@ -17,23 +17,21 @@ public class JobLeagueRepository : IJobLeagueRepository
         _context = context;
     }
 
-    public async Task<JobLeagues?> GetPrimaryLeagueForJobAsync(
+    public async Task<Guid?> GetPrimaryLeagueForJobAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
         // Get all leagues for this job
         var jobLeagues = await _context.JobLeagues
             .Where(jl => jl.JobId == jobId)
-            .Include(jl => jl.League)
-            .ThenInclude(l => l!.Agegroups)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        // If only one league exists, return it
+        // If only one league exists, return its ID
         if (jobLeagues.Count == 1)
-            return jobLeagues[0];
+            return jobLeagues[0].LeagueId;
 
-        // If multiple leagues, return the primary one
-        return jobLeagues.SingleOrDefault(jl => jl.BIsPrimary);
+        // If multiple leagues, return the primary one's ID
+        return jobLeagues.SingleOrDefault(jl => jl.BIsPrimary)?.LeagueId;
     }
 }

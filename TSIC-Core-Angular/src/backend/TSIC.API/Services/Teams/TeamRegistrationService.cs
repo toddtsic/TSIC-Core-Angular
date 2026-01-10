@@ -4,6 +4,7 @@ using TSIC.Domain.Entities;
 using TSIC.Application.Services.Clubs;
 using TSIC.Contracts.Repositories;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using System.Text.RegularExpressions;
 
 namespace TSIC.API.Services.Teams;
 
@@ -39,6 +40,69 @@ public class TeamRegistrationService : ITeamRegistrationService
         _teams = teams;
         _registrations = registrations;
         _context = context;
+    }
+
+    /// <summary>
+    /// Clean team name by removing club prefix
+    /// Based on fnCleanTeamName from seed-clubteams-from-2025.sql
+    /// </summary>
+    private static string CleanTeamName(string teamName, string clubName)
+    {
+        var trimmed = teamName.Trim();
+        var clubTrimmed = clubName.Trim();
+
+        // Exact club match → return as-is
+        if (trimmed.Equals(clubTrimmed, StringComparison.OrdinalIgnoreCase))
+            return trimmed;
+
+        // Full club prefix
+        if (trimmed.StartsWith(clubTrimmed + " ", StringComparison.OrdinalIgnoreCase))
+            return trimmed.Substring(clubTrimmed.Length + 1).Trim();
+
+        // Parse club into words
+        var clubWords = clubTrimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (clubWords.Length >= 2)
+        {
+            // Try first 2 words
+            var first2 = string.Join(" ", clubWords.Take(2));
+            if (trimmed.StartsWith(first2 + " ", StringComparison.OrdinalIgnoreCase))
+                return trimmed.Substring(first2.Length + 1).Trim();
+
+            // Try second word alone
+            if (trimmed.StartsWith(clubWords[1] + " ", StringComparison.OrdinalIgnoreCase))
+                return trimmed.Substring(clubWords[1].Length + 1).Trim();
+
+            // Try abbreviations
+            var teamWords = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (teamWords.Length > 0)
+            {
+                var prefix = teamWords[0];
+                if (prefix.Length >= 2 && prefix.Length <= 4)
+                {
+                    // Standard initials (e.g., "3G" for "3D Georgia")
+                    var initials = string.Concat(clubWords.Take(2).Select(w => w[0]));
+                    if (prefix.Equals(initials, StringComparison.OrdinalIgnoreCase))
+                        return string.Join(" ", teamWords.Skip(1)).Trim();
+
+                    // First word + initial (e.g., "3DG" for "3D Georgia")
+                    var firstPlusInitial = clubWords[0] + clubWords[1][0];
+                    if (prefix.Equals(firstPlusInitial, StringComparison.OrdinalIgnoreCase))
+                        return string.Join(" ", teamWords.Skip(1)).Trim();
+                }
+            }
+
+            // Try first word
+            if (trimmed.StartsWith(clubWords[0] + " ", StringComparison.OrdinalIgnoreCase))
+            {
+                var remainder = trimmed.Substring(clubWords[0].Length + 1).Trim();
+                if (!remainder.Equals(clubWords[1], StringComparison.OrdinalIgnoreCase))
+                    return remainder;
+            }
+        }
+
+        // Fallback
+        return trimmed;
     }
 
     public async Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId)
@@ -128,107 +192,105 @@ public class TeamRegistrationService : ITeamRegistrationService
     {
         _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}", jobPath, userId, clubName);
 
-        // Get club rep for user and club
-        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-        var clubRep = myClubs.FirstOrDefault(c => string.Equals(c.ClubName, clubName, StringComparison.OrdinalIgnoreCase));
+        var job = await _jobs.Query()
+            .Where(j => j.JobPath == jobPath)
+            .Select(j => new { j.JobId, j.Season })
+            .SingleOrDefaultAsync() ?? throw new InvalidOperationException($"Event not found: {jobPath}");
 
-        if (clubRep == null)
-        {
-            _logger.LogWarning("User {UserId} is not a club rep", userId);
-            throw new InvalidOperationException("User is not authorized as a club representative");
-        }
+        int currentYear = DateTime.Now.Year;
 
-        // Get job
-        var jobId = await _jobs.GetJobIdByPathAsync(jobPath) ?? throw new InvalidOperationException($"Event not found: {jobPath}");
-        var jobSeason = await _jobs.Query().Where(j => j.JobId == jobId).Select(j => j.Season).SingleOrDefaultAsync();
-        if (jobSeason == null) throw new InvalidOperationException($"Event not found: {jobPath}");
+        var registeredTeams = await GetRegisteredTeamsForJobAsync(job.JobId, userId);
+        var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName, currentYear);
+        var ageGroups = await GetAgeGroupsWithCountsAsync(job.JobId, job.Season);
 
-        // Get league for this job (prefer primary, fall back to first league)
-        var jobLeague = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId);
-
-        if (jobLeague == null)
-        {
-            _logger.LogWarning("No league found for job: {JobId}", jobId);
-            throw new InvalidOperationException("Event does not have a league configured");
-        }
-
-        var leagueId = jobLeague.LeagueId;
-
-        // Get already registered teams for this club and event (sorted by age group, then team name)
-        var regInfos = await _teams.GetRegisteredTeamsForClubAndJobAsync(jobId, clubRep.ClubId);
-        var registeredTeams = regInfos.Select(info => new RegisteredTeamDto
-        {
-            TeamId = info.TeamId,
-            TeamName = info.TeamName,
-            AgeGroupId = info.AgeGroupId,
-            AgeGroupName = info.AgeGroupName,
-            LevelOfPlay = info.LevelOfPlay,
-            FeeBase = info.FeeBase,
-            FeeProcessing = info.FeeProcessing,
-            FeeTotal = info.FeeTotal,
-            PaidTotal = info.PaidTotal,
-            OwedTotal = info.OwedTotal
-        })
-        .OrderBy(t => t.AgeGroupName)
-        .ThenBy(t => t.TeamName)
-        .ToList();
-
-        // Get suggested team names from historical registrations for this club (via join to ClubReps)
-        // Sorted alphabetically by name for easier scanning
-        var suggestedTeamNames = await (from t in _teams.Query()
-                                        join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
-                                        where t.ClubrepRegistrationid != null
-                                          && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubRep.ClubId)
-                                          && !string.IsNullOrEmpty(t.TeamName)
-                                        select t)
-            .GroupBy(t => t.TeamName)
-            .Select(g => new
-            {
-                TeamName = g.Key!,
-                UsageCount = g.Count(),
-                LastUsedDate = g.Max(t => t.Createdate)
-            })
-            .OrderBy(x => x.TeamName)
-            .Take(20)
-            .ToListAsync();
-
-        var suggestions = suggestedTeamNames.Select(s => new SuggestedTeamNameDto
-        {
-            TeamName = s.TeamName,
-            UsageCount = s.UsageCount,
-            LastUsedDate = s.LastUsedDate
-        }).ToList();
-
-        // Get age groups for this league/season with their registration counts
-        var ageGroupEntities = _agegroups.Query()
-            .Where(ag => ag.LeagueId == leagueId && ag.Season == jobSeason && ag.MaxTeams > 0)
-            .OrderBy(ag => ag.AgegroupName);
-        var ageGroups = new List<AgeGroupDto>();
-        foreach (var ag in await ageGroupEntities.ToListAsync())
-        {
-            var regCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId, ag.AgegroupId);
-            ageGroups.Add(new AgeGroupDto
-            {
-                AgeGroupId = ag.AgegroupId,
-                AgeGroupName = ag.AgegroupName ?? string.Empty,
-                MaxTeams = ag.MaxTeams,
-                RosterFee = ag.RosterFee ?? 0,
-                TeamFee = ag.TeamFee ?? 0,
-                RegisteredCount = regCount
-            });
-        }
-
-        _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggested names, {AgeGroupCount} age groups",
+        _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups",
             registeredTeams.Count, suggestions.Count, ageGroups.Count);
 
         return new TeamsMetadataResponse
         {
-            ClubId = clubRep.ClubId,
-            ClubName = clubRep.ClubName,
+            ClubId = 0,
+            ClubName = clubName,
             SuggestedTeamNames = suggestions,
             RegisteredTeams = registeredTeams,
             AgeGroups = ageGroups
         };
+    }
+
+    private async Task<List<RegisteredTeamDto>> GetRegisteredTeamsForJobAsync(Guid jobId, string userId)
+    {
+        return await (from t in _teams.Query()
+                      join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+                      join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                      where t.JobId == jobId && reg.UserId == userId
+                      orderby ag.AgegroupName, t.TeamName
+                      select new RegisteredTeamDto
+                      {
+                          TeamId = t.TeamId,
+                          TeamName = t.TeamName,
+                          AgeGroupId = ag.AgegroupId,
+                          AgeGroupName = ag.AgegroupName ?? string.Empty,
+                          LevelOfPlay = t.LevelOfPlay,
+                          FeeBase = t.FeeBase ?? 0,
+                          FeeProcessing = t.FeeProcessing ?? 0,
+                          FeeTotal = (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0),
+                          PaidTotal = t.PaidTotal ?? 0,
+                          OwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0)
+                      })
+            .ToListAsync();
+    }
+
+    private async Task<List<SuggestedTeamNameDto>> GetHistoricalTeamSuggestionsAsync(string userId, string clubName, int currentYear)
+    {
+        int previousYear = currentYear - 1;
+
+        var historicalTeams = await (from t in _teams.Query()
+                                     join j in _context.Jobs on t.JobId equals j.JobId
+                                     join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                                     where reg.UserId == userId
+                                       && !string.IsNullOrEmpty(t.TeamName)
+                                       && !string.IsNullOrEmpty(j.Year)
+                                       && (j.Year == currentYear.ToString() || j.Year == previousYear.ToString())
+                                     select new { t.TeamName, j.Year })
+            .ToListAsync();
+
+        return historicalTeams
+            .Select(t => new { CleanedName = CleanTeamName(t.TeamName, clubName), Year = int.TryParse(t.Year, out var y) ? y : 0 })
+            .Where(t => t.Year > 0)
+            .GroupBy(t => t.CleanedName)
+            .Select(g => new SuggestedTeamNameDto { TeamName = g.Key, UsageCount = g.Count(), Year = g.Max(x => x.Year) })
+            .OrderBy(s => s.TeamName)
+            .ToList();
+    }
+
+    private async Task<List<AgeGroupDto>> GetAgeGroupsWithCountsAsync(Guid jobId, string jobSeason)
+    {
+        var leagueId = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId);
+
+        if (leagueId == null)
+            return new List<AgeGroupDto>();
+
+        var ageGroupEntities = await _agegroups.Query()
+            .Where(ag => ag.LeagueId == leagueId && ag.Season == jobSeason && ag.MaxTeams > 0)
+            .OrderBy(ag => ag.AgegroupName)
+            .ToListAsync();
+
+        var ageGroupIds = ageGroupEntities.Select(ag => ag.AgegroupId).ToList();
+
+        var registrationCounts = await _teams.Query()
+            .Where(t => t.JobId == jobId && ageGroupIds.Contains(t.AgegroupId))
+            .GroupBy(t => t.AgegroupId)
+            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.AgegroupId, x => x.Count);
+
+        return ageGroupEntities.Select(ag => new AgeGroupDto
+        {
+            AgeGroupId = ag.AgegroupId,
+            AgeGroupName = ag.AgegroupName ?? string.Empty,
+            MaxTeams = ag.MaxTeams,
+            RosterFee = ag.RosterFee ?? 0,
+            TeamFee = ag.TeamFee ?? 0,
+            RegisteredCount = registrationCounts.GetValueOrDefault(ag.AgegroupId, 0)
+        }).ToList();
     }
 
     public async Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId, int? clubId = null)
@@ -276,15 +338,13 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Get league for this job (prefer primary, fall back to first league)
-        var jobLeague = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId.Value);
+        var leagueId = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId.Value);
 
-        if (jobLeague == null)
+        if (leagueId == null)
         {
             _logger.LogWarning("No league found for job: {JobId}", jobId);
             throw new InvalidOperationException("Event does not have a league configured");
         }
-
-        var leagueId = jobLeague.LeagueId;
 
         // Get or create club rep registration for this user+job
         var clubRepRegistration = await _registrations.Query()
@@ -372,7 +432,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             TeamId = Guid.NewGuid(),
             JobId = jobId.Value,
-            LeagueId = leagueId,
+            LeagueId = (Guid)leagueId,
             AgegroupId = request.AgeGroupId,
             TeamName = request.TeamName,
             LevelOfPlay = request.LevelOfPlay,

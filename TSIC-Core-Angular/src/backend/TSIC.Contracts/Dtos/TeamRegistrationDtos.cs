@@ -70,7 +70,7 @@ public sealed record SuggestedTeamNameDto
 {
     public required string TeamName { get; init; }
     public required int UsageCount { get; init; }
-    public required DateTime? LastUsedDate { get; init; }
+    public required int Year { get; init; }
 }
 
 public sealed record RegisteredTeamDto

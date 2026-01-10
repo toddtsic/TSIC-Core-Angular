@@ -8,9 +8,9 @@ namespace TSIC.Contracts.Repositories;
 public interface IJobLeagueRepository
 {
     /// <summary>
-    /// Get the primary league for a job (Primary=true).
+    /// Get the primary league ID for a job (Primary=true).
     /// </summary>
-    Task<JobLeagues?> GetPrimaryLeagueForJobAsync(
+    Task<Guid?> GetPrimaryLeagueForJobAsync(
         Guid jobId,
         CancellationToken cancellationToken = default);
 }
