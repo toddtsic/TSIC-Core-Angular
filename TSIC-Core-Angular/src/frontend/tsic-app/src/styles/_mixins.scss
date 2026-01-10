@@ -6,28 +6,28 @@
 // Wizard Button Theme Mixin
 @mixin wizard-button-theme($scope) {
     #{$scope} .btn-primary {
-        --bs-btn-color: var(--bs-light);
+        --bs-btn-color: var(--neutral-0);
         --bs-btn-bg: var(--bs-primary);
         --bs-btn-border-color: var(--bs-primary);
-        --bs-btn-hover-color: var(--bs-light);
-        --bs-btn-hover-bg: var(--bs-primary);
-        --bs-btn-hover-border-color: var(--bs-primary);
+        --bs-btn-hover-color: var(--neutral-0);
+        --bs-btn-hover-bg: var(--brand-primary-dark);
+        --bs-btn-hover-border-color: var(--brand-primary-dark);
         --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
-        --bs-btn-active-color: var(--bs-light);
-        --bs-btn-active-bg: var(--bs-primary);
-        --bs-btn-active-border-color: var(--bs-primary);
+        --bs-btn-active-color: var(--neutral-0);
+        --bs-btn-active-bg: var(--brand-primary-dark);
+        --bs-btn-active-border-color: var(--brand-primary-dark);
     }
 
     #{$scope} .btn-outline-primary {
         --bs-btn-color: var(--bs-primary);
         --bs-btn-border-color: var(--bs-primary);
-        --bs-btn-hover-color: var(--bs-light);
+        --bs-btn-hover-color: var(--neutral-0);
         --bs-btn-hover-bg: var(--bs-primary);
         --bs-btn-hover-border-color: var(--bs-primary);
         --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
-        --bs-btn-active-color: var(--bs-light);
-        --bs-btn-active-bg: var(--bs-primary);
-        --bs-btn-active-border-color: var(--bs-primary);
+        --bs-btn-active-color: var(--neutral-0);
+        --bs-btn-active-bg: var(--brand-primary-dark);
+        --bs-btn-active-border-color: var(--brand-primary-dark);
     }
 }
 

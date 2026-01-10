@@ -119,7 +119,8 @@
         color: var(--brand-text);
     }
 
-    .form-control {
+    .form-control,
+    .form-select {
         background-color: var(--input-bg);
         border-color: var(--input-border);
         color: var(--text-primary);
@@ -165,10 +166,9 @@
     }
 
     .alert-info {
-        background-color: rgba(148, 163, 184, 0.1) !important;
-        border-color: rgba(148, 163, 184, 0.2) !important;
-        color: #cbd5e1 !important;
-        /* Slate-300 - neutral info */
+        background-color: var(--input-bg) !important;
+        border-color: var(--input-border) !important;
+        color: var(--brand-text) !important;
     }
 
     .alert-success {
@@ -194,5 +194,13 @@
         &:hover {
             background-color: rgba(87, 83, 78, 0.5) !important;
         }
+    }
+
+    /* Disabled button state - ensure proper dark mode appearance */
+    .btn-primary:disabled,
+    .btn-primary.disabled {
+        --bs-btn-disabled-bg: var(--neutral-400);
+        --bs-btn-disabled-border-color: var(--neutral-400);
+        --bs-btn-disabled-color: var(--neutral-600);
     }
 }

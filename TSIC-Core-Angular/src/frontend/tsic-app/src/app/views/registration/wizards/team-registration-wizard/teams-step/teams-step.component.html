@@ -19,7 +19,7 @@
 <!-- Main content -->
 <div class="teams-step-container">
     <!-- Financial summary -->
-    <div class="alert border-0 shadow-sm mb-3 bg-secondary-subtle">
+    <div class="alert border-0 shadow-sm mb-3" style="background-color: var(--bs-secondary-bg);">
         <div class="row g-3 align-items-center">
             <div class="col-6 col-md-3">
                 <small class="text-muted d-block"><i class="bi bi-people-fill me-1"></i>#Teams</small>
@@ -51,21 +51,19 @@
         <div class="card-body">
             <!-- CRITICAL: Reuse Team Names Alert -->
             @if (suggestedTeamNames().length > 0) {
-            <div class="alert alert-info border-start border-4 border-primary mb-3" role="alert">
-                <div class="d-flex align-items-start">
-                    <i class="bi bi-info-circle-fill fs-4 text-primary me-3 mt-1"></i>
-                    <div>
-                        <h6 class="alert-heading fw-bold mb-2">⚠️ Important: Reuse Your Team Names</h6>
-                        <p class="mb-2">
-                            <strong>Select from your history below</strong> to maintain team continuity across events.
-                            Team names link rosters, payments, and historical data.
-                        </p>
-                        <p class="mb-0 small">
-                            <strong>Why this matters:</strong> Using the exact same name (e.g., "2029 White") lets
-                            families track their team's history
-                            and keeps your club organized. Only create new names for genuinely new teams.
-                        </p>
-                    </div>
+            <div class="alert alert-info border-start border-4 mb-3" role="alert"
+                style="border-left-color: var(--bs-primary) !important;">
+                <div>
+                    <h6 class="alert-heading fw-bold mb-2">⚠️ Important: Reuse Your Team Names</h6>
+                    <p class="mb-2">
+                        <strong>Select from your history below</strong> to maintain team continuity across events.
+                        Team names link rosters, payments, and historical data.
+                    </p>
+                    <p class="mb-0 small">
+                        <strong>Why this matters:</strong> Using the exact same name (e.g., "2029 White") lets
+                        families track their team's history
+                        and keeps your club organized. Only create new names for genuinely new teams.
+                    </p>
                 </div>
             </div>
             }
@@ -81,10 +79,10 @@
                         @if (suggestedTeamNames().length > 0) {
                         <div class="mt-2">
                             <label class="form-label small text-muted fw-semibold mb-1">
-                                <i class="bi bi-arrow-down-circle me-1"></i>Click a team from your history:
+                                <i class="bi bi-arrow-down-circle me-1"></i>Click a team from your history (last 2
+                                calendar years):
                             </label>
-                            <select size="6" class="form-select" (change)="selectFromList($event)"
-                                style="height: auto; cursor: pointer;">
+                            <select size="6" class="form-select team-history-select" (change)="selectFromList($event)">
                                 <option value="" disabled selected class="text-muted fst-italic">← Click any team name
                                     to use it</option>
                                 @for (suggestion of suggestedTeamNames().slice(0, 6); track suggestion.teamName) {
