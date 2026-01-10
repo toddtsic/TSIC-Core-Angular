@@ -120,8 +120,16 @@ export class TeamsStepComponent implements OnInit {
     errorMessage = signal<string | null>(null);
     isRegistering = signal<boolean>(false);
 
-    // Financial summary
-    totalOwed = computed(() => {
+    // Financial summary (computed from registeredTeams signal - updates real-time)
+    feesTotal = computed(() => {
+        return this.registeredTeams().reduce((sum, team) => sum + toNumber(team.feeTotal), 0);
+    });
+
+    paidTotal = computed(() => {
+        return this.registeredTeams().reduce((sum, team) => sum + toNumber(team.paidTotal), 0);
+    });
+
+    balanceDue = computed(() => {
         return this.registeredTeams().reduce((sum, team) => sum + toNumber(team.owedTotal), 0);
     });
 
@@ -192,7 +200,7 @@ export class TeamsStepComponent implements OnInit {
     registerTeam(): void {
         const teamName = this.teamNameInput().trim();
         const ageGroupId = this.selectedAgeGroupId();
-        const levelOfPlay = this.levelOfPlayInput().trim() || null;
+        const levelOfPlay = this.levelOfPlayInput().trim();
         const jobPath = this.jobContext.jobPath();
 
         if (!teamName) {
@@ -202,6 +210,11 @@ export class TeamsStepComponent implements OnInit {
 
         if (!ageGroupId) {
             this.errorMessage.set('Please select an age group');
+            return;
+        }
+
+        if (!levelOfPlay) {
+            this.errorMessage.set('Please select a level of play');
             return;
         }
 

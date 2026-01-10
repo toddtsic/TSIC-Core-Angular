@@ -98,9 +98,9 @@
 <!-- Club Selection Modal -->
 @if (showClubSelectionModal()) {
 <div class="modal d-block" tabindex="-1" role="dialog"
-  style="background-color: rgba(0,0,0,0.6); backdrop-filter: blur(2px);">
+  style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(8px);">
   <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content border-0 shadow-lg">
+    <div class="modal-content border shadow-lg" style="background-color: var(--bs-card-bg); border-color: var(--bs-border-color) !important; border-width: 2px !important;">
       <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
         <div class="d-flex align-items-start w-100">
           <i class="bi bi-building me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
@@ -130,7 +130,7 @@
               <button class="accordion-button accordion-button-info" type="button"
                 [class.collapsed]="clubInfoCollapsed()" (click)="toggleClubInfoCollapsed()"
                 [attr.aria-expanded]="!clubInfoCollapsed()" aria-controls="clubInfoCollapse">
-                <i class="bi bi-info-circle accordion-icon-info text-primary me-2"></i>
+                <i class="bi bi-info-circle accordion-icon-info me-2"></i>
                 <span class="accordion-title-info">Important Club Rep Information</span>
               </button>
             </h2>
@@ -161,33 +161,23 @@
           </div>
         </div>
 
-        @if (availableClubs().length === 1) {
-        <!-- Single Club: Show club name prominently -->
-        <div class="mb-2 py-2 px-2 rounded-3 border-0" style="background-color: rgba(var(--bs-primary-rgb), 0.1);">
-          <div class="d-flex align-items-center gap-2">
-            <div class="p-1 rounded-circle" style="background-color: rgba(var(--bs-primary-rgb), 0.25);">
-              <i class="bi bi-building fs-5" style="color: var(--bs-primary);"></i>
-            </div>
-            <div class="fw-bold fs-6 text-primary-content">
-              {{ availableClubs()[0]?.clubName || clubName() || selectedClub() || 'Club name not available' }}
-            </div>
-          </div>
-        </div>
-        } @else if (availableClubs().length > 1) {
-        <!-- Multiple Clubs: Show list with 5 visible rows -->
-        <p class="text-muted mb-2 small">Choose which club you want to manage in this session:</p>
+        <!-- Always show dropdown, preselect if only 1 club -->
         <div class="mb-3">
-          <label for="clubSelector" class="form-label fw-semibold small mb-1">Club</label>
-          <select id="clubSelector" class="form-select" [ngModel]="selectedClub()"
-            [size]="availableClubs().length > 5 ? 5 : availableClubs().length"
-            (ngModelChange)="selectedClub.set($event); selectClub($event)"
-            (dblclick)="selectedClub() && continueFromStep1()">
+          <label for="clubSelector" class="form-label fw-semibold small mb-1">
+            @if (availableClubs().length === 1) {
+            Your Club
+            } @else {
+            Select Your Club
+            }
+          </label>
+          <select id="clubSelector" class="form-select" [ngModel]="selectedClub()" size="2"
+            (ngModelChange)="selectedClub.set($event); selectClub($event)">>
             @for (club of availableClubs(); track club.clubName) {
             <option [value]="club.clubName">{{ club.clubName }}</option>
             }
           </select>
         </div>
-        } @else {
+        @if (availableClubs().length === 0) {
         <!-- Zero Clubs: Show message -->
         <div class="alert alert-warning mb-3" role="alert">
           <i class="bi bi-exclamation-triangle me-2"></i>

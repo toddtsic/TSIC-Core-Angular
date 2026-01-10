@@ -80,6 +80,8 @@
     max-width: 60px;
     transition: background-color 0.3s ease;
     background-color: var(--bs-gray-400);
+    align-self: flex-start;
+    margin-top: calc(var(--space-10) / 2);
 
     // Connector after completed step should be success color
     .step-item.completed + & {
@@ -90,12 +92,12 @@
 @media (max-width: 768px) {
     .step-item { min-width: 50px; gap: var(--space-1); }
     .step-badge { width: 28px; height: 28px; border-width: 1.5px; }
-    .step-connector { max-width: 20px; }
+    .step-connector { max-width: 20px; margin-top: 14px; }
 }
 
 @media (max-width: 576px) {
     .step-label { display: none; }
     .step-item { min-width: var(--space-7); }
     .step-badge { width: var(--space-6); height: var(--space-6); }
-    .step-connector { max-width: 15px; }
+    .step-connector { max-width: 15px; margin-top: calc(var(--space-6) / 2); }
 }

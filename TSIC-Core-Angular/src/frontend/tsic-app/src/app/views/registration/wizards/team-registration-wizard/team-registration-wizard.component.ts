@@ -53,7 +53,9 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     wizardSteps = computed(() => {
         return [
             { stepNumber: 1, label: 'Login' },
-            { stepNumber: 2, label: 'Register Teams' }
+            { stepNumber: 2, label: 'Register Teams' },
+            { stepNumber: 3, label: 'Payment' },
+            { stepNumber: 4, label: 'Review' }
         ];
     });
 

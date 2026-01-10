@@ -53,12 +53,12 @@
                     <div class="col-12 col-sm-6 col-md-4">
                         <label for="clubRepUsername" class="form-label small mb-1">Username</label>
                         <input id="clubRepUsername" class="form-control form-control-sm" type="text"
-                            formControlName="username" autocomplete="username" />
+                            name="username" formControlName="username" autocomplete="username" (input)="0" />
                     </div>
                     <div class="col-12 col-sm-6 col-md-4">
                         <label for="clubRepPassword" class="form-label small mb-1">Password</label>
                         <input id="clubRepPassword" class="form-control form-control-sm" type="password"
-                            formControlName="password" autocomplete="current-password" />
+                            name="password" formControlName="password" autocomplete="current-password" (input)="0" />
                     </div>
                 </div>
                 @if (inlineError()) {

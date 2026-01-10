@@ -33,7 +33,7 @@
 }
 
 .accordion-item-info .accordion-button-info {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
     background: linear-gradient(135deg,
             var(--neutral-500) 0%,
             var(--neutral-400) 25%,
@@ -53,12 +53,16 @@
 
     .accordion-icon-info {
         font-size: var(--font-size-lg);
-        color: rgba(13, 202, 240, 0.9); // Info blue with slight transparency
+        color: var(--neutral-0); // White for better visibility
         line-height: 1;
+        opacity: 0.95;
     }
 
     &::after {
         filter: brightness(0) invert(1); // Make chevron white
+        opacity: 0.9;
+        font-weight: 700;
+        transform: scale(1.2);
     }
 }
 
@@ -104,17 +108,13 @@
 
 /* Accordion body - glassmorphic surface */
 .accordion-item-info .accordion-body {
-    background: linear-gradient(180deg,
-            rgba(13, 202, 240, 0.03) 0%,
-            var(--brand-surface) 100%);
+    background: rgba(0, 0, 0, 0.2) !important;
     color: var(--brand-text);
     padding: var(--space-4);
-    border-top: 1px solid var(--brand-border);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
 
-    :host-context([data-bs-theme="dark"]) & {
-        background: linear-gradient(180deg,
-                rgba(13, 202, 240, 0.05) 0%,
-                var(--brand-surface) 100%);
-        border-top: 1px solid var(--neutral-400);
-    }
+[data-bs-theme="dark"] .accordion-item-info .accordion-body {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
 }

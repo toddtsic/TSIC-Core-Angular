@@ -110,8 +110,17 @@ if (Test-Path $OutputPath) {
             Remove-Item $zipPath -Force
         }
 
-        # Create zip archive
-        Compress-Archive -Path "$OutputPath\*" -DestinationPath $zipPath -CompressionLevel Optimal
+        # Create temp staging folder with project name
+        $tempStaging = Join-Path $env:TEMP "TSIC-App-Staging-$(Get-Date -Format 'yyyyMMddHHmmss')"
+        $projectFolder = Join-Path $tempStaging "TSIC.App"
+        New-Item -ItemType Directory -Path $projectFolder -Force | Out-Null
+        Copy-Item -Path "$OutputPath\*" -Destination $projectFolder -Recurse -Force
+
+        # Create zip archive from staging folder
+        Compress-Archive -Path "$tempStaging\*" -DestinationPath $zipPath -CompressionLevel Optimal
+        
+        # Clean up staging folder
+        Remove-Item $tempStaging -Recurse -Force -ErrorAction SilentlyContinue
         if ($?) {
             Write-Host "Backup archive created: $zipPath" -ForegroundColor Green
         } else {

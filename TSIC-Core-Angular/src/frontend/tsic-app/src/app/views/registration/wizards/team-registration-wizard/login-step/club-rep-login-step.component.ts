@@ -91,8 +91,8 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         });
 
         this.loginForm = this.fb.group({
-            username: ['', Validators.required],
-            password: ['', Validators.required]
+            username: [null, Validators.required],
+            password: [null, Validators.required]
         });
     }
 
