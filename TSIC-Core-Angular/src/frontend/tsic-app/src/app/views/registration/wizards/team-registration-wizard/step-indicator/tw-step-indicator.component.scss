@@ -21,6 +21,7 @@
             color: var(--bs-gray-500);
             font-weight: 400;
         }
+
         .step-label {
             color: var(--bs-gray-500);
             font-weight: 400;
@@ -36,6 +37,7 @@
             font-weight: 700;
             box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.15);
         }
+
         .step-label {
             color: var(--bs-primary);
             font-weight: 700;
@@ -50,6 +52,7 @@
             color: var(--bs-white);
             font-size: 1.25rem;
         }
+
         .step-label {
             color: var(--bs-success);
             font-weight: 600;
@@ -84,20 +87,45 @@
     margin-top: calc(var(--space-10) / 2);
 
     // Connector after completed step should be success color
-    .step-item.completed + & {
+    .step-item.completed+& {
         background-color: var(--bs-success);
     }
 }
 
 @media (max-width: 768px) {
-    .step-item { min-width: 50px; gap: var(--space-1); }
-    .step-badge { width: 28px; height: 28px; border-width: 1.5px; }
-    .step-connector { max-width: 20px; margin-top: 14px; }
+    .step-item {
+        min-width: 50px;
+        gap: var(--space-1);
+    }
+
+    .step-badge {
+        width: 28px;
+        height: 28px;
+        border-width: 1.5px;
+    }
+
+    .step-connector {
+        max-width: 20px;
+        margin-top: 14px;
+    }
 }
 
 @media (max-width: 576px) {
-    .step-label { display: none; }
-    .step-item { min-width: var(--space-7); }
-    .step-badge { width: var(--space-6); height: var(--space-6); }
-    .step-connector { max-width: 15px; margin-top: calc(var(--space-6) / 2); }
+    .step-label {
+        display: none;
+    }
+
+    .step-item {
+        min-width: var(--space-7);
+    }
+
+    .step-badge {
+        width: var(--space-6);
+        height: var(--space-6);
+    }
+
+    .step-connector {
+        max-width: 15px;
+        margin-top: calc(var(--space-6) / 2);
+    }
 }
