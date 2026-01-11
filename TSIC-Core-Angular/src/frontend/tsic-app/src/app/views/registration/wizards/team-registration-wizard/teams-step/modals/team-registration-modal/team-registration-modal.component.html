@@ -20,8 +20,9 @@
             <ng-template #infoTpl>
                 <div class="tsic-popover-content">
                     <div class="fw-bold mb-1">Re-Use Your Team Names!</div>
-                    <div class="small mb-1">Try to re-use names from your registration history.</div>
-                    <div class="small"><strong>Why:</strong> Keeps schedules consistent across events.</div>
+                    <div class="small mb-1">Whenever you can, try to re-use names from your registration history.</div>
+                    <div class="small"><strong>Why:</strong> Will keep schedules consistent across events and will allow
+                        for meaningful tracking of team results..</div>
                 </div>
             </ng-template>
 
@@ -34,7 +35,15 @@
                     @if (suggestedTeamNames.length > 0) {
                     <div class="mt-2">
                         <label class="form-label small fw-semibold mb-1 team-history-label">
-                            Re-Use a team name from your club's registration history (last 2 calendar years)
+                            <ul>
+                                <li>WHENEVER YOU CAN, name your team THE SAME ACROSS ALL EVENTS.</li>
+                                <li>To help you do this you can select from a list of team names based on
+                                    your club's registration history (last 2 calendar years).</li>
+                                <li>DO NOT include your club name in the team name.</li>
+                                <li>The best format for naming team is &lbrace;age group&rbrace; &lbrace;team
+                                    name&rbrace;,
+                                    e.g., "2029 Green" or "U12 White".</li>
+                            </ul>
                         </label>
                         <select size="6" class="form-select team-history-select" (change)="selectFromList($event)">
                             <option value="" disabled selected class="text-muted fst-italic">← Click any team name to
