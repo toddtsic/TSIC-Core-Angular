@@ -20,6 +20,7 @@ export class TeamRegistrationModalComponent {
 
     @Output() close = new EventEmitter<void>();
     @Output() register = new EventEmitter<{ teamName: string; ageGroupId: string; levelOfPlay: string }>();
+    @Output() addAnother = new EventEmitter<{ teamName: string; ageGroupId: string; levelOfPlay: string }>();
 
     // Form state
     teamNameInput = signal<string>('');
@@ -95,6 +96,21 @@ export class TeamRegistrationModalComponent {
         if (select.value) {
             this.teamNameInput.set(select.value);
             select.selectedIndex = 0; // Reset to placeholder
+        }
+    }
+
+    /**
+     * Submit registration form and register another team
+     * Form stays open, fields clear for next entry
+     */
+    onRegisterAddAnother(): void {
+        const teamName = this.teamNameInput().trim();
+        const ageGroupId = this.selectedAgeGroupId();
+        const levelOfPlay = this.levelOfPlayInput().trim();
+
+        if (teamName && ageGroupId && levelOfPlay) {
+            this.addAnother.emit({ teamName, ageGroupId, levelOfPlay });
+            this.clearForm(); // Reset form for next entry
         }
     }
 

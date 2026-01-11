@@ -57,6 +57,9 @@ export class TeamsStepComponent implements OnInit {
     registeredTeams = signal<RegisteredTeamDto[]>([]);
     ageGroups = signal<AgeGroupDto[]>([]);
 
+    // Track recently added team names in current session (for "Add Another" workflow)
+    recentlyAddedTeamNames = signal<string[]>([]);
+
     // Modal state - replaces accordion
     showRegistrationModal = signal<boolean>(false);
 
@@ -119,6 +122,18 @@ export class TeamsStepComponent implements OnInit {
 
                 return a.ageGroupName.localeCompare(b.ageGroupName);
             });
+    });
+
+    // Filtered suggested team names for modal:
+    // Exclude teams already registered for this event AND recently added in this session
+    suggestedTeamNamesForModal = computed(() => {
+        const excludeSet = new Set(
+            [
+                ...this.registeredTeams().map(t => t.teamName.trim().toLowerCase()),
+                ...this.recentlyAddedTeamNames().map(t => t.trim().toLowerCase())
+            ]
+        );
+        return this.suggestedTeamNames().filter(s => !excludeSet.has(s.teamName.trim().toLowerCase()));
     });
 
     // UI state
@@ -201,6 +216,48 @@ export class TeamsStepComponent implements OnInit {
     }
 
     /**
+     * Handle team registration with "Add Another" option
+     * Tracks the team name in session and keeps modal open for next entry
+     */
+    onTeamAddedAnother(data: { teamName: string; ageGroupId: string; levelOfPlay: string }): void {
+        const jobPath = this.jobContext.jobPath();
+
+        if (!jobPath) {
+            this.errorMessage.set('Invalid event context');
+            return;
+        }
+
+        if (this.isRegistering()) {
+            return;
+        }
+
+        this.errorMessage.set(null);
+        this.isRegistering.set(true);
+
+        this.teamService.registerTeamForEvent({
+            teamName: data.teamName,
+            jobPath,
+            ageGroupId: data.ageGroupId,
+            levelOfPlay: data.levelOfPlay
+        }).subscribe({
+            next: () => {
+                this.isRegistering.set(false);
+                // Track this team name to exclude from suggestions in next iteration
+                this.recentlyAddedTeamNames.update(arr => [...arr, data.teamName]);
+                // Keep modal open, form will be cleared by modal component
+                this.toast.show('Team registered! Add another or close to continue.', 'success');
+                // Reload teams without showing loading spinner or closing modal
+                this.loadTeamsMetadata(false);
+            },
+            error: (err) => {
+                console.error('Failed to register team:', err);
+                this.isRegistering.set(false);
+                this.errorMessage.set(err.error?.message || 'Failed to register team. Please try again.');
+            }
+        });
+    }
+
+    /**
      * Handle team registration from modal
      */
     onTeamRegistered(data: { teamName: string; ageGroupId: string; levelOfPlay: string }): void {
@@ -228,6 +285,8 @@ export class TeamsStepComponent implements OnInit {
                 this.isRegistering.set(false);
                 // Close modal (cleared automatically)
                 this.showRegistrationModal.set(false);
+                // Clear session tracking
+                this.recentlyAddedTeamNames.set([]);
                 // Reload teams without showing loading spinner
                 this.loadTeamsMetadata(false);
                 this.toast.show('Team registered successfully', 'success');

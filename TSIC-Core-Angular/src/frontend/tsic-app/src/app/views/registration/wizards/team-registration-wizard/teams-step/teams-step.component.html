@@ -107,9 +107,9 @@
 </div>
 
 <!-- Registration Modal Component -->
-<app-team-registration-modal [isOpen]="showRegistrationModal()" [suggestedTeamNames]="suggestedTeamNames()"
+<app-team-registration-modal [isOpen]="showRegistrationModal()" [suggestedTeamNames]="suggestedTeamNamesForModal()"
     [ageGroups]="ageGroups()" [availableLevelsOfPlay]="levelsOfPlayOptions()" [isRegistering]="isRegistering()"
-    (close)="closeRegistrationModal()" (register)="onTeamRegistered($event)">
+    (close)="closeRegistrationModal()" (register)="onTeamRegistered($event)" (addAnother)="onTeamAddedAnother($event)">
 </app-team-registration-modal>
 
 }

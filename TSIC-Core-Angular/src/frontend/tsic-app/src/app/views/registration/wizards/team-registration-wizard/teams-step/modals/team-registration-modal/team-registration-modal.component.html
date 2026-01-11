@@ -28,10 +28,6 @@
 
             <form (ngSubmit)="onRegister()">
                 <div class="modal-body">
-                    <input type="text" class="form-control" id="teamName" [ngModel]="teamNameInput()"
-                        (ngModelChange)="teamNameInput.set($event)" [ngModelOptions]="{standalone: true}"
-                        placeholder="Enter team name" required>
-
                     @if (suggestedTeamNames.length > 0) {
                     <div class="mt-2">
                         <label class="form-label small fw-semibold mb-1 team-history-label">
@@ -45,10 +41,14 @@
                                     e.g., "2029 Green" or "U12 White".</li>
                             </ul>
                         </label>
+                        <input type="text" class="form-control" id="teamName" [ngModel]="teamNameInput()"
+                            (ngModelChange)="teamNameInput.set($event)" [ngModelOptions]="{standalone: true}"
+                            placeholder="Select name from list or type new name" required>
+
                         <select size="6" class="form-select team-history-select" (change)="selectFromList($event)">
                             <option value="" disabled selected class="text-muted fst-italic">← Click any team name to
                                 use it</option>
-                            @for (suggestion of suggestedTeamNames.slice(0, 6); track suggestion.teamName) {
+                            @for (suggestion of suggestedTeamNames; track suggestion.teamName) {
                             <option [value]="suggestion.teamName">
                                 {{ suggestion.teamName }} (used {{ suggestion.usageCount }}x)
                             </option>
@@ -88,13 +88,20 @@
                     </div>
                 </div>
 
-                <div class="modal-footer mt-4">
+                <div class="modal-footer mt-4 d-flex gap-2 justify-content-between">
                     <button type="button" class="btn btn-secondary" (click)="onClose()">Cancel</button>
-                    <button type="submit" class="btn btn-primary"
-                        [disabled]="isRegistering || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
-                        @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                        Register Team
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" (click)="onRegisterAddAnother()"
+                            [disabled]="isRegistering || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
+                            @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                            Register &amp; Add Another
+                        </button>
+                        <button type="submit" class="btn btn-primary"
+                            [disabled]="isRegistering || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
+                            @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                            Register Team
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
