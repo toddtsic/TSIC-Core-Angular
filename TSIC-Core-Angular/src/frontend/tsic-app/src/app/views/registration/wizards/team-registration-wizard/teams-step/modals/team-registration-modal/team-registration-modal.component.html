@@ -22,8 +22,7 @@
             @if (showInfoPopover() && suggestedTeamNames.length > 0) {
             <div class="alert alert-info border-start border-4 mb-0 mx-3 mt-2 d-md-none alert-popover" role="alert">
                 <button type="button" class="btn-close btn-close-sm position-absolute top-0 end-0 m-2"
-                    (click)="showInfoPopover.set(false)"
-                    aria-label="Close information">
+                    (click)="showInfoPopover.set(false)" aria-label="Close information">
                 </button>
                 <div class="pe-3">
                     <h6 class="alert-heading fw-bold mb-2">⚠️ Re-Use Your Team Names!</h6>
@@ -37,7 +36,8 @@
             </div>
             }
 
-            <div class="modal-body" [attr.data-popover-open]="showInfoPopover()" (click)="showInfoPopover() && showInfoPopover.set(false)">
+            <div class="modal-body" [attr.data-popover-open]="showInfoPopover()"
+                (click)="showInfoPopover() && showInfoPopover.set(false)">
                 <!-- Desktop alert -->
                 @if (suggestedTeamNames.length > 0) {
                 <div class="alert alert-info border-start border-4 mb-3 d-none d-md-block" role="alert"
