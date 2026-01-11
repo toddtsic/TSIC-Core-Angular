@@ -3,14 +3,14 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 flex-nowrap">
                     <h5 class="modal-title mb-0">Register a New Team</h5>
                     @if (suggestedTeamNames.length > 0) {
-                    <button #infoP="ngbPopover" type="button" class="btn btn-sm btn-info-icon" [ngbPopover]="infoTpl"
-                        [popoverTitle]="'Re-Use Your Team Names!'" [autoClose]="'outside'" [container]="'body'"
-                        [placement]="'bottom'" [popoverClass]="'tsic-popover'"
+                    <button #infoP="ngbPopover" type="button" class="btn btn-warning btn-sm d-md-none flex-shrink-0"
+                        [ngbPopover]="infoTpl" [popoverTitle]="'Team Naming Guidelines'" [autoClose]="'outside'"
+                        [container]="'body'" [placement]="'bottom'" [popoverClass]="'tsic-popover'"
                         aria-label="Show important information about team naming">
-                        <i class="bi bi-info-circle-fill"></i>
+                        <i class="bi bi-info-circle-fill me-1"></i> Pro tips
                     </button>
                     }
                 </div>
@@ -19,18 +19,27 @@
 
             <ng-template #infoTpl>
                 <div class="tsic-popover-content">
-                    <div class="fw-bold mb-1">Re-Use Your Team Names!</div>
-                    <div class="small mb-1">Whenever you can, try to re-use names from your registration history.</div>
-                    <div class="small"><strong>Why:</strong> Will keep schedules consistent across events and will allow
-                        for meaningful tracking of team results..</div>
+                    <ul class="mb-0 ps-3 small">
+                        <li>WHENEVER YOU CAN, name your team THE SAME ACROSS ALL EVENTS.</li>
+                        <li>To help you do this you can select from a list of team names based on
+                            your club's registration history (last 2 calendar years).</li>
+                        <li>DO NOT include your club name in the team name.</li>
+                        <li>The best format for naming team is &lbrace;age group&rbrace; &lbrace;team name&rbrace;,
+                            e.g., "2029 Green" or "U12 White".</li>
+                    </ul>
                 </div>
             </ng-template>
 
-            <form (ngSubmit)="onRegister()">
+            <form>
                 <div class="modal-body">
+                    @if (successMessage()) {
+                    <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i>{{ successMessage() }}
+                    </div>
+                    }
                     @if (suggestedTeamNames.length > 0) {
                     <div class="mt-2">
-                        <label class="form-label small fw-semibold mb-1 team-history-label">
+                        <div class="form-label small fw-semibold mb-1 team-history-label d-none d-md-block">
                             <ul>
                                 <li>WHENEVER YOU CAN, name your team THE SAME ACROSS ALL EVENTS.</li>
                                 <li>To help you do this you can select from a list of team names based on
@@ -40,7 +49,7 @@
                                     name&rbrace;,
                                     e.g., "2029 Green" or "U12 White".</li>
                             </ul>
-                        </label>
+                        </div>
                         <input type="text" class="form-control" id="teamName" [ngModel]="teamNameInput()"
                             (ngModelChange)="teamNameInput.set($event)" [ngModelOptions]="{standalone: true}"
                             placeholder="Select name from list or type new name" required>
@@ -48,7 +57,7 @@
                         <select size="6" class="form-select team-history-select" (change)="selectFromList($event)">
                             <option value="" disabled selected class="text-muted fst-italic">← Click any team name to
                                 use it</option>
-                            @for (suggestion of suggestedTeamNames; track suggestion.teamName) {
+                            @for (suggestion of filteredSuggestions(); track suggestion.teamName) {
                             <option [value]="suggestion.teamName">
                                 {{ suggestion.teamName }} (used {{ suggestion.usageCount }}x)
                             </option>
@@ -96,10 +105,10 @@
                             @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
                             Register &amp; Add Another
                         </button>
-                        <button type="submit" class="btn btn-primary"
+                        <button type="button" class="btn btn-primary" (click)="onRegister()"
                             [disabled]="isRegistering || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
                             @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                            Register Team
+                            Register and Return
                         </button>
                     </div>
                 </div>

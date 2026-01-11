@@ -22,7 +22,8 @@
     <div class="mb-4 d-flex justify-content-between align-items-center">
         <h4 class="mb-0">Registered Teams</h4>
         <button type="button" class="btn btn-primary" (click)="openRegistrationModal()">
-            <i class="bi bi-plus-circle-fill me-2"></i>Add New Team
+            <i class="bi bi-plus-circle-fill me-2 d-none d-sm-inline"></i><span class="d-sm-none">Add </span><span
+                class="d-none d-sm-inline">Add New </span>Team
         </button>
     </div>
 
@@ -79,24 +80,26 @@
                 </div>
                 <div class="col-auto d-none d-md-inline">
                     <span class="badge bg-secondary-subtle text-secondary">
-                        <i class="bi bi-receipt me-1"></i>Fees: {{ feesTotal() | currency }}
+                        <i class="bi bi-receipt me-1"></i>Fees: {{ financialSummary().feesTotal | currency }}
                     </span>
                 </div>
                 <div class="col-auto d-none d-md-inline">
                     <span class="badge bg-success-subtle text-success">
-                        <i class="bi bi-check-circle-fill me-1"></i>Paid: {{ paidTotal() | currency }}
+                        <i class="bi bi-check-circle-fill me-1"></i>Paid: {{ financialSummary().paidTotal | currency }}
                     </span>
                 </div>
                 <div class="col-auto d-none d-md-inline">
                     <span class="badge bg-warning-subtle text-warning">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Owes: {{ (feesTotal() - paidTotal()) |
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Owes: {{ (financialSummary().feesTotal -
+                        financialSummary().paidTotal) |
                         currency }}
                     </span>
                 </div>
-                @if (balanceDue() > 0) {
+                @if (financialSummary().balanceDue > 0) {
                 <div class="col-auto">
                     <span class="badge bg-danger-subtle text-danger">
-                        <i class="bi bi-exclamation-circle-fill me-1"></i>Due: {{ balanceDue() | currency }}
+                        <i class="bi bi-exclamation-circle-fill me-1"></i>Due: {{ financialSummary().balanceDue |
+                        currency }}
                     </span>
                 </div>
                 }
@@ -109,7 +112,7 @@
 <!-- Registration Modal Component -->
 <app-team-registration-modal [isOpen]="showRegistrationModal()" [suggestedTeamNames]="suggestedTeamNamesForModal()"
     [ageGroups]="ageGroups()" [availableLevelsOfPlay]="levelsOfPlayOptions()" [isRegistering]="isRegistering()"
-    (close)="closeRegistrationModal()" (register)="onTeamRegistered($event)" (addAnother)="onTeamAddedAnother($event)">
+    (closed)="closeRegistrationModal()" (register)="onTeamRegistered($event)" (addAnother)="onTeamAddedAnother($event)">
 </app-team-registration-modal>
 
 }

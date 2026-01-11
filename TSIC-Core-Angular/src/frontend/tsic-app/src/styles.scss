@@ -21,3 +21,24 @@
 
 /* External Dependencies */
 @import '../node_modules/bootstrap-icons/font/bootstrap-icons.css';
+
+/* 1. Backdrop: Translucent Veil with Depth */
+body.e-dark-mode .modal-backdrop.show {
+   opacity: 1 !important;
+   background-color: rgba(0, 0, 0, 0.45) !important;
+   backdrop-filter: blur(12px) brightness(0.6) saturate(1.6) contrast(1.1) !important;
+   -webkit-backdrop-filter: blur(12px) brightness(0.6) saturate(1.6) contrast(1.1) !important;
+}
+
+/* 2. Modal: High-Visibility Edge Definition */
+body.e-dark-mode .modal-content {
+   background-color: #1c1c1c !important; // Solid charcoal surface
+
+   // High-contrast border for "Hey, I need input" visibility
+   border: 2px solid rgba(255, 255, 255, 0.45) !important;
+
+   // Aggressive shadow to lift the modal off the page
+   box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.8),
+      0 0 15px rgba(255, 255, 255, 0.08) !important;
+}

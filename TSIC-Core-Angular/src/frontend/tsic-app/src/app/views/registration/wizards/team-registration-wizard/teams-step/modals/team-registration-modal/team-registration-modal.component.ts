@@ -1,9 +1,22 @@
-import { Component, Input, Output, EventEmitter, computed, signal, effect } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { SuggestedTeamNameDto, AgeGroupDto } from '@core/api';
 import { NgbPopover } from '@ng-bootstrap/ng-bootstrap';
 
+interface RegistrationData {
+    teamName: string;
+    ageGroupId: string;
+    levelOfPlay: string;
+}
+
+/**
+ * Team Registration Modal Component
+ *
+ * Dumb presentation component for registering a team.
+ * Receives data via inputs, emits events for parent handling.
+ * Filtering/sorting handled locally via computed properties.
+ */
 @Component({
     selector: 'app-team-registration-modal',
     standalone: true,
@@ -18,128 +31,131 @@ export class TeamRegistrationModalComponent {
     @Input() availableLevelsOfPlay: { value: string; label: string }[] = [];
     @Input() isRegistering = false;
 
-    @Output() close = new EventEmitter<void>();
-    @Output() register = new EventEmitter<{ teamName: string; ageGroupId: string; levelOfPlay: string }>();
-    @Output() addAnother = new EventEmitter<{ teamName: string; ageGroupId: string; levelOfPlay: string }>();
+    @Output() closed = new EventEmitter<void>();
+    @Output() register = new EventEmitter<RegistrationData>();
+    @Output() addAnother = new EventEmitter<RegistrationData>();
 
-    // Form state
-    teamNameInput = signal<string>('');
-    selectedAgeGroupId = signal<string>('');
-    levelOfPlayInput = signal<string>('');
+    // Form state (exposed for template binding)
+    readonly teamNameInput = signal('');
+    readonly selectedAgeGroupId = signal('');
+    readonly levelOfPlayInput = signal('');
+    readonly successMessage = signal('');
+    private readonly usedNames = signal<Set<string>>(new Set());
 
-    // Filtered suggestions for autocomplete
-    filteredSuggestions = computed(() => {
+    // Derived state for template
+    readonly filteredSuggestions = computed(() => {
         const input = this.teamNameInput().toLowerCase().trim();
-        if (!input) return this.suggestedTeamNames;
-        return this.suggestedTeamNames.filter(s => s.teamName.toLowerCase().includes(input));
+        const exclude = this.usedNames();
+        const list = this.suggestedTeamNames.filter(s => !exclude.has(this.normalizeName(s.teamName)));
+
+        // Don't filter if input exactly matches a suggestion (user selected from list)
+        if (input && list.some(s => s.teamName.toLowerCase() === input)) {
+            return list;
+        }
+
+        if (!input) return list;
+        return list.filter(s => s.teamName.toLowerCase().includes(input));
     });
 
-    // Filtered age groups for modal (special waitlist handling)
-    filteredAgeGroups = computed(() => {
-        const toNumber = (value: number | string | undefined | null): number => {
-            if (value === undefined || value === null) return 0;
-            return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
-        };
+    readonly filteredAgeGroups = computed(() => this.getFilteredAgeGroups());
 
-        return this.ageGroups
-            .filter(ag => {
-                const name = ag.ageGroupName.toLowerCase();
-                // Exclude "Dropped" age groups
-                if (name.startsWith('dropped')) return false;
-                // Only include Waitlist if it has spots available
-                if (name.startsWith('waitlist')) {
-                    return (toNumber(ag.maxTeams) - toNumber(ag.registeredCount)) > 0;
-                }
-                return true;
-            })
-            .sort((a, b) => {
-                const aName = a.ageGroupName.toLowerCase();
-                const bName = b.ageGroupName.toLowerCase();
-                const aFull = toNumber(a.registeredCount) >= toNumber(a.maxTeams) && !aName.startsWith('waitlist');
-                const bFull = toNumber(b.registeredCount) >= toNumber(b.maxTeams) && !bName.startsWith('waitlist');
-                const aWaitlist = aName.startsWith('waitlist');
-                const bWaitlist = bName.startsWith('waitlist');
-
-                // Available first, then full (red), then waitlist
-                if (aFull && !bFull) return 1;
-                if (!aFull && bFull) return -1;
-                if (aWaitlist && !bWaitlist) return 1;
-                if (!aWaitlist && bWaitlist) return -1;
-
-                return a.ageGroupName.localeCompare(b.ageGroupName);
-            });
-    });
-
-    constructor() {
-        // Clear form when modal closes
-        effect(() => {
-            if (!this.isOpen) {
-                this.clearForm();
-            }
-        });
-    }
-
-    // Popover is managed by ng-bootstrap via template directive
-
-    /**
-     * Select a suggested team name
-     */
-    selectSuggestion(suggestion: SuggestedTeamNameDto): void {
-        this.teamNameInput.set(suggestion.teamName);
-    }
-
-    /**
-     * Select team name from dropdown list
-     */
     selectFromList(event: Event): void {
         const select = event.target as HTMLSelectElement;
         if (select.value) {
             this.teamNameInput.set(select.value);
-            select.selectedIndex = 0; // Reset to placeholder
+            select.selectedIndex = 0;
         }
     }
 
-    /**
-     * Submit registration form and register another team
-     * Form stays open, fields clear for next entry
-     */
     onRegisterAddAnother(): void {
-        const teamName = this.teamNameInput().trim();
-        const ageGroupId = this.selectedAgeGroupId();
-        const levelOfPlay = this.levelOfPlayInput().trim();
-
-        if (teamName && ageGroupId && levelOfPlay) {
-            this.addAnother.emit({ teamName, ageGroupId, levelOfPlay });
-            this.clearForm(); // Reset form for next entry
-        }
+        const data = this.getFormData();
+        if (!data) return;
+        this.addAnother.emit(data);
+        this.showSuccessMessage(`"${data.teamName}" registered!`);
+        // Exclude the just-used name immediately for the next iteration
+        const norm = this.normalizeName(data.teamName);
+        this.usedNames.update(curr => {
+            const next = new Set(curr);
+            next.add(norm);
+            return next;
+        });
+        this.clearInputs();
     }
 
-    /**
-     * Submit registration form
-     */
     onRegister(): void {
+        const data = this.getFormData();
+        if (!data) return;
+        this.register.emit(data);
+    }
+
+    onClose(): void {
+        this.clearForm();
+        // Reset session-specific exclusions
+        this.usedNames.set(new Set());
+        this.closed.emit();
+    }
+
+    private getFormData(): RegistrationData | null {
         const teamName = this.teamNameInput().trim();
         const ageGroupId = this.selectedAgeGroupId();
         const levelOfPlay = this.levelOfPlayInput().trim();
 
-        if (teamName && ageGroupId && levelOfPlay) {
-            this.register.emit({ teamName, ageGroupId, levelOfPlay });
+        if (!teamName || !ageGroupId || !levelOfPlay) {
+            return null;
         }
+
+        return { teamName, ageGroupId, levelOfPlay };
     }
 
-    /**
-     * Close modal
-     */
-    onClose(): void {
-        this.close.emit();
+    private getFilteredAgeGroups(): AgeGroupDto[] {
+        return this.ageGroups
+            .filter(ag => {
+                const name = ag.ageGroupName.toLowerCase();
+                if (name.startsWith('dropped')) return false;
+                if (name.startsWith('waitlist')) {
+                    return (this.toNumber(ag.maxTeams) - this.toNumber(ag.registeredCount)) > 0;
+                }
+                return true;
+            })
+            .sort((a, b) => this.sortAgeGroups(a, b));
     }
 
-    /**
-     * Clear form inputs
-     */
-    private clearForm(): void {
+    private sortAgeGroups(a: AgeGroupDto, b: AgeGroupDto): number {
+        const aName = a.ageGroupName.toLowerCase();
+        const bName = b.ageGroupName.toLowerCase();
+        const aFull = this.toNumber(a.registeredCount) >= this.toNumber(a.maxTeams) && !aName.startsWith('waitlist');
+        const bFull = this.toNumber(b.registeredCount) >= this.toNumber(b.maxTeams) && !bName.startsWith('waitlist');
+        const aWaitlist = aName.startsWith('waitlist');
+        const bWaitlist = bName.startsWith('waitlist');
+
+        if (aFull && !bFull) return 1;
+        if (!aFull && bFull) return -1;
+        if (aWaitlist && !bWaitlist) return 1;
+        if (!aWaitlist && bWaitlist) return -1;
+        return a.ageGroupName.localeCompare(b.ageGroupName);
+    }
+
+    private toNumber(value: number | string | undefined | null): number {
+        if (value === undefined || value === null) return 0;
+        return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
+    }
+
+    private normalizeName(value: string): string {
+        return value.trim().toLowerCase();
+    }
+
+    private clearInputs(): void {
         this.teamNameInput.set('');
         this.selectedAgeGroupId.set('');
         this.levelOfPlayInput.set('');
+    }
+
+    private clearForm(): void {
+        this.clearInputs();
+        this.successMessage.set('');
+    }
+
+    private showSuccessMessage(message: string): void {
+        this.successMessage.set(message);
     }
 }

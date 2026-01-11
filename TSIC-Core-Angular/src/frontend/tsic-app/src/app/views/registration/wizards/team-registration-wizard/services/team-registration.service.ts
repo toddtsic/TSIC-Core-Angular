@@ -8,8 +8,6 @@ import {
     RegisterTeamResponse,
 
     ClubRepClubDto,
-    AddClubToRepRequest,
-    AddClubToRepResponse,
 
     CheckExistingRegistrationsResponse
 } from '@core/api';

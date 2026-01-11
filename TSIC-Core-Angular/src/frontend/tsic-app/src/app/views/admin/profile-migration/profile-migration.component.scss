@@ -54,12 +54,3 @@
     width: min(960px, 96vw); // Component-specific: modal width
     max-height: 90vh;
 }
-
-.tsic-dialog .modal-content {
-    border: none;
-    border-radius: var(--radius-md);
-}
-
-.tsic-dialog::backdrop {
-    background: rgba(var(--bs-dark-rgb), 0.5);
-}
