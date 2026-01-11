@@ -41,8 +41,10 @@
                 <thead class="table-light">
                     <tr>
                         <th class="text-uppercase fw-bold small">Team</th>
-                        <th class="text-uppercase fw-bold small">Age Group</th>
-                        <th class="text-uppercase fw-bold small d-none d-md-table-cell">Level</th>
+                        <th class="text-uppercase fw-bold small"><span class="d-md-none">Age</span><span
+                                class="d-none d-md-inline">Age Group</span></th>
+                        <th class="text-uppercase fw-bold small lop-col"><span class="d-md-none">LOP</span><span
+                                class="d-none d-md-inline">Level</span></th>
                         <th class="text-uppercase fw-bold small text-end">Fee</th>
                         <th class="text-end"></th>
                     </tr>
@@ -52,7 +54,7 @@
                     <tr>
                         <td class="fw-semibold">{{ team.teamName }}</td>
                         <td>{{ team.ageGroupName }}</td>
-                        <td class="text-muted d-none d-md-table-cell">{{ team.levelOfPlay || 'N/A' }}</td>
+                        <td class="text-muted lop-col">{{ team.levelOfPlay || 'N/A' }}</td>
                         <td class="text-end">{{ team.feeTotal | currency }}</td>
                         <td class="text-end">
                             @if (team.paidTotal === 0) {
@@ -73,22 +75,22 @@
         <!-- Stats footer -->
         <div class="card-footer bg-light border-top">
             <div class="row g-2">
-                <div class="col-auto">
+                <div class="col-6 col-md-auto">
                     <span class="badge bg-primary-subtle text-primary">
                         <i class="bi bi-people-fill me-1"></i>Teams: {{ registeredTeams().length }}
                     </span>
                 </div>
-                <div class="col-auto d-none d-md-inline">
-                    <span class="badge bg-secondary-subtle text-secondary">
+                <div class="col-6 col-md-auto">
+                    <span class="badge bg-danger-subtle text-danger">
                         <i class="bi bi-receipt me-1"></i>Fees: {{ financialSummary().feesTotal | currency }}
                     </span>
                 </div>
-                <div class="col-auto d-none d-md-inline">
+                <div class="col-6 col-md-auto">
                     <span class="badge bg-success-subtle text-success">
                         <i class="bi bi-check-circle-fill me-1"></i>Paid: {{ financialSummary().paidTotal | currency }}
                     </span>
                 </div>
-                <div class="col-auto d-none d-md-inline">
+                <div class="col-6 col-md-auto">
                     <span class="badge bg-warning-subtle text-warning">
                         <i class="bi bi-exclamation-triangle-fill me-1"></i>Owes: {{ (financialSummary().feesTotal -
                         financialSummary().paidTotal) |

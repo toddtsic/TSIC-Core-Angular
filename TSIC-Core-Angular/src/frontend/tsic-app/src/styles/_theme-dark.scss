@@ -185,6 +185,12 @@
         /* Rose-200 - softer */
     }
 
+    /* Badge overrides for dark mode */
+    .badge.bg-secondary-subtle {
+        background-color: rgba(168, 162, 158, 0.25) !important;
+        color: #a8a29e !important;
+    }
+
     /* Year header overrides for team library */
     .year-header.bg-light {
         background-color: rgba(87, 83, 78, 0.4) !important;

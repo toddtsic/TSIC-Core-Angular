@@ -10,8 +10,48 @@
     padding-left: 1.6em;
 }
 
+/* Table extends to card edges */
+.table-responsive {
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+}
+
+.table-responsive .table th:first-child,
+.table-responsive .table td:first-child {
+    padding-left: 0.75rem;
+}
+
+.table-responsive .table th:last-child,
+.table-responsive .table td:last-child {
+    padding-right: 0.75rem;
+}
+
+/* Team name column - controlled width with wrapping */
+.table td:first-child {
+    max-width: 200px;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+/* Card footer alignment with table */
+.card-footer {
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
 /* Mobile optimizations */
 @media (max-width: 575.98px) {
+
+    /* Level of Play column - narrow on mobile only */
+    .lop-col {
+        width: 2.25rem;
+        max-width: 2.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
     /* Add Team button compact styling */
     .btn-primary {
@@ -21,7 +61,7 @@
 
     /* Reduce registered teams table font sizes */
     .table {
-        font-size: 0.75rem !important;
+        font-size: 0.6875rem !important;
 
         th {
             font-size: 0.6875rem !important;
@@ -41,6 +81,12 @@
             font-size: 0.6875rem !important;
             padding: 0.25rem 0.375rem !important;
         }
+    }
+
+    /* Compact footer badges for mobile */
+    .card-footer .badge {
+        font-size: 0.6875rem !important;
+        padding: 0.25rem 0.5rem !important;
     }
 
     /* Compact alert for mobile */
