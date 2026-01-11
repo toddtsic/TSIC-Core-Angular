@@ -196,6 +196,20 @@
         }
     }
 
+    /* Primary button - dark mode styling */
+    .btn-primary {
+        --bs-btn-color: var(--neutral-0);
+        --bs-btn-bg: var(--bs-primary);
+        --bs-btn-border-color: var(--bs-primary);
+        --bs-btn-hover-color: var(--neutral-0);
+        --bs-btn-hover-bg: var(--brand-primary-dark);
+        --bs-btn-hover-border-color: var(--brand-primary-dark);
+        --bs-btn-focus-shadow-rgb: var(--bs-primary-rgb);
+        --bs-btn-active-color: var(--neutral-0);
+        --bs-btn-active-bg: var(--brand-primary-dark);
+        --bs-btn-active-border-color: var(--brand-primary-dark);
+    }
+
     /* Disabled button state - ensure proper dark mode appearance */
     .btn-primary:disabled,
     .btn-primary.disabled {

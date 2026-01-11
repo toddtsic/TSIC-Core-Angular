@@ -2,11 +2,12 @@ import { Component, Input, Output, EventEmitter, computed, signal, effect } from
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { SuggestedTeamNameDto, AgeGroupDto } from '@core/api';
+import { NgbPopover } from '@ng-bootstrap/ng-bootstrap';
 
 @Component({
     selector: 'app-team-registration-modal',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, NgbPopover],
     templateUrl: './team-registration-modal.component.html',
     styleUrls: ['./team-registration-modal.component.scss']
 })
@@ -24,9 +25,6 @@ export class TeamRegistrationModalComponent {
     teamNameInput = signal<string>('');
     selectedAgeGroupId = signal<string>('');
     levelOfPlayInput = signal<string>('');
-
-    // Mobile popover state
-    showInfoPopover = signal<boolean>(false);
 
     // Filtered suggestions for autocomplete
     filteredSuggestions = computed(() => {
@@ -79,6 +77,8 @@ export class TeamRegistrationModalComponent {
             }
         });
     }
+
+    // Popover is managed by ng-bootstrap via template directive
 
     /**
      * Select a suggested team name

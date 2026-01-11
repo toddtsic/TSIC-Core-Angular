@@ -37,29 +37,9 @@
     }
 }
 
-/* Mobile popover alert */
-.alert-popover {
-    position: relative;
-    animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Close button for popover */
-.btn-close-sm {
-    width: 1.25rem;
-    height: 1.25rem;
-    background-size: 0.5rem;
+/* Bootstrap popover customization */
+.tsic-popover.popover {
+    max-width: 280px;
 }
 
 /* Team history label decoration */
