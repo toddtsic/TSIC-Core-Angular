@@ -76,9 +76,9 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get team by ID with Club, ClubTeam, and Agegroup navigation properties.
+    /// Get team by ID using FindAsync (loads from identity map).
     /// </summary>
-    Task<Teams?> GetTeamWithDetailsAsync(
+    Task<Teams?> GetTeamFromTeamId(
         Guid teamId,
         CancellationToken cancellationToken = default);
 

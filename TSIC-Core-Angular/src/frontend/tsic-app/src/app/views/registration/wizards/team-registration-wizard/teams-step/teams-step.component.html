@@ -18,179 +18,98 @@
 
 <!-- Main content -->
 <div class="teams-step-container">
-    <!-- Financial summary -->
-    <div class="alert border-0 shadow-sm mb-3" style="background-color: var(--bs-secondary-bg);">
-        <div class="row g-3 align-items-center">
-            <div class="col-6 col-md-3">
-                <small class="text-muted d-block"><i class="bi bi-people-fill me-1"></i>#Teams</small>
-                <div class="fw-bold fs-6 fs-lg-5">{{ registeredTeams().length }}</div>
-            </div>
-            <div class="col-6 col-md-3">
-                <small class="text-muted d-block"><i class="bi bi-receipt me-1"></i>Fees Total</small>
-                <div class="fw-bold fs-6 fs-lg-5">{{ feesTotal() | currency }}</div>
-            </div>
-            <div class="col-6 col-md-3">
-                <small class="text-muted d-block"><i class="bi bi-check-circle-fill me-1"></i>Paid Total</small>
-                <div class="fw-bold fs-6 fs-lg-5 text-success">{{ paidTotal() | currency }}</div>
-            </div>
-            <div class="col-6 col-md-3">
-                <small class="text-muted d-block"><i class="bi bi-exclamation-circle-fill me-1"></i>Balance Due</small>
-                <div class="fw-bold fs-6 fs-lg-5 text-danger">{{ balanceDue() | currency }}</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Inline Registration Form -->
-    <div class="card border shadow-sm mb-3">
-        <div class="card-header border-bottom bg-body">
-            <h5 class="mb-0 fw-semibold d-flex align-items-center">
-                <i class="bi bi-clipboard-plus me-2"></i>
-                Register Team for {{ eventName() }}
-            </h5>
-        </div>
-        <div class="card-body">
-            <!-- CRITICAL: Reuse Team Names Alert -->
-            @if (suggestedTeamNames().length > 0) {
-            <div class="alert alert-info border-start border-4 mb-3" role="alert"
-                style="border-left-color: var(--bs-primary) !important;">
-                <div>
-                    <h6 class="alert-heading fw-bold mb-2">⚠️ Important: Reuse Your Team Names</h6>
-                    <p class="mb-2">
-                        <strong>Select from your history below</strong> to maintain team continuity across events.
-                        Team names link rosters, payments, and historical data.
-                    </p>
-                    <p class="mb-0 small">
-                        <strong>Why this matters:</strong> Using the exact same name (e.g., "2029 White") lets
-                        families track their team's history
-                        and keeps your club organized. Only create new names for genuinely new teams.
-                    </p>
-                </div>
-            </div>
-            }
-
-            <form (ngSubmit)="registerTeam()">
-                <div class="row g-3">
-                    <!-- Team Name Input with Suggestions -->
-                    <div class="col-md-4">
-                        <label for="teamName" class="form-label fw-semibold">Team Name <span
-                                class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="teamName" [(ngModel)]="teamNameInput"
-                            [ngModelOptions]="{standalone: true}" placeholder="Enter team name" required>
-                        @if (suggestedTeamNames().length > 0) {
-                        <div class="mt-2">
-                            <label class="form-label small text-muted fw-semibold mb-1">
-                                <i class="bi bi-arrow-down-circle me-1"></i>Click a team from your history (last 2
-                                calendar years):
-                            </label>
-                            <select size="6" class="form-select team-history-select" (change)="selectFromList($event)">
-                                <option value="" disabled selected class="text-muted fst-italic">← Click any team name
-                                    to use it</option>
-                                @for (suggestion of suggestedTeamNames().slice(0, 6); track suggestion.teamName) {
-                                <option [value]="suggestion.teamName">
-                                    {{ suggestion.teamName }} (used {{ suggestion.usageCount }}x)
-                                </option>
-                                }
-                            </select>
-                        </div>
-                        }
-                    </div>
-
-                    <!-- Age Group Dropdown -->
-                    <div class="col-md-4">
-                        <label for="ageGroup" class="form-label fw-semibold">Age Group <span
-                                class="text-danger">*</span></label>
-                        <select class="form-select" id="ageGroup" [(ngModel)]="selectedAgeGroupId"
-                            [ngModelOptions]="{standalone: true}" required>
-                            <option value="">Select age group...</option>
-                            @for (ag of displayedAgeGroups(); track ag.ageGroupId) {
-                            @let isFull = ag.registeredCount >= ag.maxTeams;
-                            <option [value]="ag.ageGroupId.toString()" [disabled]="isFull">
-                                {{ ag.ageGroupName }} - {{ ag.teamFee | currency }}
-                                @if (isFull) { (Full) }
-                            </option>
-                            }
-                        </select>
-                    </div>
-
-                    <!-- Level of Play Input -->
-                    <div class="col-md-2">
-                        <label for="levelOfPlay" class="form-label fw-semibold">Level of Play <span
-                                class="text-danger">*</span></label>
-                        <select class="form-select" id="levelOfPlay" [(ngModel)]="levelOfPlayInput"
-                            [ngModelOptions]="{standalone: true}" required>
-                            <option value="">Select level...</option>
-                            @for (lop of availableLevelsOfPlay(); track lop.value) {
-                            <option [value]="lop.value">{{ lop.label }}</option>
-                            }
-                        </select>
-                    </div>
-
-                    <!-- Register Button -->
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100"
-                            [disabled]="isRegistering() || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
-                            @if (isRegistering()) {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
-                            }
-                            Register
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
+    <!-- Add Team Button -->
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">Registered Teams</h4>
+        <button type="button" class="btn btn-primary" (click)="openRegistrationModal()">
+            <i class="bi bi-plus-circle-fill me-2"></i>Add New Team
+        </button>
     </div>
 
     <!-- Registered Teams List -->
-    <div class="card border shadow-sm">
-        <div class="card-header border-bottom bg-body">
-            <h5 class="mb-0 fw-semibold d-flex align-items-center">
-                <i class="bi bi-list-check me-2"></i>
-                Registered Teams for {{ clubName() }}
-            </h5>
+    <div class="card border-0 shadow-sm">
+        @if (registeredTeams().length === 0) {
+        <div class="p-5 text-center text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+            <p class="mb-2 fw-semibold">No teams registered yet</p>
+            <p class="small mb-0">Click "Add New Team" to register your first team for this event.</p>
         </div>
-        <div class="card-body p-0">
-            @if (registeredTeams().length === 0) {
-            <div class="p-4 text-center text-muted">
-                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                <p class="mb-0">No teams registered yet.</p>
-                <p class="small">Use the form above to register your first team.</p>
-            </div>
-            } @else {
-            <div class="table-responsive">
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th class="text-uppercase fw-bold small">Team</th>
-                            <th class="text-uppercase fw-bold small">Age Group</th>
-                            <th class="text-uppercase fw-bold small d-none d-md-table-cell">Level</th>
-                            <th class="text-uppercase fw-bold small text-end">Fee</th>
-                            <th class="text-end"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (team of registeredTeams(); track team.teamId) {
-                        <tr>
-                            <td class="fw-semibold">{{ team.teamName }}</td>
-                            <td>{{ team.ageGroupName }}</td>
-                            <td class="text-muted d-none d-md-table-cell">{{ team.levelOfPlay || 'N/A' }}</td>
-                            <td class="text-end">{{ team.feeTotal | currency }}</td>
-                            <td class="text-end">
-                                @if (team.paidTotal === 0) {
-                                <button type="button" class="btn btn-sm btn-outline-danger"
-                                    (click)="unregisterTeam(team)" title="Remove from event">
-                                    <i class="bi bi-x-circle me-1"></i>Remove
-                                </button>
-                                } @else {
-                                <span class="badge bg-success">Paid</span>
-                                }
-                            </td>
-                        </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            }
+        } @else {
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-uppercase fw-bold small">Team</th>
+                        <th class="text-uppercase fw-bold small">Age Group</th>
+                        <th class="text-uppercase fw-bold small d-none d-md-table-cell">Level</th>
+                        <th class="text-uppercase fw-bold small text-end">Fee</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (team of registeredTeams(); track team.teamId) {
+                    <tr>
+                        <td class="fw-semibold">{{ team.teamName }}</td>
+                        <td>{{ team.ageGroupName }}</td>
+                        <td class="text-muted d-none d-md-table-cell">{{ team.levelOfPlay || 'N/A' }}</td>
+                        <td class="text-end">{{ team.feeTotal | currency }}</td>
+                        <td class="text-end">
+                            @if (team.paidTotal === 0) {
+                            <button type="button" class="btn btn-sm btn-outline-danger" (click)="unregisterTeam(team)"
+                                title="Remove from event">
+                                <i class="bi bi-x-circle me-1"></i>Remove
+                            </button>
+                            } @else {
+                            <span class="badge bg-success">Paid</span>
+                            }
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
         </div>
+
+        <!-- Stats footer -->
+        <div class="card-footer bg-light border-top">
+            <div class="row g-2">
+                <div class="col-auto">
+                    <span class="badge bg-primary-subtle text-primary">
+                        <i class="bi bi-people-fill me-1"></i>Teams: {{ registeredTeams().length }}
+                    </span>
+                </div>
+                <div class="col-auto d-none d-md-inline">
+                    <span class="badge bg-secondary-subtle text-secondary">
+                        <i class="bi bi-receipt me-1"></i>Fees: {{ feesTotal() | currency }}
+                    </span>
+                </div>
+                <div class="col-auto d-none d-md-inline">
+                    <span class="badge bg-success-subtle text-success">
+                        <i class="bi bi-check-circle-fill me-1"></i>Paid: {{ paidTotal() | currency }}
+                    </span>
+                </div>
+                <div class="col-auto d-none d-md-inline">
+                    <span class="badge bg-warning-subtle text-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Owes: {{ (feesTotal() - paidTotal()) |
+                        currency }}
+                    </span>
+                </div>
+                @if (balanceDue() > 0) {
+                <div class="col-auto">
+                    <span class="badge bg-danger-subtle text-danger">
+                        <i class="bi bi-exclamation-circle-fill me-1"></i>Due: {{ balanceDue() | currency }}
+                    </span>
+                </div>
+                }
+            </div>
+        </div>
+        }
     </div>
 </div>
+
+<!-- Registration Modal Component -->
+<app-team-registration-modal [isOpen]="showRegistrationModal()" [suggestedTeamNames]="suggestedTeamNames()"
+    [ageGroups]="ageGroups()" [availableLevelsOfPlay]="levelsOfPlayOptions()" [isRegistering]="isRegistering()"
+    (close)="closeRegistrationModal()" (register)="onTeamRegistered($event)">
+</app-team-registration-modal>
+
 }

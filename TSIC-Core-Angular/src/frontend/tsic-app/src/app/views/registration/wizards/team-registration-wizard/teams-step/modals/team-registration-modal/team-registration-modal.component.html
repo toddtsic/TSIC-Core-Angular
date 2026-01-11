@@ -1,0 +1,142 @@
+<!-- Registration Modal -->
+<div class="modal" [class.show]="isOpen" [attr.aria-hidden]="!isOpen" [style.display]="isOpen ? 'block' : 'none'">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="modal-title mb-0">Register a New Team</h5>
+                    <!-- Info icon (mobile only) -->
+                    @if (suggestedTeamNames.length > 0) {
+                    <button type="button" class="btn btn-sm btn-info-icon d-md-none"
+                        (click)="showInfoPopover.set(!showInfoPopover())"
+                        [attr.aria-label]="'Show important information about team naming'"
+                        [attr.aria-pressed]="showInfoPopover()">
+                        <i class="bi bi-info-circle-fill"></i>
+                    </button>
+                    }
+                </div>
+                <button type="button" class="btn-close" (click)="onClose()" aria-label="Close"></button>
+            </div>
+
+            <!-- Mobile popover (below header with close button) -->
+            @if (showInfoPopover() && suggestedTeamNames.length > 0) {
+            <div class="alert alert-info border-start border-4 mb-0 mx-3 mt-2 d-md-none alert-popover" role="alert">
+                <button type="button" class="btn-close btn-close-sm position-absolute top-0 end-0 m-2"
+                    (click)="showInfoPopover.set(false)"
+                    aria-label="Close information">
+                </button>
+                <div class="pe-3">
+                    <h6 class="alert-heading fw-bold mb-2">⚠️ Re-Use Your Team Names!</h6>
+                    <p class="mb-2 small">
+                        <strong>Try to re-use names from your registration history</strong>.
+                    </p>
+                    <p class="mb-0 small">
+                        <strong>Why:</strong> Keeps schedules consistent across events.
+                    </p>
+                </div>
+            </div>
+            }
+
+            <div class="modal-body" [attr.data-popover-open]="showInfoPopover()" (click)="showInfoPopover() && showInfoPopover.set(false)">
+                <!-- Desktop alert -->
+                @if (suggestedTeamNames.length > 0) {
+                <div class="alert alert-info border-start border-4 mb-3 d-none d-md-block" role="alert"
+                    style="border-left-color: var(--bs-primary) !important;">
+                    <div>
+                        <h6 class="alert-heading fw-bold mb-2">⚠️ Important: Re-Use Your Team Names When You Can!</h6>
+                        <p class="mb-2">
+                            <strong>When registering teams try to re-use their names from your club teams'
+                                registration history below</strong>.
+                        </p>
+                        <p class="mb-0 small">
+                            <strong>Why this matters:</strong> Using the exact same name (e.g., "2029 White") allows
+                            tracking a team's history and keeps schedules across events consistent.
+                        </p>
+                    </div>
+                </div>
+                }
+
+                <form (ngSubmit)="onRegister()">
+                    <div class="row g-3">
+                        <!-- Team Name Input with Suggestions -->
+                        <div class="col-md-6">
+                            <label for="teamName" class="form-label fw-semibold">Team Name <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="teamName" [ngModel]="teamNameInput()"
+                                (ngModelChange)="teamNameInput.set($event)" [ngModelOptions]="{standalone: true}"
+                                placeholder="Enter team name" required>
+                            @if (suggestedTeamNames.length > 0) {
+                            <div class="mt-2">
+                                <label class="form-label small fw-semibold mb-1 team-history-label">
+                                    Re-Use a team name from your club's registration history (last 2 calendar years)
+                                </label>
+                                <select size="6" class="form-select team-history-select"
+                                    (change)="selectFromList($event)">
+                                    <option value="" disabled selected class="text-muted fst-italic">← Click any
+                                        team name
+                                        to use it</option>
+                                    @for (suggestion of suggestedTeamNames.slice(0, 6); track suggestion.teamName) {
+                                    <option [value]="suggestion.teamName">
+                                        {{ suggestion.teamName }} (used {{ suggestion.usageCount }}x)
+                                    </option>
+                                    }
+                                </select>
+                            </div>
+                            }
+                        </div>
+
+                        <!-- Age Group Dropdown -->
+                        <div class="col-md-6">
+                            <label for="ageGroup" class="form-label fw-semibold">Age Group <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select" id="ageGroup" [ngModel]="selectedAgeGroupId()"
+                                (ngModelChange)="selectedAgeGroupId.set($event)" [ngModelOptions]="{standalone: true}"
+                                required>
+                                <option value="">Select age group...</option>
+                                @for (ag of filteredAgeGroups(); track ag.ageGroupId) {
+                                @let isFull = ag.registeredCount >= ag.maxTeams;
+                                <option [value]="ag.ageGroupId.toString()" [disabled]="isFull">
+                                    {{ ag.ageGroupName }} - {{ ag.teamFee | currency }}
+                                    @if (isFull) { (Full) }
+                                </option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Level of Play Input -->
+                        <div class="col-md-12">
+                            <label for="levelOfPlay" class="form-label fw-semibold">Level of Play <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select" id="levelOfPlay" [ngModel]="levelOfPlayInput()"
+                                (ngModelChange)="levelOfPlayInput.set($event)" [ngModelOptions]="{standalone: true}"
+                                required>
+                                <option value="">Select level...</option>
+                                @for (lop of availableLevelsOfPlay; track lop.value) {
+                                <option [value]="lop.value">{{ lop.label }}</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer mt-4">
+                        <button type="button" class="btn btn-secondary" (click)="onClose()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary"
+                            [disabled]="isRegistering || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
+                            @if (isRegistering) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Register Team
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal backdrop -->
+@if (isOpen) {
+<div class="modal-backdrop fade show"></div>
+}

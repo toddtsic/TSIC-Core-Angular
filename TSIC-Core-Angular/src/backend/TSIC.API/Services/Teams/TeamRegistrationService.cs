@@ -458,42 +458,17 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    public async Task<bool> UnregisterTeamFromEventAsync(Guid teamId, string userId)
+    public async Task<bool> UnregisterTeamFromEventAsync(Guid teamId)
     {
-        _logger.LogInformation("Unregistering team {TeamId} for user {UserId}", teamId, userId);
+        _logger.LogInformation("Unregistering team {TeamId}", teamId);
 
-        // Get club rep
-        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-
-        if (!myClubs.Any())
-        {
-            _logger.LogWarning("User {UserId} is not a club rep", userId);
-            throw new InvalidOperationException("User is not authorized as a club representative");
-        }
-
-        // Get team and verify ownership via ClubrepRegistration
-        var team = await _teams.GetTeamWithDetailsAsync(teamId);
+        // Get team
+        var team = await _teams.GetTeamFromTeamId(teamId);
 
         if (team == null)
         {
             _logger.LogWarning("Team not found: {TeamId}", teamId);
             throw new InvalidOperationException("Team registration not found");
-        }
-
-        // Verify team belongs to one of user's clubs via registration (check regId matches user's ClubReps)
-        if (team.ClubrepRegistration is null)
-        {
-            _logger.LogWarning("Team {TeamId} has no ClubrepRegistration", teamId);
-            throw new InvalidOperationException("Team registration is invalid");
-        }
-
-        var teamBelongsToUserClub = await _context.ClubReps
-            .AnyAsync(cr => myClubs.Any(c => c.ClubId == cr.ClubId) && cr.ClubRepUserId == team.ClubrepRegistration.UserId);
-
-        if (!teamBelongsToUserClub)
-        {
-            _logger.LogWarning("Team {TeamId} does not belong to user's club", teamId);
-            throw new InvalidOperationException("You can only unregister teams from your own club");
         }
 
         // Check if team has made payments

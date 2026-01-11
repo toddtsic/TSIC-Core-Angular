@@ -6,6 +6,8 @@ import { TeamRegistrationService } from '../services/team-registration.service';
 import type { SuggestedTeamNameDto, RegisteredTeamDto, AgeGroupDto } from '@core/api';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
+import { ToastService } from '@shared-ui/toast.service';
+import { TeamRegistrationModalComponent } from './modals/team-registration-modal/team-registration-modal.component';
 
 // Helper to safely convert number | string to number
 function toNumber(value: number | string | undefined | null): number {
@@ -29,7 +31,7 @@ function toNumber(value: number | string | undefined | null): number {
 @Component({
     selector: 'app-teams-step',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, TeamRegistrationModalComponent],
     templateUrl: './teams-step.component.html',
     styleUrls: ['./teams-step.component.scss']
 })
@@ -39,20 +41,24 @@ export class TeamsStepComponent implements OnInit {
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly route = inject(ActivatedRoute);
+    private readonly toast = inject(ToastService);
 
     // Dropdown options from JsonOptions
     availableGradYears = computed(() => this.fieldData.getOptionsForDataSource('gradYears'));
     availableLevelsOfPlay = computed(() => this.fieldData.getOptionsForDataSource('List_Lops'));
 
-    // Inline registration form state
-    teamNameInput = signal<string>('');
-    selectedAgeGroupId = signal<string>('');
-    levelOfPlayInput = signal<string>('');
+    // Modal component options
+    levelsOfPlayOptions = computed(() =>
+        this.availableLevelsOfPlay().map(opt => ({ value: opt.value, label: opt.label }))
+    );
 
     // Data signals (populated from service)
     suggestedTeamNames = signal<SuggestedTeamNameDto[]>([]);
     registeredTeams = signal<RegisteredTeamDto[]>([]);
     ageGroups = signal<AgeGroupDto[]>([]);
+
+    // Modal state - replaces accordion
+    showRegistrationModal = signal<boolean>(false);
 
     // Club metadata (clubName from parent wizard, clubId from API)
     clubName = input.required<string>();
@@ -133,13 +139,6 @@ export class TeamsStepComponent implements OnInit {
         return this.registeredTeams().reduce((sum, team) => sum + toNumber(team.owedTotal), 0);
     });
 
-    // Filtered suggestions for autocomplete (simple prefix match)
-    filteredSuggestions = computed(() => {
-        const input = this.teamNameInput().toLowerCase().trim();
-        if (!input) return this.suggestedTeamNames();
-        return this.suggestedTeamNames().filter(s => s.teamName.toLowerCase().includes(input));
-    });
-
     ngOnInit(): void {
         this.loadTeamsMetadata();
     }
@@ -188,46 +187,24 @@ export class TeamsStepComponent implements OnInit {
     }
 
     /**
-     * Select a suggested team name (autofill input)
+     * Open registration modal
      */
-    selectSuggestion(suggestion: SuggestedTeamNameDto): void {
-        this.teamNameInput.set(suggestion.teamName);
+    openRegistrationModal(): void {
+        this.showRegistrationModal.set(true);
     }
 
     /**
-     * Select team name from visible list
+     * Close registration modal
      */
-    selectFromList(event: Event): void {
-        const select = event.target as HTMLSelectElement;
-        if (select.value) {
-            this.teamNameInput.set(select.value);
-            select.selectedIndex = 0; // Reset to placeholder
-        }
+    closeRegistrationModal(): void {
+        this.showRegistrationModal.set(false);
     }
 
     /**
-     * Register a new team for this event
+     * Handle team registration from modal
      */
-    registerTeam(): void {
-        const teamName = this.teamNameInput().trim();
-        const ageGroupId = this.selectedAgeGroupId();
-        const levelOfPlay = this.levelOfPlayInput().trim();
+    onTeamRegistered(data: { teamName: string; ageGroupId: string; levelOfPlay: string }): void {
         const jobPath = this.jobContext.jobPath();
-
-        if (!teamName) {
-            this.errorMessage.set('Team name is required');
-            return;
-        }
-
-        if (!ageGroupId) {
-            this.errorMessage.set('Please select an age group');
-            return;
-        }
-
-        if (!levelOfPlay) {
-            this.errorMessage.set('Please select a level of play');
-            return;
-        }
 
         if (!jobPath) {
             this.errorMessage.set('Invalid event context');
@@ -242,19 +219,18 @@ export class TeamsStepComponent implements OnInit {
         this.isRegistering.set(true);
 
         this.teamService.registerTeamForEvent({
-            teamName,
+            teamName: data.teamName,
             jobPath,
-            ageGroupId,
-            levelOfPlay
+            ageGroupId: data.ageGroupId,
+            levelOfPlay: data.levelOfPlay
         }).subscribe({
             next: () => {
                 this.isRegistering.set(false);
-                // Clear form
-                this.teamNameInput.set('');
-                this.selectedAgeGroupId.set('');
-                this.levelOfPlayInput.set('');
-                // Reload without showing loading spinner
+                // Close modal (cleared automatically)
+                this.showRegistrationModal.set(false);
+                // Reload teams without showing loading spinner
                 this.loadTeamsMetadata(false);
+                this.toast.show('Team registered successfully', 'success');
             },
             error: (err) => {
                 console.error('Failed to register team:', err);
@@ -278,6 +254,7 @@ export class TeamsStepComponent implements OnInit {
 
         this.teamService.unregisterTeamFromEvent(team.teamId).subscribe({
             next: () => {
+                this.toast.show('Team unregistered successfully', 'success');
                 // Reload without showing loading spinner
                 this.loadTeamsMetadata(false);
             },

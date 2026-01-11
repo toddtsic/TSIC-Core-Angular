@@ -463,7 +463,7 @@ public class PaymentService : IPaymentService
             string? agegroupName = null;
             if (reg.AssignedTeamId.HasValue)
             {
-                var team = await _teams.GetTeamWithDetailsAsync(reg.AssignedTeamId.Value);
+                var team = await _teams.GetTeamFromTeamId(reg.AssignedTeamId.Value);
                 if (team != null)
                 {
                     teamName = team.TeamName ?? team.DisplayName;

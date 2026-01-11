@@ -79,14 +79,11 @@ public class TeamRepository : ITeamRepository
             .CountAsync(t => t.JobId == jobId && t.AgegroupId == agegroupId, cancellationToken);
     }
 
-    public async Task<Teams?> GetTeamWithDetailsAsync(
+    public async Task<Teams?> GetTeamFromTeamId(
         Guid teamId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Teams
-            .Where(t => t.TeamId == teamId)
-            .Include(t => t.Agegroup)
-            .SingleOrDefaultAsync(cancellationToken);
+        return await _context.Teams.FindAsync(new object[] { teamId }, cancellationToken);
     }
 
     public void Add(Teams team)

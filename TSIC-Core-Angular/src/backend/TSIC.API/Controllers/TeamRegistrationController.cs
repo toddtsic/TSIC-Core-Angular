@@ -192,30 +192,24 @@ public class TeamRegistrationController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> UnregisterTeam(Guid teamId)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { Message = "User not authenticated" });
-        }
-
         try
         {
-            await _teamRegistrationService.UnregisterTeamFromEventAsync(teamId, userId);
+            await _teamRegistrationService.UnregisterTeamFromEventAsync(teamId);
             return Ok(new { Success = true, Message = "Team unregistered successfully" });
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning(ex, "Unauthorized attempt to unregister team {TeamId} by user {UserId}", teamId, userId);
+            _logger.LogWarning(ex, "Unauthorized attempt to unregister team {TeamId}", teamId);
             return Unauthorized(new { Message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Failed to unregister team {TeamId} for user {UserId}", teamId, userId);
+            _logger.LogWarning(ex, "Failed to unregister team {TeamId}", teamId);
             return BadRequest(new { Message = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error unregistering team {TeamId} for user {UserId}", teamId, userId);
+            _logger.LogError(ex, "Error unregistering team {TeamId}", teamId);
             return StatusCode(500, new { Message = "An error occurred while unregistering the team" });
         }
     }

@@ -30,8 +30,9 @@ public interface ITeamRegistrationService
     /// <summary>
     /// Unregister a Team from the current event.
     /// Deletes the Teams record if it has no payments.
+    /// Authorization must be checked at controller level.
     /// </summary>
-    Task<bool> UnregisterTeamFromEventAsync(Guid teamId, string userId);
+    Task<bool> UnregisterTeamFromEventAsync(Guid teamId);
 
     /// <summary>
     /// Add a club to the user's rep account.
