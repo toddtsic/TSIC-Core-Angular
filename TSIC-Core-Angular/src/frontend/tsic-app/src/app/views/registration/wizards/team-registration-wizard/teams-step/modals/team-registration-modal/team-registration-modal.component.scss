@@ -20,6 +20,41 @@
     cursor: pointer;
 }
 
+/* Combobox styling */
+.combobox-input,
+.combobox-dropdown {
+    border-width: 1px !important;
+    box-shadow: none !important;
+}
+
+.combobox-container:focus-within .combobox-input,
+.combobox-container:focus-within .combobox-dropdown {
+    border-color: var(--bs-primary) !important;
+    border-width: 1px !important;
+    box-shadow: none !important;
+}
+
+.combobox-input {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-bottom: 0 !important;
+}
+
+.combobox-input:focus {
+    border-bottom: 0 !important;
+    outline: none !important;
+}
+
+.combobox-dropdown {
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+    margin-top: 0 !important;
+}
+
+.combobox-dropdown:focus {
+    outline: none !important;
+}
+
 /* Mobile optimizations */
 @media (max-width: 575.98px) {
 

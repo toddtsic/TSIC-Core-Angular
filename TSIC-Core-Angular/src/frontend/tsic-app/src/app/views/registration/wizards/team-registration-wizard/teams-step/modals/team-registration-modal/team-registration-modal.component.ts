@@ -30,6 +30,7 @@ export class TeamRegistrationModalComponent {
     @Input() ageGroups: AgeGroupDto[] = [];
     @Input() availableLevelsOfPlay: { value: string; label: string }[] = [];
     @Input() isRegistering = false;
+    @Input() clubName = '';
 
     @Output() closed = new EventEmitter<void>();
     @Output() register = new EventEmitter<RegistrationData>();
@@ -40,9 +41,43 @@ export class TeamRegistrationModalComponent {
     readonly selectedAgeGroupId = signal('');
     readonly levelOfPlayInput = signal('');
     readonly successMessage = signal('');
+    readonly specialCharBlocked = signal(false);
     private readonly usedNames = signal<Set<string>>(new Set());
 
     // Derived state for template
+    readonly teamNameWarning = computed(() => {
+        const teamName = this.teamNameInput().trim();
+        const clubName = this.clubName?.trim();
+
+        if (!teamName) {
+            return null;
+        }
+
+        // Check length first (max 30 characters recommended)
+        if (teamName.length > 30) {
+            return {
+                message: `Your team name may get cut off in schedules, consider shortening.`,
+                suggestedName: teamName.substring(0, 30)
+            };
+        }
+
+        if (!clubName) {
+            return null;
+        }
+
+        const cleaned = this.cleanTeamName(teamName, clubName);
+
+        // If cleaning removed something, show warning
+        if (cleaned !== teamName) {
+            return {
+                message: `Your team name appears to include club-specific text. Please remove club name/initials from the team name.`,
+                suggestedName: cleaned
+            };
+        }
+
+        return null;
+    });
+
     readonly filteredSuggestions = computed(() => {
         const input = this.teamNameInput().toLowerCase().trim();
         const exclude = this.usedNames();
@@ -64,6 +99,18 @@ export class TeamRegistrationModalComponent {
         if (select.value) {
             this.teamNameInput.set(select.value);
             select.selectedIndex = 0;
+        }
+    }
+
+    onTeamNameInput(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const sanitized = input.value.replace(/[^a-zA-Z0-9\s]/g, '');
+        if (input.value !== sanitized) {
+            input.value = sanitized;
+            this.teamNameInput.set(sanitized);
+            // Show feedback that special chars were blocked
+            this.specialCharBlocked.set(true);
+            setTimeout(() => this.specialCharBlocked.set(false), 3000);
         }
     }
 
@@ -157,5 +204,47 @@ export class TeamRegistrationModalComponent {
 
     private showSuccessMessage(message: string): void {
         this.successMessage.set(message);
+    }
+
+    /**
+     * Cleans team name by removing club-specific text.
+     * Ported from backend TeamRegistrationService.CleanTeamName
+     * 
+     * Removes:
+     * - Exact club name match (case-insensitive)
+     * - Individual words from club name (>2 chars, word boundaries)
+     * - Club initials pattern
+     */
+    private cleanTeamName(teamName: string, clubName: string): string {
+        let cleaned = teamName;
+
+        // Helper to escape regex special characters
+        const escapeRegex = (str: string): string => str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+
+        // Remove exact club name (case-insensitive)
+        const clubNamePattern = new RegExp(escapeRegex(clubName), 'gi');
+        cleaned = cleaned.replaceAll(clubNamePattern, '');
+
+        // Extract words from club name (>2 chars)
+        const clubWords = clubName
+            .split(/\s+/)
+            .map(w => w.trim())
+            .filter(w => w.length > 2);
+
+        // Remove individual words (word boundaries, case-insensitive)
+        for (const word of clubWords) {
+            const wordPattern = new RegExp(String.raw`\b${escapeRegex(word)}\b`, 'gi');
+            cleaned = cleaned.replaceAll(wordPattern, '');
+        }
+
+        // Remove initials pattern
+        if (clubWords.length > 0) {
+            const initials = clubWords.map(w => w[0]).join('');
+            const initialsPattern = new RegExp(String.raw`\b${escapeRegex(initials)}\b`, 'gi');
+            cleaned = cleaned.replaceAll(initialsPattern, '');
+        }
+
+        // Clean up whitespace and return
+        return cleaned.replaceAll(/\s+/g, ' ').trim();
     }
 }
