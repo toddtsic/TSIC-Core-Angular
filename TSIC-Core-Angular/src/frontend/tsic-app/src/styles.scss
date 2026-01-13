@@ -18,9 +18,11 @@
 @use 'styles/tables';
 @use 'styles/list-groups';
 @use 'styles/accordion';
+@use 'styles/syncfusion';
 
 /* External Dependencies */
 @import '../node_modules/bootstrap-icons/font/bootstrap-icons.css';
+@import '../node_modules/@syncfusion/ej2-bootstrap5-theme/styles/bootstrap5.css';
 
 /* 1. Backdrop: Translucent Veil with Depth */
 body.e-dark-mode .modal-backdrop.show {

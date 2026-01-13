@@ -27,6 +27,7 @@
     "@popperjs/core": "^2.11.8",
     "@syncfusion/ej2-angular-buttons": "31.2.3",
     "@syncfusion/ej2-angular-dropdowns": "31.2.4",
+    "@syncfusion/ej2-angular-grids": "^31.2.4",
     "@syncfusion/ej2-angular-inputs": "31.2.4",
     "@syncfusion/ej2-angular-layouts": "31.2.2",
     "@syncfusion/ej2-angular-navigations": "31.2.3",

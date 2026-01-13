@@ -1,7 +1,8 @@
-import { Component, OnInit, computed, inject, input, signal, output } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal, output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { GridAllModule, SortService, FilterService, ToolbarService, ExcelExportService, PageService } from '@syncfusion/ej2-angular-grids';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { TeamPaymentService } from '../services/team-payment.service';
 import type { SuggestedTeamNameDto, RegisteredTeamDto, AgeGroupDto } from '@core/api';
@@ -37,7 +38,9 @@ interface FinancialSummary {
 @Component({
     selector: 'app-teams-step',
     standalone: true,
-    imports: [CommonModule, FormsModule, TeamRegistrationModalComponent],
+    imports: [CommonModule, FormsModule, GridAllModule, TeamRegistrationModalComponent],
+    schemas: [CUSTOM_ELEMENTS_SCHEMA],
+    providers: [SortService, FilterService, ToolbarService, ExcelExportService, PageService],
     templateUrl: './teams-step.component.html',
     styleUrls: ['./teams-step.component.scss']
 })

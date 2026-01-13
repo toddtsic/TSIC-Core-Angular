@@ -37,68 +37,127 @@
         </div>
         } @else {
         <div class="table-responsive">
-            <table class="table table-sm mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="text-uppercase fw-bold small" style="width: 40px;">#</th>
-                        <th class="text-uppercase fw-bold small">Team</th>
-                        <th class="text-uppercase fw-bold small"><span class="d-md-none">Age</span><span
-                                class="d-none d-md-inline">Age Group</span></th>
-                        <th class="text-uppercase fw-bold small lop-col"><span class="d-md-none">LOP</span><span
-                                class="d-none d-md-inline">Level</span></th>
-                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 100px;">Reg Date</th>
-                        <th class="text-uppercase fw-bold small text-end" style="width: 95px;">Fee</th>
-                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 95px;">Paid</th>
-                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 95px;">Deposit Due</th>
-                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 110px;">Additional Due</th>
-                        <th class="text-end d-md-none"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (team of registeredTeams(); track team.teamId; let idx = $index) {
-                    <tr>
-                        <td class="text-muted">{{ idx + 1 }}</td>
-                        <td class="fw-semibold">{{ team.teamName }}</td>
-                        <td>{{ team.ageGroupName }}</td>
-                        <td class="text-muted lop-col">{{ team.levelOfPlay || 'N/A' }}</td>
-                        <td class="text-end text-muted d-none d-md-table-cell">{{ team.registrationTs | date:'M/d/yy' }}</td>
-                        <td class="text-end text-warning">{{ team.feeTotal | currency }}</td>
-                        <td class="text-end text-success d-none d-md-table-cell">{{ team.paidTotal | currency }}</td>
-                        <td class="text-end d-none d-md-table-cell" [class.text-warning]="team.depositDue > 0" [class.text-muted]="team.depositDue === 0">
-                            {{ team.depositDue | currency }}
-                        </td>
-                        <td class="text-end d-none d-md-table-cell" [class.text-warning]="team.additionalDue > 0" [class.text-muted]="team.additionalDue === 0">
-                            {{ team.additionalDue | currency }}
-                        </td>
-                        <td class="text-end d-md-none">
-                            @if (team.paidTotal === 0) {
-                            <button type="button" class="btn btn-sm btn-outline-danger" (click)="unregisterTeam(team)"
-                                title="Remove from event">
-                                <i class="bi bi-x-circle me-1"></i>Remove
-                            </button>
-                            } @else {
-                            <span class="badge bg-success">Paid</span>
-                            }
-                        </td>
-                    </tr>
-                    }
-                </tbody>
-                <tfoot class="table-light">
-                    <tr class="fw-bold d-none d-md-table-row">
-                        <td colspan="1" class="text-muted">{{ registeredTeams().length }}</td>
-                        <td colspan="3"></td>
-                        <td></td>
-                        <td class="text-end text-warning">{{ financialSummary().feesTotal | currency }}</td>
-                        <td class="text-end text-success">{{ financialSummary().paidTotal | currency }}</td>
-                        <td class="text-end" [class.text-warning]="financialSummary().depositDueTotal > 0" [class.text-muted]="financialSummary().depositDueTotal === 0">
-                            {{ financialSummary().depositDueTotal | currency }}
-                        </td>
-                        <td class="text-end" [class.text-warning]="financialSummary().additionalDueTotal > 0" [class.text-muted]="financialSummary().additionalDueTotal === 0">
-                            {{ financialSummary().additionalDueTotal | currency }}
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
+            <ejs-grid
+                [dataSource]="registeredTeams()"
+                [allowSorting]="true"
+                [allowFiltering]="false"
+                [allowExcelExport]="true"
+                [toolbar]="['ExcelExport']"
+                height="auto"
+                [enableHover]="true"
+                [enableAltRow]="true"
+                [rowHeight]="40"
+                gridLines="Both">
+                
+                <!-- Row Number Column -->
+                <e-column field="rowNumber" headerText="#" width="60" textAlign="Center">
+                    <ng-template #template let-data let-index="index">
+                        <span class="text-muted">{{ index + 1 }}</span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Team Name Column -->
+                <e-column field="teamName" headerText="Team" width="180" [customAttributes]="{class: 'fw-semibold'}"></e-column>
+                
+                <!-- Age Group Column -->
+                <e-column field="ageGroupName" headerText="Age Group" width="150">
+                    <ng-template #headerTemplate>
+                        <span class="d-md-none">Age</span><span class="d-none d-md-inline">Age Group</span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Level of Play Column -->
+                <e-column field="levelOfPlay" headerText="Level" width="120" [hideAtMedia]="'(min-width: 768px) and (max-width: 991px)'">
+                    <ng-template #headerTemplate>
+                        <span class="d-md-none">LOP</span><span class="d-none d-md-inline">Level</span>
+                    </ng-template>
+                    <ng-template #template let-data>
+                        <span class="text-muted lop-col">{{ data.levelOfPlay || 'N/A' }}</span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Registration Date Column (Hidden on Mobile) -->
+                <e-column field="registrationTs" headerText="Reg Date" width="110" textAlign="Right" format="M/d/yy" type="date" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                    <ng-template #template let-data>
+                        <span class="text-muted">{{ data.registrationTs | date:'M/d/yy' }}</span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Fee Column -->
+                <e-column field="feeTotal" headerText="Fee" width="105" textAlign="Right" format="C2">
+                    <ng-template #template let-data>
+                        <span class="text-warning">{{ data.feeTotal | currency }}</span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Paid Column (Hidden on Mobile) -->
+                <e-column field="paidTotal" headerText="Paid" width="105" textAlign="Right" format="C2" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                    <ng-template #template let-data>
+                        <span class="text-success">{{ data.paidTotal | currency }}</span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Deposit Due Column (Hidden on Mobile) -->
+                <e-column field="depositDue" headerText="Deposit Due" width="115" textAlign="Right" format="C2" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                    <ng-template #template let-data>
+                        <span [class.text-warning]="data.depositDue > 0" [class.text-muted]="data.depositDue === 0">
+                            {{ data.depositDue | currency }}
+                        </span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Additional Due Column (Hidden on Mobile) -->
+                <e-column field="additionalDue" headerText="Additional Due" width="125" textAlign="Right" format="C2" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                    <ng-template #template let-data>
+                        <span [class.text-warning]="data.additionalDue > 0" [class.text-muted]="data.additionalDue === 0">
+                            {{ data.additionalDue | currency }}
+                        </span>
+                    </ng-template>
+                </e-column>
+                
+                <!-- Actions Column (Mobile Only) -->
+                <e-column headerText="Actions" width="130" textAlign="Right" [visible]="false" [hideAtMedia]="'(min-width: 768px)'">
+                    <ng-template #template let-data>
+                        @if (data.paidTotal === 0) {
+                        <button type="button" class="btn btn-sm btn-outline-danger" (click)="unregisterTeam(data)" title="Remove from event">
+                            <i class="bi bi-x-circle me-1"></i>Remove
+                        </button>
+                        } @else {
+                        <span class="badge bg-success">Paid</span>
+                        }
+                    </ng-template>
+                </e-column>
+                
+                <!-- Aggregates for Footer Totals -->
+                <e-aggregates>
+                    <e-aggregate>
+                        <e-columns>
+                            <e-column field="teamName" type="Count" [footerTemplate]="countTemplate"></e-column>
+                            <e-column field="feeTotal" type="Sum" [footerTemplate]="feeTotalTemplate"></e-column>
+                            <e-column field="paidTotal" type="Sum" [footerTemplate]="paidTotalTemplate"></e-column>
+                            <e-column field="depositDue" type="Sum" [footerTemplate]="depositDueTemplate"></e-column>
+                            <e-column field="additionalDue" type="Sum" [footerTemplate]="additionalDueTemplate"></e-column>
+                        </e-columns>
+                    </e-aggregate>
+                </e-aggregates>
+            </ejs-grid>
+            
+            <!-- Footer Templates -->
+            <ng-template #countTemplate let-data>
+                <span class="text-muted">{{ data.Count }}</span>
+            </ng-template>
+            <ng-template #feeTotalTemplate let-data>
+                <span class="text-warning">{{ data.Sum | currency }}</span>
+            </ng-template>
+            <ng-template #paidTotalTemplate let-data>
+                <span class="text-success">{{ data.Sum | currency }}</span>
+            </ng-template>
+            <ng-template #depositDueTemplate let-data>
+                <span [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
+            </ng-template>
+            <ng-template #additionalDueTemplate let-data>
+                <span [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
+            </ng-template>
         </div>
 
         <!-- Stats footer (mobile only) -->
