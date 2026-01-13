@@ -109,7 +109,10 @@ public class TeamRegistrationController : ControllerBase
     [ProducesResponseType(typeof(TeamsMetadataResponse), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> GetMetadata([FromQuery] string jobPath, [FromQuery] string clubName)
+    public async Task<IActionResult> GetMetadata(
+        [FromQuery] string jobPath, 
+        [FromQuery] string clubName, 
+        [FromQuery] bool bPayBalanceDue = false)
     {
         if (string.IsNullOrWhiteSpace(jobPath))
         {
@@ -129,7 +132,7 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            var response = await _teamRegistrationService.GetTeamsMetadataAsync(jobPath, userId, clubName);
+            var response = await _teamRegistrationService.GetTeamsMetadataAsync(jobPath, userId, clubName, bPayBalanceDue);
             return Ok(response);
         }
         catch (InvalidOperationException ex)
@@ -180,6 +183,32 @@ public class TeamRegistrationController : ControllerBase
         {
             _logger.LogError(ex, "Error registering team for user {UserId}", userId);
             return StatusCode(500, new { Message = "An error occurred while registering the team" });
+        }
+    }
+
+    /// <summary>
+    /// Accept the refund policy for club rep registration.
+    /// </summary>
+    [HttpPost("accept-refund-policy")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> AcceptRefundPolicy()
+    {
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return Unauthorized(new { Message = "Registration ID not found in token" });
+        }
+
+        try
+        {
+            await _teamRegistrationService.AcceptRefundPolicyAsync(regId);
+            return Ok(new { Message = "Refund policy acceptance recorded" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error accepting refund policy for registration {RegId}", regId);
+            return StatusCode(500, new { Message = "An error occurred while recording acceptance" });
         }
     }
 

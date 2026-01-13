@@ -40,23 +40,37 @@
             <table class="table table-sm mb-0">
                 <thead class="table-light">
                     <tr>
+                        <th class="text-uppercase fw-bold small" style="width: 40px;">#</th>
                         <th class="text-uppercase fw-bold small">Team</th>
                         <th class="text-uppercase fw-bold small"><span class="d-md-none">Age</span><span
                                 class="d-none d-md-inline">Age Group</span></th>
                         <th class="text-uppercase fw-bold small lop-col"><span class="d-md-none">LOP</span><span
                                 class="d-none d-md-inline">Level</span></th>
-                        <th class="text-uppercase fw-bold small text-end">Fee</th>
-                        <th class="text-end"></th>
+                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 100px;">Reg Date</th>
+                        <th class="text-uppercase fw-bold small text-end" style="width: 95px;">Fee</th>
+                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 95px;">Paid</th>
+                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 95px;">Deposit Due</th>
+                        <th class="text-uppercase fw-bold small text-end d-none d-md-table-cell" style="width: 110px;">Additional Due</th>
+                        <th class="text-end d-md-none"></th>
                     </tr>
                 </thead>
                 <tbody>
-                    @for (team of registeredTeams(); track team.teamId) {
+                    @for (team of registeredTeams(); track team.teamId; let idx = $index) {
                     <tr>
+                        <td class="text-muted">{{ idx + 1 }}</td>
                         <td class="fw-semibold">{{ team.teamName }}</td>
                         <td>{{ team.ageGroupName }}</td>
                         <td class="text-muted lop-col">{{ team.levelOfPlay || 'N/A' }}</td>
-                        <td class="text-end">{{ team.feeTotal | currency }}</td>
-                        <td class="text-end">
+                        <td class="text-end text-muted d-none d-md-table-cell">{{ team.registrationTs | date:'M/d/yy' }}</td>
+                        <td class="text-end text-warning">{{ team.feeTotal | currency }}</td>
+                        <td class="text-end text-success d-none d-md-table-cell">{{ team.paidTotal | currency }}</td>
+                        <td class="text-end d-none d-md-table-cell" [class.text-warning]="team.depositDue > 0" [class.text-muted]="team.depositDue === 0">
+                            {{ team.depositDue | currency }}
+                        </td>
+                        <td class="text-end d-none d-md-table-cell" [class.text-warning]="team.additionalDue > 0" [class.text-muted]="team.additionalDue === 0">
+                            {{ team.additionalDue | currency }}
+                        </td>
+                        <td class="text-end d-md-none">
                             @if (team.paidTotal === 0) {
                             <button type="button" class="btn btn-sm btn-outline-danger" (click)="unregisterTeam(team)"
                                 title="Remove from event">
@@ -69,11 +83,26 @@
                     </tr>
                     }
                 </tbody>
+                <tfoot class="table-light">
+                    <tr class="fw-bold d-none d-md-table-row">
+                        <td colspan="1" class="text-muted">{{ registeredTeams().length }}</td>
+                        <td colspan="3"></td>
+                        <td></td>
+                        <td class="text-end text-warning">{{ financialSummary().feesTotal | currency }}</td>
+                        <td class="text-end text-success">{{ financialSummary().paidTotal | currency }}</td>
+                        <td class="text-end" [class.text-warning]="financialSummary().depositDueTotal > 0" [class.text-muted]="financialSummary().depositDueTotal === 0">
+                            {{ financialSummary().depositDueTotal | currency }}
+                        </td>
+                        <td class="text-end" [class.text-warning]="financialSummary().additionalDueTotal > 0" [class.text-muted]="financialSummary().additionalDueTotal === 0">
+                            {{ financialSummary().additionalDueTotal | currency }}
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
 
-        <!-- Stats footer -->
-        <div class="card-footer bg-light border-top">
+        <!-- Stats footer (mobile only) -->
+        <div class="card-footer bg-light border-top d-md-none">
             <div class="row g-2">
                 <div class="col-6 col-md-auto">
                     <span class="badge bg-primary-subtle text-primary">
@@ -91,10 +120,13 @@
                     </span>
                 </div>
                 <div class="col-6 col-md-auto">
+                    <span class="badge bg-info-subtle text-info">
+                        <i class="bi bi-coin me-1"></i>Deposit: {{ financialSummary().depositDueTotal | currency }}
+                    </span>
+                </div>
+                <div class="col-6 col-md-auto">
                     <span class="badge bg-warning-subtle text-warning">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Owes: {{ (financialSummary().feesTotal -
-                        financialSummary().paidTotal) |
-                        currency }}
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Balance: {{ financialSummary().additionalDueTotal | currency }}
                     </span>
                 </div>
                 @if (financialSummary().balanceDue > 0) {
@@ -109,6 +141,60 @@
         </div>
         }
     </div>
+
+    <!-- Refund Policy Section -->
+    @if (refundPolicyHtml()) {
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-warning-subtle">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Refund Policy
+            </h5>
+        </div>
+        <div class="card-body">
+            <!-- Policy Content (scrollable) -->
+            <div class="policy-content mb-3" [innerHTML]="refundPolicyHtml()"></div>
+
+            <!-- Acceptance Checkbox -->
+            <div class="form-check">
+                <input 
+                    type="checkbox" 
+                    class="form-check-input" 
+                    id="refundPolicyCheckbox"
+                    [checked]="refundPolicyAccepted()"
+                    [disabled]="refundPolicyLocked()"
+                    [class.is-invalid]="attemptedProceed() && !refundPolicyAccepted()"
+                    (change)="onRefundPolicyAcceptanceChange($any($event.target).checked)"
+                />
+                <label class="form-check-label fw-semibold" for="refundPolicyCheckbox">
+                    I have read, understood, and accept the terms of the Refund Policy
+                    @if (refundPolicyLocked()) {
+                    <span class="badge bg-secondary ms-2">Already Accepted</span>
+                    }
+                </label>
+                @if (attemptedProceed() && !refundPolicyAccepted()) {
+                <div class="invalid-feedback d-block">
+                    You must accept the Refund Policy to proceed to payment.
+                </div>
+                }
+            </div>
+        </div>
+    </div>
+    }
+
+    <!-- Proceed to Payment Button (only show if teams registered) -->
+    @if (registeredTeams().length > 0) {
+    <div class="d-grid gap-2 mt-4">
+        <button type="button" class="btn btn-primary btn-lg" 
+                (click)="proceedToPayment()"
+                [disabled]="refundPolicyHtml() && !refundPolicyAccepted()">
+            <i class="bi bi-credit-card-fill me-2"></i>
+            Proceed to Payment
+            @if (financialSummary().balanceDue > 0) {
+            <span>({{ financialSummary().balanceDue | currency }} due)</span>
+            }
+        </button>
+    </div>
+    }
 </div>
 
 <!-- Registration Modal Component -->

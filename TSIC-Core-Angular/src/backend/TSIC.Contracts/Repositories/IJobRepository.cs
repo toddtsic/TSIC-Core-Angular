@@ -39,6 +39,7 @@ public record JobMetadataDto(
     string? PlayerRegCovid19Waiver,
     string? PlayerRegRefundPolicy,
     bool OfferPlayerRegsaverInsurance,
+    bool BOfferTeamRegsaverInsurance,
     bool? AdnArb,
     int? AdnArbBillingOccurences,
     int? AdnArbIntervalLength,
@@ -107,7 +108,8 @@ public interface IJobRepository
 
 public record InsuranceOfferInfo(
     string? JobName,
-    bool BOfferPlayerRegsaverInsurance);
+    bool BOfferPlayerRegsaverInsurance,
+    bool BOfferTeamRegsaverInsurance);
 
 public record JobConfirmationInfo(
     Guid JobId,

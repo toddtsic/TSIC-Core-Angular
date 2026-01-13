@@ -64,7 +64,13 @@ public class TeamRepository : ITeamRepository
                 tr.Team.FeeProcessing ?? 0,
                 (tr.Team.FeeBase ?? 0) + (tr.Team.FeeProcessing ?? 0),
                 tr.Team.PaidTotal ?? 0,
-                ((tr.Team.FeeBase ?? 0) + (tr.Team.FeeProcessing ?? 0)) - (tr.Team.PaidTotal ?? 0)
+                ((tr.Team.FeeBase ?? 0) + (tr.Team.FeeProcessing ?? 0)) - (tr.Team.PaidTotal ?? 0),
+                // DepositDue: RosterFee - PaidTotal (0 if already paid deposit)
+                (tr.Team.PaidTotal >= tr.Team.Agegroup.RosterFee) ? 0 : (tr.Team.Agegroup.RosterFee ?? 0) - (tr.Team.PaidTotal ?? 0),
+                // AdditionalDue: TeamFee (0 if already fully paid or if full payment required upfront)
+                (tr.Team.OwedTotal == 0 && (tr.Team.Job.BTeamsFullPaymentRequired ?? false)) ? 0 : (tr.Team.Agegroup.TeamFee ?? 0),
+                tr.Team.Createdate,
+                tr.Registration.BWaiverSigned3
             ))
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -165,6 +171,41 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams
             .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
             .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty, cancellationToken);
+    }
+
+    public async Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForPaymentAsync(
+        Guid jobId,
+        Guid clubRepRegId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegId)
+            .Where(t => t.Active == true)
+            .Where(t => (t.FeeTotal ?? 0) > 0)
+            .Where(t => string.IsNullOrEmpty(t.ViPolicyId))
+            .Include(t => t.Agegroup)
+            .Include(t => t.Job)
+            .Include(t => t.ClubrepRegistration)
+            .Select(t => new RegisteredTeamInfo(
+                t.TeamId,
+                t.TeamName ?? string.Empty,
+                t.AgegroupId,
+                t.Agegroup.AgegroupName ?? string.Empty,
+                t.LevelOfPlay,
+                t.FeeBase ?? 0,
+                t.FeeProcessing ?? 0,
+                t.FeeTotal ?? 0,
+                t.PaidTotal ?? 0,
+                t.OwedTotal ?? 0,
+                // DepositDue: RosterFee - PaidTotal (0 if already paid deposit)
+                (t.PaidTotal >= t.Agegroup.RosterFee) ? 0 : (t.Agegroup.RosterFee ?? 0) - (t.PaidTotal ?? 0),
+                // AdditionalDue: TeamFee (0 if already fully paid or if full payment required upfront)
+                (t.OwedTotal == 0 && (t.Job.BTeamsFullPaymentRequired ?? false)) ? 0 : (t.Agegroup.TeamFee ?? 0),
+                t.Createdate,
+                t.ClubrepRegistration.BWaiverSigned3
+            ))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
     }
 }
 

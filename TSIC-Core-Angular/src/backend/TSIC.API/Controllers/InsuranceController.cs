@@ -57,4 +57,41 @@ public class InsuranceController : ControllerBase
 
         return Ok(new InsurancePurchaseResponseDto { Success = true, Policies = res.Policies });
     }
+
+    [HttpGet("team/pre-submit")]
+    [Authorize]
+    [ProducesResponseType(typeof(PreSubmitTeamInsuranceDto), 200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> GetTeamPreSubmit([FromQuery] Guid jobId, [FromQuery] Guid clubRepRegId)
+    {
+        var result = await _viService.BuildTeamOfferAsync(jobId, clubRepRegId);
+        return Ok(result);
+    }
+
+    [HttpPost("team/purchase")]
+    [Authorize]
+    [ProducesResponseType(typeof(TeamInsurancePurchaseResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> PurchaseTeam([FromBody] TeamInsurancePurchaseRequestDto request, CancellationToken ct)
+    {
+        if (request == null)
+            return BadRequest(new { message = "Invalid team insurance purchase request" });
+
+        var res = await _viService.PurchaseTeamPoliciesAsync(
+            request.JobId,
+            request.ClubRepRegId,
+            request.TeamIds,
+            request.QuoteIds,
+            token: null,
+            card: request.CreditCard,
+            ct: ct);
+
+        if (!res.Success)
+        {
+            return BadRequest(new TeamInsurancePurchaseResponseDto { Success = false, Error = res.Error });
+        }
+
+        return Ok(new TeamInsurancePurchaseResponseDto { Success = true, Policies = res.Policies });
+    }
 }

@@ -13,5 +13,11 @@ export type RegisteredTeamDto = {
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;
+    depositDue: number;
+    additionalDue: number;
+    registrationTs: string;
+    bWaiverSigned3: boolean;
+    ccOwedTotal: number;
+    ckOwedTotal: number;
 };
 

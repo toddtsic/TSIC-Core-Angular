@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using TSIC.Contracts.Dtos; // CreditCardInfo
 using TSIC.API.Services.Shared.VerticalInsure;
+using TSIC.Contracts.Repositories;
 using TSIC.Infrastructure.Repositories;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos.VerticalInsure;
@@ -78,6 +79,8 @@ public class VerticalInsureServiceCardTokenTests
         var logger = new Mock<ILogger<VerticalInsureService>>().Object;
         var teamLookup = new Mock<ITeamLookupService>();
         teamLookup.Setup(t => t.ResolvePerRegistrantAsync(It.IsAny<Guid>())).ReturnsAsync((Fee: 50m, Deposit: 0m));
+        var teamRepo = new Mock<ITeamRepository>().Object;
+        var userRepo = new Mock<IUserRepository>().Object;
         var mockOptions = Options.Create(new VerticalInsureSettings
         {
             DevClientId = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U",
@@ -86,7 +89,7 @@ public class VerticalInsureServiceCardTokenTests
             ProdSecret = "live_PP6xn8fImrpBNj4YqTU8vlAwaqQ7Q8oSRxcVQkf419saU4OuQVCXQSuP4yUNyBMCwilStIsWDaaZnMlfJ1HqVJPBWydR5qE3yNr4HxBVr7rCYxl4ofgIesZbsAS0TfED"
         });
 
-        return new VerticalInsureService(jobRepo, regRepo, familyRepo, env, logger, teamLookup.Object, mockOptions, factory.Object);
+        return new VerticalInsureService(jobRepo, regRepo, familyRepo, teamRepo, userRepo, env, logger, teamLookup.Object, mockOptions, factory.Object);
     }
 
     [Fact]

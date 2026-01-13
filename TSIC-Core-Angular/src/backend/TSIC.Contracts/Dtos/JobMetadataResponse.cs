@@ -23,6 +23,7 @@ public class JobMetadataResponse
     public string? PlayerRegCovid19Waiver { get; set; }
     public string? PlayerRegRefundPolicy { get; set; }
     public bool OfferPlayerRegsaverInsurance { get; set; }
+    public bool OfferTeamRegsaverInsurance { get; set; }
     // Payment schedule (ALLOWPIF removed; UI derives options from scenarios)
     public bool? AdnArb { get; set; }
     public int? AdnArbBillingOccurences { get; set; }

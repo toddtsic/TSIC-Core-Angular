@@ -95,6 +95,7 @@ public class JobRepository : IJobRepository
                 jdo.Job.PlayerRegCovid19Waiver,
                 jdo.Job.PlayerRegRefundPolicy,
                 jdo.Job.BOfferPlayerRegsaverInsurance ?? false,
+                jdo.Job.BOfferTeamRegsaverInsurance ?? false,
                 jdo.Job.AdnArb,
                 jdo.Job.AdnArbbillingOccurences,
                 jdo.Job.AdnArbintervalLength,
@@ -110,7 +111,8 @@ public class JobRepository : IJobRepository
             .Where(j => j.JobId == jobId)
             .Select(j => new InsuranceOfferInfo(
                 j.JobName,
-                j.BOfferPlayerRegsaverInsurance ?? false))
+                j.BOfferPlayerRegsaverInsurance ?? false,
+                j.BOfferTeamRegsaverInsurance ?? false))
             .SingleOrDefaultAsync(cancellationToken);
     }
 

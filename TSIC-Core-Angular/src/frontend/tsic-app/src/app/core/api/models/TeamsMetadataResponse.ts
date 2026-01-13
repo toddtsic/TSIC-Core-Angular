@@ -11,5 +11,11 @@ export type TeamsMetadataResponse = {
     suggestedTeamNames: Array<SuggestedTeamNameDto>;
     registeredTeams: Array<RegisteredTeamDto>;
     ageGroups: Array<AgeGroupDto>;
+    bPayBalanceDue: boolean;
+    bTeamsFullPaymentRequired: boolean;
+    playerRegRefundPolicy?: string | null;
+    paymentMethodsAllowedCode: number;
+    bAddProcessingFees: boolean;
+    bApplyProcessingFeesToTeamDeposit: boolean;
 };
 

@@ -188,13 +188,22 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName)
+    public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName, bool bPayBalanceDue = false)
     {
-        _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}", jobPath, userId, clubName);
+        _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}, bPayBalanceDue: {BPayBalanceDue}", 
+            jobPath, userId, clubName, bPayBalanceDue);
 
         var job = await _jobs.Query()
             .Where(j => j.JobPath == jobPath)
-            .Select(j => new { j.JobId, j.Season })
+            .Select(j => new { 
+                j.JobId, 
+                j.Season, 
+                j.BTeamsFullPaymentRequired, 
+                j.PlayerRegRefundPolicy,
+                j.PaymentMethodsAllowedCode,
+                j.BAddProcessingFees,
+                j.BApplyProcessingFeesToTeamDeposit
+            })
             .SingleOrDefaultAsync() ?? throw new InvalidOperationException($"Event not found: {jobPath}");
 
         int currentYear = DateTime.Now.Year;
@@ -212,7 +221,13 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubName = clubName,
             SuggestedTeamNames = suggestions,
             RegisteredTeams = registeredTeams,
-            AgeGroups = ageGroups
+            AgeGroups = ageGroups,
+            BPayBalanceDue = bPayBalanceDue,
+            BTeamsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
+            PlayerRegRefundPolicy = job.PlayerRegRefundPolicy,
+            PaymentMethodsAllowedCode = job.PaymentMethodsAllowedCode,
+            BAddProcessingFees = job.BAddProcessingFees,
+            BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false
         };
     }
 
@@ -221,6 +236,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         return await (from t in _teams.Query()
                       join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
                       join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                      join j in _context.Jobs on t.JobId equals j.JobId
                       where t.JobId == jobId && reg.UserId == userId
                       orderby ag.AgegroupName, t.TeamName
                       select new RegisteredTeamDto
@@ -234,7 +250,15 @@ public class TeamRegistrationService : ITeamRegistrationService
                           FeeProcessing = t.FeeProcessing ?? 0,
                           FeeTotal = (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0),
                           PaidTotal = t.PaidTotal ?? 0,
-                          OwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0)
+                          OwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0),
+                          DepositDue = (t.PaidTotal >= ag.RosterFee) ? 0 : (ag.RosterFee ?? 0) - (t.PaidTotal ?? 0),
+                          AdditionalDue = (t.OwedTotal == 0 && (j.BTeamsFullPaymentRequired ?? false)) ? 0 : (ag.TeamFee ?? 0),
+                          RegistrationTs = t.Createdate,
+                          BWaiverSigned3 = reg.BWaiverSigned3,
+                          // CC includes processing fee (OwedTotal already has it)
+                          CcOwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0),
+                          // Check payment excludes processing fee
+                          CkOwedTotal = (t.FeeBase ?? 0) - (t.PaidTotal ?? 0)
                       })
             .ToListAsync();
     }
@@ -650,6 +674,17 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Club {ClubId} renamed successfully from {OldName} to {NewName}",
             club.ClubId, oldClubName, newClubName);
         return true;
+    }
+
+    public async Task AcceptRefundPolicyAsync(Guid registrationId)
+    {
+        var registration = await _context.Registrations.FindAsync(registrationId)
+            ?? throw new InvalidOperationException($"Registration not found: {registrationId}");
+
+        registration.BWaiverSigned3 = true;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Refund policy accepted for registration {RegistrationId}", registrationId);
     }
 
     private async Task<List<ClubSearchResult>> SearchClubsAsync(string query)

@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { TeamRegistrationService } from '../services/team-registration.service';
+import { TeamPaymentService } from '../services/team-payment.service';
 import type { SuggestedTeamNameDto, RegisteredTeamDto, AgeGroupDto } from '@core/api';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
@@ -19,6 +20,8 @@ interface FinancialSummary {
     feesTotal: number;
     paidTotal: number;
     balanceDue: number;
+    depositDueTotal: number;
+    additionalDueTotal: number;
 }
 
 /**
@@ -41,6 +44,7 @@ interface FinancialSummary {
 export class TeamsStepComponent implements OnInit {
     // Injected services
     private readonly teamService = inject(TeamRegistrationService);
+    private readonly paymentService = inject(TeamPaymentService);
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly route = inject(ActivatedRoute);
@@ -49,11 +53,19 @@ export class TeamsStepComponent implements OnInit {
     // Inputs
     clubName = input.required<string>();
 
+    // Outputs
+    proceed = output<void>();
+
     // Data signals (private, exposed via computed properties)
     private readonly suggestedTeamNamesSignal = signal<SuggestedTeamNameDto[]>([]);
     private readonly registeredTeamsSignal = signal<RegisteredTeamDto[]>([]);
     private readonly ageGroupsSignal = signal<AgeGroupDto[]>([]);
     private readonly recentlyAddedTeamNames = signal<string[]>([]);
+
+    // Metadata for payment configuration
+    private readonly paymentMethodsAllowedCode = signal<number>(1);
+    private readonly bAddProcessingFees = signal<boolean>(false);
+    private readonly bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
 
     // UI state
     readonly isLoading = signal(false);
@@ -61,6 +73,12 @@ export class TeamsStepComponent implements OnInit {
     readonly showRegistrationModal = signal(false);
     readonly isRegistering = signal(false);
     private readonly clubId = signal<number | null>(null);
+    readonly attemptedProceed = signal(false);
+
+    // Refund policy state
+    readonly refundPolicyHtml = signal<string | null>(null);
+    readonly refundPolicyAccepted = signal(false);
+    readonly refundPolicyLocked = signal(false);
 
     // Public data accessors - expose signals via computed properties
     readonly suggestedTeamNames = computed(() => this.suggestedTeamNamesSignal());
@@ -129,6 +147,22 @@ export class TeamsStepComponent implements OnInit {
                 this.suggestedTeamNamesSignal.set(response.suggestedTeamNames);
                 this.registeredTeamsSignal.set(response.registeredTeams);
                 this.ageGroupsSignal.set(response.ageGroups);
+                this.refundPolicyHtml.set(response.playerRegRefundPolicy || null);
+                
+                // Store payment metadata
+                this.paymentMethodsAllowedCode.set(response.paymentMethodsAllowedCode);
+                this.bAddProcessingFees.set(response.bAddProcessingFees);
+                this.bApplyProcessingFeesToTeamDeposit.set(response.bApplyProcessingFeesToTeamDeposit ?? false);
+                
+                // Check if refund policy already accepted (from first registered team's club rep registration)
+                if (response.registeredTeams.length > 0) {
+                    const firstTeam = response.registeredTeams[0];
+                    if (firstTeam.bWaiverSigned3) {
+                        this.refundPolicyAccepted.set(true);
+                        this.refundPolicyLocked.set(true);
+                    }
+                }
+                
                 this.isLoading.set(false);
             },
             error: (err) => {
@@ -269,12 +303,59 @@ export class TeamsStepComponent implements OnInit {
         return {
             feesTotal: this.registeredTeamsSignal().reduce((sum, t) => sum + this.toNumber(t.feeTotal), 0),
             paidTotal: this.registeredTeamsSignal().reduce((sum, t) => sum + this.toNumber(t.paidTotal), 0),
-            balanceDue: this.registeredTeamsSignal().reduce((sum, t) => sum + this.toNumber(t.owedTotal), 0)
+            balanceDue: this.registeredTeamsSignal().reduce((sum, t) => sum + this.toNumber(t.owedTotal), 0),
+            depositDueTotal: this.registeredTeamsSignal().reduce((sum, t) => sum + this.toNumber(t.depositDue), 0),
+            additionalDueTotal: this.registeredTeamsSignal().reduce((sum, t) => sum + this.toNumber(t.additionalDue), 0)
         };
     }
 
     private toNumber(value: number | string | undefined | null): number {
         if (value === undefined || value === null) return 0;
         return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
+    }
+
+    proceedToPayment(): void {
+        this.attemptedProceed.set(true);
+
+        // Validate refund policy acceptance
+        if (this.refundPolicyHtml() && !this.refundPolicyAccepted()) {
+            this.toast.show('Please accept the refund policy to continue', 'warning');
+            return;
+        }
+
+        // Populate payment service with teams and metadata
+        this.paymentService.teams.set(this.registeredTeamsSignal());
+        this.paymentService.paymentMethodsAllowedCode.set(this.paymentMethodsAllowedCode());
+        this.paymentService.bAddProcessingFees.set(this.bAddProcessingFees());
+        this.paymentService.bApplyProcessingFeesToTeamDeposit.set(this.bApplyProcessingFeesToTeamDeposit());
+        
+        // Set initial payment method based on allowed options
+        if (this.paymentMethodsAllowedCode() === 3) {
+            this.paymentService.selectedPaymentMethod.set('Check'); // Check only
+        } else {
+            this.paymentService.selectedPaymentMethod.set('CC'); // Default to CC
+        }
+
+        this.proceed.emit();
+    }
+
+    onRefundPolicyAcceptanceChange(accepted: boolean): void {
+        this.refundPolicyAccepted.set(accepted);
+        
+        if (accepted && !this.refundPolicyLocked()) {
+            // Call API to record acceptance
+            this.teamService.acceptRefundPolicy().subscribe({
+                next: () => {
+                    this.refundPolicyLocked.set(true);
+                    this.toast.show('Your acceptance of the Refund Policy has been recorded', 'success');
+                },
+                error: (err) => {
+                    console.error('Failed to record refund policy acceptance:', err);
+                    this.toast.show('Failed to record acceptance. Please try again.', 'danger');
+                    // Rollback checkbox state
+                    this.refundPolicyAccepted.set(false);
+                }
+            });
+        }
     }
 }

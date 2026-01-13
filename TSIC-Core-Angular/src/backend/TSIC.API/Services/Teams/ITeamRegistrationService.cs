@@ -19,7 +19,7 @@ public interface ITeamRegistrationService
     /// Get teams metadata for the current club and event.
     /// Returns club info, suggested team names from history, registered Teams, and age groups.
     /// </summary>
-    Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName);
+    Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName, bool bPayBalanceDue = false);
 
     /// <summary>
     /// Register a team for the current event with specified name, age group, and level of play.
@@ -33,6 +33,12 @@ public interface ITeamRegistrationService
     /// Authorization must be checked at controller level.
     /// </summary>
     Task<bool> UnregisterTeamFromEventAsync(Guid teamId);
+
+    /// <summary>
+    /// Accept the refund policy for the club rep's registration.
+    /// Sets BWaiverSigned3 = true on the Registration record.
+    /// </summary>
+    Task AcceptRefundPolicyAsync(Guid registrationId);
 
     /// <summary>
     /// Add a club to the user's rep account.

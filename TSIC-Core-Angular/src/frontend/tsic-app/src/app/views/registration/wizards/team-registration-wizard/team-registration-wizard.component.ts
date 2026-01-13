@@ -7,25 +7,37 @@ import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TwStepIndicatorComponent } from './step-indicator/tw-step-indicator.component';
 import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
+import { TeamPaymentStepComponent } from './payment-step/payment.component';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ClubService } from '@infrastructure/services/club.service';
 import { TeamRegistrationService } from './services/team-registration.service';
+import { TeamPaymentService } from './services/team-payment.service';
 import { UserPreferencesService } from '@infrastructure/services/user-preferences.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
+
+enum WizardStep {
+    Login = 1,
+    RegisterTeams = 2,
+    Payment = 3,
+    Review = 4
+}
 
 @Component({
     selector: 'app-team-registration-wizard',
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TeamPaymentStepComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
+    // Expose enum to template
+    readonly WizardStep = WizardStep;
+
     // All reactive state as signals
-    readonly step = signal(1);
+    readonly step = signal(WizardStep.Login);
     readonly clubName = signal<string | null>(null);
     readonly availableClubs = signal<ClubRepClubDto[]>([]);
     readonly selectedClub = signal<string | null>(null);
@@ -52,10 +64,10 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     // Simplified 2-step flow: Login → Register Teams
     wizardSteps = computed(() => {
         return [
-            { stepNumber: 1, label: 'Login' },
-            { stepNumber: 2, label: 'Register Teams' },
-            { stepNumber: 3, label: 'Payment' },
-            { stepNumber: 4, label: 'Review' }
+            { stepNumber: WizardStep.Login, label: 'Login' },
+            { stepNumber: WizardStep.RegisterTeams, label: 'Register Teams' },
+            { stepNumber: WizardStep.Payment, label: 'Payment' },
+            { stepNumber: WizardStep.Review, label: 'Review' }
         ];
     });
 
@@ -67,6 +79,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     private readonly fb = inject(FormBuilder);
     private readonly clubService = inject(ClubService);
     private readonly teamRegService = inject(TeamRegistrationService);
+    private readonly teamPaymentService = inject(TeamPaymentService);
     private readonly userPrefs = inject(UserPreferencesService);
     private readonly toast = inject(ToastService);
 
@@ -79,19 +92,26 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         const currentStep = this.step();
 
         switch (currentStep) {
-            case 1:
+            case WizardStep.Login:
                 return {
                     icon: 'bi-box-arrow-in-right',
                     alertClass: 'alert-primary',
                     title: 'Club Rep Login',
                     message: 'Log in with your Club Rep credentials to register your teams.'
                 };
-            case 2:
+            case WizardStep.RegisterTeams:
                 return {
                     icon: 'bi-trophy-fill',
                     alertClass: 'alert-success',
                     title: 'Register Teams',
                     message: 'Enter your team details and select age groups to register for this event.'
+                };
+            case WizardStep.Payment:
+                return {
+                    icon: 'bi-credit-card-fill',
+                    alertClass: 'alert-info',
+                    title: 'Payment',
+                    message: 'Review your team registrations and complete payment.'
                 };
             default:
                 return {
@@ -180,11 +200,11 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     handleRegistrationSuccess(result: LoginStepResult): void {
         this.clubName.set(result.clubName);
         this.availableClubs.set(result.availableClubs);
-        this.step.set(2);
+        this.step.set(WizardStep.RegisterTeams);
     }
 
     goBackToStep1() {
-        this.step.set(1);
+        this.step.set(WizardStep.Login);
     }
 
     prevStep() {
@@ -217,7 +237,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         this.clubName.set(this.selectedClub());
         this.inlineError.set(null);
         this.showClubSelectionModal.set(false);
-        this.step.set(2); // Go directly to register teams
+        this.step.set(WizardStep.RegisterTeams);
     }
 
     cancelClubSelection(): void {

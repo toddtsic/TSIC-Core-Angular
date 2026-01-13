@@ -2,9 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type SuggestedTeamNameDto = {
-    teamName: string;
-    usageCount: number;
-    year: number;
+export type VIAddress = {
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
 };
 

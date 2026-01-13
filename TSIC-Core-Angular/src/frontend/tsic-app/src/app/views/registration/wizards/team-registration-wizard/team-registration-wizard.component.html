@@ -29,8 +29,8 @@
             <strong>Loading...</strong> Checking registration status.
           </div>
         </div>
-        } @else if (step() !== 2) {
-        <!-- Step-specific banner with contextual messaging (suppressed for step 2) -->
+        } @else if (step() !== WizardStep.RegisterTeams) {
+        <!-- Step-specific banner with contextual messaging (suppressed for RegisterTeams step) -->
         <div class="alert {{ stepBannerConfig().alertClass }} mb-0 rounded-0 rounded-top d-flex align-items-center"
           role="alert">
           <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
@@ -66,13 +66,17 @@
             </div>
             <p class="text-muted">Preparing registration wizard...</p>
           </div>
-          } @else if (step() === 1) {
+          } @else if (step() === WizardStep.Login) {
           <app-club-rep-login-step [jobPath]="jobPath()" (loginSuccess)="handleLoginSuccess($event)"
             (registrationSuccess)="handleRegistrationSuccess($event)"></app-club-rep-login-step>
           }
 
-          @if (step() === 2) {
-          <app-teams-step [clubName]="clubName() || ''"></app-teams-step>
+          @if (step() === WizardStep.RegisterTeams) {
+          <app-teams-step [clubName]="clubName() || ''" (proceed)="step.set(WizardStep.Payment)"></app-teams-step>
+          }
+
+          @if (step() === WizardStep.Payment) {
+          <app-team-payment-step></app-team-payment-step>
           }
         </div> <!-- /card-body -->
       </div> <!-- /card -->
@@ -80,14 +84,20 @@
   </div> <!-- /row -->
 
   <!-- Fixed Bottom Navigation -->
-  @if (step() === 2) {
+  @if (step() === WizardStep.RegisterTeams || step() === WizardStep.Payment) {
   <div class="position-fixed bottom-0 start-0 end-0 py-2"
     style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
     <div class="container-fluid px-2">
       <div class="row justify-content-center">
         <div class="col-auto">
-          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(1)">
+          @if (step() === WizardStep.RegisterTeams) {
+          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(WizardStep.Login)">
           </app-tw-action-bar>
+          }
+          @if (step() === WizardStep.Payment) {
+          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(WizardStep.RegisterTeams)">
+          </app-tw-action-bar>
+          }
         </div>
       </div>
     </div>

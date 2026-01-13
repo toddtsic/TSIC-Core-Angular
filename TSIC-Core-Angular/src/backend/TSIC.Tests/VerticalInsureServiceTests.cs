@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
+using TSIC.Contracts.Repositories;
 using TSIC.Infrastructure.Repositories;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using Xunit;
@@ -40,6 +41,8 @@ public class VerticalInsureServiceTests
 
         var logger = new Mock<ILogger<VerticalInsureService>>().Object;
         var teamLookup = new Mock<ITeamLookupService>();
+        var teamRepo = new Mock<ITeamRepository>().Object;
+        var userRepo = new Mock<IUserRepository>().Object;
         var mockOptions = Options.Create(new VerticalInsureSettings
         {
             DevClientId = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U",
@@ -48,7 +51,7 @@ public class VerticalInsureServiceTests
             ProdSecret = "live_PP6xn8fImrpBNj4YqTU8vlAwaqQ7Q8oSRxcVQkf419saU4OuQVCXQSuP4yUNyBMCwilStIsWDaaZnMlfJ1HqVJPBWydR5qE3yNr4HxBVr7rCYxl4ofgIesZbsAS0TfED"
         });
 
-        return new VerticalInsureService(jobRepo, regRepo, familyRepo, env, logger, teamLookup.Object, mockOptions);
+        return new VerticalInsureService(jobRepo, regRepo, familyRepo, teamRepo, userRepo, env, logger, teamLookup.Object, mockOptions);
     }
 
     [Fact]

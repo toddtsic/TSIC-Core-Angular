@@ -12,7 +12,11 @@ public record RegisteredTeamInfo(
     decimal FeeProcessing,
     decimal FeeTotal,
     decimal PaidTotal,
-    decimal OwedTotal);
+    decimal OwedTotal,
+    decimal DepositDue,
+    decimal AdditionalDue,
+    DateTime RegistrationTs,
+    bool BWaiverSigned3);
 
 public record AvailableTeamQueryResult(
     Guid TeamId,
@@ -117,6 +121,15 @@ public interface ITeamRepository
     Task<Dictionary<Guid, string>> GetTeamNameMapAsync(
         Guid jobId,
         IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get registered teams for a club rep with payment-related details for insurance offer.
+    /// Returns teams eligible for insurance purchase (active, has fees, not already insured).
+    /// </summary>
+    Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForPaymentAsync(
+        Guid jobId,
+        Guid clubRepRegId,
         CancellationToken cancellationToken = default);
 }
 

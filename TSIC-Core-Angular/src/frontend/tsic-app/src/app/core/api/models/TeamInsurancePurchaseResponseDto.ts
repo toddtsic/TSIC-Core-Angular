@@ -2,9 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type SuggestedTeamNameDto = {
-    teamName: string;
-    usageCount: number;
-    year: number;
+export type TeamInsurancePurchaseResponseDto = {
+    success: boolean;
+    error?: string | null;
+    policies?: Record<string, string>;
 };
 

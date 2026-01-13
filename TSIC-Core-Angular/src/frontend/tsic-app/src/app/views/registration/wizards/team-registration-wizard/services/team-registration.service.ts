@@ -122,6 +122,14 @@ export class TeamRegistrationService {
         const request = { oldClubName, newClubName };
         return this.http.patch<void>(`${this.apiUrl}/update-club-name`, request);
     }
+
+    /**
+     * Accept the refund policy for the club rep's registration
+     * 
+     * Records BWaiverSigned3 = true on the Registration record.
+     * Returns success message when recorded.
+     */
+    acceptRefundPolicy(): Observable<{ message: string }> {
+        return this.http.post<{ message: string }>(`${this.apiUrl}/accept-refund-policy`, {});
+    }
 }
-
-

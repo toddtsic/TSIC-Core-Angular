@@ -17,11 +17,13 @@ namespace TSIC.API.Services.Shared.VerticalInsure;
 /// Encapsulates all VerticalInsure / RegSaver snapshot generation logic.
 /// Responsibilities: eligibility filtering, product construction, environment-based client id selection.
 /// </summary>
-public sealed class VerticalInsureService : IVerticalInsureService
+public sealed partial class VerticalInsureService : IVerticalInsureService
 {
     private readonly IJobRepository _jobRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IFamilyRepository _familyRepo;
+    private readonly ITeamRepository _teamRepo;
+    private readonly IUserRepository _userRepo;
     private readonly IHostEnvironment _env;
     private readonly ILogger<VerticalInsureService> _logger;
     private readonly ITeamLookupService _teamLookupService;
@@ -32,6 +34,8 @@ public sealed class VerticalInsureService : IVerticalInsureService
         IJobRepository jobRepo,
         IRegistrationRepository registrationRepo,
         IFamilyRepository familyRepo,
+        ITeamRepository teamRepo,
+        IUserRepository userRepo,
         IHostEnvironment env,
         ILogger<VerticalInsureService> logger,
         ITeamLookupService teamLookupService,
@@ -41,6 +45,8 @@ public sealed class VerticalInsureService : IVerticalInsureService
         _jobRepo = jobRepo;
         _registrationRepo = registrationRepo;
         _familyRepo = familyRepo;
+        _teamRepo = teamRepo;
+        _userRepo = userRepo;
         _env = env;
         _logger = logger;
         _teamLookupService = teamLookupService;

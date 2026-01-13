@@ -64,6 +64,12 @@ public sealed record TeamsMetadataResponse
     public required List<SuggestedTeamNameDto> SuggestedTeamNames { get; init; }
     public required List<RegisteredTeamDto> RegisteredTeams { get; init; }
     public required List<AgeGroupDto> AgeGroups { get; init; }
+    public required bool BPayBalanceDue { get; init; }
+    public required bool BTeamsFullPaymentRequired { get; init; }
+    public string? PlayerRegRefundPolicy { get; init; }
+    public required int PaymentMethodsAllowedCode { get; init; }
+    public required bool BAddProcessingFees { get; init; }
+    public required bool BApplyProcessingFeesToTeamDeposit { get; init; }
 }
 
 public sealed record SuggestedTeamNameDto
@@ -85,6 +91,12 @@ public sealed record RegisteredTeamDto
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
+    public required decimal DepositDue { get; init; }
+    public required decimal AdditionalDue { get; init; }
+    public required DateTime RegistrationTs { get; init; }
+    public required bool BWaiverSigned3 { get; init; }
+    public required decimal CcOwedTotal { get; init; }
+    public required decimal CkOwedTotal { get; init; }
 }
 
 public sealed record AgeGroupDto

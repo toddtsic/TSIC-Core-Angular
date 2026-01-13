@@ -28,4 +28,27 @@ public interface IVerticalInsureService
         string? token,
         CreditCardInfo? card,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Builds a VerticalInsure team registration insurance offer for the specified job/club rep context
+    /// if the job is configured to offer team RegSaver insurance. Returns Available=false and Error set when unavailable.
+    /// </summary>
+    Task<PreSubmitTeamInsuranceDto> BuildTeamOfferAsync(Guid jobId, Guid clubRepRegId);
+
+    /// <summary>
+    /// Independently purchases VerticalInsure team registration protection policies for the supplied team IDs
+    /// using previously quoted products (identified by quoteIds). This operation is completely decoupled from
+    /// team registration fee payment – no Authorize.Net logic is invoked here.
+    ///
+    /// On success, returns mapping of TeamId -> PolicyNumber and persists to Teams.ViPolicyId.
+    /// On failure, no persistence occurs.
+    /// </summary>
+    Task<VerticalInsureTeamPurchaseResult> PurchaseTeamPoliciesAsync(
+        Guid jobId,
+        Guid clubRepRegId,
+        IReadOnlyCollection<Guid> teamIds,
+        IReadOnlyCollection<string> quoteIds,
+        string? token,
+        CreditCardInfo? card,
+        CancellationToken ct = default);
 }

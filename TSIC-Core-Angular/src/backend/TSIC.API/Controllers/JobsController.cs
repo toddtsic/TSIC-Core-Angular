@@ -83,6 +83,7 @@ public class JobsController : ControllerBase
             PlayerRegCovid19Waiver = jobMetadata.PlayerRegCovid19Waiver,
             PlayerRegRefundPolicy = jobMetadata.PlayerRegRefundPolicy,
             OfferPlayerRegsaverInsurance = jobMetadata.OfferPlayerRegsaverInsurance,
+            OfferTeamRegsaverInsurance = jobMetadata.BOfferTeamRegsaverInsurance,
             AdnArb = jobMetadata.AdnArb,
             AdnArbBillingOccurences = jobMetadata.AdnArbBillingOccurences,
             AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,
