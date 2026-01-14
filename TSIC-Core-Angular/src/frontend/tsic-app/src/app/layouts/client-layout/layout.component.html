@@ -1,24 +1,26 @@
-<!-- Header -->
-<header class="tsic-header">
-  <app-client-header-bar>
-  </app-client-header-bar>
-</header>
+<div class="layout-wrapper">
+  <!-- Header -->
+  <header class="tsic-header">
+    <app-client-header-bar>
+    </app-client-header-bar>
+  </header>
 
-<!-- Menu (below header) -->
-<app-client-menu></app-client-menu>
+  <!-- Menu (below header) -->
+  <app-client-menu></app-client-menu>
 
-<!-- Main Content -->
-<main class="container-fluid pb-2 pb-md-4">
-  <div class="row">
-    <!-- Content Area -->
-    <div class="col-12">
-      <router-outlet></router-outlet>
+  <!-- Main Content -->
+  <main class="container-fluid pb-2 pb-md-4">
+    <div class="row">
+      <!-- Content Area -->
+      <div class="col-12">
+        <router-outlet></router-outlet>
+      </div>
     </div>
-  </div>
-</main>
+  </main>
 
-<!-- Footer -->
-<app-client-footer-bar></app-client-footer-bar>
+  <!-- Footer -->
+  <app-client-footer-bar></app-client-footer-bar>
+</div>
 
 <!-- Scroll to Top Button -->
 <app-scroll-to-top></app-scroll-to-top>
