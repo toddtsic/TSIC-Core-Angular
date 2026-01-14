@@ -35,6 +35,13 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
     registrationError = signal<string | null>(null);
     statesOptions: SelectOption[] = [];
 
+    /** Login modal state - shows when user selects 'Yes' to having credentials */
+    showLoginModal = signal(false);
+    loginModalStep = signal<'credentials' | 'clubSelection'>('credentials');
+    availableClubs = signal<ClubRepClubDto[]>([]);
+    selectedClub = signal<string | null>(null);
+    clubSelectionError = signal<string | null>(null);
+
     /** Modal state: atomic object containing all duplicate detection UI state */
     private readonly duplicateModalState = signal<{
         isOpen: boolean;
@@ -145,6 +152,14 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
             next: (result) => {
                 this.loginSubmitting.set(false);
                 this.hasClubRepAccount.set('yes');
+                this.availableClubs.set(result.clubs);
+
+                // Auto-select if only one club
+                if (result.clubs.length === 1) {
+                    this.selectedClub.set(result.clubs[0].clubName);
+                } else {
+                    this.selectedClub.set(null);
+                }
 
                 const loginResult: LoginStepResult = {
                     clubName: result.clubs.length === 1 ? result.clubs[0].clubName : '',
@@ -152,7 +167,8 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
                 };
 
                 if (result.hasConflict && result.conflictDetails) {
-                    // Show conflict warning modal
+                    // Show conflict warning modal (close login modal first)
+                    this.showLoginModal.set(false);
                     this.conflictWarningState.set({
                         isOpen: true,
                         otherRepUsername: result.conflictDetails.otherRepUsername || 'another club rep',
@@ -160,8 +176,9 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
                         pendingEmit: loginResult
                     });
                 } else {
-                    // No conflict, proceed normally
-                    this.loginSuccess.emit(loginResult);
+                    // Transition modal to club selection step
+                    this.loginModalStep.set('clubSelection');
+                    this.inlineError.set(null);
                 }
             },
             error: (err) => {
@@ -275,6 +292,40 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
 
     toggleCredentialsCollapsed(): void {
         this.credentialsCollapsed.update((v) => !v);
+    }
+
+    /** Close login modal and reset state */
+    closeLoginModal(): void {
+        this.showLoginModal.set(false);
+        this.loginModalStep.set('credentials');
+        this.selectedClub.set(null);
+        this.clubSelectionError.set(null);
+        this.inlineError.set(null);
+        this.hasClubRepAccount.set(null);
+        this.loginForm.reset();
+    }
+
+    /** Handle club selection in modal */
+    selectClubInModal(clubName: string): void {
+        this.selectedClub.set(clubName);
+        this.clubSelectionError.set(null);
+    }
+
+    /** Continue from club selection step */
+    continueFromClubSelection(): void {
+        if (!this.selectedClub()) {
+            this.clubSelectionError.set('Please select a club before continuing.');
+            return;
+        }
+
+        const loginResult: LoginStepResult = {
+            clubName: this.selectedClub()!,
+            availableClubs: this.availableClubs()
+        };
+
+        // Close modal and emit result
+        this.showLoginModal.set(false);
+        this.loginSuccess.emit(loginResult);
     }
 
     /**

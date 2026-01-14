@@ -184,17 +184,11 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
     handleLoginSuccess(result: LoginStepResult): void {
         this.availableClubs.set(result.availableClubs);
+        this.selectedClub.set(result.clubName);
+        this.clubName.set(result.clubName);
 
-        // Auto-select if only one club, otherwise require selection
-        if (result.availableClubs.length === 1) {
-            this.selectedClub.set(result.availableClubs[0].clubName);
-            this.clubName.set(result.availableClubs[0].clubName);
-        } else {
-            this.selectedClub.set(null);
-        }
-
-        // Show modal for club confirmation/selection
-        this.showClubSelectionModal.set(true);
+        // Club selection now handled in login modal - proceed directly to teams step
+        this.step.set(WizardStep.RegisterTeams);
     }
 
     handleRegistrationSuccess(result: LoginStepResult): void {

@@ -33,7 +33,7 @@
         <div class="mb-3">
             <div class="btn-group w-100" role="group" aria-label="Club Rep account availability">
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes"
-                    [ngModel]="hasClubRepAccount()" (ngModelChange)="hasClubRepAccount.set($event)" [value]="'yes'" />
+                    [ngModel]="hasClubRepAccount()" (ngModelChange)="onHasCredentialsChange($event)" [value]="'yes'" />
                 <label class="btn btn-outline-primary" for="seg-hasClubRep-yes">Yes</label>
 
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-no"
@@ -42,45 +42,7 @@
             </div>
         </div>
 
-        <!-- YES/NO cards removed (replaced by segmented toggle globally) -->
-
-        @if (hasClubRepAccount() === 'yes') {
-        <!-- CREDENTIALS PANEL -->
-        <div class="pt-2 pb-3 ps-0">
-            <form class="border border-2 rounded p-3 shadow-sm" [formGroup]="loginForm"
-                (ngSubmit)="signInThenProceed()">
-                <div class="row g-3 mb-3">
-                    <div class="col-12 col-sm-6 col-md-4">
-                        <label for="clubRepUsername" class="form-label small mb-1">Username</label>
-                        <input id="clubRepUsername" class="form-control form-control-sm" type="text" name="username"
-                            formControlName="username" autocomplete="username" (input)="0" />
-                    </div>
-                    <div class="col-12 col-sm-6 col-md-4">
-                        <label for="clubRepPassword" class="form-label small mb-1">Password</label>
-                        <input id="clubRepPassword" class="form-control form-control-sm" type="password" name="password"
-                            formControlName="password" autocomplete="current-password" (input)="0" />
-                    </div>
-                </div>
-                @if (inlineError()) {
-                <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError() }}</div>
-                }
-
-                <!-- ACTION BUTTONS -->
-                <div class="mt-4 d-flex flex-column flex-sm-row gap-2 align-items-center justify-content-center">
-                    <button type="submit" class="btn btn-primary btn-sm btn-login"
-                        [disabled]="loginSubmitting() || loginForm.invalid">
-                        @if (loginSubmitting()) {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                        }
-                        <i class="bi bi-box-arrow-in-right me-1"></i>
-                        <span>{{ loginSubmitting() ? 'Signing in…' : 'Login as Club Rep' }}</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-        }
-
-
+        <!-- Inline credentials form removed - now shown in modal -->
 
         @if (hasClubRepAccount() === 'no') {
         <div class="pt-2 pb-3 ps-0">
@@ -290,6 +252,141 @@
     </div>
 </div>
 <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Club Rep Login Modal (credentials + club selection in one) -->
+@if (showLoginModal()) {
+<div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
+    style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(8px);">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border shadow-lg"
+            style="background-color: var(--bs-card-bg); border-color: var(--bs-border-color) !important; border-width: 2px !important;">
+            <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
+                <div class="d-flex align-items-start w-100">
+                    <i class="bi bi-box-arrow-in-right me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
+                    <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">
+                        @if (loginModalStep() === 'credentials') {
+                        Club Rep Login
+                        } @else {
+                        Select Your Club
+                        }
+                    </h4>
+                    <button type="button" class="btn-close btn-close-white" (click)="closeLoginModal()"
+                        aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-3 p-md-4">
+                <!-- Step Indicator -->
+                <div class="d-flex justify-content-center mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge"
+                            [class.bg-primary]="loginModalStep() === 'credentials'"
+                            [class.bg-secondary]="loginModalStep() !== 'credentials'">
+                            1
+                        </span>
+                        <span class="text-muted small">Credentials</span>
+                        <i class="bi bi-arrow-right text-muted"></i>
+                        <span class="badge"
+                            [class.bg-primary]="loginModalStep() === 'clubSelection'"
+                            [class.bg-secondary]="loginModalStep() !== 'clubSelection'">
+                            2
+                        </span>
+                        <span class="text-muted small">Select Club</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: Credentials Entry -->
+                @if (loginModalStep() === 'credentials') {
+                <form [formGroup]="loginForm" (ngSubmit)="signInThenProceed()">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12">
+                            <label for="modalUsername" class="form-label fw-semibold">Username</label>
+                            <input id="modalUsername" class="form-control" type="text" name="username"
+                                formControlName="username" autocomplete="username" placeholder="Enter your username" />
+                        </div>
+                        <div class="col-12">
+                            <label for="modalPassword" class="form-label fw-semibold">Password</label>
+                            <input id="modalPassword" class="form-control" type="password" name="password"
+                                formControlName="password" autocomplete="current-password"
+                                placeholder="Enter your password" />
+                        </div>
+                    </div>
+
+                    @if (inlineError()) {
+                    <div class="alert alert-danger py-2 mb-3" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>{{ inlineError() }}
+                    </div>
+                    }
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" (click)="closeLoginModal()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary"
+                            [disabled]="loginSubmitting() || loginForm.invalid">
+                            @if (loginSubmitting()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            <i class="bi bi-box-arrow-in-right me-1"></i>
+                            {{ loginSubmitting() ? 'Signing in…' : 'Continue' }}
+                        </button>
+                    </div>
+                </form>
+                }
+
+                <!-- Step 2: Club Selection -->
+                @if (loginModalStep() === 'clubSelection') {
+                <div>
+                    @if (clubSelectionError()) {
+                    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>{{ clubSelectionError() }}
+                        <button type="button" class="btn-close" (click)="clubSelectionError.set(null)"></button>
+                    </div>
+                    }
+
+                    <div class="mb-3">
+                        <label for="modalClubSelector" class="form-label fw-semibold">
+                            @if (availableClubs().length === 1) {
+                            Confirm Your Club
+                            } @else {
+                            Choose a Club
+                            }
+                        </label>
+                        <select id="modalClubSelector" class="form-select" [ngModel]="selectedClub()"
+                            (ngModelChange)="selectClubInModal($event)" [size]="availableClubs().length > 3 ? 3 : availableClubs().length">
+                            @for (club of availableClubs(); track club.clubName) {
+                            <option [value]="club.clubName">
+                                {{ club.clubName }}
+                                @if (club.hasTeams) {
+                                ({{ club.teamCount }} team{{ club.teamCount === 1 ? '' : 's' }})
+                                }
+                            </option>
+                            }
+                        </select>
+                        @if (availableClubs().length > 1) {
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Select the club you'll be registering teams for in this tournament.
+                        </div>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-secondary" (click)="closeLoginModal()">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" (click)="continueFromClubSelection()"
+                            [disabled]="!selectedClub()">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Continue
+                        </button>
+                    </div>
+                </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
 }
 
 <!-- CONFLICT WARNING MODAL -->
