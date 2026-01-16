@@ -12,6 +12,27 @@
     background-color: var(--bs-light);
 }
 
+/* Mobile: smaller font and compact layout */
+@media (max-width: 767.98px) {
+    ::ng-deep .e-grid .e-headercell {
+        font-size: 0.65rem;
+        padding: 2px 4px;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+    ::ng-deep .e-grid .e-headercelldiv {
+        font-size: 0.65rem;
+        line-height: 1.1;
+    }
+    ::ng-deep .e-grid .e-gridcontent td {
+        font-size: 0.75rem;
+        padding: 2px 4px;
+    }
+    ::ng-deep .e-grid colgroup col {
+        min-width: 45px !important;
+    }
+}
+
 /* Ensure horizontal scroll works */
 .table-responsive {
     display: block;

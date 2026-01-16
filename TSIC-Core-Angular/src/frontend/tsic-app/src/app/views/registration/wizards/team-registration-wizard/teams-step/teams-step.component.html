@@ -36,7 +36,7 @@
             <p class="small mb-0">Click "Add New Team" to register your first team for this event.</p>
         </div>
         } @else {
-        <div class="grid-wrapper" style="width: 100%;">
+        <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
             <ejs-grid #grid [dataSource]="registeredTeams()" [allowSorting]="true" [allowFiltering]="false"
                 [allowExcelExport]="true" [toolbar]="['ExcelExport']" height="auto" [enableHover]="true"
                 [enableAltRow]="true" [rowHeight]="40" gridLines="Both" [enableStickyHeader]="true" height="600"
@@ -61,7 +61,7 @@
                     </e-column>
 
                     <!-- Registration Date Column -->
-                    <e-column field="registrationTs" headerText="Reg. Date" width="110" textAlign="Center" type="date"
+                    <e-column field="registrationTs" headerText="Reg Date" width="110" textAlign="Center" type="date"
                         format="MM/dd/yyyy"></e-column>
 
                     <!-- Paid Total Column -->
@@ -77,21 +77,23 @@
                         format="C2"></e-column>
                 </e-columns>
 
-                <!-- Aggregates for Footer Totals - COMMENTED OUT TO DEBUG -->
-                <!-- <e-aggregates>
+                <!-- Aggregates for Footer Totals -->
+                <e-aggregates>
                     <e-aggregate>
                         <e-columns>
-                            <e-column [footerTemplate]="emptyTemplate"></e-column>
-                            <e-column [footerTemplate]="emptyTemplate"></e-column>
-                            <e-column [footerTemplate]="countTemplate"></e-column>
-                            <e-column [footerTemplate]="emptyTemplate"></e-column>
-                            <e-column [footerTemplate]="emptyTemplate"></e-column>
-                            <e-column [footerTemplate]="paidTotalTemplate"></e-column>
-                            <e-column [footerTemplate]="depositDueTemplate"></e-column>
-                            <e-column [footerTemplate]="additionalDueTemplate"></e-column>
+                            <e-column field="rowNum" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                            <e-column field="ageGroupName" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                            <e-column field="teamName" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                            <e-column field="levelOfPlay" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                            <e-column field="registrationTs" type="Custom"
+                                [footerTemplate]="totalsLabelTemplate"></e-column>
+                            <e-column field="paidTotal" type="Sum" [footerTemplate]="paidTotalTemplate"></e-column>
+                            <e-column field="depositDue" type="Sum" [footerTemplate]="depositDueTemplate"></e-column>
+                            <e-column field="additionalDue" type="Sum"
+                                [footerTemplate]="additionalDueTemplate"></e-column>
                         </e-columns>
                     </e-aggregate>
-                </e-aggregates> -->
+                </e-aggregates>
             </ejs-grid>
         </div>
         }
@@ -100,24 +102,19 @@
         <ng-template #emptyTemplate let-data>
             <span></span>
         </ng-template>
-        <ng-template #countTemplate let-data>
-            <span class="text-muted">{{ registeredTeams().length }}</span>
-        </ng-template>
-        <ng-template #feeTotalTemplate let-data>
-            <span class="text-warning">{{ data.Sum | currency }}</span>
+        <ng-template #totalsLabelTemplate let-data>
+            <span class="fw-bold">Totals</span>
         </ng-template>
         <ng-template #paidTotalTemplate let-data>
-            <span class="text-success">{{ financialSummary().paidTotal | currency }}</span>
+            <span class="fw-bold text-success">{{ data.Sum | currency }}</span>
         </ng-template>
         <ng-template #depositDueTemplate let-data>
-            <span [class.text-warning]="financialSummary().depositDueTotal > 0"
-                [class.text-muted]="financialSummary().depositDueTotal === 0">{{ financialSummary().depositDueTotal |
+            <span class="fw-bold" [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum |
                 currency }}</span>
         </ng-template>
         <ng-template #additionalDueTemplate let-data>
-            <span [class.text-warning]="financialSummary().additionalDueTotal > 0"
-                [class.text-muted]="financialSummary().additionalDueTotal === 0">{{
-                financialSummary().additionalDueTotal | currency }}</span>
+            <span class="fw-bold" [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum |
+                currency }}</span>
         </ng-template>
 
         <!-- Stats footer (mobile only) -->
@@ -126,11 +123,6 @@
                 <div class="col-6 col-md-auto">
                     <span class="badge bg-primary-subtle text-primary">
                         <i class="bi bi-people-fill me-1"></i>Teams: {{ registeredTeams().length }}
-                    </span>
-                </div>
-                <div class="col-6 col-md-auto">
-                    <span class="badge bg-danger-subtle text-danger">
-                        <i class="bi bi-receipt me-1"></i>Fees: {{ financialSummary().feesTotal | currency }}
                     </span>
                 </div>
                 <div class="col-6 col-md-auto">
@@ -149,14 +141,6 @@
                         financialSummary().additionalDueTotal | currency }}
                     </span>
                 </div>
-                @if (financialSummary().balanceDue > 0) {
-                <div class="col-auto">
-                    <span class="badge bg-danger-subtle text-danger">
-                        <i class="bi bi-exclamation-circle-fill me-1"></i>Due: {{ financialSummary().balanceDue |
-                        currency }}
-                    </span>
-                </div>
-                }
             </div>
         </div>
     </div>
