@@ -39,7 +39,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
       <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
         <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true"
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
-                  [rowHeight]="40" gridLines="Both" 
+                  [rowHeight]="40" gridLines="Both" [allowUnsort]="false"
                   (queryCellInfo)="onQueryCellInfo($event)"
                   style="min-width: 700px;">
           <e-columns>
