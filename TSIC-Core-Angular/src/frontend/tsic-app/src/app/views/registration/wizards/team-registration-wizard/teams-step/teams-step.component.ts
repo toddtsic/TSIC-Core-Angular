@@ -1,8 +1,8 @@
-import { Component, OnInit, computed, inject, input, signal, output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, computed, inject, input, signal, output, CUSTOM_ELEMENTS_SCHEMA, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { GridAllModule, SortService, FilterService, ToolbarService, ExcelExportService, PageService } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent, SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService, QueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { TeamPaymentService } from '../services/team-payment.service';
 import type { SuggestedTeamNameDto, RegisteredTeamDto, AgeGroupDto } from '@core/api';
@@ -40,7 +40,7 @@ interface FinancialSummary {
     standalone: true,
     imports: [CommonModule, FormsModule, GridAllModule, TeamRegistrationModalComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
-    providers: [SortService, FilterService, ToolbarService, ExcelExportService, PageService],
+    providers: [SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService],
     templateUrl: './teams-step.component.html',
     styleUrls: ['./teams-step.component.scss']
 })
@@ -58,6 +58,9 @@ export class TeamsStepComponent implements OnInit {
 
     // Outputs
     proceed = output<void>();
+
+    // Grid reference
+    @ViewChild('grid') public grid!: GridComponent;
 
     // Data signals (private, exposed via computed properties)
     private readonly suggestedTeamNamesSignal = signal<SuggestedTeamNameDto[]>([]);
@@ -151,12 +154,12 @@ export class TeamsStepComponent implements OnInit {
                 this.registeredTeamsSignal.set(response.registeredTeams);
                 this.ageGroupsSignal.set(response.ageGroups);
                 this.refundPolicyHtml.set(response.playerRegRefundPolicy || null);
-                
+
                 // Store payment metadata
                 this.paymentMethodsAllowedCode.set(response.paymentMethodsAllowedCode);
                 this.bAddProcessingFees.set(response.bAddProcessingFees);
                 this.bApplyProcessingFeesToTeamDeposit.set(response.bApplyProcessingFeesToTeamDeposit ?? false);
-                
+
                 // Check if refund policy already accepted (from first registered team's club rep registration)
                 if (response.registeredTeams.length > 0) {
                     const firstTeam = response.registeredTeams[0];
@@ -165,7 +168,7 @@ export class TeamsStepComponent implements OnInit {
                         this.refundPolicyLocked.set(true);
                     }
                 }
-                
+
                 this.isLoading.set(false);
             },
             error: (err) => {
@@ -317,6 +320,16 @@ export class TeamsStepComponent implements OnInit {
         return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
     }
 
+    /** Handler for cell rendering - adds row numbers efficiently */
+    onQueryCellInfo(args: QueryCellInfoEventArgs): void {
+        if (args.column?.field === 'rowNum' && args.data) {
+            const index = (this.grid.currentViewData as any[]).findIndex(
+                item => item.teamId === (args.data as any).teamId
+            );
+            (args.cell as HTMLElement).innerText = (index + 1).toString();
+        }
+    }
+
     proceedToPayment(): void {
         this.attemptedProceed.set(true);
 
@@ -331,7 +344,7 @@ export class TeamsStepComponent implements OnInit {
         this.paymentService.paymentMethodsAllowedCode.set(this.paymentMethodsAllowedCode());
         this.paymentService.bAddProcessingFees.set(this.bAddProcessingFees());
         this.paymentService.bApplyProcessingFeesToTeamDeposit.set(this.bApplyProcessingFeesToTeamDeposit());
-        
+
         // Set initial payment method based on allowed options
         if (this.paymentMethodsAllowedCode() === 3) {
             this.paymentService.selectedPaymentMethod.set('Check'); // Check only
@@ -344,7 +357,7 @@ export class TeamsStepComponent implements OnInit {
 
     onRefundPolicyAcceptanceChange(accepted: boolean): void {
         this.refundPolicyAccepted.set(accepted);
-        
+
         if (accepted && !this.refundPolicyLocked()) {
             // Call API to record acceptance
             this.teamService.acceptRefundPolicy().subscribe({

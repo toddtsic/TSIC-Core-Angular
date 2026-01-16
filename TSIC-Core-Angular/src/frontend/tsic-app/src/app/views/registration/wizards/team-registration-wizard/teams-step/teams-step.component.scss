@@ -4,32 +4,31 @@
     overflow-y: auto;
 }
 
+/* Grid sticky header */
+::ng-deep .e-grid .e-headercell {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--bs-light);
+}
+
+/* Ensure horizontal scroll works */
+.table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 /* Alert heading hanging indent */
 .alert-info .alert-heading {
     text-indent: -1.6em;
-    padding-left: 1.6em;
-}
 
-/* Table extends to card edges */
-.table-responsive {
-    margin-left: -0.75rem;
-    margin-right: -0.75rem;
-}
+    /* Grid container - defer scrolling to Syncfusion grid */
+    .grid-wrapper {
+        width: 100%;
+    }
 
-.table-responsive .table th:first-child,
-.table-responsive .table td:first-child {
-    padding-left: 0.75rem;
-}
-
-.table-responsive .table th:last-child,
-.table-responsive .table td:last-child {
-    padding-right: 0.75rem;
-}
-
-/* Team name column - controlled width with wrapping */
-.table td:first-child {
-    max-width: 200px;
-    word-wrap: break-word;
     white-space: normal;
 }
 
