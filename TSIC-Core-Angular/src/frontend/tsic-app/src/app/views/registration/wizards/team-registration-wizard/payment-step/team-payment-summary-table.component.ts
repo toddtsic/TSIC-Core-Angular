@@ -8,10 +8,10 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
  * Matches production jqGrid layout with row numbers and aggregate footer.
  */
 @Component({
-    selector: 'app-team-payment-summary-table',
-    standalone: true,
-    imports: [CommonModule, GridModule],
-    template: `
+  selector: 'app-team-payment-summary-table',
+  standalone: true,
+  imports: [CommonModule, GridModule],
+  template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="team-pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="team-pay-summary-title" class="fw-semibold mb-2">Team Payment Summary</h6>
@@ -39,7 +39,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
       <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
         <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true"
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
-                  [rowHeight]="32" gridLines="Both" [allowUnsort]="false"
+                  [rowHeight]="32" gridLines="Both"
                   (queryCellInfo)="onQueryCellInfo($event)"
                   style="min-width: 700px;">
           <e-columns>
@@ -156,7 +156,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
       }
     </section>
   `,
-    styles: [`
+  styles: [`
     /* Desktop: Tighter density to match production */
     ::ng-deep .e-grid .e-headercell {
         font-size: 0.875rem;
@@ -198,16 +198,16 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
   `]
 })
 export class TeamPaymentSummaryTableComponent {
-    readonly svc = inject(TeamPaymentService);
+  readonly svc = inject(TeamPaymentService);
 
-    @ViewChild('grid') public grid!: GridComponent;
+  @ViewChild('grid') public grid!: GridComponent;
 
-    onQueryCellInfo(args: QueryCellInfoEventArgs): void {
-        if (args.column?.field === 'rowNum' && args.data) {
-            const index = (this.grid.currentViewData as any[]).findIndex(
-                item => item.teamId === (args.data as any).teamId
-            );
-            (args.cell as HTMLElement).innerText = (index + 1).toString();
-        }
+  onQueryCellInfo(args: QueryCellInfoEventArgs): void {
+    if (args.column?.field === 'rowNum' && args.data) {
+      const index = (this.grid.currentViewData as any[]).findIndex(
+        item => item.teamId === (args.data as any).teamId
+      );
+      (args.cell as HTMLElement).innerText = (index + 1).toString();
     }
+  }
 }

@@ -35,15 +35,18 @@
         word-wrap: break-word;
         line-height: 1.1;
     }
+
     ::ng-deep .e-grid .e-headercelldiv {
         font-size: 0.65rem;
         line-height: 1.1;
     }
+
     ::ng-deep .e-grid .e-gridcontent td {
         font-size: 0.75rem;
         padding: 2px 4px;
         line-height: 1.1;
     }
+
     ::ng-deep .e-grid colgroup col {
         min-width: 45px !important;
     }

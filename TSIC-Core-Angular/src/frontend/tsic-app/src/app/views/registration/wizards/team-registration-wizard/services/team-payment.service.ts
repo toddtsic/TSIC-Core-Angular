@@ -28,12 +28,12 @@ export interface TeamLineItem {
 export class TeamPaymentService {
     // Teams signal - must be set by the component that owns team state
     teams = signal<RegisteredTeamDto[]>([]);
-    
+
     // Metadata signals - payment configuration
     paymentMethodsAllowedCode = signal<number>(1); // 1=CC only, 2=Both, 3=Check only
     bAddProcessingFees = signal<boolean>(false);
     bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
-    
+
     // Selected payment method signal
     selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
 
@@ -72,7 +72,7 @@ export class TeamPaymentService {
     totalCkOwed = computed(() => this.lineItems().reduce((sum, item) => sum + item.ckOwedTotal, 0));
 
     // Amount to charge based on selected payment method
-    amountToCharge = computed(() => 
+    amountToCharge = computed(() =>
         this.selectedPaymentMethod() === 'Check' ? this.totalCkOwed() : this.totalCcOwed()
     );
 
@@ -93,7 +93,7 @@ export class TeamPaymentService {
     showPaymentMethodSelector = computed(() => this.paymentMethodsAllowedCode() === 2);
     showFeeProcessingColumn = computed(() => this.bAddProcessingFees());
     showCcOwedColumn = computed(() => this.paymentMethodsAllowedCode() !== 3); // Hide if Check only
-    showCkOwedColumn = computed(() => 
+    showCkOwedColumn = computed(() =>
         this.paymentMethodsAllowedCode() !== 1 && this.bAddProcessingFees()
     ); // Hide if CC only OR no processing fees
 

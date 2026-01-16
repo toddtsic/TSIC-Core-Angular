@@ -40,7 +40,6 @@
             <ejs-grid #grid [dataSource]="registeredTeams()" [allowSorting]="true" [allowFiltering]="false"
                 [allowExcelExport]="true" [toolbar]="['ExcelExport']" height="auto" [enableHover]="true"
                 [enableAltRow]="true" [rowHeight]="32" gridLines="Both" [enableStickyHeader]="true" height="600"
-                [allowUnsort]="false"
                 (queryCellInfo)="onQueryCellInfo($event)" style="min-width: 900px;">
 
                 <e-columns>
