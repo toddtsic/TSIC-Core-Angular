@@ -53,6 +53,13 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
             <!-- Team Name Column -->
             <e-column field="teamName" headerText="Team" width="150"></e-column>
 
+            <!-- Level of Play Column -->
+            <e-column field="levelOfPlay" headerText="LOP" width="100" textAlign="Center">
+              <ng-template #template let-data>
+                {{ data.levelOfPlay || '' }}
+              </ng-template>
+            </e-column>
+
             <!-- Registration Date Column -->
             <e-column field="registrationTs" headerText="Reg-Date" width="110" 
                       textAlign="Center" type="date" format="MM/dd/yyyy"></e-column>
@@ -95,6 +102,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
                 <e-column field="rowNum" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
                 <e-column field="ageGroup" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
                 <e-column field="teamName" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                <e-column field="levelOfPlay" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
                 <e-column field="registrationTs" type="Custom" [footerTemplate]="totalsLabelTemplate"></e-column>
                 <e-column field="paidTotal" type="Sum" [footerTemplate]="paidTotalTemplate"></e-column>
                 <e-column field="depositDue" type="Sum" [footerTemplate]="depositDueTemplate"></e-column>

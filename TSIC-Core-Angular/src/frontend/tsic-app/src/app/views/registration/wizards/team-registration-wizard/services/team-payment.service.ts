@@ -5,6 +5,7 @@ export interface TeamLineItem {
     teamId: string;
     teamName: string;
     ageGroup: string;
+    levelOfPlay: string | null;
     registrationTs: string;
     feeBase: number;
     feeProcessing: number;
@@ -43,6 +44,7 @@ export class TeamPaymentService {
             teamId: t.teamId,
             teamName: t.teamName,
             ageGroup: t.ageGroupName || '',
+            levelOfPlay: t.levelOfPlay,
             registrationTs: t.registrationTs,
             feeBase: t.feeBase ?? 0,
             feeProcessing: t.feeProcessing ?? 0,
