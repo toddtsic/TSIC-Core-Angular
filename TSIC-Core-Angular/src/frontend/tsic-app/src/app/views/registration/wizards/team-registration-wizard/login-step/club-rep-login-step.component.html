@@ -33,12 +33,15 @@
         <div class="mb-3">
             <div class="btn-group w-100" role="group" aria-label="Club Rep account availability">
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes"
-                    [ngModel]="hasClubRepAccount()" (ngModelChange)="onHasCredentialsChange($event)" [value]="'yes'" />
-                <label class="btn btn-outline-primary" for="seg-hasClubRep-yes">Yes</label>
+                    [value]="'yes'" [checked]="hasClubRepAccount() === 'yes'"
+                    (change)="onHasCredentialsChange('yes')" />
+                <label class="btn btn-outline-primary" for="seg-hasClubRep-yes"
+                    (click)="onHasCredentialsChange('yes')">Yes</label>
 
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-no"
-                    [ngModel]="hasClubRepAccount()" (ngModelChange)="hasClubRepAccount.set($event)" [value]="'no'" />
-                <label class="btn btn-outline-primary" for="seg-hasClubRep-no">No</label>
+                    [value]="'no'" [checked]="hasClubRepAccount() === 'no'" (change)="hasClubRepAccount.set('no')" />
+                <label class="btn btn-outline-primary" for="seg-hasClubRep-no"
+                    (click)="hasClubRepAccount.set('no')">No</label>
             </div>
         </div>
 
@@ -279,15 +282,13 @@
                 <!-- Step Indicator -->
                 <div class="d-flex justify-content-center mb-3">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge"
-                            [class.bg-primary]="loginModalStep() === 'credentials'"
+                        <span class="badge" [class.bg-primary]="loginModalStep() === 'credentials'"
                             [class.bg-secondary]="loginModalStep() !== 'credentials'">
                             1
                         </span>
                         <span class="text-muted small">Credentials</span>
                         <i class="bi bi-arrow-right text-muted"></i>
-                        <span class="badge"
-                            [class.bg-primary]="loginModalStep() === 'clubSelection'"
+                        <span class="badge" [class.bg-primary]="loginModalStep() === 'clubSelection'"
                             [class.bg-secondary]="loginModalStep() !== 'clubSelection'">
                             2
                         </span>
@@ -347,19 +348,17 @@
                     <div class="mb-3">
                         <label for="modalClubSelector" class="form-label fw-semibold">
                             @if (availableClubs().length === 1) {
-                            Confirm Your Club
+                            Confirm your club
                             } @else {
-                            Choose a Club
+                            Which of your clubs do you want to represent today?
                             }
                         </label>
                         <select id="modalClubSelector" class="form-select" [ngModel]="selectedClub()"
-                            (ngModelChange)="selectClubInModal($event)" [size]="availableClubs().length > 3 ? 3 : availableClubs().length">
+                            (ngModelChange)="selectClubInModal($event)"
+                            [size]="availableClubs().length > 3 ? 3 : availableClubs().length">
                             @for (club of availableClubs(); track club.clubName) {
                             <option [value]="club.clubName">
                                 {{ club.clubName }}
-                                @if (club.hasTeams) {
-                                ({{ club.teamCount }} team{{ club.teamCount === 1 ? '' : 's' }})
-                                }
                             </option>
                             }
                         </select>

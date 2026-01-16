@@ -1,7 +1,7 @@
 <!-- Loading state -->
 @if (isLoading()) {
 <div class="text-center py-5">
-    <div class="spinner-border text-primary" role="status">
+    <div class="spinner-border text-primary">
         <span class="visually-hidden">Loading teams...</span>
     </div>
     <p class="mt-3 text-muted">Loading registration data...</p>
@@ -37,97 +37,100 @@
         </div>
         } @else {
         <div class="table-responsive">
-            <ejs-grid
-                [dataSource]="registeredTeams()"
-                [allowSorting]="true"
-                [allowFiltering]="false"
-                [allowExcelExport]="true"
-                [toolbar]="['ExcelExport']"
-                height="auto"
-                [enableHover]="true"
-                [enableAltRow]="true"
-                [rowHeight]="40"
-                gridLines="Both">
-                
-                <!-- Row Number Column -->
-                <e-column field="rowNumber" headerText="#" width="60" textAlign="Center">
-                    <ng-template #template let-data let-index="index">
-                        <span class="text-muted">{{ index + 1 }}</span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Team Name Column -->
-                <e-column field="teamName" headerText="Team" width="180" [customAttributes]="{class: 'fw-semibold'}"></e-column>
-                
-                <!-- Age Group Column -->
-                <e-column field="ageGroupName" headerText="Age Group" width="150">
-                    <ng-template #headerTemplate>
-                        <span class="d-md-none">Age</span><span class="d-none d-md-inline">Age Group</span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Level of Play Column -->
-                <e-column field="levelOfPlay" headerText="Level" width="120" [hideAtMedia]="'(min-width: 768px) and (max-width: 991px)'">
-                    <ng-template #headerTemplate>
-                        <span class="d-md-none">LOP</span><span class="d-none d-md-inline">Level</span>
-                    </ng-template>
-                    <ng-template #template let-data>
-                        <span class="text-muted lop-col">{{ data.levelOfPlay || 'N/A' }}</span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Registration Date Column (Hidden on Mobile) -->
-                <e-column field="registrationTs" headerText="Reg Date" width="110" textAlign="Right" format="M/d/yy" type="date" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
-                    <ng-template #template let-data>
-                        <span class="text-muted">{{ data.registrationTs | date:'M/d/yy' }}</span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Fee Column -->
-                <e-column field="feeTotal" headerText="Fee" width="105" textAlign="Right" format="C2">
-                    <ng-template #template let-data>
-                        <span class="text-warning">{{ data.feeTotal | currency }}</span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Paid Column (Hidden on Mobile) -->
-                <e-column field="paidTotal" headerText="Paid" width="105" textAlign="Right" format="C2" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
-                    <ng-template #template let-data>
-                        <span class="text-success">{{ data.paidTotal | currency }}</span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Deposit Due Column (Hidden on Mobile) -->
-                <e-column field="depositDue" headerText="Deposit Due" width="115" textAlign="Right" format="C2" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
-                    <ng-template #template let-data>
-                        <span [class.text-warning]="data.depositDue > 0" [class.text-muted]="data.depositDue === 0">
-                            {{ data.depositDue | currency }}
-                        </span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Additional Due Column (Hidden on Mobile) -->
-                <e-column field="additionalDue" headerText="Additional Due" width="125" textAlign="Right" format="C2" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
-                    <ng-template #template let-data>
-                        <span [class.text-warning]="data.additionalDue > 0" [class.text-muted]="data.additionalDue === 0">
-                            {{ data.additionalDue | currency }}
-                        </span>
-                    </ng-template>
-                </e-column>
-                
-                <!-- Actions Column (Mobile Only) -->
-                <e-column headerText="Actions" width="130" textAlign="Right" [visible]="false" [hideAtMedia]="'(min-width: 768px)'">
-                    <ng-template #template let-data>
-                        @if (data.paidTotal === 0) {
-                        <button type="button" class="btn btn-sm btn-outline-danger" (click)="unregisterTeam(data)" title="Remove from event">
-                            <i class="bi bi-x-circle me-1"></i>Remove
-                        </button>
-                        } @else {
-                        <span class="badge bg-success">Paid</span>
-                        }
-                    </ng-template>
-                </e-column>
-                
+            <ejs-grid [dataSource]="registeredTeams()" [allowSorting]="true" [allowFiltering]="false"
+                [allowExcelExport]="true" [toolbar]="['ExcelExport']" height="auto" [enableHover]="true"
+                [enableAltRow]="true" [rowHeight]="40" gridLines="Both">
+
+                <e-columns>
+                    <!-- Row Number Column -->
+                    <e-column field="rowNumber" headerText="#" width="60" textAlign="Center">
+                        <ng-template #template let-data let-index="index">
+                            <span class="text-muted">{{ index + 1 }}</span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Team Name Column -->
+                    <e-column field="teamName" headerText="Team" width="180"
+                        [customAttributes]="{class: 'fw-semibold'}"></e-column>
+
+                    <!-- Age Group Column -->
+                    <e-column field="ageGroupName" headerText="Age Group" width="150">
+                        <ng-template #headerTemplate>
+                            <span class="d-md-none">Age</span><span class="d-none d-md-inline">Age Group</span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Level of Play Column -->
+                    <e-column field="levelOfPlay" headerText="Level" width="120"
+                        [hideAtMedia]="'(min-width: 768px) and (max-width: 991px)'">
+                        <ng-template #headerTemplate>
+                            <span class="d-md-none">LOP</span><span class="d-none d-md-inline">Level</span>
+                        </ng-template>
+                        <ng-template #template let-data>
+                            <span class="text-muted lop-col">{{ data.levelOfPlay || 'N/A' }}</span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Registration Date Column (Hidden on Mobile) -->
+                    <e-column field="registrationTs" headerText="Reg Date" width="110" textAlign="Right" format="M/d/yy"
+                        type="date" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                        <ng-template #template let-data>
+                            <span class="text-muted">{{ data.registrationTs | date:'M/d/yy' }}</span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Fee Column -->
+                    <e-column field="feeTotal" headerText="Fee" width="105" textAlign="Right" format="C2">
+                        <ng-template #template let-data>
+                            <span class="text-warning">{{ data.feeTotal | currency }}</span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Paid Column (Hidden on Mobile) -->
+                    <e-column field="paidTotal" headerText="Paid" width="105" textAlign="Right" format="C2"
+                        [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                        <ng-template #template let-data>
+                            <span class="text-success">{{ data.paidTotal | currency }}</span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Deposit Due Column (Hidden on Mobile) -->
+                    <e-column field="depositDue" headerText="Deposit Due" width="115" textAlign="Right" format="C2"
+                        [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                        <ng-template #template let-data>
+                            <span [class.text-warning]="data.depositDue > 0" [class.text-muted]="data.depositDue === 0">
+                                {{ data.depositDue | currency }}
+                            </span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Additional Due Column (Hidden on Mobile) -->
+                    <e-column field="additionalDue" headerText="Additional Due" width="125" textAlign="Right"
+                        format="C2" [visible]="false" [hideAtMedia]="'(max-width: 767px)'">
+                        <ng-template #template let-data>
+                            <span [class.text-warning]="data.additionalDue > 0"
+                                [class.text-muted]="data.additionalDue === 0">
+                                {{ data.additionalDue | currency }}
+                            </span>
+                        </ng-template>
+                    </e-column>
+
+                    <!-- Actions Column (Mobile Only) -->
+                    <e-column headerText="Actions" width="130" textAlign="Right" [visible]="false"
+                        [hideAtMedia]="'(min-width: 768px)'">
+                        <ng-template #template let-data>
+                            @if (data.paidTotal === 0) {
+                            <button type="button" class="btn btn-sm btn-outline-danger" (click)="unregisterTeam(data)"
+                                title="Remove from event">
+                                <i class="bi bi-x-circle me-1"></i>Remove
+                            </button>
+                            } @else {
+                            <span class="badge bg-success">Paid</span>
+                            }
+                        </ng-template>
+                    </e-column>
+                </e-columns>
+
                 <!-- Aggregates for Footer Totals -->
                 <e-aggregates>
                     <e-aggregate>
@@ -136,29 +139,33 @@
                             <e-column field="feeTotal" type="Sum" [footerTemplate]="feeTotalTemplate"></e-column>
                             <e-column field="paidTotal" type="Sum" [footerTemplate]="paidTotalTemplate"></e-column>
                             <e-column field="depositDue" type="Sum" [footerTemplate]="depositDueTemplate"></e-column>
-                            <e-column field="additionalDue" type="Sum" [footerTemplate]="additionalDueTemplate"></e-column>
+                            <e-column field="additionalDue" type="Sum"
+                                [footerTemplate]="additionalDueTemplate"></e-column>
                         </e-columns>
                     </e-aggregate>
                 </e-aggregates>
             </ejs-grid>
-            
-            <!-- Footer Templates -->
-            <ng-template #countTemplate let-data>
-                <span class="text-muted">{{ data.Count }}</span>
-            </ng-template>
-            <ng-template #feeTotalTemplate let-data>
-                <span class="text-warning">{{ data.Sum | currency }}</span>
-            </ng-template>
-            <ng-template #paidTotalTemplate let-data>
-                <span class="text-success">{{ data.Sum | currency }}</span>
-            </ng-template>
-            <ng-template #depositDueTemplate let-data>
-                <span [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
-            </ng-template>
-            <ng-template #additionalDueTemplate let-data>
-                <span [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
-            </ng-template>
         </div>
+        }
+
+        <!-- Footer Templates -->
+        <ng-template #countTemplate let-data>
+            <span class="text-muted">{{ data.Count }}</span>
+        </ng-template>
+        <ng-template #feeTotalTemplate let-data>
+            <span class="text-warning">{{ data.Sum | currency }}</span>
+        </ng-template>
+        <ng-template #paidTotalTemplate let-data>
+            <span class="text-success">{{ data.Sum | currency }}</span>
+        </ng-template>
+        <ng-template #depositDueTemplate let-data>
+            <span [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum | currency
+                }}</span>
+        </ng-template>
+        <ng-template #additionalDueTemplate let-data>
+            <span [class.text-warning]="data.Sum > 0" [class.text-muted]="data.Sum === 0">{{ data.Sum | currency
+                }}</span>
+        </ng-template>
 
         <!-- Stats footer (mobile only) -->
         <div class="card-footer bg-light border-top d-md-none">
@@ -185,7 +192,8 @@
                 </div>
                 <div class="col-6 col-md-auto">
                     <span class="badge bg-warning-subtle text-warning">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Balance: {{ financialSummary().additionalDueTotal | currency }}
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Balance: {{
+                        financialSummary().additionalDueTotal | currency }}
                     </span>
                 </div>
                 @if (financialSummary().balanceDue > 0) {
@@ -198,63 +206,56 @@
                 }
             </div>
         </div>
-        }
     </div>
-
-    <!-- Refund Policy Section -->
-    @if (refundPolicyHtml()) {
-    <div class="card border-0 shadow-sm mt-4">
-        <div class="card-header bg-warning-subtle">
-            <h5 class="mb-0">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>Refund Policy
-            </h5>
-        </div>
-        <div class="card-body">
-            <!-- Policy Content (scrollable) -->
-            <div class="policy-content mb-3" [innerHTML]="refundPolicyHtml()"></div>
-
-            <!-- Acceptance Checkbox -->
-            <div class="form-check">
-                <input 
-                    type="checkbox" 
-                    class="form-check-input" 
-                    id="refundPolicyCheckbox"
-                    [checked]="refundPolicyAccepted()"
-                    [disabled]="refundPolicyLocked()"
-                    [class.is-invalid]="attemptedProceed() && !refundPolicyAccepted()"
-                    (change)="onRefundPolicyAcceptanceChange($any($event.target).checked)"
-                />
-                <label class="form-check-label fw-semibold" for="refundPolicyCheckbox">
-                    I have read, understood, and accept the terms of the Refund Policy
-                    @if (refundPolicyLocked()) {
-                    <span class="badge bg-secondary ms-2">Already Accepted</span>
-                    }
-                </label>
-                @if (attemptedProceed() && !refundPolicyAccepted()) {
-                <div class="invalid-feedback d-block">
-                    You must accept the Refund Policy to proceed to payment.
-                </div>
-                }
-            </div>
-        </div>
-    </div>
-    }
-
-    <!-- Proceed to Payment Button (only show if teams registered) -->
-    @if (registeredTeams().length > 0) {
-    <div class="d-grid gap-2 mt-4">
-        <button type="button" class="btn btn-primary btn-lg" 
-                (click)="proceedToPayment()"
-                [disabled]="refundPolicyHtml() && !refundPolicyAccepted()">
-            <i class="bi bi-credit-card-fill me-2"></i>
-            Proceed to Payment
-            @if (financialSummary().balanceDue > 0) {
-            <span>({{ financialSummary().balanceDue | currency }} due)</span>
-            }
-        </button>
-    </div>
-    }
 </div>
+
+<!-- Refund Policy Section -->
+@if (refundPolicyHtml()) {
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-warning-subtle">
+        <h5 class="mb-0">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>Refund Policy
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Policy Content (scrollable) -->
+        <div class="policy-content mb-3" [innerHTML]="refundPolicyHtml()"></div>
+
+        <!-- Acceptance Checkbox -->
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="refundPolicyCheckbox" [checked]="refundPolicyAccepted()"
+                [disabled]="refundPolicyLocked()" [class.is-invalid]="attemptedProceed() && !refundPolicyAccepted()"
+                (change)="onRefundPolicyAcceptanceChange($any($event.target).checked)" />
+            <label class="form-check-label fw-semibold" for="refundPolicyCheckbox">
+                I have read, understood, and accept the terms of the Refund Policy
+                @if (refundPolicyLocked()) {
+                <span class="badge bg-secondary ms-2">Already Accepted</span>
+                }
+            </label>
+            @if (attemptedProceed() && !refundPolicyAccepted()) {
+            <div class="invalid-feedback d-block">
+                You must accept the Refund Policy to proceed to payment.
+            </div>
+            }
+        </div>
+    </div>
+</div>
+}
+
+<!-- Proceed to Payment Button (only show if teams registered) -->
+@if (registeredTeams().length > 0) {
+<div class="d-grid gap-2 mt-4">
+    <button type="button" class="btn btn-primary btn-lg" (click)="proceedToPayment()"
+        [disabled]="refundPolicyHtml() && !refundPolicyAccepted()">
+        <i class="bi bi-credit-card-fill me-2"></i>
+        Proceed to Payment
+        @if (financialSummary().balanceDue > 0) {
+        <span>({{ financialSummary().balanceDue | currency }} due)</span>
+        }
+    </button>
+</div>
+}
+}
 
 <!-- Registration Modal Component -->
 <app-team-registration-modal [isOpen]="showRegistrationModal()" [suggestedTeamNames]="suggestedTeamNamesForModal()"
@@ -262,5 +263,3 @@
     [clubName]="clubName()" (closed)="closeRegistrationModal()" (register)="onTeamRegistered($event)"
     (addAnother)="onTeamAddedAnother($event)">
 </app-team-registration-modal>
-
-}

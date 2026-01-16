@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } 
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ClubRepWorkflowService } from '../services/club-rep-workflow.service';
+import { TeamRegistrationService } from '../services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import { ToastService } from '@shared-ui/toast.service';
@@ -76,6 +77,7 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
     private readonly authService = inject(AuthService);
     private readonly jobService = inject(JobService);
     private readonly workflowService = inject(ClubRepWorkflowService);
+    private readonly teamRegService = inject(TeamRegistrationService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly fb = inject(FormBuilder);
     private readonly toast = inject(ToastService);
@@ -98,8 +100,8 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         });
 
         this.loginForm = this.fb.group({
-            username: [null, Validators.required],
-            password: [null, Validators.required]
+            username: ['', Validators.required],
+            password: ['', Validators.required]
         });
     }
 
@@ -294,6 +296,16 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         this.credentialsCollapsed.update((v) => !v);
     }
 
+    /** Handle credentials toggle - open login modal when 'Yes' is selected */
+    onHasCredentialsChange(value: 'yes' | 'no'): void {
+        this.hasClubRepAccount.set(value);
+        if (value === 'yes') {
+            this.showLoginModal.set(true);
+            this.loginModalStep.set('credentials');
+            this.resetLoginFormState();
+        }
+    }
+
     /** Close login modal and reset state */
     closeLoginModal(): void {
         this.showLoginModal.set(false);
@@ -347,5 +359,18 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         this.conflictWarningState.set({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
         this.hasClubRepAccount.set(null);
         // Note: Don't reset loginForm - user is already authenticated
+    }
+
+    /**
+     * Ensure the login form controls are always enabled and clear the password field.
+     * This guards against any stale disabled state from previous modal opens.
+     */
+    private resetLoginFormState(): void {
+        const username = this.loginForm.get('username')?.value ?? '';
+        this.loginForm.enable({ emitEvent: false });
+        this.loginForm.get('password')?.enable({ emitEvent: false });
+        this.loginForm.reset({ username, password: '' }, { emitEvent: false });
+        this.loginForm.markAsPristine();
+        this.loginForm.markAsUntouched();
     }
 }
