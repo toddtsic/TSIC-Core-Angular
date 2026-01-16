@@ -1,15 +1,16 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TeamPaymentService } from '../services/team-payment.service';
+import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
 
 /**
- * Team payment summary table - displays registered teams with fees and balances.
- * Simpler than player version (no ARB, no deposits, just PIF).
+ * Team payment summary grid - displays registered teams with fees and balances using Syncfusion Grid.
+ * Matches production jqGrid layout with row numbers and aggregate footer.
  */
 @Component({
     selector: 'app-team-payment-summary-table',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, GridModule],
     template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="team-pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
@@ -35,70 +36,113 @@ import { TeamPaymentService } from '../services/team-payment.service';
         </div>
       }
 
-      <div class="table-responsive">
-        <table class="table table-sm mb-0">
-          <thead>
-            <tr>
-              <th>Team Name</th>
-              <th>Age Group</th>
-              <th class="text-end">Fee Base</th>
-              @if (svc.showFeeProcessingColumn()) {
-                <th class="text-end">Fee-Processing</th>
-              }
-              <th class="text-end">Already Paid</th>
-              @if (svc.showCcOwedColumn()) {
-                <th class="text-end">CC Owed Total</th>
-              }
-              @if (svc.showCkOwedColumn()) {
-                <th class="text-end">Ck Owed Total</th>
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (team of svc.lineItems(); track team.teamId) {
-              <tr>
-                <td>{{ team.teamName }}</td>
-                <td>{{ team.ageGroup }}</td>
-                <td class="text-end">{{ team.feeBase | currency }}</td>
+      <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true"
+                  height="auto" [enableHover]="true" [enableAltRow]="true" 
+                  [rowHeight]="40" gridLines="Both" 
+                  (queryCellInfo)="onQueryCellInfo($event)"
+                  style="min-width: 700px;">
+          <e-columns>
+            <!-- Row Number Column -->
+            <e-column field="rowNum" headerText="#" width="60" textAlign="Center" 
+                      [allowSorting]="false"></e-column>
+
+            <!-- Age Group Column -->
+            <e-column field="ageGroup" headerText="Age Group" width="120"></e-column>
+
+            <!-- Team Name Column -->
+            <e-column field="teamName" headerText="Team" width="150"></e-column>
+
+            <!-- Registration Date Column -->
+            <e-column field="registrationTs" headerText="Reg-Date" width="110" 
+                      textAlign="Center" type="date" format="MM/dd/yyyy"></e-column>
+
+            <!-- Paid Total Column -->
+            <e-column field="paidTotal" headerText="Paid Total" width="110" 
+                      textAlign="Right" format="C2"></e-column>
+
+            <!-- Deposit Due Column -->
+            <e-column field="depositDue" headerText="Deposit Due" width="120" 
+                      textAlign="Right" format="C2"></e-column>
+
+            <!-- Additional Due Column -->
+            <e-column field="additionalDue" headerText="Additional Due" width="130" 
+                      textAlign="Right" format="C2"></e-column>
+
+            <!-- Fee Processing Column (conditional) -->
+            @if (svc.showFeeProcessingColumn()) {
+              <e-column field="feeProcessing" headerText="Fee-Processing" width="130" 
+                        textAlign="Right" format="C2"></e-column>
+            }
+
+            <!-- CC Owed Total Column (conditional) -->
+            @if (svc.showCcOwedColumn()) {
+              <e-column field="ccOwedTotal" headerText="CC Owed Total" width="130" 
+                        textAlign="Right" format="C2"></e-column>
+            }
+
+            <!-- Ck Owed Total Column (conditional) -->
+            @if (svc.showCkOwedColumn()) {
+              <e-column field="ckOwedTotal" headerText="Ck Owed Total" width="130" 
+                        textAlign="Right" format="C2"></e-column>
+            }
+          </e-columns>
+
+          <!-- Aggregates for Footer Totals -->
+          <e-aggregates>
+            <e-aggregate>
+              <e-columns>
+                <e-column field="rowNum" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                <e-column field="ageGroup" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                <e-column field="teamName" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
+                <e-column field="registrationTs" type="Custom" [footerTemplate]="totalsLabelTemplate"></e-column>
+                <e-column field="paidTotal" type="Sum" [footerTemplate]="paidTotalTemplate"></e-column>
+                <e-column field="depositDue" type="Sum" [footerTemplate]="depositDueTemplate"></e-column>
+                <e-column field="additionalDue" type="Sum" [footerTemplate]="additionalDueTemplate"></e-column>
                 @if (svc.showFeeProcessingColumn()) {
-                  <td class="text-end text-muted">{{ team.feeProcessing | currency }}</td>
+                  <e-column field="feeProcessing" type="Sum" [footerTemplate]="feeProcessingTemplate"></e-column>
                 }
-                <td class="text-end text-success">{{ team.paidTotal | currency }}</td>
                 @if (svc.showCcOwedColumn()) {
-                  <td class="text-end fw-semibold" [class.text-warning]="team.ccOwedTotal > 0">
-                    {{ team.ccOwedTotal | currency }}
-                  </td>
+                  <e-column field="ccOwedTotal" type="Sum" [footerTemplate]="ccOwedTemplate"></e-column>
                 }
                 @if (svc.showCkOwedColumn()) {
-                  <td class="text-end fw-semibold" [class.text-warning]="team.ckOwedTotal > 0">
-                    {{ team.ckOwedTotal | currency }}
-                  </td>
+                  <e-column field="ckOwedTotal" type="Sum" [footerTemplate]="ckOwedTemplate"></e-column>
                 }
-              </tr>
-            }
-          </tbody>
-          <tfoot>
-            <tr class="table-light fw-bold">
-              <th colspan="2" class="text-end">Totals</th>
-              <th class="text-end">{{ svc.totalFeeBase() | currency }}</th>
-              @if (svc.showFeeProcessingColumn()) {
-                <th class="text-end">{{ svc.totalFeeProcessing() | currency }}</th>
-              }
-              <th class="text-end">{{ svc.totalPaid() | currency }}</th>
-              @if (svc.showCcOwedColumn()) {
-                <th class="text-end">{{ svc.totalCcOwed() | currency }}</th>
-              }
-              @if (svc.showCkOwedColumn()) {
-                <th class="text-end">{{ svc.totalCkOwed() | currency }}</th>
-              }
-            </tr>
-            <tr class="table-primary">
-              <th [attr.colspan]="svc.getColspan()" class="text-end">Amount to Charge</th>
-              <th class="text-end text-primary">{{ svc.amountToCharge() | currency }}</th>
-            </tr>
-          </tfoot>
-        </table>
+              </e-columns>
+            </e-aggregate>
+          </e-aggregates>
+        </ejs-grid>
       </div>
+
+      <!-- Footer Templates -->
+      <ng-template #emptyTemplate let-data>
+        <span></span>
+      </ng-template>
+      <ng-template #totalsLabelTemplate let-data>
+        <span class="fw-bold">Totals</span>
+      </ng-template>
+      <ng-template #paidTotalTemplate let-data>
+        <span class="fw-bold text-success">{{ data.Sum | currency }}</span>
+      </ng-template>
+      <ng-template #depositDueTemplate let-data>
+        <span class="fw-bold" [class.text-warning]="data.Sum > 0" 
+              [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
+      </ng-template>
+      <ng-template #additionalDueTemplate let-data>
+        <span class="fw-bold" [class.text-warning]="data.Sum > 0" 
+              [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
+      </ng-template>
+      <ng-template #feeProcessingTemplate let-data>
+        <span class="fw-bold text-muted">{{ data.Sum | currency }}</span>
+      </ng-template>
+      <ng-template #ccOwedTemplate let-data>
+        <span class="fw-bold" [class.text-warning]="data.Sum > 0" 
+              [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
+      </ng-template>
+      <ng-template #ckOwedTemplate let-data>
+        <span class="fw-bold" [class.text-warning]="data.Sum > 0" 
+              [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
+      </ng-template>
       
       @if (!svc.hasBalance()) {
         <div class="alert alert-success border-0 mt-3 mb-0" role="status">
@@ -107,8 +151,41 @@ import { TeamPaymentService } from '../services/team-payment.service';
         </div>
       }
     </section>
-  `
+  `,
+    styles: [`
+    /* Mobile: smaller font and compact layout */
+    @media (max-width: 767.98px) {
+        ::ng-deep .e-grid .e-headercell {
+            font-size: 0.65rem;
+            padding: 2px 4px;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        ::ng-deep .e-grid .e-headercelldiv {
+            font-size: 0.65rem;
+            line-height: 1.1;
+        }
+        ::ng-deep .e-grid .e-gridcontent td {
+            font-size: 0.75rem;
+            padding: 2px 4px;
+        }
+        ::ng-deep .e-grid colgroup col {
+            min-width: 45px !important;
+        }
+    }
+  `]
 })
 export class TeamPaymentSummaryTableComponent {
     readonly svc = inject(TeamPaymentService);
+
+    @ViewChild('grid') public grid!: GridComponent;
+
+    onQueryCellInfo(args: QueryCellInfoEventArgs): void {
+        if (args.column?.field === 'rowNum' && args.data) {
+            const index = (this.grid.currentViewData as any[]).findIndex(
+                item => item.teamId === (args.data as any).teamId
+            );
+            (args.cell as HTMLElement).innerText = (index + 1).toString();
+        }
+    }
 }

@@ -5,10 +5,13 @@ export interface TeamLineItem {
     teamId: string;
     teamName: string;
     ageGroup: string;
+    registrationTs: string;
     feeBase: number;
     feeProcessing: number;
     feeTotal: number;
     paidTotal: number;
+    depositDue: number;
+    additionalDue: number;
     owedTotal: number;
     ccOwedTotal: number;
     ckOwedTotal: number;
@@ -40,10 +43,13 @@ export class TeamPaymentService {
             teamId: t.teamId,
             teamName: t.teamName,
             ageGroup: t.ageGroupName || '',
+            registrationTs: t.registrationTs,
             feeBase: t.feeBase ?? 0,
             feeProcessing: t.feeProcessing ?? 0,
             feeTotal: t.feeTotal ?? 0,
             paidTotal: t.paidTotal ?? 0,
+            depositDue: t.depositDue ?? 0,
+            additionalDue: t.additionalDue ?? 0,
             owedTotal: t.owedTotal ?? 0,
             ccOwedTotal: t.ccOwedTotal ?? 0,
             ckOwedTotal: t.ckOwedTotal ?? 0
