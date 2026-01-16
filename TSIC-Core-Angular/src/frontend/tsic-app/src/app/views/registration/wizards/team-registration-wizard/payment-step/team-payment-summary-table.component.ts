@@ -76,20 +76,18 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
             <e-column field="additionalDue" headerText="Additional Due" width="130" 
                       textAlign="Right" format="C2"></e-column>
 
-            <!-- Fee Processing Column (conditional) -->
+            <!-- Fee Processing Column (conditional - hidden when !bAddProcessingFees) -->
             @if (svc.showFeeProcessingColumn()) {
               <e-column field="feeProcessing" headerText="Fee-Processing" width="130" 
                         textAlign="Right" format="C2"></e-column>
             }
 
-            <!-- CC Owed Total Column (conditional) -->
-            @if (svc.showCcOwedColumn()) {
-              <e-column field="ccOwedTotal" headerText="CC Owed Total" width="130" 
-                        textAlign="Right" format="C2"></e-column>
-            }
+            <!-- CC Owed Total Column (always visible) -->
+            <e-column field="ccOwedTotal" headerText="CC Owed Total" width="130" 
+                      textAlign="Right" format="C2"></e-column>
 
-            <!-- Ck Owed Total Column (conditional) -->
-            @if (svc.showCkOwedColumn()) {
+            <!-- Ck Owed Total Column (conditional - hidden when !bAddProcessingFees) -->
+            @if (svc.showFeeProcessingColumn()) {
               <e-column field="ckOwedTotal" headerText="Ck Owed Total" width="130" 
                         textAlign="Right" format="C2"></e-column>
             }
@@ -110,10 +108,8 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
                 @if (svc.showFeeProcessingColumn()) {
                   <e-column field="feeProcessing" type="Sum" [footerTemplate]="feeProcessingTemplate"></e-column>
                 }
-                @if (svc.showCcOwedColumn()) {
-                  <e-column field="ccOwedTotal" type="Sum" [footerTemplate]="ccOwedTemplate"></e-column>
-                }
-                @if (svc.showCkOwedColumn()) {
+                <e-column field="ccOwedTotal" type="Sum" [footerTemplate]="ccOwedTemplate"></e-column>
+                @if (svc.showFeeProcessingColumn()) {
                   <e-column field="ckOwedTotal" type="Sum" [footerTemplate]="ckOwedTemplate"></e-column>
                 }
               </e-columns>
