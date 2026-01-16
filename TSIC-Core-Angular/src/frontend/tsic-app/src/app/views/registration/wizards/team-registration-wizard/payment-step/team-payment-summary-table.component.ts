@@ -42,6 +42,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
                   [rowHeight]="32" gridLines="Both"
                   (queryCellInfo)="onQueryCellInfo($event)"
                   style="min-width: 700px;">
+          <e-gridsortsettings [allowUnsort]="false"></e-gridsortsettings>
           <e-columns>
             <!-- Row Number Column -->
             <e-column field="rowNum" headerText="#" width="60" textAlign="Center" 
