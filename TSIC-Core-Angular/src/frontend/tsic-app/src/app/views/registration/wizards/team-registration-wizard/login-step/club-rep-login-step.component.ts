@@ -7,6 +7,7 @@ import { ClubRepWorkflowService } from '../services/club-rep-workflow.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
+import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
 
@@ -20,7 +21,7 @@ export interface LoginStepResult {
     templateUrl: './club-rep-login-step.component.html',
     styleUrls: ['./club-rep-login-step.component.scss'],
     standalone: true,
-    imports: [ReactiveFormsModule, FormsModule, InfoTooltipComponent]
+    imports: [ReactiveFormsModule, FormsModule, InfoTooltipComponent, AutofocusDirective]
 })
 export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
     @Input() jobPath: string | null = null;
