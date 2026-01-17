@@ -101,6 +101,7 @@
 
   .e-toolbar-items {
     .e-toolbar-item {
+
       button.e-tbar-btn,
       .e-tbar-btn {
         background-color: var(--bs-primary) !important;
@@ -111,7 +112,7 @@
         padding: 0.375rem 0.75rem !important;
         font-weight: 600 !important;
         transition: all 0.2s ease !important;
-        
+
         &:hover,
         &.e-hover {
           background-color: var(--bs-primary) !important;

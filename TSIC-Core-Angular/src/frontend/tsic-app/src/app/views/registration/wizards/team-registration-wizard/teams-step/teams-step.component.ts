@@ -341,22 +341,30 @@ export class TeamsStepComponent implements OnInit {
 
     onToolbarClick(args: ClickEventArgs): void {
         if (args.item.id === 'teamsGrid_excelexport') {
+            // Clone the grid to export without aggregates
             const excelExportProperties = {
                 dataSource: this.registeredTeams(),
-                fileName: 'RegisteredTeams.xlsx'
+                fileName: 'RegisteredTeams.xlsx',
+                hierarchyExportMode: 'None'
             };
-            this.grid?.excelExport(excelExportProperties);
+            
+            // Temporarily clear aggregates before export
+            const originalAggregates = this.grid.aggregates;
+            this.grid.aggregates = [];
+            
+            this.grid.excelExport(excelExportProperties).then(() => {
+                // Restore aggregates after export
+                this.grid.aggregates = originalAggregates;
+            });
         }
     }
 
     onExcelQueryCellInfo(args: ExcelQueryCellInfoEventArgs): void {
         // Handle aggregate footer cells during Excel export
-        if (args.column && args.column.field && args.cell) {
-            if (args.column.field === 'registrationTs' && args.cell.value === null) {
-                args.cell.value = 'Totals';
-            } else if ((args.column.field === 'paidTotal' || args.column.field === 'depositDue' || args.column.field === 'additionalDue') && typeof args.cell.value === 'number') {
-                // Ensure numeric aggregates are properly formatted as currency
-                args.cell.value = args.cell.value;
+        const cell = args.cell as any;
+        if (args.column?.field && cell) {
+            if (args.column.field === 'registrationTs' && cell.value === null) {
+                cell.value = 'Totals';
             }
         }
     }
