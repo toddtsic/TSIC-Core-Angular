@@ -338,6 +338,12 @@ export class TeamsStepComponent implements OnInit {
         this.grid?.autoFitColumns();
     }
 
+    onToolbarClick(args: any): void {
+        if (args.item.id === 'grid_excelexport') {
+            this.grid?.excelExport();
+        }
+    }
+
     proceedToPayment(): void {
         this.attemptedProceed.set(true);
 
