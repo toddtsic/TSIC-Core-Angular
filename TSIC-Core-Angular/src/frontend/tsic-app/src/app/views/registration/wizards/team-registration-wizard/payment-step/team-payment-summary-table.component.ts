@@ -172,6 +172,9 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
         font-size: 0.8rem;
         padding: 4px 6px;
         line-height: 1.2;
+    }
+
+    /* Mobile: smaller font and compact layout */
     @media (max-width: 767.98px) {
         ::ng-deep .e-grid .e-headercell {
             font-size: 0.65rem;
