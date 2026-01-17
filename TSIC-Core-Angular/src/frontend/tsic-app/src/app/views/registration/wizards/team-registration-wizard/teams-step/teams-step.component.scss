@@ -10,20 +10,20 @@
     top: 0;
     z-index: 10;
     background-color: var(--bs-light);
-    font-size: 0.8rem;
-    padding: 4px 6px;
-    line-height: 1.2;
+    font-size: 0.8rem !important;
+    padding: 4px 6px !important;
+    line-height: 1.2 !important;
 }
 
 ::ng-deep .e-grid .e-headercelldiv {
-    font-size: 0.8rem;
-    line-height: 1.2;
+    font-size: 0.8rem !important;
+    line-height: 1.2 !important;
 }
 
-::ng-deep .e-grid .e-gridcontent td {
-    font-size: 0.8rem;
-    padding: 4px 6px;
-    line-height: 1.2;
+::ng-deep .e-grid .e-rowcell {
+    font-size: 0.8rem !important;
+    padding: 4px 6px !important;
+    line-height: 1.2 !important;
 }
 
 /* Mobile: smaller font and compact layout */

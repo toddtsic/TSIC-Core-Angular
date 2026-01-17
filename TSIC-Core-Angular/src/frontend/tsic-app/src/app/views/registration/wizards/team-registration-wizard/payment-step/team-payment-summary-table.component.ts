@@ -160,18 +160,18 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
   styles: [`
     /* Desktop: Tighter density to match production */
     ::ng-deep .e-grid .e-headercell {
-        font-size: 0.8rem;
-        padding: 4px 6px;
-        line-height: 1.2;
+        font-size: 0.8rem !important;
+        padding: 4px 6px !important;
+        line-height: 1.2 !important;
     }
     ::ng-deep .e-grid .e-headercelldiv {
-        font-size: 0.8rem;
-        line-height: 1.2;
+        font-size: 0.8rem !important;
+        line-height: 1.2 !important;
     }
-    ::ng-deep .e-grid .e-gridcontent td {
-        font-size: 0.8rem;
-        padding: 4px 6px;
-        line-height: 1.2;
+    ::ng-deep .e-grid .e-rowcell {
+        font-size: 0.8rem !important;
+        padding: 4px 6px !important;
+        line-height: 1.2 !important;
     }
 
     /* Mobile: smaller font and compact layout */
@@ -187,7 +187,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
             font-size: 0.65rem;
             line-height: 1.1;
         }
-        ::ng-deep .e-grid .e-gridcontent td {
+        ::ng-deep .e-grid .e-rowcell {
             font-size: 0.75rem;
             padding: 2px 4px;
             line-height: 1.1;
