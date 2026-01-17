@@ -341,31 +341,13 @@ export class TeamsStepComponent implements OnInit {
 
     onToolbarClick(args: ClickEventArgs): void {
         if (args.item.id === 'teamsGrid_excelexport') {
-            // Clone the grid to export without aggregates
             const excelExportProperties = {
                 dataSource: this.registeredTeams(),
                 fileName: 'RegisteredTeams.xlsx',
-                hierarchyExportMode: 'None'
+                includeHiddenColumn: false,
+                exportType: 'CurrentPage'
             };
-            
-            // Temporarily clear aggregates before export
-            const originalAggregates = this.grid.aggregates;
-            this.grid.aggregates = [];
-            
-            this.grid.excelExport(excelExportProperties).then(() => {
-                // Restore aggregates after export
-                this.grid.aggregates = originalAggregates;
-            });
-        }
-    }
-
-    onExcelQueryCellInfo(args: ExcelQueryCellInfoEventArgs): void {
-        // Handle aggregate footer cells during Excel export
-        const cell = args.cell as any;
-        if (args.column?.field && cell) {
-            if (args.column.field === 'registrationTs' && cell.value === null) {
-                cell.value = 'Totals';
-            }
+            this.grid.excelExport(excelExportProperties);
         }
     }
 

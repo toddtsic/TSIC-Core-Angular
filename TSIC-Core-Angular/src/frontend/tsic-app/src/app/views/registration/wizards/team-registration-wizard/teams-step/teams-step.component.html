@@ -41,8 +41,7 @@
                 [sortSettings]="sortOptions" [allowFiltering]="false" [allowExcelExport]="true"
                 [toolbar]="['ExcelExport']" height="auto" [enableHover]="true" [enableAltRow]="true" [rowHeight]="30"
                 gridLines="Both" [enableStickyHeader]="true" [autoFit]="true" (queryCellInfo)="onQueryCellInfo($event)"
-                (dataBound)="onDataBound()" (toolbarClick)="onToolbarClick($event)"
-                (excelQueryCellInfo)="onExcelQueryCellInfo($event)" class="tight-table">
+                (dataBound)="onDataBound()" (toolbarClick)="onToolbarClick($event)" class="tight-table">
 
                 <e-columns>
                     <!-- Row Number Column -->
