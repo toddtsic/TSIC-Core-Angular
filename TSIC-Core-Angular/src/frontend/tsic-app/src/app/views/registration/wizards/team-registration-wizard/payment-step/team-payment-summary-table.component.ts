@@ -42,54 +42,54 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
                   [rowHeight]="30" gridLines="Both"
                   (queryCellInfo)="onQueryCellInfo($event)"
-                  style="min-width: 700px;" class="tight-table">
+                  class="tight-table">
           <e-columns>
             <!-- Row Number Column -->
-            <e-column field="rowNum" headerText="#" width="60" textAlign="Center" 
+            <e-column field="rowNum" headerText="#" width="auto" textAlign="Center" 
                       [allowSorting]="false"></e-column>
 
             <!-- Age Group Column -->
-            <e-column field="ageGroup" headerText="Age Group" width="120"></e-column>
+            <e-column field="ageGroup" headerText="Age Group" width="auto"></e-column>
 
             <!-- Team Name Column -->
-            <e-column field="teamName" headerText="Team" width="150"></e-column>
+            <e-column field="teamName" headerText="Team" width="auto"></e-column>
 
             <!-- Level of Play Column -->
-            <e-column field="levelOfPlay" headerText="LOP" width="100" textAlign="Center">
+            <e-column field="levelOfPlay" headerText="LOP" width="auto" textAlign="Center">
               <ng-template #template let-data>
                 {{ data.levelOfPlay || '' }}
               </ng-template>
             </e-column>
 
             <!-- Registration Date Column -->
-            <e-column field="registrationTs" headerText="Reg-Date" width="110" 
+            <e-column field="registrationTs" headerText="Reg-Date" width="auto" 
                       textAlign="Center" type="date" format="MM/dd/yyyy"></e-column>
 
             <!-- Paid Total Column -->
-            <e-column field="paidTotal" headerText="Paid Total" width="110" 
+            <e-column field="paidTotal" headerText="Paid Total" width="auto" 
                       textAlign="Right" format="C2"></e-column>
 
             <!-- Deposit Due Column -->
-            <e-column field="depositDue" headerText="Deposit Due" width="120" 
+            <e-column field="depositDue" headerText="Deposit Due" width="auto" 
                       textAlign="Right" format="C2"></e-column>
 
             <!-- Additional Due Column -->
-            <e-column field="additionalDue" headerText="Additional Due" width="130" 
+            <e-column field="additionalDue" headerText="Additional Due" width="auto" 
                       textAlign="Right" format="C2"></e-column>
 
             <!-- Fee Processing Column (conditional - hidden when !bAddProcessingFees) -->
             @if (svc.showFeeProcessingColumn()) {
-              <e-column field="feeProcessing" headerText="Fee-Processing" width="130" 
+              <e-column field="feeProcessing" headerText="Fee-Processing" width="auto" 
                         textAlign="Right" format="C2"></e-column>
             }
 
             <!-- CC Owed Total Column (always visible) -->
-            <e-column field="ccOwedTotal" headerText="CC Owed Total" width="130" 
+            <e-column field="ccOwedTotal" headerText="CC Owed Total" width="auto" 
                       textAlign="Right" format="C2"></e-column>
 
             <!-- Ck Owed Total Column (conditional - hidden when !bAddProcessingFees) -->
             @if (svc.showFeeProcessingColumn()) {
-              <e-column field="ckOwedTotal" headerText="Ck Owed Total" width="130" 
+              <e-column field="ckOwedTotal" headerText="Ck Owed Total" width="auto" 
                         textAlign="Right" format="C2"></e-column>
             }
           </e-columns>
