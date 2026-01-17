@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, input, signal, output, CUSTOM_ELEM
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { GridAllModule, GridComponent, SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService, QueryCellInfoEventArgs, ExcelQueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent, SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService, QueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
 import { ClickEventArgs } from '@syncfusion/ej2-navigations';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { TeamPaymentService } from '../services/team-payment.service';
@@ -343,9 +343,7 @@ export class TeamsStepComponent implements OnInit {
         if (args.item.id === 'teamsGrid_excelexport') {
             const excelExportProperties = {
                 dataSource: this.registeredTeams(),
-                fileName: 'RegisteredTeams.xlsx',
-                includeHiddenColumn: false,
-                exportType: 'CurrentPage'
+                fileName: 'RegisteredTeams.xlsx'
             };
             this.grid.excelExport(excelExportProperties);
         }
