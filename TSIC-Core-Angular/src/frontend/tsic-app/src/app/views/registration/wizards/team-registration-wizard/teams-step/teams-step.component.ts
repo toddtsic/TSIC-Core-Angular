@@ -333,6 +333,11 @@ export class TeamsStepComponent implements OnInit {
         }
     }
 
+    onDataBound(): void {
+        // Auto-fit all columns to content on data load
+        this.grid?.autoFitColumns();
+    }
+
     proceedToPayment(): void {
         this.attemptedProceed.set(true);
 

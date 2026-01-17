@@ -40,8 +40,8 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
       <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
         <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true" [sortSettings]="sortOptions"
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
-                  [rowHeight]="30" gridLines="Both"
-                  (queryCellInfo)="onQueryCellInfo($event)"
+                  [rowHeight]="30" gridLines="Both" [autoFit]="true"
+                  (queryCellInfo)="onQueryCellInfo($event)" (dataBound)="onDataBound()"
                   class="tight-table">
           <e-columns>
             <!-- Row Number Column -->
@@ -172,5 +172,10 @@ export class TeamPaymentSummaryTableComponent {
       );
       (args.cell as HTMLElement).innerText = (index + 1).toString();
     }
+  }
+
+  onDataBound(): void {
+    // Auto-fit all columns to content on data load
+    this.grid?.autoFitColumns();
   }
 }
