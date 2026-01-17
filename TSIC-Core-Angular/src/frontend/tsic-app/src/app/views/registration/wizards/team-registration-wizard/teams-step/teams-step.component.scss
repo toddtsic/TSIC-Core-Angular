@@ -4,52 +4,11 @@
     overflow-y: auto;
 }
 
-/* Desktop: Tighter density to match production */
+/* Grid sticky header (position only) */
 ::ng-deep .e-grid .e-headercell {
     position: sticky;
     top: 0;
     z-index: 10;
-    background-color: var(--bs-light);
-    font-size: 0.8rem !important;
-    padding: 4px 6px !important;
-    line-height: 1.2 !important;
-}
-
-::ng-deep .e-grid .e-headercelldiv {
-    font-size: 0.8rem !important;
-    line-height: 1.2 !important;
-}
-
-::ng-deep .e-grid .e-rowcell {
-    font-size: 0.8rem !important;
-    padding: 4px 6px !important;
-    line-height: 1.2 !important;
-}
-
-/* Mobile: smaller font and compact layout */
-@media (max-width: 767.98px) {
-    ::ng-deep .e-grid .e-headercell {
-        font-size: 0.65rem;
-        padding: 2px 4px;
-        white-space: normal;
-        word-wrap: break-word;
-        line-height: 1.1;
-    }
-
-    ::ng-deep .e-grid .e-headercelldiv {
-        font-size: 0.65rem;
-        line-height: 1.1;
-    }
-
-    ::ng-deep .e-grid .e-gridcontent td {
-        font-size: 0.75rem;
-        padding: 2px 4px;
-        line-height: 1.1;
-    }
-
-    ::ng-deep .e-grid colgroup col {
-        min-width: 45px !important;
-    }
 }
 
 /* Ensure horizontal scroll works */

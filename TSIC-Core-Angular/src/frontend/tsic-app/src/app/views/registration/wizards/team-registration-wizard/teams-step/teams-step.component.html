@@ -38,9 +38,9 @@
         } @else {
         <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
             <ejs-grid #grid [dataSource]="registeredTeams()" [allowSorting]="true" [sortSettings]="sortOptions"
-                [allowFiltering]="false" [allowExcelExport]="true" [toolbar]="['ExcelExport']" height="auto" [enableHover]="true"
-                [enableAltRow]="true" [rowHeight]="30" gridLines="Both" [enableStickyHeader]="true" height="600"
-                (queryCellInfo)="onQueryCellInfo($event)" style="min-width: 900px;">
+                [allowFiltering]="false" [allowExcelExport]="true" [toolbar]="['ExcelExport']" height="auto"
+                [enableHover]="true" [enableAltRow]="true" [rowHeight]="30" gridLines="Both" [enableStickyHeader]="true"
+                height="600" (queryCellInfo)="onQueryCellInfo($event)" style="min-width: 900px;" class="tight-table">
 
                 <e-columns>
                     <!-- Row Number Column -->

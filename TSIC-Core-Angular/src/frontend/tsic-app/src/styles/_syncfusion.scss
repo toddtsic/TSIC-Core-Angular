@@ -9,7 +9,7 @@
   border: 1px solid var(--border-color) !important;
   border-radius: var(--bs-border-radius) !important;
   box-shadow: var(--bs-box-shadow-sm) !important;
-  
+
   // Glassmorphic effect
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
@@ -19,7 +19,7 @@
 .e-grid .e-gridheader {
   background: var(--bs-light) !important;
   border-bottom: 1px solid var(--border-color) !important;
-  
+
   .e-headercell {
     color: var(--bs-dark) !important;
     font-weight: 700 !important;
@@ -27,12 +27,12 @@
     font-size: 0.875rem !important;
     padding: 0.75rem 0.5rem !important;
     border-right: 1px solid rgba(var(--bs-border-color-rgb), 0.3) !important;
-    
+
     &:last-child {
       border-right: none !important;
     }
   }
-  
+
   .e-headercelldiv {
     font-weight: 700 !important;
   }
@@ -41,30 +41,30 @@
 /* Grid Content */
 .e-grid .e-gridcontent {
   background: transparent !important;
-  
+
   .e-row {
     background: transparent !important;
     border-bottom: 1px solid rgba(var(--bs-border-color-rgb), 0.2) !important;
-    
+
     &:hover {
       background: rgba(var(--bs-primary-rgb), 0.05) !important;
     }
-    
+
     &.e-altrow {
       background: rgba(var(--bs-secondary-bg-rgb), 0.3) !important;
-      
+
       &:hover {
         background: rgba(var(--bs-primary-rgb), 0.08) !important;
       }
     }
   }
-  
+
   .e-rowcell {
     padding: 0.75rem 0.5rem !important;
     color: var(--bs-body-color) !important;
     border-right: 1px solid rgba(var(--bs-border-color-rgb), 0.1) !important;
     font-size: 0.875rem !important;
-    
+
     &:last-child {
       border-right: none !important;
     }
@@ -76,16 +76,16 @@
   background: var(--bs-light) !important;
   border-top: 2px solid var(--bs-primary) !important;
   font-weight: 700 !important;
-  
+
   .e-summaryrow {
     background: var(--bs-light) !important;
-    
+
     .e-summarycell {
       color: var(--bs-dark) !important;
       font-weight: 700 !important;
       padding: 0.75rem 0.5rem !important;
       border-right: 1px solid rgba(var(--bs-border-color-rgb), 0.3) !important;
-      
+
       &:last-child {
         border-right: none !important;
       }
@@ -98,7 +98,7 @@
   background: var(--bs-secondary-bg) !important;
   border-bottom: 1px solid var(--border-color) !important;
   padding: 0.5rem !important;
-  
+
   .e-toolbar-item {
     .e-tbar-btn {
       background: var(--bs-primary) !important;
@@ -108,12 +108,12 @@
       padding: 0.375rem 0.75rem !important;
       font-weight: 600 !important;
       transition: all 0.2s ease !important;
-      
+
       &:hover {
         background: var(--bs-primary-hover) !important;
         box-shadow: var(--bs-box-shadow-sm) !important;
       }
-      
+
       .e-tbar-btn-text {
         color: var(--bs-light) !important;
       }
@@ -138,7 +138,7 @@
   .e-filterbarcell {
     background: rgba(var(--bs-primary-rgb), 0.05) !important;
     border-bottom: 1px solid var(--border-color) !important;
-    
+
     input {
       background: var(--bs-body-bg) !important;
       border: 1px solid var(--border-color) !important;
@@ -146,7 +146,7 @@
       color: var(--bs-body-color) !important;
       padding: 0.375rem 0.5rem !important;
       font-size: 0.875rem !important;
-      
+
       &:focus {
         border-color: var(--bs-primary) !important;
         box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25) !important;
@@ -160,7 +160,7 @@
   background: var(--bs-secondary-bg) !important;
   border-top: 1px solid var(--border-color) !important;
   padding: 0.75rem !important;
-  
+
   .e-pagercontainer {
     .e-numericcontainer {
       .e-numericitem {
@@ -168,11 +168,11 @@
         color: var(--bs-body-color) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: var(--bs-border-radius) !important;
-        
+
         &:hover {
           background: rgba(var(--bs-primary-rgb), 0.1) !important;
         }
-        
+
         &.e-currentitem {
           background: var(--bs-primary) !important;
           color: var(--bs-light) !important;
@@ -186,6 +186,7 @@
 /* Mobile Responsive Adjustments */
 @media (max-width: 575.98px) {
   .e-grid {
+
     .e-gridheader .e-headercell,
     .e-gridcontent .e-rowcell {
       font-size: 0.6875rem !important;
@@ -199,19 +200,19 @@
   .text-warning {
     color: var(--bs-warning) !important;
   }
-  
+
   .text-success {
     color: var(--bs-success) !important;
   }
-  
+
   .text-danger {
     color: var(--bs-danger) !important;
   }
-  
+
   .text-muted {
     color: var(--bs-secondary) !important;
   }
-  
+
   .fw-semibold {
     font-weight: 600 !important;
   }
@@ -220,10 +221,56 @@
 /* Empty State */
 .e-grid .e-emptyrow {
   background: transparent !important;
-  
+
   td {
     color: var(--bs-secondary) !important;
     text-align: center !important;
     padding: 3rem 1rem !important;
+  }
+}
+
+/* Tight Table Density - for production-matching compact tables */
+.e-grid.tight-table {
+  .e-headercell {
+    font-size: 0.8rem !important;
+    padding: 4px 6px !important;
+    line-height: 1.2 !important;
+  }
+
+  .e-headercelldiv {
+    font-size: 0.8rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .e-gridcontent .e-rowcell {
+    font-size: 0.8rem !important;
+    padding: 4px 6px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Mobile: even tighter */
+  @media (max-width: 767.98px) {
+    .e-headercell {
+      font-size: 0.65rem !important;
+      padding: 2px 4px !important;
+      line-height: 1.1 !important;
+      white-space: normal !important;
+      word-wrap: break-word !important;
+    }
+
+    .e-headercelldiv {
+      font-size: 0.65rem !important;
+      line-height: 1.1 !important;
+    }
+
+    .e-gridcontent .e-rowcell {
+      font-size: 0.75rem !important;
+      padding: 2px 4px !important;
+      line-height: 1.1 !important;
+    }
+
+    colgroup col {
+      min-width: 45px !important;
+    }
   }
 }

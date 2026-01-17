@@ -42,7 +42,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
                   [rowHeight]="30" gridLines="Both"
                   (queryCellInfo)="onQueryCellInfo($event)"
-                  style="min-width: 700px;">
+                  style="min-width: 700px;" class="tight-table">
           <e-columns>
             <!-- Row Number Column -->
             <e-column field="rowNum" headerText="#" width="60" textAlign="Center" 
@@ -157,53 +157,14 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
       }
     </section>
   `,
-  styles: [`
-    /* Desktop: Tighter density to match production */
-    ::ng-deep .e-grid .e-headercell {
-        font-size: 0.8rem !important;
-        padding: 4px 6px !important;
-        line-height: 1.2 !important;
-    }
-    ::ng-deep .e-grid .e-headercelldiv {
-        font-size: 0.8rem !important;
-        line-height: 1.2 !important;
-    }
-    ::ng-deep .e-grid .e-rowcell {
-        font-size: 0.8rem !important;
-        padding: 4px 6px !important;
-        line-height: 1.2 !important;
-    }
-
-    /* Mobile: smaller font and compact layout */
-    @media (max-width: 767.98px) {
-        ::ng-deep .e-grid .e-headercell {
-            font-size: 0.65rem;
-            padding: 2px 4px;
-            white-space: normal;
-            word-wrap: break-word;
-            line-height: 1.1;
-        }
-        ::ng-deep .e-grid .e-headercelldiv {
-            font-size: 0.65rem;
-            line-height: 1.1;
-        }
-        ::ng-deep .e-grid .e-rowcell {
-            font-size: 0.75rem;
-            padding: 2px 4px;
-            line-height: 1.1;
-        }
-        ::ng-deep .e-grid colgroup col {
-            min-width: 45px !important;
-        }
-    }
-  `]
+  styles: []
 })
 export class TeamPaymentSummaryTableComponent {
   readonly svc = inject(TeamPaymentService);
 
   @ViewChild('grid') public grid!: GridComponent;
-    // Sort settings for 2-state sorting (no unsorted state)
-    public sortOptions = { allowUnsort: false };
+  // Sort settings for 2-state sorting (no unsorted state)
+  public sortOptions = { allowUnsort: false };
   onQueryCellInfo(args: QueryCellInfoEventArgs): void {
     if (args.column?.field === 'rowNum' && args.data) {
       const index = (this.grid.currentViewData as any[]).findIndex(
