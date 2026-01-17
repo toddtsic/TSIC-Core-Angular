@@ -99,38 +99,53 @@
   border-bottom: 1px solid var(--border-color) !important;
   padding: 0.5rem !important;
 
-  .e-toolbar-item {
-    .e-tbar-btn {
-      background: var(--bs-primary) !important;
-      color: var(--bs-light) !important;
-      border: none !important;
-      border-radius: var(--bs-border-radius) !important;
-      padding: 0.375rem 0.75rem !important;
-      font-weight: 600 !important;
-      transition: all 0.2s ease !important;
-
-      &:hover {
-        background: var(--bs-primary-hover) !important;
-        box-shadow: var(--bs-box-shadow-sm) !important;
-      }
-
-      &:focus {
+  .e-toolbar-items {
+    .e-toolbar-item {
+      button.e-tbar-btn,
+      .e-tbar-btn {
+        background-color: var(--bs-primary) !important;
         background: var(--bs-primary) !important;
         color: var(--bs-light) !important;
-        outline: none !important;
-      }
+        border: none !important;
+        border-radius: var(--bs-border-radius) !important;
+        padding: 0.375rem 0.75rem !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+        
+        &:hover,
+        &.e-hover {
+          background-color: var(--bs-primary) !important;
+          background: var(--bs-primary) !important;
+          color: var(--bs-light) !important;
+          opacity: 0.9 !important;
+          box-shadow: var(--bs-box-shadow-sm) !important;
+        }
 
-      &:active {
-        background: var(--bs-primary) !important;
-        color: var(--bs-light) !important;
-      }
+        &:focus,
+        &.e-focus {
+          background-color: var(--bs-primary) !important;
+          background: var(--bs-primary) !important;
+          color: var(--bs-light) !important;
+          outline: none !important;
+          box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25) !important;
+        }
 
-      .e-tbar-btn-text {
-        color: var(--bs-light) !important;
-      }
+        &:active,
+        &.e-active {
+          background-color: var(--bs-primary) !important;
+          background: var(--bs-primary) !important;
+          color: var(--bs-light) !important;
+          opacity: 0.95 !important;
+        }
 
-      .e-icons {
-        color: var(--bs-light) !important;
+        .e-tbar-btn-text {
+          color: var(--bs-light) !important;
+        }
+
+        .e-icons,
+        .e-btn-icon {
+          color: var(--bs-light) !important;
+        }
       }
     }
   }
