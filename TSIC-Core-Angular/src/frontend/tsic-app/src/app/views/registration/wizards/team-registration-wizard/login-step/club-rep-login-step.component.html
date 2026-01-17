@@ -30,8 +30,8 @@
     <legend id="clubRepLegend" class="visually-hidden">Club Rep account availability</legend>
     <div class="list-group list-group-flush">
         <!-- SEGMENTED TOGGLE (all viewports) -->
-        <div class="mb-3">
-            <div class="btn-group w-100" role="group" aria-label="Club Rep account availability">
+        <div class="mb-3 d-flex justify-content-center">
+            <div class="btn-group" role="group" aria-label="Club Rep account availability">
                 <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes"
                     [value]="'yes'" [checked]="hasClubRepAccount() === 'yes'"
                     (change)="onHasCredentialsChange('yes')" />
