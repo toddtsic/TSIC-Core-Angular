@@ -1,7 +1,8 @@
 import { Component, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TeamPaymentService } from '../services/team-payment.service';
-import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '@syncfusion/ej2-angular-grids';
+import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService, ToolbarService, ExcelExportService } from '@syncfusion/ej2-angular-grids';
+import { ClickEventArgs } from '@syncfusion/ej2-navigations';
 
 /**
  * Team payment summary grid - displays registered teams with fees and balances using Syncfusion Grid.
@@ -11,7 +12,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
   selector: 'app-team-payment-summary-table',
   standalone: true,
   imports: [CommonModule, GridModule],
-  providers: [SortService],
+  providers: [SortService, ToolbarService, ExcelExportService],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="team-pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
@@ -38,11 +39,12 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '
       }
 
       <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-        <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true" [sortSettings]="sortOptions"
+        <ejs-grid #grid id="paymentGrid" [dataSource]="svc.lineItems()" [allowSorting]="true" [sortSettings]="sortOptions"
+                  [allowExcelExport]="true" [toolbar]="['ExcelExport']"
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
                   [rowHeight]="30" gridLines="Both" [autoFit]="true"
                   (queryCellInfo)="onQueryCellInfo($event)" (dataBound)="onDataBound()"
-                  class="tight-table">
+                  (toolbarClick)="onToolbarClick($event)" class="tight-table">
           <e-columns>
             <!-- Row Number Column -->
             <e-column field="rowNum" headerText="#" width="auto" textAlign="Center" 
@@ -177,5 +179,15 @@ export class TeamPaymentSummaryTableComponent {
   onDataBound(): void {
     // Auto-fit all columns to content on data load
     this.grid?.autoFitColumns();
+  }
+
+  onToolbarClick(args: ClickEventArgs): void {
+    if (args.item.id === 'paymentGrid_excelexport') {
+      const excelExportProperties = {
+        dataSource: this.svc.lineItems(),
+        fileName: 'TeamPaymentSummary.xlsx'
+      };
+      this.grid.excelExport(excelExportProperties);
+    }
   }
 }
