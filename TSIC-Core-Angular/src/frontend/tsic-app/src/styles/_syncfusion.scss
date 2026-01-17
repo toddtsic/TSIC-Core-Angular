@@ -114,7 +114,22 @@
         box-shadow: var(--bs-box-shadow-sm) !important;
       }
 
+      &:focus {
+        background: var(--bs-primary) !important;
+        color: var(--bs-light) !important;
+        outline: none !important;
+      }
+
+      &:active {
+        background: var(--bs-primary) !important;
+        color: var(--bs-light) !important;
+      }
+
       .e-tbar-btn-text {
+        color: var(--bs-light) !important;
+      }
+
+      .e-icons {
         color: var(--bs-light) !important;
       }
     }

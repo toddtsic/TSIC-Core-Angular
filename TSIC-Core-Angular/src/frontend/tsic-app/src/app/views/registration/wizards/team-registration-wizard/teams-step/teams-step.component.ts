@@ -341,7 +341,11 @@ export class TeamsStepComponent implements OnInit {
 
     onToolbarClick(args: ClickEventArgs): void {
         if (args.item.id === 'teamsGrid_excelexport') {
-            this.grid?.excelExport();
+            const excelExportProperties = {
+                dataSource: this.registeredTeams(),
+                fileName: 'RegisteredTeams.xlsx'
+            };
+            this.grid?.excelExport(excelExportProperties);
         }
     }
 
