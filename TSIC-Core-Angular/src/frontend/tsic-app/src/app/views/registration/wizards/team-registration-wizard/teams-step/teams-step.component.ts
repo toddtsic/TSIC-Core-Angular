@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, input, signal, output, CUSTOM_ELEM
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { GridAllModule, GridComponent, SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService, QueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent, SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService, QueryCellInfoEventArgs, ExcelQueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
 import { ClickEventArgs } from '@syncfusion/ej2-navigations';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { TeamPaymentService } from '../services/team-payment.service';
@@ -342,6 +342,18 @@ export class TeamsStepComponent implements OnInit {
     onToolbarClick(args: ClickEventArgs): void {
         if (args.item.id === 'teamsGrid_excelexport') {
             this.grid?.excelExport();
+        }
+    }
+
+    onExcelQueryCellInfo(args: ExcelQueryCellInfoEventArgs): void {
+        // Handle aggregate footer cells during Excel export
+        if (args.column && args.column.field && args.cell) {
+            if (args.column.field === 'registrationTs' && args.cell.value === null) {
+                args.cell.value = 'Totals';
+            } else if ((args.column.field === 'paidTotal' || args.column.field === 'depositDue' || args.column.field === 'additionalDue') && typeof args.cell.value === 'number') {
+                // Ensure numeric aggregates are properly formatted as currency
+                args.cell.value = args.cell.value;
+            }
         }
     }
 
