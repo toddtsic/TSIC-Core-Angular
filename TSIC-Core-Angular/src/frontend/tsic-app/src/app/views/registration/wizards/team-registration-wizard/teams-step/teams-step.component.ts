@@ -62,6 +62,9 @@ export class TeamsStepComponent implements OnInit {
     // Grid reference
     @ViewChild('grid') public grid!: GridComponent;
 
+    // Sort settings for 2-state sorting (no unsorted state)
+    public sortOptions = { allowUnsort: false };
+
     // Data signals (private, exposed via computed properties)
     private readonly suggestedTeamNamesSignal = signal<SuggestedTeamNameDto[]>([]);
     private readonly registeredTeamsSignal = signal<RegisteredTeamDto[]>([]);

@@ -1,7 +1,7 @@
 import { Component, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TeamPaymentService } from '../services/team-payment.service';
-import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
+import { GridModule, GridComponent, QueryCellInfoEventArgs, SortService } from '@syncfusion/ej2-angular-grids';
 
 /**
  * Team payment summary grid - displays registered teams with fees and balances using Syncfusion Grid.
@@ -11,6 +11,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
   selector: 'app-team-payment-summary-table',
   standalone: true,
   imports: [CommonModule, GridModule],
+  providers: [SortService],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="team-pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
@@ -37,7 +38,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
       }
 
       <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-        <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true"
+        <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true" [sortSettings]="sortOptions"
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
                   [rowHeight]="30" gridLines="Both"
                   (queryCellInfo)="onQueryCellInfo($event)"
@@ -198,7 +199,8 @@ export class TeamPaymentSummaryTableComponent {
   readonly svc = inject(TeamPaymentService);
 
   @ViewChild('grid') public grid!: GridComponent;
-
+    // Sort settings for 2-state sorting (no unsorted state)
+    public sortOptions = { allowUnsort: false };
   onQueryCellInfo(args: QueryCellInfoEventArgs): void {
     if (args.column?.field === 'rowNum' && args.data) {
       const index = (this.grid.currentViewData as any[]).findIndex(
