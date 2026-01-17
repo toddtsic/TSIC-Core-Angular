@@ -39,7 +39,7 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
       <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
         <ejs-grid #grid [dataSource]="svc.lineItems()" [allowSorting]="true"
                   height="auto" [enableHover]="true" [enableAltRow]="true" 
-                  [rowHeight]="32" gridLines="Both"
+                  [rowHeight]="30" gridLines="Both"
                   (queryCellInfo)="onQueryCellInfo($event)"
                   style="min-width: 700px;">
           <e-gridsortsettings [allowUnsort]="false"></e-gridsortsettings>
@@ -160,21 +160,18 @@ import { GridModule, GridComponent, QueryCellInfoEventArgs } from '@syncfusion/e
   styles: [`
     /* Desktop: Tighter density to match production */
     ::ng-deep .e-grid .e-headercell {
-        font-size: 0.875rem;
-        padding: 6px 8px;
-        line-height: 1.3;
+        font-size: 0.8rem;
+        padding: 4px 6px;
+        line-height: 1.2;
     }
     ::ng-deep .e-grid .e-headercelldiv {
-        font-size: 0.875rem;
-        line-height: 1.3;
+        font-size: 0.8rem;
+        line-height: 1.2;
     }
     ::ng-deep .e-grid .e-gridcontent td {
-        font-size: 0.875rem;
-        padding: 6px 8px;
-        line-height: 1.3;
-    }
-
-    /* Mobile: smaller font and compact layout */
+        font-size: 0.8rem;
+        padding: 4px 6px;
+        line-height: 1.2;
     @media (max-width: 767.98px) {
         ::ng-deep .e-grid .e-headercell {
             font-size: 0.65rem;
