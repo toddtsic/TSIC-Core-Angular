@@ -23,29 +23,27 @@
         </div>
     </div>
 </div>
-<h5 class="mb-3 fw-semibold pt-1">Have <strong class="text-primary">CLUB REP</strong>
-    credentials?</h5>
+
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 pt-1">
+    <h5 class="mb-2 mb-md-0 fw-semibold">Have <strong class="text-primary">CLUB REP</strong> credentials?</h5>
+    
+    <div class="btn-group" role="group" aria-label="Club Rep account availability">
+        <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes"
+            [value]="'yes'" [checked]="hasClubRepAccount() === 'yes'"
+            (change)="onHasCredentialsChange('yes')" />
+        <label class="btn btn-outline-primary" for="seg-hasClubRep-yes"
+            (click)="onHasCredentialsChange('yes')">Yes</label>
+
+        <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-no"
+            [value]="'no'" [checked]="hasClubRepAccount() === 'no'" (change)="hasClubRepAccount.set('no')" />
+        <label class="btn btn-outline-primary" for="seg-hasClubRep-no"
+            (click)="hasClubRepAccount.set('no')">No</label>
+    </div>
+</div>
 
 <fieldset aria-labelledby="clubRepLegend" class="mt-2">
     <legend id="clubRepLegend" class="visually-hidden">Club Rep account availability</legend>
     <div class="list-group list-group-flush">
-        <!-- SEGMENTED TOGGLE (all viewports) -->
-        <div class="mb-3 d-flex justify-content-center">
-            <div class="btn-group" role="group" aria-label="Club Rep account availability">
-                <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes"
-                    [value]="'yes'" [checked]="hasClubRepAccount() === 'yes'"
-                    (change)="onHasCredentialsChange('yes')" />
-                <label class="btn btn-outline-primary" for="seg-hasClubRep-yes"
-                    (click)="onHasCredentialsChange('yes')">Yes</label>
-
-                <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-no"
-                    [value]="'no'" [checked]="hasClubRepAccount() === 'no'" (change)="hasClubRepAccount.set('no')" />
-                <label class="btn btn-outline-primary" for="seg-hasClubRep-no"
-                    (click)="hasClubRepAccount.set('no')">No</label>
-            </div>
-        </div>
-
-        <!-- Inline credentials form removed - now shown in modal -->
 
         @if (hasClubRepAccount() === 'no') {
         <div class="pt-2 pb-3 ps-0">
