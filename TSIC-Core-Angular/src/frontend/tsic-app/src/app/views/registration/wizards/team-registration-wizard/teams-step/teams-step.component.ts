@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, input, signal, output, CUSTOM_ELEM
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { GridAllModule, GridComponent, SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService, QueryCellInfoEventArgs } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent, SortService, FilterService, ToolbarService, ExcelExportService, PageService, ResizeService, QueryCellInfoEventArgs, ClickEventArgs } from '@syncfusion/ej2-angular-grids';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { TeamPaymentService } from '../services/team-payment.service';
 import type { SuggestedTeamNameDto, RegisteredTeamDto, AgeGroupDto } from '@core/api';
@@ -338,8 +338,8 @@ export class TeamsStepComponent implements OnInit {
         this.grid?.autoFitColumns();
     }
 
-    onToolbarClick(args: any): void {
-        if (args.item.id === 'grid_excelexport') {
+    onToolbarClick(args: ClickEventArgs): void {
+        if (args.item.id === 'teamsGrid_excelexport') {
             this.grid?.excelExport();
         }
     }
