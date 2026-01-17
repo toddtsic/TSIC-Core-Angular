@@ -100,11 +100,6 @@ import { ClickEventArgs } from '@syncfusion/ej2-navigations';
           <e-aggregates>
             <e-aggregate>
               <e-columns>
-                <e-column field="rowNum" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
-                <e-column field="ageGroup" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
-                <e-column field="teamName" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
-                <e-column field="levelOfPlay" type="Custom" [footerTemplate]="emptyTemplate"></e-column>
-                <e-column field="registrationTs" type="Custom" [footerTemplate]="totalsLabelTemplate"></e-column>
                 <e-column field="paidTotal" type="Sum" [footerTemplate]="paidTotalTemplate"></e-column>
                 <e-column field="depositDue" type="Sum" [footerTemplate]="depositDueTemplate"></e-column>
                 <e-column field="additionalDue" type="Sum" [footerTemplate]="additionalDueTemplate"></e-column>
@@ -122,12 +117,6 @@ import { ClickEventArgs } from '@syncfusion/ej2-navigations';
       </div>
 
       <!-- Footer Templates -->
-      <ng-template #emptyTemplate let-data>
-        <span></span>
-      </ng-template>
-      <ng-template #totalsLabelTemplate let-data>
-        <span class="fw-bold">Totals</span>
-      </ng-template>
       <ng-template #paidTotalTemplate let-data>
         <span class="fw-bold text-success">{{ data.Sum | currency }}</span>
       </ng-template>
