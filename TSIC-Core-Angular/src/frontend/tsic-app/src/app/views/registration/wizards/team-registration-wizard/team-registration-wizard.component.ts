@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -54,6 +54,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     readonly metadataError = signal<string | null>(null);
 
     // Non-reactive properties
+    @ViewChild(TeamsStepComponent) teamsStep?: TeamsStepComponent;
     addClubForm!: FormGroup;
     statesOptions: SelectOption[] = [];
     private metadataSubscription?: Subscription;

@@ -1,7 +1,8 @@
-import { Component, inject, signal, computed, AfterViewInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, input, AfterViewInit, ViewChild, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { TeamPaymentSummaryTableComponent } from './team-payment-summary-table.component';
 import { CreditCardFormComponent } from '../../player-registration-wizard/steps/credit-card-form.component';
@@ -11,29 +12,30 @@ import { TeamInsuranceService } from '../services/team-insurance.service';
 import { TeamInsuranceStateService } from '../services/team-insurance-state.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { environment } from '@environments/environment';
-import type { CreditCardInfo } from '@core/api';
+import type { CreditCardInfo, TeamsMetadataResponse } from '@core/api';
 
 // TODO: Generate these types when backend controller is complete
 interface TeamPaymentRequestDto {
-    jobPath: string;
-    clubRepRegId: string;
-    teamIds: string[];
-    totalAmount: number;
-    creditCard: CreditCardInfo;
+  jobPath: string;
+  clubRepRegId: string;
+  teamIds: string[];
+  totalAmount: number;
+  creditCard: CreditCardInfo;
 }
 
 interface TeamPaymentResponseDto {
-    success: boolean;
-    transactionId?: string;
-    error?: string;
-    message?: string;
+  success: boolean;
+  transactionId?: string;
+  error?: string;
+  message?: string;
 }
 
 declare global {
-    interface Window { VerticalInsure?: any; }
+  interface Window { VerticalInsure?: any; }
 }
 
 /**
@@ -42,15 +44,15 @@ declare global {
  * Teams only support Pay-In-Full (no ARB/deposits).
  */
 @Component({
-    selector: 'app-team-payment-step',
-    standalone: true,
-    imports: [
-        CommonModule,
-        FormsModule,
-        TeamPaymentSummaryTableComponent,
-        CreditCardFormComponent
-    ],
-    template: `
+  selector: 'app-team-payment-step',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    TeamPaymentSummaryTableComponent,
+    CreditCardFormComponent
+  ],
+  template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">
@@ -120,7 +122,12 @@ declare global {
               (validChange)="onCcValidChange($event)"
               (valueChange)="onCcValueChange($event)"
               [viOnly]="false"
-              [defaultEmail]="auth.currentUser()?.username || null"
+              [defaultFirstName]="metadata()?.clubRepContactInfo?.firstName || null"
+              [defaultLastName]="metadata()?.clubRepContactInfo?.lastName || null"
+              [defaultAddress]="metadata()?.clubRepContactInfo?.streetAddress || null"
+              [defaultZip]="metadata()?.clubRepContactInfo?.postalCode || null"
+              [defaultEmail]="metadata()?.clubRepContactInfo?.email || null"
+              [defaultPhone]="metadata()?.clubRepContactInfo?.cellphone || metadata()?.clubRepContactInfo?.phone || null"
             ></app-credit-card-form>
           </section>
         }
@@ -137,7 +144,7 @@ declare global {
                 <span class="spinner-border spinner-border-sm me-2"></span>
                 Processing...
               } @else {
-                Submit Payment ({{ paymentSvc.balanceDue() | currency }})
+                Submit Payment <span class="badge bg-light text-dark ms-2">{{ paymentSvc.balanceDue() | currency }}</span>
               }
             </button>
           </div>
@@ -145,167 +152,187 @@ declare global {
       </div>
     </div>
   `,
-    styles: [`
+  styles: [`
     .card-header-subtle {
       background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-secondary-bg-subtle) 100%);
     }
   `]
 })
-export class TeamPaymentStepComponent implements AfterViewInit, OnDestroy {
-    readonly paymentSvc = inject(TeamPaymentService);
-    readonly paymentState = inject(TeamPaymentStateService);
-    readonly insuranceSvc = inject(TeamInsuranceService);
-    readonly insuranceState = inject(TeamInsuranceStateService);
-    readonly teamReg = inject(TeamRegistrationService);
-    readonly auth = inject(AuthService);
-    readonly http = inject(HttpClient);
-    readonly toast = inject(ToastService);
-    readonly jobService = inject(JobService);
+export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
+  // Input
+  clubName = input.required<string>();
 
-    @ViewChild('viOffer') viOfferElement?: ElementRef<HTMLDivElement>;
+  // Services
+  readonly paymentSvc = inject(TeamPaymentService);
+  readonly paymentState = inject(TeamPaymentStateService);
+  readonly insuranceSvc = inject(TeamInsuranceService);
+  readonly insuranceState = inject(TeamInsuranceStateService);
+  readonly teamReg = inject(TeamRegistrationService);
+  readonly auth = inject(AuthService);
+  readonly http = inject(HttpClient);
+  readonly toast = inject(ToastService);
+  readonly jobService = inject(JobService);
+  readonly route = inject(ActivatedRoute);
+  readonly jobContext = inject(JobContextService);
 
-    // Component state
-    ccValid = signal(false);
-    ccData = signal<CreditCardInfo | null>(null);
-    submitting = signal(false);
-    lastError = signal<string | null>(null);
+  @ViewChild('viOffer') viOfferElement?: ElementRef<HTMLDivElement>;
 
-    // Insurance offer loaded
-    private insuranceOfferLoaded = signal(false);
+  // Component state
+  ccValid = signal(false);
+  ccData = signal<CreditCardInfo | null>(null);
+  submitting = signal(false);
+  lastError = signal<string | null>(null);
+  metadata = signal<TeamsMetadataResponse | null>(null);
 
-    canSubmit = computed(() => {
-        if (!this.paymentSvc.hasBalance()) return false;
-        if (!this.ccValid() || !this.ccData()) return false;
+  // Insurance offer loaded
+  private insuranceOfferLoaded = signal(false);
 
-        // If insurance is offered, require decision
-        if (this.insuranceState.offerTeamRegSaver()) {
-            return this.insuranceState.hasVerticalInsureDecision();
+  canSubmit = computed(() => {
+    if (!this.paymentSvc.hasBalance()) return false;
+    if (!this.ccValid() || !this.ccData()) return false;
+
+    // If insurance is offered, require decision
+    if (this.insuranceState.offerTeamRegSaver()) {
+      return this.insuranceState.hasVerticalInsureDecision();
+    }
+
+    return true;
+  });
+
+  ngOnInit(): void {
+    // Fetch teams metadata to get club rep contact info for form prefill
+    const jobPath = this.jobContext.resolveFromRoute(this.route);
+    const clubNameValue = this.clubName();
+
+    if (jobPath && clubNameValue) {
+      this.teamReg.getTeamsMetadata(jobPath, clubNameValue).subscribe({
+        next: (response) => this.metadata.set(response),
+        error: (err) => console.error('[PaymentComponent] Failed to load metadata:', err)
+      });
+    }
+  }
+
+  ngAfterViewInit(): void {
+    // Load insurance offer if enabled and not already loaded
+    if (this.insuranceState.offerTeamRegSaver() && !this.insuranceOfferLoaded()) {
+      this.loadInsuranceOffer();
+    }
+  }
+
+  ngOnDestroy(): void {
+    // Reset insurance state when leaving payment step
+    this.insuranceSvc.widgetInitialized.set(false);
+  }
+
+  private async loadInsuranceOffer(): Promise<void> {
+    const regId = this.auth.currentUser()?.regId;
+    const jobId = this.jobService.currentJob()?.jobId;
+
+    if (!regId || !jobId) {
+      console.warn('Cannot load insurance offer: missing regId or jobId');
+      return;
+    }
+
+    try {
+      const offer = await this.insuranceSvc.fetchTeamInsuranceOffer(jobId, regId);
+      this.insuranceOfferLoaded.set(true);
+
+      if (offer?.available && offer.teamObject) {
+        // Initialize VI widget
+        setTimeout(() => {
+          if (this.viOfferElement?.nativeElement) {
+            this.insuranceSvc.initWidget('#dVITeamOffer', offer.teamObject);
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to load insurance offer:', error);
+    }
+  }
+
+  onCcValidChange(valid: boolean): void {
+    this.ccValid.set(valid);
+  }
+
+  onCcValueChange(data: CreditCardInfo): void {
+    this.ccData.set(data);
+  }
+
+  async submitPayment(): Promise<void> {
+    if (!this.canSubmit() || this.submitting()) return;
+
+    const ccData = this.ccData();
+    if (!ccData) return;
+
+    this.submitting.set(true);
+    this.lastError.set(null);
+
+    try {
+      const user = this.auth.currentUser();
+      const jobId = this.jobService.currentJob()?.jobId;
+      if (!user?.regId || !user?.jobPath || !jobId) {
+        throw new Error('Missing required authentication data');
+      }
+      const regId = user.regId;
+      const jobPath = user.jobPath;
+
+      // Step 1: Purchase insurance if selected
+      let viPolicyNumbers: Record<string, string> | undefined;
+      if (this.insuranceState.verticalInsureConfirmed()) {
+        const teamIds = this.paymentSvc.teamIdsWithBalance();
+        const quotes = this.insuranceSvc.quotes();
+        const quoteIds = quotes.map(q => q.id || q.quote_id).filter(Boolean);
+
+        const viResult = await this.insuranceSvc.purchaseTeamInsurance(
+          jobId,
+          regId,
+          teamIds,
+          quoteIds,
+          ccData
+        );
+
+        if (!viResult.success) {
+          throw new Error(viResult.error || 'Insurance purchase failed');
         }
 
-        return true;
-    });
+        viPolicyNumbers = viResult.policies;
+        this.insuranceState.updatePolicyNumbers(viResult.policies || {});
+      }
 
-    ngAfterViewInit(): void {
-        // Load insurance offer if enabled and not already loaded
-        if (this.insuranceState.offerTeamRegSaver() && !this.insuranceOfferLoaded()) {
-            this.loadInsuranceOffer();
-        }
+      // Step 2: Process TSIC payment
+      const request: TeamPaymentRequestDto = {
+        jobPath,
+        clubRepRegId: regId,
+        teamIds: this.paymentSvc.teamIdsWithBalance(),
+        totalAmount: this.paymentSvc.balanceDue(),
+        creditCard: ccData
+      };
+
+      const url = `${environment.apiUrl}/team-payment/process`;
+      const response = await firstValueFrom(
+        this.http.post<TeamPaymentResponseDto>(url, request)
+      );
+
+      if (response.success) {
+        this.toast.show('Payment processed successfully', 'success');
+        this.paymentState.setLastPayment({
+          amount: this.paymentSvc.balanceDue(),
+          transactionId: response.transactionId,
+          viPolicyNumbers,
+          message: response.message || null
+        });
+      } else {
+        throw new Error(response.error || 'Payment processing failed');
+      }
+    } catch (error) {
+      const message = error instanceof HttpErrorResponse
+        ? error.error?.message || error.message
+        : (error as Error).message || 'Payment failed';
+
+      this.lastError.set(message);
+      this.toast.show(message, 'danger');
+    } finally {
+      this.submitting.set(false);
     }
-
-    ngOnDestroy(): void {
-        // Reset insurance state when leaving payment step
-        this.insuranceSvc.widgetInitialized.set(false);
-    }
-
-    private async loadInsuranceOffer(): Promise<void> {
-        const regId = this.auth.currentUser()?.regId;
-        const jobId = this.jobService.currentJob()?.jobId;
-
-        if (!regId || !jobId) {
-            console.warn('Cannot load insurance offer: missing regId or jobId');
-            return;
-        }
-
-        try {
-            const offer = await this.insuranceSvc.fetchTeamInsuranceOffer(jobId, regId);
-            this.insuranceOfferLoaded.set(true);
-
-            if (offer?.available && offer.teamObject) {
-                // Initialize VI widget
-                setTimeout(() => {
-                    if (this.viOfferElement?.nativeElement) {
-                        this.insuranceSvc.initWidget('#dVITeamOffer', offer.teamObject);
-                    }
-                }, 100);
-            }
-        } catch (error) {
-            console.error('Failed to load insurance offer:', error);
-        }
-    }
-
-    onCcValidChange(valid: boolean): void {
-        this.ccValid.set(valid);
-    }
-
-    onCcValueChange(data: CreditCardInfo): void {
-        this.ccData.set(data);
-    }
-
-    async submitPayment(): Promise<void> {
-        if (!this.canSubmit() || this.submitting()) return;
-
-        const ccData = this.ccData();
-        if (!ccData) return;
-
-        this.submitting.set(true);
-        this.lastError.set(null);
-
-        try {
-            const user = this.auth.currentUser();
-            const jobId = this.jobService.currentJob()?.jobId;
-            if (!user?.regId || !user?.jobPath || !jobId) {
-                throw new Error('Missing required authentication data');
-            }
-            const regId = user.regId;
-            const jobPath = user.jobPath;
-
-            // Step 1: Purchase insurance if selected
-            let viPolicyNumbers: Record<string, string> | undefined;
-            if (this.insuranceState.verticalInsureConfirmed()) {
-                const teamIds = this.paymentSvc.teamIdsWithBalance();
-                const quotes = this.insuranceSvc.quotes();
-                const quoteIds = quotes.map(q => q.id || q.quote_id).filter(Boolean);
-
-                const viResult = await this.insuranceSvc.purchaseTeamInsurance(
-                    jobId,
-                    regId,
-                    teamIds,
-                    quoteIds,
-                    ccData
-                );
-
-                if (!viResult.success) {
-                    throw new Error(viResult.error || 'Insurance purchase failed');
-                }
-
-                viPolicyNumbers = viResult.policies;
-                this.insuranceState.updatePolicyNumbers(viResult.policies || {});
-            }
-
-            // Step 2: Process TSIC payment
-            const request: TeamPaymentRequestDto = {
-                jobPath,
-                clubRepRegId: regId,
-                teamIds: this.paymentSvc.teamIdsWithBalance(),
-                totalAmount: this.paymentSvc.balanceDue(),
-                creditCard: ccData
-            };
-
-            const url = `${environment.apiUrl}/team-payment/process`;
-            const response = await firstValueFrom(
-                this.http.post<TeamPaymentResponseDto>(url, request)
-            );
-
-            if (response.success) {
-                this.toast.show('Payment processed successfully', 'success');
-                this.paymentState.setLastPayment({
-                    amount: this.paymentSvc.balanceDue(),
-                    transactionId: response.transactionId,
-                    viPolicyNumbers,
-                    message: response.message || null
-                });
-            } else {
-                throw new Error(response.error || 'Payment processing failed');
-            }
-        } catch (error) {
-            const message = error instanceof HttpErrorResponse
-                ? error.error?.message || error.message
-                : (error as Error).message || 'Payment failed';
-
-            this.lastError.set(message);
-            this.toast.show(message, 'danger');
-        } finally {
-            this.submitting.set(false);
-        }
-    }
+  }
 }

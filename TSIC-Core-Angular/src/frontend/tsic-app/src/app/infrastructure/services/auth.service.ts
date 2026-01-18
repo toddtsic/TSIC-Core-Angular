@@ -154,6 +154,7 @@ export class AuthService {
         if (response.refreshToken) this.setRefreshToken(response.refreshToken);
         this.initializeFromToken();
         this.startTokenRefreshTimer();
+
         this.selectLoading.set(false);
       },
       error: (error: HttpErrorResponse) => {

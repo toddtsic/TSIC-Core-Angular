@@ -18,6 +18,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IAgeGroupRepository _agegroups;
     private readonly ITeamRepository _teams;
     private readonly IRegistrationRepository _registrations;
+    private readonly IUserRepository _users;
     private readonly SqlDbContext _context;
 
     public TeamRegistrationService(
@@ -29,6 +30,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         IAgeGroupRepository agegroups,
         ITeamRepository teams,
         IRegistrationRepository registrations,
+        IUserRepository users,
         SqlDbContext context)
     {
         _logger = logger;
@@ -39,6 +41,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _agegroups = agegroups;
         _teams = teams;
         _registrations = registrations;
+        _users = users;
         _context = context;
     }
 
@@ -190,15 +193,16 @@ public class TeamRegistrationService : ITeamRegistrationService
 
     public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName, bool bPayBalanceDue = false)
     {
-        _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}, bPayBalanceDue: {BPayBalanceDue}", 
+        _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}, bPayBalanceDue: {BPayBalanceDue}",
             jobPath, userId, clubName, bPayBalanceDue);
 
         var job = await _jobs.Query()
             .Where(j => j.JobPath == jobPath)
-            .Select(j => new { 
-                j.JobId, 
-                j.Season, 
-                j.BTeamsFullPaymentRequired, 
+            .Select(j => new
+            {
+                j.JobId,
+                j.Season,
+                j.BTeamsFullPaymentRequired,
                 j.PlayerRegRefundPolicy,
                 j.PaymentMethodsAllowedCode,
                 j.BAddProcessingFees,
@@ -215,6 +219,25 @@ public class TeamRegistrationService : ITeamRegistrationService
         _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups",
             registeredTeams.Count, suggestions.Count, ageGroups.Count);
 
+        // Fetch club rep contact info for payment form prefill
+        var contactInfo = await _users.GetUserContactInfoAsync(userId);
+        UserContactInfoDto? clubRepContactInfo = null;
+        if (contactInfo != null)
+        {
+            clubRepContactInfo = new UserContactInfoDto
+            {
+                FirstName = contactInfo.FirstName ?? string.Empty,
+                LastName = contactInfo.LastName ?? string.Empty,
+                Email = contactInfo.Email ?? string.Empty,
+                StreetAddress = contactInfo.StreetAddress,
+                City = contactInfo.City,
+                State = contactInfo.State,
+                PostalCode = contactInfo.PostalCode,
+                Cellphone = contactInfo.Cellphone,
+                Phone = contactInfo.Phone
+            };
+        }
+
         return new TeamsMetadataResponse
         {
             ClubId = 0,
@@ -227,7 +250,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             PlayerRegRefundPolicy = job.PlayerRegRefundPolicy,
             PaymentMethodsAllowedCode = job.PaymentMethodsAllowedCode,
             BAddProcessingFees = job.BAddProcessingFees,
-            BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false
+            BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
+            ClubRepContactInfo = clubRepContactInfo
         };
     }
 

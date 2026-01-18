@@ -76,7 +76,7 @@
           }
 
           @if (step() === WizardStep.Payment) {
-          <app-team-payment-step></app-team-payment-step>
+          <app-team-payment-step [clubName]="clubName() || ''"></app-team-payment-step>
           }
         </div> <!-- /card-body -->
       </div> <!-- /card -->

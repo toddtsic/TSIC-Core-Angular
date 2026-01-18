@@ -98,6 +98,7 @@ export type { TeamsMetadataResponse } from './models/TeamsMetadataResponse';
 export type { TestValidationRequest } from './models/TestValidationRequest';
 export type { UpdateClubNameRequest } from './models/UpdateClubNameRequest';
 export type { UpdateCurrentJobProfileConfigRequest } from './models/UpdateCurrentJobProfileConfigRequest';
+export type { UserContactInfoDto } from './models/UserContactInfoDto';
 export type { ValidationTestResult } from './models/ValidationTestResult';
 export type { VIAddress } from './models/VIAddress';
 export type { VIColorsDto } from './models/VIColorsDto';

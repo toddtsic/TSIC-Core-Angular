@@ -40,8 +40,24 @@ public interface IUserRepository
     Task<Dictionary<string, UserNameInfo>> GetUserNameMapAsync(
         IReadOnlyCollection<string> userIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get user contact information for form prefill (payment forms, etc.)
+    /// </summary>
+    Task<UserContactInfo?> GetUserContactInfoAsync(string userId, CancellationToken cancellationToken = default);
 }
 
 public record UserNameInfo(
     string? FirstName,
     string? LastName);
+
+public record UserContactInfo(
+    string? FirstName,
+    string? LastName,
+    string? Email,
+    string? StreetAddress,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? Cellphone,
+    string? Phone);

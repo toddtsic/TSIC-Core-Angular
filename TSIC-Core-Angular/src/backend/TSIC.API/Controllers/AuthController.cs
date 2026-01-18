@@ -25,6 +25,7 @@ namespace TSIC.API.Controllers
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly ITokenService _tokenService;
         private readonly IUserRepository _userRepository;
+        private readonly IWebHostEnvironment _env;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
@@ -33,7 +34,8 @@ namespace TSIC.API.Controllers
             IConfiguration configuration,
             IRefreshTokenService refreshTokenService,
             ITokenService tokenService,
-            IUserRepository userRepository)
+            IUserRepository userRepository,
+            IWebHostEnvironment env)
         {
             _userManager = userManager;
             _roleLookupService = roleLookupService;
@@ -42,6 +44,7 @@ namespace TSIC.API.Controllers
             _refreshTokenService = refreshTokenService;
             _tokenService = tokenService;
             _userRepository = userRepository;
+            _env = env;
         }
 
         /// <summary>
@@ -70,7 +73,36 @@ namespace TSIC.API.Controllers
 
             // Find user and validate password
             var user = await _userManager.FindByNameAsync(request.Username);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
+            if (user == null)
+            {
+                return Unauthorized(new { Error = "Invalid username or password" });
+            }
+
+            // Dev-mode password bypass (Development environment only)
+            bool passwordValid = false;
+            if (_env.IsDevelopment())
+            {
+                var allowBypass = _configuration.GetValue<bool>("DevMode:AllowPasswordBypass");
+                var bypassPassword = _configuration["DevMode:BypassPassword"];
+
+                if (allowBypass && !string.IsNullOrEmpty(bypassPassword) && request.Password == bypassPassword)
+                {
+                    // Bypass password check in dev mode with special password
+                    passwordValid = true;
+                }
+                else
+                {
+                    // Normal password validation
+                    passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+                }
+            }
+            else
+            {
+                // Production mode - always validate actual password
+                passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+            }
+
+            if (!passwordValid)
             {
                 return Unauthorized(new { Error = "Invalid username or password" });
             }

@@ -94,4 +94,24 @@ public class UserRepository : IUserRepository
 
         return data.ToDictionary(x => x.Id, x => new UserNameInfo(x.FirstName, x.LastName));
     }
+
+    public async Task<UserContactInfo?> GetUserContactInfoAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.AspNetUsers
+            .Where(u => u.Id == userId)
+            .Select(u => new UserContactInfo(
+                u.FirstName,
+                u.LastName,
+                u.Email,
+                u.StreetAddress,
+                u.City,
+                u.State,
+                u.PostalCode,
+                u.Cellphone,
+                u.Phone
+            ))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return user;
+    }
 }

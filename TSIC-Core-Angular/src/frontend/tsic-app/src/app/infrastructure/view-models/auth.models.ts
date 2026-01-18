@@ -8,16 +8,10 @@ export interface AuthenticatedUser {
     username: string;
     regId?: string;
     jobPath?: string;
-    jobLogo?: string;  // URL to job logo from registration
-    // Legacy single role name (will be derived from roles[0] if present)
     role?: string;
-    // New multi-role support (server currently emits single name; we normalize to array)
     roles?: string[];
+    jobLogo?: string;
 }
-
-// Bootstrap payload optionally returned with login to avoid extra API calls.
-// Alias server DTO to existing name
-export type { FamilyUserSummaryDto as FamilyUserSummary } from '@core/api';
 
 export type RegistrationStatus = 'none' | 'in-progress' | 'complete';
 export type ProfileModel = 'PP' | 'CAC';

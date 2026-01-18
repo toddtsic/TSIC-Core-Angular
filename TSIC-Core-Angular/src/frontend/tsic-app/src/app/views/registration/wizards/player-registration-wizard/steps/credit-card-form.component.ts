@@ -16,7 +16,58 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         </div>
       }
       <form [formGroup]="form" (ngSubmit)="noop()">
+        <!-- Personal Information First -->
         <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label small mb-1">First Name</label>
+            <input class="form-control form-control-sm" formControlName="firstName">
+            @if (err('firstName')) {
+              <div class="form-text text-danger">{{ err('firstName') }}</div>
+            }
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Last Name</label>
+            <input class="form-control form-control-sm" formControlName="lastName">
+            @if (err('lastName')) {
+              <div class="form-text text-danger">{{ err('lastName') }}</div>
+            }
+          </div>
+        </div>
+        <div class="row g-2 mt-2">
+          <div class="col-md-8">
+            <label class="form-label small mb-1">Address</label>
+            <input class="form-control form-control-sm" formControlName="address">
+            @if (err('address')) {
+              <div class="form-text text-danger">{{ err('address') }}</div>
+            }
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Zip Code</label>
+            <input class="form-control form-control-sm" formControlName="zip">
+            @if (err('zip')) {
+              <div class="form-text text-danger">{{ err('zip') }}</div>
+            }
+          </div>
+        </div>
+        <div class="row g-2 mt-2">
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Email</label>
+            <input class="form-control form-control-sm" formControlName="email" autocomplete="email">
+            @if (err('email')) {
+              <div class="form-text text-danger">{{ err('email') }}</div>
+            }
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Phone</label>
+            <input class="form-control form-control-sm" formControlName="phone" (input)="formatPhone()" autocomplete="tel">
+            @if (err('phone')) {
+              <div class="form-text text-danger">{{ err('phone') }}</div>
+            }
+          </div>
+        </div>
+
+        <!-- Credit Card Information Second -->
+        <div class="row g-2 mt-3">
           <div class="col-md-3">
             <label class="form-label small mb-1">CC Type</label>
             <select class="form-select form-select-sm" formControlName="type" required aria-required="true">
@@ -54,54 +105,6 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
               <input class="form-control form-control-sm" formControlName="code" (input)="formatCvv()">
               @if (err('code')) {
                 <div class="form-text text-danger">{{ err('code') }}</div>
-              }
-            </div>
-          </div>
-          <div class="row g-2 mt-2">
-            <div class="col-md-6">
-              <label class="form-label small mb-1">First Name</label>
-              <input class="form-control form-control-sm" formControlName="firstName">
-              @if (err('firstName')) {
-                <div class="form-text text-danger">{{ err('firstName') }}</div>
-              }
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small mb-1">Last Name</label>
-              <input class="form-control form-control-sm" formControlName="lastName">
-              @if (err('lastName')) {
-                <div class="form-text text-danger">{{ err('lastName') }}</div>
-              }
-            </div>
-          </div>
-          <div class="row g-2 mt-2">
-            <div class="col-md-8">
-              <label class="form-label small mb-1">Address</label>
-              <input class="form-control form-control-sm" formControlName="address">
-              @if (err('address')) {
-                <div class="form-text text-danger">{{ err('address') }}</div>
-              }
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small mb-1">Zip Code</label>
-              <input class="form-control form-control-sm" formControlName="zip">
-              @if (err('zip')) {
-                <div class="form-text text-danger">{{ err('zip') }}</div>
-              }
-            </div>
-          </div>
-          <div class="row g-2 mt-2">
-            <div class="col-md-6">
-              <label class="form-label small mb-1">Email</label>
-              <input class="form-control form-control-sm" formControlName="email" autocomplete="email">
-              @if (err('email')) {
-                <div class="form-text text-danger">{{ err('email') }}</div>
-              }
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Phone</label>
-              <input class="form-control" formControlName="phone" (input)="formatPhone()" autocomplete="tel">
-              @if (err('phone')) {
-                <div class="form-text text-danger">{{ err('phone') }}</div>
               }
             </div>
           </div>

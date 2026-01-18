@@ -5,6 +5,7 @@
 import type { AgeGroupDto } from './AgeGroupDto';
 import type { RegisteredTeamDto } from './RegisteredTeamDto';
 import type { SuggestedTeamNameDto } from './SuggestedTeamNameDto';
+import type { UserContactInfoDto } from './UserContactInfoDto';
 export type TeamsMetadataResponse = {
     clubId: number;
     clubName: string;
@@ -17,5 +18,6 @@ export type TeamsMetadataResponse = {
     paymentMethodsAllowedCode: number;
     bAddProcessingFees: boolean;
     bApplyProcessingFeesToTeamDeposit: boolean;
+    clubRepContactInfo?: (null | UserContactInfoDto);
 };
 
