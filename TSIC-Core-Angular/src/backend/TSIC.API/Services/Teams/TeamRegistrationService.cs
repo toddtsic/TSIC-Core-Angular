@@ -370,6 +370,8 @@ public class TeamRegistrationService : ITeamRegistrationService
                       join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
                       join j in _context.Jobs on t.JobId equals j.JobId
                       where t.JobId == jobId && reg.UserId == userId
+                            && t.Active == true
+                            && !ag.AgegroupName!.Contains("DROPPED")
                       orderby ag.AgegroupName, t.TeamName
                       select new RegisteredTeamDto
                       {
