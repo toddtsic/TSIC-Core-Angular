@@ -118,7 +118,7 @@ export const authGuard: CanActivateFn = (route, state) => {
     // Authenticated - validate jobPath if URL contains one
     // Check parent route for jobPath if not on current route (for child routes like role-selection)
     let urlJobPath = route.paramMap.get('jobPath') || route.parent?.paramMap.get('jobPath');
-    
+
     // Fallback: extract jobPath from URL if param extraction failed (handles route parameter not yet resolved)
     if (!urlJobPath && state.url) {
         const match = state.url.match(/^\/([a-z0-9-]{3,40})(\/|$|\?)/);
@@ -126,7 +126,7 @@ export const authGuard: CanActivateFn = (route, state) => {
             urlJobPath = match[1];
         }
     }
-    
+
     if (urlJobPath && user.jobPath && urlJobPath !== user.jobPath) {
         // Special case: if navigating to 'tsic' but logged into a real job, redirect to that job
         // This handles app startup where default route goes to /tsic

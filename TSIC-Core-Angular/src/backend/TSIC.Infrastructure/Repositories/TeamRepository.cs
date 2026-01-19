@@ -213,5 +213,38 @@ public class TeamRepository : ITeamRepository
         _context.Teams.UpdateRange(teams);
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForUserAndJobAsync(
+        Guid jobId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (from t in _context.Teams
+                      join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+                      join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                      join j in _context.Jobs on t.JobId equals j.JobId
+                      where t.JobId == jobId && reg.UserId == userId
+                            && t.Active == true
+                            && !ag.AgegroupName!.Contains("DROPPED")
+                      orderby ag.AgegroupName, t.TeamName
+                      select new RegisteredTeamInfo(
+                          t.TeamId,
+                          t.TeamName ?? string.Empty,
+                          ag.AgegroupId,
+                          ag.AgegroupName ?? string.Empty,
+                          t.LevelOfPlay,
+                          t.FeeBase ?? 0,
+                          t.FeeProcessing ?? 0,
+                          (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0),
+                          t.PaidTotal ?? 0,
+                          ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0),
+                          (t.PaidTotal >= ag.RosterFee) ? 0 : (ag.RosterFee ?? 0) - (t.PaidTotal ?? 0),
+                          (t.OwedTotal == 0 && (j.BTeamsFullPaymentRequired ?? false)) ? 0 : (ag.TeamFee ?? 0),
+                          t.Createdate,
+                          reg.BWaiverSigned3
+                      ))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
 }
 

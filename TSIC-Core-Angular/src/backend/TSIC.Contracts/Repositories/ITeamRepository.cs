@@ -133,6 +133,16 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get registered teams for a user and job with full financial details.
+    /// Filters out inactive teams and teams in age groups containing "DROPPED".
+    /// Used by club rep for viewing registered teams and payment processing.
+    /// </summary>
+    Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForUserAndJobAsync(
+        Guid jobId,
+        string userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Bulk update team fees efficiently using UpdateRange.
     /// </summary>
     Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default);

@@ -365,36 +365,27 @@ public class TeamRegistrationService : ITeamRegistrationService
 
     private async Task<List<RegisteredTeamDto>> GetRegisteredTeamsForJobAsync(Guid jobId, string userId)
     {
-        return await (from t in _teams.Query()
-                      join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                      join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
-                      join j in _context.Jobs on t.JobId equals j.JobId
-                      where t.JobId == jobId && reg.UserId == userId
-                            && t.Active == true
-                            && !ag.AgegroupName!.Contains("DROPPED")
-                      orderby ag.AgegroupName, t.TeamName
-                      select new RegisteredTeamDto
-                      {
-                          TeamId = t.TeamId,
-                          TeamName = t.TeamName,
-                          AgeGroupId = ag.AgegroupId,
-                          AgeGroupName = ag.AgegroupName ?? string.Empty,
-                          LevelOfPlay = t.LevelOfPlay,
-                          FeeBase = t.FeeBase ?? 0,
-                          FeeProcessing = t.FeeProcessing ?? 0,
-                          FeeTotal = (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0),
-                          PaidTotal = t.PaidTotal ?? 0,
-                          OwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0),
-                          DepositDue = (t.PaidTotal >= ag.RosterFee) ? 0 : (ag.RosterFee ?? 0) - (t.PaidTotal ?? 0),
-                          AdditionalDue = (t.OwedTotal == 0 && (j.BTeamsFullPaymentRequired ?? false)) ? 0 : (ag.TeamFee ?? 0),
-                          RegistrationTs = t.Createdate,
-                          BWaiverSigned3 = reg.BWaiverSigned3,
-                          // CC includes processing fee (OwedTotal already has it)
-                          CcOwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0),
-                          // Check payment excludes processing fee
-                          CkOwedTotal = (t.FeeBase ?? 0) - (t.PaidTotal ?? 0)
-                      })
-            .ToListAsync();
+        var registeredTeams = await _teams.GetRegisteredTeamsForUserAndJobAsync(jobId, userId);
+
+        return registeredTeams.Select(t => new RegisteredTeamDto
+        {
+            TeamId = t.TeamId,
+            TeamName = t.TeamName,
+            AgeGroupId = t.AgeGroupId,
+            AgeGroupName = t.AgeGroupName,
+            LevelOfPlay = t.LevelOfPlay,
+            FeeBase = t.FeeBase,
+            FeeProcessing = t.FeeProcessing,
+            FeeTotal = t.FeeTotal,
+            PaidTotal = t.PaidTotal,
+            OwedTotal = t.OwedTotal,
+            DepositDue = t.DepositDue,
+            AdditionalDue = t.AdditionalDue,
+            RegistrationTs = t.RegistrationTs,
+            BWaiverSigned3 = t.BWaiverSigned3,
+            CcOwedTotal = t.OwedTotal,
+            CkOwedTotal = t.FeeBase - t.PaidTotal
+        }).ToList();
     }
 
     private async Task<List<SuggestedTeamNameDto>> GetHistoricalTeamSuggestionsAsync(string userId, string clubName, int currentYear)
