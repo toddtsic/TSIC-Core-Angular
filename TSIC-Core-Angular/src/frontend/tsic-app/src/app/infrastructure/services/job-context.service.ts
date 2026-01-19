@@ -56,17 +56,18 @@ export class JobContextService {
     /**
      * Resolve jobPath from Angular route params.
      * This is the CORRECT way to get jobPath - reads from ActivatedRoute paramMap.
+     * For child routes (e.g., :jobPath/register-team), prioritizes parent params.
      * Falls back to URL parsing (init) if route params are not available.
      */
     resolveFromRoute(route: ActivatedRoute): string {
-        // Try to get from route params (/:jobPath pattern)
-        const fromParams = route.snapshot.paramMap.get('jobPath')
-            || route.parent?.snapshot.paramMap.get('jobPath')
+        // For child routes, parent params take priority (:jobPath/register-team hierarchy)
+        const fromParams = route.parent?.snapshot.paramMap.get('jobPath')
+            || route.snapshot.paramMap.get('jobPath')
             || route.root.firstChild?.snapshot.paramMap.get('jobPath')
             || '';
 
         if (fromParams) {
-            console.debug('[JobContext] jobPath from route params:', fromParams);
+            console.debug('[JobContext] resolved jobPath from route:', fromParams);
             this._jobPath.set(fromParams);
             return fromParams;
         }
@@ -74,11 +75,11 @@ export class JobContextService {
         // Fallback to existing value (from init())
         const existing = this._jobPath();
         if (existing) {
-            console.debug('[JobContext] jobPath from existing:', existing);
+            console.debug('[JobContext] using cached jobPath:', existing);
             return existing;
         }
 
-        console.warn('[JobContext] jobPath not found in route params or URL');
+        console.warn('[JobContext] jobPath not found in route params, URL, or cache; returning empty string');
         return '';
     }
 

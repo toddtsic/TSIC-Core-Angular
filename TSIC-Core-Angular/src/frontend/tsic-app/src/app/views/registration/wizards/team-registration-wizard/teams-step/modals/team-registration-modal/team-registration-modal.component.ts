@@ -30,11 +30,11 @@ export class TeamRegistrationModalComponent {
     @Input() ageGroups: AgeGroupDto[] = [];
     @Input() availableLevelsOfPlay: { value: string; label: string }[] = [];
     @Input() isRegistering = false;
-    @Input() clubName = '';
 
     @Output() closed = new EventEmitter<void>();
     @Output() register = new EventEmitter<RegistrationData>();
     @Output() addAnother = new EventEmitter<RegistrationData>();
+    // clubName input removed: warning logic handles null gracefully
 
     // Form state (exposed for template binding)
     readonly teamNameInput = signal('');
@@ -47,7 +47,6 @@ export class TeamRegistrationModalComponent {
     // Derived state for template
     readonly teamNameWarning = computed(() => {
         const teamName = this.teamNameInput().trim();
-        const clubName = this.clubName?.trim();
 
         if (!teamName) {
             return null;
@@ -61,20 +60,7 @@ export class TeamRegistrationModalComponent {
             };
         }
 
-        if (!clubName) {
-            return null;
-        }
-
-        const cleaned = this.cleanTeamName(teamName, clubName);
-
-        // If cleaning removed something, show warning
-        if (cleaned !== teamName) {
-            return {
-                message: `Your team name appears to include club-specific text. Please remove club name/initials from the team name.`,
-                suggestedName: cleaned
-            };
-        }
-
+        // Note: Club name detection disabled - requires club context
         return null;
     });
 
@@ -204,47 +190,5 @@ export class TeamRegistrationModalComponent {
 
     private showSuccessMessage(message: string): void {
         this.successMessage.set(message);
-    }
-
-    /**
-     * Cleans team name by removing club-specific text.
-     * Ported from backend TeamRegistrationService.CleanTeamName
-     * 
-     * Removes:
-     * - Exact club name match (case-insensitive)
-     * - Individual words from club name (>2 chars, word boundaries)
-     * - Club initials pattern
-     */
-    private cleanTeamName(teamName: string, clubName: string): string {
-        let cleaned = teamName;
-
-        // Helper to escape regex special characters
-        const escapeRegex = (str: string): string => str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-
-        // Remove exact club name (case-insensitive)
-        const clubNamePattern = new RegExp(escapeRegex(clubName), 'gi');
-        cleaned = cleaned.replaceAll(clubNamePattern, '');
-
-        // Extract words from club name (>2 chars)
-        const clubWords = clubName
-            .split(/\s+/)
-            .map(w => w.trim())
-            .filter(w => w.length > 2);
-
-        // Remove individual words (word boundaries, case-insensitive)
-        for (const word of clubWords) {
-            const wordPattern = new RegExp(String.raw`\b${escapeRegex(word)}\b`, 'gi');
-            cleaned = cleaned.replaceAll(wordPattern, '');
-        }
-
-        // Remove initials pattern
-        if (clubWords.length > 0) {
-            const initials = clubWords.map(w => w[0]).join('');
-            const initialsPattern = new RegExp(String.raw`\b${escapeRegex(initials)}\b`, 'gi');
-            cleaned = cleaned.replaceAll(initialsPattern, '');
-        }
-
-        // Clean up whitespace and return
-        return cleaned.replaceAll(/\s+/g, ' ').trim();
     }
 }

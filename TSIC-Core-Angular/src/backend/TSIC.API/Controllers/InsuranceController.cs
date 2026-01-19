@@ -62,9 +62,23 @@ public class InsuranceController : ControllerBase
     [Authorize]
     [ProducesResponseType(typeof(PreSubmitTeamInsuranceDto), 200)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> GetTeamPreSubmit([FromQuery] Guid jobId, [FromQuery] Guid clubRepRegId)
+    public async Task<IActionResult> GetTeamPreSubmit()
     {
-        var result = await _viService.BuildTeamOfferAsync(jobId, clubRepRegId);
+        // Extract regId from token
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+        }
+
+        // Get jobId from Registration record via regId
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        var result = await _viService.BuildTeamOfferAsync(regId, userId);
         return Ok(result);
     }
 
@@ -78,9 +92,22 @@ public class InsuranceController : ControllerBase
         if (request == null)
             return BadRequest(new { message = "Invalid team insurance purchase request" });
 
+        // Extract regId from token
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+        }
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
         var res = await _viService.PurchaseTeamPoliciesAsync(
-            request.JobId,
-            request.ClubRepRegId,
+            regId,
+            userId,
             request.TeamIds,
             request.QuoteIds,
             token: null,

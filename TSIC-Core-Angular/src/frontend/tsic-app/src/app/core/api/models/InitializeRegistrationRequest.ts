@@ -2,9 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RegisterTeamRequest = {
-    teamName: string;
-    ageGroupId: string;
-    levelOfPlay?: string | null;
+export type InitializeRegistrationRequest = {
+    clubName: string;
+    jobPath: string;
 };
 

@@ -131,5 +131,10 @@ public interface ITeamRepository
         Guid jobId,
         Guid clubRepRegId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulk update team fees efficiently using UpdateRange.
+    /// </summary>
+    Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default);
 }
 

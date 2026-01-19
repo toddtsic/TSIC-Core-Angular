@@ -93,6 +93,12 @@ builder.Services.AddScoped<IPlayerFeeCalculator>(sp =>
     var ccPercent = builder.Configuration.GetValue<decimal?>("Fees:CreditCardPercent") ?? 0.035m;
     return new PlayerFeeCalculator(ccPercent);
 });
+builder.Services.AddScoped<TSIC.Application.Services.Teams.ITeamFeeCalculator>(sp =>
+{
+    // Read credit card processing percentage from configuration
+    var ccPercent = builder.Configuration.GetValue<decimal?>("CreditCard:ProcessingFee") ?? 0.035m;
+    return new TSIC.Application.Services.Teams.TeamFeeCalculator(ccPercent);
+});
 builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService>();
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
 builder.Services.AddScoped<IPlayerRegistrationFeeService, PlayerRegistrationFeeService>();
@@ -227,17 +233,19 @@ builder.Services.AddAuthentication(options =>
 // Add Authorization Policies
 // ARCHITECTURAL PRINCIPLE: APIs under [Authorize(Policy=xx)] should NOT require 
 // parameters that can be derived from JWT token claims
-
-// Register JobPath validation handler
-builder.Services.AddSingleton<IAuthorizationHandler, JobPathMatchHandler>();
+// 
+// SECURITY MODEL (Angular/API Architecture):
+// - JWT tokens are cryptographically signed and cannot be forged by users
+// - Backend services scope all queries using token claims (regId, jobPath, userId)
+// - Route-based jobPath validation is unnecessary - token signature provides security
+// - MVC-style URL manipulation attacks do not apply to signed JWT API architecture
 
 builder.Services.AddAuthorization(options =>
 {
-    // Set default policy that applies to ALL [Authorize] attributes
-    // This ensures every authenticated request validates jobPath automatically
+    // Default policy: require authenticated user only
+    // Token signature verification handles security; no route validation needed
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
-        .AddRequirements(new JobPathMatchRequirement())
         .Build();
 
     options.AddPolicy("SuperUserOnly", policy =>

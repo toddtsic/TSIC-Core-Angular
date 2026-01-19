@@ -22,6 +22,8 @@ namespace TSIC.API.Controllers;
 [Authorize]
 public class TeamRegistrationController : ControllerBase
 {
+    private const string UserNotAuthenticatedMessage = "User not authenticated";
+
     private readonly ITeamRegistrationService _teamRegistrationService;
     private readonly ILogger<TeamRegistrationController> _logger;
 
@@ -44,7 +46,7 @@ public class TeamRegistrationController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "User not authenticated" });
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
         }
 
         try
@@ -56,6 +58,41 @@ public class TeamRegistrationController : ControllerBase
         {
             _logger.LogError(ex, "Error getting clubs for user {UserId}", userId);
             return StatusCode(500, new { Message = "An error occurred while retrieving clubs" });
+        }
+    }
+
+    /// <summary>
+    /// Initialize registration after club selection.
+    /// Finds or creates Registration record and returns Phase 2 token with regId.
+    /// </summary>
+    [HttpPost("initialize-registration")]
+    [ProducesResponseType(typeof(AuthTokenResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> InitializeRegistration([FromBody] InitializeRegistrationRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+        }
+
+        try
+        {
+            var response = await _teamRegistrationService.InitializeRegistrationAsync(userId, request.ClubName, request.JobPath);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to initialize registration for user {UserId}, club {ClubName}, job {JobPath}",
+                userId, request.ClubName, request.JobPath);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error initializing registration for user {UserId}, club {ClubName}, job {JobPath}",
+                userId, request.ClubName, request.JobPath);
+            return StatusCode(500, new { Message = "An error occurred while initializing registration" });
         }
     }
 
@@ -82,7 +119,7 @@ public class TeamRegistrationController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "User not authenticated" });
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
         }
 
         try
@@ -104,51 +141,47 @@ public class TeamRegistrationController : ControllerBase
 
     /// <summary>
     /// Get teams metadata for the current club and event.
+    /// Context derived from regId token claim.
     /// </summary>
     [HttpGet("metadata")]
     [ProducesResponseType(typeof(TeamsMetadataResponse), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> GetMetadata(
-        [FromQuery] string jobPath, 
-        [FromQuery] string clubName, 
-        [FromQuery] bool bPayBalanceDue = false)
+    public async Task<IActionResult> GetMetadata([FromQuery] bool bPayBalanceDue = false)
     {
-        if (string.IsNullOrWhiteSpace(jobPath))
+        // Extract regId from token
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
         {
-            return BadRequest(new { Message = "jobPath is required" });
-        }
-
-        if (string.IsNullOrWhiteSpace(clubName))
-        {
-            return BadRequest(new { Message = "clubName is required" });
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
         }
 
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "User not authenticated" });
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
         }
 
         try
         {
-            var response = await _teamRegistrationService.GetTeamsMetadataAsync(jobPath, userId, clubName, bPayBalanceDue);
+            var response = await _teamRegistrationService.GetTeamsMetadataAsync(regId, userId, bPayBalanceDue);
             return Ok(response);
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Failed to get teams metadata for user {UserId} and job {JobPath}", userId, jobPath);
+            _logger.LogWarning(ex, "Failed to get teams metadata for user {UserId}, regId {RegId}", userId, regId);
             return BadRequest(new { Message = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting teams metadata for user {UserId} and job {JobPath}", userId, jobPath);
+            _logger.LogError(ex, "Error getting teams metadata for user {UserId}, regId {RegId}", userId, regId);
             return StatusCode(500, new { Message = "An error occurred while retrieving team data" });
         }
     }
 
     /// <summary>
     /// Register a ClubTeam for the current event.
+    /// Context derived from regId token claim.
     /// </summary>
     [HttpPost("register-team")]
     [ProducesResponseType(typeof(RegisterTeamResponse), 200)]
@@ -156,23 +189,22 @@ public class TeamRegistrationController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> RegisterTeam([FromBody] RegisterTeamRequest request)
     {
+        // Extract regId from token
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+        }
+
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "User not authenticated" });
-        }
-
-        // Extract clubId from JWT token (for ClubRep users)
-        var clubIdClaim = User.FindFirst("clubId")?.Value;
-        int? clubId = null;
-        if (!string.IsNullOrEmpty(clubIdClaim) && int.TryParse(clubIdClaim, out var parsedClubId))
-        {
-            clubId = parsedClubId;
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
         }
 
         try
         {
-            var response = await _teamRegistrationService.RegisterTeamForEventAsync(request, userId, clubId);
+            var response = await _teamRegistrationService.RegisterTeamForEventAsync(request, regId, userId);
             if (!response.Success)
             {
                 return BadRequest(response);
@@ -181,7 +213,7 @@ public class TeamRegistrationController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error registering team for user {UserId}", userId);
+            _logger.LogError(ex, "Error registering team for user {UserId}, regId {RegId}", userId, regId);
             return StatusCode(500, new { Message = "An error occurred while registering the team" });
         }
     }
@@ -255,7 +287,7 @@ public class TeamRegistrationController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "User not authenticated" });
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
         }
 
         try
@@ -292,7 +324,7 @@ public class TeamRegistrationController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "User not authenticated" });
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
         }
 
         try
@@ -329,7 +361,7 @@ public class TeamRegistrationController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "User not authenticated" });
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
         }
 
         try
@@ -346,6 +378,57 @@ public class TeamRegistrationController : ControllerBase
         {
             _logger.LogError(ex, "Error updating club name for user {UserId}", userId);
             return StatusCode(500, new { Message = "An error occurred while updating the club name" });
+        }
+    }
+
+    /// <summary>
+    /// Recalculate team fees for all teams in a job or a specific team.
+    /// Triggered by director flag changes (BAddProcessingFees, BApplyProcessingFeesToTeamDeposit, BTeamsFullPaymentRequired)
+    /// or after moving a team to a different age group.
+    /// </summary>
+    [HttpPost("recalculate-fees")]
+    [Authorize(Policy = "AdminOnly")]
+    [ProducesResponseType(typeof(RecalculateTeamFeesResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> RecalculateTeamFees([FromBody] RecalculateTeamFeesRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+        }
+
+        if (!request.JobId.HasValue && !request.TeamId.HasValue)
+        {
+            return BadRequest(new { Message = "Either JobId or TeamId must be provided" });
+        }
+
+        if (request.JobId.HasValue && request.TeamId.HasValue)
+        {
+            return BadRequest(new { Message = "Only one of JobId or TeamId can be provided" });
+        }
+
+        try
+        {
+            var response = await _teamRegistrationService.RecalculateTeamFeesAsync(request, userId);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation while recalculating team fees for user {UserId}", userId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Resource not found while recalculating team fees");
+            return NotFound(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error recalculating team fees for user {UserId}", userId);
+            return StatusCode(500, new { Message = "An error occurred while recalculating team fees" });
         }
     }
 }

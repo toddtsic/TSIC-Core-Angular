@@ -159,9 +159,6 @@ declare global {
   `]
 })
 export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
-  // Input
-  clubName = input.required<string>();
-
   // Services
   readonly paymentSvc = inject(TeamPaymentService);
   readonly paymentState = inject(TeamPaymentStateService);
@@ -201,15 +198,11 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
 
   ngOnInit(): void {
     // Fetch teams metadata to get club rep contact info for form prefill
-    const jobPath = this.jobContext.resolveFromRoute(this.route);
-    const clubNameValue = this.clubName();
-
-    if (jobPath && clubNameValue) {
-      this.teamReg.getTeamsMetadata(jobPath, clubNameValue).subscribe({
-        next: (response) => this.metadata.set(response),
-        error: (err) => console.error('[PaymentComponent] Failed to load metadata:', err)
-      });
-    }
+    // Context (clubName, jobId) derived from regId token claim on backend
+    this.teamReg.getTeamsMetadata(true).subscribe({
+      next: (response) => this.metadata.set(response),
+      error: (err) => console.error('[PaymentComponent] Failed to load metadata:', err)
+    });
   }
 
   ngAfterViewInit(): void {
@@ -226,15 +219,14 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
 
   private async loadInsuranceOffer(): Promise<void> {
     const regId = this.auth.currentUser()?.regId;
-    const jobId = this.jobService.currentJob()?.jobId;
 
-    if (!regId || !jobId) {
-      console.warn('Cannot load insurance offer: missing regId or jobId');
+    if (!regId) {
+      console.warn('Cannot load insurance offer: missing regId');
       return;
     }
 
     try {
-      const offer = await this.insuranceSvc.fetchTeamInsuranceOffer(jobId, regId);
+      const offer = await this.insuranceSvc.fetchTeamInsuranceOffer();
       this.insuranceOfferLoaded.set(true);
 
       if (offer?.available && offer.teamObject) {
@@ -284,8 +276,6 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
         const quoteIds = quotes.map(q => q.id || q.quote_id).filter(Boolean);
 
         const viResult = await this.insuranceSvc.purchaseTeamInsurance(
-          jobId,
-          regId,
           teamIds,
           quoteIds,
           ccData

@@ -2,9 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
 using TSIC.Application.Services.Clubs;
+using TSIC.Application.Services.Teams;
 using TSIC.Contracts.Repositories;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using System.Text.RegularExpressions;
+using TSIC.API.Services.Auth;
+using Microsoft.AspNetCore.Identity;
+using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.API.Services.Teams;
 
@@ -20,6 +24,9 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IRegistrationRepository _registrations;
     private readonly IUserRepository _users;
     private readonly SqlDbContext _context;
+    private readonly ITokenService _tokenService;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ITeamFeeCalculator _teamFeeCalculator;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -31,7 +38,10 @@ public class TeamRegistrationService : ITeamRegistrationService
         ITeamRepository teams,
         IRegistrationRepository registrations,
         IUserRepository users,
-        SqlDbContext context)
+        SqlDbContext context,
+        ITokenService tokenService,
+        UserManager<ApplicationUser> userManager,
+        ITeamFeeCalculator teamFeeCalculator)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -43,6 +53,9 @@ public class TeamRegistrationService : ITeamRegistrationService
         _registrations = registrations;
         _users = users;
         _context = context;
+        _tokenService = tokenService;
+        _userManager = userManager;
+        _teamFeeCalculator = teamFeeCalculator;
     }
 
     /// <summary>
@@ -106,6 +119,86 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         // Fallback
         return trimmed;
+    }
+
+    public async Task<AuthTokenResponse> InitializeRegistrationAsync(string userId, string clubName, string jobPath)
+    {
+        _logger.LogInformation("Initializing registration for user {UserId}, club {ClubName}, job {JobPath}", userId, clubName, jobPath);
+
+        // Get user
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            _logger.LogWarning("User not found: {UserId}", userId);
+            throw new InvalidOperationException("User not found");
+        }
+
+        // Verify user is rep for this club
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        var clubRep = myClubs.FirstOrDefault(c => string.Equals(c.ClubName, clubName, StringComparison.OrdinalIgnoreCase));
+        if (clubRep == null)
+        {
+            _logger.LogWarning("User {UserId} is not a rep for club {ClubName}", userId, clubName);
+            throw new InvalidOperationException("User is not authorized for this club");
+        }
+
+        // Get job
+        var jobId = await _jobs.GetJobIdByPathAsync(jobPath);
+        if (jobId == null)
+        {
+            _logger.LogWarning("Job not found: {JobPath}", jobPath);
+            throw new InvalidOperationException($"Event not found: {jobPath}");
+        }
+
+        var job = await _jobs.Query()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobPath, j.JobDisplayOptions.LogoHeader })
+            .FirstOrDefaultAsync();
+
+        // Find or create Registration record
+        var registration = await _registrations.Query()
+            .Where(r => r.UserId == userId && r.JobId == jobId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
+            .FirstOrDefaultAsync();
+
+        if (registration == null)
+        {
+            _logger.LogInformation("Creating new registration for user {UserId}, job {JobId}", userId, jobId);
+            registration = new Domain.Entities.Registrations
+            {
+                RegistrationId = Guid.NewGuid(),
+                UserId = userId,
+                JobId = jobId.Value,
+                RoleId = Domain.Constants.RoleConstants.ClubRep,
+                ClubName = clubName,
+                Assignment = clubName,
+                RegistrationCategory = $"Club Rep: {clubName}",
+                BActive = true,
+                BConfirmationSent = false,
+                RegistrationTs = DateTime.UtcNow,
+                Modified = DateTime.UtcNow,
+                FeeBase = 0,
+                FeeProcessing = 0
+            };
+            _registrations.Add(registration);
+            await _registrations.SaveChangesAsync();
+            _logger.LogInformation("Created registration {RegistrationId} for user {UserId}", registration.RegistrationId, userId);
+        }
+        else
+        {
+            _logger.LogInformation("Found existing registration {RegistrationId} for user {UserId}", registration.RegistrationId, userId);
+        }
+
+        // Generate Phase 2 token with regId
+        var jobLogo = job?.LogoHeader;
+        var token = _tokenService.GenerateEnrichedJwtToken(user, registration.RegistrationId.ToString(), jobPath, jobLogo, "ClubRep");
+
+        _logger.LogInformation("Generated Phase 2 token for user {UserId}, regId {RegistrationId}", userId, registration.RegistrationId);
+
+        return new AuthTokenResponse(
+            AccessToken: token,
+            RefreshToken: null,
+            ExpiresIn: 3600
+        );
     }
 
     public async Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId)
@@ -191,13 +284,28 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName, bool bPayBalanceDue = false)
+    public async Task<TeamsMetadataResponse> GetTeamsMetadataAsync(Guid regId, string userId, bool bPayBalanceDue = false)
     {
-        _logger.LogInformation("Getting teams metadata for job: {JobPath}, user: {UserId}, club: {ClubName}, bPayBalanceDue: {BPayBalanceDue}",
-            jobPath, userId, clubName, bPayBalanceDue);
+        _logger.LogInformation("Getting teams metadata for regId: {RegId}, user: {UserId}, bPayBalanceDue: {BPayBalanceDue}",
+            regId, userId, bPayBalanceDue);
+
+        // Get registration record to extract clubName and jobId
+        var registration = await _registrations.Query()
+            .Where(r => r.RegistrationId == regId && r.UserId == userId)
+            .Select(r => new { r.ClubName, r.JobId })
+            .FirstOrDefaultAsync();
+
+        if (registration == null)
+        {
+            _logger.LogWarning("Registration not found or user mismatch: regId {RegId}, userId {UserId}", regId, userId);
+            throw new InvalidOperationException("Registration not found or access denied");
+        }
+
+        var clubName = registration.ClubName;
+        var jobId = registration.JobId;
 
         var job = await _jobs.Query()
-            .Where(j => j.JobPath == jobPath)
+            .Where(j => j.JobId == jobId)
             .Select(j => new
             {
                 j.JobId,
@@ -208,7 +316,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 j.BAddProcessingFees,
                 j.BApplyProcessingFeesToTeamDeposit
             })
-            .SingleOrDefaultAsync() ?? throw new InvalidOperationException($"Event not found: {jobPath}");
+            .SingleOrDefaultAsync() ?? throw new InvalidOperationException($"Event not found for jobId: {jobId}");
 
         int currentYear = DateTime.Now.Year;
 
@@ -341,10 +449,10 @@ public class TeamRegistrationService : ITeamRegistrationService
         }).ToList();
     }
 
-    public async Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId, int? clubId = null)
+    public async Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, Guid regId, string userId)
     {
-        _logger.LogInformation("Registering team for event. JobPath: {JobPath}, TeamName: {TeamName}, AgeGroupId: {AgeGroupId}, User: {UserId}, ClubId: {ClubId}",
-            request.JobPath, request.TeamName, request.AgeGroupId, userId, clubId);
+        _logger.LogInformation("Registering team for event. TeamName: {TeamName}, AgeGroupId: {AgeGroupId}, RegId: {RegId}, User: {UserId}",
+            request.TeamName, request.AgeGroupId, regId, userId);
 
         // Validate team name
         if (string.IsNullOrWhiteSpace(request.TeamName))
@@ -352,73 +460,65 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Team name is required");
         }
 
-        // Get club rep - use clubId from JWT if provided, otherwise get first club (backward compatibility)
-        int? effectiveClubId = clubId;
-        if (effectiveClubId == null)
+        // Get club rep registration from token - this provides all context (clubName, jobId)
+        var clubRepRegistration = await _registrations.Query()
+            .Where(r => r.RegistrationId == regId && r.UserId == userId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
+            .FirstOrDefaultAsync();
+
+        if (clubRepRegistration == null)
         {
-            var myClubs = await _clubReps.GetClubsForUserAsync(userId);
-            effectiveClubId = myClubs.FirstOrDefault()?.ClubId;
+            _logger.LogWarning("Registration not found: regId {RegId} for user {UserId}", regId, userId);
+            throw new InvalidOperationException("Registration not found. Please select a club first.");
         }
-        else
-        {
-            // Validate that user has access to the specified club
-            var hasAccess = await _clubReps.ExistsAsync(userId, effectiveClubId.Value);
-            if (!hasAccess)
+
+        var jobId = clubRepRegistration.JobId;
+        var clubName = clubRepRegistration.ClubName;
+
+        _logger.LogInformation("Using registration {RegId} for job {JobId}, club {ClubName}", regId, jobId, clubName);
+
+        // Get job settings for fee calculation
+        var job = await _jobs.Query()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new
             {
-                _logger.LogWarning("User {UserId} attempted to access club {ClubId} without permission", userId, effectiveClubId);
-                throw new UnauthorizedAccessException("User does not have access to this club");
-            }
+                j.JobId,
+                j.BTeamsFullPaymentRequired,
+                j.BAddProcessingFees,
+                j.BApplyProcessingFeesToTeamDeposit,
+                j.ProcessingFeePercent
+            })
+            .FirstOrDefaultAsync();
+
+        if (job == null)
+        {
+            _logger.LogWarning("Job not found: {JobId}", jobId);
+            throw new InvalidOperationException("Event not found");
         }
 
-        if (effectiveClubId == null)
+        // Get club ID from ClubName
+        var club = await _context.Clubs.Where(c => c.ClubName == clubName).FirstOrDefaultAsync();
+        if (club == null)
         {
-            _logger.LogWarning("User {UserId} is not a club rep", userId);
-            throw new InvalidOperationException("User is not authorized as a club representative");
+            _logger.LogWarning("Club not found: {ClubName}", clubName);
+            throw new InvalidOperationException($"Club not found: {clubName}");
         }
+        var effectiveClubId = club.ClubId;
 
-        // Get job
-        var jobId = await _jobs.GetJobIdByPathAsync(request.JobPath);
-
-        if (jobId == null)
+        // Validate that user has access to this club (via ClubReps table)
+        var hasAccess = await _clubReps.ExistsAsync(userId, effectiveClubId);
+        if (!hasAccess)
         {
-            _logger.LogWarning("Job not found: {JobPath}", request.JobPath);
-            throw new InvalidOperationException($"Event not found: {request.JobPath}");
+            _logger.LogWarning("User {UserId} does not have access to club {ClubId}", userId, effectiveClubId);
+            throw new UnauthorizedAccessException("User does not have access to this club");
         }
 
         // Get league for this job (prefer primary, fall back to first league)
-        var leagueId = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId.Value);
+        var leagueId = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId);
 
         if (leagueId == null)
         {
             _logger.LogWarning("No league found for job: {JobId}", jobId);
             throw new InvalidOperationException("Event does not have a league configured");
-        }
-
-        // Get or create club rep registration for this user+job
-        var clubRepRegistration = await _registrations.Query()
-            .Where(r => r.UserId == userId && r.JobId == jobId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
-            .FirstOrDefaultAsync();
-
-        if (clubRepRegistration == null)
-        {
-            // Create new club rep registration for this event
-            clubRepRegistration = new Domain.Entities.Registrations
-            {
-                RegistrationId = Guid.NewGuid(),
-                UserId = userId,
-                JobId = jobId.Value,
-                RoleId = Domain.Constants.RoleConstants.ClubRep,
-                BActive = true,
-                BConfirmationSent = false,
-                RegistrationTs = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
-                FeeBase = 0,
-                FeeProcessing = 0
-            };
-            _registrations.Add(clubRepRegistration);
-            await _registrations.SaveChangesAsync();
-            _logger.LogInformation("Created club rep registration {RegistrationId} for user {UserId} in job {JobId}",
-                clubRepRegistration.RegistrationId, userId, jobId);
         }
 
         // CRITICAL BUSINESS RULE: One club rep per event
@@ -460,7 +560,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var teamFee = ageGroup.TeamFee ?? 0;
 
         // Verify age group has capacity
-        var registeredCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId.Value, request.AgeGroupId);
+        var registeredCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId, request.AgeGroupId);
 
         if (registeredCount >= ageGroup.MaxTeams)
         {
@@ -469,17 +569,23 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("This age group is full");
         }
 
-        // Calculate fees (for teams, we always require full payment: RosterFee + TeamFee)
-        var feeBase = rosterFee + teamFee;
-
-        // For now, no processing fee (can be added later based on configuration)
-        var feeProcessing = 0m;
+        // Calculate fees using team fee calculator
+        var (feeBase, feeProcessing) = _teamFeeCalculator.CalculateTeamFees(
+            rosterFee: rosterFee,
+            teamFee: teamFee,
+            bTeamsFullPaymentRequired: job.BTeamsFullPaymentRequired ?? false,
+            bAddProcessingFees: job.BAddProcessingFees,
+            bApplyProcessingFeesToTeamDeposit: job.BApplyProcessingFeesToTeamDeposit ?? false,
+            jobProcessingFeePercent: job.ProcessingFeePercent,
+            paidTotal: 0,  // New team has no payments yet
+            currentFeeTotal: 0  // New team has no fees yet
+        );
 
         // Create team registration
         var team = new Domain.Entities.Teams
         {
             TeamId = Guid.NewGuid(),
-            JobId = jobId.Value,
+            JobId = jobId,
             LeagueId = (Guid)leagueId,
             AgegroupId = request.AgeGroupId,
             TeamName = request.TeamName,
@@ -487,10 +593,13 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubrepRegistrationid = clubRepRegistration.RegistrationId,  // Track which club rep registered this team
             FeeBase = feeBase,
             FeeProcessing = feeProcessing,
+            FeeTotal = feeBase + feeProcessing,
+            OwedTotal = feeBase + feeProcessing,
             PaidTotal = 0,
             Active = true,
             Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.UtcNow,
+            LebUserId = userId  // CRITICAL: Set audit field
         };
         _teams.Add(team);
         await _teams.SaveChangesAsync();
@@ -737,5 +846,178 @@ public class TeamRegistrationService : ITeamRegistrationService
             .ToList();
 
         return results;
+    }
+
+    public async Task<RecalculateTeamFeesResponse> RecalculateTeamFeesAsync(RecalculateTeamFeesRequest request, string userId)
+    {
+        _logger.LogInformation("Recalculating team fees for user {UserId}, JobId {JobId}, TeamId {TeamId}",
+            userId, request.JobId, request.TeamId);
+
+        var updates = new List<TeamFeeUpdateDto>();
+        var skippedReasons = new List<string>();
+
+        // Determine jobId based on request mode
+        Guid jobId;
+        if (request.JobId.HasValue)
+        {
+            jobId = request.JobId.Value;
+        }
+        else if (request.TeamId.HasValue)
+        {
+            // Single-team mode: lookup JobId from team
+            var team = await _teams.Query()
+                .Where(t => t.TeamId == request.TeamId.Value)
+                .Select(t => new { t.JobId })
+                .FirstOrDefaultAsync();
+
+            if (team == null)
+            {
+                throw new KeyNotFoundException($"Team not found: {request.TeamId.Value}");
+            }
+
+            jobId = team.JobId;
+        }
+        else
+        {
+            throw new InvalidOperationException("Either JobId or TeamId must be provided");
+        }
+
+        // Get job settings for fee calculation
+        var job = await _jobs.Query()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new
+            {
+                j.JobId,
+                j.BTeamsFullPaymentRequired,
+                j.BAddProcessingFees,
+                j.BApplyProcessingFeesToTeamDeposit,
+                j.ProcessingFeePercent
+            })
+            .FirstOrDefaultAsync();
+
+        if (job == null)
+        {
+            throw new KeyNotFoundException($"Job not found: {jobId}");
+        }
+
+        // Query teams with job and agegroup data
+        var teamsQuery = _teams.Query()
+            .Include(t => t.Job)
+            .Include(t => t.Agegroup)
+            .Where(t => t.JobId == jobId);
+
+        // Filter by specific team if provided
+        if (request.TeamId.HasValue)
+        {
+            teamsQuery = teamsQuery.Where(t => t.TeamId == request.TeamId.Value);
+        }
+
+        var teams = await teamsQuery.ToListAsync();
+
+        _logger.LogInformation("Found {TeamCount} teams for recalculation", teams.Count);
+
+        // Filter out WAITLIST and DROPPED teams
+        var eligibleTeams = teams
+            .Where(t => t.Agegroup != null &&
+                       !string.IsNullOrEmpty(t.Agegroup.AgegroupName) &&
+                       !t.Agegroup.AgegroupName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase) &&
+                       !t.Agegroup.AgegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        _logger.LogInformation("Found {EligibleCount} eligible teams (filtered WAITLIST/DROPPED)", eligibleTeams.Count);
+
+        // Track skipped teams
+        var skippedTeams = teams.Except(eligibleTeams).ToList();
+        foreach (var skipped in skippedTeams)
+        {
+            skippedReasons.Add($"Team '{skipped.TeamName}' in age group '{skipped.Agegroup?.AgegroupName}' (WAITLIST/DROPPED)");
+        }
+
+        // Process each eligible team
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            foreach (var team in eligibleTeams)
+            {
+                if (team.Agegroup == null)
+                {
+                    skippedReasons.Add($"Team '{team.TeamName}' has no age group assigned");
+                    continue;
+                }
+
+                var oldFeeBase = team.FeeBase ?? 0;
+                var oldFeeProcessing = team.FeeProcessing ?? 0;
+                var oldFeeTotal = team.FeeTotal ?? 0;
+
+                // Calculate new fees
+                var (newFeeBase, newFeeProcessing) = _teamFeeCalculator.CalculateTeamFees(
+                    rosterFee: team.Agegroup.RosterFee ?? 0,
+                    teamFee: team.Agegroup.TeamFee ?? 0,
+                    bTeamsFullPaymentRequired: job.BTeamsFullPaymentRequired ?? false,
+                    bAddProcessingFees: job.BAddProcessingFees,
+                    bApplyProcessingFeesToTeamDeposit: job.BApplyProcessingFeesToTeamDeposit ?? false,
+                    jobProcessingFeePercent: job.ProcessingFeePercent,
+                    paidTotal: team.PaidTotal ?? 0,
+                    currentFeeTotal: oldFeeTotal
+                );
+
+                // Only update if fees changed
+                if (newFeeBase != oldFeeBase || newFeeProcessing != oldFeeProcessing)
+                {
+                    team.FeeBase = newFeeBase;
+                    team.FeeProcessing = newFeeProcessing;
+                    team.FeeTotal = newFeeBase + newFeeProcessing;
+                    team.OwedTotal = team.FeeTotal - (team.PaidTotal ?? 0);
+
+                    // CRITICAL: Set audit fields
+                    team.LebUserId = userId;
+                    team.Modified = DateTime.UtcNow;
+
+                    updates.Add(new TeamFeeUpdateDto
+                    {
+                        TeamId = team.TeamId,
+                        TeamName = team.TeamName ?? string.Empty,
+                        AgeGroupName = team.Agegroup.AgegroupName ?? string.Empty,
+                        OldFeeBase = oldFeeBase,
+                        NewFeeBase = newFeeBase,
+                        OldFeeProcessing = oldFeeProcessing,
+                        NewFeeProcessing = newFeeProcessing,
+                        UpdatedBy = userId,
+                        UpdatedAt = team.Modified
+                    });
+
+                    _logger.LogInformation(
+                        "Team {TeamId} ({TeamName}): FeeBase {OldFeeBase} → {NewFeeBase}, FeeProcessing {OldFeeProcessing} → {NewFeeProcessing}",
+                        team.TeamId, team.TeamName, oldFeeBase, newFeeBase, oldFeeProcessing, newFeeProcessing);
+                }
+            }
+
+            // Bulk update in single transaction
+            if (updates.Any())
+            {
+                await _teams.UpdateTeamFeesAsync(eligibleTeams);
+                await transaction.CommitAsync();
+                _logger.LogInformation("Successfully updated {UpdatedCount} teams", updates.Count);
+            }
+            else
+            {
+                await transaction.CommitAsync();
+                _logger.LogInformation("No teams required fee updates");
+            }
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error recalculating team fees");
+            throw;
+        }
+
+        return new RecalculateTeamFeesResponse
+        {
+            UpdatedCount = updates.Count,
+            Updates = updates,
+            SkippedCount = skippedReasons.Count,
+            SkippedReasons = skippedReasons
+        };
     }
 }

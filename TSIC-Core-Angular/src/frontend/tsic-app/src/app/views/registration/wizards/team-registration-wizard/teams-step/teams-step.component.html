@@ -192,6 +192,6 @@
 <!-- Registration Modal Component -->
 <app-team-registration-modal [isOpen]="showRegistrationModal()" [suggestedTeamNames]="suggestedTeamNamesForModal()"
     [ageGroups]="ageGroups()" [availableLevelsOfPlay]="levelsOfPlayOptions()" [isRegistering]="isRegistering()"
-    [clubName]="clubName()" (closed)="closeRegistrationModal()" (register)="onTeamRegistered($event)"
+    (closed)="closeRegistrationModal()" (register)="onTeamRegistered($event)"
     (addAnother)="onTeamAddedAnother($event)">
 </app-team-registration-modal>

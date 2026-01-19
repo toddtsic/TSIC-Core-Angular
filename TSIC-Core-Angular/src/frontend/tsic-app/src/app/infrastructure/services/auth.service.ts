@@ -22,6 +22,7 @@ export class AuthService {
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
+  private readonly CLUB_REP_CLUB_COUNT_KEY = 'clubRepClubCount';
 
   // Prevent multiple simultaneous refresh attempts
   private refreshInProgress: Observable<AuthTokenResponse> | null = null;
@@ -181,6 +182,7 @@ export class AuthService {
     // Clear local storage
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.CLUB_REP_CLUB_COUNT_KEY);
     this.currentUser.set(null);
     const redirect = options?.redirectTo || '/tsic/login';
     const q = options?.queryParams || undefined;
@@ -199,6 +201,7 @@ export class AuthService {
     this.stopTokenRefreshTimer();
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.CLUB_REP_CLUB_COUNT_KEY);
     this.currentUser.set(null);
     // reset one-shot registration fetch so next authenticated flow can reload
     this._registrationsFetched = false;
@@ -275,6 +278,21 @@ export class AuthService {
    */
   getRefreshToken(): string | null {
     return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  /**
+   * Store club count for club rep refresh routing
+   */
+  setClubRepClubCount(count: number): void {
+    localStorage.setItem(this.CLUB_REP_CLUB_COUNT_KEY, count.toString());
+  }
+
+  /**
+   * Get stored club count for refresh routing logic
+   */
+  getClubRepClubCount(): number {
+    const stored = localStorage.getItem(this.CLUB_REP_CLUB_COUNT_KEY);
+    return stored ? parseInt(stored, 10) : 0;
   }
 
   /**

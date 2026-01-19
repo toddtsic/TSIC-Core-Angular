@@ -12,6 +12,7 @@ import { FormFieldDataService, SelectOption } from '@infrastructure/services/for
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ClubService } from '@infrastructure/services/club.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { TeamRegistrationService } from './services/team-registration.service';
 import { TeamPaymentService } from './services/team-payment.service';
 import { UserPreferencesService } from '@infrastructure/services/user-preferences.service';
@@ -38,7 +39,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
     // All reactive state as signals
     readonly step = signal(WizardStep.Login);
-    readonly clubName = signal<string | null>(null);
+    // clubName is now derived from teamsStep component (not maintained as signal)
     readonly availableClubs = signal<ClubRepClubDto[]>([]);
     readonly selectedClub = signal<string | null>(null);
     readonly showClubSelectionModal = signal(false);
@@ -72,8 +73,15 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         ];
     });
 
+    // clubName is derived from teamsStep component after it loads metadata
+    readonly clubName = computed(() => {
+        if (!this.teamsStep) return null;
+        return this.teamsStep.clubName();
+    });
+
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly authService = inject(AuthService);
     private readonly jobService = inject(JobService);
     private readonly jobContext = inject(JobContextService);
     private readonly fieldData = inject(FormFieldDataService);
@@ -145,6 +153,20 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         if (resolvedPath) {
             this.loadMetadata(resolvedPath);
         }
+
+        // Handle refresh scenarios: Check if user has Phase 2 token
+        if (this.authService.hasSelectedRole()) {
+            const clubCount = this.authService.getClubRepClubCount();
+
+            if (clubCount === 1) {
+                // Single club rep - auto-navigate to RegisterTeams step
+                this.step.set(WizardStep.RegisterTeams);
+            } else if (clubCount > 1) {
+                // Multi-club rep - stay at Login step but signal to show club modal
+                // The login step component will handle showing the modal via ngOnInit
+                this.step.set(WizardStep.Login);
+            }
+        }
     }
 
     loadMetadata(jobPath: string): void {
@@ -186,14 +208,14 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     handleLoginSuccess(result: LoginStepResult): void {
         this.availableClubs.set(result.availableClubs);
         this.selectedClub.set(result.clubName);
-        this.clubName.set(result.clubName);
 
         // Club selection now handled in login modal - proceed directly to teams step
+        // Note: clubName is now derived from teamsStep.clubName() after metadata loads
         this.step.set(WizardStep.RegisterTeams);
     }
 
     handleRegistrationSuccess(result: LoginStepResult): void {
-        this.clubName.set(result.clubName);
+        // Note: clubName is now derived from teamsStep.clubName() after metadata loads
         this.availableClubs.set(result.availableClubs);
         this.step.set(WizardStep.RegisterTeams);
     }
@@ -208,7 +230,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
     selectClub(clubName: string): void {
         this.selectedClub.set(clubName);
-        this.clubName.set(clubName);
+        // Note: clubName is now derived from teamsStep.clubName() after metadata loads
     }
 
     loadClubs(): void {
@@ -229,7 +251,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
             this.inlineError.set('Please select a club before continuing.');
             return;
         }
-        this.clubName.set(this.selectedClub());
+        // Note: clubName is now derived from teamsStep.clubName() after metadata loads
         this.inlineError.set(null);
         this.showClubSelectionModal.set(false);
         this.step.set(WizardStep.RegisterTeams);

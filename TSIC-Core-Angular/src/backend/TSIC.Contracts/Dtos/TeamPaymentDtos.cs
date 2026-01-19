@@ -7,27 +7,19 @@ namespace TSIC.Contracts.Dtos;
 
 /// <summary>
 /// Request payload for club rep team registration payment.
+/// Context (jobId, registration) derived from regId token claim.
 /// </summary>
 public sealed record TeamPaymentRequestDto
 {
-    public required string JobPath { get; init; }
-    public required Guid ClubRepRegId { get; init; }
     public required List<Guid> TeamIds { get; init; }
     public required decimal TotalAmount { get; init; }
     public required CreditCardInfo CreditCard { get; init; }
-    public bool IncludesInsurance { get; init; }
 }
 
 public class TeamPaymentRequestDtoValidator : AbstractValidator<TeamPaymentRequestDto>
 {
     public TeamPaymentRequestDtoValidator()
     {
-        RuleFor(x => x.JobPath)
-            .NotEmpty().WithMessage("JobPath is required");
-
-        RuleFor(x => x.ClubRepRegId)
-            .NotEmpty().WithMessage("Club rep registration ID is required");
-
         RuleFor(x => x.TeamIds)
             .NotEmpty().WithMessage("At least one team is required for payment");
 
@@ -46,19 +38,8 @@ public sealed record TeamPaymentResponseDto
 {
     public required bool Success { get; init; }
     public string? TransactionId { get; init; }
-    public string? ErrorMessage { get; init; }
-    public required List<TeamPaymentDetail> TeamPayments { get; init; }
-}
-
-/// <summary>
-/// Details of payment applied to a specific team.
-/// </summary>
-public sealed record TeamPaymentDetail
-{
-    public required Guid TeamId { get; init; }
-    public required string TeamName { get; init; }
-    public required decimal AmountPaid { get; init; }
-    public required decimal RemainingBalance { get; init; }
+    public string? Error { get; init; }
+    public string? Message { get; init; }
 }
 
 /// <summary>
@@ -88,10 +69,6 @@ public sealed record PreSubmitTeamInsuranceDto
 public sealed record TeamInsurancePurchaseRequestDto
 {
     [Required, JsonRequired]
-    public required Guid JobId { get; init; }
-    [Required, JsonRequired]
-    public required Guid ClubRepRegId { get; init; }
-    [Required, JsonRequired]
     public required List<Guid> TeamIds { get; init; }
     [Required, JsonRequired]
     public required List<string> QuoteIds { get; init; }
@@ -102,12 +79,6 @@ public class TeamInsurancePurchaseRequestDtoValidator : AbstractValidator<TeamIn
 {
     public TeamInsurancePurchaseRequestDtoValidator()
     {
-        RuleFor(x => x.JobId)
-            .NotEmpty().WithMessage("Job ID is required");
-
-        RuleFor(x => x.ClubRepRegId)
-            .NotEmpty().WithMessage("Club rep registration ID is required");
-
         RuleFor(x => x.TeamIds)
             .NotEmpty().WithMessage("At least one team is required")
             .Must((dto, teamIds) => teamIds.Count == dto.QuoteIds.Count)

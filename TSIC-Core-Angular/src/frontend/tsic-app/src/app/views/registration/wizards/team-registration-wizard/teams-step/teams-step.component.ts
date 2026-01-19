@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, signal, output, CUSTOM_ELEMENTS_SCHEMA, ViewChild } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, output, input, CUSTOM_ELEMENTS_SCHEMA, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -54,9 +54,6 @@ export class TeamsStepComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly toast = inject(ToastService);
 
-    // Inputs
-    clubName = input.required<string>();
-
     // Outputs
     proceed = output<void>();
 
@@ -67,6 +64,7 @@ export class TeamsStepComponent implements OnInit {
     public sortOptions = { allowUnsort: false };
 
     // Data signals (private, exposed via computed properties)
+    private readonly clubNameSignal = signal<string | null>(null);
     private readonly suggestedTeamNamesSignal = signal<SuggestedTeamNameDto[]>([]);
     private readonly registeredTeamsSignal = signal<RegisteredTeamDto[]>([]);
     private readonly ageGroupsSignal = signal<AgeGroupDto[]>([]);
@@ -91,6 +89,7 @@ export class TeamsStepComponent implements OnInit {
     readonly refundPolicyLocked = signal(false);
 
     // Public data accessors - expose signals via computed properties
+    readonly clubName = computed(() => this.clubNameSignal());
     readonly suggestedTeamNames = computed(() => this.suggestedTeamNamesSignal());
     readonly registeredTeams = computed(() => this.registeredTeamsSignal());
     readonly ageGroups = computed(() => this.ageGroupsSignal());
@@ -129,20 +128,15 @@ export class TeamsStepComponent implements OnInit {
     readonly financialSummary = computed(() => this.calculateFinancialSummary());
 
     ngOnInit(): void {
+        // Load metadata immediately. If clubName input is set, use it; if refresh, backend derives from token.
         this.loadTeamsMetadata();
     }
 
     private loadTeamsMetadata(showLoading: boolean = true): void {
         const jobPath = this.jobContext.resolveFromRoute(this.route);
-        const clubName = this.clubName();
 
         if (!jobPath) {
             this.errorMessage.set('Event not found. Please navigate from a valid event link.');
-            return;
-        }
-
-        if (!clubName) {
-            this.errorMessage.set('Club name is required.');
             return;
         }
 
@@ -151,8 +145,10 @@ export class TeamsStepComponent implements OnInit {
         }
         this.errorMessage.set(null);
 
-        this.teamService.getTeamsMetadata(jobPath, clubName).subscribe({
+        this.teamService.getTeamsMetadata().subscribe({
             next: (response) => {
+                // Derive clubName from response (authoritative source)
+                this.clubNameSignal.set(response.clubName);
                 this.clubId.set(response.clubId);
                 this.suggestedTeamNamesSignal.set(response.suggestedTeamNames);
                 this.registeredTeamsSignal.set(response.registeredTeams);
@@ -253,7 +249,6 @@ export class TeamsStepComponent implements OnInit {
 
         this.teamService.registerTeamForEvent({
             teamName: data.teamName,
-            jobPath,
             ageGroupId: data.ageGroupId,
             levelOfPlay: data.levelOfPlay
         }).subscribe({

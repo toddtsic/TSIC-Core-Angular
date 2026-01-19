@@ -207,5 +207,11 @@ public class TeamRepository : ITeamRepository
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
+
+    public async Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default)
+    {
+        _context.Teams.UpdateRange(teams);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }
 

@@ -17,31 +17,34 @@ namespace TSIC.API.Services.Shared.VerticalInsure;
 /// </summary>
 public partial class VerticalInsureService
 {
-    public async Task<PreSubmitTeamInsuranceDto> BuildTeamOfferAsync(Guid jobId, Guid clubRepRegId)
+    public async Task<PreSubmitTeamInsuranceDto> BuildTeamOfferAsync(Guid regId, string userId)
     {
         try
         {
+            // Get club rep registration to derive jobId
+            var registrations = await _registrationRepo.GetByIdsAsync([regId]);
+            var clubRepReg = registrations.FirstOrDefault();
+            if (clubRepReg == null || clubRepReg.UserId != userId)
+            {
+                return new PreSubmitTeamInsuranceDto { Available = false, Error = "Registration not found or access denied." };
+            }
+
+            var jobId = clubRepReg.JobId;
+
             var jobOffer = await _jobRepo.GetInsuranceOfferInfoAsync(jobId);
             if (jobOffer == null || !jobOffer.BOfferTeamRegsaverInsurance)
             {
                 return new PreSubmitTeamInsuranceDto { Available = false };
             }
 
-            var teams = await _teamRepo.GetRegisteredTeamsForPaymentAsync(jobId, clubRepRegId);
+            var teams = await _teamRepo.GetRegisteredTeamsForPaymentAsync(jobId, regId);
             if (teams.Count == 0)
             {
                 return new PreSubmitTeamInsuranceDto { Available = false };
             }
 
-            // Get club rep registration to find their UserId
-            var clubRepRegs = await _registrationRepo.GetByIdsAsync([clubRepRegId]);
-            if (clubRepRegs.Count == 0 || string.IsNullOrEmpty(clubRepRegs[0].UserId))
-            {
-                return new PreSubmitTeamInsuranceDto { Available = false, Error = "Club rep registration not found." };
-            }
-
             // Get club rep user profile for customer data
-            var clubRepUser = await _userRepo.GetByIdAsync(clubRepRegs[0].UserId!);
+            var clubRepUser = await _userRepo.GetByIdAsync(userId);
             if (clubRepUser == null)
             {
                 return new PreSubmitTeamInsuranceDto { Available = false, Error = "Club rep user not found." };
@@ -67,8 +70,8 @@ public partial class VerticalInsureService
     }
 
     public async Task<VerticalInsureTeamPurchaseResult> PurchaseTeamPoliciesAsync(
-        Guid jobId,
-        Guid clubRepRegId,
+        Guid regId,
+        string userId,
         IReadOnlyCollection<Guid> teamIds,
         IReadOnlyCollection<string> quoteIds,
         string? token,
@@ -78,16 +81,27 @@ public partial class VerticalInsureService
         var result = new VerticalInsureTeamPurchaseResult();
         try
         {
-            var teams = await ValidateAndLoadTeamsAsync(jobId, clubRepRegId, teamIds, quoteIds, result, ct);
+            // Get club rep registration to derive jobId
+            var registrations = await _registrationRepo.GetByIdsAsync([regId]);
+            var clubRepReg = registrations.FirstOrDefault();
+            if (clubRepReg == null || clubRepReg.UserId != userId)
+            {
+                result.Success = false;
+                result.Error = "Registration not found or access denied.";
+                return result;
+            }
+
+            var jobId = clubRepReg.JobId;
+            var teams = await ValidateAndLoadTeamsAsync(jobId, regId, teamIds, quoteIds, result, ct);
             if (!result.Success) return result;
 
             if (_httpClientFactory != null)
             {
-                await ExecuteTeamHttpPurchaseAsync(teams, clubRepRegId, quoteIds, token, card, result, ct);
+                await ExecuteTeamHttpPurchaseAsync(teams, regId, quoteIds, token, card, result, ct);
             }
             else
             {
-                ApplyTeamStubPurchase(teams, clubRepRegId, result);
+                ApplyTeamStubPurchase(teams, regId, result);
                 await _teamRepo.SaveChangesAsync(ct);
             }
         }

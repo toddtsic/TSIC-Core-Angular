@@ -331,14 +331,40 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const loginResult: LoginStepResult = {
-            clubName: this.selectedClub()!,
-            availableClubs: this.availableClubs()
-        };
+        if (!this.jobPath) {
+            this.clubSelectionError.set('Event information missing. Please refresh the page.');
+            return;
+        }
 
-        // Close modal and emit result
-        this.showLoginModal.set(false);
-        this.loginSuccess.emit(loginResult);
+        const clubName = this.selectedClub()!;
+
+        // Call initialize-registration to create Registration record and get Phase 2 token
+        // The service automatically updates the auth token and current user
+        this.loginSubmitting.set(true);
+        this.clubSelectionError.set(null);
+
+        this.teamRegService.initializeRegistration(clubName, this.jobPath).subscribe({
+            next: (response) => {
+                this.loginSubmitting.set(false);
+
+                // Store club count for refresh routing
+                this.authService.setClubRepClubCount(this.availableClubs().length);
+
+                const loginResult: LoginStepResult = {
+                    clubName: clubName,
+                    availableClubs: this.availableClubs()
+                };
+
+                // Close modal and emit result
+                this.showLoginModal.set(false);
+                this.loginSuccess.emit(loginResult);
+            },
+            error: (err) => {
+                this.loginSubmitting.set(false);
+                const errorMessage = err.error?.message || err.message || 'Failed to initialize registration. Please try again.';
+                this.clubSelectionError.set(errorMessage);
+            }
+        });
     }
 
     /**

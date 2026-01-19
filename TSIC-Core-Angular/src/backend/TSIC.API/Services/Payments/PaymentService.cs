@@ -48,6 +48,192 @@ public class PaymentService : IPaymentService
         _email = email;
     }
 
+    public async Task<TeamPaymentResponseDto> ProcessTeamPaymentAsync(
+        Guid regId,
+        string userId,
+        IReadOnlyCollection<Guid> teamIds,
+        decimal totalAmount,
+        CreditCardInfo creditCard)
+    {
+        // Get registration to derive jobId
+        var reg = await _registrations.Query()
+            .Where(r => r.RegistrationId == regId)
+            .Select(r => new { r.RegistrationId, r.JobId })
+            .FirstOrDefaultAsync();
+
+        if (reg == null)
+        {
+            return new TeamPaymentResponseDto
+            {
+                Success = false,
+                Message = "Registration not found"
+            };
+        }
+
+        var jobId = reg.JobId;
+
+        // Get job payment credentials
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
+        if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
+        {
+            return new TeamPaymentResponseDto
+            {
+                Success = false,
+                Message = "Payment gateway credentials not configured"
+            };
+        }
+
+        var env = _adnApiService.GetADNEnvironment();
+
+        // Get all teams with their Job and Customer data for invoice numbers
+        var teams = await _teams.Query()
+            .Include(t => t.Job)
+                .ThenInclude(j => j.Customer)
+            .Where(t => teamIds.Contains(t.TeamId) && t.JobId == jobId)
+            .ToListAsync();
+
+        if (teams.Count != teamIds.Count)
+        {
+            return new TeamPaymentResponseDto
+            {
+                Success = false,
+                Message = "One or more teams not found"
+            };
+        }
+
+        // Calculate per-team amount (equal split)
+        var perTeamAmount = totalAmount / teamIds.Count;
+
+        // Track first successful transaction ID for response
+        string? firstTransactionId = null;
+        var failedCount = 0;
+
+        // Process payment for each team
+        foreach (var team in teams)
+        {
+            // Build invoice number for this team (pattern: customerAI_jobAI_teamAI)
+            var invoiceNumber = $"{team.Job.Customer.CustomerAi}_{team.Job.JobAi}_{team.TeamAi}";
+            if (invoiceNumber.Length > 20)
+            {
+                invoiceNumber = $"{team.Job.JobAi}_{team.TeamAi}";
+            }
+            if (invoiceNumber.Length > 20)
+            {
+                invoiceNumber = team.TeamAi.ToString();
+            }
+
+            var description = $"Team Registration: {team.TeamName ?? team.DisplayName}";
+            var ccExpiryDate = FormatExpiry(creditCard.Expiry!);
+
+            // Process ADN transaction using ADN_Charge
+            var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest(
+                Env: env,
+                LoginId: credentials.AdnLoginId!,
+                TransactionKey: credentials.AdnTransactionKey!,
+                CardNumber: creditCard.Number!,
+                CardCode: creditCard.Code!,
+                Expiry: ccExpiryDate,
+                FirstName: creditCard.FirstName!,
+                LastName: creditCard.LastName!,
+                Address: creditCard.Address!,
+                Zip: creditCard.Zip!,
+                Email: creditCard.Email!,
+                Phone: creditCard.Phone!,
+                Amount: perTeamAmount,
+                InvoiceNumber: invoiceNumber,
+                Description: description
+            ));
+
+            // Validate ADN response
+            if (adnResponse?.messages?.resultCode == messageTypeEnum.Ok
+                && adnResponse.transactionResponse?.messages != null
+                && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId))
+            {
+                var transId = adnResponse.transactionResponse.transId;
+                firstTransactionId ??= transId;
+
+                // Create accounting entry for this team (per-team transaction for refund capability)
+                _acct.Add(new RegistrationAccounting
+                {
+                    RegistrationId = regId,
+                    TeamId = team.TeamId,
+                    Payamt = perTeamAmount,
+                    Dueamt = perTeamAmount,
+                    Paymeth = $"paid by cc: {perTeamAmount:C} of {totalAmount:C} on {DateTime.Now:G} txID: {transId}",
+                    PaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // CC payment method ID
+                    Active = true,
+                    Createdate = DateTime.Now,
+                    Modified = DateTime.Now,
+                    LebUserId = userId,
+                    AdnTransactionId = transId,
+                    AdnInvoiceNo = invoiceNumber,
+                    AdnCc4 = creditCard.Number!.Substring(creditCard.Number.Length - 4, 4),
+                    AdnCcexpDate = ccExpiryDate,
+                    Comment = description
+                });
+
+                // Update team record
+                team.PaidTotal += perTeamAmount;
+                team.OwedTotal -= perTeamAmount;
+                if (team.PaidTotal > team.FeeTotal)
+                {
+                    team.OwedTotal = 0;
+                    team.FeeTotal = team.PaidTotal;
+                }
+                team.Modified = DateTime.Now;
+                team.LebUserId = userId;
+
+                _logger.LogInformation("Team payment processed: Team={TeamId} Amount={Amount} TransId={TransId}",
+                    team.TeamId, perTeamAmount, transId);
+            }
+            else
+            {
+                failedCount++;
+                var errMsg = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                    ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
+                    ?? "Gateway transaction failed";
+                _logger.LogWarning("Team payment failed: Team={TeamId} Error={Error}", team.TeamId, errMsg);
+            }
+        }
+
+        // Save all changes
+        if (failedCount < teams.Count)
+        {
+            await _teams.SaveChangesAsync();
+            await _acct.SaveChangesAsync();
+        }
+
+        // Build response
+        if (failedCount == 0)
+        {
+            return new TeamPaymentResponseDto
+            {
+                Success = true,
+                Message = $"All {teamIds.Count} team payment(s) processed successfully",
+                TransactionId = firstTransactionId
+            };
+        }
+        else if (failedCount < teams.Count)
+        {
+            return new TeamPaymentResponseDto
+            {
+                Success = false,
+                Error = "PARTIAL_SUCCESS",
+                Message = $"{teams.Count - failedCount} of {teamIds.Count} team payment(s) succeeded",
+                TransactionId = firstTransactionId
+            };
+        }
+        else
+        {
+            return new TeamPaymentResponseDto
+            {
+                Success = false,
+                Error = "ALL_FAILED",
+                Message = "All team payments failed"
+            };
+        }
+    }
+
     public async Task<PaymentResponseDto> ProcessPaymentAsync(PaymentRequestDto request, string userId)
     {
         var v = await ValidatePaymentRequestAsync(request);

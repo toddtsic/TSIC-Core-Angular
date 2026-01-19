@@ -103,13 +103,12 @@ export class TeamInsuranceService {
 
     /**
      * Fetch team insurance offer from backend.
-     * @param jobId Current job ID
-     * @param clubRepRegId Club rep registration ID
+     * Backend derives jobId and clubRepRegId from JWT token.
      */
-    async fetchTeamInsuranceOffer(jobId: string, clubRepRegId: string): Promise<PreSubmitTeamInsuranceDto | null> {
+    async fetchTeamInsuranceOffer(): Promise<PreSubmitTeamInsuranceDto | null> {
         try {
             this.insuranceState.setVerticalInsureOffer({ loading: true, data: null, error: null });
-            const url = `${environment.apiUrl}/insurance/team/pre-submit?jobId=${jobId}&clubRepRegId=${clubRepRegId}`;
+            const url = `${environment.apiUrl}/insurance/team/pre-submit`;
             const result = await firstValueFrom(this.http.get<PreSubmitTeamInsuranceDto>(url));
 
             if (result.available && result.teamObject) {
@@ -128,15 +127,12 @@ export class TeamInsuranceService {
 
     /**
      * Purchase team insurance policies.
-     * @param jobId Current job ID
-     * @param clubRepRegId Club rep registration ID
+     * Backend derives jobId and clubRepRegId from JWT token.
      * @param teamIds Team IDs to insure
      * @param quoteIds Quote IDs from VI widget
      * @param card Credit card info
      */
     async purchaseTeamInsurance(
-        jobId: string,
-        clubRepRegId: string,
         teamIds: string[],
         quoteIds: string[],
         card: CreditCardInfo
@@ -148,8 +144,6 @@ export class TeamInsuranceService {
         try {
             this.purchasing.set(true);
             const request: TeamInsurancePurchaseRequestDto = {
-                jobId,
-                clubRepRegId,
                 teamIds,
                 quoteIds,
                 creditCard: card

@@ -3,9 +3,9 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { CreditCardInfo } from './CreditCardInfo';
-export type TeamInsurancePurchaseRequestDto = {
+export type TeamPaymentRequestDto = {
     teamIds: Array<string>;
-    quoteIds: Array<string>;
-    creditCard?: (null | CreditCardInfo);
+    totalAmount: number;
+    creditCard: CreditCardInfo;
 };
 

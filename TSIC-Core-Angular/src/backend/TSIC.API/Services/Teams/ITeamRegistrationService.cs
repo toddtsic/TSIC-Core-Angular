@@ -5,6 +5,12 @@ namespace TSIC.API.Services.Teams;
 public interface ITeamRegistrationService
 {
     /// <summary>
+    /// Initialize registration for club rep after club selection.
+    /// Finds or creates Registration record and returns Phase 2 token with regId.
+    /// </summary>
+    Task<AuthTokenResponse> InitializeRegistrationAsync(string userId, string clubName, string jobPath);
+
+    /// <summary>
     /// Get list of clubs that the user is a rep for, with usage status.
     /// </summary>
     Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId);
@@ -18,14 +24,16 @@ public interface ITeamRegistrationService
     /// <summary>
     /// Get teams metadata for the current club and event.
     /// Returns club info, suggested team names from history, registered Teams, and age groups.
+    /// Context derived from regId.
     /// </summary>
-    Task<TeamsMetadataResponse> GetTeamsMetadataAsync(string jobPath, string userId, string clubName, bool bPayBalanceDue = false);
+    Task<TeamsMetadataResponse> GetTeamsMetadataAsync(Guid regId, string userId, bool bPayBalanceDue = false);
 
     /// <summary>
     /// Register a team for the current event with specified name, age group, and level of play.
     /// Creates a Teams record with TeamName directly (no ClubTeam reference).
+    /// Context derived from regId.
     /// </summary>
-    Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, string userId, int? clubId = null);
+    Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, Guid regId, string userId);
 
     /// <summary>
     /// Unregister a Team from the current event.
@@ -57,4 +65,11 @@ public interface ITeamRegistrationService
     /// Only allowed if the club has no team registrations.
     /// </summary>
     Task<bool> UpdateClubNameAsync(string userId, string oldClubName, string newClubName);
+
+    /// <summary>
+    /// Recalculate team fees for all teams in a job or a specific team.
+    /// Triggered by director flag changes or after moving a team to a different age group.
+    /// Filters out teams in WAITLIST/DROPPED age groups.
+    /// </summary>
+    Task<RecalculateTeamFeesResponse> RecalculateTeamFeesAsync(RecalculateTeamFeesRequest request, string userId);
 }

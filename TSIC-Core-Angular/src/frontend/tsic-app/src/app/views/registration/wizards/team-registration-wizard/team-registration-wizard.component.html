@@ -72,11 +72,11 @@
           }
 
           @if (step() === WizardStep.RegisterTeams) {
-          <app-teams-step [clubName]="clubName() || ''" (proceed)="step.set(WizardStep.Payment)"></app-teams-step>
+          <app-teams-step (proceed)="step.set(WizardStep.Payment)"></app-teams-step>
           }
 
           @if (step() === WizardStep.Payment) {
-          <app-team-payment-step [clubName]="clubName() || ''"></app-team-payment-step>
+          <app-team-payment-step></app-team-payment-step>
           }
         </div> <!-- /card-body -->
       </div> <!-- /card -->
