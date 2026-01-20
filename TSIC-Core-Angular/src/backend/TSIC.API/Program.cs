@@ -184,14 +184,19 @@ builder.Services.AddScoped<ProfileMetadataMigrationService>();
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
-builder.Services.AddDbContext<SqlDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        x => x.UseNetTopologySuite()));
+// Only register SqlServer DbContexts if not running tests
+// Tests will provide in-memory versions via WebApplicationTestFactory
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<SqlDbContext>(options =>
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            x => x.UseNetTopologySuite()));
 
-// Separate DbContext for Identity operations only
-builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    // Separate DbContext for Identity operations only
+    builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
 //PASSWORD RESTRICTIONS
 builder.Services.Configure<IdentityOptions>(options =>

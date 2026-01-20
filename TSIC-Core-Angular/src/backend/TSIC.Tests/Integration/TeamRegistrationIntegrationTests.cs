@@ -247,6 +247,16 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
             JobPath = "test-event-2026",
             JobName = "Test Event 2026",
             Season = "2026",
+            JobTypeId = 1,
+            PaymentMethodsAllowedCode = 0,
+            SportId = Guid.NewGuid(),
+            CustomerId = Guid.NewGuid(),
+            ExpiryAdmin = DateTime.UtcNow.AddDays(30),
+            ExpiryUsers = DateTime.UtcNow.AddDays(30),
+            RegformNameClubRep = "Club Rep",
+            RegformNameCoach = "Coach",
+            RegformNamePlayer = "Player",
+            RegformNameTeam = "Team",
             BTeamsFullPaymentRequired = false
         };
         db.Jobs.Add(job);

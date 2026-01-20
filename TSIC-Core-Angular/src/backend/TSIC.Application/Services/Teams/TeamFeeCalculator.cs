@@ -40,8 +40,8 @@ public sealed class TeamFeeCalculator : ITeamFeeCalculator
         // Step 2: Calculate FeeProcessing
         decimal feeProcessing = 0m;
 
-        // No processing fee if already fully paid
-        if (paidTotal >= currentFeeTotal)
+        // No processing fee if already fully paid (and there was a previous total)
+        if (currentFeeTotal > 0 && paidTotal >= currentFeeTotal)
         {
             return (feeBase, feeProcessing);
         }

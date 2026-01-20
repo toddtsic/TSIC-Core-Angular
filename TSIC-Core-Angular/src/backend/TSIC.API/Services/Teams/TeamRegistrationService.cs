@@ -780,7 +780,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         var job = await _jobs.GetJobFeeSettingsAsync(jobId) ?? throw new KeyNotFoundException($"Job not found: {jobId}");
-        var jobProcessingFeePercent = await _jobs.GetProcessingFeePercentAsync(jobId) ?? 0;
+        var jobProcessingFeePercent = await _jobs.GetProcessingFeePercentAsync(jobId); // Null when no job override - calculator uses default
 
         var teams = await _teams.GetTeamsWithDetailsForJobAsync(jobId);
         if (request.TeamId.HasValue)
