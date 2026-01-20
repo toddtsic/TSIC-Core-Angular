@@ -16,8 +16,4 @@ public class RoleRepository : IRoleRepository
         _context = context;
     }
 
-    public IQueryable<AspNetRoles> Query()
-    {
-        return _context.AspNetRoles.AsQueryable();
-    }
 }

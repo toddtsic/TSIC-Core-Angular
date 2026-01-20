@@ -17,11 +17,6 @@ public class TeamRepository : ITeamRepository
         _context = context;
     }
 
-    public IQueryable<Teams> Query()
-    {
-        return _context.Teams.AsQueryable();
-    }
-
     public async Task<List<Teams>> GetTeamsForJobAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
     {
         return await _context.Teams
@@ -173,6 +168,23 @@ public class TeamRepository : ITeamRepository
             .ToDictionaryAsync(t => t.TeamId, t => t.TeamName ?? string.Empty, cancellationToken);
     }
 
+    public async Task<List<Teams>> GetTeamsWithJobAndCustomerAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0)
+        {
+            return new List<Teams>();
+        }
+
+        return await _context.Teams
+            .Include(t => t.Job)
+                .ThenInclude(j => j.Customer)
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForPaymentAsync(
         Guid jobId,
         Guid clubRepRegId,
@@ -245,6 +257,111 @@ public class TeamRepository : ITeamRepository
                       ))
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
+        Guid jobId,
+        int clubId,
+        Guid? excludeRegistrationId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = from t in _context.Teams
+                    join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                    where t.JobId == jobId
+                      && t.ClubrepRegistrationid != null
+                      && _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId)
+                    select new TeamWithRegistrationInfo(
+                        t.TeamId,
+                        t.TeamName ?? string.Empty,
+                        reg.User != null ? reg.User.UserName : null,
+                        t.ClubrepRegistrationid);
+
+        if (excludeRegistrationId.HasValue)
+        {
+            query = query.Where(t => t.ClubrepRegistrationid != excludeRegistrationId.Value);
+        }
+
+        return await query
+            .AsNoTracking()
+            .Include(t => t.ClubrepRegistrationid)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<HistoricalTeamInfo>> GetHistoricalTeamsForClubAsync(
+        string userId,
+        string clubName,
+        int previousYear,
+        CancellationToken cancellationToken = default)
+    {
+        return await (from t in _context.Teams
+                      join j in _context.Jobs on t.JobId equals j.JobId
+                      join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+                      join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                      where reg.UserId == userId
+                        && reg.ClubName == clubName
+                        && j.Season == previousYear.ToString()
+                        && t.TeamName != null
+                      orderby t.TeamName
+                      select new HistoricalTeamInfo(
+                          t.TeamId,
+                          t.TeamName ?? string.Empty,
+                          ag.AgegroupName,
+                          t.Createdate))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Dictionary<Guid, int>> GetRegistrationCountsByAgeGroupAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .Where(t => t.JobId == jobId && (t.Active == true))
+            .GroupBy(t => t.AgegroupId)
+            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.AgegroupId, x => x.Count, cancellationToken);
+    }
+
+    public async Task<bool> HasTeamsForClubRepAsync(
+        string userId,
+        int clubId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (from t in _context.Teams
+                      join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                      where _context.ClubReps.Any(cr => cr.ClubRepUserId == reg.UserId && cr.ClubId == clubId)
+                      select t)
+            .AnyAsync(cancellationToken);
+    }
+
+    public async Task<Guid?> GetTeamJobIdAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.TeamId == teamId)
+            .Select(t => (Guid?)t.JobId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<List<Teams>> GetTeamsWithDetailsForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .Include(t => t.Job)
+            .Include(t => t.Agegroup)
+            .Where(t => t.JobId == jobId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Guid?> GetTeamAgeGroupIdAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.TeamId == teamId)
+            .Select(t => (Guid?)t.AgegroupId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }
 

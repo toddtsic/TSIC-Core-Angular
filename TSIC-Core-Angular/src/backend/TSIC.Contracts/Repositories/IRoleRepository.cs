@@ -7,8 +7,5 @@ namespace TSIC.Contracts.Repositories;
 /// </summary>
 public interface IRoleRepository
 {
-    /// <summary>
-    /// Get a queryable for AspNetRole queries
-    /// </summary>
-    IQueryable<AspNetRoles> Query();
+    // Intentionally empty for now; add specific role lookups as needed.
 }

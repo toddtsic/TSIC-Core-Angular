@@ -13,7 +13,38 @@ public interface IAgeGroupRepository
     Task<(decimal? TeamFee, decimal? RosterFee)?> GetFeeInfoAsync(Guid ageGroupId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a queryable for Agegroups queries
+    /// Get age groups by league ID and season, filtered by MaxTeams > 0.
+    /// Returns age groups with their IDs, names, and MaxTeams for registration UI.
     /// </summary>
-    IQueryable<Agegroups> Query();
+    Task<List<AgeGroupForRegistration>> GetByLeagueAndSeasonAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get age group by ID for validation.
+    /// Returns age group info including MaxTeams for capacity checks.
+    /// </summary>
+    Task<AgeGroupValidationInfo?> GetForValidationAsync(
+        Guid ageGroupId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get age group by ID.
+    /// </summary>
+    Task<Agegroups?> GetByIdAsync(Guid ageGroupId, CancellationToken cancellationToken = default);
 }
+
+public record AgeGroupForRegistration(
+    Guid AgegroupId,
+    string AgegroupName,
+    int MaxTeams,
+    decimal? TeamFee,
+    decimal? RosterFee);
+
+public record AgeGroupValidationInfo(
+    Guid AgegroupId,
+    string? AgegroupName,
+    int MaxTeams,
+    decimal? TeamFee,
+    decimal? RosterFee);

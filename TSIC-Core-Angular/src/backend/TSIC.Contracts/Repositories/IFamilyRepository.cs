@@ -22,11 +22,6 @@ public interface IFamilyRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get raw queryable for advanced filtering
-    /// </summary>
-    IQueryable<Families> Query();
-
-    /// <summary>
     /// Get family contact information for insurance purposes.
     /// </summary>
     Task<FamilyContactInfo?> GetFamilyContactAsync(string familyUserId, CancellationToken cancellationToken = default);

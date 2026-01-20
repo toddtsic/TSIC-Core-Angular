@@ -78,9 +78,20 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public IQueryable<AspNetUsers> Query()
+    public async Task<List<UserBasicInfo>> GetUsersByIdsAsync(
+        List<string> userIds,
+        CancellationToken cancellationToken = default)
     {
-        return _context.AspNetUsers.AsQueryable();
+        return await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new UserBasicInfo(
+                u.Id,
+                u.FirstName,
+                u.LastName,
+                u.Email,
+                u.Dob))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<Dictionary<string, UserNameInfo>> GetUserNameMapAsync(
@@ -113,5 +124,35 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return user;
+    }
+
+    public async Task<List<AspNetUsers>> GetUsersForFamilyAsync(
+        List<string> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+        {
+            return new List<AspNetUsers>();
+        }
+
+        return await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new AspNetUsers
+            {
+                Id = u.Id,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Gender = u.Gender,
+                Dob = u.Dob,
+                Email = u.Email,
+                Cellphone = u.Cellphone,
+                Phone = u.Phone,
+                StreetAddress = u.StreetAddress,
+                City = u.City,
+                State = u.State,
+                PostalCode = u.PostalCode
+            })
+            .ToListAsync(cancellationToken);
     }
 }

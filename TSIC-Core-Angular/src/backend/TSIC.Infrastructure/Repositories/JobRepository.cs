@@ -17,11 +17,6 @@ public class JobRepository : IJobRepository
         _context = context;
     }
 
-    public IQueryable<Jobs> Query()
-    {
-        return _context.Jobs.AsQueryable();
-    }
-
     public async Task<JobPreSubmitMetadata?> GetPreSubmitMetadataAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs
@@ -140,5 +135,78 @@ public class JobRepository : IJobRepository
         return result != null
             ? new JobConfirmationEmailInfo(result.JobId, result.JobName, result.JobPath, result.AdnArb, result.PlayerRegConfirmationEmail)
             : null;
+    }
+
+    public async Task<JobAuthInfo?> GetJobAuthInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var result = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobPath, j.JobDisplayOptions.LogoHeader })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return result != null
+            ? new JobAuthInfo(result.JobId, result.JobPath, result.LogoHeader)
+            : null;
+    }
+
+    public async Task<JobFeeSettings?> GetJobFeeSettingsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobFeeSettings(
+                j.BTeamsFullPaymentRequired,
+                j.BAddProcessingFees,
+                j.BApplyProcessingFeesToTeamDeposit,
+                j.PaymentMethodsAllowedCode,
+                j.PlayerRegRefundPolicy,
+                j.Season ?? ""))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<string?> GetJobSeasonAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.Season)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<string?> GetJobNameAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.JobName)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Guid?> GetCustomerIdAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BUseWaitlists)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.ProcessingFeePercent)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

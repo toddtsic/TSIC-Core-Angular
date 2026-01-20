@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Transactions;
 using System.Text.Json;
@@ -154,10 +153,7 @@ public sealed class FamilyService : IFamilyService
         var regSaver = await ExtractRegSaverDetailsAsync(jobId, familyUserId);
 
         // Build player DTOs
-        var children = await _userRepo.Query()
-            .AsNoTracking()
-            .Where(u => linkedChildIds.Contains(u.Id))
-            .ToListAsync();
+        var children = await _userRepo.GetUsersForFamilyAsync(linkedChildIds);
 
         var players = BuildPlayerDtos(children, regsByUser, regSet, allRegsByUser, jobId, mappedFields, visibleFieldNames);
 
@@ -263,7 +259,7 @@ public sealed class FamilyService : IFamilyService
         }
 
         var childIds = await _familyMemberRepo.GetChildUserIdsAsync(fam.FamilyUserId);
-        var children = await _userRepo.Query().Where(u => childIds.Contains(u.Id)).ToListAsync();
+        var children = await _userRepo.GetUsersForFamilyAsync(childIds);
 
         var childDtos = children.Select(c => new ChildDto
         {
@@ -510,22 +506,17 @@ public sealed class FamilyService : IFamilyService
         if (jobId == null) return (false, false);
 
         var now = DateTime.UtcNow;
-        var hasActiveDiscountCodes = await _jobDiscountRepo.Query()
-            .AsNoTracking()
-            .AnyAsync(dc => dc.JobId == jobId && dc.Active && dc.CodeStartDate <= now && dc.CodeEndDate >= now);
+        var hasActiveDiscountCodes = (await _jobDiscountRepo.GetActiveCodesForJobAsync(jobId.Value, now)).Any();
 
-        var jobMeta = await _jobRepo.Query().AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => new { j.CustomerId })
-            .FirstOrDefaultAsync();
+        var customerId = await _jobRepo.GetCustomerIdAsync(jobId.Value);
 
         var usesAmex = false;
-        if (jobMeta != null)
+        if (customerId != null)
         {
             try
             {
                 var amexIds = _config.GetSection("PaymentMethods_NonMCVisa_ClientIds:Amex").Get<string[]>() ?? Array.Empty<string>();
-                var cust = jobMeta.CustomerId.ToString();
+                var cust = customerId.Value.ToString();
                 usesAmex = Array.Exists(amexIds, id => string.Equals(id, cust, StringComparison.OrdinalIgnoreCase));
             }
             catch { usesAmex = false; }
@@ -672,12 +663,7 @@ public sealed class FamilyService : IFamilyService
 
     private async Task<Dictionary<string, List<TSIC.Domain.Entities.Registrations>>> LoadAllRegistrationsByUserAsync(List<string> linkedChildIds)
     {
-        var allRegsForChildren = await _registrationRepo.Query()
-            .AsNoTracking()
-            .Where(r => r.UserId != null && linkedChildIds.Contains(r.UserId))
-            .OrderByDescending(r => r.Modified)
-            .ThenByDescending(r => r.RegistrationTs)
-            .ToListAsync();
+        var allRegsForChildren = await _registrationRepo.GetRegistrationsByUserIdsAsync(linkedChildIds);
 
         return allRegsForChildren
             .GroupBy(r => r.UserId!)
@@ -689,18 +675,13 @@ public sealed class FamilyService : IFamilyService
         if (jobId == null)
             return null;
 
-        var regSaverRaw = await _registrationRepo.Query()
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.RegsaverPolicyId != null)
-            .OrderByDescending(r => r.BActive == true)
-            .ThenByDescending(r => r.RegsaverPolicyIdCreateDate)
-            .Select(r => new { r.RegsaverPolicyId, r.RegsaverPolicyIdCreateDate })
-            .FirstOrDefaultAsync();
+        var regSaver = await _registrationRepo.GetLatestRegSaverPolicyAsync(jobId.Value, familyUserId);
 
-        if (regSaverRaw != null && !string.IsNullOrWhiteSpace(regSaverRaw.RegsaverPolicyId) && regSaverRaw.RegsaverPolicyIdCreateDate.HasValue)
+        if (regSaver != null && regSaver.PolicyCreateDate.HasValue)
         {
-            return new RegSaverDetailsDto { PolicyNumber = regSaverRaw.RegsaverPolicyId, PolicyCreateDate = regSaverRaw.RegsaverPolicyIdCreateDate.Value };
+            return new RegSaverDetailsDto { PolicyNumber = regSaver.PolicyId, PolicyCreateDate = regSaver.PolicyCreateDate.Value };
         }
+
         return null;
     }
 

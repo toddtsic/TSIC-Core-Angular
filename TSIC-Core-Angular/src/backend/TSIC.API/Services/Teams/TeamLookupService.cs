@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 
@@ -25,10 +24,7 @@ public class TeamLookupService : ITeamLookupService
 
     public async Task<IReadOnlyList<AvailableTeamDto>> GetAvailableTeamsForJobAsync(Guid jobId)
     {
-        var jobUsesWaitlists = await _jobRepo.Query()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.BUseWaitlists)
-            .SingleOrDefaultAsync();
+        var jobUsesWaitlists = await _jobRepo.GetUsesWaitlistsAsync(jobId);
 
         var teamsRaw = await _teamRepo.GetAvailableTeamsQueryResultsAsync(jobId);
 

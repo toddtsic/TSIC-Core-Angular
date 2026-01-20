@@ -56,11 +56,6 @@ public record JobRegistrationStatus(
 public interface IJobRepository
 {
     /// <summary>
-    /// Get a queryable for Job queries
-    /// </summary>
-    IQueryable<Jobs> Query();
-
-    /// <summary>
     /// Fetch minimal metadata needed for player pre-submit.
     /// </summary>
     Task<JobPreSubmitMetadata?> GetPreSubmitMetadataAsync(Guid jobId, CancellationToken cancellationToken = default);
@@ -104,7 +99,56 @@ public interface IJobRepository
     /// Get job confirmation info for email.
     /// </summary>
     Task<JobConfirmationEmailInfo?> GetConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job basic info for team registration initialization (JobId, JobPath, LogoHeader).
+    /// </summary>
+    Task<JobAuthInfo?> GetJobAuthInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job fee settings for team registration metadata.
+    /// Returns BTeamsFullPaymentRequired, BAddProcessingFees, BApplyProcessingFeesToTeamDeposit, PaymentMethodsAllowedCode, PlayerRegRefundPolicy.
+    /// </summary>
+    Task<JobFeeSettings?> GetJobFeeSettingsAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job season by job ID for team queries.
+    /// </summary>
+    Task<string?> GetJobSeasonAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job name by job ID.
+    /// </summary>
+    Task<string?> GetJobNameAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get customer ID for a job.
+    /// </summary>
+    Task<Guid?> GetCustomerIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if job uses waitlists.
+    /// </summary>
+    Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get processing fee percent for a job.
+    /// </summary>
+    Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
+
+public record JobAuthInfo(
+    Guid JobId,
+    string JobPath,
+    string? LogoHeader);
+
+public record JobFeeSettings(
+    bool? BTeamsFullPaymentRequired,
+    bool? BAddProcessingFees,
+    bool? BApplyProcessingFeesToTeamDeposit,
+    int PaymentMethodsAllowedCode,
+    string? PlayerRegRefundPolicy,
+    string? Season);
 
 public record InsuranceOfferInfo(
     string? JobName,

@@ -25,7 +25,11 @@ public interface IJobDiscountCodeRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get raw queryable for advanced filtering
+    /// Get active discount codes for a job.
+    /// Used for checking if any active discount codes exist.
     /// </summary>
-    IQueryable<JobDiscountCodes> Query();
+    Task<List<JobDiscountCodes>> GetActiveCodesForJobAsync(
+        Guid jobId,
+        DateTime currentTime,
+        CancellationToken cancellationToken = default);
 }

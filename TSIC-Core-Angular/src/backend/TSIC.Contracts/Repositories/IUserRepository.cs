@@ -30,9 +30,12 @@ public interface IUserRepository
     Task UpdateTosAcceptanceByUserIdAsync(string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a queryable for AspNetUser queries
+    /// Get users by IDs for family queries.
+    /// Returns list of users with basic info (FirstName, LastName, Email, Birthdate).
     /// </summary>
-    IQueryable<AspNetUsers> Query();
+    Task<List<UserBasicInfo>> GetUsersByIdsAsync(
+        List<string> userIds,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get user names by user IDs for display purposes.
@@ -45,11 +48,25 @@ public interface IUserRepository
     /// Get user contact information for form prefill (payment forms, etc.)
     /// </summary>
     Task<UserContactInfo?> GetUserContactInfoAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get users with profile data for family flows (names, contact info, DOB, gender)
+    /// </summary>
+    Task<List<AspNetUsers>> GetUsersForFamilyAsync(
+        List<string> userIds,
+        CancellationToken cancellationToken = default);
 }
 
 public record UserNameInfo(
     string? FirstName,
     string? LastName);
+
+public record UserBasicInfo(
+    string UserId,
+    string? FirstName,
+    string? LastName,
+    string? Email,
+    DateTime? Birthdate);
 
 public record UserContactInfo(
     string? FirstName,

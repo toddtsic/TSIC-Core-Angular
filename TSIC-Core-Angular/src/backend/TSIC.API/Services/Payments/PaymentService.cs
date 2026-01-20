@@ -1,5 +1,4 @@
 using AuthorizeNet.Api.Contracts.V1;
-using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -56,12 +55,9 @@ public class PaymentService : IPaymentService
         CreditCardInfo creditCard)
     {
         // Get registration to derive jobId
-        var reg = await _registrations.Query()
-            .Where(r => r.RegistrationId == regId)
-            .Select(r => new { r.RegistrationId, r.JobId })
-            .FirstOrDefaultAsync();
+        var jobId = await _registrations.GetRegistrationJobIdAsync(regId);
 
-        if (reg == null)
+        if (jobId == null)
         {
             return new TeamPaymentResponseDto
             {
@@ -69,11 +65,10 @@ public class PaymentService : IPaymentService
                 Message = "Registration not found"
             };
         }
-
-        var jobId = reg.JobId;
+        var jobIdValue = jobId.Value;
 
         // Get job payment credentials
-        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobIdValue);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
         {
             return new TeamPaymentResponseDto
@@ -86,11 +81,7 @@ public class PaymentService : IPaymentService
         var env = _adnApiService.GetADNEnvironment();
 
         // Get all teams with their Job and Customer data for invoice numbers
-        var teams = await _teams.Query()
-            .Include(t => t.Job)
-                .ThenInclude(j => j.Customer)
-            .Where(t => teamIds.Contains(t.TeamId) && t.JobId == jobId)
-            .ToListAsync();
+        var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
 
         if (teams.Count != teamIds.Count)
         {
@@ -640,10 +631,7 @@ public class PaymentService : IPaymentService
         {
             string playerFirst = reg.User?.FirstName?.Trim() ?? "Player";
             string playerLast = reg.User?.LastName?.Trim() ?? reg.User?.UserName?.Trim() ?? reg.RegistrationAi.ToString();
-            string jobName = await _jobs.Query()
-                .Where(j => j.JobId == reg.JobId)
-                .Select(j => j.JobName ?? "Registration")
-                .SingleOrDefaultAsync() ?? "Registration";
+            string jobName = await _jobs.GetJobNameAsync(reg.JobId) ?? "Registration";
 
             string? teamName = null;
             string? agegroupName = null;

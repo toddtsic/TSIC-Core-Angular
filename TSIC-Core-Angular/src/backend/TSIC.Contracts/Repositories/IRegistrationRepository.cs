@@ -122,11 +122,36 @@ public interface IRegistrationRepository
     void Remove(Registrations registration);
 
     /// <summary>
-    /// Get a queryable for advanced LINQ queries.
-    /// Use sparingly - prefer adding specific methods to the repository instead.
+    /// Get club rep registration for a user and job.
+    /// Returns first active ClubRep registration matching userId, jobId, and ClubRep role.
     /// </summary>
-    /// <returns>IQueryable for Registrations</returns>
-    IQueryable<Registrations> Query();
+    Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get registration basic info (ClubName, JobId) by registration ID and user ID.
+    /// Used for authorization checks.
+    /// </summary>
+    Task<RegistrationBasicInfo?> GetRegistrationBasicInfoAsync(Guid registrationId, string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get registration by ID.
+    /// </summary>
+    Task<Registrations?> GetByIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get registrations by job ID and user IDs.
+    /// Used for family registration queries.
+    /// </summary>
+    Task<List<Registrations>> GetByJobAndUserIdsAsync(Guid jobId, List<string> userIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get registrations by job ID and family user ID, optionally filtered by RegSaver policy.
+    /// </summary>
+    Task<List<Registrations>> GetByJobAndFamilyUserIdAsync(
+        Guid jobId,
+        string familyUserId,
+        string? regsaverPolicyId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Persist changes to the database.
@@ -165,6 +190,13 @@ public interface IRegistrationRepository
     Task<RegistrationWithInvoiceData?> GetRegistrationWithInvoiceDataAsync(
         Guid registrationId,
         Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job ID for a registration (lightweight lookup).
+    /// </summary>
+    Task<Guid?> GetRegistrationJobIdAsync(
+        Guid registrationId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -214,6 +246,21 @@ public interface IRegistrationRepository
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all registrations for a set of users across all jobs (for family defaults).
+    /// </summary>
+    Task<List<Registrations>> GetRegistrationsByUserIdsAsync(
+        List<string> userIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get latest RegSaver policy for a family within a job.
+    /// </summary>
+    Task<RegSaverPolicyInfo?> GetLatestRegSaverPolicyAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData(
@@ -230,6 +277,10 @@ public record EligibleInsuranceRegistration(
     decimal? PerRegistrantFee,
     decimal? TeamFee,
     decimal FeeTotal);
+
+public record RegSaverPolicyInfo(
+    string PolicyId,
+    DateTime? PolicyCreateDate);
 
 public record DirectorContactInfo(
     string? Email,
@@ -255,3 +306,7 @@ public record RegistrationConfirmationData(
     int? AdnSubscriptionIntervalLength,
     int? AdnSubscriptionBillingOccurences,
     decimal? AdnSubscriptionAmountPerOccurence);
+
+public record RegistrationBasicInfo(
+    string? ClubName,
+    Guid JobId);

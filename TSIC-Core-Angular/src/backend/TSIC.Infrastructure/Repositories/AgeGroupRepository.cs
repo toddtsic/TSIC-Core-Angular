@@ -28,8 +28,42 @@ public class AgeGroupRepository : IAgeGroupRepository
         return result != null ? (result.TeamFee, result.RosterFee) : null;
     }
 
-    public IQueryable<Agegroups> Query()
+    public async Task<List<AgeGroupForRegistration>> GetByLeagueAndSeasonAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken cancellationToken = default)
     {
-        return _context.Agegroups.AsQueryable();
+        return await _context.Agegroups
+            .AsNoTracking()
+            .Where(ag => ag.LeagueId == leagueId && ag.Season == season && ag.MaxTeams > 0)
+            .OrderBy(ag => ag.AgegroupName)
+            .Select(ag => new AgeGroupForRegistration(
+                ag.AgegroupId,
+                ag.AgegroupName ?? string.Empty,
+                ag.MaxTeams,
+                ag.TeamFee,
+                ag.RosterFee))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<AgeGroupValidationInfo?> GetForValidationAsync(
+        Guid ageGroupId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Agegroups
+            .AsNoTracking()
+            .Where(ag => ag.AgegroupId == ageGroupId)
+            .Select(ag => new AgeGroupValidationInfo(
+                ag.AgegroupId,
+                ag.AgegroupName,
+                ag.MaxTeams,
+                ag.TeamFee,
+                ag.RosterFee))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Agegroups?> GetByIdAsync(Guid ageGroupId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Agegroups.FindAsync(new object[] { ageGroupId }, cancellationToken);
     }
 }

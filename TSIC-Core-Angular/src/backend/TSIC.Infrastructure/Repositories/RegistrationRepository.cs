@@ -344,11 +344,6 @@ public class RegistrationRepository : IRegistrationRepository
         _context.Registrations.Remove(registration);
     }
 
-    public IQueryable<Registrations> Query()
-    {
-        return _context.Registrations.AsQueryable();
-    }
-
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return await _context.SaveChangesAsync(cancellationToken);
@@ -411,6 +406,17 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(x => new RegistrationWithInvoiceData(x.c.CustomerAi, x.j.JobAi, x.r.RegistrationAi))
             .AsNoTracking()
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Guid?> GetRegistrationJobIdAsync(
+        Guid registrationId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId)
+            .Select(r => (Guid?)r.JobId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<Dictionary<Guid, int>> GetRosterCountsByTeamAsync(
@@ -527,6 +533,95 @@ public class RegistrationRepository : IRegistrationRepository
                 r.AdnSubscriptionIntervalLength,
                 r.AdnSubscriptionBillingOccurences,
                 r.AdnSubscriptionAmountPerOccurence))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Registrations>> GetRegistrationsByUserIdsAsync(
+        List<string> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+        {
+            return new List<Registrations>();
+        }
+
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.UserId != null && userIds.Contains(r.UserId))
+            .OrderByDescending(r => r.Modified)
+            .ThenByDescending(r => r.RegistrationTs)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<RegSaverPolicyInfo?> GetLatestRegSaverPolicyAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var data = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.RegsaverPolicyId != null)
+            .OrderByDescending(r => r.BActive == true)
+            .ThenByDescending(r => r.RegsaverPolicyIdCreateDate)
+            .Select(r => new { r.RegsaverPolicyId, r.RegsaverPolicyIdCreateDate })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (data?.RegsaverPolicyId == null)
+        {
+            return null;
+        }
+
+        return new RegSaverPolicyInfo(data.RegsaverPolicyId, data.RegsaverPolicyIdCreateDate);
+    }
+
+    public async Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.UserId == userId && r.JobId == jobId && r.RoleId == Domain.Constants.RoleConstants.ClubRep)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<RegistrationBasicInfo?> GetRegistrationBasicInfoAsync(Guid registrationId, string userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId && r.UserId == userId)
+            .Select(r => new RegistrationBasicInfo(r.ClubName, r.JobId))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Registrations?> GetByIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations.FindAsync(registrationId);
+    }
+
+    public async Task<List<Registrations>> GetByJobAndUserIdsAsync(Guid jobId, List<string> userIds, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && userIds.Contains(r.UserId!))
+            .OrderBy(r => r.Modified)
+            .ThenBy(r => r.RegistrationTs)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Registrations>> GetByJobAndFamilyUserIdAsync(
+        Guid jobId,
+        string familyUserId,
+        string? regsaverPolicyId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId);
+
+        if (regsaverPolicyId != null)
+        {
+            query = query.Where(r => r.RegsaverPolicyId == regsaverPolicyId);
+        }
+
+        return await query
+            .OrderByDescending(r => r.BActive)
             .ToListAsync(cancellationToken);
     }
 }

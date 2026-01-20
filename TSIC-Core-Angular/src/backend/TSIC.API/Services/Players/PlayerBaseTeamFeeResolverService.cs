@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Players;
@@ -23,15 +22,12 @@ public class PlayerBaseTeamFeeResolverService : IPlayerBaseTeamFeeResolverServic
         var teamBase = feeInfo.FeeBase ?? feeInfo.PerRegistrantFee ?? 0m;
         if (teamBase > 0) return teamBase;
 
-        // 2) Need AgegroupId to look up age group fees - must query Team entity again
-        var teamWithAgeGroup = await _teamRepo.Query()
-            .Where(t => t.TeamId == teamId)
-            .Select(t => new { t.AgegroupId })
-            .FirstOrDefaultAsync();
+        // 2) Need AgegroupId to look up age group fees
+        var teamAgeGroupId = await _teamRepo.GetTeamAgeGroupIdAsync(teamId);
 
-        if (teamWithAgeGroup != null)
+        if (teamAgeGroupId.HasValue)
         {
-            var ageFees = await _ageGroupRepo.GetFeeInfoAsync(teamWithAgeGroup.AgegroupId);
+            var ageFees = await _ageGroupRepo.GetFeeInfoAsync(teamAgeGroupId.Value);
             if (ageFees != null)
             {
                 var agBase = (ageFees.Value.TeamFee ?? ageFees.Value.RosterFee) ?? 0m;

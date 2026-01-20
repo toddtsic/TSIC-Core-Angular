@@ -49,9 +49,58 @@ public record TeamFeeData(
 public interface ITeamRepository
 {
     /// <summary>
-    /// Get a queryable for Teams queries
+    /// Get teams by club and job, excluding specific registration.
+    /// Used for checking conflicts when multiple club reps try to register teams.
+    /// Joins to Registrations → ClubReps to verify club association.
     /// </summary>
-    IQueryable<Teams> Query();
+    Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
+        Guid jobId,
+        int clubId,
+        Guid? excludeRegistrationId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get historical teams for team name suggestions.
+    /// Returns teams from previous year's jobs for the same club.
+    /// </summary>
+    Task<List<HistoricalTeamInfo>> GetHistoricalTeamsForClubAsync(
+        string userId,
+        string clubName,
+        int previousYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get team registration counts grouped by age group for a job.
+    /// Returns count of active teams per age group.
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetRegistrationCountsByAgeGroupAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if any teams exist for a club rep (for preventing club removal).
+    /// </summary>
+    Task<bool> HasTeamsForClubRepAsync(
+        string userId,
+        int clubId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get team's job ID for authorization checks.
+    /// </summary>
+    Task<Guid?> GetTeamJobIdAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get teams with job and age group details for fee recalculation.
+    /// </summary>
+    Task<List<Teams>> GetTeamsWithDetailsForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get team's age group ID for fee calculations.
+    /// </summary>
+    Task<Guid?> GetTeamAgeGroupIdAsync(Guid teamId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get teams for a job filtered by team IDs.
@@ -124,6 +173,14 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get teams for a job with Job and Customer navigation data (for payments/invoice numbers).
+    /// </summary>
+    Task<List<Teams>> GetTeamsWithJobAndCustomerAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registered teams for a club rep with payment-related details for insurance offer.
     /// Returns teams eligible for insurance purchase (active, has fees, not already insured).
     /// </summary>
@@ -148,3 +205,14 @@ public interface ITeamRepository
     Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default);
 }
 
+public record TeamWithRegistrationInfo(
+    Guid TeamId,
+    string TeamName,
+    string? Username,
+    Guid? ClubrepRegistrationid);
+
+public record HistoricalTeamInfo(
+    Guid TeamId,
+    string TeamName,
+    string? AgegroupName,
+    DateTime Createdate);

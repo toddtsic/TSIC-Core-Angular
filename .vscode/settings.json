@@ -34,5 +34,8 @@
   "terminal.integrated.defaultProfile.windows": "PowerShell",
   "github.copilot.advanced": {
     "allowEdit": true
+  },
+  "chat.tools.terminal.autoApprove": {
+    "dotnet test": true
   }
 }

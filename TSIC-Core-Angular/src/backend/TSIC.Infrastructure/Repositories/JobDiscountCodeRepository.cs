@@ -48,8 +48,17 @@ public class JobDiscountCodeRepository : IJobDiscountCodeRepository
         return result != null ? (result.BAsPercent, result.CodeAmount) : null;
     }
 
-    public IQueryable<JobDiscountCodes> Query()
+    public async Task<List<JobDiscountCodes>> GetActiveCodesForJobAsync(
+        Guid jobId,
+        DateTime currentTime,
+        CancellationToken cancellationToken = default)
     {
-        return _context.JobDiscountCodes.AsQueryable();
+        return await _context.JobDiscountCodes
+            .AsNoTracking()
+            .Where(d => d.JobId == jobId
+                && d.Active
+                && d.CodeStartDate <= currentTime
+                && d.CodeEndDate >= currentTime)
+            .ToListAsync(cancellationToken);
     }
 }

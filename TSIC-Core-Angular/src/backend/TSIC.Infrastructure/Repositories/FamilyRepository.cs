@@ -39,11 +39,6 @@ public class FamilyRepository : IFamilyRepository
             .ToListAsync(cancellationToken);
     }
 
-    public IQueryable<Families> Query()
-    {
-        return _context.Families.AsQueryable();
-    }
-
     public async Task<FamilyContactInfo?> GetFamilyContactAsync(
         string familyUserId,
         CancellationToken cancellationToken = default)
