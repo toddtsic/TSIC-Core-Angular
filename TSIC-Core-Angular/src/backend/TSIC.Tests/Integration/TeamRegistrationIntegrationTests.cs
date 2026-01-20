@@ -46,7 +46,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         var result = await response.Content.ReadFromJsonAsync<AuthTokenResponse>();
         result.Should().NotBeNull();
         result!.AccessToken.Should().NotBeNullOrEmpty();
-        
+
         // Verify token contains regId claim
         // TODO: Decode JWT and verify regId claim exists
     }
@@ -97,7 +97,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         // Arrange
         var (token, regId) = await InitializeRegistration();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         var request = new RegisterTeamRequest
         {
             TeamName = "Test Team U14",
@@ -112,9 +112,9 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var result = await response.Content.ReadFromJsonAsync<RegisterTeamResponse>();
         result.Should().NotBeNull();
-        result!.TeamId.Should().NotBeEmpty();
-        result.TeamName.Should().Be("Test Team U14");
-        result.FeeBase.Should().BeGreaterThan(0);
+        result!.Success.Should().BeTrue();
+        result.TeamId.Should().NotBeEmpty();
+        result.Message.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         // Arrange
         var (token, regId) = await InitializeRegistration();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         var request = new RegisterTeamRequest
         {
             TeamName = "Duplicate Team",
@@ -133,7 +133,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
 
         // Act - Register first time
         await _client.PostAsJsonAsync($"/api/teams/register?regId={regId}", request);
-        
+
         // Act - Try to register again with same name
         var response = await _client.PostAsJsonAsync($"/api/teams/register?regId={regId}", request);
 
@@ -148,7 +148,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         var (token, regId) = await InitializeRegistration();
         await SeedFullAgeGroup(); // Fill age group to max capacity
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         var request = new RegisterTeamRequest
         {
             TeamName = "Too Many Teams",
@@ -169,14 +169,14 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         // Arrange
         var (token, regId) = await InitializeRegistration();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         var registerRequest = new RegisterTeamRequest
         {
             TeamName = "Team To Remove",
             AgeGroupId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
             LevelOfPlay = "A"
         };
-        
+
         var registerResponse = await _client.PostAsJsonAsync($"/api/teams/register?regId={regId}", registerRequest);
         var registerResult = await registerResponse.Content.ReadFromJsonAsync<RegisterTeamResponse>();
 
@@ -185,7 +185,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify team is removed from database
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
@@ -197,7 +197,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
     public async Task Unregister_Team_WithPayment_ReturnsBadRequest()
     {
         // Arrange
-        var (token, regId, teamId) = await CreateTeamWithPayment();
+        var (token, _, teamId) = await CreateTeamWithPayment();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // Act
@@ -225,10 +225,10 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         var result = await response.Content.ReadFromJsonAsync<TeamsMetadataResponse>();
         result.Should().NotBeNull();
         result!.RegisteredTeams.Should().NotBeNull();
-        
+
         // Verify no inactive teams
         result.RegisteredTeams.Should().NotContain(t => t.TeamName.Contains("INACTIVE"));
-        
+
         // Verify no dropped age groups
         result.RegisteredTeams.Should().NotContain(t => t.AgeGroupName.Contains("DROPPED"));
     }
@@ -260,7 +260,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
         db.Clubs.Add(club);
 
         // Add test user (AspNetUsers)
-        var user = new TSIC.Infrastructure.Data.Identity.ApplicationUser
+        var user = new TSIC.Domain.Entities.AspNetUsers
         {
             Id = "test-user-1",
             UserName = "testuser",
@@ -293,7 +293,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
     private async Task<(string token, Guid regId)> InitializeRegistration()
     {
         await SeedTestDataForInitialization();
-        
+
         var request = new
         {
             UserId = "test-user-1",
@@ -303,10 +303,10 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
 
         var response = await _client.PostAsJsonAsync("/api/teams/initialize", request);
         var result = await response.Content.ReadFromJsonAsync<AuthTokenResponse>();
-        
+
         // TODO: Extract regId from JWT token
         var regId = Guid.NewGuid(); // Placeholder
-        
+
         return (result!.AccessToken, regId);
     }
 
@@ -314,24 +314,24 @@ public class TeamRegistrationIntegrationTests : IClassFixture<WebApplicationTest
     {
         var (token, regId) = await InitializeRegistration();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
+
         var request = new RegisterTeamRequest
         {
             TeamName = "Team With Payment",
             AgeGroupId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
             LevelOfPlay = "A"
         };
-        
+
         var response = await _client.PostAsJsonAsync($"/api/teams/register?regId={regId}", request);
         var result = await response.Content.ReadFromJsonAsync<RegisterTeamResponse>();
-        
+
         // Add payment to team
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
         var team = await db.Teams.FindAsync(result!.TeamId);
         team!.PaidTotal = 100;
         await db.SaveChangesAsync();
-        
+
         return (token, regId, result.TeamId);
     }
 

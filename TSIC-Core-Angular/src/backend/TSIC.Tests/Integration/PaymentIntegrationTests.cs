@@ -28,7 +28,7 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
     public async Task RecalculateTeamFees_HappyPath_ReturnsUpdatedFees()
     {
         // Arrange
-        var (teamId, jobId) = await SeedTeamForFeeCalculation();
+        var (teamId, _) = await SeedTeamForFeeCalculation();
         var request = new
         {
             TeamId = teamId,
@@ -59,7 +59,7 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify all teams in job have updated fees
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
@@ -71,7 +71,7 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
     public async Task RecalculateTeamFees_WithProcessingFees_CalculatesCorrectly()
     {
         // Arrange
-        var (teamId, jobId) = await SeedTeamWithProcessingFees();
+        var (teamId, _) = await SeedTeamWithProcessingFees();
         var request = new
         {
             TeamId = teamId,
@@ -83,7 +83,7 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify processing fee is calculated and added
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
@@ -158,7 +158,7 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify discount was applied
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
@@ -324,15 +324,15 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
     private async Task<Guid> SeedTeamWithPartialPayment()
     {
         var (teamId, _) = await SeedTeamForFeeCalculation();
-        
+
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
-        
+
         var team = await db.Teams.FindAsync(teamId);
         team!.FeeBase = 500;
         team.PaidTotal = 200; // Partial payment
         await db.SaveChangesAsync();
-        
+
         return teamId;
     }
 
@@ -382,24 +382,24 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
     private async Task<Guid> SeedTeamForPayment()
     {
         var (teamId, _) = await SeedTeamForFeeCalculation();
-        
+
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
-        
+
         var team = await db.Teams.FindAsync(teamId);
         team!.FeeBase = 500;
         await db.SaveChangesAsync();
-        
+
         return teamId;
     }
 
     private async Task<(Guid teamId, string discountCode)> SeedTeamWithDiscountCode()
     {
         var teamId = await SeedTeamForPayment();
-        
+
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SqlDbContext>();
-        
+
         var team = await db.Teams.FindAsync(teamId);
         var discount = new JobDiscountCodes
         {
@@ -414,7 +414,7 @@ public class PaymentIntegrationTests : IClassFixture<WebApplicationTestFactory>
         };
         db.JobDiscountCodes.Add(discount);
         await db.SaveChangesAsync();
-        
+
         return (teamId, "SAVE10");
     }
 

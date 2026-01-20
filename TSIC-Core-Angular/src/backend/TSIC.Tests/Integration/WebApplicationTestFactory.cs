@@ -36,9 +36,9 @@ public class WebApplicationTestFactory : WebApplicationFactory<Program>
             using var scope = sp.CreateScope();
             var scopedServices = scope.ServiceProvider;
             var db = scopedServices.GetRequiredService<SqlDbContext>();
-            
+
             db.Database.EnsureCreated();
-            
+
             // Seed test data if needed
             SeedTestData(db);
         });

@@ -448,8 +448,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Event does not have a league configured");
         }
 
-                // CRITICAL BUSINESS RULE: One club rep per event
-                var existingTeamsForClub = await _teams.GetTeamsByClubExcludingRegistrationAsync(jobId, effectiveClubId, clubRepRegistration.RegistrationId);
+        // CRITICAL BUSINESS RULE: One club rep per event
+        var existingTeamsForClub = await _teams.GetTeamsByClubExcludingRegistrationAsync(jobId, effectiveClubId, clubRepRegistration.RegistrationId);
 
         // Validate one-rep-per-event rule
         var differentRepTeams = existingTeamsForClub
@@ -643,7 +643,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Club not found");
         }
 
-                var hasTeams = await _teams.HasTeamsForClubRepAsync(userId, club.ClubId);
+        var hasTeams = await _teams.HasTeamsForClubRepAsync(userId, club.ClubId);
 
         if (hasTeams)
         {
@@ -690,7 +690,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("You are not a representative for this club");
         }
 
-                var hasTeams = await _teams.HasTeamsForClubRepAsync(userId, club.ClubId);
+        var hasTeams = await _teams.HasTeamsForClubRepAsync(userId, club.ClubId);
 
         if (hasTeams)
         {
