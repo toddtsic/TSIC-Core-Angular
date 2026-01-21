@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, input, AfterViewInit, ViewChild, ElementRef, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, AfterViewInit, ViewChild, ElementRef, OnDestroy, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -132,7 +132,7 @@ declare global {
           </section>
         }
 
-        <!-- Submit button -->
+        <!-- Submit button or Proceed button -->
         @if (paymentSvc.hasBalance()) {
           <div class="d-grid gap-2">
             <button 
@@ -146,6 +146,21 @@ declare global {
               } @else {
                 Submit Payment <span class="badge bg-light text-dark ms-2">{{ paymentSvc.balanceDue() | currency }}</span>
               }
+            </button>
+          </div>
+        } @else {
+          <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="alert">
+            <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+            <div class="flex-grow-1">
+              <strong>No Payment Due At This Time</strong> - All team registrations are fully paid at this time. Proceed to review your registration.
+            </div>
+          </div>
+          <div class="d-grid gap-2">
+            <button 
+              type="button"
+              class="btn btn-success btn-lg"
+              (click)="proceed.emit()">
+              <i class="bi bi-check-circle me-2"></i>Proceed to Review
             </button>
           </div>
         }
@@ -174,6 +189,9 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
 
   @ViewChild('viOffer') viOfferElement?: ElementRef<HTMLDivElement>;
 
+  // Event output
+  @Output() proceed = new EventEmitter<void>();
+
   // Component state
   ccValid = signal(false);
   ccData = signal<CreditCardInfo | null>(null);
@@ -182,7 +200,7 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
   metadata = signal<TeamsMetadataResponse | null>(null);
 
   // Insurance offer loaded
-  private insuranceOfferLoaded = signal(false);
+  private readonly insuranceOfferLoaded = signal(false);
 
   canSubmit = computed(() => {
     if (!this.paymentSvc.hasBalance()) return false;
@@ -311,6 +329,8 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
           viPolicyNumbers,
           message: response.message || null
         });
+        // Proceed to Review step after successful payment
+        this.proceed.emit();
       } else {
         throw new Error(response.error || 'Payment processing failed');
       }

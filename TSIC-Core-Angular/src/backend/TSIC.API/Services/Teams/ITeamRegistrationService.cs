@@ -72,4 +72,17 @@ public interface ITeamRegistrationService
     /// Filters out teams in WAITLIST/DROPPED age groups.
     /// </summary>
     Task<RecalculateTeamFeesResponse> RecalculateTeamFeesAsync(RecalculateTeamFeesRequest request, string userId);
+
+    /// <summary>
+    /// Get confirmation text with substituted variables for on-screen display.
+    /// Uses AdultRegConfirmationOnScreen template.
+    /// </summary>
+    Task<string> GetConfirmationTextAsync(Guid registrationId, string userId);
+
+    /// <summary>
+    /// Send confirmation email to club rep with substituted template.
+    /// Sets bClubrep_NotificationSent flag on Registration.
+    /// Uses AdultRegConfirmationEmail template.
+    /// </summary>
+    Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false);
 }

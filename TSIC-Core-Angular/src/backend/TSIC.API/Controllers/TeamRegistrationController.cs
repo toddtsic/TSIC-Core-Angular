@@ -431,4 +431,95 @@ public class TeamRegistrationController : ControllerBase
             return StatusCode(500, new { Message = "An error occurred while recalculating team fees" });
         }
     }
+
+    /// <summary>
+    /// Get confirmation text with substituted variables for on-screen display.
+    /// Uses AdultRegConfirmationOnScreen template from the Job.
+    /// </summary>
+    [HttpPost("confirmation-text")]
+    [Authorize]
+    [ProducesResponseType(typeof(string), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetConfirmationText([FromBody] GetConfirmationTextRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+        }
+
+        try
+        {
+            var confirmationHtml = await _teamRegistrationService.GetConfirmationTextAsync(request.RegistrationId, userId);
+            return Ok(confirmationHtml);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting confirmation text for registration {RegistrationId}", request.RegistrationId);
+            return StatusCode(500, new { Message = "An error occurred while retrieving confirmation text" });
+        }
+    }
+
+    /// <summary>
+    /// Send confirmation email to club rep with substituted template.
+    /// Sets bClubrep_NotificationSent flag on Registration.
+    /// Uses AdultRegConfirmationEmail template from the Job.
+    /// </summary>
+    [HttpPost("send-confirmation-email")]
+    [Authorize]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> SendConfirmationEmail([FromBody] SendConfirmationEmailRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+        }
+
+        try
+        {
+            await _teamRegistrationService.SendConfirmationEmailAsync(request.RegistrationId, userId, request.ForceResend);
+            return Ok(new { Message = "Confirmation email sent successfully" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending confirmation email for registration {RegistrationId}", request.RegistrationId);
+            return StatusCode(500, new { Message = "An error occurred while sending confirmation email" });
+        }
+    }
 }
+
+public class GetConfirmationTextRequest
+{
+    public Guid RegistrationId { get; set; }
+}
+
+public class SendConfirmationEmailRequest
+{
+    public Guid RegistrationId { get; set; }
+    public bool ForceResend { get; set; } = false;}

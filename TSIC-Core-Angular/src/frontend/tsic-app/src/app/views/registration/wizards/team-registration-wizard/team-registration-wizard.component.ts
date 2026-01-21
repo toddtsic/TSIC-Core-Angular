@@ -122,7 +122,9 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                     icon: 'bi-credit-card-fill',
                     alertClass: 'alert-info',
                     title: 'Payment',
-                    message: 'Review your team registrations and complete payment.'
+                    message: this.teamPaymentService.hasBalance() 
+                        ? 'Review your team registrations and complete payment.'
+                        : 'Review your team registrations. No payment required at this time.'
                 };
             case WizardStep.Review:
                 return {

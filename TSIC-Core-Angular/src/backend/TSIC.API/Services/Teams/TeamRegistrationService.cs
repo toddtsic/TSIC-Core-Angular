@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using TSIC.API.Services.Auth;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.API.Services.Shared.TextSubstitution;
+using TSIC.Contracts.Services;
 
 namespace TSIC.API.Services.Teams;
 
@@ -24,6 +26,8 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITeamFeeCalculator _teamFeeCalculator;
+    private readonly ITextSubstitutionService _textSubstitution;
+    private readonly IEmailService _emailService;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -37,7 +41,9 @@ public class TeamRegistrationService : ITeamRegistrationService
         IUserRepository users,
         ITokenService tokenService,
         UserManager<ApplicationUser> userManager,
-        ITeamFeeCalculator teamFeeCalculator)
+        ITeamFeeCalculator teamFeeCalculator,
+        ITextSubstitutionService textSubstitution,
+        IEmailService emailService)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -51,6 +57,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         _tokenService = tokenService;
         _userManager = userManager;
         _teamFeeCalculator = teamFeeCalculator;
+        _textSubstitution = textSubstitution;
+        _emailService = emailService;
     }
 
     /// <summary>
@@ -872,5 +880,147 @@ public class TeamRegistrationService : ITeamRegistrationService
             SkippedCount = skippedReasons.Count,
             SkippedReasons = skippedReasons
         };
+    }
+
+    public async Task<string> GetConfirmationTextAsync(Guid registrationId, string userId)
+    {
+        _logger.LogInformation("Getting confirmation text for registration {RegistrationId}, user {UserId}", registrationId, userId);
+
+        var reg = await _registrations.GetByIdAsync(registrationId);
+        if (reg == null)
+        {
+            _logger.LogWarning("Registration {RegistrationId} not found", registrationId);
+            return string.Empty;
+        }
+
+        if (reg.UserId != userId)
+        {
+            _logger.LogWarning("User {UserId} attempted to access registration {RegistrationId} belonging to {OwnerId}", userId, registrationId, reg.UserId);
+            return string.Empty;
+        }
+
+        var jobInfo = await _jobs.GetAdultConfirmationInfoAsync(reg.JobId);
+        if (jobInfo == null || string.IsNullOrWhiteSpace(jobInfo.AdultRegConfirmationOnScreen))
+        {
+            _logger.LogWarning("No confirmation template found for job {JobId}", reg.JobId);
+            return string.Empty;
+        }
+
+        try
+        {
+            // Credit card payment method ID for token substitution
+            Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+            
+            string substitutedHtml = await _textSubstitution.SubstituteAsync(
+                jobSegment: jobInfo.JobPath,
+                paymentMethodCreditCardId: ccPaymentMethodId,
+                registrationId: registrationId,
+                familyUserId: null,
+                template: jobInfo.AdultRegConfirmationOnScreen);
+
+            return substitutedHtml;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error substituting confirmation template for registration {RegistrationId}", registrationId);
+            return string.Empty;
+        }
+    }
+
+    public async Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false)
+    {
+        _logger.LogInformation("Sending confirmation email for registration {RegistrationId}, user {UserId}, forceResend {ForceResend}",
+            registrationId, userId, forceResend);
+
+        var reg = await _registrations.GetByIdAsync(registrationId);
+        if (reg == null)
+        {
+            _logger.LogWarning("Registration {RegistrationId} not found", registrationId);
+            throw new KeyNotFoundException($"Registration {registrationId} not found");
+        }
+
+        if (reg.UserId != userId)
+        {
+            _logger.LogWarning("User {UserId} attempted to send email for registration {RegistrationId} belonging to {OwnerId}",
+                userId, registrationId, reg.UserId);
+            throw new UnauthorizedAccessException("You do not have permission to send this confirmation email");
+        }
+
+        // Check if already sent (unless force resend)
+        if (!forceResend && reg.BConfirmationSent)
+        {
+            _logger.LogInformation("Confirmation email already sent for registration {RegistrationId}, skipping", registrationId);
+            return;
+        }
+
+        var jobInfo = await _jobs.GetAdultConfirmationEmailInfoAsync(reg.JobId);
+        if (jobInfo == null || string.IsNullOrWhiteSpace(jobInfo.AdultRegConfirmationEmail))
+        {
+            _logger.LogWarning("No email confirmation template found for job {JobId}", reg.JobId);
+            throw new InvalidOperationException("Email confirmation template not configured for this event");
+        }
+
+        var user = await _users.GetByIdAsync(userId);
+        if (user == null || string.IsNullOrWhiteSpace(user.Email))
+        {
+            _logger.LogWarning("User {UserId} not found or has no email address", userId);
+            throw new InvalidOperationException("User email address not available");
+        }
+
+        try
+        {
+            // Credit card payment method ID for token substitution
+            Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+
+            string emailHtml = await _textSubstitution.SubstituteAsync(
+                jobSegment: jobInfo.JobPath,
+                paymentMethodCreditCardId: ccPaymentMethodId,
+                registrationId: registrationId,
+                familyUserId: null,
+                template: jobInfo.AdultRegConfirmationEmail);
+
+            var emailMessage = new EmailMessageDto
+            {
+                ToAddresses = new List<string> { user.Email },
+                Subject = $"{jobInfo.JobName ?? "Event"} Registration Confirmation",
+                HtmlBody = emailHtml
+            };
+
+            // Add From/ReplyTo if configured
+            if (!string.IsNullOrWhiteSpace(jobInfo.RegFormFrom))
+            {
+                emailMessage.FromAddress = jobInfo.RegFormFrom;
+            }
+
+            // Add CCs/BCCs if configured
+            if (!string.IsNullOrWhiteSpace(jobInfo.RegFormCcs))
+            {
+                emailMessage.CcAddresses = jobInfo.RegFormCcs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(jobInfo.RegFormBccs))
+            {
+                emailMessage.BccAddresses = jobInfo.RegFormBccs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            }
+
+            bool emailSent = await _emailService.SendAsync(emailMessage);
+
+            if (emailSent)
+            {
+                // Update flag
+                await _registrations.SetNotificationSentAsync(registrationId, true);
+                _logger.LogInformation("Confirmation email sent successfully for registration {RegistrationId}", registrationId);
+            }
+            else
+            {
+                _logger.LogError("Failed to send confirmation email for registration {RegistrationId}", registrationId);
+                throw new InvalidOperationException("Failed to send confirmation email");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending confirmation email for registration {RegistrationId}", registrationId);
+            throw;
+        }
     }
 }

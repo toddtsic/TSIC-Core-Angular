@@ -135,6 +135,16 @@ public interface IJobRepository
     /// Get processing fee percent for a job.
     /// </summary>
     Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get adult/team confirmation template for on-screen display.
+    /// </summary>
+    Task<AdultConfirmationInfo?> GetAdultConfirmationInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get adult/team confirmation template for email.
+    /// </summary>
+    Task<AdultConfirmationEmailInfo?> GetAdultConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
 
 public record JobAuthInfo(
@@ -168,3 +178,21 @@ public record JobConfirmationEmailInfo(
     string JobPath,
     bool? AdnArb,
     string? PlayerRegConfirmationEmail);
+
+public record AdultConfirmationInfo(
+    Guid JobId,
+    string? JobName,
+    string JobPath,
+    string? AdultRegConfirmationOnScreen,
+    string? RegFormFrom,
+    string? RegFormCcs,
+    string? RegFormBccs);
+
+public record AdultConfirmationEmailInfo(
+    Guid JobId,
+    string? JobName,
+    string JobPath,
+    string? AdultRegConfirmationEmail,
+    string? RegFormFrom,
+    string? RegFormCcs,
+    string? RegFormBccs);

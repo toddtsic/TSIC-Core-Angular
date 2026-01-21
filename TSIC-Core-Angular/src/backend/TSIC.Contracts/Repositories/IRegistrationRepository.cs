@@ -261,6 +261,12 @@ public interface IRegistrationRepository
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set notification sent flag for club rep registration.
+    /// Used after sending confirmation email.
+    /// </summary>
+    Task SetNotificationSentAsync(Guid registrationId, bool sent, CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData(

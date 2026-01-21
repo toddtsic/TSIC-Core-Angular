@@ -137,6 +137,32 @@ public class JobRepository : IJobRepository
             : null;
     }
 
+    public async Task<AdultConfirmationInfo?> GetAdultConfirmationInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var result = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdultRegConfirmationOnScreen, j.RegFormFrom, j.RegFormCcs, j.RegFormBccs })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return result != null
+            ? new AdultConfirmationInfo(result.JobId, result.JobName, result.JobPath, result.AdultRegConfirmationOnScreen, result.RegFormFrom, result.RegFormCcs, result.RegFormBccs)
+            : null;
+    }
+
+    public async Task<AdultConfirmationEmailInfo?> GetAdultConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var result = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdultRegConfirmationEmail, j.RegFormFrom, j.RegFormCcs, j.RegFormBccs })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return result != null
+            ? new AdultConfirmationEmailInfo(result.JobId, result.JobName, result.JobPath, result.AdultRegConfirmationEmail, result.RegFormFrom, result.RegFormCcs, result.RegFormBccs)
+            : null;
+    }
+
     public async Task<JobAuthInfo?> GetJobAuthInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         var result = await _context.Jobs

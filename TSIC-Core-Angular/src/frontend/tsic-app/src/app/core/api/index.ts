@@ -38,6 +38,7 @@ export type { FamilyUpdateRequest } from './models/FamilyUpdateRequest';
 export type { FamilyUserSummaryDto } from './models/FamilyUserSummaryDto';
 export type { FieldCondition } from './models/FieldCondition';
 export type { FieldValidation } from './models/FieldValidation';
+export type { GetConfirmationTextRequest } from './models/GetConfirmationTextRequest';
 export type { InitializeRegistrationRequest } from './models/InitializeRegistrationRequest';
 export type { InsurancePurchaseRequestDto } from './models/InsurancePurchaseRequestDto';
 export type { InsurancePurchaseResponseDto } from './models/InsurancePurchaseResponseDto';
@@ -94,6 +95,7 @@ export type { RegistrationStatusResponse } from './models/RegistrationStatusResp
 export type { RegSaverDetailsDto } from './models/RegSaverDetailsDto';
 export type { RenameOptionSetRequest } from './models/RenameOptionSetRequest';
 export type { RoleSelectionRequest } from './models/RoleSelectionRequest';
+export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { TeamFeeUpdateDto } from './models/TeamFeeUpdateDto';
 export type { TeamInsurancePurchaseRequestDto } from './models/TeamInsurancePurchaseRequestDto';

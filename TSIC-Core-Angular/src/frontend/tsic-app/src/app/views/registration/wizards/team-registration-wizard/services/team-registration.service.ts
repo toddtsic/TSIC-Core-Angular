@@ -160,4 +160,31 @@ export class TeamRegistrationService {
     acceptRefundPolicy(): Observable<{ message: string }> {
         return this.http.post<{ message: string }>(`${this.apiUrl}/accept-refund-policy`, {});
     }
+
+    /**
+     * Get confirmation text with substituted variables for on-screen display.
+     * Uses AdultRegConfirmationOnScreen template from the Job.
+     * Template variables are automatically substituted with registration data.
+     * 
+     * @param registrationId - The registration ID (Guid string)
+     * @returns HTML confirmation text
+     */
+    getConfirmationText(registrationId: string): Observable<string> {
+        const request = { registrationId };
+        return this.http.post(`${this.apiUrl}/confirmation-text`, request, { responseType: 'text' });
+    }
+
+    /**
+     * Send confirmation email to club rep with substituted template.
+     * Uses AdultRegConfirmationEmail template from the Job.
+     * Sets bClubrep_NotificationSent flag on Registration.
+     * 
+     * @param registrationId - The registration ID (Guid string)
+     * @param forceResend - If true, resends even if already sent. Default false.
+     * @returns Success message
+     */
+    sendConfirmationEmail(registrationId: string, forceResend: boolean = false): Observable<{ message: string }> {
+        const request = { registrationId, forceResend };
+        return this.http.post<{ message: string }>(`${this.apiUrl}/send-confirmation-email`, request);
+    }
 }

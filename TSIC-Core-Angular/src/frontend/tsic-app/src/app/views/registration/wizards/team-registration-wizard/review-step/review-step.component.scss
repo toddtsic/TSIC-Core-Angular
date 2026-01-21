@@ -1,0 +1,68 @@
+.review-step-container {
+  padding: 1rem 0;
+
+  .confirmation-wrapper {
+    .confirmation-content {
+      max-height: 500px;
+      overflow-y: auto;
+      
+      // Ensure embedded images and content respects width
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+
+      // Style tables from confirmation template
+      table {
+        width: 100%;
+        margin-bottom: 1rem;
+        border-collapse: collapse;
+
+        th, td {
+          padding: 0.75rem;
+          border: 1px solid var(--bs-border-color);
+          text-align: left;
+        }
+
+        th {
+          background-color: var(--bs-light);
+          font-weight: 600;
+        }
+
+        tbody tr:nth-child(odd) {
+          background-color: var(--bs-light);
+        }
+      }
+
+      // Default spacing for paragraphs
+      p {
+        margin-bottom: 0.5rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      // Heading styles
+      h1, h2, h3, h4, h5, h6 {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+
+        &:first-child {
+          margin-top: 0;
+        }
+      }
+
+      // List styles
+      ul, ol {
+        margin-bottom: 0.5rem;
+        padding-left: 1.5rem;
+      }
+
+      li {
+        margin-bottom: 0.25rem;
+      }
+    }
+  }
+}

@@ -139,13 +139,6 @@ import { ClickEventArgs } from '@syncfusion/ej2-navigations';
         <span class="fw-bold" [class.text-warning]="data.Sum > 0" 
               [class.text-muted]="data.Sum === 0">{{ data.Sum | currency }}</span>
       </ng-template>
-      
-      @if (!svc.hasBalance()) {
-        <div class="alert alert-success border-0 mt-3 mb-0" role="status">
-          <i class="bi bi-check-circle-fill me-2"></i>
-          All teams are fully paid. No payment is required.
-        </div>
-      }
     </section>
   `,
   styles: []

@@ -624,4 +624,14 @@ public class RegistrationRepository : IRegistrationRepository
             .OrderByDescending(r => r.BActive)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task SetNotificationSentAsync(Guid registrationId, bool sent, CancellationToken cancellationToken = default)
+    {
+        var registration = await _context.Registrations.FindAsync(new object[] { registrationId }, cancellationToken: cancellationToken);
+        if (registration != null)
+        {
+            registration.BConfirmationSent = sent;
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
 }
