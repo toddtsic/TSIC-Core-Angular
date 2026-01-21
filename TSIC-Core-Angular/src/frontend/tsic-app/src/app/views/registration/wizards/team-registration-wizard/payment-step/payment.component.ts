@@ -1,4 +1,16 @@
-import { Component, inject, signal, computed, AfterViewInit, ViewChild, ElementRef, OnDestroy, OnInit, Output, EventEmitter } from '@angular/core';
+import {
+  Component,
+  inject,
+  signal,
+  computed,
+  AfterViewInit,
+  ViewChild,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  Output,
+  EventEmitter,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -35,7 +47,9 @@ interface TeamPaymentResponseDto {
 }
 
 declare global {
-  interface Window { VerticalInsure?: any; }
+  interface Window {
+    VerticalInsure?: any;
+  }
 }
 
 /**
@@ -50,20 +64,25 @@ declare global {
     CommonModule,
     FormsModule,
     TeamPaymentSummaryTableComponent,
-    CreditCardFormComponent
+    CreditCardFormComponent,
   ],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">
-          {{ insuranceState.offerTeamRegSaver() ? 'Payment/Insurance' : 'Payment' }}
+          {{
+            insuranceState.offerTeamRegSaver() ? 'Payment/Insurance' : 'Payment'
+          }}
         </h5>
       </div>
-      
+
       <div class="card-body">
         <!-- Error display -->
         @if (lastError()) {
-          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+          <div
+            class="alert alert-danger d-flex align-items-start gap-2"
+            role="alert"
+          >
             <div class="flex-grow-1">
               <div class="fw-semibold mb-1">Payment Error</div>
               <div class="small">{{ lastError() }}</div>
@@ -79,30 +98,52 @@ declare global {
           <div class="mb-3">
             <h6 class="fw-semibold mb-2">Team Insurance (Optional)</h6>
             <div #viOffer id="dVITeamOffer" class="text-center"></div>
-            
+
             @if (!insuranceState.hasVerticalInsureDecision()) {
-              <div class="alert alert-secondary border-0 py-2 small mt-2" role="alert">
-                Insurance is optional. Choose <strong>Confirm Purchase</strong> or <strong>Decline Insurance</strong> to continue.
+              <div
+                class="alert alert-secondary border-0 py-2 small mt-2"
+                role="alert"
+              >
+                Insurance is optional. Choose
+                <strong>Confirm Purchase</strong> or
+                <strong>Decline Insurance</strong> to continue.
               </div>
             }
-            
+
             @if (insuranceState.hasVerticalInsureDecision()) {
               <div class="mt-2">
-                <div class="alert" 
-                     [ngClass]="insuranceState.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" 
-                     role="status">
+                <div
+                  class="alert"
+                  [ngClass]="
+                    insuranceState.verticalInsureConfirmed()
+                      ? 'alert-success'
+                      : 'alert-secondary'
+                  "
+                  role="status"
+                >
                   <div class="d-flex align-items-center gap-2">
-                    <span class="badge" 
-                          [ngClass]="insuranceState.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">
+                    <span
+                      class="badge"
+                      [ngClass]="
+                        insuranceState.verticalInsureConfirmed()
+                          ? 'bg-success'
+                          : 'bg-secondary'
+                      "
+                    >
                       RegSaver
                     </span>
                     <div>
                       @if (insuranceState.verticalInsureConfirmed()) {
                         <div class="fw-semibold mb-0">Insurance Selected</div>
-                        <div class="small text-muted">Coverage for {{ insuranceSvc.quotedTeams().length }} team(s)</div>
+                        <div class="small text-muted">
+                          Coverage for
+                          {{ insuranceSvc.quotedTeams().length }} team(s)
+                        </div>
                       } @else {
                         <div class="fw-semibold mb-0">Insurance Declined</div>
-                        <div class="small text-muted">You chose not to purchase coverage.</div>
+                        <div class="small text-muted">
+                          You chose not to purchase coverage.
+                        </div>
                       }
                     </div>
                   </div>
@@ -114,20 +155,35 @@ declare global {
 
         <!-- Credit card form (only if balance due) -->
         @if (paymentSvc.hasBalance()) {
-          <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
-                   style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-            <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
-            
+          <section
+            class="p-3 p-sm-4 mb-3 rounded-3"
+            aria-labelledby="cc-title"
+            style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)"
+          >
+            <h6 id="cc-title" class="fw-semibold mb-2">
+              Credit Card Information
+            </h6>
+
             <app-credit-card-form
               (validChange)="onCcValidChange($event)"
               (valueChange)="onCcValueChange($event)"
               [viOnly]="false"
-              [defaultFirstName]="metadata()?.clubRepContactInfo?.firstName || null"
-              [defaultLastName]="metadata()?.clubRepContactInfo?.lastName || null"
-              [defaultAddress]="metadata()?.clubRepContactInfo?.streetAddress || null"
+              [defaultFirstName]="
+                metadata()?.clubRepContactInfo?.firstName || null
+              "
+              [defaultLastName]="
+                metadata()?.clubRepContactInfo?.lastName || null
+              "
+              [defaultAddress]="
+                metadata()?.clubRepContactInfo?.streetAddress || null
+              "
               [defaultZip]="metadata()?.clubRepContactInfo?.postalCode || null"
               [defaultEmail]="metadata()?.clubRepContactInfo?.email || null"
-              [defaultPhone]="metadata()?.clubRepContactInfo?.cellphone || metadata()?.clubRepContactInfo?.phone || null"
+              [defaultPhone]="
+                metadata()?.clubRepContactInfo?.cellphone ||
+                metadata()?.clubRepContactInfo?.phone ||
+                null
+              "
             ></app-credit-card-form>
           </section>
         }
@@ -135,31 +191,41 @@ declare global {
         <!-- Submit button or Proceed button -->
         @if (paymentSvc.hasBalance()) {
           <div class="d-grid gap-2">
-            <button 
+            <button
               type="button"
               class="btn btn-primary btn-lg"
               [disabled]="!canSubmit() || submitting()"
-              (click)="submitPayment()">
+              (click)="submitPayment()"
+            >
               @if (submitting()) {
                 <span class="spinner-border spinner-border-sm me-2"></span>
                 Processing...
               } @else {
-                Submit Payment <span class="badge bg-light text-dark ms-2">{{ paymentSvc.balanceDue() | currency }}</span>
+                Submit Payment
+                <span class="badge bg-light text-dark ms-2">{{
+                  paymentSvc.balanceDue() | currency
+                }}</span>
               }
             </button>
           </div>
         } @else {
-          <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="alert">
+          <div
+            class="alert alert-info d-flex align-items-center gap-2 mb-3"
+            role="alert"
+          >
             <i class="bi bi-info-circle-fill flex-shrink-0"></i>
             <div class="flex-grow-1">
-              <strong>No Payment Due At This Time</strong> - All team registrations are fully paid at this time. Proceed to review your registration.
+              <strong>No Payment Due At This Time</strong> - All team
+              registrations are fully paid at this time. Proceed to review your
+              registration.
             </div>
           </div>
           <div class="d-grid gap-2">
-            <button 
+            <button
               type="button"
               class="btn btn-success btn-lg"
-              (click)="proceed.emit()">
+              (click)="proceed.emit()"
+            >
               <i class="bi bi-check-circle me-2"></i>Proceed to Review
             </button>
           </div>
@@ -167,13 +233,20 @@ declare global {
       </div>
     </div>
   `,
-  styles: [`
-    .card-header-subtle {
-      background: linear-gradient(135deg, var(--bs-primary-bg-subtle) 0%, var(--bs-secondary-bg-subtle) 100%);
-    }
-  `]
+  styles: [
+    `
+      .card-header-subtle {
+        background: linear-gradient(
+          135deg,
+          var(--bs-primary-bg-subtle) 0%,
+          var(--bs-secondary-bg-subtle) 100%
+        );
+      }
+    `,
+  ],
 })
-export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
+export class TeamPaymentStepComponent
+  implements OnInit, AfterViewInit, OnDestroy {
   // Services
   readonly paymentSvc = inject(TeamPaymentService);
   readonly paymentState = inject(TeamPaymentStateService);
@@ -219,13 +292,17 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
     // Context (clubName, jobId) derived from regId token claim on backend
     this.teamReg.getTeamsMetadata(true).subscribe({
       next: (response) => this.metadata.set(response),
-      error: (err) => console.error('[PaymentComponent] Failed to load metadata:', err)
+      error: (err) =>
+        console.error('[PaymentComponent] Failed to load metadata:', err),
     });
   }
 
   ngAfterViewInit(): void {
     // Load insurance offer if enabled and not already loaded
-    if (this.insuranceState.offerTeamRegSaver() && !this.insuranceOfferLoaded()) {
+    if (
+      this.insuranceState.offerTeamRegSaver() &&
+      !this.insuranceOfferLoaded()
+    ) {
       this.loadInsuranceOffer();
     }
   }
@@ -291,12 +368,12 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
       if (this.insuranceState.verticalInsureConfirmed()) {
         const teamIds = this.paymentSvc.teamIdsWithBalance();
         const quotes = this.insuranceSvc.quotes();
-        const quoteIds = quotes.map(q => q.id || q.quote_id).filter(Boolean);
+        const quoteIds = quotes.map((q) => q.id || q.quote_id).filter(Boolean);
 
         const viResult = await this.insuranceSvc.purchaseTeamInsurance(
           teamIds,
           quoteIds,
-          ccData
+          ccData,
         );
 
         if (!viResult.success) {
@@ -313,12 +390,12 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
         clubRepRegId: regId,
         teamIds: this.paymentSvc.teamIdsWithBalance(),
         totalAmount: this.paymentSvc.balanceDue(),
-        creditCard: ccData
+        creditCard: ccData,
       };
 
       const url = `${environment.apiUrl}/team-payment/process`;
       const response = await firstValueFrom(
-        this.http.post<TeamPaymentResponseDto>(url, request)
+        this.http.post<TeamPaymentResponseDto>(url, request),
       );
 
       if (response.success) {
@@ -327,7 +404,7 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
           amount: this.paymentSvc.balanceDue(),
           transactionId: response.transactionId,
           viPolicyNumbers,
-          message: response.message || null
+          message: response.message || null,
         });
         // Proceed to Review step after successful payment
         this.proceed.emit();
@@ -335,9 +412,10 @@ export class TeamPaymentStepComponent implements OnInit, AfterViewInit, OnDestro
         throw new Error(response.error || 'Payment processing failed');
       }
     } catch (error) {
-      const message = error instanceof HttpErrorResponse
-        ? error.error?.message || error.message
-        : (error as Error).message || 'Payment failed';
+      const message =
+        error instanceof HttpErrorResponse
+          ? error.error?.message || error.message
+          : (error as Error).message || 'Payment failed';
 
       this.lastError.set(message);
       this.toast.show(message, 'danger');

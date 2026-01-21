@@ -522,4 +522,5 @@ public class GetConfirmationTextRequest
 public class SendConfirmationEmailRequest
 {
     public Guid RegistrationId { get; set; }
-    public bool ForceResend { get; set; } = false;}
+    public bool ForceResend { get; set; } = false;
+}

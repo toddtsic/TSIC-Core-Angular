@@ -1,15 +1,35 @@
-import { Component, inject, OnInit, OnDestroy, signal, computed, ViewChild } from '@angular/core';
+import {
+    Component,
+    inject,
+    OnInit,
+    OnDestroy,
+    signal,
+    computed,
+    ViewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+    ReactiveFormsModule,
+    FormsModule,
+    FormBuilder,
+    FormGroup,
+    Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TwStepIndicatorComponent } from './step-indicator/tw-step-indicator.component';
-import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
+import {
+    ClubRepLoginStepComponent,
+    LoginStepResult,
+} from './login-step/club-rep-login-step.component';
 import { TeamPaymentStepComponent } from './payment-step/payment.component';
 import { ReviewStepComponent } from './review-step/review-step.component';
-import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
+import {
+    FormFieldDataService,
+    SelectOption,
+} from '@infrastructure/services/form-field-data.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ClubService } from '@infrastructure/services/club.service';
@@ -24,7 +44,7 @@ enum WizardStep {
     Login = 1,
     RegisterTeams = 2,
     Payment = 3,
-    Review = 4
+    Review = 4,
 }
 
 @Component({
@@ -32,7 +52,17 @@ enum WizardStep {
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TeamPaymentStepComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent, ReviewStepComponent]
+    imports: [
+        CommonModule,
+        ReactiveFormsModule,
+        FormsModule,
+        TeamsStepComponent,
+        TeamPaymentStepComponent,
+        TwActionBarComponent,
+        TwStepIndicatorComponent,
+        ClubRepLoginStepComponent,
+        ReviewStepComponent,
+    ],
 })
 export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     // Expose enum to template
@@ -54,7 +84,9 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     readonly clubInfoCollapsed = signal(false);
     readonly clubRepInfoAlreadyRead = signal(false);
     readonly metadataError = signal<string | null>(null);
-    readonly registrationId = computed(() => this.authService.currentUser()?.regId || '');
+    readonly registrationId = computed(
+        () => this.authService.currentUser()?.regId || '',
+    );
 
     // Non-reactive properties
     @ViewChild(TeamsStepComponent) teamsStep?: TeamsStepComponent;
@@ -71,7 +103,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
             { stepNumber: WizardStep.Login, label: 'Login' },
             { stepNumber: WizardStep.RegisterTeams, label: 'Register Teams' },
             { stepNumber: WizardStep.Payment, label: 'Payment' },
-            { stepNumber: WizardStep.Review, label: 'Review' }
+            { stepNumber: WizardStep.Review, label: 'Review' },
         ];
     });
 
@@ -95,8 +127,12 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     private readonly toast = inject(ToastService);
 
     // Expose registration status and loading state to template
-    readonly isTeamRegistrationOpen = computed(() => this.jobService.isTeamRegistrationOpen());
-    readonly isLoadingMetadata = computed(() => this.jobService.jobMetadataLoading());
+    readonly isTeamRegistrationOpen = computed(() =>
+        this.jobService.isTeamRegistrationOpen(),
+    );
+    readonly isLoadingMetadata = computed(() =>
+        this.jobService.jobMetadataLoading(),
+    );
 
     // Step-specific banner messaging
     readonly stepBannerConfig = computed(() => {
@@ -108,44 +144,47 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                     icon: 'bi-box-arrow-in-right',
                     alertClass: 'alert-primary',
                     title: 'Club Rep Login',
-                    message: 'Log in with your Club Rep credentials to register your teams.'
+                    message:
+                        'Log in with your Club Rep credentials to register your teams.',
                 };
             case WizardStep.RegisterTeams:
                 return {
                     icon: 'bi-trophy-fill',
                     alertClass: 'alert-success',
                     title: 'Register Teams',
-                    message: 'Enter your team details and select age groups to register for this event.'
+                    message:
+                        'Enter your team details and select age groups to register for this event.',
                 };
             case WizardStep.Payment:
                 return {
                     icon: 'bi-credit-card-fill',
                     alertClass: 'alert-info',
                     title: 'Payment',
-                    message: this.teamPaymentService.hasBalance() 
+                    message: this.teamPaymentService.hasBalance()
                         ? 'Review your team registrations and complete payment.'
-                        : 'Review your team registrations. No payment required at this time.'
+                        : 'Review your team registrations. No payment required at this time.',
                 };
             case WizardStep.Review:
                 return {
                     icon: 'bi-check-circle-fill',
                     alertClass: 'alert-success',
                     title: 'Review & Confirmation',
-                    message: 'Your registration is complete. Review the confirmation details below.'
+                    message:
+                        'Your registration is complete. Review the confirmation details below.',
                 };
             default:
                 return {
                     icon: 'bi-info-circle-fill',
                     alertClass: 'alert-info',
                     title: '',
-                    message: ''
+                    message: '',
                 };
         }
     });
 
     constructor() {
         this.addClubForm = this.fb.group({
-            clubName: ['', Validators.required]
+            clubName: ['', Validators.required],
         });
         // Initialize accordion state based on whether user has read it before
         const hasRead = this.userPrefs.isClubRepModalInfoRead();
@@ -196,16 +235,20 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
         this.metadataError.set(null);
         // Single fetch - sets both JsonOptions and registration status
-        this.metadataSubscription = this.jobService.fetchJobMetadata(jobPath).subscribe({
-            next: (job) => {
-                this.fieldData.setJobOptions(job.jsonOptions);
-                // Registration status now available via jobService.isTeamRegistrationOpen()
-            },
-            error: (err) => {
-                console.error('Failed to load job metadata:', err);
-                this.metadataError.set('Failed to load registration information. Please try again.');
-            }
-        });
+        this.metadataSubscription = this.jobService
+            .fetchJobMetadata(jobPath)
+            .subscribe({
+                next: (job) => {
+                    this.fieldData.setJobOptions(job.jsonOptions);
+                    // Registration status now available via jobService.isTeamRegistrationOpen()
+                },
+                error: (err) => {
+                    console.error('Failed to load job metadata:', err);
+                    this.metadataError.set(
+                        'Failed to load registration information. Please try again.',
+                    );
+                },
+            });
     }
 
     ngOnDestroy(): void {
@@ -240,7 +283,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     }
 
     prevStep() {
-        this.step.update(s => s - 1);
+        this.step.update((s) => s - 1);
     }
 
     selectClub(clubName: string): void {
@@ -257,7 +300,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
             },
             error: (err) => {
                 console.error('Failed to reload clubs:', err);
-            }
+            },
         });
     }
 
@@ -279,7 +322,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     }
 
     toggleClubInfoCollapsed(): void {
-        this.clubInfoCollapsed.update(collapsed => !collapsed);
+        this.clubInfoCollapsed.update((collapsed) => !collapsed);
     }
 
     acknowledgeClubRepInfo(): void {
@@ -313,56 +356,59 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
         const request = {
             clubName: this.addClubForm.value.clubName,
-            useExistingClubId: undefined
+            useExistingClubId: undefined,
         };
 
         // Cancel any pending add club request
         this.addClubSubscription?.unsubscribe();
 
-        this.addClubSubscription = this.clubService.addClub(request).pipe(
-            switchMap((response) => {
-                if (response.success) {
-                    this.addClubSuccess.set('Club added successfully!');
-                    // Chain the clubs reload
-                    return this.teamRegService.getMyClubs();
-                } else {
-                    this.addClubError.set(response.message || 'Failed to add club');
-                    if (response.similarClubs) {
-                        this.similarClubs.set(response.similarClubs);
-                    }
-                    this.addClubSubmitting.set(false);
-                    // Return empty observable to complete the chain
-                    return of(null);
-                }
-            }),
-            catchError((err) => {
-                this.addClubError.set('Failed to add club. Please try again.');
-                this.addClubSubmitting.set(false);
-                console.error('Add club error:', err);
-                return of(null);
-            })
-        ).subscribe({
-            next: (clubs) => {
-                if (clubs) {
-                    // Successfully added and reloaded clubs
-                    this.availableClubs.set(clubs);
-                    // Clear any existing timeout
-                    if (this.addClubTimeoutId) {
-                        clearTimeout(this.addClubTimeoutId);
-                    }
-                    this.addClubTimeoutId = globalThis.setTimeout(() => {
-                        this.showAddClubModal.set(false);
-                        this.addClubForm.reset();
+        this.addClubSubscription = this.clubService
+            .addClub(request)
+            .pipe(
+                switchMap((response) => {
+                    if (response.success) {
+                        this.addClubSuccess.set('Club added successfully!');
+                        // Chain the clubs reload
+                        return this.teamRegService.getMyClubs();
+                    } else {
+                        this.addClubError.set(response.message || 'Failed to add club');
+                        if (response.similarClubs) {
+                            this.similarClubs.set(response.similarClubs);
+                        }
                         this.addClubSubmitting.set(false);
-                        this.addClubTimeoutId = undefined;
-                    }, 1500);
-                }
-            },
-            error: (err) => {
-                // This should be caught by catchError above, but just in case
-                console.error('Unexpected error in submitAddClub:', err);
-                this.addClubSubmitting.set(false);
-            }
-        });
+                        // Return empty observable to complete the chain
+                        return of(null);
+                    }
+                }),
+                catchError((err) => {
+                    this.addClubError.set('Failed to add club. Please try again.');
+                    this.addClubSubmitting.set(false);
+                    console.error('Add club error:', err);
+                    return of(null);
+                }),
+            )
+            .subscribe({
+                next: (clubs) => {
+                    if (clubs) {
+                        // Successfully added and reloaded clubs
+                        this.availableClubs.set(clubs);
+                        // Clear any existing timeout
+                        if (this.addClubTimeoutId) {
+                            clearTimeout(this.addClubTimeoutId);
+                        }
+                        this.addClubTimeoutId = globalThis.setTimeout(() => {
+                            this.showAddClubModal.set(false);
+                            this.addClubForm.reset();
+                            this.addClubSubmitting.set(false);
+                            this.addClubTimeoutId = undefined;
+                        }, 1500);
+                    }
+                },
+                error: (err) => {
+                    // This should be caught by catchError above, but just in case
+                    console.error('Unexpected error in submitAddClub:', err);
+                    this.addClubSubmitting.set(false);
+                },
+            });
     }
 }

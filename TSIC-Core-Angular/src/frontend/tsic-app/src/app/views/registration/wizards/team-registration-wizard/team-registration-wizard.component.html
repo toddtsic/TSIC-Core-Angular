@@ -5,7 +5,8 @@
         @if (clubName()) {
         <!-- Mobile: single compact line -->
         <h2 id="tw-title" class="d-block d-md-none mb-0 fw-bold fs-6">
-          <span class="text-primary">{{ clubName() }}</span> • Team Registration
+          <span class="text-primary">{{ clubName() }}</span> • Team
+          Registration
         </h2>
         <!-- Desktop: two lines -->
         <div id="tw-title-desktop" class="d-none d-md-block mb-1">
@@ -13,7 +14,9 @@
           <h2 class="mb-0 fw-bold">Team Registration</h2>
         </div>
         } @else {
-        <h2 id="tw-title" class="mb-1 fw-bold fs-5 fs-md-3">Team Registration</h2>
+        <h2 id="tw-title" class="mb-1 fw-bold fs-5 fs-md-3">
+          Team Registration
+        </h2>
         }
       </div>
       @if (!isLoadingMetadata() && !metadataError()) {
@@ -31,12 +34,13 @@
         </div>
         } @else if (step() !== WizardStep.RegisterTeams) {
         <!-- Step-specific banner with contextual messaging (suppressed for RegisterTeams step) -->
-        <div class="alert {{ stepBannerConfig().alertClass }} mb-0 rounded-0 rounded-top d-flex align-items-center"
-          role="alert">
+        <div class="alert {{
+              stepBannerConfig().alertClass
+            }} mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
           <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
           <div class="flex-grow-1">
             @if (stepBannerConfig().title) {
-            <strong>{{ stepBannerConfig().title }}</strong>{{ ' ' }}
+            <strong>{{ stepBannerConfig().title }}</strong>{{ " " }}
             }
             <span [innerHTML]="stepBannerConfig().message"></span>
           </div>
@@ -61,7 +65,7 @@
           } @else if (isLoadingMetadata()) {
           <!-- Loading state - block interaction -->
           <div class="text-center py-5">
-            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem" role="status">
               <span class="visually-hidden">Loading...</span>
             </div>
             <p class="text-muted">Preparing registration wizard...</p>
@@ -82,15 +86,27 @@
           @if (step() === WizardStep.Review) {
           <app-review-step [registrationId]="registrationId()"></app-review-step>
           }
-        </div> <!-- /card-body -->
-      </div> <!-- /card -->
-    </div> <!-- /col -->
-  </div> <!-- /row -->
+        </div>
+        <!-- /card-body -->
+      </div>
+      <!-- /card -->
+    </div>
+    <!-- /col -->
+  </div>
+  <!-- /row -->
 
   <!-- Fixed Bottom Navigation -->
-  @if (step() === WizardStep.RegisterTeams || step() === WizardStep.Payment || step() === WizardStep.Review) {
-  <div class="position-fixed bottom-0 start-0 end-0 py-2"
-    style="z-index: 1000; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.7);">
+  @if (
+  step() === WizardStep.RegisterTeams ||
+  step() === WizardStep.Payment ||
+  step() === WizardStep.Review
+  ) {
+  <div class="position-fixed bottom-0 start-0 end-0 py-2" style="
+        z-index: 1000;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background: rgba(255, 255, 255, 0.7);
+      ">
     <div class="container-fluid px-2">
       <div class="row justify-content-center">
         <div class="col-auto">
@@ -116,10 +132,13 @@
 <!-- Club Selection Modal -->
 @if (showClubSelectionModal()) {
 <div class="modal d-block" tabindex="-1" role="dialog"
-  style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(8px);">
+  style="background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px)">
   <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content border shadow-lg"
-      style="background-color: var(--bs-card-bg); border-color: var(--bs-border-color) !important; border-width: 2px !important;">
+    <div class="modal-content border shadow-lg" style="
+          background-color: var(--bs-card-bg);
+          border-color: var(--bs-border-color) !important;
+          border-width: 2px !important;
+        ">
       <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
         <div class="d-flex align-items-start w-100">
           <i class="bi bi-building me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
@@ -156,17 +175,27 @@
             <div id="clubInfoCollapse" class="accordion-collapse collapse" [class.show]="!clubInfoCollapsed()">
               <div class="accordion-body">
                 <ul class="mb-2 small ps-3">
-                  <li><strong>Multiple Clubs:</strong> A club rep <strong>CAN</strong> represent multiple clubs (e.g.,
+                  <li>
+                    <strong>Multiple Clubs:</strong> A club rep
+                    <strong>CAN</strong> represent multiple clubs (e.g.,
                     ACME-NJ, ACME-CA).
                   </li>
-                  <li><strong>One Rep Per Tournament:</strong> While a single club <strong>CAN</strong> have multiple
-                    club reps, <strong class="text-danger">ONLY ONE REP CAN REGISTER TEAMS FOR AN INDIVIDUAL
-                      TOURNAMENT</strong> to avoid
-                    duplicate registrations.</li>
-                  <li><strong>Coordination:</strong> If your club has multiple reps, coordinate before registering to
-                    ensure only one person registers for each event.</li>
-                  <li class="fw-bold text-danger">DO NOT create a new club name with slightly different name to
-                    circumvent this warning. Your teams may be dropped.</li>
+                  <li>
+                    <strong>One Rep Per Tournament:</strong> While a single
+                    club <strong>CAN</strong> have multiple club reps,
+                    <strong class="text-danger">ONLY ONE REP CAN REGISTER TEAMS FOR AN INDIVIDUAL
+                      TOURNAMENT</strong>
+                    to avoid duplicate registrations.
+                  </li>
+                  <li>
+                    <strong>Coordination:</strong> If your club has multiple
+                    reps, coordinate before registering to ensure only one
+                    person registers for each event.
+                  </li>
+                  <li class="fw-bold text-danger">
+                    DO NOT create a new club name with slightly different name
+                    to circumvent this warning. Your teams may be dropped.
+                  </li>
                 </ul>
                 @if (!clubRepInfoAlreadyRead()) {
                 <div class="text-end mt-1">
@@ -190,7 +219,8 @@
             }
           </label>
           <select id="clubSelector" class="form-select" [ngModel]="selectedClub()" size="2"
-            (ngModelChange)="selectedClub.set($event); selectClub($event)">>
+            (ngModelChange)="selectedClub.set($event); selectClub($event)">
+            >
             @for (club of availableClubs(); track club.clubName) {
             <option [value]="club.clubName">{{ club.clubName }}</option>
             }
@@ -200,14 +230,17 @@
         <!-- Zero Clubs: Show message -->
         <div class="alert alert-warning mb-3" role="alert">
           <i class="bi bi-exclamation-triangle me-2"></i>
-          <strong>No clubs available.</strong> Use "Manage Clubs" below to add a club.
+          <strong>No clubs available.</strong> Use "Manage Clubs" below to
+          add a club.
         </div>
         }
 
         <!-- Add Club Form (revealed inline when showAddClubModal = true) -->
         @if (showAddClubModal()) {
-        <hr class="my-3">
-        <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2"></i>Add Another Club</h6>
+        <hr class="my-3" />
+        <h6 class="fw-bold mb-3">
+          <i class="bi bi-plus-circle me-2"></i>Add Another Club
+        </h6>
 
         @if (addClubError()) {
         <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
@@ -226,7 +259,7 @@
           <div class="mb-3">
             <label for="addClubName" class="form-label fw-semibold">Club Name</label>
             <input type="text" id="addClubName" class="form-control" formControlName="clubName"
-              placeholder="Enter club name">
+              placeholder="Enter club name" />
           </div>
 
           @if (similarClubs().length > 0) {
@@ -237,7 +270,10 @@
                 <strong>Similar clubs found:</strong>
                 <ul class="mb-2 mt-1 ps-3">
                   @for (club of similarClubs(); track club.clubId) {
-                  <li>{{ club.clubName }} ({{ club.state }}) - {{ club.matchScore }}% match</li>
+                  <li>
+                    {{ club.clubName }} ({{ club.state }}) -
+                    {{ club.matchScore }}% match
+                  </li>
                   }
                 </ul>
                 <p class="mb-0 small">Is one of these your club?</p>

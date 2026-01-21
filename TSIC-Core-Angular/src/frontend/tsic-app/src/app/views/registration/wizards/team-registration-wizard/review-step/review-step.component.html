@@ -26,18 +26,11 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="mb-0">Registration Confirmation</h5>
       <div class="d-flex gap-2">
-        <button
-          class="btn btn-sm btn-outline-secondary"
-          (click)="printConfirmation()"
-          [disabled]="!confirmationHtml()"
-        >
+        <button class="btn btn-sm btn-outline-secondary" (click)="printConfirmation()" [disabled]="!confirmationHtml()">
           <i class="bi bi-printer me-1"></i>Print
         </button>
-        <button
-          class="btn btn-sm btn-outline-primary"
-          (click)="resendConfirmationEmail()"
-          [disabled]="isResending() || !canResend()"
-        >
+        <button class="btn btn-sm btn-outline-primary" (click)="resendConfirmationEmail()"
+          [disabled]="isResending() || !canResend()">
           @if (isResending()) {
           <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
           <span>Sending...</span>
@@ -56,8 +49,9 @@
     <!-- Info message -->
     <div class="alert alert-info mt-3" role="alert">
       <i class="bi bi-info-circle me-2"></i>
-      <strong>Confirmation Sent</strong> - A confirmation email has been sent to your registered email address.
-      Use the button above to resend if needed.
+      <strong>Confirmation Sent</strong> - A confirmation email has been sent
+      to your registered email address. Use the button above to resend if
+      needed.
     </div>
   </div>
   }

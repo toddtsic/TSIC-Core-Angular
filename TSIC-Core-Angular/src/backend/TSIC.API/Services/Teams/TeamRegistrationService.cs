@@ -910,7 +910,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             // Credit card payment method ID for token substitution
             Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-            
+
             string substitutedHtml = await _textSubstitution.SubstituteAsync(
                 jobSegment: jobInfo.JobPath,
                 paymentMethodCreditCardId: ccPaymentMethodId,

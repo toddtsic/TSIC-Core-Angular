@@ -1,4 +1,11 @@
-import { Component, inject, Input, OnInit, signal, computed } from '@angular/core';
+import {
+  Component,
+  inject,
+  Input,
+  OnInit,
+  signal,
+  computed,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToastService } from '@shared-ui/toast.service';
@@ -9,7 +16,7 @@ import { TeamRegistrationService } from '../services/team-registration.service';
   templateUrl: './review-step.component.html',
   styleUrls: ['./review-step.component.scss'],
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule],
 })
 export class ReviewStepComponent implements OnInit {
   @Input() registrationId!: string;
@@ -25,7 +32,9 @@ export class ReviewStepComponent implements OnInit {
   readonly error = signal<string | null>(null);
 
   // Computed
-  readonly canResend = computed(() => !this.isResending() && !!this.confirmationHtml());
+  readonly canResend = computed(
+    () => !this.isResending() && !!this.confirmationHtml(),
+  );
 
   ngOnInit(): void {
     this.loadConfirmationText();
@@ -48,15 +57,19 @@ export class ReviewStepComponent implements OnInit {
           this.error.set('No confirmation template found for this event');
         } else {
           // Sanitize HTML from backend (it's trusted because it's from our substitution service)
-          this.confirmationHtml.set(this.sanitizer.bypassSecurityTrustHtml(html));
+          this.confirmationHtml.set(
+            this.sanitizer.bypassSecurityTrustHtml(html),
+          );
         }
         this.isLoading.set(false);
       },
       error: (err) => {
         console.error('Error loading confirmation text:', err);
-        this.error.set(err?.error?.Message || 'Failed to load confirmation text');
+        this.error.set(
+          err?.error?.Message || 'Failed to load confirmation text',
+        );
         this.isLoading.set(false);
-      }
+      },
     });
   }
 
@@ -67,22 +80,29 @@ export class ReviewStepComponent implements OnInit {
       this.isResending.set(true);
     }
 
-    this.teamRegService.sendConfirmationEmail(this.registrationId, forceResend).subscribe({
-      next: () => {
-        if (forceResend) {
-          this.toast.show('✓ Confirmation email sent successfully', 'success', 5000);
-          this.isResending.set(false);
-        }
-      },
-      error: (err) => {
-        console.error('Error sending confirmation email:', err);
-        if (forceResend) {
-          const message = err?.error?.Message || 'Failed to send confirmation email';
-          this.toast.show(`✗ ${message}`, 'danger', 7000);
-          this.isResending.set(false);
-        }
-      }
-    });
+    this.teamRegService
+      .sendConfirmationEmail(this.registrationId, forceResend)
+      .subscribe({
+        next: () => {
+          if (forceResend) {
+            this.toast.show(
+              '✓ Confirmation email sent successfully',
+              'success',
+              5000,
+            );
+            this.isResending.set(false);
+          }
+        },
+        error: (err) => {
+          console.error('Error sending confirmation email:', err);
+          if (forceResend) {
+            const message =
+              err?.error?.Message || 'Failed to send confirmation email';
+            this.toast.show(`✗ ${message}`, 'danger', 7000);
+            this.isResending.set(false);
+          }
+        },
+      });
   }
 
   resendConfirmationEmail(): void {
@@ -92,7 +112,7 @@ export class ReviewStepComponent implements OnInit {
 
   printConfirmation(): void {
     if (!this.confirmationHtml()) return;
-    
+
     // Open print dialog for the confirmation content
     const printWindow = window.open('', '_blank');
     if (printWindow) {
