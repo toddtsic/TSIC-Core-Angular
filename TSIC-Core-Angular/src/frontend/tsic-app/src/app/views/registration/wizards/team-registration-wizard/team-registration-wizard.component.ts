@@ -8,6 +8,7 @@ import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
 import { TwStepIndicatorComponent } from './step-indicator/tw-step-indicator.component';
 import { ClubRepLoginStepComponent, LoginStepResult } from './login-step/club-rep-login-step.component';
 import { TeamPaymentStepComponent } from './payment-step/payment.component';
+import { ReviewStepComponent } from './review-step/review-step.component';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
@@ -31,7 +32,7 @@ enum WizardStep {
     templateUrl: './team-registration-wizard.component.html',
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TeamPaymentStepComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent]
+    imports: [CommonModule, ReactiveFormsModule, FormsModule, TeamsStepComponent, TeamPaymentStepComponent, TwActionBarComponent, TwStepIndicatorComponent, ClubRepLoginStepComponent, ReviewStepComponent]
 })
 export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     // Expose enum to template
@@ -53,6 +54,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     readonly clubInfoCollapsed = signal(false);
     readonly clubRepInfoAlreadyRead = signal(false);
     readonly metadataError = signal<string | null>(null);
+    readonly registrationId = computed(() => this.authService.currentUser()?.regId || '');
 
     // Non-reactive properties
     @ViewChild(TeamsStepComponent) teamsStep?: TeamsStepComponent;
@@ -122,6 +124,13 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                     title: 'Payment',
                     message: 'Review your team registrations and complete payment.'
                 };
+            case WizardStep.Review:
+                return {
+                    icon: 'bi-check-circle-fill',
+                    alertClass: 'alert-success',
+                    title: 'Review & Confirmation',
+                    message: 'Your registration is complete. Review the confirmation details below.'
+                };
             default:
                 return {
                     icon: 'bi-info-circle-fill',
@@ -166,6 +175,10 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                 // The login step component will handle showing the modal via ngOnInit
                 this.step.set(WizardStep.Login);
             }
+        } else if (this.authService.isAuthenticated()) {
+            // Phase 1 only (post-TOS or post-login without role selection)
+            // Stay at Login step - login component will detect this and show club modal
+            this.step.set(WizardStep.Login);
         }
     }
 

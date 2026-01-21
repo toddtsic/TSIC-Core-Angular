@@ -116,6 +116,41 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
             if (currentUser?.username) {
                 this.loginForm.patchValue({ username: currentUser.username });
             }
+
+            // Phase 1 auto-resume: If authenticated but no Phase 2 token (post-TOS),
+            // fetch clubs and open modal at club-selection stage
+            if (!this.authService.hasSelectedRole()) {
+                this.loginSubmitting.set(true);
+                this.inlineError.set(null);
+
+                this.workflowSubscription = this.teamRegService.getMyClubs().subscribe({
+                    next: (clubs) => {
+                        this.loginSubmitting.set(false);
+                        this.availableClubs.set(clubs);
+
+                        if (clubs.length === 0) {
+                            this.inlineError.set('You are not registered as a club representative.');
+                            return;
+                        }
+
+                        // Auto-select if only one club
+                        if (clubs.length === 1) {
+                            this.selectedClub.set(clubs[0].clubName);
+                        } else {
+                            this.selectedClub.set(null);
+                        }
+
+                        // Open modal at club-selection stage (regardless of club count)
+                        this.showLoginModal.set(true);
+                        this.loginModalStep.set('clubSelection');
+                    },
+                    error: (err) => {
+                        this.loginSubmitting.set(false);
+                        console.error('Failed to fetch clubs on init:', err);
+                        this.inlineError.set('Failed to load your clubs. Please try logging in again.');
+                    }
+                });
+            }
         }
     }
 
