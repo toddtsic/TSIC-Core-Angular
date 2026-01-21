@@ -1,15 +1,38 @@
-import { Component, EventEmitter, Output, Input, inject, OnInit, OnDestroy, computed, signal } from '@angular/core';
+import {
+    Component,
+    EventEmitter,
+    Output,
+    Input,
+    inject,
+    OnInit,
+    OnDestroy,
+    computed,
+    signal,
+} from '@angular/core';
 import { Subscription } from 'rxjs';
-import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+    ReactiveFormsModule,
+    FormsModule,
+    FormBuilder,
+    FormGroup,
+    Validators,
+} from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ClubRepWorkflowService } from '../services/club-rep-workflow.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
+import {
+    FormFieldDataService,
+    SelectOption,
+} from '@infrastructure/services/form-field-data.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ToastService } from '@shared-ui/toast.service';
-import type { ClubRepClubDto, ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
+import type {
+    ClubRepClubDto,
+    ClubRepRegistrationRequest,
+    ClubSearchResult,
+} from '@core/api';
 
 export interface LoginStepResult {
     clubName: string;
@@ -21,7 +44,12 @@ export interface LoginStepResult {
     templateUrl: './club-rep-login-step.component.html',
     styleUrls: ['./club-rep-login-step.component.scss'],
     standalone: true,
-    imports: [ReactiveFormsModule, FormsModule, InfoTooltipComponent, AutofocusDirective]
+    imports: [
+        ReactiveFormsModule,
+        FormsModule,
+        InfoTooltipComponent,
+        AutofocusDirective,
+    ],
 })
 export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
     @Input() jobPath: string | null = null;
@@ -57,7 +85,12 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         otherRepUsername: string | null;
         teamCount: number;
         pendingEmit: LoginStepResult | null;
-    }>({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
+    }>({
+        isOpen: false,
+        otherRepUsername: null,
+        teamCount: 0,
+        pendingEmit: null,
+    });
 
     registrationForm: FormGroup;
     loginForm: FormGroup;
@@ -72,8 +105,12 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
 
     // Expose conflict warning modal state for template binding
     conflictWarningOpen = computed(() => this.conflictWarningState().isOpen);
-    conflictWarningUsername = computed(() => this.conflictWarningState().otherRepUsername);
-    conflictWarningTeamCount = computed(() => this.conflictWarningState().teamCount);
+    conflictWarningUsername = computed(
+        () => this.conflictWarningState().otherRepUsername,
+    );
+    conflictWarningTeamCount = computed(
+        () => this.conflictWarningState().teamCount,
+    );
 
     private readonly authService = inject(AuthService);
     private readonly jobService = inject(JobService);
@@ -83,7 +120,9 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
     private readonly fb = inject(FormBuilder);
     private readonly toast = inject(ToastService);
 
-    private readonly isLoggedIn = computed(() => this.authService.currentUser() !== null);
+    private readonly isLoggedIn = computed(
+        () => this.authService.currentUser() !== null,
+    );
 
     constructor() {
         this.registrationForm = this.fb.group({
@@ -94,15 +133,18 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
             city: ['', Validators.required],
             state: ['', Validators.required],
             zip: ['', Validators.required],
-            cellphone: ['', [Validators.required, Validators.pattern(/^[0-9-+\s()]+$/)]],
+            cellphone: [
+                '',
+                [Validators.required, Validators.pattern(/^[0-9-+\s()]+$/)],
+            ],
             username: ['', Validators.required],
             password: ['', [Validators.required, Validators.minLength(6)]],
-            email: ['', [Validators.required, Validators.email]]
+            email: ['', [Validators.required, Validators.email]],
         });
 
         this.loginForm = this.fb.group({
             username: ['', Validators.required],
-            password: ['', Validators.required]
+            password: ['', Validators.required],
         });
     }
 
@@ -129,7 +171,9 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
                         this.availableClubs.set(clubs);
 
                         if (clubs.length === 0) {
-                            this.inlineError.set('You are not registered as a club representative.');
+                            this.inlineError.set(
+                                'You are not registered as a club representative.',
+                            );
                             return;
                         }
 
@@ -147,8 +191,10 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
                     error: (err) => {
                         this.loginSubmitting.set(false);
                         console.error('Failed to fetch clubs on init:', err);
-                        this.inlineError.set('Failed to load your clubs. Please try logging in again.');
-                    }
+                        this.inlineError.set(
+                            'Failed to load your clubs. Please try logging in again.',
+                        );
+                    },
                 });
             }
         }
@@ -172,7 +218,7 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
 
         const credentials = {
             username: this.loginForm.value.username?.toString().trim() || '',
-            password: this.loginForm.value.password?.toString() || ''
+            password: this.loginForm.value.password?.toString() || '',
         };
 
         // Validate credentials aren't empty (could be stale if form was reset)
@@ -182,61 +228,68 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
             return;
         }
 
-        this.workflowSubscription = this.workflowService.loginAndPrepareClubs(
-            credentials,
-            this.jobPath,
-            this.jobService.isTeamRegistrationOpen()
-        ).subscribe({
-            next: (result) => {
-                this.loginSubmitting.set(false);
-                this.hasClubRepAccount.set('yes');
-                this.availableClubs.set(result.clubs);
+        this.workflowSubscription = this.workflowService
+            .loginAndPrepareClubs(
+                credentials,
+                this.jobPath,
+                this.jobService.isTeamRegistrationOpen(),
+            )
+            .subscribe({
+                next: (result) => {
+                    this.loginSubmitting.set(false);
+                    this.hasClubRepAccount.set('yes');
+                    this.availableClubs.set(result.clubs);
 
-                // Auto-select if only one club
-                if (result.clubs.length === 1) {
-                    this.selectedClub.set(result.clubs[0].clubName);
-                } else {
-                    this.selectedClub.set(null);
-                }
+                    // Auto-select if only one club
+                    if (result.clubs.length === 1) {
+                        this.selectedClub.set(result.clubs[0].clubName);
+                    } else {
+                        this.selectedClub.set(null);
+                    }
 
-                const loginResult: LoginStepResult = {
-                    clubName: result.clubs.length === 1 ? result.clubs[0].clubName : '',
-                    availableClubs: result.clubs
-                };
+                    const loginResult: LoginStepResult = {
+                        clubName: result.clubs.length === 1 ? result.clubs[0].clubName : '',
+                        availableClubs: result.clubs,
+                    };
 
-                if (result.hasConflict && result.conflictDetails) {
-                    // Show conflict warning modal (close login modal first)
-                    this.showLoginModal.set(false);
-                    this.conflictWarningState.set({
-                        isOpen: true,
-                        otherRepUsername: result.conflictDetails.otherRepUsername || 'another club rep',
-                        teamCount: result.conflictDetails.teamCount ?? 0,
-                        pendingEmit: loginResult
-                    });
-                } else {
-                    // Transition modal to club selection step
-                    this.loginModalStep.set('clubSelection');
-                    this.inlineError.set(null);
-                }
-            },
-            error: (err) => {
-                this.loginSubmitting.set(false);
+                    if (result.hasConflict && result.conflictDetails) {
+                        // Show conflict warning modal (close login modal first)
+                        this.showLoginModal.set(false);
+                        this.conflictWarningState.set({
+                            isOpen: true,
+                            otherRepUsername:
+                                result.conflictDetails.otherRepUsername || 'another club rep',
+                            teamCount: result.conflictDetails.teamCount ?? 0,
+                            pendingEmit: loginResult,
+                        });
+                    } else {
+                        // Transition modal to club selection step
+                        this.loginModalStep.set('clubSelection');
+                        this.inlineError.set(null);
+                    }
+                },
+                error: (err) => {
+                    this.loginSubmitting.set(false);
 
-                // Handle specific error types
-                if (err.type === 'TOS_REQUIRED') {
-                    // User redirected to TOS page, no error message needed
-                    return;
-                }
+                    // Handle specific error types
+                    if (err.type === 'TOS_REQUIRED') {
+                        // User redirected to TOS page, no error message needed
+                        return;
+                    }
 
-                if (err.type === 'NOT_A_CLUB_REP') {
-                    this.inlineError.set('You are not registered as a club representative.');
-                    return;
-                }
+                    if (err.type === 'NOT_A_CLUB_REP') {
+                        this.inlineError.set(
+                            'You are not registered as a club representative.',
+                        );
+                        return;
+                    }
 
-                // Generic error
-                this.inlineError.set(err.message || 'Login failed. Please try again.');
-            }
-        });
+                    // Generic error
+                    this.inlineError.set(
+                        err.message || 'Login failed. Please try again.',
+                    );
+                },
+            });
     }
 
     submitRegistration(): void {
@@ -260,49 +313,61 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
             city: this.registrationForm.value.city,
             state: this.registrationForm.value.state,
             postalCode: this.registrationForm.value.zip,
-            cellphone: this.registrationForm.value.cellphone
+            cellphone: this.registrationForm.value.cellphone,
         };
 
-        this.workflowSubscription = this.workflowService.registerAndAutoLogin(request).subscribe({
-            next: (result) => {
-                this.registrationSubmitting.set(false);
-                this.registrationForm.reset();
+        this.workflowSubscription = this.workflowService
+            .registerAndAutoLogin(request)
+            .subscribe({
+                next: (result) => {
+                    this.registrationSubmitting.set(false);
+                    this.registrationForm.reset();
 
-                if (result.autoLoginFailed) {
-                    // Registration succeeded but auto-login failed
-                    this.toast.show('Account created successfully! Please use your new credentials to login.', 'success', 5000);
-                    this.registrationError.set('Account created successfully, but auto-login failed. Please use the login form above.');
-                    this.hasClubRepAccount.set('yes');
-                } else if (result.clubs) {
-                    // Full success - registered and logged in
-                    this.toast.show('Account created successfully!', 'success', 5000);
-                    this.hasClubRepAccount.set('yes');
-                    this.registrationSuccess.emit({
-                        clubName: request.clubName,
-                        availableClubs: result.clubs
-                    });
-                } else {
-                    // TOS redirect happened
-                    this.hasClubRepAccount.set('yes');
-                }
-            },
-            error: (err) => {
-                this.registrationSubmitting.set(false);
+                    if (result.autoLoginFailed) {
+                        // Registration succeeded but auto-login failed
+                        this.toast.show(
+                            'Account created successfully! Please use your new credentials to login.',
+                            'success',
+                            5000,
+                        );
+                        this.registrationError.set(
+                            'Account created successfully, but auto-login failed. Please use the login form above.',
+                        );
+                        this.hasClubRepAccount.set('yes');
+                    } else if (result.clubs) {
+                        // Full success - registered and logged in
+                        this.toast.show('Account created successfully!', 'success', 5000);
+                        this.hasClubRepAccount.set('yes');
+                        this.registrationSuccess.emit({
+                            clubName: request.clubName,
+                            availableClubs: result.clubs,
+                        });
+                    } else {
+                        // TOS redirect happened
+                        this.hasClubRepAccount.set('yes');
+                    }
+                },
+                error: (err) => {
+                    this.registrationSubmitting.set(false);
 
-                // Handle duplicate/similar club conflict
-                if (err.type === 'REGISTRATION_FAILED' && err.similarClubs) {
-                    this.setDuplicateModalState({
-                        isOpen: true,
-                        message: err.message || 'A club with a very similar name already exists. Please verify before creating a new club rep.',
-                        clubs: err.similarClubs
-                    });
-                    return;
-                }
+                    // Handle duplicate/similar club conflict
+                    if (err.type === 'REGISTRATION_FAILED' && err.similarClubs) {
+                        this.setDuplicateModalState({
+                            isOpen: true,
+                            message:
+                                err.message ||
+                                'A club with a very similar name already exists. Please verify before creating a new club rep.',
+                            clubs: err.similarClubs,
+                        });
+                        return;
+                    }
 
-                // Generic error handling
-                this.registrationError.set(err.message || 'Registration failed. Please try again.');
-            }
-        });
+                    // Generic error handling
+                    this.registrationError.set(
+                        err.message || 'Registration failed. Please try again.',
+                    );
+                },
+            });
     }
 
     dismissDuplicateWarning(): void {
@@ -324,7 +389,11 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
      * Update duplicate modal state atomically.
      * Ensures modal, message, and club list stay in sync.
      */
-    private setDuplicateModalState(state: { isOpen: boolean; message: string | null; clubs: ClubSearchResult[] }): void {
+    private setDuplicateModalState(state: {
+        isOpen: boolean;
+        message: string | null;
+        clubs: ClubSearchResult[];
+    }): void {
         this.duplicateModalState.set(state);
     }
 
@@ -367,7 +436,9 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         }
 
         if (!this.jobPath) {
-            this.clubSelectionError.set('Event information missing. Please refresh the page.');
+            this.clubSelectionError.set(
+                'Event information missing. Please refresh the page.',
+            );
             return;
         }
 
@@ -378,28 +449,33 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         this.loginSubmitting.set(true);
         this.clubSelectionError.set(null);
 
-        this.teamRegService.initializeRegistration(clubName, this.jobPath).subscribe({
-            next: (response) => {
-                this.loginSubmitting.set(false);
+        this.teamRegService
+            .initializeRegistration(clubName, this.jobPath)
+            .subscribe({
+                next: (response) => {
+                    this.loginSubmitting.set(false);
 
-                // Store club count for refresh routing
-                this.authService.setClubRepClubCount(this.availableClubs().length);
+                    // Store club count for refresh routing
+                    this.authService.setClubRepClubCount(this.availableClubs().length);
 
-                const loginResult: LoginStepResult = {
-                    clubName: clubName,
-                    availableClubs: this.availableClubs()
-                };
+                    const loginResult: LoginStepResult = {
+                        clubName: clubName,
+                        availableClubs: this.availableClubs(),
+                    };
 
-                // Close modal and emit result
-                this.showLoginModal.set(false);
-                this.loginSuccess.emit(loginResult);
-            },
-            error: (err) => {
-                this.loginSubmitting.set(false);
-                const errorMessage = err.error?.message || err.message || 'Failed to initialize registration. Please try again.';
-                this.clubSelectionError.set(errorMessage);
-            }
-        });
+                    // Close modal and emit result
+                    this.showLoginModal.set(false);
+                    this.loginSuccess.emit(loginResult);
+                },
+                error: (err) => {
+                    this.loginSubmitting.set(false);
+                    const errorMessage =
+                        err.error?.message ||
+                        err.message ||
+                        'Failed to initialize registration. Please try again.';
+                    this.clubSelectionError.set(errorMessage);
+                },
+            });
     }
 
     /**
@@ -410,7 +486,12 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         if (state.pendingEmit) {
             this.loginSuccess.emit(state.pendingEmit);
         }
-        this.conflictWarningState.set({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
+        this.conflictWarningState.set({
+            isOpen: false,
+            otherRepUsername: null,
+            teamCount: 0,
+            pendingEmit: null,
+        });
     }
 
     /**
@@ -418,7 +499,12 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
      * Resets UI state but keeps authentication (user successfully logged in).
      */
     cancelDueToConflict(): void {
-        this.conflictWarningState.set({ isOpen: false, otherRepUsername: null, teamCount: 0, pendingEmit: null });
+        this.conflictWarningState.set({
+            isOpen: false,
+            otherRepUsername: null,
+            teamCount: 0,
+            pendingEmit: null,
+        });
         this.hasClubRepAccount.set(null);
         // Note: Don't reset loginForm - user is already authenticated
     }
