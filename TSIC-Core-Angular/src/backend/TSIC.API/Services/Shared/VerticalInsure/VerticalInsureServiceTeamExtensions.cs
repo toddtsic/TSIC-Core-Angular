@@ -317,8 +317,13 @@ public partial class VerticalInsureService
             payments = new VIPaymentsDto { enabled = false, button = false },
             theme = new VIThemeDto
             {
-                colors = new VIColorsDto { primary = "purple" },
-                font_family = "Fira Sans",
+                colors = new VIColorsDto
+                {
+                    primary = "#0ea5e9",  // Sky blue
+                    background = "var(--bs-body-bg)",  // Adapts to light/dark mode
+                    border = "var(--bs-border-color)"  // Adapts to light/dark mode
+                },
+                font_family = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
                 components = new VIComponentsDto()
             },
             product_config = new VITeamProductConfigDto

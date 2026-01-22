@@ -25,7 +25,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
           </div>
         </div>
         <h5 class="mb-2 fw-semibold pt-3">Do you have a current <strong class="text-primary">FAMILY</strong> username/password?</h5>
-        <p class="text-muted small">Use the credentials for your Family Account only. Do not use a coach or director login.</p>
+        <p class="text-body-secondary small">Use the credentials for your Family Account only. Do not use a coach or director login.</p>
 
         <fieldset role="radiogroup" aria-labelledby="famCheckLegend" style="margin-top: 2rem;">
           <legend id="famCheckLegend" class="visually-hidden">Family account availability</legend>
@@ -57,7 +57,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
                   </div>
                 </div>
                 @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
-                <div class="text-secondary small mb-3">Enter credentials once, then choose an action below.</div>
+                <div class="text-body-secondary small mb-3">Enter credentials once, then choose an action below.</div>
                 
                 <!-- Action buttons -->
                 <div class="d-flex flex-column gap-2">
@@ -69,7 +69,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
                       @if (submitting && submittingAction === 'proceed') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
                       <span>{{ submitting && submittingAction === 'proceed' ? 'Signing in…' : 'Sign in & Continue Registration' }}</span>
                     </button>
-                    <span class="text-secondary small">Authenticate and jump straight to selecting players.</span>
+                    <span class="text-body-secondary small">Authenticate and jump straight to selecting players.</span>
                   </div>
                   <div>
                     <button type="button"
@@ -79,7 +79,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
                       @if (submitting && submittingAction === 'manage') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
                       <span>{{ submitting && submittingAction === 'manage' ? 'Signing in…' : 'Sign in & Manage Family' }}</span>
                     </button>
-                    <span class="text-secondary small">Authenticate then review / update your family before registering.</span>
+                    <span class="text-body-secondary small">Authenticate then review / update your family before registering.</span>
                   </div>
                 </div>
               </div>

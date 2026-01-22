@@ -91,3 +91,91 @@ h2#rw-title {
         }
     }
 }
+
+/* VerticalInsure Widget Dark Mode Overrides */
+/* The widget injects hardcoded white backgrounds and black text, so we need !important */
+#dVIOffer {
+
+    /* Override injected background colors */
+    * {
+        background-color: var(--bs-card-bg) !important;
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+    }
+
+    /* Specific overrides for common widget elements */
+    div,
+    span,
+    p,
+    label,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        color: var(--bs-body-color) !important;
+    }
+
+    /* Card/panel backgrounds */
+    .card,
+    .panel,
+    [class*="box"],
+    [class*="container"] {
+        background-color: var(--bs-card-bg) !important;
+        border-color: var(--bs-border-color) !important;
+    }
+
+    /* Input fields */
+    input,
+    select,
+    textarea {
+        background-color: var(--bs-body-bg) !important;
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+
+        &::placeholder {
+            color: var(--bs-secondary-color) !important;
+        }
+    }
+
+    /* Buttons - preserve their intended colors but adapt text */
+    button,
+    [role="button"],
+    .btn {
+        &:not([style*="background"]) {
+            background-color: var(--bs-btn-bg) !important;
+            color: var(--bs-btn-color) !important;
+            border-color: var(--bs-border-color) !important;
+        }
+    }
+
+    /* Links */
+    a {
+        color: var(--bs-link-color) !important;
+
+        &:hover {
+            color: var(--bs-link-hover-color) !important;
+        }
+    }
+
+    /* Tables */
+    table {
+        background-color: var(--bs-card-bg) !important;
+        color: var(--bs-body-color) !important;
+
+        th,
+        td {
+            border-color: var(--bs-border-color) !important;
+            background-color: inherit !important;
+            color: inherit !important;
+        }
+    }
+
+    /* Checkboxes and radio buttons - keep visible */
+    input[type="checkbox"],
+    input[type="radio"] {
+        opacity: 1 !important;
+        filter: brightness(1.2) !important;
+    }
+}
