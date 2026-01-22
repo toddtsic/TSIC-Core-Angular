@@ -101,30 +101,22 @@
   step() === WizardStep.Payment ||
   step() === WizardStep.Review
   ) {
-  <div class="position-fixed bottom-0 start-0 end-0 py-2" style="
+  <div class="position-fixed bottom-0 start-0 end-0" style="
         z-index: 1000;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        background: rgba(255, 255, 255, 0.7);
+        background: var(--bs-secondary-bg);
       ">
-    <div class="container-fluid px-2">
-      <div class="row justify-content-center">
-        <div class="col-auto">
-          @if (step() === WizardStep.RegisterTeams) {
-          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(WizardStep.Login)">
-          </app-tw-action-bar>
-          }
-          @if (step() === WizardStep.Payment) {
-          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(WizardStep.RegisterTeams)">
-          </app-tw-action-bar>
-          }
-          @if (step() === WizardStep.Review) {
-          <app-tw-action-bar [canBack]="true" [showContinue]="false" (back)="step.set(WizardStep.Payment)">
-          </app-tw-action-bar>
-          }
-        </div>
-      </div>
-    </div>
+    <app-tw-action-bar 
+      [canBack]="step() !== WizardStep.Login"
+      [canContinue]="actionBarCanContinue()"
+      [continueLabel]="actionBarContinueLabel()"
+      [showContinue]="actionBarShowContinue()"
+      [detailsBadgeLabel]="actionBarDetailsBadge()"
+      [detailsBadgeClass]="actionBarDetailsBadgeClass()"
+      (back)="prevStep()"
+      (continue)="nextStep()"
+    ></app-tw-action-bar>
   </div>
   }
 </main>

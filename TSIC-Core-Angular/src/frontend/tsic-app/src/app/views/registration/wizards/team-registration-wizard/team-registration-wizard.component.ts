@@ -134,6 +134,62 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         this.jobService.jobMetadataLoading(),
     );
 
+    // Centralized action bar configuration per step
+    private readonly actionBarConfig = computed(() => {
+        const currentStep = this.step();
+        
+        switch (currentStep) {
+            case WizardStep.RegisterTeams:
+                return {
+                    canContinue: true, // Validation happens in proceedToPayment()
+                    continueLabel: 'Proceed to Payment',
+                    showContinue: true,
+                    badge: this.teamsStep ? this.formatBalanceBadge(this.teamsStep.financialSummary().balanceDue) : null,
+                    badgeClass: 'badge-warning'
+                };
+            
+            case WizardStep.Payment:
+                const hasBalance = this.teamPaymentService.hasBalance();
+                return {
+                    canContinue: !hasBalance, // Only enabled after payment or if no balance
+                    continueLabel: 'Proceed to Review',
+                    showContinue: true,
+                    badge: hasBalance ? this.formatBalanceBadge(this.teamPaymentService.balanceDue(), 'Payment Due: ') : null,
+                    badgeClass: 'badge-danger'
+                };
+            
+            case WizardStep.Review:
+                return {
+                    canContinue: true, // Always enabled to return home
+                    continueLabel: 'Return Home',
+                    showContinue: true,
+                    badge: null,
+                    badgeClass: ''
+                };
+            
+            default:
+                return {
+                    canContinue: false,
+                    continueLabel: 'Continue',
+                    showContinue: false,
+                    badge: null,
+                    badgeClass: ''
+                };
+        }
+    });
+
+    // Public computed properties for action bar bindings
+    readonly actionBarCanContinue = computed(() => this.actionBarConfig().canContinue);
+    readonly actionBarContinueLabel = computed(() => this.actionBarConfig().continueLabel);
+    readonly actionBarShowContinue = computed(() => this.actionBarConfig().showContinue);
+    readonly actionBarDetailsBadge = computed(() => this.actionBarConfig().badge);
+    readonly actionBarDetailsBadgeClass = computed(() => this.actionBarConfig().badgeClass);
+
+    private formatBalanceBadge(amount: number, prefix: string = ''): string | null {
+        if (amount <= 0) return null;
+        return `${prefix}${amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} due`;
+    }
+
     // Step-specific banner messaging
     readonly stepBannerConfig = computed(() => {
         const currentStep = this.step();
@@ -284,6 +340,30 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
 
     prevStep() {
         this.step.update((s) => s - 1);
+    }
+
+    nextStep(): void {
+        const currentStep = this.step();
+        
+        switch (currentStep) {
+            case WizardStep.RegisterTeams:
+                // Delegate to teams-step component for validation and proceed
+                if (this.teamsStep) {
+                    this.teamsStep.proceedToPayment();
+                }
+                break;
+            case WizardStep.Payment:
+                // Advance to Review step
+                this.step.set(WizardStep.Review);
+                break;
+            case WizardStep.Review:
+                // Return to job home
+                const jobPath = this.jobPath();
+                if (jobPath) {
+                    this.router.navigate(['/', jobPath]);
+                }
+                break;
+        }
     }
 
     selectClub(clubName: string): void {

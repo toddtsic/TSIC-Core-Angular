@@ -186,14 +186,12 @@ declare global {
               "
             ></app-credit-card-form>
           </section>
-        }
 
-        <!-- Submit button or Proceed button -->
-        @if (paymentSvc.hasBalance()) {
+          <!-- Submit button (Payment Step) -->
           <div class="d-grid gap-2">
             <button
               type="button"
-              class="btn btn-primary btn-lg"
+              class="btn btn-primary"
               [disabled]="!canSubmit() || submitting()"
               (click)="submitPayment()"
             >
@@ -202,32 +200,22 @@ declare global {
                 Processing...
               } @else {
                 Submit Payment
-                <span class="badge bg-light text-dark ms-2">{{
-                  paymentSvc.balanceDue() | currency
-                }}</span>
               }
             </button>
           </div>
-        } @else {
+        }
+
+        <!-- No payment due alert -->
+        @if (!paymentSvc.hasBalance()) {
           <div
-            class="alert alert-info d-flex align-items-center gap-2 mb-3"
+            class="alert alert-info d-flex align-items-center gap-2"
             role="alert"
           >
             <i class="bi bi-info-circle-fill flex-shrink-0"></i>
             <div class="flex-grow-1">
               <strong>No Payment Due At This Time</strong> - All team
-              registrations are fully paid at this time. Proceed to review your
-              registration.
+              registrations are fully paid at this time.
             </div>
-          </div>
-          <div class="d-grid gap-2">
-            <button
-              type="button"
-              class="btn btn-success btn-lg"
-              (click)="proceed.emit()"
-            >
-              <i class="bi bi-check-circle me-2"></i>Proceed to Review
-            </button>
           </div>
         }
       </div>

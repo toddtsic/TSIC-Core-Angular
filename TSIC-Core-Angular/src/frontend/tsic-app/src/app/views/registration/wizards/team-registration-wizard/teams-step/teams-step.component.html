@@ -36,7 +36,7 @@
             <p class="small mb-0">Click "Add New Team" to register your first team for this event.</p>
         </div>
         } @else {
-        <div class="grid-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <div class="p-0">
             <ejs-grid #grid id="teamsGrid" [dataSource]="registeredTeams()" [allowSorting]="true"
                 [sortSettings]="sortOptions" [allowFiltering]="false" [allowExcelExport]="true"
                 [toolbar]="['ExcelExport']" height="auto" [enableHover]="true" [enableAltRow]="true" [rowHeight]="30"
@@ -171,20 +171,6 @@
             }
         </div>
     </div>
-</div>
-}
-
-<!-- Proceed to Payment Button (only show if teams registered) -->
-@if (registeredTeams().length > 0) {
-<div class="d-grid gap-2 mt-4">
-    <button type="button" class="btn btn-primary btn-lg" (click)="proceedToPayment()"
-        [disabled]="refundPolicyHtml() && !refundPolicyAccepted()">
-        <i class="bi bi-credit-card-fill me-2"></i>
-        Proceed to Payment
-        @if (financialSummary().balanceDue > 0) {
-        <span class="badge bg-light text-dark ms-2">{{ financialSummary().balanceDue | currency }} due</span>
-        }
-    </button>
 </div>
 }
 }

@@ -1,1 +1,10 @@
-/* Empty - using Bootstrap utility classes and global design system */
+/* Toolbar visual distinction - works in light/dark mode */
+.tw-action-bar {
+    border-top: 2px solid var(--bs-border-color);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    padding: 12px 16px;
+    display: block;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}

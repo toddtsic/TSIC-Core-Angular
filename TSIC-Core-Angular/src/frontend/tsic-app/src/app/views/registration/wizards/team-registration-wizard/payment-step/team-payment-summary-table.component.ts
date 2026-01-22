@@ -268,7 +268,41 @@ import { ClickEventArgs } from '@syncfusion/ej2-navigations';
       </ng-template>
     </section>
   `,
-  styles: [],
+  styles: [
+    `
+      /* Syncfusion table styling for light and dark modes */
+      ::ng-deep #paymentGrid .e-headercell {
+        background-color: var(--bs-tertiary-bg) !important;
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+      }
+
+      ::ng-deep #paymentGrid .e-rowcell {
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+      }
+
+      ::ng-deep #paymentGrid .e-row:not(.e-altrow) .e-rowcell {
+        background-color: var(--bs-body-bg) !important;
+      }
+
+      ::ng-deep #paymentGrid .e-altrow .e-rowcell {
+        background-color: var(--bs-tertiary-bg) !important;
+      }
+
+      ::ng-deep #paymentGrid .e-row:hover .e-rowcell {
+        background-color: var(--bs-secondary-bg) !important;
+      }
+
+      /* Hide Syncfusion aggregate/summary row on mobile only */
+      @media (max-width: 767.98px) {
+        ::ng-deep #paymentGrid .e-summaryrow,
+        ::ng-deep #paymentGrid .e-summarycell {
+          display: none !important;
+        }
+      }
+    `,
+  ],
 })
 export class TeamPaymentSummaryTableComponent {
   readonly svc = inject(TeamPaymentService);
