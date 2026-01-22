@@ -13,11 +13,11 @@
 
       <!-- Sticky top action bar -->
       @if (currentIndex() !== 0) {
-        <div class="mb-4">
-          <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
-            [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
-            [placement]="'top'" (back)="back()" (continue)="onContinue()" />
-        </div>
+      <div class="mb-4">
+        <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
+          [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
+          [placement]="'top'" (back)="back()" (continue)="onContinue()" />
+      </div>
       }
 
       <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-player">
