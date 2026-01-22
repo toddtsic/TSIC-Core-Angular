@@ -60,7 +60,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                   <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                     <div class="flex-grow-1">
                       <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
-                        <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">{{ p.name }}</span>
+                        <span class="badge rounded-pill px-3 py-2" [ngClass]="textColorClassForIndex(idx)">{{ p.name }}</span>
                         @if (isPlayerFullyLocked(p.userId)) {
                           <span class="badge bg-secondary" title="All prior registrations are paid; team changes may be limited by the director">Locked</span>
                         }
@@ -567,6 +567,12 @@ export class TeamSelectionComponent {
   // Deterministic color per player index
   colorClassForIndex(idx: number): string {
     const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
+    return palette[idx % palette.length];
+  }
+
+  // Coordinated text badge color per player index
+  textColorClassForIndex(idx: number): string {
+    const palette = ['bg-primary-subtle text-primary-emphasis border border-primary-subtle', 'bg-success-subtle text-success-emphasis border border-success-subtle', 'bg-info-subtle text-info-emphasis border border-info-subtle', 'bg-warning-subtle text-warning-emphasis border border-warning-subtle', 'bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle'];
     return palette[idx % palette.length];
   }
 }

@@ -30,7 +30,7 @@ import type { JobMetadataResponse } from '@core/api';
                 <div class="card card-rounded shadow-sm mb-3" style="border-width: 1px; border-style: solid;">
                   <div class="card-header border-bottom-0" [ngClass]="colorClassForIndex(idx)">
                     <div class="d-flex align-items-center gap-2">
-                      <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">{{ p.name }}</span>
+                      <span class="badge rounded-pill px-3 py-2" [ngClass]="textColorClassForIndex(idx)">{{ p.name }}</span>
                       @if (isPlayerLocked(p.userId)) {
                         <span class="badge bg-secondary" title="Already registered; eligibility locked">Locked</span>
                       }
@@ -313,6 +313,12 @@ export class ConstraintSelectionComponent {
   // Deterministic color per player index
   colorClassForIndex(idx: number): string {
     const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
+    return palette[idx % palette.length];
+  }
+
+  // Coordinated text badge color per player index
+  textColorClassForIndex(idx: number): string {
+    const palette = ['bg-primary-subtle text-primary-emphasis border border-primary-subtle', 'bg-success-subtle text-success-emphasis border border-success-subtle', 'bg-info-subtle text-info-emphasis border border-info-subtle', 'bg-warning-subtle text-warning-emphasis border border-warning-subtle', 'bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle'];
     return palette[idx % palette.length];
   }
 }
