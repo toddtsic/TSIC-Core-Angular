@@ -32,7 +32,7 @@ export class InsuranceService {
         try {
             // Inject computed dark-mode colors into VI's theme (for iframe compatibility)
             this.injectDarkModeColors(offerData);
-            
+
             const instance = new (globalThis as any).VerticalInsure(
                 hostSelector,
                 offerData,
@@ -264,12 +264,12 @@ export class InsuranceService {
      */
     private injectDarkModeColors(offerData: any): void {
         if (!offerData?.theme) return;
-        
+
         const style = globalThis.window.getComputedStyle(document.documentElement);
         const bgColor = style.getPropertyValue('--bs-body-bg').trim() || '#1c1917';
         const borderColor = style.getPropertyValue('--bs-border-color').trim() || '#57534e';
         const cardBg = style.getPropertyValue('--bs-card-bg').trim() || '#44403c';
-        
+
         // Replace CSS variables with computed hex values
         offerData.theme.colors = offerData.theme.colors || {};
         offerData.theme.colors.background = bgColor;
