@@ -1,5 +1,6 @@
-<nav class="tw-toolbar tw-action-bar"
-    [attr.aria-label]="placement() === 'bottom' ? 'Wizard actions (bottom)' : 'Wizard actions'">
+<nav class="tw-toolbar tw-action-bar" [attr.aria-label]="
+    placement() === 'bottom' ? 'Wizard actions (bottom)' : 'Wizard actions'
+  ">
     <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2 flex-grow-1">
         <div class="d-flex align-items-center gap-2">
             @if (canBack()) {
@@ -9,7 +10,7 @@
                 <span>Back</span>
             </button>
             }
-            
+
             @if (showDetails()) {
             <span class="badge" [class]="detailsBadgeClass()">
                 {{ detailsBadgeLabel() }}

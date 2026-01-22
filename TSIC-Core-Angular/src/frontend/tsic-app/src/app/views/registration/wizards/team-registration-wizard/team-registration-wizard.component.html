@@ -107,16 +107,10 @@
         -webkit-backdrop-filter: blur(8px);
         background: var(--bs-secondary-bg);
       ">
-    <app-tw-action-bar 
-      [canBack]="step() !== WizardStep.Login"
-      [canContinue]="actionBarCanContinue()"
-      [continueLabel]="actionBarContinueLabel()"
-      [showContinue]="actionBarShowContinue()"
-      [detailsBadgeLabel]="actionBarDetailsBadge()"
-      [detailsBadgeClass]="actionBarDetailsBadgeClass()"
-      (back)="prevStep()"
-      (continue)="nextStep()"
-    ></app-tw-action-bar>
+    <app-tw-action-bar [canBack]="step() !== WizardStep.Login" [canContinue]="actionBarCanContinue()"
+      [continueLabel]="actionBarContinueLabel()" [showContinue]="actionBarShowContinue()"
+      [detailsBadgeLabel]="actionBarDetailsBadge()" [detailsBadgeClass]="actionBarDetailsBadgeClass()"
+      (back)="prevStep()" (continue)="nextStep()"></app-tw-action-bar>
   </div>
   }
 </main>

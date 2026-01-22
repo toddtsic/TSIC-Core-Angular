@@ -1,6 +1,12 @@
-import { Component, HostBinding, input, output, computed, ChangeDetectionStrategy } from '@angular/core';
+import {
+    Component,
+    HostBinding,
+    input,
+    output,
+    computed,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-
 
 @Component({
     selector: 'app-tw-action-bar',
@@ -8,7 +14,7 @@ import { CommonModule } from '@angular/common';
     imports: [CommonModule],
     templateUrl: './tw-action-bar.component.html',
     styleUrls: ['./tw-action-bar.component.scss'],
-    changeDetection: ChangeDetectionStrategy.OnPush // Angular 21 performance optimization
+    changeDetection: ChangeDetectionStrategy.OnPush, // Angular 21 performance optimization
 })
 export class TwActionBarComponent {
     // Signal inputs - Angular 21 feature
@@ -17,7 +23,7 @@ export class TwActionBarComponent {
     continueLabel = input<string>('Continue');
     showContinue = input<boolean>(true);
     placement = input<'top' | 'bottom'>('top');
-    
+
     // Contextual details inputs
     detailsBadgeLabel = input<string | null>(null); // e.g., "Payment Due: $2,200"
     detailsBadgeClass = input<string>('badge-danger'); // CSS class for badge styling
@@ -27,7 +33,9 @@ export class TwActionBarComponent {
     continue = output<void>();
 
     // Computed signal to determine whether there is any meaningful content to show
-    private readonly hasContent = computed(() => this.canBack() || this.showContinue());
+    private readonly hasContent = computed(
+        () => this.canBack() || this.showContinue(),
+    );
 
     // Computed signal to check if we should show contextual details
     readonly showDetails = computed(() => !!this.detailsBadgeLabel());

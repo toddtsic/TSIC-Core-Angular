@@ -52,6 +52,7 @@
 
 /* Hide Syncfusion aggregate/summary row on mobile only */
 @media (max-width: 767.98px) {
+
     ::ng-deep #teamsGrid .e-summaryrow,
     ::ng-deep #teamsGrid .e-summarycell {
         display: none !important;
