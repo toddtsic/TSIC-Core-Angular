@@ -2,7 +2,12 @@
 
 ## Overview
 
-Development environment feature that allows testing any club rep account without knowing actual passwords.
+Development environment feature that allows testing any user account (club reps, family users, etc.) without knowing actual passwords.
+
+**Applies to:**
+- Team Registration (club rep login)
+- Player Registration (family user login)
+- Any authentication using `/api/auth/login` endpoint
 
 ## Configuration
 
@@ -19,9 +24,22 @@ Development environment feature that allows testing any club rep account without
 
 ## Usage
 
-1. **Find username**: Log into any event, browse registrations to find club rep usernames
-2. **Login with bypass password**: Use the actual club rep username, but enter `dev123` as the password (instead of their real password)
-3. **Test scenarios**: Switch between different club reps instantly without knowing their actual credentials
+1. **Find username**: Browse registrations/users in the database to find usernames (club rep or family user)
+2. **Login with bypass password**: Use the actual username, but enter `dev123` as the password (instead of their real password)
+3. **Test scenarios**: Switch between different users instantly without knowing their actual credentials
+
+### Team Registration Example
+1. Navigate to team registration wizard (e.g., `/aim-cac-2026/register-team`)
+2. On club rep login step, enter any club rep username from the database
+3. Enter `dev123` as the password
+4. Successfully login and proceed with team registration
+
+### Player Registration Example
+1. Navigate to player registration wizard (e.g., `/aim-cac-2026/register-player`)
+2. Select "Yes" on "Do you have a Family account?" step
+3. Enter any family user username from the database
+4. Enter `dev123` as the password
+5. Successfully login and proceed with player registration
 
 ## Security
 
@@ -58,32 +76,25 @@ else
 ## Testing Examples
 
 ### Scenario: Test Multiple Club Reps
-```bash
-# Find club reps in event "AIM CAC 2026"
-# Browse registrations → see usernames: clubrep1, clubrep2, clubrep3
-
-# Login as clubrep1 (use "dev123" as password, not their real password)
+```http
+### Login as clubrep1 (use "dev123" as password, not their real password)
 POST /api/auth/login
 { "username": "clubrep1", "password": "dev123" }
 
-# Login as clubrep2 (use "dev123" as password, not their real password)
+### Login as clubrep2 (use "dev123" as password, not their real password)
 POST /api/auth/login
 { "username": "clubrep2", "password": "dev123" }
-
-# Login as clubrep3 (use "dev123" as password, not their real password)
-POST /api/auth/login
-{ "username": "clubrep3", "password": "dev123" }
 ```
 
-### Scenario: Test Different Customer Scenarios
-```bash
-# Customer A club rep (username from database, password is "dev123")
+### Scenario: Test Family Users in Player Registration
+```http
+### Login as family user (use "dev123" as password, not their real password)
 POST /api/auth/login
-{ "username": "customerA_rep", "password": "dev123" }
+{ "username": "smithfamily", "password": "dev123" }
 
-# Customer B club rep (username from database, password is "dev123")
+### Login as another family user
 POST /api/auth/login
-{ "username": "customerB_rep", "password": "dev123" }
+{ "username": "johnsonmom", "password": "dev123" }
 ```
 
 ## Disabling Feature

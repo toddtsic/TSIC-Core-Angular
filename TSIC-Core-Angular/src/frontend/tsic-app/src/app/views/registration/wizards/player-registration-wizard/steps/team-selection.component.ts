@@ -55,8 +55,8 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
           }
           @if (selectedPlayers().length > 0) {
             <div class="vstack gap-3">
-              @for (p of selectedPlayers(); track p.userId) {
-                <div class="player-team-row p-3 border rounded" [ngClass]="colorClassFor(p.userId)">
+              @for (p of selectedPlayers(); track p.userId; let idx = $index) {
+                <div class="player-team-row p-3 rounded" style="border-width: 1px; border-style: solid;" [ngClass]="colorClassForIndex(idx)">
                   <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                     <div class="flex-grow-1">
                       <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
@@ -564,11 +564,9 @@ export class TeamSelectionComponent {
   }
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
 
-  // Deterministic color per player across steps
-  colorClassFor(playerId: string): string {
-    const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
-    let h = 0;
-    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.codePointAt(i)!) >>> 0;
-    return palette[h % palette.length];
+  // Deterministic color per player index
+  colorClassForIndex(idx: number): string {
+    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
+    return palette[idx % palette.length];
   }
 }

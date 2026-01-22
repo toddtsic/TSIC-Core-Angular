@@ -26,9 +26,9 @@ import type { JobMetadataResponse } from '@core/api';
           <div class="mb-3">
             <p class="small text-muted mb-2">Select {{ selectLabel().toLowerCase() }} for each player you are registering.</p>
             <div class="vstack gap-3">
-              @for (p of selectedPlayers(); track p.userId) {
-                <div class="card card-rounded border-0 shadow-sm">
-                  <div class="card-header border-bottom-0" [ngClass]="colorClassFor(p.userId)">
+              @for (p of selectedPlayers(); track p.userId; let idx = $index) {
+                <div class="card card-rounded shadow-sm mb-3" style="border-width: 1px; border-style: solid;">
+                  <div class="card-header border-bottom-0" [ngClass]="colorClassForIndex(idx)">
                     <div class="d-flex align-items-center gap-2">
                       <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">{{ p.name }}</span>
                       @if (isPlayerLocked(p.userId)) {
@@ -36,7 +36,7 @@ import type { JobMetadataResponse } from '@core/api';
                       }
                     </div>
                   </div>
-                  <div class="card-body" [ngClass]="colorClassFor(p.userId)">
+                  <div class="card-body" [ngClass]="colorClassForIndex(idx)">
                     <select class="form-select"
                             [disabled]="eligibilityDisabled() || isPlayerLocked(p.userId)"
                             [ngModel]="eligibilityFor(p.userId)"
@@ -310,11 +310,9 @@ export class ConstraintSelectionComponent {
     return Array.isArray(opts) && opts.some(o => o?.value === val);
   }
 
-  // Deterministic color per player across steps
-  colorClassFor(playerId: string): string {
-    const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
-    let h = 0;
-    for (let i = 0; i < (playerId?.length || 0); i++) h = (h * 31 + playerId.codePointAt(i)!) >>> 0;
-    return palette[h % palette.length];
+  // Deterministic color per player index
+  colorClassForIndex(idx: number): string {
+    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
+    return palette[idx % palette.length];
   }
 }

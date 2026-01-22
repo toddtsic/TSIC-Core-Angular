@@ -8,6 +8,18 @@ import { environment } from '@environments/environment';
   selector: 'app-rw-player-selection',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  styles: [`
+    .player-row {
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-bottom: var(--space-1);
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+      border-width: 1px;
+      border-style: solid;
+    }
+    .player-row:last-child { margin-bottom: 0; }
+    .player-meta { color: var(--bs-secondary-color); }
+  `],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -39,9 +51,9 @@ import { environment } from '@environments/environment';
         @if (!state.familyPlayersLoading() && state.familyPlayers().length === 0) {
           <div class="alert alert-info">No players found for your family. You can add players in your Family Account.</div>
         } @else {
-          <ul class="list-group list-group-flush mb-3" [class.opacity-50]="state.familyPlayersLoading()">
-            @for (p of state.familyPlayers(); track p.playerId) {
-            <li class="list-group-item d-flex align-items-center justify-content-between">
+          <ul class="list-unstyled mb-3" [class.opacity-50]="state.familyPlayersLoading()">
+            @for (p of state.familyPlayers(); track p.playerId; let idx = $index) {
+            <li class="player-row d-flex align-items-center justify-content-between" [ngClass]="colorClassForIndex(idx)">
               <div class="d-flex align-items-center gap-3">
       <input type="checkbox"
         class="form-check-input"
@@ -51,7 +63,7 @@ import { environment } from '@environments/environment';
         [attr.aria-label]="state.isPlayerLocked(p.playerId) ? 'Already registered' : (isSelected(p.playerId) ? 'Deselect player' : 'Select player')" />
                 <div>
                   <div class="fw-semibold">{{ p.firstName }} {{ p.lastName }}</div>
-                  <div class="text-secondary small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
+                  <div class="player-meta small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
                 </div>
               </div>
               @if (state.isPlayerLocked(p.playerId)) { <span class="badge bg-secondary" title="Previously registered for this job">Locked</span> }
@@ -96,4 +108,8 @@ export class PlayerSelectionComponent implements OnInit {
     } catch { return false; }
   }
 
+  colorClassForIndex(idx: number): string {
+    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
+    return palette[idx % palette.length];
+  }
 }

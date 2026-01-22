@@ -40,13 +40,14 @@
     }
 
     .btn-secondary {
-        background-color: var(--bs-secondary);
-        border-color: var(--bs-secondary-border-color);
-        color: var(--bs-secondary-color);
+        background-color: var(--bs-tertiary-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-body-color);
+        box-shadow: 0 0 0 1px var(--bs-border-color) inset;
 
         &:not(:disabled):hover {
-            background-color: var(--bs-secondary-hover-bg);
-            border-color: var(--bs-secondary-hover-border-color);
+            background-color: var(--bs-secondary-bg);
+            border-color: var(--bs-border-color);
         }
     }
 

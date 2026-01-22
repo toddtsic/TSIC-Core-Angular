@@ -45,8 +45,8 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
       <div class="card-body">
         @for (player of selectedPlayersWithTeams; track player.userId; let i = $index) {
           <div class="mb-4">
-            <div class="card card-rounded border-0 shadow-sm">
-              <div class="card-header border-bottom-0" [ngClass]="colorClassFor(player.userId)">
+            <div class="card card-rounded shadow-sm" style="border-width: 1px; border-style: solid;">
+              <div class="card-header border-bottom-0" [ngClass]="colorClassForIndex(i)">
                 <div class="d-flex align-items-center justify-content-between">
                   <div class="d-flex align-items-center gap-2">
                     <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">
@@ -59,7 +59,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                   <!-- Remove duplicate team pills here -->
                 </div>
               </div>
-              <div class="card-body" [ngClass]="colorClassFor(player.userId)">
+              <div class="card-body" [ngClass]="colorClassForIndex(i)">
                 <!-- Per-player compact required-fields summary -->
                 @if (missingRequiredLabels(player.userId).length > 0) {
                   <div class="alert alert-warning border-0 py-1 px-2 mb-2 req-mini" role="alert">
@@ -79,7 +79,15 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                     <div class="uslax-field-group">
                       <label class="form-label small mb-1 d-flex align-items-center gap-2" [for]="helpId(player.userId, usLaxField.name)">
                         <span>{{ usLaxField.label || 'USA Lacrosse Number' }}</span>
-                        @if (usLaxField.required) { <span class="badge bg-danger text-white">Required</span> }
+                        @if (usLaxField.required) {
+                          @if (isFieldFilled(player.userId, usLaxField.name)) {
+                            <span class="text-success d-inline-flex align-items-center" aria-label="Completed">
+                              <i class="bi bi-check-circle-fill" aria-hidden="true" style="font-size: 1rem; line-height: 1;"></i>
+                            </span>
+                          } @else {
+                            <span class="badge bg-danger text-white">Required</span>
+                          }
+                        }
                       </label>
                       <input type="text" class="form-control form-control-sm"
                              #uslax="ngModel"
@@ -131,7 +139,15 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                     <div class="col-12 col-md-6">
                       <label class="form-label small mb-1 d-flex align-items-center gap-2" [for]="helpId(player.userId, field.name)">
                         <span>{{ field.label }}</span>
-                        @if (field.required) { <span class="badge bg-danger text-white">Required</span> } @else { <span class="badge text-bg-light border">Optional</span> }
+                        @if (field.required) {
+                          @if (isFieldFilled(player.userId, field.name)) {
+                            <span class="text-success d-inline-flex align-items-center" aria-label="Completed">
+                              <i class="bi bi-check-circle-fill" aria-hidden="true" style="font-size: 1rem; line-height: 1;"></i>
+                            </span>
+                          } @else {
+                            <span class="badge bg-danger text-white">Required</span>
+                          }
+                        } @else { <span class="badge text-bg-light border">Optional</span> }
                       </label>
                       @switch (field.type) {
                         @case ('text') {
@@ -189,7 +205,15 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                    [checked]="!!value(player.userId, field.name)"
                                    (change)="onCheckboxChange(player.userId, field.name, $event)" />
                             <label class="form-check-label" [for]="helpId(player.userId, field.name)">{{ field.label }}</label>
-                            @if (field.required) { <span class="badge bg-danger text-white">Required</span> }
+                            @if (field.required) {
+                              @if (isFieldFilled(player.userId, field.name)) {
+                                <span class="text-success d-inline-flex align-items-center" aria-label="Completed">
+                                  <i class="bi bi-check-circle-fill" aria-hidden="true" style="font-size: 1rem; line-height: 1;"></i>
+                                </span>
+                              } @else {
+                                <span class="badge bg-danger text-white">Required</span>
+                              }
+                            }
                           </div>
                         }
                         @default {
@@ -319,15 +343,9 @@ export class PlayerFormsComponent {
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
   // Deterministic color per player across steps (light/dark friendly using *-subtle variants)
-  colorClassFor(playerId: string): string {
-    const palette = ['bg-primary-subtle', 'bg-success-subtle', 'bg-info-subtle', 'bg-warning-subtle', 'bg-secondary-subtle', 'bg-danger-subtle'];
-    let h = 0;
-    for (let i = 0; i < (playerId?.length || 0); i++) {
-      const cp = playerId.codePointAt(i) ?? 0;
-      h = (h * 31 + cp) >>> 0;
-    }
-    const idx = h % palette.length;
-    return palette[idx];
+  colorClassForIndex(idx: number): string {
+    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
+    return palette[idx % palette.length];
   }
 
   value(playerId: string, field: string) { return this.state.getPlayerFieldValue(playerId, field); }
@@ -360,6 +378,14 @@ export class PlayerFormsComponent {
   }
   firstUsLaxField(): PlayerProfileFieldSchema | undefined {
     return this.schemas().find(f => this.isUsLaxField(f));
+  }
+  isFieldFilled(playerId: string, fieldName: string): boolean {
+    const raw = this.value(playerId, fieldName);
+    if (raw === null || raw === undefined) return false;
+    if (typeof raw === 'string') return raw.trim().length > 0;
+    if (Array.isArray(raw)) return raw.length > 0;
+    if (typeof raw === 'boolean') return raw === true;
+    return String(raw).trim().length > 0;
   }
   usLaxStatus(playerId: string) {
     return this.state.usLaxStatus()[playerId] || { value: '', status: 'idle' };
