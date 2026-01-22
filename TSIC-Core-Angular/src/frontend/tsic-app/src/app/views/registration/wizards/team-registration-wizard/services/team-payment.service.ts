@@ -105,4 +105,12 @@ export class TeamPaymentService {
         if (this.showCkOwedColumn()) cols++;
         return cols;
     });
+
+    reset(): void {
+        this.teams.set([]);
+        this.paymentMethodsAllowedCode.set(1);
+        this.bAddProcessingFees.set(false);
+        this.bApplyProcessingFeesToTeamDeposit.set(false);
+        this.selectedPaymentMethod.set('CC');
+    }
 }

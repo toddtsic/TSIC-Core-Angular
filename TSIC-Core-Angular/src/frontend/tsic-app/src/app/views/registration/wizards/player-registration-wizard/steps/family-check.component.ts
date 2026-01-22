@@ -294,6 +294,7 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
     try {
       await this.doInlineLogin();
       if (!this.inlineError) {
+        this.state.resetForFamilySwitch();
         this.state.hasFamilyAccount.set('yes');
         this.next.emit();
       }

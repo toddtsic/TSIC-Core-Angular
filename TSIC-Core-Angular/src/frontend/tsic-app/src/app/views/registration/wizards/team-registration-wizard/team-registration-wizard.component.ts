@@ -36,6 +36,9 @@ import { ClubService } from '@infrastructure/services/club.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { TeamRegistrationService } from './services/team-registration.service';
 import { TeamPaymentService } from './services/team-payment.service';
+import { TeamPaymentStateService } from './services/team-payment-state.service';
+import { TeamInsuranceStateService } from './services/team-insurance-state.service';
+import { TeamInsuranceService } from './services/team-insurance.service';
 import { UserPreferencesService } from '@infrastructure/services/user-preferences.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
@@ -126,6 +129,9 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     private readonly clubService = inject(ClubService);
     private readonly teamRegService = inject(TeamRegistrationService);
     private readonly teamPaymentService = inject(TeamPaymentService);
+    private readonly teamPaymentState = inject(TeamPaymentStateService);
+    private readonly teamInsuranceState = inject(TeamInsuranceStateService);
+    private readonly teamInsuranceService = inject(TeamInsuranceService);
     private readonly userPrefs = inject(UserPreferencesService);
     private readonly toast = inject(ToastService);
 
@@ -155,7 +161,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                     badgeClass: 'badge-warning',
                 };
 
-            case WizardStep.Payment:
+            case WizardStep.Payment: {
                 const hasBalance = this.teamPaymentService.hasBalance();
                 return {
                     canContinue: !hasBalance, // Only enabled after payment or if no balance
@@ -169,6 +175,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                         : null,
                     badgeClass: 'badge-danger',
                 };
+            }
 
             case WizardStep.Review:
                 return {
@@ -342,7 +349,19 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         }
     }
 
+    private resetForRepSwitch(): void {
+        this.teamPaymentService.reset();
+        this.teamPaymentState.reset();
+        this.teamInsuranceState.reset();
+        this.teamInsuranceService.reset();
+        // Reset teams-step to reload metadata for new rep/club context
+        if (this.teamsStep) {
+            this.teamsStep.reset();
+        }
+    }
+
     handleLoginSuccess(result: LoginStepResult): void {
+        this.resetForRepSwitch();
         this.availableClubs.set(result.availableClubs);
         this.selectedClub.set(result.clubName);
 
@@ -352,6 +371,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     }
 
     handleRegistrationSuccess(result: LoginStepResult): void {
+        this.resetForRepSwitch();
         // Note: clubName is now derived from teamsStep.clubName() after metadata loads
         this.availableClubs.set(result.availableClubs);
         this.step.set(WizardStep.RegisterTeams);
@@ -379,13 +399,14 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                 // Advance to Review step
                 this.step.set(WizardStep.Review);
                 break;
-            case WizardStep.Review:
+            case WizardStep.Review: {
                 // Return to job home
                 const jobPath = this.jobPath();
                 if (jobPath) {
                     this.router.navigate(['/', jobPath]);
                 }
                 break;
+            }
         }
     }
 

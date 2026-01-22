@@ -29,4 +29,9 @@ export class PlayerStateService {
     getEligibilityForPlayer(playerId: string): string | undefined {
         return this._eligibilityByPlayer()[playerId];
     }
+
+    reset(): void {
+        this._selectedTeams.set({});
+        this._eligibilityByPlayer.set({});
+    }
 }

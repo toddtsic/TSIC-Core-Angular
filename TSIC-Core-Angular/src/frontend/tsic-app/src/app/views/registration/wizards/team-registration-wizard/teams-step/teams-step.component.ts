@@ -172,6 +172,39 @@ export class TeamsStepComponent implements OnInit {
         this.loadTeamsMetadata();
     }
 
+    /**
+     * Public reset method for when rep/club switches.
+     * Clears all team data and UI state, prepares for fresh metadata load.
+     */
+    reset(): void {
+        // Clear all team data signals
+        this.clubNameSignal.set(null);
+        this.suggestedTeamNamesSignal.set([]);
+        this.registeredTeamsSignal.set([]);
+        this.ageGroupsSignal.set([]);
+        this.recentlyAddedTeamNames.set([]);
+
+        // Clear payment metadata
+        this.paymentMethodsAllowedCode.set(1);
+        this.bAddProcessingFees.set(false);
+        this.bApplyProcessingFeesToTeamDeposit.set(false);
+
+        // Reset UI state
+        this.isLoading.set(false);
+        this.errorMessage.set(null);
+        this.showRegistrationModal.set(false);
+        this.isRegistering.set(false);
+        this.clubId.set(null);
+
+        // Reset refund policy state
+        this.refundPolicyHtml.set(null);
+        this.refundPolicyAccepted.set(false);
+        this.refundPolicyLocked.set(false);
+
+        // Reload metadata for new rep/club context
+        this.loadTeamsMetadata();
+    }
+
     private loadTeamsMetadata(showLoading: boolean = true): void {
         const jobPath = this.jobContext.resolveFromRoute(this.route);
 

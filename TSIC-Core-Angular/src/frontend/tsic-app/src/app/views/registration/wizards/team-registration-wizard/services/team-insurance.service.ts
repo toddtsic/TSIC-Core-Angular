@@ -260,6 +260,16 @@ export class TeamInsuranceService {
         }
     }
 
+    reset(): void {
+        this.quotes.set([]);
+        this.hasUserResponse.set(false);
+        this.error.set(null);
+        this.widgetInitialized.set(false);
+        this.purchasing.set(false);
+        this.viMutationObserver?.disconnect();
+        this.viMutationObserver = null;
+    }
+
     private isDarkColor(color: string): boolean {
         const hexMatch = /^#([0-9a-fA-F]{6})$/.exec(color);
         if (hexMatch) {

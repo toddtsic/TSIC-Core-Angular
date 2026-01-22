@@ -153,6 +153,7 @@ export class RegistrationWizardService {
     reset(): void {
         this.hasFamilyAccount.set(null);
         this.familyPlayers.set([]);
+        this.playerState.reset();
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
         this.formData.set({});
@@ -172,6 +173,17 @@ export class RegistrationWizardService {
         this.adnArbStartDate.set(null);
         this.jobHasActiveDiscountCodes.set(false);
         this.jobUsesAmex.set(false);
+    }
+
+    /**
+     * Clear family-specific state when the authenticated user changes, while preserving job context.
+     */
+    resetForFamilySwitch(): void {
+        const jp = this.jobPath();
+        const jid = this.jobId();
+        this.reset();
+        if (jp) this.jobPath.set(jp);
+        if (jid) this.jobId.set(jid);
     }
 
     /** Seed required waiver acceptance only when ALL selected players are already registered (delegated). */
