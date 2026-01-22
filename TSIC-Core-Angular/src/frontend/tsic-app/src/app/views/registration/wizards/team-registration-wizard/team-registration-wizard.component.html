@@ -20,7 +20,9 @@
         }
       </div>
       @if (!isLoadingMetadata() && !metadataError()) {
-      <app-tw-step-indicator [steps]="wizardSteps()" [currentStep]="step()"></app-tw-step-indicator>
+      <div class="mb-3">
+        <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentStepIndex()" />
+      </div>
       }
       <div class="card shadow-lg border-0 card-rounded wizard-theme-team mt-3">
         <!-- Registration Status Banner -->

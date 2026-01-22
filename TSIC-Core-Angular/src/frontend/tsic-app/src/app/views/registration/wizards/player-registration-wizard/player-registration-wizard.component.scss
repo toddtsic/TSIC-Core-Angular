@@ -1,6 +1,75 @@
-/* Wizard-specific local hooks no longer needed; see global styles.scss for .rw-* rules */
+/* Player wizard card styling - standardized across both wizards */
 
-/* Compact the toolbar on small screens to help keep it on one line */
+.card.wizard-theme-player {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-card-bg);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    margin-bottom: var(--space-4);
+
+    .card-body {
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        padding: var(--space-4);
+        transition: background-color 0.3s ease, color 0.3s ease;
+
+        @media (max-width: 768px) {
+            padding: var(--space-3);
+        }
+
+        @media (max-width: 576px) {
+            padding: var(--space-2);
+        }
+    }
+
+    .alert {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--bs-border-color);
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        transition: all 0.3s ease;
+
+        &.alert-info {
+            border-color: var(--bs-info);
+            background-color: rgba(var(--bs-info-rgb), 0.1);
+        }
+
+        &.alert-warning {
+            border-color: var(--bs-warning);
+            background-color: rgba(var(--bs-warning-rgb), 0.1);
+        }
+
+        &.alert-danger {
+            border-color: var(--bs-danger);
+            background-color: rgba(var(--bs-danger-rgb), 0.1);
+        }
+
+        &.alert-success {
+            border-color: var(--bs-success);
+            background-color: rgba(var(--bs-success-rgb), 0.1);
+        }
+
+        &.alert-secondary {
+            border-color: var(--bs-secondary);
+            background-color: rgba(var(--bs-secondary-rgb), 0.1);
+        }
+    }
+}
+
+h2#rw-title {
+    color: var(--bs-body-color);
+    transition: color 0.3s ease;
+}
+
+/* Sticky header for step indicator and action bar */
+.rw-sticky-header {
+    position: relative;
+    background-color: var(--bs-body-bg);
+    transition: background-color 0.3s ease;
+}
+
+/* Responsive adjustments for action bar */
 @media (max-width: 576px) {
     .rw-toolbar {
         .badge {
@@ -9,7 +78,6 @@
             line-height: 1.1;
         }
 
-        /* Tighter buttons using Bootstrap CSS variables */
         .btn-group>.btn,
         .btn {
             --bs-btn-padding-y: calc(var(--space-0\.5) * 0.8);
@@ -19,73 +87,7 @@
         }
 
         .btn .bi {
-            font-size: 0.9em; // Component-specific icon sizing
+            font-size: 0.9em;
         }
     }
-}
-
-/* Center the single active step pill */
-.rw-steps .rw-steps-list {
-    display: flex;
-    justify-content: center;
-}
-
-/* Action bar now subtle; highlight moved to buttons container */
-.rw-action-bar {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
-    border-radius: var(--radius-md);
-    background: var(--bs-secondary-bg);
-    /* match rw-progress track */
-    border: 1px solid var(--bs-border-color-translucent);
-}
-
-/* Buttons container – bare bones */
-.action-buttons-highlight {
-    display: flex;
-    align-items: center;
-    background: transparent;
-    padding: 0;
-    border-radius: 0;
-    box-shadow: none;
-    border: 0;
-    position: static;
-    isolation: auto;
-}
-
-/* Starburst removed; bold yellow pill only */
-
-
-/* removed attention label styles */
-
-.rw-action-bar .dir-icon {
-    font-size: 1.2em; // Component-specific icon sizing
-    line-height: 1;
-    display: inline-block;
-    vertical-align: middle;
-    transform: translateY(calc(-1 * var(--space-0\.5)));
-}
-
-
-@media (prefers-reduced-motion: reduce) {
-    /* No ambient animations active in this region */
-}
-
-/* Slightly tone down on very small screens */
-@media (max-width: 576px) {
-    .action-buttons-highlight {
-        background: transparent;
-        padding: 0;
-    }
-
-    /* attention label removed */
-}
-
-/* Divider and spacing above bottom action bar */
-.rw-bottom-actions {
-    margin-top: var(--space-4);
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--bs-border-color-translucent);
 }

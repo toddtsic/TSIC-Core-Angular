@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
+import { StepIndicatorComponent, type StepDefinition } from '@shared-ui/components/step-indicator/step-indicator.component';
 import { PlayerSelectionComponent } from './steps/player-selection.component';
 import { TeamSelectionComponent } from './steps/team-selection.component';
 import { ReviewComponent } from './steps/review.component';
@@ -27,7 +28,7 @@ export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'for
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [RouterModule, WizardThemeDirective, RwActionBarComponent, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
+    imports: [RouterModule, WizardThemeDirective, RwActionBarComponent, StepIndicatorComponent, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
     host: {}
@@ -220,6 +221,16 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         payment: 'Payment',
         confirmation: 'Confirmation'
     };
+
+    // Step definitions for shared StepIndicatorComponent
+    stepDefinitions = computed<StepDefinition[]>(() => {
+        const activeSteps = this.steps();
+        return activeSteps.map((stepId, index) => ({
+            id: stepId,
+            label: this.stepLabels[stepId],
+            stepNumber: index + 1
+        }));
+    });
 
     // Removed existingRegistrationAvailable logic; edit mode concept discarded.
 

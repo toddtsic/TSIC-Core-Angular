@@ -1,4 +1,5 @@
-/* Minimal, consistent bar */
+/* Player registration action bar - unified styling with Team wizard, light/dark mode support */
+
 :host {
     display: block;
 }
@@ -10,18 +11,86 @@
     padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
     margin-bottom: var(--space-4);
     border-radius: var(--radius-md);
-    background: var(--bs-secondary-bg);
+    border-top: 2px solid var(--bs-border-color);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    background-color: var(--bs-secondary-bg);
     border: 1px solid var(--bs-border-color-translucent);
-}
-
-:host([placement='bottom']) .rw-action-bar {
-    bottom: 0;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .dir-icon {
-    font-size: 1.2em; // Component-specific icon sizing
+    font-size: 1.2em;
     line-height: 1;
     display: inline-block;
     vertical-align: middle;
     transform: translateY(calc(-1 * var(--space-0\.5)));
+}
+
+.action-buttons {
+    display: flex;
+    gap: var(--space-1);
+
+    .btn {
+        transition: all 0.2s ease;
+
+        &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+    }
+
+    .btn-secondary {
+        background-color: var(--bs-secondary);
+        border-color: var(--bs-secondary-border-color);
+        color: var(--bs-secondary-color);
+
+        &:not(:disabled):hover {
+            background-color: var(--bs-secondary-hover-bg);
+            border-color: var(--bs-secondary-hover-border-color);
+        }
+    }
+
+    .btn-primary {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: var(--bs-white);
+
+        &:not(:disabled):hover {
+            background-color: var(--bs-primary-hover-bg);
+            border-color: var(--bs-primary-hover-border-color);
+        }
+    }
+}
+
+/* Placement variant: top (sticky, default) */
+:host([placement='top']) .rw-action-bar {
+    position: sticky;
+    top: 0;
+    border-top: 2px solid var(--bs-border-color);
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+/* Placement variant: bottom (fixed) */
+:host([placement='bottom']) .rw-action-bar {
+    position: fixed;
+    bottom: 0;
+    border-bottom: 2px solid var(--bs-border-color);
+    border-top: 1px solid var(--bs-border-color-translucent);
+    width: 100%;
+    max-width: 1200px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .rw-action-bar {
+        padding: var(--space-1) var(--space-2);
+        margin-bottom: var(--space-3);
+    }
+
+    .action-buttons .btn {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
 }

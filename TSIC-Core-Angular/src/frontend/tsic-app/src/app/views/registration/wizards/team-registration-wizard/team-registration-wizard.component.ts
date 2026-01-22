@@ -19,7 +19,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
-import { TwStepIndicatorComponent } from './step-indicator/tw-step-indicator.component';
+import { StepIndicatorComponent, type StepDefinition } from '@shared-ui/components/step-indicator/step-indicator.component';
 import {
     ClubRepLoginStepComponent,
     LoginStepResult,
@@ -59,7 +59,7 @@ enum WizardStep {
         TeamsStepComponent,
         TeamPaymentStepComponent,
         TwActionBarComponent,
-        TwStepIndicatorComponent,
+        StepIndicatorComponent,
         ClubRepLoginStepComponent,
         ReviewStepComponent,
     ],
@@ -97,15 +97,18 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     private reloadClubsSubscription?: Subscription;
     private addClubTimeoutId?: ReturnType<typeof setTimeout>;
 
-    // Simplified 2-step flow: Login → Register Teams
-    wizardSteps = computed(() => {
+    // Step definitions for shared StepIndicatorComponent
+    stepDefinitions = computed<StepDefinition[]>(() => {
         return [
-            { stepNumber: WizardStep.Login, label: 'Login' },
-            { stepNumber: WizardStep.RegisterTeams, label: 'Register Teams' },
-            { stepNumber: WizardStep.Payment, label: 'Payment' },
-            { stepNumber: WizardStep.Review, label: 'Review' },
+            { id: 'login', label: 'Login', stepNumber: WizardStep.Login },
+            { id: 'register-teams', label: 'Register Teams', stepNumber: WizardStep.RegisterTeams },
+            { id: 'payment', label: 'Payment', stepNumber: WizardStep.Payment },
+            { id: 'review', label: 'Review', stepNumber: WizardStep.Review },
         ];
     });
+
+    // Current step index (0-based for StepIndicatorComponent)
+    currentStepIndex = computed(() => this.step() - 1);
 
     // clubName is derived from teamsStep component after it loads metadata
     readonly clubName = computed(() => {

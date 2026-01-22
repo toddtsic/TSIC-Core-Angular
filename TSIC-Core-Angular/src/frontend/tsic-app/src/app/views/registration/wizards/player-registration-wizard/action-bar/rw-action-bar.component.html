@@ -1,16 +1,16 @@
 <nav class="rw-toolbar rw-action-bar"
-    [attr.aria-label]="placement === 'bottom' ? 'Wizard actions (bottom)' : 'Wizard actions'">
+    [attr.aria-label]="placement() === 'bottom' ? 'Wizard actions (bottom)' : 'Wizard actions'">
     <div class="d-flex align-items-center justify-content-between flex-nowrap gap-2 flex-grow-1">
-        @if (familyLastName) {
+        @if (familyLastName()) {
         <div class="text-truncate me-2" title="Family account">
             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
-                {{ familyLastName }} Family
+                {{ familyLastName() }} Family
             </span>
         </div>
         }
 
         <div class="btn-group btn-group-sm action-buttons">
-            @if (canBack) {
+            @if (canBack()) {
             <button type="button" class="btn btn-secondary d-inline-flex align-items-center gap-2" (click)="back.emit()"
                 aria-label="Go back to previous step">
                 <span class="dir-icon" aria-hidden="true">‹</span>
@@ -18,10 +18,10 @@
             </button>
             }
 
-            @if (showContinue) {
+            @if (showContinue()) {
             <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 fw-semibold"
-                (click)="continue.emit()" [disabled]="!canContinue">
-                {{ continueLabel }}
+                (click)="continue.emit()" [disabled]="!canContinue()">
+                {{ continueLabel() }}
                 <span class="dir-icon" aria-hidden="true">›</span>
             </button>
             }

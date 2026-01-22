@@ -1,0 +1,192 @@
+/**
+ * Wizard Theme Mixin - Unified styling for Team and Player registration wizards
+ * Supports light/dark mode via CSS variables
+ * 
+ * Usage:
+ * .wizard-theme-team { @include wizard-theme-base('team'); }
+ * .wizard-theme-player { @include wizard-theme-base('player'); }
+ */
+
+/* Base card styling shared across all wizards */
+@mixin wizard-card-base {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-card-bg);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Wizard theme base - applies to main card container */
+@mixin wizard-theme-base {
+    @include wizard-card-base;
+
+    .card-body {
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+}
+
+/* Typography for wizard titles */
+@mixin wizard-title-large {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+    margin-bottom: var(--space-2);
+    transition: color 0.3s ease;
+}
+
+@mixin wizard-title-medium {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+    margin-bottom: var(--space-2);
+    transition: color 0.3s ease;
+}
+
+@mixin wizard-subtitle {
+    font-size: 0.95rem;
+    color: var(--bs-gray-600);
+    font-weight: 400;
+    margin-bottom: var(--space-3);
+    transition: color 0.3s ease;
+}
+
+/* Step badge styling */
+@mixin wizard-step-badge {
+    width: var(--space-10);
+    height: var(--space-10);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+/* Button styling for wizard actions */
+@mixin wizard-button-primary {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: var(--bs-white);
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+        background-color: var(--bs-primary-hover-bg);
+        border-color: var(--bs-primary-hover-border-color);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+}
+
+@mixin wizard-button-secondary {
+    background-color: var(--bs-secondary);
+    border-color: var(--bs-secondary-border-color);
+    color: var(--bs-secondary-color);
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+        background-color: var(--bs-secondary-hover-bg);
+        border-color: var(--bs-secondary-hover-border-color);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+}
+
+/* Form field styling for wizards */
+@mixin wizard-form-field {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    color: var(--bs-body-color);
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+
+    &:focus {
+        border-color: var(--bs-primary);
+        background-color: var(--bs-body-bg);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.25);
+    }
+}
+
+/* Alert/banner styling for wizards */
+@mixin wizard-alert {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--bs-border-color);
+    padding: var(--space-3);
+    background-color: var(--bs-surface);
+    color: var(--bs-body-color);
+    transition: all 0.3s ease;
+
+    &.alert-info {
+        border-color: var(--bs-info);
+        background-color: rgba(var(--bs-info-rgb), 0.1);
+        color: var(--bs-body-color);
+    }
+
+    &.alert-warning {
+        border-color: var(--bs-warning);
+        background-color: rgba(var(--bs-warning-rgb), 0.1);
+        color: var(--bs-body-color);
+    }
+
+    &.alert-danger {
+        border-color: var(--bs-danger);
+        background-color: rgba(var(--bs-danger-rgb), 0.1);
+        color: var(--bs-body-color);
+    }
+
+    &.alert-success {
+        border-color: var(--bs-success);
+        background-color: rgba(var(--bs-success-rgb), 0.1);
+        color: var(--bs-body-color);
+    }
+}
+
+/* Responsive spacing */
+@mixin wizard-responsive-padding {
+    padding: var(--space-4);
+
+    @media (max-width: 768px) {
+        padding: var(--space-3);
+    }
+
+    @media (max-width: 576px) {
+        padding: var(--space-2);
+    }
+}
+
+/* Light/dark mode support - explicit class-based approach for components */
+.wizard-light-mode {
+    color-scheme: light;
+    --bs-body-color: #212529;
+    --bs-body-bg: #ffffff;
+    --bs-surface: #f9fafb;
+    --bs-card-bg: #ffffff;
+    --bs-border-color: #dee2e6;
+    --bs-gray-500: #6c757d;
+    --bs-gray-600: #6c757d;
+}
+
+.wizard-dark-mode {
+    color-scheme: dark;
+    --bs-body-color: #e9ecef;
+    --bs-body-bg: #212529;
+    --bs-surface: #2d3436;
+    --bs-card-bg: #1f2937;
+    --bs-border-color: #495057;
+    --bs-gray-500: #adb5bd;
+    --bs-gray-600: #868e96;
+}
