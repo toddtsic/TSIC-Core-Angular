@@ -67,7 +67,7 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         try
         {
             Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-            var html = await _subs.SubstituteAsync(job.JobPath, ccPaymentMethodId, firstRegistrationId, familyUserId, template);
+            var html = await _subs.SubstituteAsync(job.JobPath, jobId, ccPaymentMethodId, firstRegistrationId, familyUserId, template);
             return (subject, html);
         }
         catch (Exception ex)
@@ -132,7 +132,12 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         try
         {
             Guid ccPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-            return await _subs.SubstituteAsync(jobPath, ccPaymentMethodId, registrationId, familyUserId, template);
+
+            // Get jobId from jobPath for substitution service
+            var jobId = await _jobRepo.GetJobIdByPathAsync(jobPath);
+            if (!jobId.HasValue) return string.Empty;
+
+            return await _subs.SubstituteAsync(jobPath, jobId.Value, ccPaymentMethodId, registrationId, familyUserId, template);
         }
         catch (Exception ex)
         {

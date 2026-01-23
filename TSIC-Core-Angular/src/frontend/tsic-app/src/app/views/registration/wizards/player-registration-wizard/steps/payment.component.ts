@@ -51,7 +51,10 @@ import type { LineItem } from '../services/payment.service';
         <!-- ARB subscription state messaging / option gating -->
         @if (arbHideAllOptions()) {
           <div class="alert alert-success border-0" role="status">
-            All selected registrations have an active Automated Recurring Billing subscription. No payment action is required.
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success">✓ Paid in Full</span>
+              <div>All selected registrations have an active Automated Recurring Billing subscription. No payment action is required at this time.</div>
+            </div>
           </div>
         } @else if (arbProblemAny()) {
           <div class="alert alert-danger border-0" role="alert">
@@ -106,8 +109,11 @@ import type { LineItem } from '../services/payment.service';
     
           <!-- No-payment-due info panel when no TSIC balance and no VI-only flow -->
           @if (showNoPaymentInfo()) {
-            <div class="alert alert-info border-0 mb-3" role="status">
-              No payments are due at this time.
+            <div class="alert alert-success border-0 mb-3" role="status">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success">✓ Paid in Full</span>
+                <div>No payment due at this time. You can proceed to confirmation.</div>
+              </div>
             </div>
           }
           @if (state.regSaverDetails()) {

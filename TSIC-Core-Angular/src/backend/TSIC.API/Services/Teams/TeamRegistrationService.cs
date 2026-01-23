@@ -913,6 +913,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
             string substitutedHtml = await _textSubstitution.SubstituteAsync(
                 jobSegment: jobInfo.JobPath,
+                jobId: jobInfo.JobId,
                 paymentMethodCreditCardId: ccPaymentMethodId,
                 registrationId: registrationId,
                 familyUserId: null,
@@ -974,6 +975,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
             string emailHtml = await _textSubstitution.SubstituteAsync(
                 jobSegment: jobInfo.JobPath,
+                jobId: jobInfo.JobId,
                 paymentMethodCreditCardId: ccPaymentMethodId,
                 registrationId: registrationId,
                 familyUserId: null,

@@ -94,6 +94,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     public async Task<string> SubstituteAsync(
         string jobSegment,
+        Guid jobId,
         Guid paymentMethodCreditCardId,
         Guid? registrationId,
         string familyUserId,
@@ -108,7 +109,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             template = template.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
         }
 
-        var fixedFieldList = await LoadFixedFieldsAsync(jobSegment, registrationId, familyUserId);
+        var fixedFieldList = await LoadFixedFieldsAsync(jobId, registrationId, familyUserId);
         if (fixedFieldList.Count == 0) return template; // No data to substitute
 
         var first = fixedFieldList[0];
@@ -190,27 +191,23 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         };
     }
 
-    private async Task<List<FixedFields>> LoadFixedFieldsAsync(string jobPath, Guid? registrationId, string familyUserId)
+    private async Task<List<FixedFields>> LoadFixedFieldsAsync(Guid jobId, Guid? registrationId, string familyUserId)
     {
         List<FixedFieldsData> dataList;
 
-        // Path A: single registration (familyUserId may be empty)
+        // Path A: single registration (team wizard - one rep, one registration)
         if (string.IsNullOrEmpty(familyUserId) && registrationId.HasValue)
         {
             dataList = await _repo.LoadFixedFieldsByRegistrationAsync(registrationId.Value);
         }
+        // Path B: family with multiple registrations (player wizard - one parent, multiple kids)
+        else if (!string.IsNullOrEmpty(familyUserId))
+        {
+            dataList = await _repo.LoadFixedFieldsByFamilyAsync(jobId, familyUserId);
+        }
         else
         {
-            // Path B: family across job - need to resolve jobId from jobPath first
-            var jobInfo = await _repo.GetJobTokenInfoAsync(jobPath);
-            if (jobInfo == null) return new List<FixedFields>();
-
-            // Get a temporary registration to find the JobId
-            var tempList = await _repo.LoadFixedFieldsByFamilyAsync(Guid.Empty, familyUserId);
-            if (tempList.Count == 0) return new List<FixedFields>();
-
-            // Now get the full list with the correct jobId
-            dataList = await _repo.LoadFixedFieldsByFamilyAsync(tempList[0].JobId, familyUserId);
+            return new List<FixedFields>();
         }
 
         return dataList.Select(MapToFixedFields).ToList();

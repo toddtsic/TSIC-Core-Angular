@@ -127,12 +127,13 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         const step = this.currentStepId();
         if (step === 'family-check') return false;
         if (step === 'payment') {
-            // Hide when TSIC charge due.
+            // Show continue button when no TSIC payment is due (PIF, ARB active, or zero balance).
             if (this.tsicChargeDue()) return false;
             // Hide when insurance confirmed and quotes present (must use insurance submit button).
             if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) return false;
             // Hide when insurance-only flow (confirmed, zero TSIC balance) -> uses insurance submit button.
             if (this.viCcOnlyFlow()) return false;
+            // Show continue button when no payment due
             return true;
         }
         if (step === 'confirmation') return false; // end of flow
@@ -140,6 +141,12 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     });
     continueLabel = computed(() => {
         const step = this.currentStepId();
+        if (step === 'payment') {
+            // When on payment step and no charge is due, indicate proceeding to confirmation
+            if (!this.tsicChargeDue() && !this.viCcOnlyFlow()) {
+                return 'Proceed to Confirmation';
+            }
+        }
         if (step === 'review') return 'Proceed to Payment';
         return 'Continue';
     });

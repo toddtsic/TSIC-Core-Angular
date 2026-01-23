@@ -4,6 +4,7 @@ public interface ITextSubstitutionService
 {
     Task<string> SubstituteAsync(
         string jobSegment,
+        Guid jobId,
         Guid paymentMethodCreditCardId,
         Guid? registrationId,
         string familyUserId,
