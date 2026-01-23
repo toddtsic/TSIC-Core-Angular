@@ -11,6 +11,7 @@ import { PaymentService } from '../services/payment.service';
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
       <h6 id="pay-summary-title" class="fw-semibold mb-2">Payment Summary</h6>
+      <div class="table-responsive">
       <table class="table table-sm mb-0">
         <thead>
         <tr>
@@ -84,6 +85,7 @@ import { PaymentService } from '../services/payment.service';
         }
         </tfoot>
       </table>
+      </div>
     </section>
   `
 })

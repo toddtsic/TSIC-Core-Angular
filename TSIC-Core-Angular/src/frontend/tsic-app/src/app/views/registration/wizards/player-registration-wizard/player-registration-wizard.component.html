@@ -1,26 +1,31 @@
-<main class="container-fluid px-3 py-2" aria-labelledby="rw-title" [wizardTheme]="'player'">
+<main class="container-fluid px-3 py-2 rw-wizard-container" aria-labelledby="rw-title" [wizardTheme]="'player'">
   <div class="row justify-content-center">
     <div class="col-12">
-      <div class="text-center mb-3">
-        <h2 id="rw-title" class="mb-1 fw-bold">Player Registration</h2>
-        <p class="text-muted mb-0 fs-6">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
+      <!-- Fixed header region containing title, step indicator, and action bar -->
+      <div class="rw-fixed-header">
+        <div class="text-center mb-3">
+          <h2 id="rw-title" class="mb-1 fw-bold">Player Registration</h2>
+          <p class="text-muted mb-0 fs-6">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
+        </div>
+
+        <!-- Step indicator with circular badges -->
+        <div class="mb-4">
+          <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
+        </div>
+
+        <!-- Action bar (fixed at top, no longer sticky) -->
+        @if (currentIndex() !== 0) {
+        <div class="mb-4">
+          <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
+            [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
+            [placement]="'top'" (back)="back()" (continue)="onContinue()" />
+        </div>
+        }
       </div>
 
-      <!-- Step indicator with circular badges -->
-      <div class="mb-4">
-        <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
-      </div>
-
-      <!-- Sticky top action bar -->
-      @if (currentIndex() !== 0) {
-      <div class="mb-4">
-        <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
-          [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
-          [placement]="'top'" (back)="back()" (continue)="onContinue()" />
-      </div>
-      }
-
-      <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-player">
+      <!-- Scrollable content region -->
+      <div class="rw-scrollable-content">
+        <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-player">
         <div class="card-body bg-surface px-4 pb-4 pt-3">
           @switch (currentStepId()) {
           @case ('family-check') {
@@ -58,6 +63,7 @@
           }
         </div> <!-- /card-body -->
       </div> <!-- /card -->
+      </div> <!-- /rw-scrollable-content -->
 
     </div> <!-- /col -->
   </div> <!-- /row -->

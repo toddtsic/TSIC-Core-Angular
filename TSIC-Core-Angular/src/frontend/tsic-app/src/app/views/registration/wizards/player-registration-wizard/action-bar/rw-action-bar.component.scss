@@ -5,8 +5,7 @@
 }
 
 .rw-action-bar {
-    position: sticky;
-    top: 0;
+    position: static; /* Changed from sticky to static for fixed header layout */
     z-index: 20;
     padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
     margin-bottom: var(--space-4);
@@ -60,13 +59,18 @@
             background-color: var(--bs-primary-hover-bg);
             border-color: var(--bs-primary-hover-border-color);
         }
+
+        &:not(:disabled):active,
+        &:not(:disabled):focus {
+            background-color: var(--bs-primary);
+            border-color: var(--bs-primary);
+        }
     }
 }
 
-/* Placement variant: top (sticky, default) */
+/* Placement variant: top (static within fixed header) */
 :host([placement='top']) .rw-action-bar {
-    position: sticky;
-    top: 0;
+    position: static;
     border-top: 2px solid var(--bs-border-color);
     border-bottom: 1px solid var(--bs-border-color-translucent);
 }

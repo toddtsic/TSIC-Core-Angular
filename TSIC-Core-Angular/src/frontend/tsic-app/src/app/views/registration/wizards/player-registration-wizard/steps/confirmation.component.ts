@@ -6,6 +6,15 @@ import { RegistrationWizardService } from '../registration-wizard.service';
   selector: 'app-rw-confirmation',
   standalone: true,
   imports: [],
+  styles: [`
+    .confirmation-content {
+      overflow-x: auto;
+    }
+    .confirmation-content ::ng-deep table {
+      width: 100%;
+      min-width: 600px;
+    }
+  `],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -19,7 +28,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
             {{ resending() ? 'Sending…' : 'Re-Send Confirmation Email' }}
           </button>
           @if (resendMessage()) { <div class="small text-muted mb-2">{{ resendMessage() }}</div> }
-          <div class="mt-3" [innerHTML]="conf()!.confirmationHtml"></div>
+          <div class="confirmation-content mt-3" [innerHTML]="conf()!.confirmationHtml"></div>
 
           <button type="button" class="btn btn-primary mt-3" (click)="completed.emit()">Finish</button>
         }

@@ -1,3 +1,29 @@
+/* Player wizard layout with fixed header and scrollable content */
+
+.rw-wizard-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.rw-fixed-header {
+    flex-shrink: 0;
+    background-color: var(--bs-body-bg);
+    padding-bottom: var(--space-2);
+    z-index: 10;
+}
+
+.rw-scrollable-content {
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 108px - 200px); /* viewport - nav (desktop) - header region */
+    padding-bottom: var(--space-4);
+
+    @media (max-width: 576px) {
+        max-height: calc(100vh - 118px - 150px); /* viewport - nav (mobile) - header region */
+    }
+}
+
 /* Player wizard card styling - standardized across both wizards */
 
 .card.wizard-theme-player {
