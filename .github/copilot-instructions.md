@@ -86,6 +86,12 @@ public async Task<IActionResult> GetData() {
 
 ## Essential Developer Workflows
 
+### Pre-change Checklist (MANDATORY)
+- Before editing, read the entire file(s) you will touch and summarize intent; do not edit on partial context.
+- For CSS/layout/sticky changes, trace the full DOM/container hierarchy and check for parent `overflow` or sticky ancestors before proposing a fix.
+- If confidence in the approach is <90%, pause and ask clarifying questions instead of implementing speculative changes.
+- Confirm caller/callee contracts (inputs/outputs/events) before changing signatures or component placement.
+
 ### API Model Generation (CRITICAL)
 When backend DTOs change, regenerate TypeScript types:
 ```powershell
@@ -258,6 +264,7 @@ Generated models: `src/app/core/api/models/index.ts` (auto-generated, read-only)
 - `docs/DESIGN-SYSTEM.md` - UI/styling guidelines
 - `docs/CODING-STANDARDS-ENFORCEMENT.md` - DTO & type generation standards
 - `docs/clean-architecture-implementation.md` - Layer responsibilities
+- Apply the Pre-change Checklist before any edits: read full scope, trace parent containers for CSS/layout, ask questions if uncertain.
 
 ## External Integrations & Secrets
 
@@ -302,6 +309,8 @@ var login = _config["AuthorizeNet:SandboxLoginId"]
 6. **No `*ngIf`/`*ngFor`**: Use modern `@if`/`@for` syntax
 7. **Regenerate after DTO changes**: Run `2-Regenerate-API-Models.ps1` script
 8. **Never commit secrets**: Use appsettings.Development.json (gitignored) or environment variables
+9. **Don't change CSS positioning without tracing hierarchy**: Identify sticky/overflow ancestors and layout context before changing placement.
+10. **Don't proceed when unsure**: If you can't explain why a change will work, stop and ask for clarification instead of guessing.
 
 ## Quick Commands Reference
 
