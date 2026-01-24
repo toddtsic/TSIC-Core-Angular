@@ -1,0 +1,214 @@
+/**
+ * Global Action Bar Stylesheet
+ * 
+ * Unified styling for action bars across all wizards (Player, Team, future wizards).
+ * Uses glassmorphic design with backdrop blur for modern appearance.
+ * Coordinates with wizard step indicators and content areas via CSS variables.
+ * Supports light/dark mode and theme switching.
+ */
+
+:root {
+    /* Action bar glassmorphic styling with elevation and blur */
+    --action-bar-bg: var(--bg-elevated);
+    --action-bar-backdrop-blur: 12px;
+    --action-bar-border: var(--bs-border-color);
+    --action-bar-shadow-light: var(--shadow-xs);
+    --action-bar-shadow-dark: var(--shadow-md);
+    --action-bar-z-index: 50;
+}
+
+/**
+ * .action-bar - Base styling applied to both rw-action-bar and tw-action-bar
+ * 
+ * Features:
+ * - Glassmorphic: elevated background with backdrop blur
+ * - Rounded corners for modern card-like appearance
+ * - Border with bottom emphasis for visual separation from content
+ * - Responsive padding that adapts to screen size
+ * - Light/dark mode support via CSS variables and shadows
+ */
+.action-bar {
+    width: 100%;
+    padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5));
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+
+    /* Glassmorphic: elevated surface with backdrop blur */
+    background: var(--action-bar-bg);
+    backdrop-filter: blur(var(--action-bar-backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--action-bar-backdrop-blur));
+
+    /* Rounded for card-like elevation */
+    border-radius: var(--radius-md);
+
+    /* Coordinated borders: top and bottom for visual separation */
+    border-top: 1px solid var(--action-bar-border);
+    border-bottom: 2px solid var(--action-bar-border);
+
+    /* Shadow coordination with wizard step indicators */
+    /* Light mode: subtle shadow (--shadow-xs) */
+    /* Dark mode: enhanced shadow (--shadow-md) */
+    box-shadow: var(--action-bar-shadow-light);
+
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+
+    /* Ensure proper z-stacking within fixed header */
+    position: relative;
+    z-index: var(--action-bar-z-index);
+}
+
+/* Dark mode: enhanced shadow for better visual separation */
+body.e-dark-mode .action-bar {
+    box-shadow: var(--action-bar-shadow-dark);
+}
+
+/**
+ * Action bar details section (badges, labels)
+ * Maintains consistent layout across wizard variants
+ */
+.action-bar-details {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+
+    .badge {
+        padding: var(--space-1) var(--space-2);
+        font-size: 0.875rem;
+        font-weight: 600;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+
+        &.badge-danger {
+            background-color: rgba(var(--bs-danger-rgb), 0.15);
+            color: var(--bs-danger);
+            border: 1px solid var(--bs-danger);
+        }
+
+        &.badge-warning {
+            background-color: rgba(var(--bs-warning-rgb), 0.15);
+            color: var(--bs-warning);
+            border: 1px solid var(--bs-warning);
+        }
+
+        &.badge-success {
+            background-color: rgba(var(--bs-success-rgb), 0.15);
+            color: var(--bs-success);
+            border: 1px solid var(--bs-success);
+        }
+    }
+}
+
+/**
+ * Action buttons wrapper
+ * Flex layout for consistent button spacing and alignment
+ */
+.action-buttons {
+    display: flex;
+    gap: var(--space-1);
+
+    .btn {
+        transition: all 0.2s ease;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+
+        &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+    }
+
+    /* Secondary button - Back/Cancel actions */
+    .btn-secondary {
+        /* Light mode: subtle gray background */
+        background-color: var(--bs-tertiary-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-body-color);
+
+        &:not(:disabled):hover {
+            background-color: var(--bs-secondary-bg);
+            border-color: var(--bs-border-color);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        &:not(:disabled):active,
+        &:not(:disabled):focus {
+            background-color: var(--bs-secondary-bg);
+            border-color: var(--bs-border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) inset;
+        }
+    }
+
+    /* Primary button - Continue/Submit actions */
+    .btn-primary {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: var(--bs-white);
+
+        &:not(:disabled):hover {
+            background-color: var(--brand-primary-dark);
+            border-color: var(--brand-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 10px rgba(var(--bs-primary-rgb), 0.25);
+        }
+
+        &:not(:disabled):active,
+        &:not(:disabled):focus {
+            background-color: var(--brand-primary-dark);
+            border-color: var(--brand-primary-dark);
+            box-shadow: 0 1px 4px rgba(var(--bs-primary-rgb), 0.2) inset;
+        }
+    }
+}
+
+/**
+ * Direction icon styling (chevron/arrow indicators)
+ * Maintains consistent appearance across action bar variants
+ */
+.action-bar-icon {
+    font-size: 1.2em;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+    transform: translateY(calc(-1 * var(--space-0\.5)));
+}
+
+/* Responsive adjustments for tablet/phone */
+@media (max-width: 768px) {
+    .action-bar {
+        padding: var(--space-1) var(--space-2);
+    }
+
+    .action-bar-details {
+        gap: var(--space-1);
+    }
+
+    .action-buttons .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .action-bar {
+        padding: var(--space-1) var(--space-2);
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .action-bar-details {
+        order: 2;
+        width: 100%;
+        justify-content: center;
+        margin-top: var(--space-1);
+    }
+
+    .action-buttons {
+        order: 1;
+        width: 100%;
+        justify-content: center;
+    }
+}

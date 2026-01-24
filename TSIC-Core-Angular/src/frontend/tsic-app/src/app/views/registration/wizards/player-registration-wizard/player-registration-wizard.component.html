@@ -2,7 +2,7 @@
   <div class="row justify-content-center">
     <div class="col-12">
       <!-- Fixed header region containing title, step indicator, and action bar -->
-      <div class="rw-fixed-header">
+      <div class="wizard-fixed-header">
         <div class="text-center mb-3">
           <h2 id="rw-title" class="mb-1 fw-bold">Player Registration</h2>
           <p class="text-muted mb-0 fs-6">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
@@ -13,57 +13,59 @@
           <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
         </div>
 
-        <!-- Action bar (fixed at top, no longer sticky) -->
+        <!-- Action bar (fixed at top) -->
         @if (currentIndex() !== 0) {
-        <div class="mb-4">
-          <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
-            [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
-            [placement]="'top'" (back)="back()" (continue)="onContinue()" />
+        <div class="mb-0">
+          <div class="wizard-action-bar-container">
+            <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
+              [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
+              [placement]="'top'" (back)="back()" (continue)="onContinue()" />
+          </div>
         </div>
         }
       </div>
 
       <!-- Scrollable content region -->
-      <div class="rw-scrollable-content">
+      <div class="wizard-scrollable-content">
         <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-player">
-        <div class="card-body bg-surface px-4 pb-4 pt-3">
-          @switch (currentStepId()) {
-          @case ('family-check') {
-          <app-rw-family-check (next)="next()" />
-          }
-          @case ('players') {
-          <app-rw-player-selection (next)="next()" />
-          }
-          @case ('eligibility') {
-          <app-rw-eligibility-selection (back)="back()" (next)="next()" />
-          }
-          @case ('teams') {
-          <app-rw-team-selection (back)="back()" (next)="next()" [multiSelect]="isMultiTeamMode()" />
-          }
-          @case ('forms') {
-          <app-rw-player-forms (back)="back()" (next)="next()" />
-          }
-          @case ('waivers') {
-          <app-rw-waivers (back)="back()" (next)="next()" />
-          }
-          @case ('review') {
-          <app-rw-review (back)="back()" (next)="proceedToPayment()" />
-          }
-          @case ('payment') {
-          <app-rw-payment (back)="back()" (submitted)="next()" />
-          }
-          @case ('confirmation') {
-          <app-rw-confirmation (completed)="finishToJobHome()" />
-          }
-          @default {
-          <div class="alert alert-warning" role="note">
-            Unknown step "{{ currentStepId() }}". Please go back and try again.
-          </div>
-          }
-          }
-        </div> <!-- /card-body -->
-      </div> <!-- /card -->
-      </div> <!-- /rw-scrollable-content -->
+          <div class="card-body bg-surface px-4 pb-4 pt-3">
+            @switch (currentStepId()) {
+            @case ('family-check') {
+            <app-rw-family-check (next)="next()" />
+            }
+            @case ('players') {
+            <app-rw-player-selection (next)="next()" />
+            }
+            @case ('eligibility') {
+            <app-rw-eligibility-selection (back)="back()" (next)="next()" />
+            }
+            @case ('teams') {
+            <app-rw-team-selection (back)="back()" (next)="next()" [multiSelect]="isMultiTeamMode()" />
+            }
+            @case ('forms') {
+            <app-rw-player-forms (back)="back()" (next)="next()" />
+            }
+            @case ('waivers') {
+            <app-rw-waivers (back)="back()" (next)="next()" />
+            }
+            @case ('review') {
+            <app-rw-review (back)="back()" (next)="proceedToPayment()" />
+            }
+            @case ('payment') {
+            <app-rw-payment (back)="back()" (submitted)="next()" />
+            }
+            @case ('confirmation') {
+            <app-rw-confirmation (completed)="finishToJobHome()" />
+            }
+            @default {
+            <div class="alert alert-warning" role="note">
+              Unknown step "{{ currentStepId() }}". Please go back and try again.
+            </div>
+            }
+            }
+          </div> <!-- /card-body -->
+        </div> <!-- /card -->
+      </div> <!-- /wizard-scrollable-content -->
 
     </div> <!-- /col -->
   </div> <!-- /row -->

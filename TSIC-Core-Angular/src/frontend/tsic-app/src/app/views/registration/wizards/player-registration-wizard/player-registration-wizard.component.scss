@@ -1,27 +1,12 @@
-/* Player wizard layout with fixed header and scrollable content */
+/* Player wizard layout styles
+   NOTE: .wizard-fixed-header and .wizard-scrollable-content are now global classes
+   defined in src/app/shared/styles/wizard-layout.scss
+*/
 
 .rw-wizard-container {
     display: flex;
     flex-direction: column;
     height: 100%;
-}
-
-.rw-fixed-header {
-    flex-shrink: 0;
-    background-color: var(--bs-body-bg);
-    padding-bottom: var(--space-2);
-    z-index: 10;
-}
-
-.rw-scrollable-content {
-    flex: 1;
-    overflow-y: auto;
-    max-height: calc(100vh - 108px - 200px); /* viewport - nav (desktop) - header region */
-    padding-bottom: var(--space-4);
-
-    @media (max-width: 576px) {
-        max-height: calc(100vh - 118px - 150px); /* viewport - nav (mobile) - header region */
-    }
 }
 
 /* Player wizard card styling - standardized across both wizards */
@@ -86,13 +71,6 @@
 h2#rw-title {
     color: var(--bs-body-color);
     transition: color 0.3s ease;
-}
-
-/* Sticky header for step indicator and action bar */
-.rw-sticky-header {
-    position: relative;
-    background-color: var(--bs-body-bg);
-    transition: background-color 0.3s ease;
 }
 
 /* Responsive adjustments for action bar */

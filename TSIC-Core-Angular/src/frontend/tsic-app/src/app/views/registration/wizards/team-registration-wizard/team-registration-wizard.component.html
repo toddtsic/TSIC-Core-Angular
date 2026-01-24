@@ -1,120 +1,122 @@
 <main class="container-fluid px-3 py-2" aria-labelledby="tw-title">
   <div class="row justify-content-center">
     <div class="col-12">
-      <div class="text-center mb-2 mb-md-3">
-        @if (clubName()) {
-        <!-- Mobile: single compact line -->
-        <h2 id="tw-title" class="d-block d-md-none mb-0 fw-bold fs-6">
-          <span class="text-primary">{{ clubName() }}</span> • Team
-          Registration
-        </h2>
-        <!-- Desktop: two lines -->
-        <div id="tw-title-desktop" class="d-none d-md-block mb-1">
-          <div class="fw-bold fs-4 text-primary">{{ clubName() }}</div>
-          <h2 class="mb-0 fw-bold">Team Registration</h2>
+      <!-- Fixed header region containing title, step indicator, and action bar -->
+      <div class="wizard-fixed-header">
+        <div class="text-center mb-3">
+          @if (clubName()) {
+          <!-- Mobile: single compact line -->
+          <h2 id="tw-title" class="d-block d-md-none mb-0 fw-bold fs-6">
+            <span class="text-primary">{{ clubName() }}</span> • Team Registration
+          </h2>
+          <!-- Desktop: two lines -->
+          <div id="tw-title-desktop" class="d-none d-md-block mb-1">
+            <div class="fw-bold fs-4 text-primary">{{ clubName() }}</div>
+            <h2 class="mb-0 fw-bold">Team Registration</h2>
+          </div>
+          } @else {
+          <h2 class="mb-1 fw-bold fs-5 fs-md-3">
+            Team Registration
+          </h2>
+          }
         </div>
-        } @else {
-        <h2 id="tw-title" class="mb-1 fw-bold fs-5 fs-md-3">
-          Team Registration
-        </h2>
+
+        @if (!isLoadingMetadata() && !metadataError()) {
+        <div class="mb-4">
+          <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentStepIndex()" />
+        </div>
         }
-      </div>
-      @if (!isLoadingMetadata() && !metadataError()) {
-      <div class="mb-3">
-        <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentStepIndex()" />
-      </div>
-      }
-      <div class="card shadow-lg border-0 card-rounded wizard-theme-team mt-3">
-        <!-- Registration Status Banner -->
-        @if (isLoadingMetadata()) {
-        <!-- Loading state -->
-        <div class="alert alert-secondary mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
-          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-          <div class="flex-grow-1">
-            <strong>Loading...</strong> Checking registration status.
+
+        <!-- Action bar (fixed at top) -->
+        @if (step() !== WizardStep.Login) {
+        <div class="mb-0">
+          <div class="wizard-action-bar-container">
+            <app-tw-action-bar [canBack]="step() !== WizardStep.Login" [canContinue]="actionBarCanContinue()"
+              [continueLabel]="actionBarContinueLabel()" [showContinue]="actionBarShowContinue()"
+              [detailsBadgeLabel]="actionBarDetailsBadge()" [detailsBadgeClass]="actionBarDetailsBadgeClass()"
+              (back)="prevStep()" (continue)="nextStep()" />
           </div>
         </div>
-        } @else if (step() !== WizardStep.RegisterTeams) {
-        <!-- Step-specific banner with contextual messaging (suppressed for RegisterTeams step) -->
-        <div class="alert {{
+        }
+      </div>
+
+      <!-- Scrollable content region -->
+      <div class="wizard-scrollable-content">
+        <div class="card shadow-lg border-0 card-rounded wizard-theme-team mt-3">
+          <!-- Registration Status Banner -->
+          @if (isLoadingMetadata()) {
+          <!-- Loading state -->
+          <div class="alert alert-secondary mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <div class="flex-grow-1">
+              <strong>Loading...</strong> Checking registration status.
+            </div>
+          </div>
+          } @else if (step() !== WizardStep.RegisterTeams) {
+          <!-- Step-specific banner with contextual messaging (suppressed for RegisterTeams step) -->
+          <div class="alert {{
               stepBannerConfig().alertClass
             }} mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
-          <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
-          <div class="flex-grow-1">
-            @if (stepBannerConfig().title) {
-            <strong>{{ stepBannerConfig().title }}</strong>{{ " " }}
-            }
-            <span [innerHTML]="stepBannerConfig().message"></span>
-          </div>
-        </div>
-        }
-
-        <div class="card-body bg-surface px-4 pb-4 pt-2">
-          @if (metadataError()) {
-          <!-- Error state - show retry -->
-          <div class="alert alert-danger d-flex align-items-start" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+            <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
             <div class="flex-grow-1">
-              <strong>Error:</strong> {{ metadataError() }}
+              @if (stepBannerConfig().title) {
+              <strong>{{ stepBannerConfig().title }}</strong>{{ " " }}
+              }
+              <span [innerHTML]="stepBannerConfig().message"></span>
             </div>
           </div>
-          <div class="text-center py-4">
-            <button type="button" class="btn btn-primary" (click)="loadMetadata(jobPath() || '')"
-              [disabled]="!jobPath()">
-              <i class="bi bi-arrow-clockwise me-1"></i> Retry
-            </button>
-          </div>
-          } @else if (isLoadingMetadata()) {
-          <!-- Loading state - block interaction -->
-          <div class="text-center py-5">
-            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem" role="status">
-              <span class="visually-hidden">Loading...</span>
+          }
+
+          <div class="card-body bg-surface px-4 pb-4 pt-2">
+            @if (metadataError()) {
+            <!-- Error state - show retry -->
+            <div class="alert alert-danger d-flex align-items-start" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+              <div class="flex-grow-1">
+                <strong>Error:</strong> {{ metadataError() }}
+              </div>
             </div>
-            <p class="text-muted">Preparing registration wizard...</p>
+            <div class="text-center py-4">
+              <button type="button" class="btn btn-primary" (click)="loadMetadata(jobPath() || '')"
+                [disabled]="!jobPath()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Retry
+              </button>
+            </div>
+            } @else if (isLoadingMetadata()) {
+            <!-- Loading state - block interaction -->
+            <div class="text-center py-5">
+              <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="text-muted">Preparing registration wizard...</p>
+            </div>
+            } @else if (step() === WizardStep.Login) {
+            <app-club-rep-login-step [jobPath]="jobPath()" (loginSuccess)="handleLoginSuccess($event)"
+              (registrationSuccess)="handleRegistrationSuccess($event)"></app-club-rep-login-step>
+            }
+
+            @if (step() === WizardStep.RegisterTeams) {
+            <app-teams-step (proceed)="step.set(WizardStep.Payment)"></app-teams-step>
+            }
+
+            @if (step() === WizardStep.Payment) {
+            <app-team-payment-step (proceed)="step.set(WizardStep.Review)"></app-team-payment-step>
+            }
+
+            @if (step() === WizardStep.Review) {
+            <app-review-step [registrationId]="registrationId()"></app-review-step>
+            }
           </div>
-          } @else if (step() === WizardStep.Login) {
-          <app-club-rep-login-step [jobPath]="jobPath()" (loginSuccess)="handleLoginSuccess($event)"
-            (registrationSuccess)="handleRegistrationSuccess($event)"></app-club-rep-login-step>
-          }
-
-          @if (step() === WizardStep.RegisterTeams) {
-          <app-teams-step (proceed)="step.set(WizardStep.Payment)"></app-teams-step>
-          }
-
-          @if (step() === WizardStep.Payment) {
-          <app-team-payment-step (proceed)="step.set(WizardStep.Review)"></app-team-payment-step>
-          }
-
-          @if (step() === WizardStep.Review) {
-          <app-review-step [registrationId]="registrationId()"></app-review-step>
-          }
+          <!-- /card-body -->
         </div>
-        <!-- /card-body -->
+        <!-- /card -->
       </div>
-      <!-- /card -->
+      <!-- /wizard-scrollable-content -->
+
     </div>
     <!-- /col -->
   </div>
   <!-- /row -->
-
-  <!-- Fixed Bottom Navigation -->
-  @if (
-  step() === WizardStep.RegisterTeams ||
-  step() === WizardStep.Payment ||
-  step() === WizardStep.Review
-  ) {
-  <div class="position-fixed bottom-0 start-0 end-0" style="
-        z-index: 1000;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        background: var(--bs-secondary-bg);
-      ">
-    <app-tw-action-bar [canBack]="step() !== WizardStep.Login" [canContinue]="actionBarCanContinue()"
-      [continueLabel]="actionBarContinueLabel()" [showContinue]="actionBarShowContinue()"
-      [detailsBadgeLabel]="actionBarDetailsBadge()" [detailsBadgeClass]="actionBarDetailsBadgeClass()"
-      (back)="prevStep()" (continue)="nextStep()"></app-tw-action-bar>
-  </div>
-  }
 </main>
 
 <!-- Club Selection Modal -->

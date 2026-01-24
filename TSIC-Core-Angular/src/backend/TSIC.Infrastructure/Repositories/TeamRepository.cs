@@ -283,7 +283,6 @@ public class TeamRepository : ITeamRepository
 
         return await query
             .AsNoTracking()
-            .Include(t => t.ClubrepRegistrationid)
             .ToListAsync(cancellationToken);
     }
 

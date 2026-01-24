@@ -1,0 +1,146 @@
+/**
+ * Global Wizard Layout Classes
+ * 
+ * Shared layout pattern for all registration wizards (Player, Team, and future wizards).
+ * Provides consistent fixed header, scrollable content, and action bar positioning.
+ * 
+ * Usage:
+ * - Wrap title, step indicator, and action bar in `wizard-fixed-header`
+ * - Wrap step content (cards, forms) in `wizard-scrollable-content`
+ * - Position action bar inside `wizard-fixed-header` with `wizard-action-bar-container`
+ * 
+ * CSS Variables (customize per wizard if needed):
+ * - --wizard-fixed-header-bg: Background color of fixed header
+ * - --wizard-fixed-header-border: Border color of fixed header
+ * - --wizard-scrollable-pb: Padding bottom of scrollable content (prevents overlap)
+ * - --wizard-action-bar-bg: Background color of action bar
+ * - --wizard-action-bar-blur: Backdrop filter blur amount
+ */
+
+// Define CSS variables with defaults
+:root {
+    --wizard-fixed-header-bg: var(--bs-body-bg);
+    --wizard-fixed-header-border: var(--border-color);
+    --wizard-scrollable-pb: 6rem;
+    --wizard-action-bar-bg: var(--bs-secondary-bg);
+    --wizard-action-bar-blur: 8px;
+    --wizard-action-bar-z-index: 50;
+    --wizard-modal-z-index: 1000;
+}
+
+/**
+ * .wizard-fixed-header
+ * Fixed positioning at top containing title, step indicator, and action bar.
+ * Supports both light and dark modes.
+ */
+.wizard-fixed-header {
+    position: relative;
+    background: var(--wizard-fixed-header-bg);
+    border-bottom: 1px solid var(--wizard-fixed-header-border);
+    padding: 1rem;
+    z-index: var(--wizard-action-bar-z-index);
+
+    // Ensure header stays on top during scroll
+    margin: -0.5rem -0.75rem 0 -0.75rem;
+    padding: 1rem 0.75rem;
+}
+
+/**
+ * .wizard-scrollable-content
+ * Main content area with vertical scrolling.
+ * Padding-bottom prevents content from being hidden behind fixed action bar.
+ * Dark/light mode compatible via CSS variables.
+ */
+.wizard-scrollable-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bs-body-bg);
+    padding-bottom: var(--wizard-scrollable-pb);
+
+    // Max viewport height to ensure scrolling
+    max-height: calc(100vh - 200px);
+
+    // Smooth scrolling behavior
+    scroll-behavior: smooth;
+
+    // Subtle scrollbar styling for light/dark modes
+    scrollbar-width: thin;
+    scrollbar-color: var(--bs-secondary) var(--bs-body-bg);
+
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: var(--bs-body-bg);
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: var(--bs-secondary);
+        border-radius: 4px;
+
+        &:hover {
+            background: var(--bs-secondary-color);
+        }
+    }
+}
+
+/**
+ * .wizard-action-bar-container
+ * Optional wrapper for positioning and styling the action bar itself.
+ * Handles backdrop blur and theme-aware background colors.
+ */
+.wizard-action-bar-container {
+    position: relative;
+    background: var(--wizard-action-bar-bg);
+    border-top: 1px solid var(--wizard-fixed-header-border);
+    backdrop-filter: blur(var(--wizard-action-bar-blur));
+    -webkit-backdrop-filter: blur(var(--wizard-action-bar-blur));
+
+    // Ensure text contrast in both light and dark modes
+    color: var(--bs-body-color);
+
+    // Subtle shadow for depth
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+
+    @media (prefers-color-scheme: dark) {
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/**
+ * Responsive adjustments for mobile devices
+ */
+@media (max-width: 576px) {
+    .wizard-fixed-header {
+        padding: 0.75rem;
+        margin: -0.5rem -0.75rem 0 -0.75rem;
+    }
+
+    .wizard-scrollable-content {
+        max-height: calc(100vh - 180px);
+        --wizard-scrollable-pb: 5rem;
+    }
+}
+
+/**
+ * High contrast mode support (accessibility)
+ */
+@media (prefers-contrast: more) {
+    .wizard-fixed-header {
+        border-bottom-width: 2px;
+    }
+
+    .wizard-action-bar-container {
+        border-top-width: 2px;
+    }
+}
+
+/**
+ * Reduced motion support (accessibility)
+ */
+@media (prefers-reduced-motion: reduce) {
+    .wizard-scrollable-content {
+        scroll-behavior: auto;
+    }
+}
