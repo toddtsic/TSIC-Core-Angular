@@ -1,4 +1,5 @@
 using System;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -47,34 +48,33 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
     [ProducesResponseType(typeof(PlayerRegConfirmationDto), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> Get([FromQuery] Guid jobId, [FromQuery] Guid familyUserId, CancellationToken ct)
+    public async Task<IActionResult> Get([FromQuery] string jobPath, CancellationToken ct)
     {
-        _logger.LogInformation("[Confirmation] GET invoked jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
-        if (jobId == Guid.Empty || familyUserId == Guid.Empty)
+        _logger.LogInformation("[Confirmation] GET invoked jobPath={JobPath}", jobPath);
+        if (string.IsNullOrWhiteSpace(jobPath))
         {
-            return BadRequest(new { message = "Invalid parameters" });
+            return BadRequest(new { message = "jobPath is required" });
         }
 
-        // Authorization: ensure caller matches familyUserId.
-        var claimId = User?.FindFirst("sub")?.Value ?? User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(claimId) || !claimId.Equals(familyUserId.ToString(), StringComparison.OrdinalIgnoreCase))
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId))
         {
-            _logger.LogWarning("Confirmation access denied for familyUserId={FamilyUserId} caller={Caller}", familyUserId, claimId);
-            return Forbid();
+            _logger.LogWarning("Confirmation access denied: user identity not found");
+            return Unauthorized();
         }
 
-        var dto = await _service.BuildAsync(jobId, familyUserId.ToString(), ct);
+        var dto = await _service.BuildAsync(jobPath, familyUserId, ct);
         return Ok(dto);
     }
 
     // HEAD endpoint (some clients/browsers may probe; avoids 405)
     [HttpHead("confirmation")]
     [Authorize]
-    public IActionResult Head([FromQuery] Guid jobId, [FromQuery] Guid familyUserId)
+    public IActionResult Head([FromQuery] string jobPath)
     {
-        if (jobId == Guid.Empty || familyUserId == Guid.Empty) return BadRequest();
-        var claimId = User?.FindFirst("sub")?.Value ?? User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(claimId) || !claimId.Equals(familyUserId.ToString(), StringComparison.OrdinalIgnoreCase)) return Forbid();
+        if (string.IsNullOrWhiteSpace(jobPath)) return BadRequest();
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
         return Ok();
     }
 
@@ -83,30 +83,30 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> Resend([FromQuery] Guid jobId, [FromQuery] Guid familyUserId, CancellationToken ct)
+    public async Task<IActionResult> Resend([FromQuery] string jobPath, CancellationToken ct)
     {
-        _logger.LogInformation("[Confirmation] RESEND invoked jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
-        if (jobId == Guid.Empty || familyUserId == Guid.Empty)
+        _logger.LogInformation("[Confirmation] RESEND invoked jobPath={JobPath}", jobPath);
+        if (string.IsNullOrWhiteSpace(jobPath))
         {
-            return BadRequest(new { message = "Invalid parameters" });
+            return BadRequest(new { message = "jobPath is required" });
         }
 
-        var claimId = User?.FindFirst("sub")?.Value ?? User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(claimId) || !claimId.Equals(familyUserId.ToString(), StringComparison.OrdinalIgnoreCase))
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId))
         {
-            _logger.LogWarning("Confirmation resend denied for familyUserId={FamilyUserId} caller={Caller}", familyUserId, claimId);
-            return Forbid();
+            _logger.LogWarning("Confirmation resend denied: user identity not found");
+            return Unauthorized();
         }
 
         // Build distinct recipient list: player emails for this job + mom/dad from Families
         var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fam = await _familyRepo.GetByFamilyUserIdAsync(familyUserId.ToString());
+        var fam = await _familyRepo.GetByFamilyUserIdAsync(familyUserId);
         if (fam != null)
         {
             if (!string.IsNullOrWhiteSpace(fam.MomEmail)) recipients.Add(fam.MomEmail.Trim());
             if (!string.IsNullOrWhiteSpace(fam.DadEmail)) recipients.Add(fam.DadEmail.Trim());
         }
-        var playerRegs = await _familyRepo.GetFamilyRegistrationsForJobAsync(jobId, familyUserId.ToString(), ct);
+        var playerRegs = await _familyRepo.GetFamilyRegistrationsForJobAsync(jobPath, familyUserId, ct);
         foreach (var r in playerRegs)
         {
             var e = r.User?.Email?.Trim();
@@ -123,7 +123,7 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
             return BadRequest(new { message = "No valid recipient emails found (player/mom/dad)" });
         }
 
-        var (subject, html) = await _service.BuildEmailAsync(jobId, familyUserId.ToString(), ct);
+        var (subject, html) = await _service.BuildEmailAsync(jobPath, familyUserId, ct);
         if (string.IsNullOrWhiteSpace(html))
         {
             return BadRequest(new { message = "No confirmation content available to send" });

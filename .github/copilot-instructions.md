@@ -1,5 +1,25 @@
 # TSIC-Core-Angular AI Coding Agent Instructions
 
+## CRITICAL: Repository Root Path (DO NOT FORGET THIS)
+
+**Repository root**: `C:\Users\Administrator\source\TSIC-Core-Angular`
+**NOT**: `C:\Users\Administrator\source\TSIC-Core-Angular\TSIC-Core-Angular` (this is a nested subdirectory)
+
+**Scripts location**: `C:\Users\Administrator\source\TSIC-Core-Angular\scripts\`
+
+### Running Scripts (MANDATORY PATTERN)
+**ALWAYS** use this pattern to run scripts:
+```powershell
+cd C:\Users\Administrator\source\TSIC-Core-Angular; .\scripts\ScriptName.ps1
+```
+
+**Example - Regenerate API Models**:
+```powershell
+cd C:\Users\Administrator\source\TSIC-Core-Angular; .\scripts\2-Regenerate-API-Models.ps1
+```
+
+**Never** try to run scripts from nested directories - the `cd` command ensures you're at the correct repository root before script execution.
+
 ## Project Architecture
 
 **Full-stack .NET + Angular application** with Clean Architecture:
@@ -123,17 +143,37 @@ git commit --no-verify -m "message"
 dotnet format TSIC-Core-Angular.sln
 ```
 
-## Data Access Pattern (MANDATORY)
+## Data Access Pattern (MANDATORY - Clean Architecture)
 
-**Controllers/Services MUST NEVER directly use `SqlDbContext`** - always use repository pattern:
+**GOLDEN RULE**: Controllers, Services, and ALL non-Repository code MUST NEVER reference `SqlDbContext` or EF Core types.
 
+### Three-Layer Data Access Flow
+```
+Controller → [Service] → Repository → SqlDbContext
+   (HTTP)     (Business)  (Data Access)
+```
+
+### Repository Architecture
+- **Interfaces**: `TSIC.Contracts/Repositories/I<Entity>Repository.cs` (abstractions)
+- **Implementations**: `TSIC.Infrastructure/Repositories/<Entity>Repository.cs` (concrete EF Core code)
+- **20+ repositories exist** - check `TSIC.Contracts/Repositories/` for all available interfaces
+- **Dependency injection**: `AddScoped<IRepository, Repository>()` in Program.cs
+
+### When to Create a New Repository Method
+Create repository methods for:
+- ✅ Data access logic (any EF Core query/include/join)
+- ✅ Multi-entity queries returning DTOs (repository owns the EF Core complexity)
+- ✅ Complex filtering or projection
+
+Keep in service for:
+- ✅ Business rule orchestration (calling multiple repos)
+- ✅ Email/external service integration
+- ✅ Business calculations
+
+### Pattern Examples
+
+**CORRECT - Controller with Repository**:
 ```csharp
-// ❌ WRONG - Controller directly accessing DbContext
-public class FamilyController : ControllerBase {
-    private readonly SqlDbContext _db;  // NEVER DO THIS
-}
-
-// ✅ CORRECT - Use repository abstraction
 public class FamilyController : ControllerBase {
     private readonly IFamilyRepository _familyRepo;
     
@@ -144,7 +184,54 @@ public class FamilyController : ControllerBase {
 }
 ```
 
-**Flow**: Controller → Service → Repository → SqlDbContext
+**CORRECT - Complex Query in Repository (returns DTO)**:
+```csharp
+public interface ITeamRepository {
+    Task<TeamDetailsDto?> GetTeamWithPlayersAsync(Guid teamId);
+}
+
+public class TeamRepository : ITeamRepository {
+    public async Task<TeamDetailsDto?> GetTeamWithPlayersAsync(Guid teamId) {
+        return await _context.Teams
+            .AsNoTracking()
+            .Include(t => t.Players)
+            .Where(t => t.TeamId == teamId)
+            .Select(t => new TeamDetailsDto {
+                TeamId = t.TeamId,
+                TeamName = t.Name,
+                PlayerCount = t.Players.Count
+            })
+            .FirstOrDefaultAsync();
+    }
+}
+```
+
+**WRONG - NEVER DO THIS**:
+```csharp
+// ❌ SqlDbContext in controller
+public class FamilyController : ControllerBase {
+    private readonly SqlDbContext _db;  // NEVER
+}
+
+// ❌ EF Core queries in service
+public class PaymentService : IPaymentService {
+    private readonly SqlDbContext _context;  // NEVER
+    var registrations = await _context.Registrations.ToListAsync();  // NEVER
+}
+```
+
+### Repository Decision Matrix
+
+| Scenario | Location | Reason |
+|----------|----------|--------|
+| Simple ID lookup | Repository method | Pure data access |
+| Filter by single field | Repository method | Pure data access |
+| Multi-entity join (3+ tables) | Repository method returning DTO | Encapsulate complexity, single query |
+| Business calculation | Service | Business logic, not data access |
+| Email sending | Service | Side effect, not data access |
+| Authorization check | Controller | HTTP concern |
+| Multi-step workflow | Service calling multiple repos | Orchestration |
+| Dynamic filtering with many combinations | Repository `Query()` method + Service composition | Flexibility needed |
 
 ## C# DTO Standards (OpenAPI Critical)
 
@@ -243,28 +330,46 @@ Generated models: `src/app/core/api/models/index.ts` (auto-generated, read-only)
 
 **Glassmorphic design**: Use backdrop-blur, subtle gradients, inset highlights (see `styles.scss`)
 
-## File Locations
+## File Locations & Project Structure
 
-- **Backend DTOs**: `TSIC.Application/DTOs/`
-- **Repository interfaces**: `TSIC.Application/Repositories/`
-- **Repository implementations**: `TSIC.Infrastructure/Repositories/`
-- **Angular services**: `src/app/core/services/`
-- **Angular components**: `src/app/views/` or `src/app/layouts/`
-- **Auto-generated API models**: `src/app/core/api/models/` (read-only)
+**Backend**:
+- **Repository Interfaces**: `TSIC.Contracts/Repositories/` (in Contracts project, not Application)
+- **Repository Implementations**: `TSIC.Infrastructure/Repositories/`
+- **Services**: `TSIC.Application/Services/` (business logic, NOT data access)
+- **DTOs**: `TSIC.Application/Services/<Feature>/` (grouped by domain feature)
+- **Domain Entities**: `TSIC.Domain/Entities/`
+- **Database Context**: `TSIC.Infrastructure/Data/SqlDbContext/`
 
-## Documentation Reference
+**Frontend**:
+- **Services**: `src/app/core/services/` (but most are deprecated - use signals instead)
+- **Components**: `src/app/views/` or `src/app/layouts/` (standalone with `inject()`)
+- **Shared Components**: `src/app/shared/` and `src/app/shared-ui/`
+- **Guards**: `src/app/infrastructure/guards/auth.guard.ts` (unified guard, all scenarios)
+- **Interceptors**: `src/app/infrastructure/interceptors/`
+- **API Models** (AUTO-GENERATED, read-only): `src/app/core/api/models/index.ts`
+- **Types**: `src/types/` for custom TypeScript types (if not generated)
 
-**Before coding, check**:
-- `docs/AI-AGENT-CODING-CONVENTIONS.md` - Quick reference (use "CWCC" code)
-- `docs/REPOSITORY-PATTERN-STANDARDS.md` - Data access rules
-- `docs/auth-guard-documentation.md` - Authentication & route protection
-- `docs/authorization-policies.md` - API authorization patterns
-- `docs/jobpath-authorization-implementation.md` - JobPath validation
-- `docs/angular-signal-patterns.md` - State management patterns
-- `docs/DESIGN-SYSTEM.md` - UI/styling guidelines
-- `docs/CODING-STANDARDS-ENFORCEMENT.md` - DTO & type generation standards
-- `docs/clean-architecture-implementation.md` - Layer responsibilities
-- Apply the Pre-change Checklist before any edits: read full scope, trace parent containers for CSS/layout, ask questions if uncertain.
+**Critical**: 20+ repository implementations exist - **check `TSIC.Contracts/Repositories/` first** before creating new data access code.
+
+## Documentation Reference & Key Patterns
+
+**Before coding, ALWAYS check**:
+1. `docs/REPOSITORY-PATTERN-STANDARDS.md` - **MANDATORY reading** for any backend data access work
+2. `docs/SERVICE-LAYER-STANDARDS.md` - Business logic layer design & when to use services vs repositories
+3. `docs/AI-AGENT-CODING-CONVENTIONS.md` - Project-specific conventions (use "CWCC" code in requests)
+4. `docs/auth-guard-documentation.md` - Authentication & route protection patterns
+5. `docs/authorization-policies.md` - API-level authorization rules & policies
+6. `docs/jobpath-authorization-implementation.md` - JobPath validation in endpoints
+7. `docs/angular-signal-patterns.md` - Modern Angular state management
+8. `docs/DESIGN-SYSTEM.md` - UI/styling & CSS variable usage
+9. `docs/CODING-STANDARDS-ENFORCEMENT.md` - DTO generation & TypeScript types
+10. `docs/clean-architecture-implementation.md` - Layer separation & dependency flow
+
+**Apply the Pre-change Checklist before any edits**:
+- Read full scope of files you'll touch
+- For CSS/layout changes, trace DOM hierarchy and check parent `overflow`/sticky ancestors
+- Verify caller/callee contracts before changing signatures
+- Ask clarifying questions if confidence < 90% (don't guess)
 
 ## External Integrations & Secrets
 

@@ -225,29 +225,52 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task<PaymentResponseDto> ProcessPaymentAsync(PaymentRequestDto request, string userId)
+    /// <summary>
+    /// Overload that accepts jobId and familyUserId extracted from JWT claims.
+    /// Creates a temporary request with these values to delegate to existing validation logic.
+    /// </summary>
+    public async Task<PaymentResponseDto> ProcessPaymentAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId)
     {
-        var v = await ValidatePaymentRequestAsync(request);
+        // Create internal request with jobId and familyUserId for legacy validation
+        var internalRequest = new PaymentRequestDto
+        {
+            JobPath = request.JobPath,
+            PaymentOption = request.PaymentOption,
+            CreditCard = request.CreditCard,
+            IdempotencyKey = request.IdempotencyKey,
+            ViConfirmed = request.ViConfirmed,
+            ViPolicyNumber = request.ViPolicyNumber,
+            ViPolicyCreateDate = request.ViPolicyCreateDate,
+            ViQuoteIds = request.ViQuoteIds,
+            ViToken = request.ViToken
+        };
+
+        // Use internal validation that still expects JobId and FamilyUserId
+        var v = await ValidatePaymentRequestInternalAsync(jobId, familyUserId, internalRequest);
         if (v.Response != null) return v.Response;
         var job = v.Job!;
         var registrations = v.Registrations!;
         var cc = v.Card!;
         await NormalizeFeesAsync(registrations);
         if (request.PaymentOption == PaymentOption.ARB)
-            return await ProcessArbAsync(request, userId, registrations, job, cc);
+            return await ProcessArbAsync(jobId, familyUserId, internalRequest, userId, registrations, job, cc);
         var charges = await ComputeChargesAsync(registrations, request.PaymentOption);
         var total = charges.Values.Sum();
         if (total <= 0m) return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecutePrimaryChargeAsync(request, userId, registrations, cc, charges, total);
+        return await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total);
     }
 
-    private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, CreditCardInfo? Card)> ValidatePaymentRequestAsync(PaymentRequestDto request)
+    /// <summary>
+    /// Internal validation method accepting jobId and familyUserId parameters directly.
+    /// Used by the overload to avoid DTO field dependencies.
+    /// </summary>
+    private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, CreditCardInfo? Card)> ValidatePaymentRequestInternalAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
     {
         if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null);
-        var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(request.JobId);
+        var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId);
         if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
         var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate);
-        var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(request.JobId, request.FamilyUserId.ToString(), activePlayersOnly: true);
+        var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(jobId, familyUserId, activePlayersOnly: true);
         if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
         if (request.PaymentOption == PaymentOption.ARB && job.AdnArb != true) return (Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED"), null, null, null);
         if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
@@ -267,7 +290,7 @@ public class PaymentService : IPaymentService
         return (null, job, registrations, cc);
     }
 
-    private async Task<PaymentResponseDto> ProcessArbAsync(PaymentRequestDto request, string userId, List<Registrations> registrations, JobInfo job, CreditCardInfo cc)
+    private async Task<PaymentResponseDto> ProcessArbAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, JobInfo job, CreditCardInfo cc)
     {
         // Early exit: if every registration already has an active ARB subscription, avoid duplicate gateway calls
         if (registrations.All(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId) && string.Equals(r.AdnSubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase)))
@@ -280,7 +303,7 @@ public class PaymentService : IPaymentService
                 SubscriptionIds = registrations.Where(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId)).ToDictionary(r => r.RegistrationId, r => r.AdnSubscriptionId!)
             };
         }
-        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(request.JobId);
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
         {
             return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
@@ -288,7 +311,7 @@ public class PaymentService : IPaymentService
         var env = _adnApiService.GetADNEnvironment();
         var schedule = BuildArbSchedule(job.AdnArbbillingOccurences, job.AdnArbintervalLength, job.AdnArbstartDate);
         var (occur, intervalLen, start) = schedule;
-        NormalizeProcessingFees(registrations, request.JobId, userId);
+        NormalizeProcessingFees(registrations, jobId, userId);
         await _registrations.SaveChangesAsync();
         var args = new ArbSubArgs(env, credentials.AdnLoginId!, credentials.AdnTransactionKey!, occur, intervalLen, start, cc, userId);
         var (subs, failed) = await CreateArbSubscriptionsAsync(registrations, args);
@@ -297,24 +320,24 @@ public class PaymentService : IPaymentService
         // Always attempt confirmation email after any successful subscription creation.
         if (response.Success && subs.Count > 0)
         {
-            await TrySendConfirmationEmailAsync(request.JobId, request.FamilyUserId.ToString(), userId);
+            await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
         }
         return response;
     }
 
-    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal totalAmount)
+    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total)
     {
-        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(request.JobId);
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
         {
             return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
         }
         var env = _adnApiService.GetADNEnvironment();
-        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey) && await IsDuplicateAsync(request))
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey) && await IsDuplicateAsync(jobId, familyUserId, request))
             return new PaymentResponseDto { Success = true, Message = "Duplicate prevented (idempotent).", ErrorCode = "DUPLICATE_PREVENTED" };
         // Build deterministic invoice number using first registration (pattern: customerAI_jobAI_registrationAI)
         var invoiceReg = registrations[0];
-        var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(request.JobId, invoiceReg.RegistrationId);
+        var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
         var response = _adnApiService.ADN_Charge(new AdnChargeRequest(
             Env: env,
             LoginId: credentials.AdnLoginId!,
@@ -328,7 +351,7 @@ public class PaymentService : IPaymentService
             Zip: cc.Zip!,
             Email: cc.Email!,
             Phone: cc.Phone!,
-            Amount: totalAmount,
+            Amount: total,
             InvoiceNumber: invoiceNumber,
             Description: "Registration Payment"
         ));
@@ -352,7 +375,7 @@ public class PaymentService : IPaymentService
             }
             await _registrations.SaveChangesAsync();
             // Attempt confirmation email after successful charge (always send, never gated by prior sends)
-            await TrySendConfirmationEmailAsync(request.JobId, request.FamilyUserId.ToString(), userId);
+            await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
             return new PaymentResponseDto
             {
                 Success = true,
@@ -470,10 +493,10 @@ public class PaymentService : IPaymentService
         return new PaymentResponseDto { Success = false, Message = $"{subs.Count} subscription(s) created; {failed.Count} failed.", ErrorCode = "ARB_PARTIAL_FAIL", SubscriptionIds = subs, FailedSubscriptionIds = failed };
     }
 
-    private async Task<bool> IsDuplicateAsync(PaymentRequestDto request)
+    private async Task<bool> IsDuplicateAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
     {
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey)) return false;
-        return await _acct.AnyDuplicateAsync(request.JobId, request.FamilyUserId.ToString(), request.IdempotencyKey);
+        return await _acct.AnyDuplicateAsync(jobId, familyUserId, request.IdempotencyKey);
     }
 
     private static PaymentResponseDto Fail(string msg, string code) => new PaymentResponseDto { Success = false, Message = msg, ErrorCode = code };

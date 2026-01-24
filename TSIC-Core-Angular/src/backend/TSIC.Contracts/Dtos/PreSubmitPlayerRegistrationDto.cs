@@ -6,7 +6,6 @@ namespace TSIC.Contracts.Dtos
     public class PreSubmitPlayerRegistrationRequestDto
     {
         public required string JobPath { get; set; } = string.Empty;
-        public required string FamilyUserId { get; set; } = string.Empty;
         public required List<PreSubmitTeamSelectionDto> TeamSelections { get; set; } = new();
     }
 

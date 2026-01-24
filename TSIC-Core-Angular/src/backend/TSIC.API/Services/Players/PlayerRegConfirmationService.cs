@@ -44,6 +44,17 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
         return new PlayerRegConfirmationDto(tsic, insurance, html);
     }
 
+    public async Task<PlayerRegConfirmationDto> BuildAsync(string jobPath, string familyUserId, CancellationToken ct)
+    {
+        var jobId = await _jobRepo.GetJobIdByPathAsync(jobPath, ct);
+        if (jobId == null)
+        {
+            _logger.LogWarning("Confirmation build: job {JobPath} not found", jobPath);
+            return EmptyDto();
+        }
+        return await BuildAsync(jobId.Value, familyUserId, ct);
+    }
+
     public async Task<(string Subject, string Html)> BuildEmailAsync(Guid jobId, string familyUserId, CancellationToken ct)
     {
         // For email, use the Job.PlayerRegConfirmationEmail template (not the on-screen variant)
@@ -75,6 +86,17 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
             _logger.LogError(ex, "Email substitution failed for jobPath {JobPath}", job.JobPath);
             return (subject, string.Empty);
         }
+    }
+
+    public async Task<(string Subject, string Html)> BuildEmailAsync(string jobPath, string familyUserId, CancellationToken ct)
+    {
+        var jobId = await _jobRepo.GetJobIdByPathAsync(jobPath, ct);
+        if (jobId == null)
+        {
+            _logger.LogWarning("Email confirmation build: job {JobPath} not found", jobPath);
+            return (string.Empty, string.Empty);
+        }
+        return await BuildEmailAsync(jobId.Value, familyUserId, ct);
     }
 
     private async Task<PlayerRegTsicFinancialDto> BuildTsicFinancialAsync(List<RegistrationConfirmationData> regs, CancellationToken ct)

@@ -22,6 +22,14 @@ public interface IFamilyRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get registrations for a family within a specific job (by jobPath) with included user and team data
+    /// </summary>
+    Task<List<Registrations>> GetFamilyRegistrationsForJobAsync(
+        string jobPath,
+        string familyUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get family contact information for insurance purposes.
     /// </summary>
     Task<FamilyContactInfo?> GetFamilyContactAsync(string familyUserId, CancellationToken cancellationToken = default);

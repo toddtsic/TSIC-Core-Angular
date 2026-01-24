@@ -4,8 +4,7 @@
 /* eslint-disable */
 import type { ApplyDiscountItemDto } from './ApplyDiscountItemDto';
 export type ApplyDiscountRequestDto = {
-    jobId: string;
-    familyUserId: string;
+    jobPath: string;
     code: string;
     items: Array<ApplyDiscountItemDto>;
 };

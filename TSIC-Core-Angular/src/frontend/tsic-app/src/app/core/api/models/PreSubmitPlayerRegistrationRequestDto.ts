@@ -5,7 +5,6 @@
 import type { PreSubmitTeamSelectionDto } from './PreSubmitTeamSelectionDto';
 export type PreSubmitPlayerRegistrationRequestDto = {
     jobPath: string;
-    familyUserId: string;
     teamSelections: Array<PreSubmitTeamSelectionDto>;
 };
 

@@ -15,6 +15,7 @@ using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Shared.UsLax;
+using TSIC.API.Services.Shared.Jobs;
 using Microsoft.Extensions.Logging;
 
 namespace TSIC.API.Controllers;
@@ -23,15 +24,18 @@ namespace TSIC.API.Controllers;
 [Route("api/player-registration")]
 public class PlayerRegistrationPaymentController : ControllerBase
 {
+    private readonly IJobLookupService _jobLookupService;
     private readonly IPaymentService _paymentService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
 
     public PlayerRegistrationPaymentController(
+        IJobLookupService jobLookupService,
         IPaymentService paymentService,
         IJobDiscountCodeRepository discountCodeRepo,
         ILogger<PlayerRegistrationPaymentController> logger)
     {
+        _jobLookupService = jobLookupService;
         _paymentService = paymentService;
         _discountCodeRepo = discountCodeRepo;
         _logger = logger;
@@ -44,20 +48,20 @@ public class PlayerRegistrationPaymentController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> SubmitPayment([FromBody] PaymentRequestDto request)
     {
-        _logger.LogInformation("SubmitPayment invoked: jobId={JobId} familyUserId={FamilyUserId} option={Option}", request?.JobId, request?.FamilyUserId, request?.PaymentOption);
-        if (request == null || request.CreditCard == null)
+        _logger.LogInformation("SubmitPayment invoked: jobPath={JobPath} option={Option}", request?.JobPath, request?.PaymentOption);
+        if (request == null || request.CreditCard == null || string.IsNullOrWhiteSpace(request.JobPath))
         {
             return BadRequest(new { message = "Invalid payment request" });
         }
 
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-        if (!string.Equals(callerId, request.FamilyUserId.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            return Forbid();
-        }
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
 
-        var result = await _paymentService.ProcessPaymentAsync(request, callerId);
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        var result = await _paymentService.ProcessPaymentAsync(jobId.Value, familyUserId, request, familyUserId);
         _logger.LogInformation("SubmitPayment completed: success={Success} errorCode={ErrorCode} txn={Txn} subId={SubId}", result.Success, result.ErrorCode, result.TransactionId, result.SubscriptionId);
 
         // Always return structured PaymentResponseDto to client (200) so UI can display message
@@ -76,22 +80,22 @@ public class PlayerRegistrationPaymentController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> ApplyDiscount([FromBody] ApplyDiscountRequestDto request)
     {
-        _logger.LogInformation("ApplyDiscount invoked: jobId={JobId} familyUserId={FamilyUserId} code={Code} items={ItemCount}", request?.JobId, request?.FamilyUserId, request?.Code, request?.Items?.Count);
-        if (request == null || string.IsNullOrWhiteSpace(request.Code) || request.Items == null)
+        _logger.LogInformation("ApplyDiscount invoked: jobPath={JobPath} code={Code} items={ItemCount}", request?.JobPath, request?.Code, request?.Items?.Count);
+        if (request == null || string.IsNullOrWhiteSpace(request.Code) || request.Items == null || string.IsNullOrWhiteSpace(request.JobPath))
         {
             return BadRequest(new { message = "Invalid request" });
         }
 
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-        if (!string.Equals(callerId, request.FamilyUserId.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            return Forbid();
-        }
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
 
         var now = DateTime.UtcNow;
         var codeLower = request.Code.Trim().ToLowerInvariant();
-        var rec = await _discountCodeRepo.GetActiveCodeAsync(request.JobId, codeLower, now);
+        var rec = await _discountCodeRepo.GetActiveCodeAsync(jobId.Value, codeLower, now);
 
         var response = new ApplyDiscountResponseDto();
         if (rec == null)

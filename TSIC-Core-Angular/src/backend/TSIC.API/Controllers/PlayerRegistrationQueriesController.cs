@@ -31,29 +31,27 @@ public class PlayerRegistrationQueriesController : ControllerBase
     /// <summary>
     /// Returns an existing registration snapshot for a family user in the context of a job.
     /// Shape is compatible with the wizard prefill expectations: teams per player and form values per player.
+    /// Family user ID is extracted from JWT claims (sub).
     /// </summary>
     [HttpGet("existing")]
     [Authorize]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
     [ProducesResponseType(404)]
-    public async Task<IActionResult> GetExistingRegistration([FromQuery] string jobPath, [FromQuery] string familyUserId)
+    public async Task<IActionResult> GetExistingRegistration([FromQuery] string jobPath)
     {
-        if (string.IsNullOrWhiteSpace(jobPath) || string.IsNullOrWhiteSpace(familyUserId))
+        if (string.IsNullOrWhiteSpace(jobPath))
         {
-            return BadRequest(new { message = "jobPath and familyUserId are required" });
+            return BadRequest(new { message = "jobPath is required" });
         }
 
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-        if (!string.Equals(callerId, familyUserId, StringComparison.OrdinalIgnoreCase))
-        {
-            return Forbid();
-        }
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
 
         try
         {
-            var result = await _queryService.GetExistingRegistrationAsync(jobPath, familyUserId, callerId);
+            var result = await _queryService.GetExistingRegistrationAsync(jobPath, familyUserId, familyUserId);
             return Ok(result);
         }
         catch (KeyNotFoundException)
@@ -65,33 +63,31 @@ public class PlayerRegistrationQueriesController : ControllerBase
     /// <summary>
     /// Returns a flat list of registrations (one row per registration) for a given family within a job.
     /// Useful for payment/checkout flows where each team/camp is a distinct registration.
+    /// Family user ID is extracted from JWT claims (sub).
     /// </summary>
     [HttpGet("family-registrations")]
     [Authorize]
     [ProducesResponseType(typeof(IEnumerable<FamilyRegistrationItemDto>), 200)]
-    public async Task<IActionResult> GetFamilyRegistrations([FromQuery] string jobPath, [FromQuery] string familyUserId)
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetFamilyRegistrations([FromQuery] string jobPath)
     {
-        var err = ValidateFamilyRequest(jobPath, familyUserId);
-        if (err is IActionResult early) return early;
+        if (string.IsNullOrWhiteSpace(jobPath))
+            return BadRequest(new { message = "jobPath is required" });
+        
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
+        
         try
         {
-            var result = await _queryService.GetFamilyRegistrationsAsync(jobPath, familyUserId, User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _queryService.GetFamilyRegistrationsAsync(jobPath, familyUserId, familyUserId);
             return Ok(result);
         }
         catch (KeyNotFoundException)
         {
             return NotFound(new { message = $"Job not found: {jobPath}" });
         }
-    }
-
-    private IActionResult? ValidateFamilyRequest(string jobPath, string familyUserId)
-    {
-        if (string.IsNullOrWhiteSpace(jobPath) || string.IsNullOrWhiteSpace(familyUserId))
-            return BadRequest(new { message = "jobPath and familyUserId are required" });
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-        if (!string.Equals(callerId, familyUserId, StringComparison.OrdinalIgnoreCase)) return Forbid();
-        return null;
     }
 
 }

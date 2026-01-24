@@ -16,10 +16,7 @@ public sealed class ApplyDiscountItemDto
 public sealed class ApplyDiscountRequestDto
 {
     [Required]
-    public Guid JobId { get; set; }
-
-    [Required]
-    public Guid FamilyUserId { get; set; }
+    public string JobPath { get; set; } = string.Empty;
 
     [Required]
     public string Code { get; set; } = string.Empty;

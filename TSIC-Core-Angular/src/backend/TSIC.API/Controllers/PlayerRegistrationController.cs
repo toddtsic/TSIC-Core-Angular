@@ -43,20 +43,18 @@ public class PlayerRegistrationController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> PreSubmitRegistration([FromBody] TSIC.Contracts.Dtos.PreSubmitPlayerRegistrationRequestDto request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.JobPath) || string.IsNullOrWhiteSpace(request.FamilyUserId))
+        if (request == null || string.IsNullOrWhiteSpace(request.JobPath))
             return BadRequest(new { message = "Invalid preSubmit request" });
 
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-        if (!string.Equals(callerId, request.FamilyUserId, StringComparison.OrdinalIgnoreCase))
-            return Forbid();
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
 
         var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
         if (jobId is null)
             return NotFound(new { message = $"Job not found: {request.JobPath}" });
 
         // Delegate heavy lifting to service
-        var response = await _registrationService.PreSubmitAsync(jobId.Value, request.FamilyUserId, request, callerId);
+        var response = await _registrationService.PreSubmitAsync(jobId.Value, familyUserId, request, familyUserId);
         return Ok(response);
     }
 

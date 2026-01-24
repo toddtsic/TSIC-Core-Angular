@@ -12,9 +12,7 @@ public class AdnCredentialsViewModel
 public class PaymentRequestDto
 {
     [Required, JsonRequired]
-    public Guid JobId { get; set; }
-    [Required, JsonRequired]
-    public Guid FamilyUserId { get; set; }
+    public string JobPath { get; set; } = string.Empty;
     [Required, JsonRequired]
     public PaymentOption PaymentOption { get; set; }
     public CreditCardInfo? CreditCard { get; set; }

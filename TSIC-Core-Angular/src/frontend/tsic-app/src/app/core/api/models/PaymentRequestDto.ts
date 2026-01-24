@@ -5,8 +5,7 @@
 import type { CreditCardInfo } from './CreditCardInfo';
 import type { PaymentOption } from './PaymentOption';
 export type PaymentRequestDto = {
-    jobId: string;
-    familyUserId: string;
+    jobPath: string;
     paymentOption: PaymentOption;
     creditCard?: (null | CreditCardInfo);
     idempotencyKey?: string | null;

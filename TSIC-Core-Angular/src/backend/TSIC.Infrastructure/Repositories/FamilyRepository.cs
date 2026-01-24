@@ -39,6 +39,19 @@ public class FamilyRepository : IFamilyRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Registrations>> GetFamilyRegistrationsForJobAsync(
+        string jobPath,
+        string familyUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.Job)
+            .Where(r => r.Job.JobPath == jobPath && r.FamilyUserId == familyUserId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<FamilyContactInfo?> GetFamilyContactAsync(
         string familyUserId,
         CancellationToken cancellationToken = default)

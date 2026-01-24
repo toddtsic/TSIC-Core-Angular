@@ -4,7 +4,10 @@ namespace TSIC.API.Services.Payments;
 
 public interface IPaymentService
 {
-    Task<PaymentResponseDto> ProcessPaymentAsync(PaymentRequestDto request, string userId);
+    /// <summary>
+    /// Process player registration payment with jobId and familyUserId extracted from JWT claims.
+    /// </summary>
+    Task<PaymentResponseDto> ProcessPaymentAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId);
 
     /// <summary>
     /// Process team registration payment.
