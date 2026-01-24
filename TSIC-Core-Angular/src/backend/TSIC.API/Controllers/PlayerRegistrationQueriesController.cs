@@ -75,10 +75,10 @@ public class PlayerRegistrationQueriesController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(jobPath))
             return BadRequest(new { message = "jobPath is required" });
-        
+
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
-        
+
         try
         {
             var result = await _queryService.GetFamilyRegistrationsAsync(jobPath, familyUserId, familyUserId);
