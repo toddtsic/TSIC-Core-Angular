@@ -344,7 +344,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     }
 
     private handlePaymentContinue(): void {
-        if (this.tsicChargeDue()) return; // guard
+        if (this.tsicChargeDue()) return; // guard: this path is ONLY for no-payment-due scenarios
         // If insurance confirmed AND quotes present (premium due) OR insurance-only flow -> block and instruct.
         if ((this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) || this.viCcOnlyFlow()) {
             this.toast.show('Insurance premium requires credit card submission. Use "Proceed with Insurance Processing" after entering card details.', 'danger', 5000);
@@ -353,13 +353,12 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         // Treat existing stored policy (regSaverDetails) as a confirmed decision even if viConsent signal not set (persistence from earlier session)
         const policyOnFile = !!this.insuranceState.regSaverDetails();
         if (!this.insuranceState.offerPlayerRegSaver()) { this.advanceToConfirmation(); return; }
-        const noDecisionYet = !policyOnFile && !this.insuranceState.hasVerticalInsureDecision();
-        if (noDecisionYet) {
-            this.toast.show('Insurance is optional. Please Confirm Purchase or Decline to continue.', 'danger', 4000);
-            return;
-        }
-        if (this.insuranceState.verticalInsureDeclined()) { this.advanceToConfirmation(); return; }
-        if (this.insuranceState.verticalInsureConfirmed() || policyOnFile) { this.advanceToConfirmation(); }
+        // Since we're in the no-payment-due path (guard above), insurance decision is NOT required - just advance
+        // Only block if insurance was confirmed but requires CC processing (handled above)
+        if (this.insuranceState.verticalInsureDeclined() || policyOnFile) { this.advanceToConfirmation(); return; }
+        if (this.insuranceState.verticalInsureConfirmed()) { this.advanceToConfirmation(); return; }
+        // No decision yet, but no payment due either - just advance
+        this.advanceToConfirmation();
     }
     private advanceToConfirmation(): void {
         const confIdx = this.steps().indexOf('confirmation');

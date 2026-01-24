@@ -28,9 +28,9 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
                   <li class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                       <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
-                      @if (c.dob) { <div class="text-secondary small">DOB: {{ c.dob }}</div> }
-                      @if (c.email) { <div class="text-secondary small">Email: {{ c.email }}</div> }
-                      @if (c.phone) { <div class="text-secondary small">Cell: {{ c.phone }}</div> }
+                      @if (c.dob) { <div class="text-muted small">DOB: {{ c.dob }}</div> }
+                      @if (c.email) { <div class="text-muted small">Email: {{ c.email }}</div> }
+                      @if (c.phone) { <div class="text-muted small">Cell: {{ c.phone }}</div> }
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove($index)">Remove</button>
                   </li>
@@ -74,12 +74,12 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
           </div>
 
           <div class="col-12 col-md-6">
-            <label class="form-label" for="childEmail">Email <span class="text-secondary small">(optional)</span></label>
+            <label class="form-label" for="childEmail">Email <span class="text-muted small">(optional)</span></label>
             <input id="childEmail" type="email" formControlName="email" class="form-control" [class.is-invalid]="submitted && form.controls.email.errors?.['email']" />
             @if (submitted && form.controls.email.errors?.['email']) { <div class="invalid-feedback">Invalid email</div> }
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label" for="childPhone">Cellphone <span class="text-secondary small">(optional)</span></label>
+            <label class="form-label" for="childPhone">Cellphone <span class="text-muted small">(optional)</span></label>
             <input id="childPhone" type="tel" inputmode="numeric" pattern="\\d*" formControlName="phone" class="form-control"
               autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
               title="Numbers only" placeholder="Numbers only"

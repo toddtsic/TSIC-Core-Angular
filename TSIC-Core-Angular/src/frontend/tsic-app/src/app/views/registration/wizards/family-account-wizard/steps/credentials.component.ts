@@ -12,7 +12,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
         <h5 class="mb-0 fw-semibold">Create Login</h5>
-        <div class="text-secondary small">Choose a username and password for your new Family Account.</div>
+        <div class="text-muted small">Choose a username and password for your new Family Account.</div>
       </div>
       <div class="card-body">
         <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="row g-3">

@@ -45,7 +45,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
         <h5 class="mb-0 fw-semibold">Select Teams</h5>
       </div>
       <div class="card-body">
-  <p class="text-secondary mb-3">{{ helperText() }}</p>
+  <p class="text-muted mb-3">{{ helperText() }}</p>
         @if (loading()) {
           <div class="text-muted small">Loading teams...</div>
         } @else {
@@ -75,7 +75,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                         }
                       }
                       <!-- Selected teams pills above dropdown; for registered players, fall back to prior registrations if selectedTeams is empty -->
-                      <div class="small text-secondary mt-2">
+                      <div class="small text-muted mt-2">
                         <div class="fw-semibold mb-1">Selected teams</div>
                         <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
                           @for (id of selectedArrayFor(p.userId); track id) {

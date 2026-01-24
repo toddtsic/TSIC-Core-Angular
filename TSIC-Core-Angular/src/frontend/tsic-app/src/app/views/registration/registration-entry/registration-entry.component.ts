@@ -39,7 +39,7 @@ import { LoginComponent } from '../../auth/login/login.component';
           <div class="card shadow-sm border-0 card-rounded">
             <div class="card-body">
               <h5 class="fw-semibold mb-2">What would you like to do?</h5>
-              <p class="text-secondary small mb-3">You can go straight to Player Registration or review/update your Family Account first.</p>
+              <p class="text-muted small mb-3">You can go straight to Player Registration or review/update your Family Account first.</p>
               <div class="d-flex flex-column flex-sm-row gap-2">
                 <button type="button" class="btn btn-success" (click)="goRegister()">Continue to Player Registration</button>
                 <button type="button" class="btn btn-outline-primary" (click)="goFamilyReview()">Review/Update Family Account</button>

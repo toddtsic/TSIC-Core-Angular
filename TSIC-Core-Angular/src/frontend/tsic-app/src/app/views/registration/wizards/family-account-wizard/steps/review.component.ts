@@ -22,24 +22,24 @@ import { JobService } from '@infrastructure/services/job.service';
           <div class="col-12 col-md-6">
             <div class="border rounded p-3 h-100">
               <h6 class="fw-semibold mb-2">{{ label1() }} (primary)</h6>
-              <div class="small text-secondary">Name</div>
+              <div class="small text-muted">Name</div>
               <div>{{ state.parent1FirstName() }} {{ state.parent1LastName() }}</div>
-              <div class="small text-secondary mt-2">Cellphone</div>
+              <div class="small text-muted mt-2">Cellphone</div>
               <div>{{ state.parent1Phone() }}</div>
-              <div class="small text-secondary mt-2">Email</div>
+              <div class="small text-muted mt-2">Email</div>
               <div>{{ state.parent1Email() }}</div>
-              <div class="small text-secondary mt-2">Username</div>
+              <div class="small text-muted mt-2">Username</div>
               <div>{{ state.username() || '—' }}</div>
             </div>
           </div>
           <div class="col-12 col-md-6">
             <div class="border rounded p-3 h-100">
               <h6 class="fw-semibold mb-2">{{ label2() }} (secondary)</h6>
-              <div class="small text-secondary">Name</div>
+              <div class="small text-muted">Name</div>
               <div>{{ state.parent2FirstName() }} {{ state.parent2LastName() }}</div>
-              <div class="small text-secondary mt-2">Cellphone</div>
+              <div class="small text-muted mt-2">Cellphone</div>
               <div>{{ state.parent2Phone() }}</div>
-              <div class="small text-secondary mt-2">Email</div>
+              <div class="small text-muted mt-2">Email</div>
               <div>{{ state.parent2Email() }}</div>
             </div>
           </div>
@@ -55,7 +55,7 @@ import { JobService } from '@infrastructure/services/job.service';
         </div>
 
         <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
-          @if (creating) { <span class="text-secondary small d-inline-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving your family account…</span> }
+          @if (creating) { <span class="text-muted small d-inline-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving your family account…</span> }
           @if (!creating && createSuccess) { <span class="text-success small">Family account saved.</span> }
           @if (!creating && createError) {
             <span class="text-danger small">{{ createError }}</span>
@@ -65,7 +65,7 @@ import { JobService } from '@infrastructure/services/job.service';
 
         <div class="mt-3">
           <h6 class="fw-semibold mb-2">Children</h6>
-          @if (state.children().length === 0) { <div class="text-secondary">No children added.</div> }
+          @if (state.children().length === 0) { <div class="text-muted">No children added.</div> }
           @if (state.children().length > 0) {
             <div class="table-responsive">
               <table class="table align-middle table-sm">

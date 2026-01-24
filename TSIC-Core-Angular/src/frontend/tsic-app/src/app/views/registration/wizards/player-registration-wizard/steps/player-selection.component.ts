@@ -45,7 +45,7 @@ import { environment } from '@environments/environment';
           <div class="fw-semibold">Loading Family Players...</div>
         </div>
         }
-        <p class="text-secondary mb-3">Select the players you wish to register.</p>
+        <p class="text-muted mb-3">Select the players you wish to register.</p>
 
         <!-- Fallback to classic *ngIf / *ngFor for widest compatibility -->
         @if (!state.familyPlayersLoading() && state.familyPlayers().length === 0) {

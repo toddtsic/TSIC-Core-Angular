@@ -45,7 +45,7 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
                 </select>
                 <div class="form-text d-flex align-items-center gap-2 mt-1">
                   <span class="d-inline-block rounded" style="width:18px;height:18px;" [style.background]="'var(' + form.controls['primaryToken'].value + ')'"> </span>
-                  <span class="text-secondary small">Preview</span>
+                  <span class="text-muted small">Preview</span>
                 </div>
               </div>
               <div class="col-6 col-md-3">
@@ -78,7 +78,7 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
               <button type="button" class="btn btn-outline-secondary" (click)="reset()">Reset</button>
             </div>
   
-            <p class="text-secondary small mt-2 mb-0">Note: Saved themes persist in this browser. Hooking up server persistence can be added later.</p>
+            <p class="text-muted small mt-2 mb-0">Note: Saved themes persist in this browser. Hooking up server persistence can be added later.</p>
           </div>
         </div>
       </div>
@@ -91,7 +91,7 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
             <p class="mb-0 opacity-75">Gradient + text contrast</p>
           </div>
           <div class="card-body">
-            <p class="text-secondary">Buttons, text, and surfaces preview below.</p>
+            <p class="text-muted">Buttons, text, and surfaces preview below.</p>
             <div class="d-flex flex-wrap gap-2">
               <button type="button" class="btn btn-primary">Primary</button>
               <button type="button" class="btn btn-outline-primary">Outline</button>

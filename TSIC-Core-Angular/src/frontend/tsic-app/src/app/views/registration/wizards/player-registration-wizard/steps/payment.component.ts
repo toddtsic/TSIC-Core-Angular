@@ -312,11 +312,12 @@ export class PaymentComponent implements AfterViewInit {
 
   submit(): void {
     if (this.submitting) return;
-    // Gate: require insurance decision ONLY if offered AND user has not confirmed nor declined AND no existing stored policy.
+    // Gate: require insurance decision ONLY if offered AND user has not confirmed nor declined AND no existing stored policy AND payment is actually due.
     const needInsuranceDecision = this.insuranceState.offerPlayerRegSaver()
       && !this.insuranceState.verticalInsureConfirmed()
       && !this.insuranceState.verticalInsureDeclined()
-      && !this.state.regSaverDetails();
+      && !this.state.regSaverDetails()
+      && this.tsicChargeDueNow();
     if (needInsuranceDecision && this.isViOfferVisible()) {
       this.toast.show('Insurance is optional. Please Confirm Purchase or Decline to continue.', 'danger', 4000);
       return;

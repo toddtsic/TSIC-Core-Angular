@@ -32,7 +32,7 @@
               spellcheck="false" aria-label="Password"
               [class.is-invalid]="submitted() && form.get('password')?.invalid">
             <button type="button"
-              class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-secondary p-0 border-0"
+              class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted p-0 border-0"
               style="width: 40px; height: 40px;" (click)="toggleShowPassword()"
               [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
               @if (!showPassword()) {

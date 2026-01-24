@@ -16,7 +16,7 @@ import type { JobMetadataResponse } from '@core/api';
         <h5 class="mb-0 fw-semibold">{{ headingText() }}</h5>
       </div>
       <div class="card-body">
-        <p class="text-secondary mb-3">{{ helperText() }}</p>
+        <p class="text-muted mb-3">{{ helperText() }}</p>
 
         @if (loading()) {
           <div class="text-muted small">Loading eligibility options...</div>
