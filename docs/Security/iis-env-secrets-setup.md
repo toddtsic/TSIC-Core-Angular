@@ -2,6 +2,8 @@
 
 Use IIS app pool environment variables so secrets never live in appsettings or web.config. Apply on the server hosting TSIC API.
 
+Deployment note: keep real values in an untracked local copy (docs/Security/iis-env-secrets-setup.local.ps1). This file is a template to avoid committing secrets.
+
 ## 1) Set variables on the App Pool
 Replace `TSIC-API` with your app pool name. APPPOOL SHOULD BE TSIC.API
 
