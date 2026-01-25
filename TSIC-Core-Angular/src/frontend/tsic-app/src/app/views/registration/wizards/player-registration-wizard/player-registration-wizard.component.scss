@@ -1,25 +1,185 @@
-/**
- * Player Registration Wizard Component Styles
- * 
- * This component uses global wizard patterns defined in:
- * - src/styles/_wizard-globals.scss (mixin wizard-card-theme, wizard-container)
- * - src/styles/wizard-layout.scss (.wizard-fixed-header, .wizard-scrollable-content)
- * - src/styles/_action-bar.scss (.action-bar styling)
- * 
- * Only component-specific overrides should be added here.
- */
+/* Player wizard layout styles
+   NOTE: .wizard-fixed-header and .wizard-scrollable-content are now global classes
+   defined in src/app/shared/styles/wizard-layout.scss
+*/
 
-/* Container layout is provided by global mixin via .rw-wizard-container */
 .rw-wizard-container {
-    /* Layout defined globally in _wizard-globals.scss via @mixin wizard-container */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
-/* Card styling is provided by global mixin via .card.wizard-theme-player */
+/* Player wizard card styling - standardized across both wizards */
+
 .card.wizard-theme-player {
-    /* Card styling defined globally in _wizard-globals.scss via @mixin wizard-card-theme */
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-card-bg);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    margin-bottom: var(--space-4);
+
+    .card-body {
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        padding: var(--space-4);
+        transition: background-color 0.3s ease, color 0.3s ease;
+
+        @media (max-width: 768px) {
+            padding: var(--space-3);
+        }
+
+        @media (max-width: 576px) {
+            padding: var(--space-2);
+        }
+    }
+
+    .alert {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--bs-border-color);
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        transition: all 0.3s ease;
+
+        &.alert-info {
+            border-color: var(--bs-info);
+            background-color: rgba(var(--bs-info-rgb), 0.1);
+        }
+
+        &.alert-warning {
+            border-color: var(--bs-warning);
+            background-color: rgba(var(--bs-warning-rgb), 0.1);
+        }
+
+        &.alert-danger {
+            border-color: var(--bs-danger);
+            background-color: rgba(var(--bs-danger-rgb), 0.1);
+        }
+
+        &.alert-success {
+            border-color: var(--bs-success);
+            background-color: rgba(var(--bs-success-rgb), 0.1);
+        }
+
+        &.alert-secondary {
+            border-color: var(--bs-secondary);
+            background-color: rgba(var(--bs-secondary-rgb), 0.1);
+        }
+    }
 }
 
-/* Title styling is provided globally via _wizard-globals.scss */
 h2#rw-title {
-    /* Styling defined globally via @mixin wizard-title-base */
+    color: var(--bs-body-color);
+    transition: color 0.3s ease;
+}
+
+/* Responsive adjustments for action bar */
+@media (max-width: 576px) {
+    .rw-toolbar {
+        .badge {
+            padding: calc(var(--space-0\.5) * 0.6) calc(var(--space-1) + var(--space-0\.5));
+            font-size: calc(var(--font-size-xs) + var(--space-0\.5));
+            line-height: 1.1;
+        }
+
+        .btn-group>.btn,
+        .btn {
+            --bs-btn-padding-y: calc(var(--space-0\.5) * 0.8);
+            --bs-btn-padding-x: var(--space-2);
+            --bs-btn-font-size: calc(var(--font-size-xs) + var(--space-0\.5));
+            line-height: 1.2;
+        }
+
+        .btn .bi {
+            font-size: 0.9em;
+        }
+    }
+}
+
+/* VerticalInsure Widget Dark Mode Overrides */
+/* The widget injects hardcoded white backgrounds and black text, so we need !important */
+#dVIOffer {
+
+    /* Override injected background colors */
+    * {
+        background-color: var(--bs-card-bg) !important;
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+    }
+
+    /* Specific overrides for common widget elements */
+    div,
+    span,
+    p,
+    label,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        color: var(--bs-body-color) !important;
+    }
+
+    /* Card/panel backgrounds */
+    .card,
+    .panel,
+    [class*="box"],
+    [class*="container"] {
+        background-color: var(--bs-card-bg) !important;
+        border-color: var(--bs-border-color) !important;
+    }
+
+    /* Input fields */
+    input,
+    select,
+    textarea {
+        background-color: var(--bs-body-bg) !important;
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+
+        &::placeholder {
+            color: var(--bs-secondary-color) !important;
+        }
+    }
+
+    /* Buttons - preserve their intended colors but adapt text */
+    button,
+    [role="button"],
+    .btn {
+        &:not([style*="background"]) {
+            background-color: var(--bs-btn-bg) !important;
+            color: var(--bs-btn-color) !important;
+            border-color: var(--bs-border-color) !important;
+        }
+    }
+
+    /* Links */
+    a {
+        color: var(--bs-link-color) !important;
+
+        &:hover {
+            color: var(--bs-link-hover-color) !important;
+        }
+    }
+
+    /* Tables */
+    table {
+        background-color: var(--bs-card-bg) !important;
+        color: var(--bs-body-color) !important;
+
+        th,
+        td {
+            border-color: var(--bs-border-color) !important;
+            background-color: inherit !important;
+            color: inherit !important;
+        }
+    }
+
+    /* Checkboxes and radio buttons - keep visible */
+    input[type="checkbox"],
+    input[type="radio"] {
+        opacity: 1 !important;
+        filter: brightness(1.2) !important;
+    }
 }
