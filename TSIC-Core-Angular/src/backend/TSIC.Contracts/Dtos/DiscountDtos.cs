@@ -31,4 +31,6 @@ public sealed class ApplyDiscountResponseDto
     public string? Message { get; set; }
     public decimal TotalDiscount { get; set; }
     public Dictionary<string, decimal> PerPlayer { get; set; } = new();
+    // Optional: updated financials per playerId (key = playerId/UserId)
+    public Dictionary<string, RegistrationFinancialsDto> UpdatedFinancials { get; set; } = new();
 }

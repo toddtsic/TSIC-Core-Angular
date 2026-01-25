@@ -334,6 +334,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
                 // Optionally, display a message to the user (implement your own notification system)
                 alert('One or more selected teams are full. Please update your selections.');
             } else {
+                const jobPath = this.state.jobPath();
+                try { await this.state.loadFamilyPlayersOnce(jobPath); } catch (err) { console.warn('[PRW] refresh family players failed', err); }
                 // All teams OK, proceed to Forms or Payment
                 const nextIdx = this.steps().indexOf(result.nextTab === 'Forms' ? 'forms' : 'payment');
                 if (nextIdx >= 0) this.currentIndex.set(nextIdx);

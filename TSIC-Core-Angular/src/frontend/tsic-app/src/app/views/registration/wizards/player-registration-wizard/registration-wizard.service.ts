@@ -209,37 +209,65 @@ export class RegistrationWizardService {
      * Minimal auth gating: skip call if no stored access token (prevents expected 401 on hard refresh deep-link).
      */
     loadFamilyPlayers(jobPath: string): void {
-        if (!jobPath) return;
-        if (!localStorage.getItem('auth_token')) {
-            try { console.debug('[RegWizard] loadFamilyPlayers skipped (no auth token)'); } catch { /* no-op */ }
-            return;
-        }
+        if (!this.shouldLoadFamily(jobPath)) return;
         const base = this.resolveApiBase();
         try { console.debug('[RegWizard] GET family players', { jobPath, base }); } catch { /* no-op */ }
         this.familyPlayersLoading.set(true);
         this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
-                    this.debugFamilyPlayersResp.set(resp);
-                    this.extractConstraintType(resp);
-                    this.applyFamilyUser(resp);
-                    this.applyRegSaverDetails(resp);
-                    const players = this.buildFamilyPlayersList(resp);
-                    this.familyPlayers.set(players);
-                    this.prefillTeamsFromPriorRegistrations(players);
-                    this.ensureJobMetadata(jobPath);
-                    this.applyPaymentFlags(resp);
+                    this.handleFamilyPlayersSuccess(resp, jobPath);
                     this.familyPlayersLoading.set(false);
                 },
                 error: err => {
-                    try { console.warn('[RegWizard] Failed to load family players', err); } catch { /* no-op */ }
-                    this.familyPlayers.set([]);
-                    this.familyUser.set(null);
-                    this.regSaverDetails.set(null);
-                    this.debugFamilyPlayersResp.set(null);
+                    this.handleFamilyPlayersError(err);
                     this.familyPlayersLoading.set(false);
                 }
             });
+    }
+
+    async loadFamilyPlayersOnce(jobPath: string): Promise<void> {
+        if (!this.shouldLoadFamily(jobPath)) return;
+        const base = this.resolveApiBase();
+        this.familyPlayersLoading.set(true);
+        try {
+            const resp = await firstValueFrom(this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } }));
+            this.handleFamilyPlayersSuccess(resp, jobPath);
+        } catch (err) {
+            this.handleFamilyPlayersError(err);
+            throw err;
+        } finally {
+            this.familyPlayersLoading.set(false);
+        }
+    }
+
+    private shouldLoadFamily(jobPath: string | null | undefined): boolean {
+        if (!jobPath) return false;
+        if (!localStorage.getItem('auth_token')) {
+            try { console.debug('[RegWizard] loadFamilyPlayers skipped (no auth token)'); } catch { /* no-op */ }
+            return false;
+        }
+        return true;
+    }
+
+    private handleFamilyPlayersSuccess(resp: FamilyPlayersResponseDto, jobPath: string): void {
+        this.debugFamilyPlayersResp.set(resp);
+        this.extractConstraintType(resp);
+        this.applyFamilyUser(resp);
+        this.applyRegSaverDetails(resp);
+        const players = this.buildFamilyPlayersList(resp);
+        this.familyPlayers.set(players);
+        this.prefillTeamsFromPriorRegistrations(players);
+        this.ensureJobMetadata(jobPath);
+        this.applyPaymentFlags(resp);
+    }
+
+    private handleFamilyPlayersError(err: any): void {
+        try { console.warn('[RegWizard] Failed to load family players', err); } catch { /* no-op */ }
+        this.familyPlayers.set([]);
+        this.familyUser.set(null);
+        this.regSaverDetails.set(null);
+        this.debugFamilyPlayersResp.set(null);
     }
 
     private extractConstraintType(resp: FamilyPlayersResponseDto): void {

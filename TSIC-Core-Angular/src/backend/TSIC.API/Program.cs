@@ -103,6 +103,7 @@ builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
 builder.Services.AddScoped<IPlayerRegistrationFeeService, PlayerRegistrationFeeService>();
 builder.Services.AddScoped<IPlayerRegistrationMetadataService, PlayerRegistrationMetadataService>();
+builder.Services.AddScoped<IRegistrationFeeAdjustmentService, RegistrationFeeAdjustmentService>();
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();

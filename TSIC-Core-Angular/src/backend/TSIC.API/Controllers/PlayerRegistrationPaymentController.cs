@@ -1,22 +1,23 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-using TSIC.Contracts.Dtos;
-using TSIC.Contracts.Services;
-using TSIC.Contracts.Repositories;
-using TSIC.API.Services.Players;
-using TSIC.API.Services.Teams;
-using TSIC.API.Services.Families;
-using TSIC.API.Services.Clubs;
-using TSIC.API.Services.Payments;
-using TSIC.API.Services.Metadata;
-using TSIC.API.Services.Shared;
-using TSIC.API.Services.Shared.VerticalInsure;
-using TSIC.API.Services.Auth;
-using TSIC.API.Services.Email;
-using TSIC.API.Services.Shared.UsLax;
-using TSIC.API.Services.Shared.Jobs;
 using Microsoft.Extensions.Logging;
+using System.Linq;
+using System.Security.Claims;
+using TSIC.API.Services.Auth;
+using TSIC.API.Services.Clubs;
+using TSIC.API.Services.Email;
+using TSIC.API.Services.Families;
+using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Payments;
+using TSIC.API.Services.Players;
+using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.Jobs;
+using TSIC.API.Services.Shared.UsLax;
+using TSIC.API.Services.Shared.VerticalInsure;
+using TSIC.API.Services.Teams;
+using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
 
@@ -28,16 +29,25 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IPaymentService _paymentService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
+    private readonly IRegistrationRepository _registrations;
+    private readonly IRegistrationRecordFeeCalculatorService _feeCalc;
+    private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
 
     public PlayerRegistrationPaymentController(
         IJobLookupService jobLookupService,
         IPaymentService paymentService,
         IJobDiscountCodeRepository discountCodeRepo,
+        IRegistrationRepository registrations,
+        IRegistrationRecordFeeCalculatorService feeCalc,
+        IRegistrationFeeAdjustmentService feeAdjustment,
         ILogger<PlayerRegistrationPaymentController> logger)
     {
         _jobLookupService = jobLookupService;
         _paymentService = paymentService;
         _discountCodeRepo = discountCodeRepo;
+        _registrations = registrations;
+        _feeCalc = feeCalc;
+        _feeAdjustment = feeAdjustment;
         _logger = logger;
     }
 
@@ -172,6 +182,61 @@ public class PlayerRegistrationPaymentController : ControllerBase
         response.Success = totalDiscount > 0m;
         response.TotalDiscount = totalDiscount;
         response.PerPlayer = perPlayer;
+
+        // Persist discount to registrations (one discount max per registration)
+        var requestedPlayerIds = new HashSet<string>(items.Select(i => i.PlayerId).Where(p => !string.IsNullOrWhiteSpace(p)), StringComparer.OrdinalIgnoreCase);
+        var regs = await _registrations.GetByJobAndFamilyUserIdAsync(jobId.Value, familyUserId, activePlayersOnly: true);
+        var targetRegs = regs.Where(r => !string.IsNullOrWhiteSpace(r.UserId) && requestedPlayerIds.Contains(r.UserId!)).ToList();
+        if (!targetRegs.Any())
+        {
+            response.Success = false;
+            response.Message = "No matching registrations for discount";
+            response.TotalDiscount = 0m;
+            response.PerPlayer.Clear();
+            return Ok(response);
+        }
+        var alreadyDiscounted = targetRegs.FirstOrDefault(r => r.FeeDiscount > 0m);
+        if (alreadyDiscounted != null)
+        {
+            response.Success = false;
+            response.Message = "A discount is already applied for this registration";
+            response.TotalDiscount = 0m;
+            response.PerPlayer.Clear();
+            return Ok(response);
+        }
+
+        foreach (var reg in targetRegs)
+        {
+            if (reg.UserId == null) continue;
+            if (!perPlayer.TryGetValue(reg.UserId, out var d) || d <= 0m) continue;
+            var newDiscount = reg.FeeDiscount + d;
+            
+            // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
+            await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, d, jobId.Value, familyUserId);
+            
+            // Recalculate totals with updated processing fee
+            var (proc, totalFee) = _feeCalc.ComputeTotals(reg.FeeBase, newDiscount, reg.FeeDonation, 
+                reg.FeeProcessing > 0m ? reg.FeeProcessing : null);
+            reg.FeeDiscount = newDiscount;
+            reg.FeeProcessing = proc;
+            reg.FeeTotal = totalFee;
+            reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
+            reg.Modified = DateTime.UtcNow;
+            reg.LebUserId = familyUserId;
+            response.UpdatedFinancials[reg.UserId] = new RegistrationFinancialsDto
+            {
+                FeeBase = reg.FeeBase,
+                FeeProcessing = reg.FeeProcessing,
+                FeeDiscount = reg.FeeDiscount,
+                FeeDonation = reg.FeeDonation,
+                FeeLateFee = reg.FeeLatefee,
+                FeeTotal = reg.FeeTotal,
+                OwedTotal = reg.OwedTotal,
+                PaidTotal = reg.PaidTotal
+            };
+        }
+
+        await _registrations.SaveChangesAsync();
         response.Message = response.Success ? "Discount applied" : "No discount applicable";
         _logger.LogInformation("ApplyDiscount completed: success={Success} totalDiscount={TotalDiscount} players={PlayerCount}", response.Success, response.TotalDiscount, response.PerPlayer?.Count);
         return Ok(response);

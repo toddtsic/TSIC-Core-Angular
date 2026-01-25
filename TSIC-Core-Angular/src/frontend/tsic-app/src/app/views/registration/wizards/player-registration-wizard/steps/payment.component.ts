@@ -48,21 +48,24 @@ import type { LineItem } from '../services/payment.service';
         }
     
         <app-payment-summary></app-payment-summary>
-        <!-- ARB subscription state messaging / option gating -->
-        @if (arbHideAllOptions()) {
-          <div class="alert alert-success border-0" role="status">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-success">✓ Paid in Full</span>
-              <div>All selected registrations have an active Automated Recurring Billing subscription. No payment action is required at this time.</div>
+        <!-- Payment Option section - only shown when amount is due -->
+        @if (currentTotal() > 0) {
+          <!-- ARB subscription state messaging / option gating -->
+          @if (arbHideAllOptions()) {
+            <div class="alert alert-success border-0" role="status">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success">✓ Paid in Full</span>
+                <div>All selected registrations have an active Automated Recurring Billing subscription. No payment action is required at this time.</div>
+              </div>
             </div>
-          </div>
-        } @else if (arbProblemAny()) {
-          <div class="alert alert-danger border-0" role="alert">
-            There is a problem with your Automated Recurring Billing. Please contact your club immediately.
-          </div>
-          <app-payment-option-selector></app-payment-option-selector>
-        } @else {
-          <app-payment-option-selector></app-payment-option-selector>
+          } @else if (arbProblemAny()) {
+            <div class="alert alert-danger border-0" role="alert">
+              There is a problem with your Automated Recurring Billing. Please contact your club immediately.
+            </div>
+            <app-payment-option-selector></app-payment-option-selector>
+          } @else {
+            <app-payment-option-selector></app-payment-option-selector>
+          }
         }
         <!-- RegSaver / VerticalInsure region (render only if offer is active and policy not already on file to avoid blank spacing) -->
         @if (insuranceState.offerPlayerRegSaver() && !state.regSaverDetails()) {
