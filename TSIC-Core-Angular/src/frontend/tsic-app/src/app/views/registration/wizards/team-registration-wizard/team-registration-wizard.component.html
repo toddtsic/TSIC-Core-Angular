@@ -46,7 +46,7 @@
           <!-- Registration Status Banner -->
           @if (isLoadingMetadata()) {
           <!-- Loading state -->
-          <div class="alert alert-secondary mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+          <div class="alert alert-secondary mb-0 d-flex align-items-center" role="alert">
             <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
             <div class="flex-grow-1">
               <strong>Loading...</strong> Checking registration status.
@@ -56,7 +56,7 @@
           <!-- Step-specific banner with contextual messaging (suppressed for RegisterTeams step) -->
           <div class="alert {{
               stepBannerConfig().alertClass
-            }} mb-0 rounded-0 rounded-top d-flex align-items-center" role="alert">
+            }} mb-0 d-flex align-items-center" role="alert">
             <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
             <div class="flex-grow-1">
               @if (stepBannerConfig().title) {

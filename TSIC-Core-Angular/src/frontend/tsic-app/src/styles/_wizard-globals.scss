@@ -2,93 +2,93 @@
 // Provides consistent card, alert, and container styling across all wizards.
 
 @mixin wizard-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  gap: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    gap: var(--space-3);
 }
 
 @mixin wizard-card-theme {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--bs-border-color);
-  background-color: var(--bs-card-bg);
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-  margin-bottom: var(--space-4);
-
-  .card-body {
-    background-color: var(--bs-surface);
-    color: var(--bs-body-color);
-    padding: var(--space-4);
-    transition: background-color 0.3s ease, color 0.3s ease;
-
-    @media (max-width: 768px) {
-      padding: var(--space-3);
-    }
-
-    @media (max-width: 576px) {
-      padding: var(--space-2);
-    }
-  }
-
-  .alert {
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--bs-border-color);
-    background-color: var(--bs-surface);
-    color: var(--bs-body-color);
-    transition: all 0.3s ease;
+    background-color: var(--bs-card-bg);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    margin-bottom: var(--space-4);
 
-    &.alert-info {
-      border-color: var(--bs-info);
-      background-color: rgba(var(--bs-info-rgb), 0.1);
+    .card-body {
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        padding: var(--space-4);
+        transition: background-color 0.3s ease, color 0.3s ease;
+
+        @media (max-width: 768px) {
+            padding: var(--space-3);
+        }
+
+        @media (max-width: 576px) {
+            padding: var(--space-2);
+        }
     }
 
-    &.alert-warning {
-      border-color: var(--bs-warning);
-      background-color: rgba(var(--bs-warning-rgb), 0.1);
-    }
+    .alert {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--bs-border-color);
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        transition: all 0.3s ease;
 
-    &.alert-danger {
-      border-color: var(--bs-danger);
-      background-color: rgba(var(--bs-danger-rgb), 0.1);
-    }
+        &.alert-info {
+            border-color: var(--bs-info);
+            background-color: rgba(var(--bs-info-rgb), 0.1);
+        }
 
-    &.alert-success {
-      border-color: var(--bs-success);
-      background-color: rgba(var(--bs-success-rgb), 0.1);
-    }
+        &.alert-warning {
+            border-color: var(--bs-warning);
+            background-color: rgba(var(--bs-warning-rgb), 0.1);
+        }
 
-    &.alert-secondary {
-      border-color: var(--bs-secondary);
-      background-color: rgba(var(--bs-secondary-rgb), 0.1);
+        &.alert-danger {
+            border-color: var(--bs-danger);
+            background-color: rgba(var(--bs-danger-rgb), 0.1);
+        }
+
+        &.alert-success {
+            border-color: var(--bs-success);
+            background-color: rgba(var(--bs-success-rgb), 0.1);
+        }
+
+        &.alert-secondary {
+            border-color: var(--bs-secondary);
+            background-color: rgba(var(--bs-secondary-rgb), 0.1);
+        }
     }
-  }
 }
 
 @mixin wizard-title {
-  color: var(--bs-body-color);
-  transition: color 0.3s ease;
+    color: var(--bs-body-color);
+    transition: color 0.3s ease;
 }
 
 // Containers
 .rw-wizard-container {
-  @include wizard-container;
+    @include wizard-container;
 }
 
 // Card themes
 .card.wizard-theme-player {
-  @include wizard-card-theme;
+    @include wizard-card-theme;
 }
 
 .card.wizard-theme-team {
-  @include wizard-card-theme;
+    @include wizard-card-theme;
 }
 
 // Titles
 h2#rw-title {
-  @include wizard-title;
+    @include wizard-title;
 }
 
 h2#tw-title {
-  @include wizard-title;
+    @include wizard-title;
 }

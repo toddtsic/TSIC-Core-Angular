@@ -23,11 +23,8 @@
             <h4 class="mb-0">Registered Teams</h4>
             <!-- Icon-only Excel export button (only when records exist) -->
             @if (registeredTeams().length > 0) {
-            <button type="button"
-                    class="btn btn-outline-success btn-sm export-btn"
-                    (click)="exportTeamsToExcel()"
-                    aria-label="Export registered teams to Excel"
-                    title="Export to Excel">
+            <button type="button" class="btn btn-outline-success btn-sm export-btn" (click)="exportTeamsToExcel()"
+                aria-label="Export registered teams to Excel" title="Export to Excel">
                 <i class="bi bi-file-earmark-excel export-icon"></i>
             </button>
             }
@@ -51,10 +48,10 @@
         } @else {
         <div class="p-0">
             <ejs-grid #grid id="teamsGrid" [dataSource]="registeredTeams()" [allowSorting]="true"
-                [sortSettings]="sortOptions" [allowFiltering]="false" [allowExcelExport]="true"
-                height="auto" [enableHover]="true" [enableAltRow]="true" [rowHeight]="30"
-                gridLines="Both" [enableStickyHeader]="true" [autoFit]="true" (queryCellInfo)="onQueryCellInfo($event)"
-                (dataBound)="onDataBound()" class="tight-table">
+                [sortSettings]="sortOptions" [allowFiltering]="false" [allowExcelExport]="true" height="auto"
+                [enableHover]="true" [enableAltRow]="true" [rowHeight]="30" gridLines="Both" [enableStickyHeader]="true"
+                [autoFit]="true" (queryCellInfo)="onQueryCellInfo($event)" (dataBound)="onDataBound()"
+                class="tight-table">
                 <e-columns>
                     <!-- Row Number Column -->
                     <e-column field="rowNum" headerText="#" width="auto" textAlign="Center" [allowSorting]="false"
