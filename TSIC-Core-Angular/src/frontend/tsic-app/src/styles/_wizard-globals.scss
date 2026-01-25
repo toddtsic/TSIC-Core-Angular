@@ -1,0 +1,267 @@
+/**
+ * WIZARD GLOBAL STYLES
+ * 
+ * Unified, reusable styling for all wizard components (Player, Team, Family, and future wizards).
+ * Consolidates duplicate patterns into mixins and global classes.
+ * Ensures consistent look and feel across all registration flows.
+ * 
+ * Patterns:
+ * - @mixin wizard-card-theme() - Base card styling for any wizard theme
+ * - @mixin wizard-container() - Container layout for any wizard
+ * - @mixin wizard-title-section() - Responsive title/header section
+ * - .wizard-card-* - Themed card classes (player, team, family, etc.)
+ * 
+ * CSS Variables used:
+ * - --radius-lg, --radius-md: Border radius sizing
+ * - --bs-card-bg, --bs-surface, --bs-border-color: Theme colors
+ * - --space-2, --space-3, --space-4: Spacing units
+ */
+
+/* ============================================
+   WIZARD CARD MIXIN
+   Reusable base card styling for all wizard themes
+   ============================================ */
+
+@mixin wizard-card-theme {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-card-bg);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+
+    .card-body {
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        padding: var(--space-4);
+        transition: background-color 0.3s ease, color 0.3s ease;
+
+        @media (max-width: 768px) {
+            padding: var(--space-3);
+        }
+
+        @media (max-width: 576px) {
+            padding: var(--space-2);
+        }
+    }
+
+    /* Alert/banner styling within wizard cards */
+    .alert {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--bs-border-color);
+        background-color: var(--bs-surface);
+        color: var(--bs-body-color);
+        transition: all 0.3s ease;
+
+        &.alert-info {
+            border-color: var(--bs-info);
+            background-color: rgba(var(--bs-info-rgb), 0.1);
+        }
+
+        &.alert-warning {
+            border-color: var(--bs-warning);
+            background-color: rgba(var(--bs-warning-rgb), 0.1);
+        }
+
+        &.alert-danger {
+            border-color: var(--bs-danger);
+            background-color: rgba(var(--bs-danger-rgb), 0.1);
+        }
+
+        &.alert-success {
+            border-color: var(--bs-success);
+            background-color: rgba(var(--bs-success-rgb), 0.1);
+        }
+
+        &.alert-secondary {
+            border-color: var(--bs-secondary);
+            background-color: rgba(var(--bs-secondary-rgb), 0.1);
+        }
+    }
+}
+
+/* ============================================
+   WIZARD CONTAINER MIXIN
+   Flex column layout base for any wizard main container
+   ============================================ */
+
+@mixin wizard-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* ============================================
+   WIZARD TITLE SECTION MIXIN
+   Responsive title styling for both desktop and mobile
+   ============================================ */
+
+@mixin wizard-title-base {
+    color: var(--bs-body-color);
+    transition: color 0.3s ease;
+}
+
+/* ============================================
+   APPLY MIXINS TO THEMED CARD CLASSES
+   ============================================ */
+
+.card.wizard-card-player,
+.card.wizard-theme-player {
+    @include wizard-card-theme;
+    margin-bottom: var(--space-4);
+}
+
+.card.wizard-card-team,
+.card.wizard-theme-team {
+    @include wizard-card-theme;
+    margin-top: var(--space-4);
+}
+
+.card.wizard-card-family {
+    @include wizard-card-theme;
+    margin-bottom: var(--space-4);
+}
+
+/* ============================================
+   WIZARD CONTAINER CLASSES
+   ============================================ */
+
+.rw-wizard-container {
+    @include wizard-container;
+}
+
+.tw-wizard-container {
+    @include wizard-container;
+}
+
+.wizard-container {
+    @include wizard-container;
+}
+
+/* ============================================
+   WIZARD TITLE CLASSES
+   Common styling for main wizard titles
+   ============================================ */
+
+h2[id^="rw-title"],
+h2[id^="tw-title"],
+h2[id^="fw-title"] {
+    @include wizard-title-base;
+}
+
+/* ============================================
+   STEP INDICATOR RESPONSIVE ADJUSTMENTS
+   Applied to all wizard step indicators
+   ============================================ */
+
+@media (max-width: 576px) {
+    .action-bar,
+    .wizard-action-bar-container {
+        .badge {
+            padding: calc(var(--space-0\.5) * 0.6) calc(var(--space-1) + var(--space-0\.5));
+            font-size: calc(var(--font-size-xs) + var(--space-0\.5));
+            line-height: 1.1;
+        }
+
+        .btn-group > .btn,
+        .btn {
+            --bs-btn-padding-y: calc(var(--space-0\.5) * 0.8);
+            --bs-btn-padding-x: var(--space-2);
+            --bs-btn-font-size: calc(var(--font-size-xs) + var(--space-0\.5));
+            line-height: 1.2;
+        }
+
+        .btn .bi {
+            font-size: 0.9em;
+        }
+    }
+}
+
+/* ============================================
+   EXTERNAL WIDGET OVERRIDES (VerticalInsure)
+   Dark mode compatibility for injected widgets
+   ============================================ */
+
+#dVIOffer {
+    /* Override injected background colors */
+    * {
+        background-color: var(--bs-card-bg) !important;
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+    }
+
+    /* Specific overrides for common widget elements */
+    div,
+    span,
+    p,
+    label,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        color: var(--bs-body-color) !important;
+    }
+
+    /* Card/panel backgrounds */
+    .card,
+    .panel,
+    [class*="box"],
+    [class*="container"] {
+        background-color: var(--bs-card-bg) !important;
+        border-color: var(--bs-border-color) !important;
+    }
+
+    /* Input fields */
+    input,
+    select,
+    textarea {
+        background-color: var(--bs-body-bg) !important;
+        color: var(--bs-body-color) !important;
+        border-color: var(--bs-border-color) !important;
+
+        &::placeholder {
+            color: var(--bs-secondary-color) !important;
+        }
+    }
+
+    /* Buttons - preserve their intended colors but adapt text */
+    button,
+    [role="button"],
+    .btn {
+        &:not([style*="background"]) {
+            background-color: var(--bs-btn-bg) !important;
+            color: var(--bs-btn-color) !important;
+            border-color: var(--bs-border-color) !important;
+        }
+    }
+
+    /* Links */
+    a {
+        color: var(--bs-link-color) !important;
+
+        &:hover {
+            color: var(--bs-link-hover-color) !important;
+        }
+    }
+
+    /* Tables */
+    table {
+        background-color: var(--bs-card-bg) !important;
+        color: var(--bs-body-color) !important;
+
+        th,
+        td {
+            border-color: var(--bs-border-color) !important;
+            background-color: inherit !important;
+            color: inherit !important;
+        }
+    }
+
+    /* Checkboxes and radio buttons - keep visible */
+    input[type="checkbox"],
+    input[type="radio"] {
+        opacity: 1 !important;
+        filter: brightness(1.2) !important;
+    }
+}
