@@ -22,7 +22,7 @@ import {
     ResizeService,
     QueryCellInfoEventArgs,
 } from '@syncfusion/ej2-angular-grids';
-import { ClickEventArgs } from '@syncfusion/ej2-navigations';
+// Removed toolbar click handler usage; no need for ClickEventArgs
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { TeamPaymentService } from '../services/team-payment.service';
 import type {
@@ -446,14 +446,15 @@ export class TeamsStepComponent implements OnInit {
         this.grid?.autoFitColumns();
     }
 
-    onToolbarClick(args: ClickEventArgs): void {
-        if (args.item.id === 'teamsGrid_excelexport') {
-            const excelExportProperties = {
-                dataSource: this.registeredTeams(),
-                fileName: 'RegisteredTeams.xlsx',
-            };
-            this.grid.excelExport(excelExportProperties);
-        }
+    /**
+     * Trigger Excel export programmatically from the external icon button.
+     */
+    exportTeamsToExcel(): void {
+        const excelExportProperties = {
+            dataSource: this.registeredTeams(),
+            fileName: 'RegisteredTeams.xlsx',
+        };
+        this.grid.excelExport(excelExportProperties);
     }
 
     proceedToPayment(): void {

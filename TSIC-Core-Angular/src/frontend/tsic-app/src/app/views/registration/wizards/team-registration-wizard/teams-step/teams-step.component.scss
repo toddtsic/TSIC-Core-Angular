@@ -38,6 +38,8 @@
     border-color: var(--bs-border-color) !important;
 }
 
+/* Export button/icon styles moved to global styles/_syncfusion.scss */
+
 ::ng-deep #teamsGrid .e-row:not(.e-altrow) .e-rowcell {
     background-color: var(--bs-body-bg) !important;
 }

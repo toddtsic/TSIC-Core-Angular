@@ -6,10 +6,8 @@ import {
   GridComponent,
   QueryCellInfoEventArgs,
   SortService,
-  ToolbarService,
   ExcelExportService,
 } from '@syncfusion/ej2-angular-grids';
-import { ClickEventArgs } from '@syncfusion/ej2-navigations';
 
 /**
  * Team payment summary grid - displays registered teams with fees and balances using Syncfusion Grid.
@@ -19,7 +17,7 @@ import { ClickEventArgs } from '@syncfusion/ej2-navigations';
   selector: 'app-team-payment-summary-table',
   standalone: true,
   imports: [CommonModule, GridModule],
-  providers: [SortService, ToolbarService, ExcelExportService],
+  providers: [SortService, ExcelExportService],
   template: `
     <section
       class="p-3 p-sm-4 mb-3 rounded-3"
@@ -66,7 +64,6 @@ import { ClickEventArgs } from '@syncfusion/ej2-navigations';
           [allowSorting]="true"
           [sortSettings]="sortOptions"
           [allowExcelExport]="true"
-          [toolbar]="['ExcelExport']"
           height="auto"
           [enableHover]="true"
           [enableAltRow]="true"
@@ -75,7 +72,6 @@ import { ClickEventArgs } from '@syncfusion/ej2-navigations';
           [autoFit]="true"
           (queryCellInfo)="onQueryCellInfo($event)"
           (dataBound)="onDataBound()"
-          (toolbarClick)="onToolbarClick($event)"
           class="tight-table"
         >
           <e-columns>
@@ -324,13 +320,14 @@ export class TeamPaymentSummaryTableComponent {
     this.grid?.autoFitColumns();
   }
 
-  onToolbarClick(args: ClickEventArgs): void {
-    if (args.item.id === 'paymentGrid_excelexport') {
-      const excelExportProperties = {
-        dataSource: this.svc.lineItems(),
-        fileName: 'TeamPaymentSummary.xlsx',
-      };
-      this.grid.excelExport(excelExportProperties);
-    }
+  /**
+   * Programmatically trigger Excel export; called from parent Payment step.
+   */
+  exportPaymentsToExcel(): void {
+    const excelExportProperties = {
+      dataSource: this.svc.lineItems(),
+      fileName: 'TeamPaymentSummary.xlsx',
+    };
+    this.grid.excelExport(excelExportProperties);
   }
 }

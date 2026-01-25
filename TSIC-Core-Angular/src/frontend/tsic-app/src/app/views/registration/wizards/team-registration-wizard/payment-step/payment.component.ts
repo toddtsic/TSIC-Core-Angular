@@ -69,11 +69,24 @@ declare global {
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">
-          {{
-            insuranceState.offerTeamRegSaver() ? 'Payment/Insurance' : 'Payment'
-          }}
-        </h5>
+        <div class="d-flex align-items-center gap-2">
+          <h5 class="mb-0 fw-semibold">
+            {{
+              insuranceState.offerTeamRegSaver() ? 'Payment/Insurance' : 'Payment'
+            }}
+          </h5>
+          @if (paymentSvc.lineItems().length > 0) {
+            <button
+              type="button"
+              class="btn btn-outline-success btn-sm export-btn"
+              (click)="summaryTable.exportPaymentsToExcel()"
+              aria-label="Export payment summary to Excel"
+              title="Export to Excel"
+            >
+              <i class="bi bi-file-earmark-excel export-icon"></i>
+            </button>
+          }
+        </div>
       </div>
 
       <div class="card-body">
@@ -91,7 +104,7 @@ declare global {
         }
 
         <!-- Payment summary table -->
-        <app-team-payment-summary-table></app-team-payment-summary-table>
+        <app-team-payment-summary-table #summaryTable></app-team-payment-summary-table>
 
         <!-- Vertical Insure widget section -->
         @if (insuranceState.offerTeamRegSaver() && paymentSvc.hasBalance()) {

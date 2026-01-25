@@ -226,6 +226,33 @@
   }
 }
 
+/* ============================================
+   Global Export Button Pattern (icon-only)
+   Applies across views for consistent look/feel
+   ============================================ */
+.export-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem; /* compact footprint */
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--bs-border-radius);
+}
+
+.export-icon {
+  display: inline-block;
+  line-height: 1;
+  transform: scale(1.25);
+  transform-origin: center;
+}
+
+@media (max-width: 575.98px) {
+  .export-icon {
+    transform: scale(1.35);
+  }
+}
+
 /* Color-coded Cells (for currency amounts) */
 .e-grid {
   .text-warning {
