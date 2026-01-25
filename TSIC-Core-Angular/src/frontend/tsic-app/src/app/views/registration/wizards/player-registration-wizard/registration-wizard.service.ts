@@ -790,7 +790,7 @@ export class RegistrationWizardService {
                 teamSelections.push({ playerId: pid, teamId, formValues });
             }
         }
-        return { jobPath, familyUserId, teamSelections };
+        return { jobPath, teamSelections };
     }
 
     private injectRequiredTeamFieldIfNeeded(formValues: { [key: string]: Json }, teamId: string | string[]): void {

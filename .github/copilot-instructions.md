@@ -1,24 +1,44 @@
 # TSIC-Core-Angular AI Coding Agent Instructions
 
-## CRITICAL: Repository Root Path (DO NOT FORGET THIS)
+## CRITICAL: Script Commands
 
-**Repository root**: `C:\Users\Administrator\source\TSIC-Core-Angular`
-**NOT**: `C:\Users\Administrator\source\TSIC-Core-Angular\TSIC-Core-Angular` (this is a nested subdirectory)
+**⚠️ DO NOT CONSTRUCT COMMANDS - ALWAYS COPY FROM BELOW**
 
-**Scripts location**: `C:\Users\Administrator\source\TSIC-Core-Angular\scripts\`
+All exact script execution commands. Copy directly - never modify paths or construct commands manually.
 
-### Running Scripts (MANDATORY PATTERN)
-**ALWAYS** use this pattern to run scripts:
-```powershell
-cd C:\Users\Administrator\source\TSIC-Core-Angular; .\scripts\ScriptName.ps1
-```
+**Repository root is**: `C:\Users\Administrator\source\TSIC-Core-Angular` (NOT the nested TSIC-Core-Angular subfolder)
 
-**Example - Regenerate API Models**:
+### Regenerate API Models
 ```powershell
 cd C:\Users\Administrator\source\TSIC-Core-Angular; .\scripts\2-Regenerate-API-Models.ps1
 ```
 
-**Never** try to run scripts from nested directories - the `cd` command ensures you're at the correct repository root before script execution.
+### Build Backend Only
+```powershell
+cd C:\Users\Administrator\source\TSIC-Core-Angular; dotnet build src/backend/TSIC.API/TSIC.API.csproj
+```
+
+### Build Full Solution
+```powershell
+cd C:\Users\Administrator\source\TSIC-Core-Angular; dotnet build TSIC-Core-Angular.sln
+```
+
+### Run API Server
+```powershell
+cd C:\Users\Administrator\source\TSIC-Core-Angular; dotnet watch run --project src/backend/TSIC.API/TSIC.API.csproj --launch-profile https
+```
+
+### Start Angular Dev Server
+```powershell
+cd C:\Users\Administrator\source\TSIC-Core-Angular\TSIC-Core-Angular\src\frontend\tsic-app; npm start
+```
+
+### Format Code
+```powershell
+cd C:\Users\Administrator\source\TSIC-Core-Angular; dotnet format TSIC-Core-Angular.sln
+```
+
+**Always use these commands exactly as written. Never modify paths or add absolute paths.**
 
 ## Project Architecture
 

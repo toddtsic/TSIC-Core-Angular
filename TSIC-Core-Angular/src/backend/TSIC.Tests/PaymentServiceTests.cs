@@ -127,8 +127,7 @@ public class PaymentServiceTests
 
         var req = new PaymentRequestDto
         {
-            JobId = jobId,
-            FamilyUserId = familyId,
+            JobPath = "unit-test-job",
             PaymentOption = PaymentOption.PIF,
             CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111", Email = "a.b@test.local", Phone = "5551234567" },
             IdempotencyKey = Guid.NewGuid().ToString(),
@@ -137,7 +136,7 @@ public class PaymentServiceTests
             ViPolicyCreateDate = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc)
         };
 
-        var resp = await svc.ProcessPaymentAsync(req, userId: "tester");
+        var resp = await svc.ProcessPaymentAsync(jobId, familyId.ToString(), req, userId: "tester");
 
         resp.Success.Should().BeTrue();
         resp.TransactionId.Should().Be("T-123");
@@ -173,19 +172,18 @@ public class PaymentServiceTests
 
         var req = new PaymentRequestDto
         {
-            JobId = jobId,
-            FamilyUserId = familyId,
+            JobPath = "unit-test-job",
             PaymentOption = PaymentOption.PIF,
             CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111", Email = "a.b@test.local", Phone = "5551234567" },
             IdempotencyKey = idem
         };
 
-        var r1 = await svc.ProcessPaymentAsync(req, "tester");
+        var r1 = await svc.ProcessPaymentAsync(jobId, familyId.ToString(), req, "tester");
         r1.Success.Should().BeTrue();
 
         // Second call with same idempotency should not call charge again
         // Current implementation computes charges before idempotency pre-check, so it will return "Nothing due".
-        var r2 = await svc.ProcessPaymentAsync(req, "tester");
+        var r2 = await svc.ProcessPaymentAsync(jobId, familyId.ToString(), req, "tester");
         r2.Success.Should().BeFalse();
         r2.Message.Should().Contain("Nothing due");
         adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Once);
@@ -220,14 +218,13 @@ public class PaymentServiceTests
 
         var req = new PaymentRequestDto
         {
-            JobId = jobId,
-            FamilyUserId = familyId,
+            JobPath = "unit-test-job",
             PaymentOption = PaymentOption.Deposit,
             CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "A", LastName = "B", Address = "1", Zip = "11111", Email = "a.b@test.local", Phone = "5551234567" },
             IdempotencyKey = Guid.NewGuid().ToString()
         };
 
-        var resp = await svc.ProcessPaymentAsync(req, "tester");
+        var resp = await svc.ProcessPaymentAsync(jobId, familyId.ToString(), req, "tester");
         resp.Success.Should().BeTrue();
 
         var reg = await db.Registrations.AsNoTracking().SingleAsync();
@@ -277,14 +274,13 @@ public class PaymentServiceTests
 
         var req = new PaymentRequestDto
         {
-            JobId = jobId,
-            FamilyUserId = familyId,
+            JobPath = "arb-test-job",
             PaymentOption = PaymentOption.ARB,
             CreditCard = new CreditCardInfo { Number = "4111111111111111", Code = "123", Expiry = "1230", FirstName = "Jane", LastName = "Doe", Address = "1", Zip = "11111", Email = "jane.doe@test.local", Phone = "5559876543" },
             IdempotencyKey = Guid.NewGuid().ToString()
         };
 
-        var resp = await svc.ProcessPaymentAsync(req, "tester");
+        var resp = await svc.ProcessPaymentAsync(jobId, familyId.ToString(), req, "tester");
         resp.Success.Should().BeTrue();
         resp.SubscriptionId.Should().Be("SUB-789");
 

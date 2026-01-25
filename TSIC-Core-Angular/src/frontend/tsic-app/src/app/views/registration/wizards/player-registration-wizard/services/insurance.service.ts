@@ -128,8 +128,7 @@ export class InsuranceService {
             address: card.address?.trim() || undefined
         };
         const req: InsurancePurchaseRequestDto = {
-            jobId: this.state.jobId(),
-            familyUserId: this.state.familyUser()?.familyUserId!,
+            jobPath: this.state.jobPath(),
             registrationIds,
             quoteIds,
             creditCard: creditCardPayload
@@ -189,8 +188,7 @@ export class InsuranceService {
             address: card.address?.trim() || undefined
         };
         const req: InsurancePurchaseRequestDto = {
-            jobId: this.state.jobId(),
-            familyUserId: this.state.familyUser()?.familyUserId!,
+            jobPath: this.state.jobPath(),
             registrationIds,
             quoteIds,
             creditCard: creditCardPayload

@@ -109,8 +109,7 @@ export class PaymentService {
         this.discountApplying.set(true);
         this.discountMessage.set(null);
         const req: ApplyDiscountRequestDto = {
-            jobId: this.state.jobId(),
-            familyUserId: this.state.familyUser()?.familyUserId!,
+            jobPath: this.state.jobPath(),
             code,
             items
         };

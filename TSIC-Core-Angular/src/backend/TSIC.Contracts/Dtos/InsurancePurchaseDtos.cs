@@ -7,13 +7,12 @@ namespace TSIC.Contracts.Dtos;
 /// <summary>
 /// Request payload for independent RegSaver / VerticalInsure policy purchase.
 /// VI payment is entirely handled by VerticalInsure; we only persist resulting policy numbers.
+/// JobId and FamilyUserId are derived from JWT claims and NOT accepted as parameters (security principle).
 /// </summary>
 public class InsurancePurchaseRequestDto
 {
     [Required, JsonRequired]
-    public Guid JobId { get; set; }
-    [Required, JsonRequired]
-    public Guid FamilyUserId { get; set; }
+    public string JobPath { get; set; } = string.Empty;
     [Required, JsonRequired]
     public List<Guid> RegistrationIds { get; set; } = new();
     [Required, JsonRequired]

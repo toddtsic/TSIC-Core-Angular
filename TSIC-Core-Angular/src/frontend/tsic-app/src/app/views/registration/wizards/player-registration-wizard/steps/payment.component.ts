@@ -11,7 +11,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from '../services/insurance-state.service';
 import { PaymentStateService } from '../services/payment-state.service';
 import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confirm-modal.component';
-import type { PaymentResponseDto } from '@core/api';
+import type { PaymentResponseDto, PaymentRequestDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { TeamService } from '../team.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -405,25 +405,24 @@ export class PaymentComponent implements AfterViewInit {
     };
     const sanitizePhone = (raw: string): string => String(raw || '').replaceAll(/\D+/g, '').slice(0, 15);
     const creditCardPayload = this.showCcSection() ? {
-      Number: this.creditCard.number?.trim() || null,
-      Expiry: sanitizeExpiry(this.creditCard.expiry),
-      Code: this.creditCard.code?.trim() || null,
-      FirstName: this.creditCard.firstName?.trim() || null,
-      LastName: this.creditCard.lastName?.trim() || null,
-      Address: this.creditCard.address?.trim() || null,
-      Zip: this.creditCard.zip?.trim() || null,
-      Email: (this.creditCard.email || this.state.familyUser()?.userName || '').trim() || null,
-      Phone: sanitizePhone(this.creditCard.phone)
+      number: this.creditCard.number?.trim() || null,
+      expiry: sanitizeExpiry(this.creditCard.expiry),
+      code: this.creditCard.code?.trim() || null,
+      firstName: this.creditCard.firstName?.trim() || null,
+      lastName: this.creditCard.lastName?.trim() || null,
+      address: this.creditCard.address?.trim() || null,
+      zip: this.creditCard.zip?.trim() || null,
+      email: (this.creditCard.email || this.state.familyUser()?.userName || '').trim() || null,
+      phone: sanitizePhone(this.creditCard.phone)
     } : null;
-    const request = {
-      JobId: this.state.jobId(),
-      FamilyUserId: this.state.familyUser()?.familyUserId,
-      PaymentOption: mapPaymentOption(this.paymentState.paymentOption()),
-      CreditCard: creditCardPayload,
-      IdempotencyKey: this.lastIdemKey,
-      ViConfirmed: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureConfirmed() : undefined,
-      ViPolicyNumber: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
-      ViPolicyCreateDate: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.insuranceState.viConsent()?.policyCreateDate) : undefined) || undefined
+    const request: PaymentRequestDto = {
+      jobPath: this.state.jobPath(),
+      paymentOption: mapPaymentOption(this.paymentState.paymentOption()),
+      creditCard: creditCardPayload,
+      idempotencyKey: this.lastIdemKey,
+      viConfirmed: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureConfirmed() : undefined,
+      viPolicyNumber: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
+      viPolicyCreateDate: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.insuranceState.viConsent()?.policyCreateDate) : undefined) || undefined
     };
     // POST using keys matching backend DTO property casing (case-insensitive but explicit for clarity)
     this.http.post<PaymentResponseDto>(`${environment.apiUrl}/registration/submit-payment`, request).subscribe({

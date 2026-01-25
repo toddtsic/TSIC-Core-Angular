@@ -11,6 +11,7 @@ using TSIC.API.Services.Payments;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.VerticalInsure;
+using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Shared.UsLax;
@@ -26,10 +27,12 @@ namespace TSIC.API.Controllers;
 public class InsuranceController : ControllerBase
 {
     private readonly IVerticalInsureService _viService;
+    private readonly IJobLookupService _jobLookupService;
 
-    public InsuranceController(IVerticalInsureService viService)
+    public InsuranceController(IVerticalInsureService viService, IJobLookupService jobLookupService)
     {
         _viService = viService;
+        _jobLookupService = jobLookupService;
     }
 
     [HttpPost("purchase")]
@@ -39,17 +42,17 @@ public class InsuranceController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> Purchase([FromBody] InsurancePurchaseRequestDto request, CancellationToken ct)
     {
-        if (request == null)
+        if (request == null || string.IsNullOrWhiteSpace(request.JobPath))
             return BadRequest(new { message = "Invalid insurance purchase request" });
 
-        var callerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (callerId == null) return Unauthorized();
-        if (!string.Equals(callerId, request.FamilyUserId.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            return Forbid();
-        }
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (familyUserId == null) return Unauthorized();
 
-        var res = await _viService.PurchasePoliciesAsync(request.JobId, request.FamilyUserId.ToString(), request.RegistrationIds, request.QuoteIds, token: null, card: request.CreditCard, ct: ct);
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        var res = await _viService.PurchasePoliciesAsync(jobId.Value, familyUserId, request.RegistrationIds, request.QuoteIds, token: null, card: request.CreditCard, ct: ct);
         if (!res.Success)
         {
             return BadRequest(new InsurancePurchaseResponseDto { Success = false, Error = res.Error });
