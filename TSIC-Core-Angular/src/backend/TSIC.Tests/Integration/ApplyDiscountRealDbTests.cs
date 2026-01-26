@@ -11,6 +11,7 @@ using TSIC.API.Controllers;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -128,7 +129,7 @@ public class ApplyDiscountRealDbTests
         await db.Entry(registration).ReloadAsync();
 
         var reduction = Math.Round(perPlayerDiscount * (percent / 100m), 2, MidpointRounding.AwayFromZero);
-        var expectedProcessing = Math.Max(0m, originalFeeProcessing - reduction);
+        var expectedProcessing = originalFeeProcessing - reduction;
         var expectedFeeTotal = originalBase + expectedProcessing - perPlayerDiscount - originalDonation;
         if (expectedFeeTotal < 0m) expectedFeeTotal = 0m;
         var expectedOwed = Math.Max(0m, expectedFeeTotal - originalPaid);
@@ -196,7 +197,9 @@ public class ApplyDiscountRealDbTests
         services.AddScoped<IJobRepository, JobRepository>();
         services.AddScoped<IRegistrationRepository, RegistrationRepository>();
         services.AddScoped<IJobDiscountCodeRepository, JobDiscountCodeRepository>();
+        services.AddScoped<ITeamRepository, TeamRepository>();
         services.AddScoped<IJobLookupService, JobLookupService>();
+        services.AddScoped<ITeamLookupService, TeamLookupService>();
         services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
         services.AddScoped<IRegistrationFeeAdjustmentService, RegistrationFeeAdjustmentService>();
         services.AddScoped<IPaymentService, NoopPaymentService>();

@@ -1,13 +1,15 @@
 using Microsoft.Extensions.Configuration;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
+using TSIC.API.Services.Teams;
 
 namespace TSIC.API.Services.Payments;
 
 /// <summary>
 /// Handles proportional adjustment of processing fees when registration amounts change.
 /// Reduces processing fees by the credit card percentage of the adjustment amount,
-/// respecting Job.BAddProcessingFees flag and ensuring fees never go negative.
+/// respecting Job.BAddProcessingFees flag. In 2-phase (deposit) scenarios, processing
+/// fees may go negative (representing a credit). Otherwise, fees are clamped at zero.
 /// </summary>
 public interface IRegistrationFeeAdjustmentService
 {
@@ -31,11 +33,13 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
 {
     private readonly IJobRepository _jobRepo;
     private readonly IConfiguration _config;
+    private readonly ITeamLookupService _teamLookup;
 
-    public RegistrationFeeAdjustmentService(IJobRepository jobRepo, IConfiguration config)
+    public RegistrationFeeAdjustmentService(IJobRepository jobRepo, IConfiguration config, ITeamLookupService teamLookup)
     {
         _jobRepo = jobRepo;
         _config = config;
+        _teamLookup = teamLookup;
     }
 
     public async Task<decimal> ReduceProcessingFeeProportionalAsync(
@@ -68,10 +72,12 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         var reduction = adjustmentAmount * (feePercent / 100m);
         reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
 
-        // Guard 3: Cap reduction at current processing fee (never go negative)
-        var actualReduction = Math.Min(reduction, registration.FeeProcessing);
+        // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).
+        // Otherwise, cap reduction at current processing fee (never go negative).
+        var isDepositScenario = await IsDepositScenarioAsync(registration);
+        var actualReduction = isDepositScenario ? reduction : Math.Min(reduction, registration.FeeProcessing);
 
-        if (actualReduction > 0m)
+        if (actualReduction > 0m || isDepositScenario)
         {
             registration.FeeProcessing -= actualReduction;
             registration.OwedTotal = Math.Max(0m, registration.OwedTotal - actualReduction);
@@ -80,6 +86,16 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         }
 
         return actualReduction;
+    }
+
+    private async Task<bool> IsDepositScenarioAsync(Registrations registration)
+    {
+        // Deposit scenario: registration has assigned team with both fee > 0 and deposit > 0
+        if (!registration.AssignedTeamId.HasValue)
+            return false;
+
+        var (fee, deposit) = await _teamLookup.ResolvePerRegistrantAsync(registration.AssignedTeamId.Value);
+        return fee > 0m && deposit > 0m;
     }
 
     private decimal GetDefaultProcessingPercent()
