@@ -105,6 +105,7 @@ public class FeeProcessingAuditTests
                 PlayerName = reg.User != null ? $"{reg.User.LastName}, {reg.User.FirstName}" : "UNKNOWN",
                 DiscountCode = reg.DiscountCode?.CodeName ?? "N/A",
                 FeeDiscount = reg.FeeDiscount,
+                FeeProcessing = reg.FeeProcessing,
                 PaidTotal = reg.PaidTotal,
                 OwedTotal = reg.OwedTotal,
                 ExpectedReduction = expectedReduction,
@@ -126,13 +127,13 @@ public class FeeProcessingAuditTests
         if (unadjustedCount > 0)
         {
             _output.WriteLine("Discounted registrations that did NOT adjust fee processing:\n");
-            _output.WriteLine($"{"Player Name",-25} {"Disc Code",-12} {"Discount",10} {"Paid",10} {"Owed",10} {"Should Have",12} {"Actual",10} {"Missing",10}");
-            _output.WriteLine($"{"           ",-25} {"         ",-12} {"Applied",10} {"Total",10} {"Total",10} {"Reduced By",12} {"Reduction",10} {"Adjustment",10}");
-            _output.WriteLine(new string('-', 122));
+            _output.WriteLine($"{"Player Name",-25} {"Disc Code",-12} {"Discount",10} {"Proc Fee",10} {"Paid",10} {"Owed",10} {"Should Have",12} {"Actual",10} {"Missing",10}");
+            _output.WriteLine($"{"           ",-25} {"         ",-12} {"Applied",10} {"Current",10} {"Total",10} {"Total",10} {"Reduced By",12} {"Reduction",10} {"Adjustment",10}");
+            _output.WriteLine(new string('-', 138));
 
             foreach (var result in auditResults.Where(r => Math.Abs(r.MissingAdjustment) >= 0.01m))
             {
-                _output.WriteLine($"{result.PlayerName,-25} {result.DiscountCode,-12} ${result.FeeDiscount,8:F2} ${result.PaidTotal,8:F2} ${result.OwedTotal,8:F2} ${result.ExpectedReduction,10:F2} ${result.ActualReduction,8:F2} ${result.MissingAdjustment,8:F2}");
+                _output.WriteLine($"{result.PlayerName,-25} {result.DiscountCode,-12} ${result.FeeDiscount,8:F2} ${result.FeeProcessing,8:F2} ${result.PaidTotal,8:F2} ${result.OwedTotal,8:F2} ${result.ExpectedReduction,10:F2} ${result.ActualReduction,8:F2} ${result.MissingAdjustment,8:F2}");
             }
         }
 
@@ -167,6 +168,7 @@ public class FeeProcessingAuditTests
         public string PlayerName { get; set; } = string.Empty;
         public string DiscountCode { get; set; } = string.Empty;
         public decimal FeeDiscount { get; set; }
+        public decimal FeeProcessing { get; set; }
         public decimal PaidTotal { get; set; }
         public decimal OwedTotal { get; set; }
         public decimal ExpectedReduction { get; set; }
