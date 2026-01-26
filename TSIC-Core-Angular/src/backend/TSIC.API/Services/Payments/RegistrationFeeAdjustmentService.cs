@@ -60,7 +60,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
             return 0m;
 
         // Get CC fee percentage from Job or config
-        var feePercent = feeSettings.BAddProcessingFees == true 
+        var feePercent = feeSettings.BAddProcessingFees == true
             ? await _jobRepo.GetProcessingFeePercentAsync(jobId) ?? GetDefaultProcessingPercent()
             : GetDefaultProcessingPercent();
 

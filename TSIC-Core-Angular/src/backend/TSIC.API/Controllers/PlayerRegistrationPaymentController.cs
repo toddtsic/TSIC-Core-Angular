@@ -210,12 +210,12 @@ public class PlayerRegistrationPaymentController : ControllerBase
             if (reg.UserId == null) continue;
             if (!perPlayer.TryGetValue(reg.UserId, out var d) || d <= 0m) continue;
             var newDiscount = reg.FeeDiscount + d;
-            
+
             // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
             await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, d, jobId.Value, familyUserId);
-            
+
             // Recalculate totals with updated processing fee
-            var (proc, totalFee) = _feeCalc.ComputeTotals(reg.FeeBase, newDiscount, reg.FeeDonation, 
+            var (proc, totalFee) = _feeCalc.ComputeTotals(reg.FeeBase, newDiscount, reg.FeeDonation,
                 reg.FeeProcessing > 0m ? reg.FeeProcessing : null);
             reg.FeeDiscount = newDiscount;
             reg.FeeProcessing = proc;
