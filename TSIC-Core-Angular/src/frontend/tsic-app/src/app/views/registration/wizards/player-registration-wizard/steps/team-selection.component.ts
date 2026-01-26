@@ -58,7 +58,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
               @for (p of selectedPlayers(); track p.userId; let idx = $index) {
                 <div class="player-team-row p-3 rounded" style="border-width: 1px; border-style: solid;" [ngClass]="colorClassForIndex(idx)">
                   <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
-                    <div class="flex-grow-1">
+                    <div class="grow">
                       <div class="fw-semibold mb-1 d-flex align-items-center gap-2">
                         <span class="badge rounded-pill px-3 py-2" [ngClass]="textColorClassForIndex(idx)">{{ p.name }}</span>
                         @if (isPlayerFullyLocked(p.userId)) {
@@ -95,7 +95,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                         </ul>
                       </div>
                     </div>
-                    <div class="flex-grow-1">
+                    <div class="grow">
                       @if (!multiSelect) {
                         @if (isCAC()) {
                           <ejs-dropdownlist #ddRef [dataSource]="filteredTeamsFor(p.userId)"

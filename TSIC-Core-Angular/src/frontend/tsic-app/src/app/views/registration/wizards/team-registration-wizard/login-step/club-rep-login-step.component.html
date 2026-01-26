@@ -60,7 +60,7 @@
                         login.</li>
                 </ul>
             </div>
-            <div class="border border-2 rounded p-3 bg-body shadow-sm">
+            <div class="border-2 rounded p-3 bg-body shadow-sm">
                 @if (registrationError()) {
                 <div class="alert alert-danger py-2 mb-3" role="alert">
                     {{ registrationError() }}
@@ -266,11 +266,11 @@
                 [class.bg-success]="loginModalStep() === 'clubSelection'">
                 <div class="d-flex align-items-start w-100">
                     @if (loginModalStep() === 'credentials') {
-                    <i class="bi bi-box-arrow-in-right me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
+                    <i class="bi bi-box-arrow-in-right me-2 mt-1 shrink-0 fs-6 fs-md-5"></i>
                     } @else {
-                    <i class="bi bi-check-circle me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
+                    <i class="bi bi-check-circle me-2 mt-1 shrink-0 fs-6 fs-md-5"></i>
                     }
-                    <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">
+                    <h4 class="modal-title mb-0 grow fs-6 fs-md-5">
                         @if (loginModalStep() === 'credentials') {
                         Club Rep Login
                         } @else {

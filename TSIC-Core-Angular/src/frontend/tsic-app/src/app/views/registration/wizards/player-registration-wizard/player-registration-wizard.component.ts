@@ -371,9 +371,9 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     finishToJobHome(): void {
         const jp = this.state.jobPath();
         if (jp) {
-            try { this.router.navigate(['/', jp]); } catch { /* ignore */ }
+            this.router.navigate(['/', jp]).catch(() => {/* ignore */});
         } else {
-            try { this.router.navigate(['/tsic']); } catch { /* ignore */ }
+            this.router.navigate(['/tsic']).catch(() => {/* ignore */});
         }
     }
 }

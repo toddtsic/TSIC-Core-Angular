@@ -1,7 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router } from '@angular/router';
 import { LastLocationService } from '../../../infrastructure/services/last-location.service';
-import { filter, take } from 'rxjs/operators';
 
 import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 

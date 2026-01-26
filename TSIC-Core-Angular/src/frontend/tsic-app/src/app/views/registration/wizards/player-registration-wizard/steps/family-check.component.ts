@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 
 @Component({
   selector: 'app-rw-family-check',
@@ -16,7 +15,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
     <div class="card-body bg-surface px-4 pb-4 pt-3">
         <div class="alert alert-info mb-4 border-info border-2 shadow-sm" role="note">
           <div class="d-flex align-items-start gap-2">
-            <i class="bi bi-shield-check fs-4 flex-shrink-0"></i>
+            <i class="bi bi-shield-check fs-4 shrink-0"></i>
             <div>
               <strong class="d-block mb-1">Player Account Security:</strong>
               This Family/Player account is for viewing YOUR CHILD'S TEAM ONLY and can be safely shared with your child. 
@@ -36,7 +35,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
                    [class.bg-info]="hasAccount === 'yes'"
                    [class.bg-opacity-10]="hasAccount === 'yes'">
               <input class="form-check-input mt-0" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'yes'" />
-              <div class="flex-grow-1">
+              <div class="grow">
                 <div class="fw-semibold">Yes — I have a FAMILY login</div>
                 <div class="text-muted small">Enter your credentials below once, then choose what you want to do.</div>
               </div>
@@ -45,7 +44,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
             @if (hasAccount === 'yes') {
             <!-- Shared credentials panel -->
             <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
-              <div class="border border-2 rounded p-3 shadow-sm">
+              <div class="border-2 rounded p-3 shadow-sm">
                 <div class="row g-2 mb-2">
                   <div class="col-12 col-sm-6 col-md-4">
                     <label for="famUsername" class="form-label small mb-1">Username</label>
@@ -92,7 +91,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
                    [class.bg-info]="hasAccount === 'no'"
                    [class.bg-opacity-10]="hasAccount === 'no'">
               <input class="form-check-input mt-0" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'no'" />
-              <div class="flex-grow-1">
+              <div class="grow">
                 <div class="fw-semibold">No — I need to create one</div>
                 <div class="text-muted small">We’ll help you create a Family Account before continuing.</div>
               </div>
@@ -101,7 +100,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
             <!-- CTA appears directly under the NO option -->
             @if (hasAccount === 'no') {
             <div class="pt-2 pb-3 ps-5" style="animation: slideIn 0.3s ease-out;">
-              <div class="border border-2 rounded p-3 shadow-sm">
+              <div class="border-2 rounded p-3 shadow-sm">
                 <div class="text-muted small mb-2">We'll guide you through a quick setup. Takes about 1–2 minutes.</div>
                 <button type="button" class="btn btn-primary" (click)="createAccount()">
                   <i class="bi bi-person-plus-fill me-2"></i>Create a FAMILY ACCOUNT

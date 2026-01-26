@@ -39,7 +39,7 @@ import type { LineItem } from '../services/payment.service';
       <div class="card-body">
         @if (lastError) {
           <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
-            <div class="flex-grow-1">
+            <div class="grow">
               <div class="fw-semibold mb-1">Payment Error</div>
               <div class="small">{{ lastError.message || 'An error occurred.' }}</div>
             </div>

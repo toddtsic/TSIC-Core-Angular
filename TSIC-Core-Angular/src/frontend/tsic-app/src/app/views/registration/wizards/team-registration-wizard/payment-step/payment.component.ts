@@ -96,7 +96,7 @@ declare global {
             class="alert alert-danger d-flex align-items-start gap-2"
             role="alert"
           >
-            <div class="flex-grow-1">
+            <div class="grow">
               <div class="fw-semibold mb-1">Payment Error</div>
               <div class="small">{{ lastError() }}</div>
             </div>
@@ -224,8 +224,8 @@ declare global {
             class="alert alert-info d-flex align-items-center gap-2"
             role="alert"
           >
-            <i class="bi bi-info-circle-fill flex-shrink-0"></i>
-            <div class="flex-grow-1">
+            <i class="bi bi-info-circle-fill shrink-0"></i>
+            <div class="grow">
               <strong>No Payment Due At This Time</strong> - All team
               registrations are fully paid at this time.
             </div>

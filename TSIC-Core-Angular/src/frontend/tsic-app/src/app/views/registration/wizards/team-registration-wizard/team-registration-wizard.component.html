@@ -48,7 +48,7 @@
           <!-- Loading state -->
           <div class="alert alert-secondary mb-0 d-flex align-items-center" role="alert">
             <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            <div class="flex-grow-1">
+            <div class="grow">
               <strong>Loading...</strong> Checking registration status.
             </div>
           </div>
@@ -58,7 +58,7 @@
               stepBannerConfig().alertClass
             }} mb-0 d-flex align-items-center" role="alert">
             <i class="bi {{ stepBannerConfig().icon }} me-2 fs-5"></i>
-            <div class="flex-grow-1">
+            <div class="grow">
               @if (stepBannerConfig().title) {
               <strong>{{ stepBannerConfig().title }}</strong>{{ " " }}
               }
@@ -72,7 +72,7 @@
             <!-- Error state - show retry -->
             <div class="alert alert-danger d-flex align-items-start" role="alert">
               <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
-              <div class="flex-grow-1">
+              <div class="grow">
                 <strong>Error:</strong> {{ metadataError() }}
               </div>
             </div>
@@ -131,8 +131,8 @@
         ">
       <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
         <div class="d-flex align-items-start w-100">
-          <i class="bi bi-building me-2 mt-1 flex-shrink-0 fs-6 fs-md-5"></i>
-          <h4 class="modal-title mb-0 flex-grow-1 fs-6 fs-md-5">
+          <i class="bi bi-building me-2 mt-1 shrink-0 fs-6 fs-md-5"></i>
+          <h4 class="modal-title mb-0 grow fs-6 fs-md-5">
             @if (availableClubs().length === 1) {
             Confirm Your Club
             } @else {
@@ -255,7 +255,7 @@
           @if (similarClubs().length > 0) {
           <div class="alert alert-warning" role="alert">
             <div class="d-flex align-items-start">
-              <i class="bi bi-exclamation-triangle-fill me-2 mt-1 flex-shrink-0"></i>
+              <i class="bi bi-exclamation-triangle-fill me-2 mt-1 shrink-0"></i>
               <div>
                 <strong>Similar clubs found:</strong>
                 <ul class="mb-2 mt-1 ps-3">
