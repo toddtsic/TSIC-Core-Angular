@@ -34,4 +34,6 @@ public partial class JobDiscountCodes
     public virtual ICollection<Registrations> Registrations { get; set; } = new List<Registrations>();
 
     public virtual ICollection<StoreCartBatchAccounting> StoreCartBatchAccounting { get; set; } = new List<StoreCartBatchAccounting>();
+
+    public virtual ICollection<Teams> Teams { get; set; } = new List<Teams>();
 }

@@ -191,6 +191,8 @@ public partial class Teams
 
     public int? GoalDiff9 { get; set; }
 
+    public int? DiscountCodeId { get; set; }
+
     public virtual Agegroups Agegroup { get; set; } = null!;
 
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
@@ -204,6 +206,8 @@ public partial class Teams
     public virtual Customers? Customer { get; set; }
 
     public virtual ICollection<DeviceTeams> DeviceTeams { get; set; } = new List<DeviceTeams>();
+
+    public virtual JobDiscountCodes? DiscountCode { get; set; }
 
     public virtual Divisions? Div { get; set; }
 

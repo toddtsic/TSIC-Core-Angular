@@ -6364,6 +6364,7 @@ public partial class SqlDbContext : DbContext
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("createdate");
             entity.Property(e => e.CustomerId).HasColumnName("customerID");
+            entity.Property(e => e.DiscountCodeId).HasColumnName("DiscountCodeID");
             entity.Property(e => e.DiscountFee)
                 .HasColumnType("money")
                 .HasColumnName("discountFee");
@@ -6504,6 +6505,10 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.Customer).WithMany(p => p.Teams)
                 .HasForeignKey(d => d.CustomerId)
                 .HasConstraintName("FK_Leagues.teams_Jobs.Customers_customerID");
+
+            entity.HasOne(d => d.DiscountCode).WithMany(p => p.Teams)
+                .HasForeignKey(d => d.DiscountCodeId)
+                .HasConstraintName("FK_teams_Job_DiscountCodes");
 
             entity.HasOne(d => d.Div).WithMany(p => p.Teams)
                 .HasForeignKey(d => d.DivId)
