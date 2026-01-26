@@ -74,12 +74,13 @@
                             <input type="text" class="form-control combobox-input mt-2" id="teamName"
                                 [ngModel]="teamNameInput()" (ngModelChange)="teamNameInput.set($event)"
                                 (input)="onTeamNameInput($event)" [ngModelOptions]="{standalone: true}"
-                                placeholder="Select name from list or type new name" autocomplete="off" spellcheck="false"
-                                autofocus required maxlength="40" pattern="[a-zA-Z0-9\s]+">
+                                placeholder="Select name from list or type new name" autocomplete="off"
+                                spellcheck="false" autofocus required maxlength="40" pattern="[a-zA-Z0-9\s]+">
 
                             <select size="6" class="form-select team-history-select combobox-dropdown"
                                 (change)="selectFromList($event)">
-                                <option value="" disabled selected class="text-muted fst-italic">← Click any team name to
+                                <option value="" disabled selected class="text-muted fst-italic">← Click any team name
+                                    to
                                     use it</option>
                                 @for (suggestion of filteredSuggestions(); track suggestion.teamName) {
                                 <option [value]="suggestion.teamName">

@@ -20,7 +20,7 @@ export class TsicLandingComponent implements OnInit {
     // Only redirect on first app load (not on subsequent navigations to /tsic)
     if (!TsicLandingComponent.hasInitialized) {
       TsicLandingComponent.hasInitialized = true;
-      
+
       const lastJob = this.lastLocation.getLastJobPath();
       if (lastJob && lastJob !== 'tsic') {
         this.router.navigate([`/${lastJob}`]);

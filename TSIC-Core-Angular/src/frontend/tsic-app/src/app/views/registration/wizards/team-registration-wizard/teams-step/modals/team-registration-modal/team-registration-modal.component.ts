@@ -90,7 +90,7 @@ export class TeamRegistrationModalComponent {
 
     onTeamNameInput(event: Event): void {
         const input = event.target as HTMLInputElement;
-        const sanitized = input.value.replace(/[^a-zA-Z0-9\s]/g, '');
+        const sanitized = input.value.replaceAll(/[^a-zA-Z0-9\s]/g, '');
         if (input.value !== sanitized) {
             input.value = sanitized;
             this.teamNameInput.set(sanitized);

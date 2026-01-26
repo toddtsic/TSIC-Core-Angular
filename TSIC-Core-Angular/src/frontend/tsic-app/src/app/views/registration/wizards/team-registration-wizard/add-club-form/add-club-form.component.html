@@ -75,8 +75,7 @@
             <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="isSubmitting()">
                 Cancel
             </button>
-            <button type="submit" class="btn btn-primary"
-                [disabled]="addClubForm.invalid || isSubmitting()">
+            <button type="submit" class="btn btn-primary" [disabled]="addClubForm.invalid || isSubmitting()">
                 @if (isSubmitting()) {
                 <span class="spinner-border spinner-border-sm me-1"></span>
                 }

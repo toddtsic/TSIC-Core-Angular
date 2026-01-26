@@ -25,6 +25,8 @@ namespace TSIC.API.Services.Shared.TextSubstitution;
 /// </summary>
 public sealed class TextSubstitutionService : ITextSubstitutionService
 {
+    private const string PaidColumnHeader = "Paid$";
+
     // Internal projection representing many fixed fields needed for substitution.
     private sealed class FixedFields
     {
@@ -344,7 +346,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, "Most Recent Transaction(s)", emailMode);
         HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "ID", "Player", "Method", "Date", "Paid$");
+        HtmlTableBuilder.AddHeaderRow(sb, "ID", "Player", "Method", "Date", PaidColumnHeader);
         HtmlTableBuilder.EndHeadStartBody(sb);
         decimal paidSum = 0m;
         foreach (var row in rows)
@@ -450,7 +452,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(jobName)}:Most Recent Transaction(s)", emailMode);
         HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "ID", "Player", "Method", "Fees$", "Discount$", "Paid$", "Owes$");
+        HtmlTableBuilder.AddHeaderRow(sb, "ID", "Player", "Method", "Fees$", "Discount$", PaidColumnHeader, "Owes$");
         HtmlTableBuilder.EndHeadStartBody(sb);
         decimal feesSum = 0m, discountSum = 0m, paidSum = 0m, owesSum = 0m;
         foreach (var r in rows)
@@ -485,17 +487,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(clubName)}:Most Recent Transaction(s)", emailMode);
         HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Active", "ID", "Team", "Method", "Fees$", "Paid$", "Date", "Owes$", "Comment");
+        HtmlTableBuilder.AddHeaderRow(sb, "Active", "ID", "Team", "Method", "Fees$", PaidColumnHeader, "Date", "Owes$", "Comment");
         HtmlTableBuilder.EndHeadStartBody(sb);
         foreach (var t in teams)
         {
             var rows = await _repo.GetTeamAccountingTransactionsAsync(t.TeamId);
             foreach (var r in rows)
             {
-                decimal discount = 0m;
                 if (r.Payamt.HasValue && r.Payamt > 0 && r.PaymentMethodId == paymentMethodCreditCardId && r.DiscountCodeAi.HasValue)
                 {
-                    discount = await _discountEvaluator.EvaluateAsync(r.DiscountCodeAi.Value, r.Payamt.Value);
+                    _ = await _discountEvaluator.EvaluateAsync(r.DiscountCodeAi.Value, r.Payamt.Value);
                 }
                 var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
                 var activeChecked = (r.Active ?? false) ? "checked" : string.Empty;
@@ -524,7 +525,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(teams[0].ClubName ?? string.Empty)}:Registered Teams SUMMARY", emailMode);
         HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, string.Empty, "Team", "Deposit Fee", "Additional Fees", "Processing Fee", "Paid$", "Owes$");
+        HtmlTableBuilder.AddHeaderRow(sb, string.Empty, "Team", "Deposit Fee", "Additional Fees", "Processing Fee", PaidColumnHeader, "Owes$");
         HtmlTableBuilder.EndHeadStartBody(sb);
         int i = 1;
         decimal sumOwed = 0m; decimal sumPaid = 0m; decimal sumDeposit = 0m; decimal sumAdditional = 0m; decimal sumProcessing = 0m;

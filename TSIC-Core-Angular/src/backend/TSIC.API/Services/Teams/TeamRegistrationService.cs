@@ -245,7 +245,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         if (otherRepTeams.Any())
         {
-            var otherRepUsername = otherRepTeams.First().Username ?? "another club rep";
+            var otherRepUsername = otherRepTeams[0].Username ?? "another club rep";
             _logger.LogInformation("Found conflict: {OtherRep} has {Count} teams registered for job {JobId} club {ClubId}",
                 otherRepUsername, otherRepTeams.Count, jobId, clubRep.ClubId);
 

@@ -1,11 +1,6 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 
 import { ActivatedRoute, Router } from '@angular/router';
-import { AuthService } from '@infrastructure/services/auth.service';
-import { JobService } from '@infrastructure/services/job.service';
-import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
-import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
-import type { RegistrationStatusResponse } from '@core/api';
 
 /**
  * Job Landing Page Component
@@ -21,11 +16,11 @@ import type { RegistrationStatusResponse } from '@core/api';
     templateUrl: './job-landing.component.html',
     styleUrl: './job-landing.component.scss'
 })
-export class JobLandingComponent {
-    private authService = inject(AuthService);
-    private jobService = inject(JobService);
-    private route = inject(ActivatedRoute);
-    private router = inject(Router);
+export class JobLandingComponent implements OnInit {
+    private readonly authService = inject(AuthService);
+    private readonly jobService = inject(JobService);
+    private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
 
     // Signals
     jobPath = signal<string>('');

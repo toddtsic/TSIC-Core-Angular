@@ -215,8 +215,8 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
                     {
                         number = card?.Number ?? string.Empty,
                         verification = card?.Code ?? string.Empty,
-                        month = card?.Expiry?.Length >= 2 ? card.Expiry.Substring(0, 2) : string.Empty,
-                        year = card?.Expiry?.Length == 4 ? "20" + card.Expiry.Substring(2, 2) : string.Empty,
+                        month = GetExpiryMonth(card?.Expiry),
+                        year = GetExpiryYear(card?.Expiry),
                         name = ($"{card?.FirstName} {card?.LastName}").Trim(),
                         address_postal_code = card?.Zip ?? string.Empty
                     }
@@ -338,5 +338,15 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
             var clientSecret = s.ProdSecret ?? Environment.GetEnvironmentVariable("VI_PROD_SECRET") ?? string.Empty;
             return (clientId, clientSecret);
         }
+    }
+
+    private static string GetExpiryMonth(string? expiry)
+    {
+        return expiry?.Length >= 2 ? expiry.Substring(0, 2) : string.Empty;
+    }
+
+    private static string GetExpiryYear(string? expiry)
+    {
+        return expiry?.Length == 4 ? "20" + expiry.Substring(2, 2) : string.Empty;
     }
 }
