@@ -204,14 +204,14 @@ public class PlayerRegistrationPaymentController : ControllerBase
         var requestedPlayerIds = new HashSet<string>(items.Select(i => i.PlayerId).Where(p => !string.IsNullOrWhiteSpace(p)), StringComparer.OrdinalIgnoreCase);
         var regs = await _registrations.GetByJobAndFamilyUserIdAsync(jobId.Value, familyUserId, activePlayersOnly: true);
         var targetRegs = regs.Where(r => !string.IsNullOrWhiteSpace(r.UserId) && requestedPlayerIds.Contains(r.UserId!)).ToList();
-        
+
         // Create result entry for each requested player
         var updatedFinancials = new Dictionary<string, RegistrationFinancialsDto>();
-        
+
         foreach (var item in items)
         {
             var reg = targetRegs.FirstOrDefault(r => r.UserId?.Equals(item.PlayerId, StringComparison.OrdinalIgnoreCase) ?? false);
-            
+
             if (reg == null)
             {
                 results.Add(new PlayerDiscountResult
@@ -308,7 +308,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
             UpdatedFinancials = updatedFinancials
         };
 
-        _logger.LogInformation("ApplyDiscount completed: success={Success} totalDiscount={TotalDiscount} processed={Processed} succeeded={Succeeded} failed={Failed}", 
+        _logger.LogInformation("ApplyDiscount completed: success={Success} totalDiscount={TotalDiscount} processed={Processed} succeeded={Succeeded} failed={Failed}",
             response.Success, response.TotalDiscount, response.TotalPlayersProcessed, successCount, failureCount);
         return Ok(response);
     }
