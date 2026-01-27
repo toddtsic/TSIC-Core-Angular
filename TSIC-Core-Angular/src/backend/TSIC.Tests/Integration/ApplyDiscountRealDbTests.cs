@@ -124,7 +124,10 @@ public class ApplyDiscountRealDbTests
         var response = Assert.IsType<ApplyDiscountResponseDto>(okResult.Value);
 
         Assert.True(response.Success);
-        Assert.True(response.PerPlayer.TryGetValue(registration.UserId!, out var perPlayerDiscount));
+        var result = response.Results.FirstOrDefault(r => r.PlayerId.Equals(registration.UserId, StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(result);
+        Assert.True(result!.Success);
+        var perPlayerDiscount = result.DiscountAmount;
 
         await db.Entry(registration).ReloadAsync();
 

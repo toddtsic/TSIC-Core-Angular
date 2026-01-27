@@ -18,6 +18,7 @@ export type TeamsMetadataResponse = {
     paymentMethodsAllowedCode: number;
     bAddProcessingFees: boolean;
     bApplyProcessingFeesToTeamDeposit: boolean;
+    hasActiveDiscountCodes: boolean;
     clubRepContactInfo?: (null | UserContactInfoDto);
 };
 

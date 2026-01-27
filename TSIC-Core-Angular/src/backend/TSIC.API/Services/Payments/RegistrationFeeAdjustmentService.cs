@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
-using TSIC.API.Services.Teams;
+using TeamsEntity = TSIC.Domain.Entities.Teams;
 
 namespace TSIC.API.Services.Payments;
 
@@ -27,19 +27,32 @@ public interface IRegistrationFeeAdjustmentService
         decimal adjustmentAmount,
         Guid jobId,
         string userId);
+
+    /// <summary>
+    /// Reduce team processing fee proportionally based on discount or adjustment amount.
+    /// Applies only if Job.BAddProcessingFees is true and processing fee exists.
+    /// </summary>
+    /// <param name="team">Team entity to adjust (modified in-place)</param>
+    /// <param name="adjustmentAmount">Amount being subtracted from team total (discount, correction, etc.)</param>
+    /// <param name="jobId">Job to fetch BAddProcessingFees flag and fee percentage</param>
+    /// <param name="userId">User applying adjustment (for audit trail)</param>
+    /// <returns>Actual amount by which processing fee was reduced</returns>
+    Task<decimal> ReduceTeamProcessingFeeProportionalAsync(
+        TeamsEntity team,
+        decimal adjustmentAmount,
+        Guid jobId,
+        string userId);
 }
 
 public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentService
 {
     private readonly IJobRepository _jobRepo;
     private readonly IConfiguration _config;
-    private readonly ITeamLookupService _teamLookup;
 
-    public RegistrationFeeAdjustmentService(IJobRepository jobRepo, IConfiguration config, ITeamLookupService teamLookup)
+    public RegistrationFeeAdjustmentService(IJobRepository jobRepo, IConfiguration config)
     {
         _jobRepo = jobRepo;
         _config = config;
-        _teamLookup = teamLookup;
     }
 
     public async Task<decimal> ReduceProcessingFeeProportionalAsync(
@@ -56,7 +69,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
 
         // Guard 1: Check if job is configured to add processing fees
         var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId);
-        if (feeSettings == null || (feeSettings.BAddProcessingFees ?? false) == false)
+        if (feeSettings == null || !(feeSettings.BAddProcessingFees ?? false))
             return 0m;
 
         // Guard 2: Check if registration has processing fees to reduce
@@ -74,7 +87,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
 
         // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).
         // Otherwise, cap reduction at current processing fee (never go negative).
-        var isDepositScenario = await IsDepositScenarioAsync(registration);
+        var isDepositScenario = await IsDepositScenarioAsync();
         var actualReduction = isDepositScenario ? reduction : Math.Min(reduction, registration.FeeProcessing);
 
         if (actualReduction > 0m || isDepositScenario)
@@ -88,14 +101,64 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         return actualReduction;
     }
 
-    private async Task<bool> IsDepositScenarioAsync(Registrations registration)
+    private static async Task<bool> IsDepositScenarioAsync()
     {
-        // Deposit scenario: registration has assigned team with both fee > 0 and deposit > 0
-        if (!registration.AssignedTeamId.HasValue)
-            return false;
+        // For now, return false since we don't have team lookup in this service
+        // The team discount flow doesn't use this check - it has its own deposit detection
+        return await Task.FromResult(false);
+    }
 
-        var (fee, deposit) = await _teamLookup.ResolvePerRegistrantAsync(registration.AssignedTeamId.Value);
-        return fee > 0m && deposit > 0m;
+    public async Task<decimal> ReduceTeamProcessingFeeProportionalAsync(
+        TeamsEntity team,
+        decimal adjustmentAmount,
+        Guid jobId,
+        string userId)
+    {
+        if (team == null)
+            return 0m;
+
+        if (adjustmentAmount <= 0m)
+            return 0m;
+
+        // Guard 1: Check if job is configured to add processing fees
+        var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId);
+        if (feeSettings == null || !(feeSettings.BAddProcessingFees ?? false))
+            return 0m;
+
+        // Guard 2: Check if team has processing fees to reduce
+        if ((team.FeeProcessing ?? 0m) <= 0m)
+            return 0m;
+
+        // Get CC fee percentage from Job or config
+        var feePercent = feeSettings.BAddProcessingFees == true
+            ? await _jobRepo.GetProcessingFeePercentAsync(jobId) ?? GetDefaultProcessingPercent()
+            : GetDefaultProcessingPercent();
+
+        // Calculate proportional reduction: adjustmentAmount × CC percentage
+        var reduction = adjustmentAmount * (feePercent / 100m);
+        reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
+
+        // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).
+        // Otherwise, cap reduction at current processing fee (never go negative).
+        var isDepositScenario = IsTeamDepositScenario(team);
+        var currentFee = team.FeeProcessing ?? 0m;
+        var actualReduction = isDepositScenario ? reduction : Math.Min(reduction, currentFee);
+
+        if (actualReduction > 0m || isDepositScenario)
+        {
+            team.FeeProcessing = currentFee - actualReduction;
+            team.OwedTotal = Math.Max(0m, (team.OwedTotal ?? 0m) - actualReduction);
+            team.Modified = DateTime.UtcNow;
+            team.LebUserId = userId;
+        }
+
+        return actualReduction;
+    }
+
+    private static bool IsTeamDepositScenario(TeamsEntity team)
+    {
+        // Team has deposit scenario if deposit is configured and balance is owed
+        return (team.PerRegistrantDeposit ?? 0m) > 0m && (team.OwedTotal ?? 0m) > 0m;
     }
 
     private decimal GetDefaultProcessingPercent()

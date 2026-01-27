@@ -29,6 +29,7 @@ export class PaymentService {
     appliedDiscount = signal(0);
     discountMessage = signal<string | null>(null);
     discountApplying = signal(false);
+    appliedDiscountResponse = signal<ApplyDiscountResponseDto | null>(null);
 
     lineItems = computed<LineItem[]>(() => {
         const items: LineItem[] = [];
@@ -138,6 +139,7 @@ export class PaymentService {
             .subscribe({
                 next: (resp: ApplyDiscountResponseDto) => {
                     this.discountApplying.set(false);
+                    this.appliedDiscountResponse.set(resp);
                     const total = resp?.totalDiscount ?? 0;
                     if (resp?.success && toNumber(total) > 0) {
                         this.appliedDiscount.set(0); // rely on refreshed financials/owed totals
@@ -160,6 +162,7 @@ export class PaymentService {
                 },
                 error: (err: HttpErrorResponse) => {
                     this.discountApplying.set(false);
+                    this.appliedDiscountResponse.set(null);
                     this.appliedDiscount.set(0);
                     this.discountMessage.set(err?.error?.message || err?.message || 'Failed to apply code');
                 }

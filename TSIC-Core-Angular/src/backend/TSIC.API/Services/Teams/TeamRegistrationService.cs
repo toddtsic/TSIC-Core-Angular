@@ -28,6 +28,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly ITeamFeeCalculator _teamFeeCalculator;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
+    private readonly IJobDiscountCodeRepository _discountCodeRepo;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -43,7 +44,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         UserManager<ApplicationUser> userManager,
         ITeamFeeCalculator teamFeeCalculator,
         ITextSubstitutionService textSubstitution,
-        IEmailService emailService)
+        IEmailService emailService,
+        IJobDiscountCodeRepository discountCodeRepo)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -59,6 +61,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _teamFeeCalculator = teamFeeCalculator;
         _textSubstitution = textSubstitution;
         _emailService = emailService;
+        _discountCodeRepo = discountCodeRepo;
     }
 
     /// <summary>
@@ -326,6 +329,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             PaymentMethodsAllowedCode = job.PaymentMethodsAllowedCode,
             BAddProcessingFees = job.BAddProcessingFees ?? false,
             BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
+            HasActiveDiscountCodes = (await _discountCodeRepo.GetActiveCodesForJobAsync(jobId, DateTime.UtcNow)).Any(),
             ClubRepContactInfo = clubRepContactInfo
         };
     }

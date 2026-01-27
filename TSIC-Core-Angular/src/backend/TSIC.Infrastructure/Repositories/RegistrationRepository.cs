@@ -634,4 +634,49 @@ public class RegistrationRepository : IRegistrationRepository
             await _context.SaveChangesAsync(cancellationToken);
         }
     }
+
+    public async Task SynchronizeClubRepFinancialsAsync(
+        Guid clubRepRegistrationId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        // Aggregate all active team financials using SQL SUM with COALESCE
+        var totals = await _context.Teams
+            .Where(t => t.ClubrepRegistrationid == clubRepRegistrationId && t.Active == true)
+            .GroupBy(t => 1) // Dummy groupby to enable aggregate
+            .Select(g => new
+            {
+                FeeBase = g.Sum(t => t.FeeBase ?? 0),
+                FeeDiscount = g.Sum(t => t.FeeDiscount ?? 0),
+                FeeDiscountMp = g.Sum(t => t.FeeDiscountMp ?? 0),
+                FeeProcessing = g.Sum(t => t.FeeProcessing ?? 0),
+                FeeDonation = g.Sum(t => t.FeeDonation ?? 0),
+                FeeLatefee = g.Sum(t => t.FeeLatefee ?? 0),
+                FeeTotal = g.Sum(t => t.FeeTotal ?? 0),
+                OwedTotal = g.Sum(t => t.OwedTotal ?? 0),
+                PaidTotal = g.Sum(t => t.PaidTotal ?? 0)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Update club rep registration with aggregated totals
+        var registration = await _context.Registrations
+            .FirstOrDefaultAsync(r => r.RegistrationId == clubRepRegistrationId, cancellationToken);
+
+        if (registration != null)
+        {
+            registration.FeeBase = totals?.FeeBase ?? 0;
+            registration.FeeDiscount = totals?.FeeDiscount ?? 0;
+            registration.FeeDiscountMp = totals?.FeeDiscountMp ?? 0;
+            registration.FeeProcessing = totals?.FeeProcessing ?? 0;
+            registration.FeeDonation = totals?.FeeDonation ?? 0;
+            registration.FeeLatefee = totals?.FeeLatefee ?? 0;
+            registration.FeeTotal = totals?.FeeTotal ?? 0;
+            registration.OwedTotal = totals?.OwedTotal ?? 0;
+            registration.PaidTotal = totals?.PaidTotal ?? 0;
+            registration.Modified = DateTime.UtcNow;
+            registration.LebUserId = userId;
+
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
 }

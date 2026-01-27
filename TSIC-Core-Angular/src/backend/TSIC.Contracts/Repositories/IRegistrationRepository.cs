@@ -267,6 +267,19 @@ public interface IRegistrationRepository
     /// Used after sending confirmation email.
     /// </summary>
     Task SetNotificationSentAsync(Guid registrationId, bool sent, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Synchronize club rep's Registration financial fields with SUM of all active Teams.
+    /// Updates FeeBase, FeeDiscount, FeeDiscountMp, FeeProcessing, FeeDonation, FeeLatefee,
+    /// FeeTotal, OwedTotal, PaidTotal from active teams only (Active = 1).
+    /// </summary>
+    /// <param name="clubRepRegistrationId">Club rep's Registration ID</param>
+    /// <param name="userId">User performing the sync (for audit trail)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task SynchronizeClubRepFinancialsAsync(
+        Guid clubRepRegistrationId,
+        string userId,
+        CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData(
@@ -316,3 +329,14 @@ public record RegistrationConfirmationData(
 public record RegistrationBasicInfo(
     string? ClubName,
     Guid JobId);
+
+public record ClubRepFinancialTotals(
+    decimal FeeBase,
+    decimal FeeDiscount,
+    decimal FeeDiscountMp,
+    decimal FeeProcessing,
+    decimal FeeDonation,
+    decimal FeeLatefee,
+    decimal FeeTotal,
+    decimal OwedTotal,
+    decimal PaidTotal);

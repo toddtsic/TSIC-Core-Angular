@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Transactions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Families;
@@ -10,6 +12,7 @@ using TSIC.API.Services.Clubs;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
@@ -23,16 +26,32 @@ namespace TSIC.API.Controllers;
 public class TeamRegistrationController : ControllerBase
 {
     private const string UserNotAuthenticatedMessage = "User not authenticated";
+    private const string UnknownTeamName = "Unknown";
 
     private readonly ITeamRegistrationService _teamRegistrationService;
     private readonly ILogger<TeamRegistrationController> _logger;
+    private readonly IJobLookupService _jobLookupService;
+    private readonly IJobDiscountCodeRepository _discountCodeRepo;
+    private readonly ITeamRepository _teamRepository;
+    private readonly IRegistrationRepository _registrationRepository;
+    private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
 
     public TeamRegistrationController(
         ITeamRegistrationService teamRegistrationService,
-        ILogger<TeamRegistrationController> logger)
+        ILogger<TeamRegistrationController> logger,
+        IJobLookupService jobLookupService,
+        IJobDiscountCodeRepository discountCodeRepo,
+        ITeamRepository teamRepository,
+        IRegistrationRepository registrationRepository,
+        IRegistrationFeeAdjustmentService feeAdjustment)
     {
         _teamRegistrationService = teamRegistrationService;
         _logger = logger;
+        _jobLookupService = jobLookupService;
+        _discountCodeRepo = discountCodeRepo;
+        _teamRepository = teamRepository;
+        _registrationRepository = registrationRepository;
+        _feeAdjustment = feeAdjustment;
     }
 
     /// <summary>
@@ -511,6 +530,204 @@ public class TeamRegistrationController : ControllerBase
             _logger.LogError(ex, "Error sending confirmation email for registration {RegistrationId}", request.RegistrationId);
             return StatusCode(500, new { Message = "An error occurred while sending confirmation email" });
         }
+    }
+
+    /// <summary>
+    /// Apply discount code to one or more teams. Validates code, applies discount,
+    /// reduces processing fees proportionally, and synchronizes club rep Registration financials.
+    /// </summary>
+    [HttpPost("apply-discount")]
+    [ProducesResponseType(typeof(ApplyTeamDiscountResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> ApplyTeamDiscount([FromBody] ApplyTeamDiscountRequestDto request)
+    {
+        _logger.LogInformation("ApplyTeamDiscount invoked: jobPath={JobPath} code={Code} teams={TeamCount}",
+            request?.JobPath, request?.Code, request?.TeamIds?.Count);
+
+        if (request == null || string.IsNullOrWhiteSpace(request.Code) || request.TeamIds == null || !request.TeamIds.Any() || string.IsNullOrWhiteSpace(request.JobPath))
+        {
+            return BadRequest(new { message = "Invalid request" });
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        var now = DateTime.UtcNow;
+        var codeLower = request.Code.Trim().ToLowerInvariant();
+        var discountCodeRecord = await _discountCodeRepo.GetActiveCodeAsync(jobId.Value, codeLower, now);
+
+        if (discountCodeRecord == null)
+        {
+            return Ok(new ApplyTeamDiscountResponseDto
+            {
+                Success = false,
+                Message = "Invalid or expired discount code",
+                TotalTeamsProcessed = 0,
+                SuccessCount = 0,
+                FailureCount = 0,
+                Results = new List<TeamDiscountResult>()
+            });
+        }
+
+        var (bAsPercent, codeAmount) = discountCodeRecord.Value;
+        var amount = codeAmount ?? 0m;
+        if (amount <= 0m)
+        {
+            return Ok(new ApplyTeamDiscountResponseDto
+            {
+                Success = false,
+                Message = "Discount code has no discount amount",
+                TotalTeamsProcessed = 0,
+                SuccessCount = 0,
+                FailureCount = 0,
+                Results = new List<TeamDiscountResult>()
+            });
+        }
+
+        var response = await ProcessTeamDiscountsAsync(request.TeamIds, bAsPercent ?? false, amount, 0, jobId.Value, userId);
+
+        _logger.LogInformation("ApplyTeamDiscount completed: success={Success} processed={Processed} succeeded={Succeeded} failed={Failed}",
+            response.Success, response.TotalTeamsProcessed, response.SuccessCount, response.FailureCount);
+
+        return Ok(response);
+    }
+
+    private async Task<ApplyTeamDiscountResponseDto> ProcessTeamDiscountsAsync(
+        List<Guid> teamIds,
+        bool bAsPercent,
+        decimal amount,
+        int discountCodeId,
+        Guid jobId,
+        string userId)
+    {
+        var results = new List<TeamDiscountResult>();
+        Guid? clubRepRegistrationId = null;
+
+        using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
+        {
+            foreach (var teamId in teamIds)
+            {
+                var result = await ProcessSingleTeamDiscountAsync(teamId, bAsPercent, amount, discountCodeId, jobId, userId);
+                if (result != null)
+                {
+                    results.Add(result);
+                    if (result.Success && clubRepRegistrationId == null)
+                    {
+                        var team = await _teamRepository.GetTeamFromTeamId(teamId);
+                        if (team?.ClubrepRegistrationid.HasValue ?? false)
+                        {
+                            clubRepRegistrationId = team.ClubrepRegistrationid.Value;
+                        }
+                    }
+                }
+            }
+
+            await _teamRepository.SaveChangesAsync();
+
+            if (clubRepRegistrationId.HasValue)
+            {
+                await _registrationRepository.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId.Value, userId);
+            }
+
+            scope.Complete();
+        }
+
+        var successCount = results.Count(r => r.Success);
+        var failureCount = results.Count(r => !r.Success);
+
+        return new ApplyTeamDiscountResponseDto
+        {
+            Success = successCount > 0,
+            Message = successCount > 0 ? $"Successfully applied discount to {successCount} team(s)" : "No discounts were applied",
+            TotalTeamsProcessed = results.Count,
+            SuccessCount = successCount,
+            FailureCount = failureCount,
+            Results = results
+        };
+    }
+
+    private async Task<TeamDiscountResult?> ProcessSingleTeamDiscountAsync(
+        Guid teamId,
+        bool bAsPercent,
+        decimal amount,
+        int discountCodeId,
+        Guid jobId,
+        string userId)
+    {
+        var team = await _teamRepository.GetTeamFromTeamId(teamId);
+        if (team == null)
+        {
+            return new TeamDiscountResult
+            {
+                TeamId = teamId,
+                TeamName = UnknownTeamName,
+                Success = false,
+                Message = "Team not found",
+                DiscountCodeId = null
+            };
+        }
+
+        if (team.DiscountCodeId != null)
+        {
+            return new TeamDiscountResult
+            {
+                TeamId = teamId,
+                TeamName = team.TeamName ?? UnknownTeamName,
+                Success = false,
+                Message = "Discount already applied to this team",
+                DiscountCodeId = team.DiscountCodeId
+            };
+        }
+
+        var discountAmount = CalculateDiscountAmount(bAsPercent, amount, team.FeeBase ?? 0m);
+
+        if (discountAmount <= 0m)
+        {
+            return new TeamDiscountResult
+            {
+                TeamId = teamId,
+                TeamName = team.TeamName ?? UnknownTeamName,
+                Success = false,
+                Message = "No discount applicable",
+                DiscountCodeId = null
+            };
+        }
+
+        team.DiscountCodeId = discountCodeId;
+        var currentDiscount = team.FeeDiscount ?? 0m;
+        team.FeeDiscount = currentDiscount + discountAmount;
+
+        await _feeAdjustment.ReduceTeamProcessingFeeProportionalAsync(team, discountAmount, jobId, userId);
+
+        team.FeeTotal = (team.FeeBase ?? 0m) - (team.FeeDiscount ?? 0m) + (team.FeeProcessing ?? 0m) + (team.FeeDonation ?? 0m) + (team.FeeLatefee ?? 0m);
+        team.OwedTotal = Math.Max(0m, (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m));
+        team.Modified = DateTime.UtcNow;
+        team.LebUserId = userId;
+
+        return new TeamDiscountResult
+        {
+            TeamId = teamId,
+            TeamName = team.TeamName ?? UnknownTeamName,
+            Success = true,
+            Message = $"Discount applied: {discountAmount:C}",
+            DiscountCodeId = discountCodeId
+        };
+    }
+
+    private static decimal CalculateDiscountAmount(bool bAsPercent, decimal amount, decimal feeBase)
+    {
+        if (bAsPercent)
+        {
+            var pct = amount / 100m;
+            return Math.Round(feeBase * pct, 2, MidpointRounding.AwayFromZero);
+        }
+
+        return amount;
     }
 }
 

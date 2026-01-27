@@ -106,6 +106,64 @@ declare global {
         <!-- Payment summary table -->
         <app-team-payment-summary-table #summaryTable></app-team-payment-summary-table>
 
+        <!-- Discount code section -->
+        @if (paymentSvc.hasBalance() && metadata()?.hasActiveDiscountCodes) {
+          <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="discount-title" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+            <h6 id="discount-title" class="fw-semibold mb-3">
+              <i class="bi bi-tag me-2"></i>Discount Code (Optional)
+            </h6>
+
+            <div class="input-group input-group-sm w-auto d-inline-flex align-items-center gap-2">
+              <input
+                type="text"
+                class="form-control form-control-sm"
+                placeholder="Enter discount code"
+                [(ngModel)]="discountCode"
+                [disabled]="paymentSvc.discountApplying()"
+                (keyup.enter)="applyDiscount()"
+                style="min-width: 180px;"
+              />
+              <button
+                type="button"
+                class="btn btn-outline-primary btn-sm"
+                [disabled]="!discountCode.trim() || paymentSvc.discountApplying()"
+                (click)="applyDiscount()"
+              >
+                @if (paymentSvc.discountApplying()) {
+                  <span class="spinner-border spinner-border-sm me-2"></span>
+                  Applying...
+                } @else {
+                  Apply
+                }
+              </button>
+            </div>
+
+            @if (paymentSvc.discountMessage()) {
+              <div
+                class="form-text mt-2"
+                [class.text-success]="paymentSvc.appliedDiscountResponse()?.success"
+                [class.text-danger]="!paymentSvc.appliedDiscountResponse()?.success"
+              >
+                <div class="fw-semibold mb-1">{{ paymentSvc.discountMessage() }}</div>
+                @if (paymentSvc.appliedDiscountResponse(); as response) {
+                  @if (response.success && response.results.length) {
+                    <div class="small mt-2">
+                      <div class="fw-semibold mb-1">Team Results:</div>
+                      <ul class="mb-0 ps-3">
+                        @for (result of response.results; track result.teamId) {
+                          <li [ngClass]="result.success ? 'text-success' : 'text-danger'">
+                            <strong>{{ result.teamName }}</strong>: {{ result.message }}
+                          </li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          </section>
+        }
+
         <!-- Vertical Insure widget section -->
         @if (insuranceState.offerTeamRegSaver() && paymentSvc.hasBalance()) {
           <div class="mb-3">
@@ -272,6 +330,7 @@ export class TeamPaymentStepComponent
   submitting = signal(false);
   lastError = signal<string | null>(null);
   metadata = signal<TeamsMetadataResponse | null>(null);
+  discountCode = '';
 
   // Insurance offer loaded
   private readonly insuranceOfferLoaded = signal(false);
@@ -344,6 +403,30 @@ export class TeamPaymentStepComponent
 
   onCcValueChange(data: CreditCardInfo): void {
     this.ccData.set(data);
+  }
+
+  applyDiscount(): void {
+    const code = this.discountCode.trim();
+    if (!code) return;
+
+    const teamIds = this.paymentSvc.teamIdsWithBalance();
+    if (teamIds.length === 0) {
+      this.toast.show('No teams available for discount', 'warning');
+      return;
+    }
+
+    this.paymentSvc.applyDiscount(code, teamIds).subscribe({
+      next: () => {
+        // Success handling is in the service (updates signals)
+        // Refresh payment summary by reloading metadata
+        this.teamReg.getTeamsMetadata(true).subscribe({
+          next: (response) => this.metadata.set(response),
+        });
+      },
+      error: (err) => {
+        console.error('[PaymentComponent] Discount application failed:', err);
+      },
+    });
   }
 
   async submitPayment(): Promise<void> {

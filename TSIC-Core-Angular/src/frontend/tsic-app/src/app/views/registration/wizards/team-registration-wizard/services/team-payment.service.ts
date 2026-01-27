@@ -1,5 +1,8 @@
-import { Injectable, signal, computed } from '@angular/core';
-import type { RegisteredTeamDto } from '@core/api';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import type { RegisteredTeamDto, ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto } from '@core/api';
+import { environment } from '@environments/environment';
 
 export interface TeamLineItem {
     teamId: string;
@@ -26,6 +29,8 @@ export interface TeamLineItem {
  */
 @Injectable({ providedIn: 'root' })
 export class TeamPaymentService {
+    private readonly http = inject(HttpClient);
+
     // Teams signal - must be set by the component that owns team state
     teams = signal<RegisteredTeamDto[]>([]);
 
@@ -33,9 +38,15 @@ export class TeamPaymentService {
     paymentMethodsAllowedCode = signal<number>(1); // 1=CC only, 2=Both, 3=Check only
     bAddProcessingFees = signal<boolean>(false);
     bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
+    jobPath = signal<string>('');
 
     // Selected payment method signal
     selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
+
+    // Discount signals
+    appliedDiscountResponse = signal<ApplyTeamDiscountResponseDto | null>(null);
+    discountMessage = signal<string>('');
+    discountApplying = signal<boolean>(false);
 
     // Line items for all registered teams
     lineItems = computed<TeamLineItem[]>(() => {
@@ -106,11 +117,71 @@ export class TeamPaymentService {
         return cols;
     });
 
+    /**
+     * Apply discount code to selected teams.
+     * Makes HTTP POST to /api/team-registration/apply-discount.
+     * Updates discount signals with per-team results.
+     */
+    applyDiscount(code: string, teamIds: string[]): Observable<ApplyTeamDiscountResponseDto> {
+        if (!code || this.discountApplying()) {
+            throw new Error('Invalid discount code or already applying');
+        }
+
+        if (teamIds.length === 0) {
+            throw new Error('No teams selected for discount');
+        }
+
+        this.discountApplying.set(true);
+        this.discountMessage.set('');
+
+        const request: ApplyTeamDiscountRequestDto = {
+            jobPath: this.jobPath(),
+            code,
+            teamIds: teamIds.map(id => id as any) // Convert string to Guid
+        };
+
+        const observable = this.http.post<ApplyTeamDiscountResponseDto>(
+            `${environment.apiUrl}/team-registration/apply-discount`,
+            request
+        );
+
+        observable.subscribe({
+            next: (resp: ApplyTeamDiscountResponseDto) => {
+                this.discountApplying.set(false);
+                this.appliedDiscountResponse.set(resp);
+
+                if (resp.success && resp.successCount > 0) {
+                    this.discountMessage.set(resp.message || 'Discount applied');
+                } else {
+                    this.discountMessage.set(resp.message || 'Failed to apply discount');
+                }
+            },
+            error: (err: HttpErrorResponse) => {
+                this.discountApplying.set(false);
+                this.appliedDiscountResponse.set(null);
+                this.discountMessage.set(err?.error?.message || err?.message || 'Failed to apply discount code');
+            }
+        });
+
+        return observable;
+    }
+
+    /**
+     * Reset discount state
+     */
+    resetDiscount(): void {
+        this.appliedDiscountResponse.set(null);
+        this.discountMessage.set('');
+        this.discountApplying.set(false);
+    }
+
     reset(): void {
         this.teams.set([]);
         this.paymentMethodsAllowedCode.set(1);
         this.bAddProcessingFees.set(false);
         this.bApplyProcessingFeesToTeamDeposit.set(false);
         this.selectedPaymentMethod.set('CC');
+        this.jobPath.set('');
+        this.resetDiscount();
     }
 }

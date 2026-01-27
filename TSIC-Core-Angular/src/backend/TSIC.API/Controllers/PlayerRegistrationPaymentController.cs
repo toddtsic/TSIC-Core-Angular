@@ -107,22 +107,36 @@ public class PlayerRegistrationPaymentController : ControllerBase
         var codeLower = request.Code.Trim().ToLowerInvariant();
         var rec = await _discountCodeRepo.GetActiveCodeAsync(jobId.Value, codeLower, now);
 
-        var response = new ApplyDiscountResponseDto();
+        var results = new List<PlayerDiscountResult>();
         if (rec == null)
         {
-            response.Success = false;
-            response.Message = "Invalid or expired code";
-            response.TotalDiscount = 0m;
-            return Ok(response);
+            return Ok(new ApplyDiscountResponseDto
+            {
+                Success = false,
+                Message = "Invalid or expired discount code",
+                TotalDiscount = 0m,
+                TotalPlayersProcessed = 0,
+                SuccessCount = 0,
+                FailureCount = 0,
+                Results = results,
+                UpdatedFinancials = new()
+            });
         }
 
         var items = request.Items.Where(i => i != null && i.Amount > 0m && !string.IsNullOrWhiteSpace(i.PlayerId)).ToList();
         if (items.Count == 0)
         {
-            response.Success = false;
-            response.Message = "Nothing to discount";
-            response.TotalDiscount = 0m;
-            return Ok(response);
+            return Ok(new ApplyDiscountResponseDto
+            {
+                Success = false,
+                Message = "No valid players for discount",
+                TotalDiscount = 0m,
+                TotalPlayersProcessed = 0,
+                SuccessCount = 0,
+                FailureCount = 0,
+                Results = results,
+                UpdatedFinancials = new()
+            });
         }
 
         var total = items.Sum(i => i.Amount);
@@ -130,10 +144,17 @@ public class PlayerRegistrationPaymentController : ControllerBase
         var amount = codeAmount ?? 0m;
         if (amount <= 0m || total <= 0m)
         {
-            response.Success = false;
-            response.Message = "Code has no discount";
-            response.TotalDiscount = 0m;
-            return Ok(response);
+            return Ok(new ApplyDiscountResponseDto
+            {
+                Success = false,
+                Message = "Discount code has no discount amount",
+                TotalDiscount = 0m,
+                TotalPlayersProcessed = 0,
+                SuccessCount = 0,
+                FailureCount = 0,
+                Results = results,
+                UpdatedFinancials = new()
+            });
         }
 
         var perPlayer = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
@@ -179,36 +200,60 @@ public class PlayerRegistrationPaymentController : ControllerBase
             totalDiscount = perPlayer.Values.Sum();
         }
 
-        response.Success = totalDiscount > 0m;
-        response.TotalDiscount = totalDiscount;
-        response.PerPlayer = perPlayer;
-
-        // Persist discount to registrations (one discount max per registration)
+        // Persist discount to registrations and track per-player results
         var requestedPlayerIds = new HashSet<string>(items.Select(i => i.PlayerId).Where(p => !string.IsNullOrWhiteSpace(p)), StringComparer.OrdinalIgnoreCase);
         var regs = await _registrations.GetByJobAndFamilyUserIdAsync(jobId.Value, familyUserId, activePlayersOnly: true);
         var targetRegs = regs.Where(r => !string.IsNullOrWhiteSpace(r.UserId) && requestedPlayerIds.Contains(r.UserId!)).ToList();
-        if (!targetRegs.Any())
+        
+        // Create result entry for each requested player
+        var updatedFinancials = new Dictionary<string, RegistrationFinancialsDto>();
+        
+        foreach (var item in items)
         {
-            response.Success = false;
-            response.Message = "No matching registrations for discount";
-            response.TotalDiscount = 0m;
-            response.PerPlayer.Clear();
-            return Ok(response);
-        }
-        var alreadyDiscounted = targetRegs.FirstOrDefault(r => r.FeeDiscount > 0m);
-        if (alreadyDiscounted != null)
-        {
-            response.Success = false;
-            response.Message = "A discount is already applied for this registration";
-            response.TotalDiscount = 0m;
-            response.PerPlayer.Clear();
-            return Ok(response);
-        }
+            var reg = targetRegs.FirstOrDefault(r => r.UserId?.Equals(item.PlayerId, StringComparison.OrdinalIgnoreCase) ?? false);
+            
+            if (reg == null)
+            {
+                results.Add(new PlayerDiscountResult
+                {
+                    PlayerId = item.PlayerId,
+                    PlayerName = "Unknown",
+                    Success = false,
+                    Message = "Player registration not found",
+                    DiscountAmount = 0m
+                });
+                continue;
+            }
 
-        foreach (var reg in targetRegs)
-        {
-            if (reg.UserId == null) continue;
-            if (!perPlayer.TryGetValue(reg.UserId, out var d) || d <= 0m) continue;
+            // Check if already discounted
+            if (reg.FeeDiscount > 0m)
+            {
+                results.Add(new PlayerDiscountResult
+                {
+                    PlayerId = item.PlayerId,
+                    PlayerName = reg.InsuredName ?? "Unknown",
+                    Success = false,
+                    Message = "Discount already applied to this player",
+                    DiscountAmount = 0m
+                });
+                continue;
+            }
+
+            // Check if discount exists for this player
+            if (!perPlayer.TryGetValue(item.PlayerId, out var d) || d <= 0m)
+            {
+                results.Add(new PlayerDiscountResult
+                {
+                    PlayerId = item.PlayerId,
+                    PlayerName = reg.InsuredName ?? "Unknown",
+                    Success = false,
+                    Message = "No discount applicable",
+                    DiscountAmount = 0m
+                });
+                continue;
+            }
+
+            // Apply discount
             var newDiscount = reg.FeeDiscount + d;
 
             // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
@@ -223,7 +268,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
             reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
             reg.Modified = DateTime.UtcNow;
             reg.LebUserId = familyUserId;
-            response.UpdatedFinancials[reg.UserId] = new RegistrationFinancialsDto
+
+            updatedFinancials[reg.UserId!] = new RegistrationFinancialsDto
             {
                 FeeBase = reg.FeeBase,
                 FeeProcessing = reg.FeeProcessing,
@@ -234,11 +280,36 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 OwedTotal = reg.OwedTotal,
                 PaidTotal = reg.PaidTotal
             };
+
+            results.Add(new PlayerDiscountResult
+            {
+                PlayerId = item.PlayerId,
+                PlayerName = reg.InsuredName ?? "Unknown",
+                Success = true,
+                Message = $"Discount applied: {d:C}",
+                DiscountAmount = d
+            });
         }
 
         await _registrations.SaveChangesAsync();
-        response.Message = response.Success ? "Discount applied" : "No discount applicable";
-        _logger.LogInformation("ApplyDiscount completed: success={Success} totalDiscount={TotalDiscount} players={PlayerCount}", response.Success, response.TotalDiscount, response.PerPlayer?.Count);
+
+        var successCount = results.Count(r => r.Success);
+        var failureCount = results.Count(r => !r.Success);
+
+        var response = new ApplyDiscountResponseDto
+        {
+            Success = successCount > 0,
+            Message = successCount > 0 ? $"Successfully applied discount to {successCount} player(s)" : "No discounts were applied",
+            TotalDiscount = totalDiscount,
+            TotalPlayersProcessed = results.Count,
+            SuccessCount = successCount,
+            FailureCount = failureCount,
+            Results = results,
+            UpdatedFinancials = updatedFinancials
+        };
+
+        _logger.LogInformation("ApplyDiscount completed: success={Success} totalDiscount={TotalDiscount} processed={Processed} succeeded={Succeeded} failed={Failed}", 
+            response.Success, response.TotalDiscount, response.TotalPlayersProcessed, successCount, failureCount);
         return Ok(response);
     }
 }

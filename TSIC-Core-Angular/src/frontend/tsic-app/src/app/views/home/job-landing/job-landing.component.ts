@@ -1,6 +1,9 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-
 import { ActivatedRoute, Router } from '@angular/router';
+import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
+import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
 
 /**
  * Job Landing Page Component
@@ -47,7 +50,7 @@ export class JobLandingComponent implements OnInit {
 
         // Fetch job metadata first - if job doesn't exist, redirect to not-found
         this.jobService.fetchJobMetadata(this.jobPath()).subscribe({
-            next: (job) => {
+            next: (job: any) => {
                 // Job exists - set it and load additional data
                 this.jobService.setJob(job);
                 this.jobService.loadBulletins(this.jobPath());
@@ -57,7 +60,7 @@ export class JobLandingComponent implements OnInit {
                     this.jobService.loadRegistrationStatus(this.jobPath(), ['Player', 'Team']);
                 }
             },
-            error: (err) => {
+            error: (err: any) => {
                 // Only redirect to 404 if it's a genuine 404 (job not found)
                 // Network errors (status 0) are handled by the interceptor with a toast
                 if (err.status === 404) {

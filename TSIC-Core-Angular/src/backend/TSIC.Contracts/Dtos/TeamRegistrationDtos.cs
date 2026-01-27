@@ -88,6 +88,7 @@ public sealed record TeamsMetadataResponse
     public required int PaymentMethodsAllowedCode { get; init; }
     public required bool BAddProcessingFees { get; init; }
     public required bool BApplyProcessingFeesToTeamDeposit { get; init; }
+    public required bool HasActiveDiscountCodes { get; init; }
     public UserContactInfoDto? ClubRepContactInfo { get; init; }
 }
 
