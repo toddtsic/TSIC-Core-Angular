@@ -20,7 +20,7 @@ import { FamilyCheckStepComponent } from './steps/family-check.component';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
-import { RwActionBarComponent } from './action-bar/rw-action-bar.component';
+import { WizardActionBarComponent } from '../shared/wizard-action-bar/wizard-action-bar.component';
 import { ToastService } from '@shared-ui/toast.service';
 
 export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'forms' | 'waivers' | 'review' | 'payment' | 'confirmation';
@@ -28,7 +28,7 @@ export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'for
 @Component({
     selector: 'app-player-registration-wizard',
     standalone: true,
-    imports: [RouterModule, WizardThemeDirective, RwActionBarComponent, StepIndicatorComponent, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
+    imports: [RouterModule, WizardThemeDirective, WizardActionBarComponent, StepIndicatorComponent, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
     host: {}

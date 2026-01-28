@@ -1,0 +1,30 @@
+<nav class="wizard-action-bar" aria-label="Wizard navigation">
+    <div class="action-bar-inner">
+        <!-- Back Button (left) -->
+        @if (canBack()) {
+        <button type="button" class="btn btn-back" (click)="back.emit()" aria-label="Go back to previous step">
+            <span class="back-icon" aria-hidden="true">←</span>
+            <span class="back-label">Back</span>
+        </button>
+        }
+
+        <!-- Badge (center-left, next to Back button) -->
+        @if (showBadge()) {
+        <span class="badge ms-2" [class]="detailsBadgeClass()">
+            {{ detailsBadgeLabel() }}
+        </span>
+        }
+
+        <!-- Forward Button (right) -->
+        @if (showContinue()) {
+        <button type="button" class="btn btn-forward" (click)="continue.emit()" [disabled]="!canContinue()"
+            [attr.aria-label]="'Proceed: ' + continueLabel()">
+            <!-- Desktop label -->
+            <span class="continue-label-full d-none d-sm-inline">{{ continueLabel() }}</span>
+            <!-- Mobile label (short version without "Proceed to ") -->
+            <span class="continue-label-short d-sm-none">{{ continueLabelShort() }}</span>
+            <span class="forward-icon" aria-hidden="true">→</span>
+        </button>
+        }
+    </div>
+</nav>

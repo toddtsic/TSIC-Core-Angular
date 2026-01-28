@@ -31,7 +31,7 @@
         @if (step() !== WizardStep.Login) {
         <div class="mb-0">
           <div class="wizard-action-bar-container">
-            <app-tw-action-bar [canBack]="step() !== WizardStep.Login" [canContinue]="actionBarCanContinue()"
+            <app-wizard-action-bar [canBack]="step() !== WizardStep.Login" [canContinue]="actionBarCanContinue()"
               [continueLabel]="actionBarContinueLabel()" [showContinue]="actionBarShowContinue()"
               [detailsBadgeLabel]="actionBarDetailsBadge()" [detailsBadgeClass]="actionBarDetailsBadgeClass()"
               (back)="prevStep()" (continue)="nextStep()" />

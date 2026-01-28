@@ -5,7 +5,14 @@
       <div class="wizard-fixed-header">
         <div class="text-center mb-3">
           <h2 id="rw-title" class="mb-1 fw-bold">Player Registration</h2>
-          <p class="text-muted mb-0 fs-6">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
+          <div class="step-info d-flex align-items-center justify-content-center flex-wrap gap-2">
+            <p class="text-muted mb-0 fs-6">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
+            @if (familyLastName()) {
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
+              {{ familyLastName() }} Family
+            </span>
+            }
+          </div>
         </div>
 
         <!-- Step indicator with circular badges -->
@@ -13,14 +20,12 @@
           <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
         </div>
 
-        <!-- Action bar (fixed at top) -->
+        <!-- Action bar (sticky via parent container) -->
         @if (currentIndex() !== 0) {
-        <div class="mb-0">
-          <div class="wizard-action-bar-container">
-            <app-rw-action-bar [familyLastName]="familyLastName()" [canBack]="currentIndex() !== 0"
-              [canContinue]="canContinue()" [continueLabel]="continueLabel()" [showContinue]="showContinueButton()"
-              [placement]="'top'" (back)="back()" (continue)="onContinue()" />
-          </div>
+        <div class="wizard-action-bar-container">
+          <app-wizard-action-bar [canBack]="currentIndex() !== 0" [canContinue]="canContinue()"
+            [continueLabel]="continueLabel()" [showContinue]="showContinueButton()" (back)="back()"
+            (continue)="onContinue()" />
         </div>
         }
       </div>

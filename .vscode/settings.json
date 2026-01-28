@@ -37,5 +37,11 @@
   },
   "chat.tools.terminal.autoApprove": {
     "dotnet test": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/publish/**": true,
+    "**/bin/**": true,
+    "**/obj/**": true
   }
 }

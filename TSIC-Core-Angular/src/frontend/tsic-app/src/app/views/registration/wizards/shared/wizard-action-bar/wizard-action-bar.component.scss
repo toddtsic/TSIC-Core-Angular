@@ -1,0 +1,109 @@
+// Unified Wizard Action Bar Styling
+// Distinctive modern design with responsive behavior
+
+.wizard-action-bar {
+    display: block;
+    font-size: 0.82rem; // Mobile-first base size
+    position: relative;
+    z-index: 10;
+
+    // High contrast, distinctive button styling
+    .action-bar-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 0;
+        min-height: 2.5rem;
+    }
+
+    // Shared button base styling
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: inherit;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        white-space: nowrap;
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        // Icon styling
+        .back-icon,
+        .forward-icon {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+    }
+
+    // Back Button - Neutral, secondary appearance
+    .btn-back {
+        background: var(--bs-light, #f8f9fa);
+        color: var(--bs-dark, #212529);
+        border: 2px solid var(--bs-secondary, #6c757d);
+
+        &:hover:not(:disabled) {
+            background: var(--bs-secondary, #6c757d);
+            color: white;
+            transform: translateX(-2px);
+        }
+
+        &:active:not(:disabled) {
+            transform: translateX(-1px);
+        }
+
+        .back-label {
+            @media (max-width: 768px) {
+                display: none;
+            }
+        }
+    }
+
+    // Forward Button - Primary, prominent appearance with gradient
+    .btn-forward {
+        background: linear-gradient(135deg,
+                var(--bs-primary, #0d6efd) 0%,
+                var(--bs-primary-darker, #0b5ed7) 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        border: none;
+
+        &:hover:not(:disabled) {
+            background: linear-gradient(135deg,
+                    var(--bs-primary-darker, #0b5ed7) 0%,
+                    var(--bs-primary-dark, #0a58ca) 100%);
+            box-shadow: 0 6px 16px rgba(13, 110, 253, 0.4);
+            transform: translateY(-2px);
+        }
+
+        &:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+        }
+
+        &:disabled {
+            background: var(--bs-gray-400, #adb5bd);
+            box-shadow: none;
+        }
+    }
+}
+
+// Desktop/Tablet responsive adjustments
+@media (min-width: 769px) {
+    .wizard-action-bar {
+        font-size: 1rem; // Larger on desktop
+    }
+}
+
+// Ensure proper spacing within parent container
+:host {
+    display: block;
+}

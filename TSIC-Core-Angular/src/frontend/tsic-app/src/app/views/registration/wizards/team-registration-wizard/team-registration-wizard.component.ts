@@ -18,7 +18,7 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
-import { TwActionBarComponent } from './action-bar/tw-action-bar.component';
+import { WizardActionBarComponent } from '../shared/wizard-action-bar/wizard-action-bar.component';
 import { StepIndicatorComponent, type StepDefinition } from '@shared-ui/components/step-indicator/step-indicator.component';
 import {
     ClubRepLoginStepComponent,
@@ -61,7 +61,7 @@ enum WizardStep {
         FormsModule,
         TeamsStepComponent,
         TeamPaymentStepComponent,
-        TwActionBarComponent,
+        WizardActionBarComponent,
         StepIndicatorComponent,
         ClubRepLoginStepComponent,
         ReviewStepComponent,
