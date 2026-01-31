@@ -22,8 +22,8 @@
     --wizard-fixed-header-bg: var(--bs-body-bg);
     --wizard-fixed-header-border: var(--border-color);
     --wizard-scrollable-pb: 6rem;
-    --wizard-action-bar-bg: var(--bs-secondary-bg);
-    --wizard-action-bar-blur: 8px;
+    --wizard-action-bar-bg: rgba(var(--bs-secondary-bg-rgb, 248, 249, 250), 0.85);
+    --wizard-action-bar-blur: 16px;
     --wizard-action-bar-z-index: 50;
     --wizard-modal-z-index: 1000;
 }
@@ -87,25 +87,18 @@
 
 /**
  * .wizard-action-bar-container
- * Optional wrapper for positioning and styling the action bar itself.
- * Handles backdrop blur and theme-aware background colors.
+ * Transparent wrapper for positioning the action bar.
+ * No background, border, or shadow - only buttons are visible.
  */
 .wizard-action-bar-container {
-    position: relative;
-    background: var(--wizard-action-bar-bg);
-    border-top: 1px solid var(--wizard-fixed-header-border);
-    backdrop-filter: blur(var(--wizard-action-bar-blur));
-    -webkit-backdrop-filter: blur(var(--wizard-action-bar-blur));
-
-    // Ensure text contrast in both light and dark modes
+    position: sticky;
+    top: 0;
+    z-index: calc(var(--wizard-action-bar-z-index) + 10);
+    background: transparent;
+    border: none;
+    
+    // Ensure text contrast
     color: var(--bs-body-color);
-
-    // Subtle shadow for depth
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
-
-    @media (prefers-color-scheme: dark) {
-        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
-    }
 }
 
 /**

@@ -32,8 +32,8 @@
 
       <!-- Scrollable content region -->
       <div class="wizard-scrollable-content">
-        <div class="card shadow-lg border-0 card-rounded mb-4 wizard-theme-player">
-          <div class="card-body bg-surface px-4 pb-4 pt-3">
+        <div class="mb-4">
+          <div class="px-4 pb-4 pt-3">
             @switch (currentStepId()) {
             @case ('family-check') {
             <app-rw-family-check (next)="next()" />
@@ -68,8 +68,8 @@
             </div>
             }
             }
-          </div> <!-- /card-body -->
-        </div> <!-- /card -->
+          </div>
+        </div>
       </div> <!-- /wizard-scrollable-content -->
 
     </div> <!-- /col -->

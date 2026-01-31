@@ -244,13 +244,13 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  private doInlineLogin(): Promise<void> {
+  private doInlineLogin(): Promise<'ok' | 'tos'> {
     this.inlineError = null;
     if (!this.username || !this.password || this.submitting) {
       // mark touched so validation surfaces if user attempted action
       if (!this.username) this.usernameTouched = true;
       if (!this.password) this.passwordTouched = true;
-      return Promise.resolve();
+      return Promise.resolve('ok');
     }
     this.submitting = true;
     return new Promise((resolve, reject) => {
@@ -259,10 +259,10 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
           this.submitting = false;
           // Check TOS requirement before proceeding
           if (this.auth.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
-            reject(new Error('TOS required')); // Prevent wizard progression until TOS signed
+            resolve('tos'); // Prevent wizard progression until TOS signed
             return;
           }
-          resolve();
+          resolve('ok');
         },
         error: (err) => {
           this.submitting = false;
@@ -291,7 +291,10 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
       return;
     }
     try {
-      await this.doInlineLogin();
+      const result = await this.doInlineLogin();
+      if (result !== 'ok') {
+        return;
+      }
       if (!this.inlineError) {
         this.state.resetForFamilySwitch();
         this.state.hasFamilyAccount.set('yes');
@@ -306,7 +309,10 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
     this.submittingAction = 'manage';
     if (!this.ensureCredentialsOrFocus()) { this.submittingAction = null; return; }
     try {
-      await this.doInlineLogin();
+      const result = await this.doInlineLogin();
+      if (result !== 'ok') {
+        return;
+      }
       if (this.inlineError) return;
       const jobPath = this.resolveJobPath();
       const playersReturn = jobPath ? `/${jobPath}/register-player?step=players` : `/register-player?step=players`;

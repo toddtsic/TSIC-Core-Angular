@@ -964,11 +964,15 @@ export class RegistrationWizardService {
 
     /** Load confirmation summary (financial + insurance + substituted HTML) after payment/insurance flows complete. */
     loadConfirmation(): void {
-        const jobId = this.jobId();
-        const familyUserId = this.familyUser()?.familyUserId;
-        if (!jobId || !familyUserId) return;
         const base = this.resolveApiBase();
-        this.http.get<PlayerRegConfirmationDto>(`${base}/player-registration/confirmation`, { params: { jobId, familyUserId } })
+        const jobPath = this.jobPath();
+        if (!jobPath) {
+            try { console.warn('[RegWizard] loadConfirmation skipped: no jobPath'); } catch { /* no-op */ }
+            return;
+        }
+        this.http.get<PlayerRegConfirmationDto>(`${base}/player-registration/confirmation`, {
+            params: { jobPath }
+        })
             .subscribe({
                 next: dto => this.confirmation.set(dto),
                 error: err => {
@@ -980,11 +984,8 @@ export class RegistrationWizardService {
 
     /** Trigger server to re-send the confirmation email to the family user's email address. */
     resendConfirmationEmail(): Promise<boolean> {
-        const jobId = this.jobId();
-        const familyUserId = this.familyUser()?.familyUserId;
-        if (!jobId || !familyUserId) return Promise.resolve(false);
         const base = this.resolveApiBase();
-        return firstValueFrom(this.http.post(`${base}/player-registration/confirmation/resend`, null, { params: { jobId, familyUserId } }))
+        return firstValueFrom(this.http.post(`${base}/player-registration/confirmation/resend`, null))
             .then(() => true)
             .catch(err => {
                 try { console.warn('[RegWizard] Resend confirmation failed', err); } catch { /* no-op */ }

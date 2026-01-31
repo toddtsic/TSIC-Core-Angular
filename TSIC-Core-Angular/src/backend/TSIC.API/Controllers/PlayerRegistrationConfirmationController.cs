@@ -1,4 +1,5 @@
 using System;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,14 +49,17 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
     [ProducesResponseType(typeof(PlayerRegConfirmationDto), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> Get([FromQuery] string jobPath, CancellationToken ct)
+    public async Task<IActionResult> Get([FromQuery] string? jobPath, CancellationToken ct)
     {
-        _logger.LogInformation("[Confirmation] GET invoked jobPath={JobPath}", jobPath);
-        if (string.IsNullOrWhiteSpace(jobPath))
+        // Accept jobPath from query parameter (family users) or JWT claim (Phase 2 users)
+        var effectiveJobPath = jobPath ?? User.FindFirstValue("jobPath");
+        _logger.LogInformation("[Confirmation] GET invoked jobPath={JobPath}", effectiveJobPath);
+        if (string.IsNullOrWhiteSpace(effectiveJobPath))
         {
-            return BadRequest(new { message = "jobPath is required" });
+            return BadRequest(new { message = "jobPath query parameter or claim is required" });
         }
 
+        // ASP.NET Core maps JWT 'sub' claim to ClaimTypes.NameIdentifier
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(familyUserId))
         {
@@ -63,15 +67,16 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
             return Unauthorized();
         }
 
-        var dto = await _service.BuildAsync(jobPath, familyUserId, ct);
+        var dto = await _service.BuildAsync(effectiveJobPath, familyUserId, ct);
         return Ok(dto);
     }
 
     // HEAD endpoint (some clients/browsers may probe; avoids 405)
     [HttpHead("confirmation")]
     [Authorize]
-    public IActionResult Head([FromQuery] string jobPath)
+    public IActionResult Head()
     {
+        var jobPath = User.FindFirstValue("jobPath");
         if (string.IsNullOrWhiteSpace(jobPath)) return BadRequest();
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
@@ -83,12 +88,13 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
-    public async Task<IActionResult> Resend([FromQuery] string jobPath, CancellationToken ct)
+    public async Task<IActionResult> Resend(CancellationToken ct)
     {
+        var jobPath = User.FindFirstValue("jobPath");
         _logger.LogInformation("[Confirmation] RESEND invoked jobPath={JobPath}", jobPath);
         if (string.IsNullOrWhiteSpace(jobPath))
         {
-            return BadRequest(new { message = "jobPath is required" });
+            return BadRequest(new { message = "jobPath claim is required" });
         }
 
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);

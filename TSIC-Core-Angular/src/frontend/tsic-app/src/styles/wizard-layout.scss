@@ -22,8 +22,8 @@
     --wizard-fixed-header-bg: var(--bs-body-bg);
     --wizard-fixed-header-border: var(--border-color);
     --wizard-scrollable-pb: 6rem;
-    --wizard-action-bar-bg: var(--bs-secondary-bg);
-    --wizard-action-bar-blur: 8px;
+    --wizard-action-bar-bg: transparent;
+    --wizard-action-bar-blur: 0px;
     --wizard-action-bar-z-index: 50;
     --wizard-modal-z-index: 1000;
 }
@@ -91,20 +91,13 @@
  */
 .wizard-action-bar-container {
     position: relative;
-    background: var(--wizard-action-bar-bg);
-    border-top: 1px solid var(--wizard-fixed-header-border);
-    backdrop-filter: blur(var(--wizard-action-bar-blur));
-    -webkit-backdrop-filter: blur(var(--wizard-action-bar-blur));
+    background: transparent;
+    border: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 
     // Ensure text contrast in both light and dark modes
     color: var(--bs-body-color);
-
-    // Subtle shadow for depth
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
-
-    @media (prefers-color-scheme: dark) {
-        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
-    }
 }
 
 /**

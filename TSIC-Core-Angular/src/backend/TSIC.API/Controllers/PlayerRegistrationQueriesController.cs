@@ -31,7 +31,7 @@ public class PlayerRegistrationQueriesController : ControllerBase
     /// <summary>
     /// Returns an existing registration snapshot for a family user in the context of a job.
     /// Shape is compatible with the wizard prefill expectations: teams per player and form values per player.
-    /// Family user ID is extracted from JWT claims (sub).
+    /// Family user ID and jobPath are extracted from JWT claims.
     /// </summary>
     [HttpGet("existing")]
     [Authorize]
@@ -39,11 +39,12 @@ public class PlayerRegistrationQueriesController : ControllerBase
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(404)]
-    public async Task<IActionResult> GetExistingRegistration([FromQuery] string jobPath)
+    public async Task<IActionResult> GetExistingRegistration()
     {
+        var jobPath = User.FindFirstValue("jobPath");
         if (string.IsNullOrWhiteSpace(jobPath))
         {
-            return BadRequest(new { message = "jobPath is required" });
+            return BadRequest(new { message = "jobPath claim is required" });
         }
 
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -63,7 +64,7 @@ public class PlayerRegistrationQueriesController : ControllerBase
     /// <summary>
     /// Returns a flat list of registrations (one row per registration) for a given family within a job.
     /// Useful for payment/checkout flows where each team/camp is a distinct registration.
-    /// Family user ID is extracted from JWT claims (sub).
+    /// Family user ID and jobPath are extracted from JWT claims.
     /// </summary>
     [HttpGet("family-registrations")]
     [Authorize]
@@ -71,10 +72,11 @@ public class PlayerRegistrationQueriesController : ControllerBase
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(404)]
-    public async Task<IActionResult> GetFamilyRegistrations([FromQuery] string jobPath)
+    public async Task<IActionResult> GetFamilyRegistrations()
     {
+        var jobPath = User.FindFirstValue("jobPath");
         if (string.IsNullOrWhiteSpace(jobPath))
-            return BadRequest(new { message = "jobPath is required" });
+            return BadRequest(new { message = "jobPath claim is required" });
 
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();

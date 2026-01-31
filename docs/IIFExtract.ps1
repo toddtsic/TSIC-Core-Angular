@@ -255,12 +255,6 @@ try {
     }
     
     Write-Host "`nOutput location: $outputDir" -ForegroundColor Gray
-    
-    # Offer to open output directory
-    $openDir = Read-Host "`nOpen output directory in Explorer? (Y/N)"
-    if ($openDir -eq 'Y' -or $openDir -eq 'y') {
-        Start-Process explorer.exe -ArgumentList $outputDir
-    }
 }
 catch {
     Write-Host "`nError: $_" -ForegroundColor Red
@@ -271,6 +265,190 @@ catch {
     if ($excel) { $excel.Quit() }
     
     exit 1
+}
+
+# Function to count transactions in an IIF file
+function Get-IifTransactionCount {
+    param(
+        [string]$FilePath
+    )
+    
+    try {
+        $lines = Get-Content -Path $FilePath -Encoding UTF8
+        $transactionCount = 0
+        
+        foreach ($line in $lines) {
+            # Count TRNS lines (each represents one transaction)
+            if ($line -match '^TRNS\t') {
+                $transactionCount++
+            }
+        }
+        
+        return $transactionCount
+    }
+    catch {
+        Write-Host "[WARN] Could not count transactions in $FilePath" -ForegroundColor Yellow
+        return 0
+    }
+}
+
+# Consolidate IIF files into single master file
+function Consolidate-IifFiles {
+    param(
+        [string]$SourceDirectory,
+        [string]$OutputFilePath
+    )
+    
+    Write-Host "`n=== Consolidating IIF Files ===" -ForegroundColor Cyan
+    
+    $iifFiles = Get-ChildItem -Path $SourceDirectory -Filter "*.iif" -ErrorAction SilentlyContinue | 
+                Where-Object { $_.Name -ne "consolodated.iif" }
+    
+    if ($iifFiles.Count -eq 0) {
+        Write-Host "No IIF files found to consolidate." -ForegroundColor Yellow
+        return $false
+    }
+    
+    Write-Host "Found $($iifFiles.Count) IIF file(s) to consolidate.`n" -ForegroundColor Gray
+    
+    try {
+        # Collect all headers and data in interleaved blocks (one IIF file at a time)
+        $consolidatedBlocks = @()
+        $sourceTransactionCounts = @{}
+        $totalSourceTransactions = 0
+        
+        foreach ($file in $iifFiles) {
+            Write-Host "Reading: $($file.Name)" -ForegroundColor Gray
+            
+            try {
+                $lines = Get-Content -Path $file.FullName -Encoding UTF8
+                
+                $lineCount = 0
+                $headerCount = 0
+                $dataCount = 0
+                $fileContent = @()
+                $hasHeaders = $false
+                $hasData = $false
+                
+                foreach ($line in $lines) {
+                    $lineCount++
+                    $trimmedLine = $line.TrimEnd("`r", "`n")
+                    
+                    # Skip empty lines and !ENDDATA
+                    if ([string]::IsNullOrWhiteSpace($trimmedLine) -or $trimmedLine -eq "!ENDDATA") {
+                        continue
+                    }
+                    
+                    # Track if this file has IIF headers
+                    if ($trimmedLine -match '^!') {
+                        $hasHeaders = $true
+                        $headerCount++
+                        $fileContent += $trimmedLine
+                    }
+                    # Include all non-header lines (assume they're valid IIF data if file has headers)
+                    else {
+                        $dataCount++
+                        $hasData = $true
+                        $fileContent += $trimmedLine
+                    }
+                }
+                
+                # Only include this file if it has BOTH headers and data
+                if ($hasHeaders -and $hasData) {
+                    # Count transactions in this file
+                    $transactionCount = 0
+                    foreach ($line in $fileContent) {
+                        if ($line -match '^TRNS\t') {
+                            $transactionCount++
+                        }
+                    }
+                    
+                    $sourceTransactionCounts[$file.Name] = $transactionCount
+                    $totalSourceTransactions += $transactionCount
+                    
+                    Write-Host "  [INCLUDE] Headers: $headerCount, Data: $dataCount, Transactions: $transactionCount" -ForegroundColor Green
+                    $consolidatedBlocks += $fileContent
+                }
+                elseif ($hasHeaders -and -not $hasData) {
+                    Write-Host "  [SKIP] Headers only, no data" -ForegroundColor Yellow
+                }
+                else {
+                    Write-Host "  [SKIP] Not an IIF file (no headers)" -ForegroundColor DarkGray
+                }
+            }
+            catch {
+                Write-Host "[FAIL] Error reading $($file.Name): $_" -ForegroundColor Red
+                return $false
+            }
+        }
+        
+        # Write consolidated file
+        Write-Host "`nWriting consolidated file..." -ForegroundColor Gray
+        $consolidatedContent = @()
+        
+        # Add all content blocks (headers + data for each file, in order)
+        foreach ($block in $consolidatedBlocks) {
+            $consolidatedContent += $block
+        }
+        
+        # Write to file with proper encoding (no !ENDDATA - QB doesn't need it)
+        $consolidatedContent | Out-File -FilePath $OutputFilePath -Encoding UTF8 -Force
+        
+        # Count transactions in consolidated file
+        $consolidatedTransactions = Get-IifTransactionCount -FilePath $OutputFilePath
+        
+        Write-Host "`n=== Consolidation Summary ===" -ForegroundColor Cyan
+        Write-Host "Total lines: $($consolidatedContent.Count)" -ForegroundColor Gray
+        Write-Host "`nTransaction Counts:" -ForegroundColor Gray
+        
+        foreach ($fileName in $sourceTransactionCounts.Keys | Sort-Object) {
+            Write-Host "  $fileName : $($sourceTransactionCounts[$fileName]) transactions" -ForegroundColor Gray
+        }
+        
+        Write-Host "`nSource Total: $totalSourceTransactions transactions" -ForegroundColor Yellow
+        Write-Host "Consolidated: $consolidatedTransactions transactions" -ForegroundColor Yellow
+        
+        if ($consolidatedTransactions -eq $totalSourceTransactions) {
+            Write-Host "`n[VALIDATED] All transactions included successfully!" -ForegroundColor Green
+        }
+        else {
+            $diff = $totalSourceTransactions - $consolidatedTransactions
+            Write-Host "`n[WARNING] Transaction count mismatch! Missing $diff transactions." -ForegroundColor Red
+        }
+        
+        Write-Host "`n[OK] Created: consolodated.iif" -ForegroundColor Green
+        
+        return $true
+    }
+    catch {
+        Write-Host "[FAIL] Error consolidating files: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Offer to consolidate IIF files
+if ($exportedCount -gt 0) {
+    Write-Host "`n" -ForegroundColor Cyan
+    $consolidate = Read-Host "Consolidate exported IIF files into single file? (Y/N)"
+    if ($consolidate -eq 'Y' -or $consolidate -eq 'y') {
+        $consolidatedPath = Join-Path $outputDir "consolodated.iif"
+        $success = Consolidate-IifFiles -SourceDirectory $outputDir -OutputFilePath $consolidatedPath
+        
+        if ($success) {
+            Write-Host "`nConsolidated file location: $consolidatedPath" -ForegroundColor Green
+            
+            $openFile = Read-Host "Open consolidation summary? (Y/N)"
+            if ($openFile -eq 'Y' -or $openFile -eq 'y') {
+                notepad $consolidatedPath
+            }
+        }
+    }
+}
+
+# Offer to open output directory (after all processing)
+$openDir = Read-Host "`nOpen output directory in Explorer? (Y/N)"
+if ($openDir -eq 'Y' -or $openDir -eq 'y') {
+    Start-Process explorer.exe -ArgumentList $outputDir
 }
 
 Write-Host "`nPress any key to exit..." -ForegroundColor Gray
