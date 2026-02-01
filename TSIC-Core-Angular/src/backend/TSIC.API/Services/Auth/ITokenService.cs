@@ -7,4 +7,5 @@ public interface ITokenService
 {
     string GenerateMinimalJwtToken(ApplicationUser user);
     string GenerateEnrichedJwtToken(ApplicationUser user, string regId, string jobPath, string? jobLogo, string roleName);
+    string GenerateJobScopedToken(ApplicationUser user, string jobPath, string? jobLogo, string roleName);
 }

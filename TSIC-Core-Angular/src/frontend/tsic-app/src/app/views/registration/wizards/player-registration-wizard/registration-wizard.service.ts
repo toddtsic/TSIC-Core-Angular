@@ -1,9 +1,11 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { PlayerStateService } from './services/player-state.service';
 import { WaiverStateService } from './services/waiver-state.service';
 import { FormSchemaService } from './services/form-schema.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import type { Loadable } from '@infrastructure/shared/state.models';
 import type {
     VIPlayerObjectResponse,
@@ -15,7 +17,8 @@ import type {
     FamilyPlayerDto,
     FamilyPlayerRegistrationDto,
     RegSaverDetailsDto,
-    PlayerRegConfirmationDto
+    PlayerRegConfirmationDto,
+    AuthTokenResponse
 } from '@core/api';
 import { environment } from '@environments/environment';
 
@@ -25,6 +28,7 @@ export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 export class RegistrationWizardService {
     private readonly http = inject(HttpClient);
     private readonly playerState = inject(PlayerStateService);
+    private readonly auth = inject(AuthService);
     // Delegated services (extracted logic)
     private readonly waiverState = inject(WaiverStateService);
     private readonly formSchema = inject(FormSchemaService);
@@ -224,6 +228,25 @@ export class RegistrationWizardService {
                     this.familyPlayersLoading.set(false);
                 }
             });
+    }
+
+    /**
+     * Upgrades Phase 1 token to job-scoped token (adds jobPath claim, NO regId).
+     * Called after family login in player wizard.
+     */
+    setWizardContext(jobPath: string): Observable<AuthTokenResponse> {
+        const base = this.resolveApiBase();
+        return this.http.post<AuthTokenResponse>(
+            `${base}/player-registration/set-wizard-context`,
+            { jobPath }
+        ).pipe(
+            tap(response => {
+                if (response.accessToken) {
+                    this.auth['setToken'](response.accessToken);
+                    this.auth['initializeFromToken']();
+                }
+            })
+        );
     }
 
     async loadFamilyPlayersOnce(jobPath: string): Promise<void> {
@@ -970,9 +993,7 @@ export class RegistrationWizardService {
             try { console.warn('[RegWizard] loadConfirmation skipped: no jobPath'); } catch { /* no-op */ }
             return;
         }
-        this.http.get<PlayerRegConfirmationDto>(`${base}/player-registration/confirmation`, {
-            params: { jobPath }
-        })
+        this.http.get<PlayerRegConfirmationDto>(`${base}/player-registration/confirmation`)
             .subscribe({
                 next: dto => this.confirmation.set(dto),
                 error: err => {

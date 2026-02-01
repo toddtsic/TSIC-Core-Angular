@@ -53,6 +53,26 @@ public sealed class TokenService : ITokenService
         return WriteToken(claimsList, issuer, audience, secretKey, expirationMinutes);
     }
 
+    public string GenerateJobScopedToken(ApplicationUser user, string jobPath, string? jobLogo, string roleName)
+    {
+        var (issuer, audience, secretKey, expirationMinutes) = GetJwtSettings();
+
+        var claimsList = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim("username", user.UserName ?? string.Empty),
+            new Claim("jobPath", jobPath),
+            new Claim(ClaimTypes.Role, roleName),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
+        };
+
+        if (!string.IsNullOrWhiteSpace(jobLogo))
+            claimsList.Add(new Claim("jobLogo", jobLogo));
+
+        return WriteToken(claimsList, issuer, audience, secretKey, expirationMinutes);
+    }
+
     private (string issuer, string audience, string secretKey, int expirationMinutes) GetJwtSettings()
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");

@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { Roles } from '@infrastructure/constants/roles.constants';
-
+import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RegistrationWizardService } from '../registration-wizard.service';
@@ -296,6 +296,10 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
         return;
       }
       if (!this.inlineError) {
+        // Upgrade Phase 1 token to job-scoped token (adds jobPath claim)
+        const jobPath = this.state.jobPath() || this.resolveJobPath();
+        await firstValueFrom(this.state.setWizardContext(jobPath));
+
         this.state.resetForFamilySwitch();
         this.state.hasFamilyAccount.set('yes');
         this.next.emit();
