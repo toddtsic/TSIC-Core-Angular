@@ -30,72 +30,47 @@
 
 /**
  * .wizard-fixed-header
- * Fixed positioning at top containing title, step indicator, and action bar.
+ * Non-sticky header containing title and step indicator.
+ * Action bar below it will be independently sticky.
  * Supports both light and dark modes.
  */
 .wizard-fixed-header {
     position: relative;
     background: var(--wizard-fixed-header-bg);
     border-bottom: 1px solid var(--wizard-fixed-header-border);
-    padding: 1rem;
-    z-index: var(--wizard-action-bar-z-index);
-
-    // Ensure header stays on top during scroll
-    margin: -0.5rem -0.75rem 0 -0.75rem;
     padding: 1rem 0.75rem;
+    z-index: 900;
+    backdrop-filter: saturate(120%) blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 /**
  * .wizard-scrollable-content
- * Main content area with vertical scrolling.
- * Padding-bottom prevents content from being hidden behind fixed action bar.
+ * Main content area without its own scroll container.
+ * Parent container handles scrolling so sticky header works correctly.
+ * Padding-bottom prevents content from being hidden behind action bar.
  * Dark/light mode compatible via CSS variables.
  */
 .wizard-scrollable-content {
-    overflow-y: auto;
     overflow-x: hidden;
     background: var(--bs-body-bg);
     padding-bottom: var(--wizard-scrollable-pb);
 
-    // Max viewport height to ensure scrolling
-    max-height: calc(100vh - 200px);
-
     // Smooth scrolling behavior
     scroll-behavior: smooth;
-
-    // Subtle scrollbar styling for light/dark modes
-    scrollbar-width: thin;
-    scrollbar-color: var(--bs-secondary) var(--bs-body-bg);
-
-    &::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: var(--bs-body-bg);
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: var(--bs-secondary);
-        border-radius: 4px;
-
-        &:hover {
-            background: var(--bs-secondary-color);
-        }
-    }
 }
 
 /**
  * .wizard-action-bar-container
- * Transparent wrapper for positioning the action bar.
- * No background, border, or shadow - only buttons are visible.
+ * Part of the sticky header - no independent positioning needed.
+ * Transparent wrapper for action bar styling.
  */
 .wizard-action-bar-container {
-    position: sticky;
-    top: 0;
-    z-index: calc(var(--wizard-action-bar-z-index) + 10);
+    position: relative;
+    z-index: 1;
     background: transparent;
     border: none;
+    padding: 0.5rem 0;
 
     // Ensure text contrast
     color: var(--bs-body-color);
@@ -107,11 +82,10 @@
 @media (max-width: 576px) {
     .wizard-fixed-header {
         padding: 0.75rem;
-        margin: -0.5rem -0.75rem 0 -0.75rem;
+        padding-top: calc(60px + 0.75rem);
     }
 
     .wizard-scrollable-content {
-        max-height: calc(100vh - 180px);
         --wizard-scrollable-pb: 5rem;
     }
 }
