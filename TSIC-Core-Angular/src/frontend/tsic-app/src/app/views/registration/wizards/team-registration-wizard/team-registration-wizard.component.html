@@ -3,26 +3,31 @@
     <div class="col-12">
       <!-- Fixed header region containing title, step indicator, and action bar -->
       <div class="wizard-fixed-header">
-        <div class="text-center mb-3">
+        <!-- Mobile: Ultra-compact -->
+        <div class="d-md-none text-center mb-1">
           @if (clubName()) {
-          <!-- Mobile: single compact line -->
-          <h2 id="tw-title" class="d-block d-md-none mb-0 fw-bold fs-6">
-            <span class="text-primary">{{ clubName() }}</span> • Team Registration
+          <h2 id="tw-title" class="mb-0 fw-bold fs-6">
+            <span class="text-primary">{{ clubName() }}</span> • Team
           </h2>
-          <!-- Desktop: two lines -->
-          <div id="tw-title-desktop" class="d-none d-md-block mb-1">
+          } @else {
+          <h2 class="mb-0 fw-bold fs-6">Team Registration</h2>
+          }
+        </div>
+
+        <!-- Desktop: Full layout -->
+        <div class="d-none d-md-block text-center mb-3">
+          @if (clubName()) {
+          <div id="tw-title-desktop" class="mb-1">
             <div class="fw-bold fs-4 text-primary">{{ clubName() }}</div>
             <h2 class="mb-0 fw-bold">Team Registration</h2>
           </div>
           } @else {
-          <h2 class="mb-1 fw-bold fs-5 fs-md-3">
-            Team Registration
-          </h2>
+          <h2 class="mb-1 fw-bold">Team Registration</h2>
           }
         </div>
 
         @if (!isLoadingMetadata() && !metadataError()) {
-        <div class="mb-1">
+        <div class="mb-1 d-none d-md-block">
           <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentStepIndex()" />
         </div>
         }

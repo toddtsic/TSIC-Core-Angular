@@ -105,13 +105,13 @@
  */
 @media (max-width: 576px) {
     .wizard-fixed-header {
-        padding: 0.75rem;
+        padding: 0.5rem 0.75rem;
         margin: -0.5rem -0.75rem 0 -0.75rem;
     }
 
     .wizard-scrollable-content {
-        max-height: calc(100vh - 180px);
-        --wizard-scrollable-pb: 5rem;
+        max-height: calc(100vh - 120px);
+        --wizard-scrollable-pb: 4rem;
     }
 }
 

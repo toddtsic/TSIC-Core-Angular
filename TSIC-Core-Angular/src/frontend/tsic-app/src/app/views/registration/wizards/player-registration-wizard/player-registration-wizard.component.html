@@ -3,7 +3,21 @@
     <div class="col-12">
       <!-- Fixed header region containing title, step indicator, and action bar -->
       <div class="wizard-fixed-header">
-        <div class="text-center mb-3">
+        <!-- Mobile: Ultra-compact single line -->
+        <div class="d-md-none text-center mb-1">
+          <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+            <h2 id="rw-title" class="mb-0 fw-bold fs-6">Player Registration</h2>
+            <span class="text-muted small">Step {{ currentIndex() + 1 }}/{{ steps().length }}</span>
+            @if (familyLastName()) {
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
+              {{ familyLastName() }}
+            </span>
+            }
+          </div>
+        </div>
+
+        <!-- Desktop: Full layout -->
+        <div class="d-none d-md-block text-center mb-3">
           <h2 id="rw-title" class="mb-1 fw-bold">Player Registration</h2>
           <div class="step-info d-flex align-items-center justify-content-center flex-wrap gap-2">
             <p class="text-muted mb-0 fs-6">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
@@ -15,8 +29,8 @@
           </div>
         </div>
 
-        <!-- Step indicator with circular badges -->
-        <div class="mb-1">
+        <!-- Step indicator with circular badges (hidden on mobile) -->
+        <div class="mb-1 d-none d-md-block">
           <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
         </div>
 
