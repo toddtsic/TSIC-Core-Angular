@@ -10,7 +10,7 @@
     // High contrast, distinctive button styling
     .action-bar-inner {
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 0;
@@ -44,20 +44,24 @@
         }
     }
 
-    // Back Button - Neutral, secondary appearance
+    // Back Button - Glassmorphic style to match forward button
     .btn-back {
-        background: var(--bs-light, #f8f9fa);
-        color: var(--bs-dark, #212529);
-        border: 2px solid var(--bs-secondary, #6c757d);
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        color: var(--bs-body-color);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 
         &:hover:not(:disabled) {
-            background: var(--bs-secondary, #6c757d);
-            color: white;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
             transform: translateX(-2px);
         }
 
         &:active:not(:disabled) {
             transform: translateX(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
     }
 

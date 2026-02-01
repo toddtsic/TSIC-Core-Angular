@@ -22,7 +22,7 @@
         </div>
 
         @if (!isLoadingMetadata() && !metadataError()) {
-        <div class="mb-4">
+        <div class="mb-1">
           <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentStepIndex()" />
         </div>
         }
