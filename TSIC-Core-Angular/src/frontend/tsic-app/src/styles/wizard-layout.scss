@@ -30,11 +30,12 @@
 
 /**
  * .wizard-fixed-header
- * Fixed positioning at top containing title, step indicator, and action bar.
+ * Sticky positioning at top containing title, step indicator, and action bar.
  * Supports both light and dark modes.
  */
 .wizard-fixed-header {
-    position: relative;
+    position: sticky;
+    top: 0;
     background: var(--wizard-fixed-header-bg);
     border-bottom: 1px solid var(--wizard-fixed-header-border);
     z-index: var(--wizard-action-bar-z-index);
@@ -46,42 +47,17 @@
 
 /**
  * .wizard-scrollable-content
- * Main content area with vertical scrolling.
- * Padding-bottom prevents content from being hidden behind fixed action bar.
+ * Main content area with window-level scrolling (not nested overflow).
+ * Padding-bottom prevents content from being hidden behind sticky header.
  * Dark/light mode compatible via CSS variables.
  */
 .wizard-scrollable-content {
-    overflow-y: auto;
     overflow-x: hidden;
     background: transparent;
     padding-bottom: var(--wizard-scrollable-pb);
 
-    // Max viewport height to ensure scrolling
-    max-height: calc(100vh - 200px);
-
-    // Smooth scrolling behavior
-    scroll-behavior: smooth;
-
-    // Subtle scrollbar styling for light/dark modes
-    scrollbar-width: thin;
-    scrollbar-color: var(--bs-secondary) var(--bs-body-bg);
-
-    &::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: var(--bs-body-bg);
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: var(--bs-secondary);
-        border-radius: 4px;
-
-        &:hover {
-            background: var(--bs-secondary-color);
-        }
-    }
+    // Allow natural document flow and window-level scrolling
+    // (fixes sticky positioning by avoiding nested scroll containers)
 }
 
 /**
