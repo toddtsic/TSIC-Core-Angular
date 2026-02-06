@@ -98,6 +98,15 @@
         margin-bottom: var(--space-1);
     }
 
+    // Wrapper for parent items - enables hover behavior on desktop
+    .parent-wrapper {
+
+        // Only enable hover expand/collapse on devices with precise pointers (desktop)
+        @media (pointer: fine) {
+            // Hover is handled by mouseenter/mouseleave events in TypeScript
+        }
+    }
+
     // Submenu styling with animation
     .submenu {
         animation: slideDown 0.2s ease;

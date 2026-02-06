@@ -1,0 +1,167 @@
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+    <h2 class="mb-0">Administrators</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadAdministrators()" [disabled]="isLoading()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Administrator
+        </button>
+    </div>
+</div>
+
+<!-- Batch Toolbar (visible when rows selected) -->
+@if (hasSelection()) {
+    <div class="batch-toolbar d-flex align-items-center gap-3 mb-3 px-3 py-2 rounded-2">
+        <span class="fw-semibold">{{ selectedCount() }} selected</span>
+        <div class="vr"></div>
+        <button class="btn btn-success btn-sm" (click)="openBatchConfirm('activate')">
+            <i class="bi bi-check-circle me-1"></i>Activate
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" (click)="openBatchConfirm('inactivate')">
+            <i class="bi bi-x-circle me-1"></i>Inactivate
+        </button>
+    </div>
+}
+
+<!-- Error Alert -->
+@if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+    </div>
+}
+
+<!-- Loading State -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-body-secondary">Loading administrators...</p>
+    </div>
+}
+
+<!-- Empty State -->
+@if (!isLoading() && !errorMessage() && administrators().length === 0) {
+    <div class="text-center py-5">
+        <i class="bi bi-people fs-1 text-body-secondary"></i>
+        <p class="mt-2 text-body-secondary">No administrators found for this job.</p>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Administrator
+        </button>
+    </div>
+}
+
+<!-- Data Table -->
+@if (!isLoading() && administrators().length > 0) {
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="col-check">
+                        <input type="checkbox" class="form-check-input"
+                            [checked]="allNonSuperusersSelected()"
+                            (change)="toggleSelectAll()"
+                            aria-label="Select all" />
+                    </th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Registered</th>
+                    <th class="col-actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (admin of administrators(); track admin.registrationId) {
+                    <tr [class.table-active]="isSelected(admin)" [class.row-superuser]="admin.isSuperuser">
+                        <td>
+                            @if (admin.isSuperuser) {
+                                <i class="bi bi-lock-fill text-body-secondary" title="Superuser (protected)"></i>
+                            } @else {
+                                <input type="checkbox" class="form-check-input"
+                                    [checked]="isSelected(admin)"
+                                    (change)="toggleSelect(admin)"
+                                    [attr.aria-label]="'Select ' + admin.administratorName" />
+                            }
+                        </td>
+                        <td class="fw-semibold">{{ admin.administratorName }}</td>
+                        <td>
+                            <span class="badge rounded-pill" [ngClass]="getRoleBadgeClass(admin.roleName)">
+                                {{ admin.isSuperuser ? 'Superuser' : admin.roleName }}
+                            </span>
+                        </td>
+                        <td class="text-body-secondary">{{ admin.userName }}</td>
+                        <td>
+                            @if (admin.isActive) {
+                                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
+                            } @else {
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-body-secondary">{{ admin.registeredDate | date:'mediumDate' }}</td>
+                        <td>
+                            @if (!admin.isSuperuser) {
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" (click)="openEdit(admin)" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" (click)="confirmDelete(admin)" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- Add Modal -->
+@if (showAddModal()) {
+    <admin-form-modal
+        mode="add"
+        (close)="showAddModal.set(false)"
+        (saved)="onFormSaved($event)">
+    </admin-form-modal>
+}
+
+<!-- Edit Modal -->
+@if (showEditModal()) {
+    <admin-form-modal
+        mode="edit"
+        [admin]="editTarget()"
+        (close)="showEditModal.set(false); editTarget.set(null)"
+        (saved)="onFormSaved($event)">
+    </admin-form-modal>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Administrator"
+        [message]="'Remove ' + deleteTarget()?.administratorName + ' from this job?'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
+    </confirm-dialog>
+}
+
+<!-- Batch Confirmation -->
+@if (showBatchConfirm()) {
+    <confirm-dialog
+        [title]="batchAction() === 'activate' ? 'Activate Administrators' : 'Inactivate Administrators'"
+        [message]="batchAction() === 'activate'
+            ? 'Activate all selected administrators?'
+            : 'Inactivate all selected administrators?'"
+        [confirmLabel]="batchAction() === 'activate' ? 'Activate' : 'Inactivate'"
+        [confirmVariant]="batchAction() === 'activate' ? 'primary' : 'warning'"
+        (confirmed)="onBatchConfirmed()"
+        (cancelled)="showBatchConfirm.set(false)">
+    </confirm-dialog>
+}

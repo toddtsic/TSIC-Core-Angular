@@ -28,6 +28,7 @@ using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.Registration;
+using TSIC.API.Services.Admin;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
@@ -71,15 +72,10 @@ builder.Services.AddScoped<IBulletinRepository, BulletinRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ITextSubstitutionRepository, TextSubstitutionRepository>();
 builder.Services.AddScoped<IProfileMetadataRepository, ProfileMetadataRepository>();
+builder.Services.AddScoped<IAdministratorRepository, AdministratorRepository>();
 
 // Application & Infrastructure Services
-builder.Services.AddSingleton<RouteAvailabilityService>(); // Singleton for caching
-builder.Services.AddScoped<IMenuRepository>(sp =>
-{
-    var context = sp.GetRequiredService<SqlDbContext>();
-    var routeService = sp.GetRequiredService<RouteAvailabilityService>();
-    return new MenuRepository(context, routeService.IsRouteImplemented);
-});
+builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJobLookupService, JobLookupService>();
@@ -127,6 +123,7 @@ builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IAdministratorService, AdministratorService>();
 // Email (Amazon SES only)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));

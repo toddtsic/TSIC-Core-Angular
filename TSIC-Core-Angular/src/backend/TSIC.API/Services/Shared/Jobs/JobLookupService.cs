@@ -5,17 +5,28 @@ namespace TSIC.API.Services.Shared.Jobs;
 public class JobLookupService : IJobLookupService
 {
     private readonly IJobRepository _jobRepo;
+    private readonly IRegistrationRepository _registrationRepo;
     private readonly ILogger<JobLookupService> _logger;
 
-    public JobLookupService(IJobRepository jobRepo, ILogger<JobLookupService> logger)
+    public JobLookupService(
+        IJobRepository jobRepo,
+        IRegistrationRepository registrationRepo,
+        ILogger<JobLookupService> logger)
     {
         _jobRepo = jobRepo;
+        _registrationRepo = registrationRepo;
         _logger = logger;
     }
 
     public async Task<Guid?> GetJobIdByPathAsync(string jobPath)
     {
         return await _jobRepo.GetJobIdByPathAsync(jobPath);
+    }
+
+    public async Task<Guid?> GetJobIdByRegistrationAsync(Guid registrationId)
+    {
+        var registration = await _registrationRepo.GetByIdAsync(registrationId);
+        return registration?.JobId;
     }
 
     public async Task<bool> IsPlayerRegistrationActiveAsync(Guid jobId)

@@ -55,6 +55,23 @@ public interface IUserRepository
     Task<List<AspNetUsers>> GetUsersForFamilyAsync(
         List<string> userIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Search users by username, first name, or last name (case-insensitive contains).
+    /// Returns up to <paramref name="maxResults"/> matches.
+    /// </summary>
+    Task<List<UserSearchResult>> SearchAsync(
+        string query,
+        int maxResults = 10,
+        CancellationToken cancellationToken = default);
+}
+
+public record UserSearchResult
+{
+    public required string UserId { get; init; }
+    public required string UserName { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
 }
 
 public record UserNameInfo

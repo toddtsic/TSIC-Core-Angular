@@ -67,7 +67,7 @@
     "**/publish": true,
     "**/.vs": true,
     "**/tsic-deployment-current": true,
-    "**/reference": true,
+    "**/reference": false,
     "**/tools": true
   },
   "typescript.tsserver.maxTsServerMemory": 1536,

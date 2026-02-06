@@ -17,6 +17,7 @@ namespace TSIC.Domain.Constants
         public const string Staff = "1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA";
         public const string StoreAdmin = "5B9B7055-4530-4E46-B403-1019FD8B8418";
         public const string SuperDirector = "7B9EB503-53C9-44FA-94A0-17760C512440";
+        public const string StpAdmin = "CE2CB370-5880-4624-A43E-048379C64331";
         public const string Superuser = "CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9";
 
         // Role Names (for claims and authorization policies)
@@ -32,6 +33,7 @@ namespace TSIC.Domain.Constants
             public const string PlayerName = "Player";
             public const string UnassignedAdultName = "Unassigned Adult";
             public const string ClubRepName = "Club Rep";
+            public const string StpAdminName = "STPAdmin";
         }
     }
 }

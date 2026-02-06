@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(dir \"C:\\\\Users\\\\Administrator\\\\source\\\\TSIC-Core-Angular\\\\TSIC-Core-Angular\\\\src\\\\backend\\\\TSIC.API\\\\Controllers\")",
+      "Bash(npx ng build:*)",
+      "Bash(powershell:*)"
     ]
   }
 }

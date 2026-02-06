@@ -1,0 +1,44 @@
+:host {
+    display: block;
+    padding: var(--space-4);
+}
+
+.batch-toolbar {
+    background: var(--bs-primary-bg-subtle, rgba(var(--bs-primary-rgb), 0.1));
+    border: 1px solid var(--bs-primary-border-subtle, rgba(var(--bs-primary-rgb), 0.2));
+    animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.col-check {
+    width: 40px;
+}
+
+.col-actions {
+    width: 90px;
+}
+
+.row-superuser {
+    opacity: 0.75;
+}
+
+.table {
+    th {
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        border-bottom-width: 2px;
+    }
+}

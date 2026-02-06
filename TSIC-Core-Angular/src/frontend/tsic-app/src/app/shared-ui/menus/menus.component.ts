@@ -19,7 +19,7 @@ export class MenusComponent {
     expandedItems = signal<Set<string>>(new Set());
 
     /**
-     * Toggle expansion state of a parent menu item
+     * Toggle expansion state of a parent menu item (mobile/click)
      */
     toggleExpanded(menuItemId: string): void {
         const expanded = this.expandedItems();
@@ -32,6 +32,52 @@ export class MenusComponent {
         }
 
         this.expandedItems.set(newExpanded);
+    }
+
+    /**
+     * Expand a menu item (desktop hover)
+     */
+    expandItem(menuItemId: string): void {
+        console.log('expandItem called:', menuItemId);
+        const expanded = this.expandedItems();
+        if (!expanded.has(menuItemId)) {
+            const newExpanded = new Set(expanded);
+            newExpanded.add(menuItemId);
+            this.expandedItems.set(newExpanded);
+            console.log('Item expanded:', menuItemId, 'expandedItems:', Array.from(newExpanded));
+        }
+    }
+
+    /**
+     * Collapse a menu item (desktop hover out)
+     */
+    collapseItem(menuItemId: string): void {
+        console.log('collapseItem called:', menuItemId);
+        const expanded = this.expandedItems();
+        if (expanded.has(menuItemId)) {
+            const newExpanded = new Set(expanded);
+            newExpanded.delete(menuItemId);
+            this.expandedItems.set(newExpanded);
+            console.log('Item collapsed:', menuItemId, 'expandedItems:', Array.from(newExpanded));
+        }
+    }
+
+    /**
+     * Handle mouse enter on menu item
+     */
+    onMouseEnter(item: MenuItemDto): void {
+        if (this.hasChildren(item)) {
+            this.expandItem(item.menuItemId);
+        }
+    }
+
+    /**
+     * Handle mouse leave on menu item
+     */
+    onMouseLeave(item: MenuItemDto): void {
+        if (this.hasChildren(item)) {
+            this.collapseItem(item.menuItemId);
+        }
     }
 
     /**

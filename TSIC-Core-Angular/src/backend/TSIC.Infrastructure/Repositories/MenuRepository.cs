@@ -12,12 +12,10 @@ namespace TSIC.Infrastructure.Repositories;
 public class MenuRepository : IMenuRepository
 {
     private readonly SqlDbContext _context;
-    private readonly Func<string?, string?, bool> _checkRouteImplemented;
 
-    public MenuRepository(SqlDbContext context, Func<string?, string?, bool> checkRouteImplemented)
+    public MenuRepository(SqlDbContext context)
     {
         _context = context;
-        _checkRouteImplemented = checkRouteImplemented;
     }
 
     public async Task<MenuDto?> GetMenuForJobAndRoleAsync(
@@ -68,7 +66,6 @@ public class MenuRepository : IMenuRepository
                 Controller = mi.Controller,
                 Action = mi.Action,
                 LinkTarget = mi.Target,
-                IsImplemented = false, // Will be set below
                 Children = new List<MenuItemDto>()
             })
             .ToListAsync(cancellationToken);
@@ -93,17 +90,9 @@ public class MenuRepository : IMenuRepository
                 Controller = mi.Controller,
                 Action = mi.Action,
                 LinkTarget = mi.Target,
-                IsImplemented = false, // Will be set below
                 Children = new List<MenuItemDto>()
             })
             .ToListAsync(cancellationToken);
-
-        // Check route availability for all items
-        foreach (var item in rootItems.Concat(childItems))
-        {
-            // IsImplemented is init-only, must be set in object initializer above
-            // Skipping runtime assignment - should be handled in DTO creation
-        }
 
         // Populate children into parent items
         foreach (var child in childItems)

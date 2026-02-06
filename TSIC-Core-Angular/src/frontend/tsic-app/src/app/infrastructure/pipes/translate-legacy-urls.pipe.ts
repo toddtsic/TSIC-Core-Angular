@@ -27,7 +27,6 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
         return html.replace(hrefPattern, (match: string, url: string) => {
             const translatedUrl = this.translateUrl(url, jobPath);
 
-            // If URL was translated, return the new href
             if (translatedUrl !== url) {
                 return `href="${translatedUrl}"`;
             }
@@ -56,6 +55,11 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
             url.toLowerCase().includes('bclubrep=true')
         ) {
             return `/${jobPath}/register-team`;
+        }
+
+        // Check for JobAdministrator/Admin
+        if (url.toLowerCase().includes('jobadministrator/admin')) {
+            return `/${jobPath}/jobadministrator/admin`;
         }
 
         // No translation pattern matched - return original URL

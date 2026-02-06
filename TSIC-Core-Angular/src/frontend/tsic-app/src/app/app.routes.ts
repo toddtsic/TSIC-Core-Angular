@@ -88,6 +88,13 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/admin/theme-editor/theme-editor.component').then(m => m.ThemeEditorComponent)
 					}
 				]
+			},
+			// Legacy-compatible admin routes (match menu system controller/action URLs)
+			{
+				path: 'jobadministrator/admin',
+				canActivate: [authGuard],
+				data: { requireSuperUser: true },
+				loadComponent: () => import('./views/admin/administrator-management/administrator-management.component').then(m => m.AdministratorManagementComponent)
 			}
 		]
 	},

@@ -21,49 +21,52 @@
         <li class="nav-item">
             @if (hasChildren(item)) {
             <!-- Parent item with children - collapsible -->
-            <button type="button" class="nav-link d-flex justify-content-between align-items-center w-100"
-                (click)="toggleExpanded(item.menuItemId)" [class.active]="isExpanded(item.menuItemId)">
-                <span>
-                    @if (item.iconName) {
-                    <i class="bi bi-{{ item.iconName }} me-2"></i>
-                    }
-                    <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
-                </span>
-                <i class="bi" [class.bi-chevron-down]="!isExpanded(item.menuItemId)"
-                    [class.bi-chevron-up]="isExpanded(item.menuItemId)"></i>
-            </button>
-
-            <!-- Child items (nested menu) - collapsible -->
-            @if (isExpanded(item.menuItemId)) {
-            <ul class="nav nav-pills flex-column ms-3 submenu">
-                @for (child of item.children; track child.menuItemId) {
-                <li class="nav-item">
-                    @if (isExternalLink(child)) {
-                    <a [href]="getLink(child)" [target]="child.linkTarget || '_self'" class="nav-link nav-link-sm">
-                        @if (child.iconName) {
-                        <i class="bi bi-{{ child.iconName }} me-2"></i>
+            <div class="parent-wrapper" (mouseenter)="expandItem(item.menuItemId)"
+                (mouseleave)="collapseItem(item.menuItemId)">
+                <button type="button" class="nav-link d-flex justify-content-between align-items-center w-100"
+                    (click)="toggleExpanded(item.menuItemId)" [class.active]="isExpanded(item.menuItemId)">
+                    <span>
+                        @if (item.iconName) {
+                        <i class="bi bi-{{ item.iconName }} me-2"></i>
                         }
-                        <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
-                    </a>
-                    } @else if (getLink(child)) {
-                    <a [routerLink]="getLink(child)" routerLinkActive="active" class="nav-link nav-link-sm">
-                        @if (child.iconName) {
-                        <i class="bi bi-{{ child.iconName }} me-2"></i>
-                        }
-                        <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
-                    </a>
-                    } @else {
-                    <span class="nav-link nav-link-sm disabled">
-                        @if (child.iconName) {
-                        <i class="bi bi-{{ child.iconName }} me-2"></i>
-                        }
-                        <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
+                        <span [class.text-wrap]="item.bTextWrap">{{ item.text }}</span>
                     </span>
+                    <i class="bi" [class.bi-chevron-down]="!isExpanded(item.menuItemId)"
+                        [class.bi-chevron-up]="isExpanded(item.menuItemId)"></i>
+                </button>
+
+                <!-- Child items (nested menu) - collapsible -->
+                @if (isExpanded(item.menuItemId)) {
+                <ul class="nav nav-pills flex-column ms-3 submenu">
+                    @for (child of item.children; track child.menuItemId) {
+                    <li class="nav-item">
+                        @if (isExternalLink(child)) {
+                        <a [href]="getLink(child)" [target]="child.linkTarget || '_self'" class="nav-link nav-link-sm">
+                            @if (child.iconName) {
+                            <i class="bi bi-{{ child.iconName }} me-2"></i>
+                            }
+                            <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
+                        </a>
+                        } @else if (getLink(child)) {
+                        <a [routerLink]="getLink(child)" routerLinkActive="active" class="nav-link nav-link-sm">
+                            @if (child.iconName) {
+                            <i class="bi bi-{{ child.iconName }} me-2"></i>
+                            }
+                            <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
+                        </a>
+                        } @else {
+                        <span class="nav-link nav-link-sm disabled">
+                            @if (child.iconName) {
+                            <i class="bi bi-{{ child.iconName }} me-2"></i>
+                            }
+                            <span [class.text-wrap]="child.bTextWrap">{{ child.text }}</span>
+                        </span>
+                        }
+                    </li>
                     }
-                </li>
+                </ul>
                 }
-            </ul>
-            }
+            </div>
             } @else {
             <!-- Standalone item without children -->
             @if (isExternalLink(item)) {

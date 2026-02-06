@@ -1,9 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import type { MenuItemDto } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
-import { LegacyUrlTranslationService } from '@core/services/legacy-url-translation.service';
 import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({
@@ -16,6 +15,10 @@ import { MenuStateService } from '../../services/menu-state.service';
 export class ClientMenuComponent {
     private readonly jobService = inject(JobService);
     private readonly menuState = inject(MenuStateService);
+    private readonly router = inject(Router);
+
+    // Build a set of known child routes under :jobPath for route existence checks
+    private readonly knownRoutes = this.buildKnownRoutes();
 
     // Access menu data from JobService
     menus = computed(() => this.jobService.menus());
@@ -27,6 +30,13 @@ export class ClientMenuComponent {
 
     // Track expanded items for desktop dropdown and mobile accordion
     expandedItems = signal<Set<string>>(new Set());
+
+    /**
+     * Collapse all expanded dropdown menus
+     */
+    collapseAll(): void {
+        this.expandedItems.set(new Set());
+    }
 
     /**
      * Close offcanvas (when clicking backdrop or close button)
@@ -64,6 +74,33 @@ export class ClientMenuComponent {
     }
 
     /**
+     * Expand a menu item (desktop hover)
+     */
+    expandItem(menuItemId: string): void {
+        const normalizedId = menuItemId.toLowerCase();
+        const expanded = this.expandedItems();
+        if (!expanded.has(normalizedId)) {
+            // Close all others and open this one
+            const newExpanded = new Set<string>();
+            newExpanded.add(normalizedId);
+            this.expandedItems.set(newExpanded);
+        }
+    }
+
+    /**
+     * Collapse a menu item (desktop hover out)
+     */
+    collapseItem(menuItemId: string): void {
+        const normalizedId = menuItemId.toLowerCase();
+        const expanded = this.expandedItems();
+        if (expanded.has(normalizedId)) {
+            const newExpanded = new Set(expanded);
+            newExpanded.delete(normalizedId);
+            this.expandedItems.set(newExpanded);
+        }
+    }
+
+    /**
      * Check if item has children
      */
     hasChildren(item: MenuItemDto): boolean {
@@ -74,28 +111,41 @@ export class ClientMenuComponent {
      * Get the link for a menu item based on precedence:
      * 1. navigateUrl (external link)
      * 2. routerLink (Angular route)
-     * 3. controller/action (legacy MVC - map to Angular route)
-     * Translates legacy URLs to Angular routes
+     * 3. controller/action (legacy MVC - map to Angular route as {jobPath}/{controller}/{action})
      */
     getLink(item: MenuItemDto): string | null {
-        let link: string | null = null;
-
         if (item.navigateUrl) {
-            link = item.navigateUrl;
-        } else if (item.routerLink) {
-            link = item.routerLink;
-        } else if (item.controller && item.action) {
-            // Legacy MVC route mapping (1:1 mapping)
-            link = `/${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
+            return item.navigateUrl;
         }
 
-        if (!link) {
-            return null;
-        }
-
-        // Translate legacy URLs if applicable
         const jobPath = this.jobService.currentJob()?.jobPath || '';
-        return LegacyUrlTranslationService.translateUrl(link, jobPath);
+
+        if (item.routerLink) {
+            return item.routerLink;
+        }
+
+        if (item.controller && item.action) {
+            return `/${jobPath}/${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a menu item's route is implemented in the Angular router.
+     * Items with navigateUrl (external) or routerLink are always considered implemented.
+     * Items with controller/action are checked against the router config.
+     */
+    isRouteImplemented(item: MenuItemDto): boolean {
+        if (item.navigateUrl || item.routerLink) {
+            return true;
+        }
+        if (item.controller && item.action) {
+            const path = `${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
+            return this.knownRoutes.has(path);
+        }
+        // Items with no link at all (parent headers) are considered implemented
+        return true;
     }
 
     /**
@@ -130,5 +180,31 @@ export class ClientMenuComponent {
 
         // Default fallback
         return this.hasChildren(item) ? 'folder' : 'dot';
+    }
+
+    /**
+     * Walks the Angular router config and collects all child paths under :jobPath.
+     * Returns a Set of lowercase paths (e.g., 'jobadministrator/admin', 'home', 'login').
+     */
+    private buildKnownRoutes(): Set<string> {
+        const paths = new Set<string>();
+        const jobPathRoute = this.router.config.find(r => r.path === ':jobPath');
+        if (jobPathRoute?.children) {
+            this.collectPaths(jobPathRoute.children, '', paths);
+        }
+        return paths;
+    }
+
+    private collectPaths(routes: Route[], prefix: string, paths: Set<string>): void {
+        for (const route of routes) {
+            if (!route.path && route.path !== '') continue;
+            const fullPath = prefix ? `${prefix}/${route.path}` : route.path;
+            if (fullPath) {
+                paths.add(fullPath.toLowerCase());
+            }
+            if (route.children) {
+                this.collectPaths(route.children, fullPath, paths);
+            }
+        }
     }
 }

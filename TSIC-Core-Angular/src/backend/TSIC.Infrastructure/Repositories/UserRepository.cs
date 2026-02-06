@@ -162,4 +162,30 @@ public class UserRepository : IUserRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<UserSearchResult>> SearchAsync(
+        string query,
+        int maxResults = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var lowerQuery = query.ToLower();
+
+        return await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u =>
+                u.UserName!.ToLower().Contains(lowerQuery) ||
+                (u.FirstName != null && u.FirstName.ToLower().Contains(lowerQuery)) ||
+                (u.LastName != null && u.LastName.ToLower().Contains(lowerQuery)))
+            .OrderBy(u => u.LastName)
+            .ThenBy(u => u.FirstName)
+            .Take(maxResults)
+            .Select(u => new UserSearchResult
+            {
+                UserId = u.Id,
+                UserName = u.UserName!,
+                FirstName = u.FirstName,
+                LastName = u.LastName
+            })
+            .ToListAsync(cancellationToken);
+    }
 }

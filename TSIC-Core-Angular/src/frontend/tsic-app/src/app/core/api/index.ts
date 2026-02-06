@@ -3,11 +3,13 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export type { AddAdministratorRequest } from './models/AddAdministratorRequest';
 export type { AddClubRequest } from './models/AddClubRequest';
 export type { AddClubResponse } from './models/AddClubResponse';
 export type { AddClubToRepRequest } from './models/AddClubToRepRequest';
 export type { AddClubToRepResponse } from './models/AddClubToRepResponse';
 export type { AddressDto } from './models/AddressDto';
+export type { AdministratorDto } from './models/AdministratorDto';
 export type { AgeGroupDto } from './models/AgeGroupDto';
 export type { AllowedFieldDomainItem } from './models/AllowedFieldDomainItem';
 export type { ApplyDiscountItemDto } from './models/ApplyDiscountItemDto';
@@ -17,6 +19,7 @@ export type { ApplyTeamDiscountRequestDto } from './models/ApplyTeamDiscountRequ
 export type { ApplyTeamDiscountResponseDto } from './models/ApplyTeamDiscountResponseDto';
 export type { AuthTokenResponse } from './models/AuthTokenResponse';
 export type { AvailableTeamDto } from './models/AvailableTeamDto';
+export type { BatchUpdateStatusRequest } from './models/BatchUpdateStatusRequest';
 export type { BulletinDto } from './models/BulletinDto';
 export type { CcInfoDto } from './models/CcInfoDto';
 export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
@@ -109,9 +112,11 @@ export type { TeamPaymentRequestDto } from './models/TeamPaymentRequestDto';
 export type { TeamPaymentResponseDto } from './models/TeamPaymentResponseDto';
 export type { TeamsMetadataResponse } from './models/TeamsMetadataResponse';
 export type { TestValidationRequest } from './models/TestValidationRequest';
+export type { UpdateAdministratorRequest } from './models/UpdateAdministratorRequest';
 export type { UpdateClubNameRequest } from './models/UpdateClubNameRequest';
 export type { UpdateCurrentJobProfileConfigRequest } from './models/UpdateCurrentJobProfileConfigRequest';
 export type { UserContactInfoDto } from './models/UserContactInfoDto';
+export type { UserSearchResultDto } from './models/UserSearchResultDto';
 export type { ValidationTestResult } from './models/ValidationTestResult';
 export type { VIAddress } from './models/VIAddress';
 export type { VIColorsDto } from './models/VIColorsDto';

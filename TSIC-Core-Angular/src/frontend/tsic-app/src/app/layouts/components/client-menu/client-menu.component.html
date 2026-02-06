@@ -9,11 +9,12 @@
         } @else {
         <ul class="navbar-nav">
             @for (item of menus(); track item.menuItemId) {
-            <li class="nav-item" [class.dropdown]="hasChildren(item)">
+            <li class="nav-item" [class.dropdown]="hasChildren(item)"
+                (mouseenter)="hasChildren(item) ? expandItem(item.menuItemId) : null"
+                (mouseleave)="hasChildren(item) ? collapseItem(item.menuItemId) : null">
                 @if (hasChildren(item)) {
                 <!-- Parent with dropdown -->
-                <a class="nav-link dropdown-toggle" href="#" role="button" [attr.data-bs-toggle]="'dropdown'"
-                    [attr.aria-expanded]="isExpanded(item.menuItemId)"
+                <a class="nav-link dropdown-toggle" href="#" role="button"
                     (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
@@ -22,7 +23,7 @@
                 <ul class="dropdown-menu" [class.show]="isExpanded(item.menuItemId)">
                     @for (child of item.children; track child.menuItemId) {
                     <li>
-                        @if (!child.isImplemented) {
+                        @if (!isRouteImplemented(child)) {
                         <!-- Unimplemented route - disabled -->
                         <span class="dropdown-item disabled coming-soon">
                             <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
@@ -30,12 +31,14 @@
                             <span class="badge bg-secondary ms-2">Coming Soon</span>
                         </span>
                         } @else if (isExternalLink(child)) {
-                        <a class="dropdown-item" [href]="getLink(child)" [target]="child.linkTarget || '_self'">
+                        <a class="dropdown-item" [href]="getLink(child)" [target]="child.linkTarget || '_self'"
+                            (click)="collapseAll()">
                             <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                             {{ child.text }}
                         </a>
                         } @else if (getLink(child)) {
-                        <a class="dropdown-item" [routerLink]="getLink(child)" routerLinkActive="active">
+                        <a class="dropdown-item" [routerLink]="getLink(child)" routerLinkActive="active"
+                            (click)="collapseAll()">
                             @if (child.iconName) {
                             <i class="bi bi-{{ child.iconName }} me-2"></i>
                             }
@@ -54,7 +57,7 @@
                 </ul>
                 } @else {
                 <!-- Standalone item -->
-                @if (!item.isImplemented) {
+                @if (!isRouteImplemented(item)) {
                 <!-- Unimplemented route - disabled -->
                 <span class="nav-link disabled coming-soon">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
@@ -62,12 +65,13 @@
                     <span class="badge bg-secondary ms-2">Soon</span>
                 </span>
                 } @else if (isExternalLink(item)) {
-                <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'">
+                <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'"
+                    (click)="collapseAll()">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
                 </a>
                 } @else if (getLink(item)) {
-                <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active">
+                <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active" (click)="collapseAll()">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
                 </a>
@@ -123,7 +127,7 @@
                         <ul class="nav flex-column ms-3">
                             @for (child of item.children; track child.menuItemId) {
                             <li class="nav-item">
-                                @if (!child.isImplemented) {
+                                @if (!isRouteImplemented(child)) {
                                 <!-- Unimplemented route - disabled -->
                                 <span class="nav-link disabled coming-soon">
                                     <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
@@ -156,7 +160,7 @@
                     </div>
                     } @else {
                     <!-- Standalone item -->
-                    @if (!item.isImplemented) {
+                    @if (!isRouteImplemented(item)) {
                     <!-- Unimplemented route - disabled -->
                     <span class="nav-link disabled coming-soon">
                         <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
