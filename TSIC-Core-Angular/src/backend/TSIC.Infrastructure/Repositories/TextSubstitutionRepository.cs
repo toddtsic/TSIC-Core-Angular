@@ -21,7 +21,11 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobPath == jobPath)
-            .Select(j => new JobTokenInfo(j.JobName ?? string.Empty, j.UslaxNumberValidThroughDate))
+            .Select(j => new JobTokenInfo
+            {
+                JobName = j.JobName ?? string.Empty,
+                UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
+            })
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -35,47 +39,48 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join c in _context.Customers on j.CustomerId equals c.CustomerId
                       join s in _context.Sports on j.SportId equals s.SportId
                       where r.RegistrationId == registrationId
-                      select new FixedFieldsData(
-                          r.RegistrationId,
-                          j.JobId,
-                          r.FamilyUserId,
-                          u.FirstName + " " + u.LastName,
-                          r.Assignment,
-                          u.UserName,
-                          r.FeeTotal,
-                          r.PaidTotal,
-                          r.OwedTotal,
-                          r.RegistrationCategory,
-                          r.ClubName,
-                          c.CustomerName,
-                          u.Email,
-                          j.JobDescription,
-                          j.JobName ?? string.Empty,
-                          j.JobPath,
-                          j.MailTo,
-                          j.PayTo,
-                          roles.Name,
-                          j.Season,
-                          s.SportName,
-                          r.AssignedTeamId,
-                          r.BActive,
-                          r.Volposition,
-                          r.UniformNo,
-                          r.DayGroup,
-                          r.JerseySize ?? "?",
-                          r.ShortsSize ?? "?",
-                          r.TShirt ?? "?",
-                          j.AdnArb ?? false,
-                          r.AdnSubscriptionId,
-                          r.AdnSubscriptionStatus,
-                          r.AdnSubscriptionBillingOccurences,
-                          r.AdnSubscriptionAmountPerOccurence,
-                          r.AdnSubscriptionStartDate,
-                          r.AdnSubscriptionIntervalLength,
-                          jdo.LogoHeader,
-                          j.JobCode ?? "?",
-                          j.UslaxNumberValidThroughDate
-                      )).ToListAsync(cancellationToken);
+                      select new FixedFieldsData
+                      {
+                          RegistrationId = r.RegistrationId,
+                          JobId = j.JobId,
+                          FamilyUserId = r.FamilyUserId,
+                          Person = u.FirstName + " " + u.LastName,
+                          Assignment = r.Assignment,
+                          UserName = u.UserName,
+                          FeeTotal = r.FeeTotal,
+                          PaidTotal = r.PaidTotal,
+                          OwedTotal = r.OwedTotal,
+                          RegistrationCategory = r.RegistrationCategory,
+                          ClubName = r.ClubName,
+                          CustomerName = c.CustomerName,
+                          Email = u.Email,
+                          JobDescription = j.JobDescription,
+                          JobName = j.JobName ?? string.Empty,
+                          JobPath = j.JobPath,
+                          MailTo = j.MailTo,
+                          PayTo = j.PayTo,
+                          RoleName = roles.Name,
+                          Season = j.Season,
+                          SportName = s.SportName,
+                          AssignedTeamId = r.AssignedTeamId,
+                          Active = r.BActive,
+                          Volposition = r.Volposition,
+                          UniformNo = r.UniformNo,
+                          DayGroup = r.DayGroup,
+                          JerseySize = r.JerseySize ?? "?",
+                          ShortsSize = r.ShortsSize ?? "?",
+                          TShirtSize = r.TShirt ?? "?",
+                          AdnArb = j.AdnArb ?? false,
+                          AdnSubscriptionId = r.AdnSubscriptionId,
+                          AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+                          AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
+                          AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+                          AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+                          AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength,
+                          JobLogoHeader = jdo.LogoHeader,
+                          JobCode = j.JobCode ?? "?",
+                          UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
+                      }).ToListAsync(cancellationToken);
     }
 
     public async Task<List<FixedFieldsData>> LoadFixedFieldsByFamilyAsync(Guid jobId, string familyUserId, CancellationToken cancellationToken = default)
@@ -89,47 +94,48 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join s in _context.Sports on j.SportId equals s.SportId
                       where r.JobId == jobId && r.FamilyUserId == familyUserId
                       orderby r.RegistrationAi
-                      select new FixedFieldsData(
-                          r.RegistrationId,
-                          j.JobId,
-                          r.FamilyUserId,
-                          u.FirstName + " " + u.LastName,
-                          r.Assignment,
-                          u.UserName,
-                          r.FeeTotal,
-                          r.PaidTotal,
-                          r.OwedTotal,
-                          r.RegistrationCategory,
-                          r.ClubName,
-                          c.CustomerName,
-                          u.Email,
-                          j.JobDescription,
-                          j.JobName ?? string.Empty,
-                          j.JobPath,
-                          j.MailTo,
-                          j.PayTo,
-                          roles.Name,
-                          j.Season,
-                          s.SportName,
-                          r.AssignedTeamId,
-                          r.BActive,
-                          r.Volposition,
-                          r.UniformNo,
-                          r.DayGroup,
-                          r.JerseySize ?? "?",
-                          r.ShortsSize ?? "?",
-                          r.TShirt ?? "?",
-                          j.AdnArb ?? false,
-                          r.AdnSubscriptionId,
-                          r.AdnSubscriptionStatus,
-                          r.AdnSubscriptionBillingOccurences,
-                          r.AdnSubscriptionAmountPerOccurence,
-                          r.AdnSubscriptionStartDate,
-                          r.AdnSubscriptionIntervalLength,
-                          jdo.LogoHeader,
-                          j.JobCode ?? "?",
-                          j.UslaxNumberValidThroughDate
-                      )).ToListAsync(cancellationToken);
+                      select new FixedFieldsData
+                      {
+                          RegistrationId = r.RegistrationId,
+                          JobId = j.JobId,
+                          FamilyUserId = r.FamilyUserId,
+                          Person = u.FirstName + " " + u.LastName,
+                          Assignment = r.Assignment,
+                          UserName = u.UserName,
+                          FeeTotal = r.FeeTotal,
+                          PaidTotal = r.PaidTotal,
+                          OwedTotal = r.OwedTotal,
+                          RegistrationCategory = r.RegistrationCategory,
+                          ClubName = r.ClubName,
+                          CustomerName = c.CustomerName,
+                          Email = u.Email,
+                          JobDescription = j.JobDescription,
+                          JobName = j.JobName ?? string.Empty,
+                          JobPath = j.JobPath,
+                          MailTo = j.MailTo,
+                          PayTo = j.PayTo,
+                          RoleName = roles.Name,
+                          Season = j.Season,
+                          SportName = s.SportName,
+                          AssignedTeamId = r.AssignedTeamId,
+                          Active = r.BActive,
+                          Volposition = r.Volposition,
+                          UniformNo = r.UniformNo,
+                          DayGroup = r.DayGroup,
+                          JerseySize = r.JerseySize ?? "?",
+                          ShortsSize = r.ShortsSize ?? "?",
+                          TShirtSize = r.TShirt ?? "?",
+                          AdnArb = j.AdnArb ?? false,
+                          AdnSubscriptionId = r.AdnSubscriptionId,
+                          AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+                          AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
+                          AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+                          AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+                          AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength,
+                          JobLogoHeader = jdo.LogoHeader,
+                          JobCode = j.JobCode ?? "?",
+                          UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
+                      }).ToListAsync(cancellationToken);
     }
 
     public async Task<List<AccountingTransactionRow>> GetAccountingTransactionsAsync(Guid registrationId, CancellationToken cancellationToken = default)
@@ -140,17 +146,18 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join pm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals pm.PaymentMethodId
                       where ra.RegistrationId == registrationId && ra.Active == true
                       orderby ra.AId
-                      select new AccountingTransactionRow(
-                          ra.AId,
-                          u.FirstName + " " + u.LastName,
-                          pm.PaymentMethod,
-                          ra.Createdate,
-                          ra.Payamt,
-                          ra.Dueamt,
-                          ra.DiscountCodeAi,
-                          ra.PaymentMethodId,
-                          ra.Comment
-                      )).ToListAsync(cancellationToken);
+                      select new AccountingTransactionRow
+                      {
+                          AId = ra.AId,
+                          RegistrantName = u.FirstName + " " + u.LastName,
+                          PaymentMethod = pm.PaymentMethod,
+                          Createdate = ra.Createdate,
+                          Payamt = ra.Payamt,
+                          Dueamt = ra.Dueamt,
+                          DiscountCodeAi = ra.DiscountCodeAi,
+                          PaymentMethodId = ra.PaymentMethodId,
+                          Comment = ra.Comment
+                      }).ToListAsync(cancellationToken);
     }
 
     public async Task<Dictionary<Guid, string>> GetTeamClubNamesAsync(List<Guid> registrationIds, CancellationToken cancellationToken = default)
@@ -170,10 +177,11 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join u in _context.AspNetUsers on r.UserId equals u.Id
                       where r.JobId == jobId && r.BActive == true && roles.Name == "Director"
                       orderby r.RegistrationTs
-                      select new DirectorContactData(
-                          u.FirstName + " " + u.LastName,
-                          u.Email ?? string.Empty
-                      )).FirstOrDefaultAsync(cancellationToken);
+                      select new DirectorContactData
+                      {
+                          Name = u.FirstName + " " + u.LastName,
+                          Email = u.Email ?? string.Empty
+                      }).FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<string?> GetFamilyUserNameAsync(string familyUserId, CancellationToken cancellationToken = default)
@@ -238,10 +246,11 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       where t.ClubrepRegistrationid == clubRepRegistrationId
                             && ag.AgegroupName != "Dropped Teams"
                             && t.TeamName != "Club Teams"
-                      select new ClubTeamInfo(
-                          t.TeamId,
-                          ag.AgegroupName + " " + t.TeamName
-                      )).ToListAsync(cancellationToken);
+                      select new ClubTeamInfo
+                      {
+                          TeamId = t.TeamId,
+                          TeamName = ag.AgegroupName + " " + t.TeamName
+                      }).ToListAsync(cancellationToken);
     }
 
     public async Task<List<TeamAccountingRow>> GetTeamAccountingTransactionsAsync(Guid teamId, CancellationToken cancellationToken = default)
@@ -253,17 +262,18 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join pm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals pm.PaymentMethodId
                       where ra.TeamId == teamId
                       orderby ra.AId
-                      select new TeamAccountingRow(
-                          ra.Active,
-                          ra.AId,
-                          pm.PaymentMethod,
-                          ra.Dueamt,
-                          ra.Payamt,
-                          ra.Createdate,
-                          ra.Comment,
-                          ra.DiscountCodeAi,
-                          ra.PaymentMethodId
-                      )).ToListAsync(cancellationToken);
+                      select new TeamAccountingRow
+                      {
+                          Active = ra.Active,
+                          AId = ra.AId,
+                          PaymentMethod = pm.PaymentMethod,
+                          Dueamt = ra.Dueamt,
+                          Payamt = ra.Payamt,
+                          Createdate = ra.Createdate,
+                          Comment = ra.Comment,
+                          DiscountCodeAi = ra.DiscountCodeAi,
+                          PaymentMethodId = ra.PaymentMethodId
+                      }).ToListAsync(cancellationToken);
     }
 
     public async Task<List<TeamSummaryRow>> GetTeamsSummaryAsync(Guid clubRepRegistrationId, CancellationToken cancellationToken = default)
@@ -274,17 +284,18 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       where t.ClubrepRegistrationid == clubRepRegistrationId
                             && ag.AgegroupName != "Dropped Teams"
                             && t.TeamName != "Club Teams"
-                      select new TeamSummaryRow(
-                          ag.AgegroupName + " " + t.TeamName,
-                          t.FeeTotal,
-                          t.PaidTotal,
-                          t.OwedTotal,
-                          t.Dow,
-                          t.FeeProcessing,
-                          ag.RosterFee,
-                          ag.TeamFee,
-                          r.ClubName
-                      )).ToListAsync(cancellationToken);
+                      select new TeamSummaryRow
+                      {
+                          TeamName = ag.AgegroupName + " " + t.TeamName,
+                          FeeTotal = t.FeeTotal,
+                          PaidTotal = t.PaidTotal,
+                          OwedTotal = t.OwedTotal,
+                          Dow = t.Dow,
+                          ProcessingFees = t.FeeProcessing,
+                          RosterFee = ag.RosterFee,
+                          AdditionalFees = ag.TeamFee,
+                          ClubName = r.ClubName
+                      }).ToListAsync(cancellationToken);
     }
 
     public async Task<List<SimpleTeamRow>> GetSimpleTeamsAsync(Guid clubRepRegistrationId, CancellationToken cancellationToken = default)
@@ -293,34 +304,37 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
                       join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId
                       where t.ClubrepRegistrationid == clubRepRegistrationId
-                      select new SimpleTeamRow(
-                          ag.AgegroupName + " " + t.TeamName,
-                          r.ClubName
-                      )).ToListAsync(cancellationToken);
+                      select new SimpleTeamRow
+                      {
+                          TeamName = ag.AgegroupName + " " + t.TeamName,
+                          ClubName = r.ClubName
+                      }).ToListAsync(cancellationToken);
     }
 
     public async Task<JobWaiverData?> GetJobWaiversAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobWaiverData(
-                j.PlayerRegRefundPolicy,
-                j.PlayerRegReleaseOfLiability,
-                j.AdultRegReleaseOfLiability,
-                j.PlayerRegCodeOfConduct,
-                j.PlayerRegCovid19Waiver
-            )).SingleOrDefaultAsync(cancellationToken);
+            .Select(j => new JobWaiverData
+            {
+                PlayerRegRefundPolicy = j.PlayerRegRefundPolicy,
+                PlayerRegReleaseOfLiability = j.PlayerRegReleaseOfLiability,
+                AdultRegReleaseOfLiability = j.AdultRegReleaseOfLiability,
+                PlayerRegCodeOfConduct = j.PlayerRegCodeOfConduct,
+                PlayerRegCovid19Waiver = j.PlayerRegCovid19Waiver
+            }).SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<StaffRegistrationInfo?> GetStaffInfoAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
             .Where(r => r.RegistrationId == registrationId)
-            .Select(r => new StaffRegistrationInfo(
-                r.UserId,
-                r.JobId,
-                r.SpecialRequests
-            )).SingleOrDefaultAsync(cancellationToken);
+            .Select(r => new StaffRegistrationInfo
+            {
+                UserId = r.UserId,
+                JobId = r.JobId,
+                SpecialRequests = r.SpecialRequests
+            }).SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<List<CoachTeamChoice>> GetCoachTeamChoicesAsync(Guid registrationId, CancellationToken cancellationToken = default)
@@ -339,10 +353,11 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join roles in _context.AspNetRoles on r.RoleId equals roles.Id
                       where r.JobId == keys.JobId && r.UserId == keys.UserId && roles.Name == "Staff"
                       orderby ag.AgegroupName, t.TeamName
-                      select new CoachTeamChoice(
-                          rCR.ClubName,
-                          ag.AgegroupName,
-                          t.TeamName
-                      )).ToListAsync(cancellationToken);
+                      select new CoachTeamChoice
+                      {
+                          Club = rCR.ClubName,
+                          Age = ag.AgegroupName,
+                          Team = t.TeamName
+                      }).ToListAsync(cancellationToken);
     }
 }

@@ -104,7 +104,7 @@ public sealed record TeamInsurancePurchaseResponseDto
 /// </summary>
 public sealed record VerticalInsureTeamPurchaseResult
 {
-    public bool Success { get; set; }
-    public string? Error { get; set; }
-    public Dictionary<Guid, string> Policies { get; set; } = new();
+    public required bool Success { get; init; }
+    public required string? Error { get; init; }
+    public required Dictionary<Guid, string> Policies { get; init; } = new();
 }

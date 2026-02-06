@@ -22,7 +22,12 @@ public class JobRepository : IJobRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobPreSubmitMetadata(j.PlayerProfileMetadataJson, j.JsonOptions, j.CoreRegformPlayer))
+            .Select(j => new JobPreSubmitMetadata
+            {
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
+                JsonOptions = j.JsonOptions,
+                CoreRegformPlayer = j.CoreRegformPlayer
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -31,7 +36,13 @@ public class JobRepository : IJobRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobPaymentInfo(j.AdnArb, j.AdnArbbillingOccurences, j.AdnArbintervalLength, j.AdnArbstartDate))
+            .Select(j => new JobPaymentInfo
+            {
+                AdnArb = j.AdnArb,
+                AdnArbbillingOccurences = j.AdnArbbillingOccurences,
+                AdnArbintervalLength = j.AdnArbintervalLength,
+                AdnArbstartDate = j.AdnArbstartDate
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -40,7 +51,12 @@ public class JobRepository : IJobRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobMetadata(j.PlayerProfileMetadataJson, j.JsonOptions, j.CoreRegformPlayer))
+            .Select(j => new JobMetadata
+            {
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
+                JsonOptions = j.JsonOptions,
+                CoreRegformPlayer = j.CoreRegformPlayer
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -58,9 +74,11 @@ public class JobRepository : IJobRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobRegistrationStatus(
-                j.BRegistrationAllowPlayer ?? false,
-                j.ExpiryUsers))
+            .Select(j => new JobRegistrationStatus
+            {
+                BRegistrationAllowPlayer = j.BRegistrationAllowPlayer ?? false,
+                ExpiryUsers = j.ExpiryUsers
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -69,33 +87,35 @@ public class JobRepository : IJobRepository
         return await _context.JobDisplayOptions
             .AsNoTracking()
             .Where(jdo => jdo.Job.JobPath == jobPath)
-            .Select(jdo => new JobMetadataDto(
-                jdo.Job.JobId,
-                jdo.Job.JobName ?? string.Empty,
-                jdo.Job.JobPath ?? string.Empty,
-                jdo.LogoHeader,
-                jdo.ParallaxSlide1Image,
-                jdo.ParallaxSlide1Text1,
-                jdo.ParallaxSlide1Text2,
-                jdo.ParallaxBackgroundImage,
-                jdo.Job.CoreRegformPlayer == "1",
-                jdo.Job.UslaxNumberValidThroughDate,
-                jdo.Job.ExpiryUsers,
-                jdo.Job.PlayerProfileMetadataJson,
-                jdo.Job.JsonOptions,
-                jdo.Job.MomLabel,
-                jdo.Job.DadLabel,
-                jdo.Job.PlayerRegReleaseOfLiability,
-                jdo.Job.PlayerRegCodeOfConduct,
-                jdo.Job.PlayerRegCovid19Waiver,
-                jdo.Job.PlayerRegRefundPolicy,
-                jdo.Job.BOfferPlayerRegsaverInsurance ?? false,
-                jdo.Job.BOfferTeamRegsaverInsurance ?? false,
-                jdo.Job.AdnArb,
-                jdo.Job.AdnArbbillingOccurences,
-                jdo.Job.AdnArbintervalLength,
-                jdo.Job.AdnArbstartDate,
-                jdo.Job.BRegistrationAllowTeam ?? false))
+            .Select(jdo => new JobMetadataDto
+            {
+                JobId = jdo.Job.JobId,
+                JobName = jdo.Job.JobName ?? string.Empty,
+                JobPath = jdo.Job.JobPath ?? string.Empty,
+                JobLogoPath = jdo.LogoHeader,
+                JobBannerPath = jdo.ParallaxSlide1Image,
+                JobBannerText1 = jdo.ParallaxSlide1Text1,
+                JobBannerText2 = jdo.ParallaxSlide1Text2,
+                JobBannerBackgroundPath = jdo.ParallaxBackgroundImage,
+                CoreRegformPlayer = jdo.Job.CoreRegformPlayer == "1",
+                USLaxNumberValidThroughDate = jdo.Job.UslaxNumberValidThroughDate,
+                ExpiryUsers = jdo.Job.ExpiryUsers,
+                PlayerProfileMetadataJson = jdo.Job.PlayerProfileMetadataJson,
+                JsonOptions = jdo.Job.JsonOptions,
+                MomLabel = jdo.Job.MomLabel,
+                DadLabel = jdo.Job.DadLabel,
+                PlayerRegReleaseOfLiability = jdo.Job.PlayerRegReleaseOfLiability,
+                PlayerRegCodeOfConduct = jdo.Job.PlayerRegCodeOfConduct,
+                PlayerRegCovid19Waiver = jdo.Job.PlayerRegCovid19Waiver,
+                PlayerRegRefundPolicy = jdo.Job.PlayerRegRefundPolicy,
+                OfferPlayerRegsaverInsurance = jdo.Job.BOfferPlayerRegsaverInsurance ?? false,
+                BOfferTeamRegsaverInsurance = jdo.Job.BOfferTeamRegsaverInsurance ?? false,
+                AdnArb = jdo.Job.AdnArb,
+                AdnArbBillingOccurences = jdo.Job.AdnArbbillingOccurences,
+                AdnArbIntervalLength = jdo.Job.AdnArbintervalLength,
+                AdnArbStartDate = jdo.Job.AdnArbstartDate,
+                BRegistrationAllowTeam = jdo.Job.BRegistrationAllowTeam ?? false
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -104,10 +124,12 @@ public class JobRepository : IJobRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new InsuranceOfferInfo(
-                j.JobName,
-                j.BOfferPlayerRegsaverInsurance ?? false,
-                j.BOfferTeamRegsaverInsurance ?? false))
+            .Select(j => new InsuranceOfferInfo
+            {
+                JobName = j.JobName,
+                BOfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance ?? false,
+                BOfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance ?? false
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -120,7 +142,14 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
-            ? new JobConfirmationInfo(result.JobId, result.JobName, result.JobPath, result.AdnArb, result.PlayerRegConfirmationOnScreen)
+            ? new JobConfirmationInfo
+            {
+                JobId = result.JobId,
+                JobName = result.JobName,
+                JobPath = result.JobPath!,
+                AdnArb = result.AdnArb,
+                PlayerRegConfirmationOnScreen = result.PlayerRegConfirmationOnScreen
+            }
             : null;
     }
 
@@ -133,7 +162,14 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
-            ? new JobConfirmationEmailInfo(result.JobId, result.JobName, result.JobPath, result.AdnArb, result.PlayerRegConfirmationEmail)
+            ? new JobConfirmationEmailInfo
+            {
+                JobId = result.JobId,
+                JobName = result.JobName,
+                JobPath = result.JobPath!,
+                AdnArb = result.AdnArb,
+                PlayerRegConfirmationEmail = result.PlayerRegConfirmationEmail
+            }
             : null;
     }
 
@@ -146,7 +182,16 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
-            ? new AdultConfirmationInfo(result.JobId, result.JobName, result.JobPath, result.AdultRegConfirmationOnScreen, result.RegFormFrom, result.RegFormCcs, result.RegFormBccs)
+            ? new AdultConfirmationInfo
+            {
+                JobId = result.JobId,
+                JobName = result.JobName,
+                JobPath = result.JobPath!,
+                AdultRegConfirmationOnScreen = result.AdultRegConfirmationOnScreen,
+                RegFormFrom = result.RegFormFrom,
+                RegFormCcs = result.RegFormCcs,
+                RegFormBccs = result.RegFormBccs
+            }
             : null;
     }
 
@@ -159,7 +204,16 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
-            ? new AdultConfirmationEmailInfo(result.JobId, result.JobName, result.JobPath, result.AdultRegConfirmationEmail, result.RegFormFrom, result.RegFormCcs, result.RegFormBccs)
+            ? new AdultConfirmationEmailInfo
+            {
+                JobId = result.JobId,
+                JobName = result.JobName,
+                JobPath = result.JobPath!,
+                AdultRegConfirmationEmail = result.AdultRegConfirmationEmail,
+                RegFormFrom = result.RegFormFrom,
+                RegFormCcs = result.RegFormCcs,
+                RegFormBccs = result.RegFormBccs
+            }
             : null;
     }
 
@@ -172,7 +226,12 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
-            ? new JobAuthInfo(result.JobId, result.JobPath, result.LogoHeader)
+            ? new JobAuthInfo
+            {
+                JobId = result.JobId,
+                JobPath = result.JobPath!,
+                LogoHeader = result.LogoHeader
+            }
             : null;
     }
 
@@ -181,13 +240,15 @@ public class JobRepository : IJobRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobFeeSettings(
-                j.BTeamsFullPaymentRequired,
-                j.BAddProcessingFees,
-                j.BApplyProcessingFeesToTeamDeposit,
-                j.PaymentMethodsAllowedCode,
-                j.PlayerRegRefundPolicy,
-                j.Season ?? ""))
+            .Select(j => new JobFeeSettings
+            {
+                BTeamsFullPaymentRequired = j.BTeamsFullPaymentRequired,
+                BAddProcessingFees = j.BAddProcessingFees,
+                BApplyProcessingFeesToTeamDeposit = j.BApplyProcessingFeesToTeamDeposit,
+                PaymentMethodsAllowedCode = j.PaymentMethodsAllowedCode,
+                PlayerRegRefundPolicy = j.PlayerRegRefundPolicy,
+                Season = j.Season ?? ""
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 

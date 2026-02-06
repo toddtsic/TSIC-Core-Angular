@@ -99,6 +99,7 @@ export type { RegSaverDetailsDto } from './models/RegSaverDetailsDto';
 export type { RenameOptionSetRequest } from './models/RenameOptionSetRequest';
 export type { RoleSelectionRequest } from './models/RoleSelectionRequest';
 export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
+export type { SetWizardContextRequest } from './models/SetWizardContextRequest';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { TeamDiscountResult } from './models/TeamDiscountResult';
 export type { TeamFeeUpdateDto } from './models/TeamFeeUpdateDto';

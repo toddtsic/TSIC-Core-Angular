@@ -3,8 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type InsurancePurchaseResponseDto = {
-    success?: boolean;
+    success: boolean;
     error?: string | null;
-    policies?: Record<string, string>;
+    policies: Record<string, string>;
 };
 

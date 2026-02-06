@@ -105,139 +105,161 @@ public interface ITextSubstitutionRepository
 /// <summary>
 /// Job info for simple token substitution.
 /// </summary>
-public record JobTokenInfo(
-    string JobName,
-    DateTime? UslaxNumberValidThroughDate);
+public record JobTokenInfo
+{
+    public required string JobName { get; init; }
+    public DateTime? UslaxNumberValidThroughDate { get; init; }
+}
 
 /// <summary>
 /// Fixed fields data for text substitution (comprehensive projection).
 /// </summary>
-public record FixedFieldsData(
-    Guid RegistrationId,
-    Guid JobId,
-    string? FamilyUserId,
-    string? Person,
-    string? Assignment,
-    string? UserName,
-    decimal? FeeTotal,
-    decimal? PaidTotal,
-    decimal? OwedTotal,
-    string? RegistrationCategory,
-    string? ClubName,
-    string? CustomerName,
-    string? Email,
-    string? JobDescription,
-    string JobName,
-    string JobPath,
-    string? MailTo,
-    string? PayTo,
-    string? RoleName,
-    string? Season,
-    string? SportName,
-    Guid? AssignedTeamId,
-    bool? Active,
-    string? Volposition,
-    string? UniformNo,
-    string? DayGroup,
-    string? JerseySize,
-    string? ShortsSize,
-    string? TShirtSize,
-    bool AdnArb,
-    string? AdnSubscriptionId,
-    string? AdnSubscriptionStatus,
-    int? AdnSubscriptionBillingOccurences,
-    decimal? AdnSubscriptionAmountPerOccurence,
-    DateTime? AdnSubscriptionStartDate,
-    int? AdnSubscriptionIntervalLength,
-    string? JobLogoHeader,
-    string? JobCode,
-    DateTime? UslaxNumberValidThroughDate);
+public record FixedFieldsData
+{
+    public required Guid RegistrationId { get; init; }
+    public required Guid JobId { get; init; }
+    public string? FamilyUserId { get; init; }
+    public string? Person { get; init; }
+    public string? Assignment { get; init; }
+    public string? UserName { get; init; }
+    public decimal? FeeTotal { get; init; }
+    public decimal? PaidTotal { get; init; }
+    public decimal? OwedTotal { get; init; }
+    public string? RegistrationCategory { get; init; }
+    public string? ClubName { get; init; }
+    public string? CustomerName { get; init; }
+    public string? Email { get; init; }
+    public string? JobDescription { get; init; }
+    public required string JobName { get; init; }
+    public required string JobPath { get; init; }
+    public string? MailTo { get; init; }
+    public string? PayTo { get; init; }
+    public string? RoleName { get; init; }
+    public string? Season { get; init; }
+    public string? SportName { get; init; }
+    public Guid? AssignedTeamId { get; init; }
+    public bool? Active { get; init; }
+    public string? Volposition { get; init; }
+    public string? UniformNo { get; init; }
+    public string? DayGroup { get; init; }
+    public string? JerseySize { get; init; }
+    public string? ShortsSize { get; init; }
+    public string? TShirtSize { get; init; }
+    public required bool AdnArb { get; init; }
+    public string? AdnSubscriptionId { get; init; }
+    public string? AdnSubscriptionStatus { get; init; }
+    public int? AdnSubscriptionBillingOccurences { get; init; }
+    public decimal? AdnSubscriptionAmountPerOccurence { get; init; }
+    public DateTime? AdnSubscriptionStartDate { get; init; }
+    public int? AdnSubscriptionIntervalLength { get; init; }
+    public string? JobLogoHeader { get; init; }
+    public string? JobCode { get; init; }
+    public DateTime? UslaxNumberValidThroughDate { get; init; }
+}
 
 /// <summary>
 /// Accounting transaction row.
 /// </summary>
-public record AccountingTransactionRow(
-    int AId,
-    string RegistrantName,
-    string? PaymentMethod,
-    DateTime? Createdate,
-    decimal? Payamt,
-    decimal? Dueamt,
-    int? DiscountCodeAi,
-    Guid PaymentMethodId,
-    string? Comment);
+public record AccountingTransactionRow
+{
+    public required int AId { get; init; }
+    public required string RegistrantName { get; init; }
+    public string? PaymentMethod { get; init; }
+    public DateTime? Createdate { get; init; }
+    public decimal? Payamt { get; init; }
+    public decimal? Dueamt { get; init; }
+    public int? DiscountCodeAi { get; init; }
+    public required Guid PaymentMethodId { get; init; }
+    public string? Comment { get; init; }
+}
 
 /// <summary>
 /// Director contact data.
 /// </summary>
-public record DirectorContactData(
-    string Name,
-    string Email);
+public record DirectorContactData
+{
+    public required string Name { get; init; }
+    public required string Email { get; init; }
+}
 
 /// <summary>
 /// Club team info (for accounting tables).
 /// </summary>
-public record ClubTeamInfo(
-    Guid TeamId,
-    string TeamName);
+public record ClubTeamInfo
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+}
 
 /// <summary>
 /// Team accounting transaction row.
 /// </summary>
-public record TeamAccountingRow(
-    bool? Active,
-    int AId,
-    string? PaymentMethod,
-    decimal? Dueamt,
-    decimal? Payamt,
-    DateTime? Createdate,
-    string? Comment,
-    int? DiscountCodeAi,
-    Guid PaymentMethodId);
+public record TeamAccountingRow
+{
+    public bool? Active { get; init; }
+    public required int AId { get; init; }
+    public string? PaymentMethod { get; init; }
+    public decimal? Dueamt { get; init; }
+    public decimal? Payamt { get; init; }
+    public DateTime? Createdate { get; init; }
+    public string? Comment { get; init; }
+    public int? DiscountCodeAi { get; init; }
+    public required Guid PaymentMethodId { get; init; }
+}
 
 /// <summary>
 /// Team summary row (financial summary).
 /// </summary>
-public record TeamSummaryRow(
-    string TeamName,
-    decimal? FeeTotal,
-    decimal? PaidTotal,
-    decimal? OwedTotal,
-    string? Dow,
-    decimal? ProcessingFees,
-    decimal? RosterFee,
-    decimal? AdditionalFees,
-    string? ClubName);
+public record TeamSummaryRow
+{
+    public required string TeamName { get; init; }
+    public decimal? FeeTotal { get; init; }
+    public decimal? PaidTotal { get; init; }
+    public decimal? OwedTotal { get; init; }
+    public string? Dow { get; init; }
+    public decimal? ProcessingFees { get; init; }
+    public decimal? RosterFee { get; init; }
+    public decimal? AdditionalFees { get; init; }
+    public string? ClubName { get; init; }
+}
 
 /// <summary>
 /// Simple team row (just name).
 /// </summary>
-public record SimpleTeamRow(
-    string TeamName,
-    string? ClubName);
+public record SimpleTeamRow
+{
+    public required string TeamName { get; init; }
+    public string? ClubName { get; init; }
+}
 
 /// <summary>
 /// Job waiver/policy data.
 /// </summary>
-public record JobWaiverData(
-    string? PlayerRegRefundPolicy,
-    string? PlayerRegReleaseOfLiability,
-    string? AdultRegReleaseOfLiability,
-    string? PlayerRegCodeOfConduct,
-    string? PlayerRegCovid19Waiver);
+public record JobWaiverData
+{
+    public string? PlayerRegRefundPolicy { get; init; }
+    public string? PlayerRegReleaseOfLiability { get; init; }
+    public string? AdultRegReleaseOfLiability { get; init; }
+    public string? PlayerRegCodeOfConduct { get; init; }
+    public string? PlayerRegCovid19Waiver { get; init; }
+}
 
 /// <summary>
 /// Staff registration info.
 /// </summary>
-public record StaffRegistrationInfo(
-    string UserId,
-    Guid JobId,
-    string? SpecialRequests);
+public record StaffRegistrationInfo
+{
+    public required string UserId { get; init; }
+    public required Guid JobId { get; init; }
+    public string? SpecialRequests { get; init; }
+}
 
 /// <summary>
 /// Coach team choice.
 /// </summary>
-public record CoachTeamChoice(
-    string? Club,
-    string? Age,
-    string? Team);
+public record CoachTeamChoice
+{
+    public string? Club { get; init; }
+    public string? Age { get; init; }
+    public string? Team { get; init; }
+}

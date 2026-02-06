@@ -88,10 +88,13 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public async Task<MigrationReport> MigrateAllJobsAsync(bool dryRun = false, List<string>? profileTypeFilter = null)
     {
-        var report = new MigrationReport
-        {
-            StartedAt = DateTime.UtcNow
-        };
+        var startTime = DateTime.UtcNow;
+        var results = new List<MigrationResult>();
+        var globalWarnings = new List<string>();
+        int successCount = 0;
+        int failureCount = 0;
+        int warningCount = 0;
+        int skippedCount = 0;
 
         try
         {
@@ -107,62 +110,86 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
                     if (string.IsNullOrEmpty(profileType))
                     {
-                        report.SkippedCount++;
-                        report.GlobalWarnings.Add($"Job {job.JobName}: Could not extract profile type from '{job.CoreRegformPlayer}'");
+                        skippedCount++;
+                        globalWarnings.Add($"Job {job.JobName}: Could not extract profile type from '{job.CoreRegformPlayer}'");
                         continue;
                     }
 
                     // Apply filter if specified
                     if (profileTypeFilter != null && profileTypeFilter.Count > 0 && !profileTypeFilter.Contains(profileType))
                     {
-                        report.SkippedCount++;
+                        skippedCount++;
                         continue;
                     }
 
                     var result = await MigrateJobAsync(job.JobId, dryRun);
-                    report.Results.Add(result);
+                    results.Add(result);
 
                     if (result.Success)
-                        report.SuccessCount++;
+                        successCount++;
                     else
-                        report.FailureCount++;
+                        failureCount++;
 
                     if (result.Warnings.Count > 0)
-                        report.WarningCount += result.Warnings.Count;
+                        warningCount += result.Warnings.Count;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error migrating job {JobId}", job.JobId);
-                    report.Results.Add(new MigrationResult
+                    results.Add(new MigrationResult
                     {
                         JobId = job.JobId,
                         JobName = job.JobName ?? UnknownValue,
                         ProfileType = UnknownValue,
                         Success = false,
-                        ErrorMessage = ex.Message
+                        ErrorMessage = ex.Message,
+                        Warnings = new(),
+                        FieldCount = 0,
+                        GeneratedMetadata = null
                     });
-                    report.FailureCount++;
+                    failureCount++;
                 }
             }
 
-            report.CompletedAt = DateTime.UtcNow;
+            var completedAt = DateTime.UtcNow;
 
             _logger.LogInformation(
                 "Migration {Mode} completed: {Success} succeeded, {Failed} failed, {Skipped} skipped, {Warnings} warnings",
                 dryRun ? "preview" : "execution",
-                report.SuccessCount,
-                report.FailureCount,
-                report.SkippedCount,
-                report.WarningCount);
+                successCount,
+                failureCount,
+                skippedCount,
+                warningCount);
+
+            return new MigrationReport
+            {
+                StartedAt = startTime,
+                CompletedAt = completedAt,
+                SuccessCount = successCount,
+                FailureCount = failureCount,
+                WarningCount = warningCount,
+                SkippedCount = skippedCount,
+                Results = results,
+                GlobalWarnings = globalWarnings
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Migration failed");
-            report.CompletedAt = DateTime.UtcNow;
-            report.GlobalWarnings.Add($"Migration failed: {ex.Message}");
-        }
+            globalWarnings.Add($"Migration failed: {ex.Message}");
 
-        return report;
+            return new MigrationReport
+            {
+                StartedAt = startTime,
+                CompletedAt = DateTime.UtcNow,
+                SuccessCount = successCount,
+                FailureCount = failureCount,
+                WarningCount = warningCount,
+                SkippedCount = skippedCount,
+                Results = results,
+                GlobalWarnings = globalWarnings
+            };
+        }
     }
 
     /// <summary>
@@ -180,7 +207,10 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 JobName = UnknownValue,
                 ProfileType = UnknownValue,
                 Success = false,
-                ErrorMessage = "Job not found"
+                ErrorMessage = "Job not found",
+                Warnings = new List<string>(),
+                FieldCount = 0,
+                GeneratedMetadata = null
             };
         }
 
@@ -194,17 +224,12 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 JobName = job.JobName ?? UnknownValue,
                 ProfileType = UnknownValue,
                 Success = false,
-                ErrorMessage = $"Could not extract profile type from '{job.CoreRegformPlayer}'"
+                ErrorMessage = $"Could not extract profile type from '{job.CoreRegformPlayer}'",
+                Warnings = new List<string>(),
+                FieldCount = 0,
+                GeneratedMetadata = null
             };
         }
-
-        var result = new MigrationResult
-        {
-            JobId = jobId,
-            JobName = job.JobName ?? UnknownValue,
-            ProfileType = profileType,
-            Success = false
-        };
 
         try
         {
@@ -245,9 +270,6 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             metadata.Fields = hiddens.Concat(publics).Concat(admins).ToList();
 
-            result.FieldCount = metadata.Fields.Count;
-            result.GeneratedMetadata = metadata;
-
             // Serialize to JSON
             var metadataJson = JsonSerializer.Serialize(metadata, s_IndentedCamelCase);
 
@@ -260,22 +282,40 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                     job.JobName, metadata.Fields.Count);
             }
 
-            result.Success = true;
-
-            // Add warnings if any
+            // Collect warnings
+            var warnings = new List<string>();
             if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && string.Equals(f.InputType, InputTypeSelect, StringComparison.OrdinalIgnoreCase)))
             {
-                result.Warnings.Add("Some SELECT fields are missing dataSource mapping");
+                warnings.Add("Some SELECT fields are missing dataSource mapping");
             }
+
+            return new MigrationResult
+            {
+                JobId = jobId,
+                JobName = job.JobName ?? UnknownValue,
+                ProfileType = profileType,
+                Success = true,
+                ErrorMessage = null,
+                Warnings = warnings,
+                FieldCount = metadata.Fields.Count,
+                GeneratedMetadata = metadata
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to migrate job {JobId}", jobId);
-            result.Success = false;
-            result.ErrorMessage = ex.Message;
+            return new MigrationResult
+            {
+                JobId = jobId,
+                JobName = job.JobName ?? UnknownValue,
+                ProfileType = profileType,
+                Success = false,
+                ErrorMessage = ex.Message,
+                Warnings = new(),
+                FieldCount = 0,
+                GeneratedMetadata = null
+            };
         }
-
-        return result;
     }
 
     /// <summary>
@@ -426,12 +466,6 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public async Task<ProfileMigrationResult> MigrateProfileAsync(string profileType, bool dryRun = false)
     {
-        var result = new ProfileMigrationResult
-        {
-            ProfileType = profileType,
-            Success = false
-        };
-
         try
         {
             _logger.LogInformation("Migrating profile {ProfileType} (DryRun: {DryRun})", profileType, dryRun);
@@ -470,22 +504,27 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             metadata.Fields = hiddens.Concat(publics).Concat(admins).ToList();
 
-            result.FieldCount = metadata.Fields.Count;
-            result.GeneratedMetadata = metadata;
-
             // 3. Find ALL jobs using this profile
             var jobs = await _repo.GetJobsByProfileTypeAsync(profileType);
 
-            result.JobsAffected = jobs.Count;
-            result.AffectedJobIds = jobs.Select(j => j.JobId).ToList();
-            result.AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList();
-            result.AffectedJobYears = jobs.Select(j => j.Year ?? "").ToList();
-
+            // Build warnings list
+            var warnings = new List<string>();
             if (jobs.Count == 0)
             {
-                result.Success = true;
-                result.Warnings.Add($"No jobs found using profile type {profileType}");
-                return result;
+                warnings.Add($"No jobs found using profile type {profileType}");
+                return new ProfileMigrationResult
+                {
+                    ProfileType = profileType,
+                    Success = true,
+                    FieldCount = metadata.Fields.Count,
+                    JobsAffected = 0,
+                    AffectedJobIds = new List<Guid>(),
+                    AffectedJobNames = new List<string>(),
+                    AffectedJobYears = new List<string>(),
+                    GeneratedMetadata = metadata,
+                    Warnings = warnings,
+                    ErrorMessage = null
+                };
             }
 
             // 4. Serialize metadata JSON options
@@ -518,22 +557,42 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                     profileType, metadata.Fields.Count, jobs.Count);
             }
 
-            result.Success = true;
-
             // Add warnings if any
             if (metadata.Fields.Exists(f => string.IsNullOrEmpty(f.DataSource) && string.Equals(f.InputType, InputTypeSelect, StringComparison.OrdinalIgnoreCase)))
             {
-                result.Warnings.Add("Some SELECT fields are missing dataSource mapping");
+                warnings.Add("Some SELECT fields are missing dataSource mapping");
             }
 
-            return result;
+            return new ProfileMigrationResult
+            {
+                ProfileType = profileType,
+                Success = true,
+                FieldCount = metadata.Fields.Count,
+                JobsAffected = jobs.Count,
+                AffectedJobIds = jobs.Select(j => j.JobId).ToList(),
+                AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList(),
+                AffectedJobYears = jobs.Select(j => j.Year ?? "").ToList(),
+                GeneratedMetadata = metadata,
+                Warnings = warnings,
+                ErrorMessage = null
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to migrate profile {ProfileType}", profileType);
-            result.Success = false;
-            result.ErrorMessage = ex.Message;
-            return result;
+            return new ProfileMigrationResult
+            {
+                ProfileType = profileType,
+                Success = false,
+                ErrorMessage = ex.Message,
+                FieldCount = 0,
+                JobsAffected = 0,
+                AffectedJobIds = new List<Guid>(),
+                AffectedJobNames = new List<string>(),
+                AffectedJobYears = new List<string>(),
+                GeneratedMetadata = null,
+                Warnings = new List<string>()
+            };
         }
     }
 
@@ -544,10 +603,9 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         bool dryRun = false,
         List<string>? profileTypeFilter = null)
     {
-        var report = new ProfileBatchMigrationReport
-        {
-            StartedAt = DateTime.UtcNow
-        };
+        var startedAt = DateTime.UtcNow;
+        var results = new List<ProfileMigrationResult>();
+        var globalWarnings = new List<string>();
 
         try
         {
@@ -560,8 +618,6 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 .Select(s => s.ProfileType)
                 .ToList();
 
-            report.TotalProfiles = profilesToMigrate.Count;
-
             _logger.LogInformation(
                 "Starting batch profile migration: {Count} profiles (DryRun: {DryRun})",
                 profilesToMigrate.Count, dryRun);
@@ -572,45 +628,64 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 try
                 {
                     var result = await MigrateProfileAsync(profileType, dryRun);
-                    report.Results.Add(result);
-
-                    if (result.Success)
-                    {
-                        report.SuccessCount++;
-                        report.TotalJobsAffected += result.JobsAffected;
-                    }
-                    else
-                    {
-                        report.FailureCount++;
-                    }
+                    results.Add(result);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error migrating profile {ProfileType}", profileType);
-                    report.Results.Add(new ProfileMigrationResult
+                    results.Add(new ProfileMigrationResult
                     {
                         ProfileType = profileType,
                         Success = false,
-                        ErrorMessage = ex.Message
+                        ErrorMessage = ex.Message,
+                        FieldCount = 0,
+                        JobsAffected = 0,
+                        AffectedJobIds = new List<Guid>(),
+                        AffectedJobNames = new List<string>(),
+                        AffectedJobYears = new List<string>(),
+                        GeneratedMetadata = null,
+                        Warnings = new List<string>()
                     });
-                    report.FailureCount++;
                 }
             }
 
-            report.CompletedAt = DateTime.UtcNow;
+            var successCount = results.Count(r => r.Success);
+            var failureCount = results.Count - successCount;
+            var totalJobsAffected = results.Where(r => r.Success).Sum(r => r.JobsAffected);
 
             _logger.LogInformation(
                 "Batch profile migration completed: {Success} succeeded, {Failed} failed, {TotalJobs} total jobs affected",
-                report.SuccessCount, report.FailureCount, report.TotalJobsAffected);
+                successCount, failureCount, totalJobsAffected);
+
+            return new ProfileBatchMigrationReport
+            {
+                StartedAt = startedAt,
+                CompletedAt = DateTime.UtcNow,
+                TotalProfiles = profilesToMigrate.Count,
+                SuccessCount = successCount,
+                FailureCount = failureCount,
+                TotalJobsAffected = totalJobsAffected,
+                Results = results,
+                GlobalWarnings = globalWarnings
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Batch profile migration failed");
-            report.CompletedAt = DateTime.UtcNow;
-            report.GlobalWarnings.Add($"Migration failed: {ex.Message}");
-        }
+            globalWarnings.Add($"Migration failed: {ex.Message}");
 
-        return report;
+            return new ProfileBatchMigrationReport
+            {
+                StartedAt = startedAt,
+                CompletedAt = DateTime.UtcNow,
+                TotalProfiles = 0,
+                SuccessCount = 0,
+                FailureCount = 0,
+                TotalJobsAffected = 0,
+                Results = results,
+                GlobalWarnings = globalWarnings
+            };
+        }
     }
 
     // ============================================================================
@@ -1016,12 +1091,6 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public async Task<ProfileMigrationResult> UpdateProfileMetadataAsync(string profileType, ProfileMetadata metadata)
     {
-        var result = new ProfileMigrationResult
-        {
-            ProfileType = profileType,
-            Success = false
-        };
-
         try
         {
             _logger.LogInformation("Updating metadata for profile {ProfileType}", profileType);
@@ -1031,15 +1100,20 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             if (jobs.Count == 0)
             {
-                result.Success = false;
-                result.ErrorMessage = $"No jobs found using profile type {profileType}";
-                return result;
+                return new ProfileMigrationResult
+                {
+                    ProfileType = profileType,
+                    Success = false,
+                    ErrorMessage = $"No jobs found using profile type {profileType}",
+                    FieldCount = 0,
+                    JobsAffected = 0,
+                    AffectedJobIds = new List<Guid>(),
+                    AffectedJobNames = new List<string>(),
+                    AffectedJobYears = new List<string>(),
+                    GeneratedMetadata = null,
+                    Warnings = new List<string>()
+                };
             }
-
-            result.JobsAffected = jobs.Count;
-            result.AffectedJobIds = jobs.Select(j => j.JobId).ToList();
-            result.AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList();
-            result.FieldCount = metadata.Fields.Count;
 
             // Normalize: ensure hidden fields use inputType = HIDDEN
             metadata.Fields
@@ -1090,17 +1164,36 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 "Updated metadata for {ProfileType}: {FieldCount} fields applied to {JobCount} jobs",
                 profileType, metadata.Fields.Count, jobs.Count);
 
-            result.Success = true;
-            result.GeneratedMetadata = metadata;
-
-            return result;
+            return new ProfileMigrationResult
+            {
+                ProfileType = profileType,
+                Success = true,
+                FieldCount = metadata.Fields.Count,
+                JobsAffected = jobs.Count,
+                AffectedJobIds = jobs.Select(j => j.JobId).ToList(),
+                AffectedJobNames = jobs.Select(j => j.JobName ?? "Unnamed Job").ToList(),
+                AffectedJobYears = jobs.Select(j => j.Year ?? "").ToList(),
+                GeneratedMetadata = metadata,
+                Warnings = new List<string>(),
+                ErrorMessage = null
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update metadata for profile {ProfileType}", profileType);
-            result.Success = false;
-            result.ErrorMessage = ex.Message;
-            return result;
+            return new ProfileMigrationResult
+            {
+                ProfileType = profileType,
+                Success = false,
+                ErrorMessage = ex.Message,
+                FieldCount = 0,
+                JobsAffected = 0,
+                AffectedJobIds = new List<Guid>(),
+                AffectedJobNames = new List<string>(),
+                AffectedJobYears = new List<string>(),
+                GeneratedMetadata = null,
+                Warnings = new List<string>()
+            };
         }
     }
 
@@ -1109,109 +1202,105 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public ValidationTestResult TestFieldValidation(ProfileMetadataField field, string testValue)
     {
-        var result = new ValidationTestResult
+        var isValid = true;
+        var messages = new List<string>();
+
+        // Run validation rules if present
+        if (field.Validation != null)
+        {
+            ValidateRequired(field, testValue, ref isValid, messages);
+            ValidateRequiredTrue(field, testValue, ref isValid, messages);
+            ValidateLength(field, testValue, ref isValid, messages);
+            ValidateNumericRange(field, testValue, ref isValid, messages);
+            ValidatePattern(field, testValue, ref isValid, messages);
+            ValidateEmail(field, testValue, ref isValid, messages);
+        }
+
+        if (isValid && messages.Count == 0)
+        {
+            messages.Add("✓ Validation passed");
+        }
+
+        return new ValidationTestResult
         {
             FieldName = field.Name,
             TestValue = testValue,
-            IsValid = true,
-            Messages = new List<string>()
+            IsValid = isValid,
+            Messages = messages
         };
-
-        if (field.Validation == null)
-        {
-            result.Messages.Add("No validation rules defined");
-            return result;
-        }
-
-        ValidateRequired(field, testValue, result);
-        ValidateRequiredTrue(field, testValue, result);
-        if (!string.IsNullOrWhiteSpace(testValue))
-        {
-            ValidateLength(field, testValue, result);
-            ValidateNumericRange(field, testValue, result);
-            ValidatePattern(field, testValue, result);
-            ValidateEmail(field, testValue, result);
-        }
-
-        if (result.IsValid && result.Messages.Count == 0)
-        {
-            result.Messages.Add("✓ Validation passed");
-        }
-
-        return result;
     }
 
-    private static void ValidateRequired(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    private static void ValidateRequired(ProfileMetadataField field, string testValue, ref bool isValid, List<string> messages)
     {
         if (field.Validation?.Required == true && string.IsNullOrWhiteSpace(testValue))
         {
-            result.IsValid = false;
-            result.Messages.Add("Field is required");
+            isValid = false;
+            messages.Add("Field is required");
         }
     }
 
-    private static void ValidateRequiredTrue(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    private static void ValidateRequiredTrue(ProfileMetadataField field, string testValue, ref bool isValid, List<string> messages)
     {
         if (field.Validation?.RequiredTrue == true && (!bool.TryParse(testValue, out var boolValue) || !boolValue))
         {
-            result.IsValid = false;
-            result.Messages.Add("Checkbox must be checked (value must be true)");
+            isValid = false;
+            messages.Add("Checkbox must be checked (value must be true)");
         }
     }
 
-    private static void ValidateLength(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    private static void ValidateLength(ProfileMetadataField field, string testValue, ref bool isValid, List<string> messages)
     {
         if (field.Validation?.MinLength.HasValue == true && testValue.Length < field.Validation.MinLength.Value)
         {
-            result.IsValid = false;
-            result.Messages.Add($"Value too short (min: {field.Validation.MinLength})");
+            isValid = false;
+            messages.Add($"Value too short (min: {field.Validation.MinLength})");
         }
         if (field.Validation?.MaxLength.HasValue == true && testValue.Length > field.Validation.MaxLength.Value)
         {
-            result.IsValid = false;
-            result.Messages.Add($"Value too long (max: {field.Validation.MaxLength})");
+            isValid = false;
+            messages.Add($"Value too long (max: {field.Validation.MaxLength})");
         }
     }
 
-    private static void ValidateNumericRange(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    private static void ValidateNumericRange(ProfileMetadataField field, string testValue, ref bool isValid, List<string> messages)
     {
         if (string.Equals(field.InputType, InputTypeNumber, StringComparison.OrdinalIgnoreCase) && double.TryParse(testValue, out var numValue))
         {
             if (field.Validation?.Min.HasValue == true && numValue < field.Validation.Min.Value)
             {
-                result.IsValid = false;
-                result.Messages.Add($"Value too small (min: {field.Validation.Min})");
+                isValid = false;
+                messages.Add($"Value too small (min: {field.Validation.Min})");
             }
             if (field.Validation?.Max.HasValue == true && numValue > field.Validation.Max.Value)
             {
-                result.IsValid = false;
-                result.Messages.Add($"Value too large (max: {field.Validation.Max})");
+                isValid = false;
+                messages.Add($"Value too large (max: {field.Validation.Max})");
             }
         }
     }
 
-    private static void ValidatePattern(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    private static void ValidatePattern(ProfileMetadataField field, string testValue, ref bool isValid, List<string> messages)
     {
         if (!string.IsNullOrEmpty(field.Validation?.Pattern))
         {
             var regex = new System.Text.RegularExpressions.Regex(field.Validation.Pattern);
             if (!regex.IsMatch(testValue))
             {
-                result.IsValid = false;
-                result.Messages.Add($"Value does not match required pattern: {field.Validation.Pattern}");
+                isValid = false;
+                messages.Add($"Value does not match required pattern: {field.Validation.Pattern}");
             }
         }
     }
 
-    private static void ValidateEmail(ProfileMetadataField field, string testValue, ValidationTestResult result)
+    private static void ValidateEmail(ProfileMetadataField field, string testValue, ref bool isValid, List<string> messages)
     {
         if (field.Validation?.Email == true && string.Equals(field.InputType, InputTypeEmail, StringComparison.OrdinalIgnoreCase))
         {
             var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
             if (!emailRegex.IsMatch(testValue))
             {
-                result.IsValid = false;
-                result.Messages.Add("Invalid email format");
+                isValid = false;
+                messages.Add("Invalid email format");
             }
         }
     }
@@ -1225,20 +1314,20 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public async Task<CloneProfileResult> CloneProfileAsync(string sourceProfileType, Guid regId)
     {
-        var result = new CloneProfileResult
-        {
-            SourceProfileType = sourceProfileType
-        };
-
         try
         {
             // Get the source profile metadata
             var sourceMetadata = await GetProfileMetadataAsync(sourceProfileType);
             if (sourceMetadata == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Source profile '{sourceProfileType}' not found";
-                return result;
+                return new CloneProfileResult
+                {
+                    SourceProfileType = sourceProfileType,
+                    Success = false,
+                    ErrorMessage = $"Source profile '{sourceProfileType}' not found",
+                    NewProfileType = null,
+                    FieldCount = 0
+                };
             }
 
             // Get the job from the registration
@@ -1246,17 +1335,27 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             if (registration == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Registration with ID '{regId}' not found";
-                return result;
+                return new CloneProfileResult
+                {
+                    SourceProfileType = sourceProfileType,
+                    Success = false,
+                    ErrorMessage = $"Registration with ID '{regId}' not found",
+                    NewProfileType = null,
+                    FieldCount = 0
+                };
             }
 
             var job = registration.Job;
             if (job == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Job not found for registration '{regId}'";
-                return result;
+                return new CloneProfileResult
+                {
+                    SourceProfileType = sourceProfileType,
+                    Success = false,
+                    ErrorMessage = $"Job not found for registration '{regId}'",
+                    NewProfileType = null,
+                    FieldCount = 0
+                };
             }
 
             // Determine the next profile id for the family (PP or CAC) based on global max across Jobs
@@ -1274,18 +1373,26 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 "Created new profile type: {NewProfileType} from {SourceProfileType} for job {JobName} (JobId: {JobId})",
                 newProfileType, sourceProfileType, job.JobName, job.JobId);
 
-            result.Success = true;
-            result.NewProfileType = newProfileType;
-            result.FieldCount = newMetadata.Fields.Count;
-
-            return result;
+            return new CloneProfileResult
+            {
+                SourceProfileType = sourceProfileType,
+                Success = true,
+                NewProfileType = newProfileType,
+                FieldCount = newMetadata.Fields.Count,
+                ErrorMessage = null
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error cloning profile {SourceProfileType}", sourceProfileType);
-            result.Success = false;
-            result.ErrorMessage = ex.Message;
-            return result;
+            return new CloneProfileResult
+            {
+                SourceProfileType = sourceProfileType,
+                Success = false,
+                ErrorMessage = ex.Message,
+                NewProfileType = null,
+                FieldCount = 0
+            };
         }
     }
 

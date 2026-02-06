@@ -78,7 +78,6 @@ public partial class VerticalInsureService
         CreditCardInfo? card,
         CancellationToken ct = default)
     {
-        var result = new VerticalInsureTeamPurchaseResult();
         try
         {
             // Get club rep registration to derive jobId
@@ -86,92 +85,89 @@ public partial class VerticalInsureService
             var clubRepReg = registrations.FirstOrDefault();
             if (clubRepReg == null || clubRepReg.UserId != userId)
             {
-                result.Success = false;
-                result.Error = "Registration not found or access denied.";
-                return result;
+                return new VerticalInsureTeamPurchaseResult
+                {
+                    Success = false,
+                    Error = "Registration not found or access denied.",
+                    Policies = new()
+                };
             }
 
             var jobId = clubRepReg.JobId;
-            var teams = await ValidateAndLoadTeamsAsync(jobId, regId, teamIds, quoteIds, result, ct);
-            if (!result.Success) return result;
+            var (isValid, validationError, teams) = await ValidateAndLoadTeamsAsync(jobId, teamIds, quoteIds, ct);
+            if (!isValid)
+            {
+                return new VerticalInsureTeamPurchaseResult
+                {
+                    Success = false,
+                    Error = validationError,
+                    Policies = new()
+                };
+            }
 
             if (_httpClientFactory != null)
             {
-                await ExecuteTeamHttpPurchaseAsync(teams, regId, quoteIds, token, card, result, ct);
+                return await ExecuteTeamHttpPurchaseAsync(teams, regId, quoteIds, token, card, ct);
             }
             else
             {
-                ApplyTeamStubPurchase(teams, regId, result);
-                await _teamRepo.SaveChangesAsync(ct);
+                return await ApplyTeamStubPurchaseAsync(teams, regId, ct);
             }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[VerticalInsure] Team insurance purchase failed.");
-            result.Success = false;
-            result.Error = "Team insurance purchase failed.";
+            return new VerticalInsureTeamPurchaseResult
+            {
+                Success = false,
+                Error = "Team insurance purchase failed.",
+                Policies = new()
+            };
         }
-        return result;
     }
 
-    private async Task<List<TeamEntity>> ValidateAndLoadTeamsAsync(
+    private async Task<(bool isValid, string? error, List<TeamEntity> teams)> ValidateAndLoadTeamsAsync(
         Guid jobId,
-        Guid clubRepRegId,
         IReadOnlyCollection<Guid> teamIds,
         IReadOnlyCollection<string> quoteIds,
-        VerticalInsureTeamPurchaseResult result,
         CancellationToken ct)
     {
         if (teamIds.Count == 0 && quoteIds.Count == 0)
         {
-            result.Success = false;
-            result.Error = "No teams and no quotes supplied.";
-            return new();
+            return (false, "No teams and no quotes supplied.", new());
         }
         if (teamIds.Count == 0)
         {
-            result.Success = false;
-            result.Error = "No team IDs supplied.";
-            return new();
+            return (false, "No team IDs supplied.", new());
         }
         if (quoteIds.Count == 0)
         {
-            result.Success = false;
-            result.Error = "No insurance quote IDs supplied.";
-            return new();
+            return (false, "No insurance quote IDs supplied.", new());
         }
         if (teamIds.Count != quoteIds.Count)
         {
-            result.Success = false;
-            result.Error = "Team / quote count mismatch.";
-            return new();
+            return (false, "Team / quote count mismatch.", new());
         }
 
         var teams = await _teamRepo.GetTeamsForJobAsync(jobId, teamIds, ct);
         if (teams.Count == 0)
         {
-            result.Success = false;
-            result.Error = "No matching teams found.";
-            return new();
+            return (false, "No matching teams found.", new());
         }
         if (teams.Exists(t => !string.IsNullOrWhiteSpace(t.ViPolicyId)))
         {
-            result.Success = false;
-            result.Error = "One or more teams already have an insurance policy.";
-            return new();
+            return (false, "One or more teams already have an insurance policy.", new());
         }
 
-        result.Success = true;
-        return teams;
+        return (true, null, teams);
     }
 
-    private async Task ExecuteTeamHttpPurchaseAsync(
+    private async Task<VerticalInsureTeamPurchaseResult> ExecuteTeamHttpPurchaseAsync(
         List<TeamEntity> teams,
         Guid clubRepRegId,
         IReadOnlyCollection<string> quoteIds,
         string? token,
         CreditCardInfo? card,
-        VerticalInsureTeamPurchaseResult result,
         CancellationToken ct)
     {
         var client = _httpClientFactory!.CreateClient("verticalinsure");
@@ -190,9 +186,12 @@ public partial class VerticalInsureService
         if (!response.IsSuccessStatusCode ||
             !(response.StatusCode == System.Net.HttpStatusCode.Created || response.StatusCode == System.Net.HttpStatusCode.OK))
         {
-            result.Success = false;
-            result.Error = $"Team insurance purchase HTTP error: {(int)response.StatusCode}";
-            return;
+            return new VerticalInsureTeamPurchaseResult
+            {
+                Success = false,
+                Error = $"Team insurance purchase HTTP error: {(int)response.StatusCode}",
+                Policies = new()
+            };
         }
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -200,6 +199,8 @@ public partial class VerticalInsureService
             stream,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
             ct) ?? new();
+
+        var policyDict = new Dictionary<Guid, string>();
 
         foreach (var policy in policies)
         {
@@ -212,20 +213,28 @@ public partial class VerticalInsureService
                     team.ViPolicyCreateDate = DateTime.UtcNow;
                     team.ViPolicyClubRepRegId = clubRepRegId;
                     team.Modified = DateTime.UtcNow;
-                    result.Policies[team.TeamId] = policy.policy_number;
+                    policyDict[team.TeamId] = policy.policy_number;
                 }
             }
         }
 
         await _teamRepo.SaveChangesAsync(ct);
-        result.Success = true;
+
+        return new VerticalInsureTeamPurchaseResult
+        {
+            Success = true,
+            Error = null,
+            Policies = policyDict
+        };
     }
 
-    private void ApplyTeamStubPurchase(
+    private async Task<VerticalInsureTeamPurchaseResult> ApplyTeamStubPurchaseAsync(
         IEnumerable<TeamEntity> teams,
         Guid clubRepRegId,
-        VerticalInsureTeamPurchaseResult result)
+        CancellationToken ct)
     {
+        var policyDict = new Dictionary<Guid, string>();
+
         foreach (var team in teams)
         {
             var policyNo = $"TPOL-{team.TeamId.ToString("N").Substring(0, 8).ToUpper()}";
@@ -233,9 +242,17 @@ public partial class VerticalInsureService
             team.ViPolicyCreateDate = DateTime.UtcNow;
             team.ViPolicyClubRepRegId = clubRepRegId;
             team.Modified = DateTime.UtcNow;
-            result.Policies[team.TeamId] = policyNo;
+            policyDict[team.TeamId] = policyNo;
         }
-        result.Success = true;
+
+        await _teamRepo.SaveChangesAsync(ct);
+
+        return new VerticalInsureTeamPurchaseResult
+        {
+            Success = true,
+            Error = null,
+            Policies = policyDict
+        };
     }
 
     private List<VITeamProductDto> BuildTeamProducts(

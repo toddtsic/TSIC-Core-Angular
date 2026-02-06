@@ -3,6 +3,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CloneProfileRequest = {
-    sourceProfileType?: string;
+    sourceProfileType: string;
 };
 

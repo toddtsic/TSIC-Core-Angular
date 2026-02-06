@@ -42,7 +42,12 @@ public class ClubRepRepository : IClubRepRepository
                     (t, r) => r.ClubName)
                 .AnyAsync(rcn => rcn == clubName, cancellationToken);
 
-            result.Add(new ClubWithUsageInfo(cr.ClubId, clubName, hasTeams));
+            result.Add(new ClubWithUsageInfo
+            {
+                ClubId = cr.ClubId,
+                ClubName = clubName,
+                IsInUse = hasTeams
+            });
         }
 
         return result;

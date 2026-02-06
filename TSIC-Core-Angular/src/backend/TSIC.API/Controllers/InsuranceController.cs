@@ -55,10 +55,10 @@ public class InsuranceController : ControllerBase
         var res = await _viService.PurchasePoliciesAsync(jobId.Value, familyUserId, request.RegistrationIds, request.QuoteIds, token: null, card: request.CreditCard, ct: ct);
         if (!res.Success)
         {
-            return BadRequest(new InsurancePurchaseResponseDto { Success = false, Error = res.Error });
+            return BadRequest(new InsurancePurchaseResponseDto { Success = false, Error = res.Error, Policies = new() });
         }
 
-        return Ok(new InsurancePurchaseResponseDto { Success = true, Policies = res.Policies });
+        return Ok(new InsurancePurchaseResponseDto { Success = true, Error = null, Policies = res.Policies });
     }
 
     [HttpGet("team/pre-submit")]

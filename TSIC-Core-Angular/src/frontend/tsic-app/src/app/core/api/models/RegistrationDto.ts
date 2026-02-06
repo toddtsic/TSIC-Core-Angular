@@ -6,6 +6,6 @@ export type RegistrationDto = {
     regId: string;
     displayText: string;
     jobLogo: string;
-    jobPath: string | null;
+    jobPath?: string | null;
 };
 

@@ -2,46 +2,52 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
 
-public record RegisteredTeamInfo(
-    Guid TeamId,
-    string TeamName,
-    Guid AgeGroupId,
-    string AgeGroupName,
-    string? LevelOfPlay,
-    decimal FeeBase,
-    decimal FeeProcessing,
-    decimal FeeTotal,
-    decimal PaidTotal,
-    decimal OwedTotal,
-    decimal DepositDue,
-    decimal AdditionalDue,
-    DateTime RegistrationTs,
-    bool BWaiverSigned3);
+public record RegisteredTeamInfo
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+    public required Guid AgeGroupId { get; init; }
+    public required string AgeGroupName { get; init; }
+    public string? LevelOfPlay { get; init; }
+    public required decimal FeeBase { get; init; }
+    public required decimal FeeProcessing { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal PaidTotal { get; init; }
+    public required decimal OwedTotal { get; init; }
+    public required decimal DepositDue { get; init; }
+    public required decimal AdditionalDue { get; init; }
+    public required DateTime RegistrationTs { get; init; }
+    public required bool BWaiverSigned3 { get; init; }
+}
 
-public record AvailableTeamQueryResult(
-    Guid TeamId,
-    string Name,
-    Guid AgegroupId,
-    string AgegroupName,
-    Guid? DivisionId,
-    string? DivisionName,
-    int MaxCount,
-    decimal? RawPerRegistrantFee,
-    decimal? RawPerRegistrantDeposit,
-    decimal? RawTeamFee,
-    decimal? RawRosterFee,
-    bool? TeamAllowsSelfRostering,
-    bool? AgegroupAllowsSelfRostering,
-    decimal? LeaguePlayerFeeOverride,
-    decimal? AgegroupPlayerFeeOverride);
+public record AvailableTeamQueryResult
+{
+    public required Guid TeamId { get; init; }
+    public required string Name { get; init; }
+    public required Guid AgegroupId { get; init; }
+    public required string AgegroupName { get; init; }
+    public Guid? DivisionId { get; init; }
+    public string? DivisionName { get; init; }
+    public required int MaxCount { get; init; }
+    public decimal? RawPerRegistrantFee { get; init; }
+    public decimal? RawPerRegistrantDeposit { get; init; }
+    public decimal? RawTeamFee { get; init; }
+    public decimal? RawRosterFee { get; init; }
+    public bool? TeamAllowsSelfRostering { get; init; }
+    public bool? AgegroupAllowsSelfRostering { get; init; }
+    public decimal? LeaguePlayerFeeOverride { get; init; }
+    public decimal? AgegroupPlayerFeeOverride { get; init; }
+}
 
-public record TeamFeeData(
-    decimal? PerRegistrantFee,
-    decimal? PerRegistrantDeposit,
-    decimal? TeamFee,
-    decimal? RosterFee,
-    decimal? LeaguePlayerFeeOverride,
-    decimal? AgegroupPlayerFeeOverride);
+public record TeamFeeData
+{
+    public decimal? PerRegistrantFee { get; init; }
+    public decimal? PerRegistrantDeposit { get; init; }
+    public decimal? TeamFee { get; init; }
+    public decimal? RosterFee { get; init; }
+    public decimal? LeaguePlayerFeeOverride { get; init; }
+    public decimal? AgegroupPlayerFeeOverride { get; init; }
+}
 
 /// <summary>
 /// Repository for managing Teams entity data access.
@@ -205,14 +211,18 @@ public interface ITeamRepository
     Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default);
 }
 
-public record TeamWithRegistrationInfo(
-    Guid TeamId,
-    string TeamName,
-    string? Username,
-    Guid? ClubrepRegistrationid);
+public record TeamWithRegistrationInfo
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+    public string? Username { get; init; }
+    public Guid? ClubrepRegistrationid { get; init; }
+}
 
-public record HistoricalTeamInfo(
-    Guid TeamId,
-    string TeamName,
-    string? AgegroupName,
-    DateTime Createdate);
+public record HistoricalTeamInfo
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+    public string? AgegroupName { get; init; }
+    public required DateTime Createdate { get; init; }
+}

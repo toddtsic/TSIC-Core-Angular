@@ -35,16 +35,20 @@ public interface IAgeGroupRepository
     Task<Agegroups?> GetByIdAsync(Guid ageGroupId, CancellationToken cancellationToken = default);
 }
 
-public record AgeGroupForRegistration(
-    Guid AgegroupId,
-    string AgegroupName,
-    int MaxTeams,
-    decimal? TeamFee,
-    decimal? RosterFee);
+public record AgeGroupForRegistration
+{
+    public required Guid AgegroupId { get; init; }
+    public required string AgegroupName { get; init; }
+    public required int MaxTeams { get; init; }
+    public decimal? TeamFee { get; init; }
+    public decimal? RosterFee { get; init; }
+}
 
-public record AgeGroupValidationInfo(
-    Guid AgegroupId,
-    string? AgegroupName,
-    int MaxTeams,
-    decimal? TeamFee,
-    decimal? RosterFee);
+public record AgeGroupValidationInfo
+{
+    public required Guid AgegroupId { get; init; }
+    public string? AgegroupName { get; init; }
+    public required int MaxTeams { get; init; }
+    public decimal? TeamFee { get; init; }
+    public decimal? RosterFee { get; init; }
+}

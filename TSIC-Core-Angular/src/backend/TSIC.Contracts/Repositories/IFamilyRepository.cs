@@ -35,11 +35,13 @@ public interface IFamilyRepository
     Task<FamilyContactInfo?> GetFamilyContactAsync(string familyUserId, CancellationToken cancellationToken = default);
 }
 
-public record FamilyContactInfo(
-    string? FirstName,
-    string? LastName,
-    string? Email,
-    string? Phone,
-    string? City,
-    string? State,
-    string? Zip);
+public record FamilyContactInfo
+{
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string? Email { get; init; }
+    public string? Phone { get; init; }
+    public string? City { get; init; }
+    public string? State { get; init; }
+    public string? Zip { get; init; }
+}

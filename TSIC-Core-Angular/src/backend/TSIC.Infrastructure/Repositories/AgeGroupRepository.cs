@@ -37,12 +37,14 @@ public class AgeGroupRepository : IAgeGroupRepository
             .AsNoTracking()
             .Where(ag => ag.LeagueId == leagueId && ag.Season == season && ag.MaxTeams > 0)
             .OrderBy(ag => ag.AgegroupName)
-            .Select(ag => new AgeGroupForRegistration(
-                ag.AgegroupId,
-                ag.AgegroupName ?? string.Empty,
-                ag.MaxTeams,
-                ag.TeamFee,
-                ag.RosterFee))
+            .Select(ag => new AgeGroupForRegistration
+            {
+                AgegroupId = ag.AgegroupId,
+                AgegroupName = ag.AgegroupName ?? string.Empty,
+                MaxTeams = ag.MaxTeams,
+                TeamFee = ag.TeamFee,
+                RosterFee = ag.RosterFee
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -53,12 +55,14 @@ public class AgeGroupRepository : IAgeGroupRepository
         return await _context.Agegroups
             .AsNoTracking()
             .Where(ag => ag.AgegroupId == ageGroupId)
-            .Select(ag => new AgeGroupValidationInfo(
-                ag.AgegroupId,
-                ag.AgegroupName,
-                ag.MaxTeams,
-                ag.TeamFee,
-                ag.RosterFee))
+            .Select(ag => new AgeGroupValidationInfo
+            {
+                AgegroupId = ag.AgegroupId,
+                AgegroupName = ag.AgegroupName,
+                MaxTeams = ag.MaxTeams,
+                TeamFee = ag.TeamFee,
+                RosterFee = ag.RosterFee
+            })
             .FirstOrDefaultAsync(cancellationToken);
     }
 

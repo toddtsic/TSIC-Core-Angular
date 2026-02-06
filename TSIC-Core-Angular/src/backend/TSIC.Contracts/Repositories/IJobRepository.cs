@@ -2,53 +2,63 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
 
-public record JobPreSubmitMetadata(
-    string? PlayerProfileMetadataJson,
-    string? JsonOptions,
-    string? CoreRegformPlayer);
+public record JobPreSubmitMetadata
+{
+    public string? PlayerProfileMetadataJson { get; init; }
+    public string? JsonOptions { get; init; }
+    public string? CoreRegformPlayer { get; init; }
+}
 
-public record JobPaymentInfo(
-    bool? AdnArb,
-    int? AdnArbbillingOccurences,
-    int? AdnArbintervalLength,
-    DateTime? AdnArbstartDate);
+public record JobPaymentInfo
+{
+    public bool? AdnArb { get; init; }
+    public int? AdnArbbillingOccurences { get; init; }
+    public int? AdnArbintervalLength { get; init; }
+    public DateTime? AdnArbstartDate { get; init; }
+}
 
-public record JobMetadata(
-    string? PlayerProfileMetadataJson,
-    string? JsonOptions,
-    string? CoreRegformPlayer);
+public record JobMetadata
+{
+    public string? PlayerProfileMetadataJson { get; init; }
+    public string? JsonOptions { get; init; }
+    public string? CoreRegformPlayer { get; init; }
+}
 
-public record JobMetadataDto(
-    Guid JobId,
-    string JobName,
-    string JobPath,
-    string? JobLogoPath,
-    string? JobBannerPath,
-    string? JobBannerText1,
-    string? JobBannerText2,
-    string? JobBannerBackgroundPath,
-    bool? CoreRegformPlayer,
-    DateTime? USLaxNumberValidThroughDate,
-    DateTime? ExpiryUsers,
-    string? PlayerProfileMetadataJson,
-    string? JsonOptions,
-    string? MomLabel,
-    string? DadLabel,
-    string? PlayerRegReleaseOfLiability,
-    string? PlayerRegCodeOfConduct,
-    string? PlayerRegCovid19Waiver,
-    string? PlayerRegRefundPolicy,
-    bool OfferPlayerRegsaverInsurance,
-    bool BOfferTeamRegsaverInsurance,
-    bool? AdnArb,
-    int? AdnArbBillingOccurences,
-    int? AdnArbIntervalLength,
-    DateTime? AdnArbStartDate,
-    bool BRegistrationAllowTeam);
+public record JobMetadataDto
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public required string JobPath { get; init; }
+    public string? JobLogoPath { get; init; }
+    public string? JobBannerPath { get; init; }
+    public string? JobBannerText1 { get; init; }
+    public string? JobBannerText2 { get; init; }
+    public string? JobBannerBackgroundPath { get; init; }
+    public bool? CoreRegformPlayer { get; init; }
+    public DateTime? USLaxNumberValidThroughDate { get; init; }
+    public DateTime? ExpiryUsers { get; init; }
+    public string? PlayerProfileMetadataJson { get; init; }
+    public string? JsonOptions { get; init; }
+    public string? MomLabel { get; init; }
+    public string? DadLabel { get; init; }
+    public string? PlayerRegReleaseOfLiability { get; init; }
+    public string? PlayerRegCodeOfConduct { get; init; }
+    public string? PlayerRegCovid19Waiver { get; init; }
+    public string? PlayerRegRefundPolicy { get; init; }
+    public required bool OfferPlayerRegsaverInsurance { get; init; }
+    public required bool BOfferTeamRegsaverInsurance { get; init; }
+    public bool? AdnArb { get; init; }
+    public int? AdnArbBillingOccurences { get; init; }
+    public int? AdnArbIntervalLength { get; init; }
+    public DateTime? AdnArbStartDate { get; init; }
+    public required bool BRegistrationAllowTeam { get; init; }
+}
 
-public record JobRegistrationStatus(
-    bool BRegistrationAllowPlayer,
-    DateTime? ExpiryUsers);
+public record JobRegistrationStatus
+{
+    public required bool BRegistrationAllowPlayer { get; init; }
+    public DateTime? ExpiryUsers { get; init; }
+}
 
 /// <summary>
 /// Repository for managing Jobs entity data access.
@@ -147,52 +157,66 @@ public interface IJobRepository
     Task<AdultConfirmationEmailInfo?> GetAdultConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
 
-public record JobAuthInfo(
-    Guid JobId,
-    string JobPath,
-    string? LogoHeader);
+public record JobAuthInfo
+{
+    public required Guid JobId { get; init; }
+    public required string JobPath { get; init; }
+    public string? LogoHeader { get; init; }
+}
 
-public record JobFeeSettings(
-    bool? BTeamsFullPaymentRequired,
-    bool? BAddProcessingFees,
-    bool? BApplyProcessingFeesToTeamDeposit,
-    int PaymentMethodsAllowedCode,
-    string? PlayerRegRefundPolicy,
-    string? Season);
+public record JobFeeSettings
+{
+    public bool? BTeamsFullPaymentRequired { get; init; }
+    public bool? BAddProcessingFees { get; init; }
+    public bool? BApplyProcessingFeesToTeamDeposit { get; init; }
+    public required int PaymentMethodsAllowedCode { get; init; }
+    public string? PlayerRegRefundPolicy { get; init; }
+    public string? Season { get; init; }
+}
 
-public record InsuranceOfferInfo(
-    string? JobName,
-    bool BOfferPlayerRegsaverInsurance,
-    bool BOfferTeamRegsaverInsurance);
+public record InsuranceOfferInfo
+{
+    public string? JobName { get; init; }
+    public required bool BOfferPlayerRegsaverInsurance { get; init; }
+    public required bool BOfferTeamRegsaverInsurance { get; init; }
+}
 
-public record JobConfirmationInfo(
-    Guid JobId,
-    string? JobName,
-    string JobPath,
-    bool? AdnArb,
-    string? PlayerRegConfirmationOnScreen);
+public record JobConfirmationInfo
+{
+    public required Guid JobId { get; init; }
+    public string? JobName { get; init; }
+    public required string JobPath { get; init; }
+    public bool? AdnArb { get; init; }
+    public string? PlayerRegConfirmationOnScreen { get; init; }
+}
 
-public record JobConfirmationEmailInfo(
-    Guid JobId,
-    string? JobName,
-    string JobPath,
-    bool? AdnArb,
-    string? PlayerRegConfirmationEmail);
+public record JobConfirmationEmailInfo
+{
+    public required Guid JobId { get; init; }
+    public string? JobName { get; init; }
+    public required string JobPath { get; init; }
+    public bool? AdnArb { get; init; }
+    public string? PlayerRegConfirmationEmail { get; init; }
+}
 
-public record AdultConfirmationInfo(
-    Guid JobId,
-    string? JobName,
-    string JobPath,
-    string? AdultRegConfirmationOnScreen,
-    string? RegFormFrom,
-    string? RegFormCcs,
-    string? RegFormBccs);
+public record AdultConfirmationInfo
+{
+    public required Guid JobId { get; init; }
+    public string? JobName { get; init; }
+    public required string JobPath { get; init; }
+    public string? AdultRegConfirmationOnScreen { get; init; }
+    public string? RegFormFrom { get; init; }
+    public string? RegFormCcs { get; init; }
+    public string? RegFormBccs { get; init; }
+}
 
-public record AdultConfirmationEmailInfo(
-    Guid JobId,
-    string? JobName,
-    string JobPath,
-    string? AdultRegConfirmationEmail,
-    string? RegFormFrom,
-    string? RegFormCcs,
-    string? RegFormBccs);
+public record AdultConfirmationEmailInfo
+{
+    public required Guid JobId { get; init; }
+    public string? JobName { get; init; }
+    public required string JobPath { get; init; }
+    public string? AdultRegConfirmationEmail { get; init; }
+    public string? RegFormFrom { get; init; }
+    public string? RegFormCcs { get; init; }
+    public string? RegFormBccs { get; init; }
+}

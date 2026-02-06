@@ -282,61 +282,75 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 }
 
-public record RegistrationWithInvoiceData(
-    int CustomerAi,
-    int JobAi,
-    int RegistrationAi);
+public record RegistrationWithInvoiceData
+{
+    public required int CustomerAi { get; init; }
+    public required int JobAi { get; init; }
+    public required int RegistrationAi { get; init; }
+}
 
-public record EligibleInsuranceRegistration(
-    Guid RegistrationId,
-    Guid AssignedTeamId,
-    string? Assignment,
-    string? FirstName,
-    string? LastName,
-    decimal? PerRegistrantFee,
-    decimal? TeamFee,
-    decimal FeeTotal);
+public record EligibleInsuranceRegistration
+{
+    public required Guid RegistrationId { get; init; }
+    public required Guid AssignedTeamId { get; init; }
+    public string? Assignment { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public decimal? PerRegistrantFee { get; init; }
+    public decimal? TeamFee { get; init; }
+    public required decimal FeeTotal { get; init; }
+}
 
-public record RegSaverPolicyInfo(
-    string PolicyId,
-    DateTime? PolicyCreateDate);
+public record RegSaverPolicyInfo
+{
+    public required string PolicyId { get; init; }
+    public DateTime? PolicyCreateDate { get; init; }
+}
 
-public record DirectorContactInfo(
-    string? Email,
-    string? FirstName,
-    string? LastName,
-    string? Cellphone,
-    string? OrgName,
-    bool PaymentPlan);
+public record DirectorContactInfo
+{
+    public string? Email { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string? Cellphone { get; init; }
+    public string? OrgName { get; init; }
+    public required bool PaymentPlan { get; init; }
+}
 
-public record RegistrationConfirmationData(
-    Guid RegistrationId,
-    string PlayerFirst,
-    string PlayerLast,
-    string TeamName,
-    decimal FeeTotal,
-    decimal PaidTotal,
-    decimal OwedTotal,
-    string? RegsaverPolicyId,
-    DateTime? RegsaverPolicyIdCreateDate,
-    string? AdnSubscriptionId,
-    string? AdnSubscriptionStatus,
-    DateTime? AdnSubscriptionStartDate,
-    int? AdnSubscriptionIntervalLength,
-    int? AdnSubscriptionBillingOccurences,
-    decimal? AdnSubscriptionAmountPerOccurence);
+public record RegistrationConfirmationData
+{
+    public required Guid RegistrationId { get; init; }
+    public required string PlayerFirst { get; init; }
+    public required string PlayerLast { get; init; }
+    public required string TeamName { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal PaidTotal { get; init; }
+    public required decimal OwedTotal { get; init; }
+    public string? RegsaverPolicyId { get; init; }
+    public DateTime? RegsaverPolicyIdCreateDate { get; init; }
+    public string? AdnSubscriptionId { get; init; }
+    public string? AdnSubscriptionStatus { get; init; }
+    public DateTime? AdnSubscriptionStartDate { get; init; }
+    public int? AdnSubscriptionIntervalLength { get; init; }
+    public int? AdnSubscriptionBillingOccurences { get; init; }
+    public decimal? AdnSubscriptionAmountPerOccurence { get; init; }
+}
 
-public record RegistrationBasicInfo(
-    string? ClubName,
-    Guid JobId);
+public record RegistrationBasicInfo
+{
+    public string? ClubName { get; init; }
+    public required Guid JobId { get; init; }
+}
 
-public record ClubRepFinancialTotals(
-    decimal FeeBase,
-    decimal FeeDiscount,
-    decimal FeeDiscountMp,
-    decimal FeeProcessing,
-    decimal FeeDonation,
-    decimal FeeLatefee,
-    decimal FeeTotal,
-    decimal OwedTotal,
-    decimal PaidTotal);
+public record ClubRepFinancialTotals
+{
+    public required decimal FeeBase { get; init; }
+    public required decimal FeeDiscount { get; init; }
+    public required decimal FeeDiscountMp { get; init; }
+    public required decimal FeeProcessing { get; init; }
+    public required decimal FeeDonation { get; init; }
+    public required decimal FeeLatefee { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal OwedTotal { get; init; }
+    public required decimal PaidTotal { get; init; }
+}

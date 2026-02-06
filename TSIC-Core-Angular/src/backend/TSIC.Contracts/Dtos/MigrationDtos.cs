@@ -6,55 +6,55 @@ namespace TSIC.Contracts.Dtos;
 /// <summary>
 /// Report of a profile metadata migration operation
 /// </summary>
-public class MigrationReport
+public record MigrationReport
 {
-    public int SuccessCount { get; set; }
-    public int FailureCount { get; set; }
-    public int WarningCount { get; set; }
-    public int SkippedCount { get; set; }
-    public DateTime StartedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public List<MigrationResult> Results { get; set; } = new();
-    public List<string> GlobalWarnings { get; set; } = new();
+    public required int SuccessCount { get; init; }
+    public required int FailureCount { get; init; }
+    public required int WarningCount { get; init; }
+    public required int SkippedCount { get; init; }
+    public required DateTime StartedAt { get; init; }
+    public required DateTime? CompletedAt { get; init; }
+    public required List<MigrationResult> Results { get; init; } = new();
+    public required List<string> GlobalWarnings { get; init; } = new();
 }
 
 /// <summary>
 /// Result for a single job migration
 /// </summary>
-public class MigrationResult
+public record MigrationResult
 {
     [Required, JsonRequired]
-    public Guid JobId { get; set; }
-    public string JobName { get; set; } = string.Empty;
-    public string ProfileType { get; set; } = string.Empty;
-    public bool Success { get; set; }
-    public string? ErrorMessage { get; set; }
-    public List<string> Warnings { get; set; } = new();
-    public int FieldCount { get; set; }
-    public ProfileMetadata? GeneratedMetadata { get; set; }
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; } = string.Empty;
+    public required string ProfileType { get; init; } = string.Empty;
+    public required bool Success { get; init; }
+    public required string? ErrorMessage { get; init; }
+    public required List<string> Warnings { get; init; } = new();
+    public required int FieldCount { get; init; }
+    public required ProfileMetadata? GeneratedMetadata { get; init; }
 }
 
 /// <summary>
 /// Request to preview migration for a single job
 /// </summary>
-public class PreviewMigrationRequest
+public record PreviewMigrationRequest
 {
     [Required, JsonRequired]
-    public Guid JobId { get; set; }
+    public required Guid JobId { get; init; }
 }
 
 /// <summary>
 /// Request to migrate all jobs
 /// </summary>
-public class MigrateAllRequest
+public record MigrateAllRequest
 {
     /// <summary>
     /// If true, only preview changes without committing to database
     /// </summary>
-    public bool DryRun { get; set; }
+    public required bool DryRun { get; init; }
 
     /// <summary>
     /// Optional: filter to specific profile types (e.g., ["PP10", "PP17"])
     /// </summary>
-    public List<string>? ProfileTypes { get; set; }
+    public List<string>? ProfileTypes { get; init; }
 }

@@ -3,117 +3,117 @@ namespace TSIC.Contracts.Dtos;
 /// <summary>
 /// Summary of a profile type and its usage across jobs
 /// </summary>
-public class ProfileSummary
+public record ProfileSummary
 {
-    public string ProfileType { get; set; } = string.Empty;
-    public int JobCount { get; set; }
-    public int MigratedJobCount { get; set; }
-    public bool AllJobsMigrated { get; set; }
-    public List<string> SampleJobNames { get; set; } = new();
+    public required string ProfileType { get; init; } = string.Empty;
+    public required int JobCount { get; init; }
+    public required int MigratedJobCount { get; init; }
+    public required bool AllJobsMigrated { get; init; }
+    public required List<string> SampleJobNames { get; init; } = new();
 }
 
 /// <summary>
 /// Result of migrating a single profile type across all jobs
 /// </summary>
-public class ProfileMigrationResult
+public record ProfileMigrationResult
 {
-    public string ProfileType { get; set; } = string.Empty;
-    public bool Success { get; set; }
-    public int FieldCount { get; set; }
-    public int JobsAffected { get; set; }
-    public List<Guid> AffectedJobIds { get; set; } = new();
-    public List<string> AffectedJobNames { get; set; } = new();
-    public List<string> AffectedJobYears { get; set; } = new();
-    public ProfileMetadata? GeneratedMetadata { get; set; }
-    public List<string> Warnings { get; set; } = new();
-    public string? ErrorMessage { get; set; }
+    public required string ProfileType { get; init; } = string.Empty;
+    public required bool Success { get; init; }
+    public required int FieldCount { get; init; }
+    public required int JobsAffected { get; init; }
+    public required List<Guid> AffectedJobIds { get; init; } = new();
+    public required List<string> AffectedJobNames { get; init; } = new();
+    public required List<string> AffectedJobYears { get; init; } = new();
+    public required ProfileMetadata? GeneratedMetadata { get; init; }
+    public required List<string> Warnings { get; init; } = new();
+    public required string? ErrorMessage { get; init; }
 }
 
 /// <summary>
 /// Report for batch profile migrations
 /// </summary>
-public class ProfileBatchMigrationReport
+public record ProfileBatchMigrationReport
 {
-    public DateTime StartedAt { get; set; }
-    public DateTime? CompletedAt { get; set; }
-    public int TotalProfiles { get; set; }
-    public int SuccessCount { get; set; }
-    public int FailureCount { get; set; }
-    public int TotalJobsAffected { get; set; }
-    public List<ProfileMigrationResult> Results { get; set; } = new();
-    public List<string> GlobalWarnings { get; set; } = new();
+    public required DateTime StartedAt { get; init; }
+    public required DateTime? CompletedAt { get; init; }
+    public required int TotalProfiles { get; init; }
+    public required int SuccessCount { get; init; }
+    public required int FailureCount { get; init; }
+    public required int TotalJobsAffected { get; init; }
+    public required List<ProfileMigrationResult> Results { get; init; } = new();
+    public required List<string> GlobalWarnings { get; init; } = new();
 }
 
 /// <summary>
 /// Request to migrate multiple profiles
 /// </summary>
-public class MigrateProfilesRequest
+public record MigrateProfilesRequest
 {
-    public bool DryRun { get; set; } = true;
-    public List<string>? ProfileTypes { get; set; }
+    public required bool DryRun { get; init; } = true;
+    public List<string>? ProfileTypes { get; init; }
 }
 
 /// <summary>
 /// Result of testing field validation
 /// </summary>
-public class ValidationTestResult
+public record ValidationTestResult
 {
-    public string FieldName { get; set; } = string.Empty;
-    public string TestValue { get; set; } = string.Empty;
-    public bool IsValid { get; set; }
-    public List<string> Messages { get; set; } = new();
+    public required string FieldName { get; init; } = string.Empty;
+    public required string TestValue { get; init; } = string.Empty;
+    public required bool IsValid { get; init; }
+    public required List<string> Messages { get; init; } = new();
 }
 
 /// <summary>
 /// Request to clone an existing profile for the current job
 /// JobId is determined from regId claim in JWT token
 /// </summary>
-public class CloneProfileRequest
+public record CloneProfileRequest
 {
-    public string SourceProfileType { get; set; } = string.Empty;
+    public required string SourceProfileType { get; init; } = string.Empty;
 }
 
 /// <summary>
 /// Result of cloning a profile
 /// </summary>
-public class CloneProfileResult
+public record CloneProfileResult
 {
-    public bool Success { get; set; }
-    public string NewProfileType { get; set; } = string.Empty;
-    public string SourceProfileType { get; set; } = string.Empty;
-    public int FieldCount { get; set; }
-    public string? ErrorMessage { get; set; }
+    public required bool Success { get; init; }
+    public required string NewProfileType { get; init; } = string.Empty;
+    public required string SourceProfileType { get; init; } = string.Empty;
+    public required int FieldCount { get; init; }
+    public required string? ErrorMessage { get; init; }
 }
 
 /// <summary>
 /// Result when asking server for the next profile type name for a given family
 /// </summary>
-public class NextProfileTypeResult
+public record NextProfileTypeResult
 {
-    public string NewProfileType { get; set; } = string.Empty;
+    public required string NewProfileType { get; init; } = string.Empty;
 }
 
 /// <summary>
 /// Profile metadata enriched with job-specific JsonOptions
 /// Used for previewing how a form will appear for a specific job
 /// </summary>
-public class ProfileMetadataWithOptions
+public record ProfileMetadataWithOptions
 {
-    public Guid JobId { get; set; }
-    public string JobName { get; set; } = string.Empty;
-    public ProfileMetadata Metadata { get; set; } = new();
-    public Dictionary<string, object>? JsonOptions { get; set; }
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; } = string.Empty;
+    public required ProfileMetadata Metadata { get; init; } = new();
+    public Dictionary<string, object>? JsonOptions { get; init; }
 }
 
 /// <summary>
 /// Aggregated domain entry for all known profile fields across profiles/jobs
 /// Useful for generating a static allowed field list for the editor
 /// </summary>
-public class AllowedFieldDomainItem
+public record AllowedFieldDomainItem
 {
-    public string Name { get; set; } = string.Empty;
-    public string DisplayName { get; set; } = string.Empty;
-    public string DefaultInputType { get; set; } = string.Empty; // e.g., TEXT, SELECT, CHECKBOX, HIDDEN
-    public string DefaultVisibility { get; set; } = "public";   // public | adminOnly | hidden
-    public int SeenInProfiles { get; set; }
+    public required string Name { get; init; } = string.Empty;
+    public required string DisplayName { get; init; } = string.Empty;
+    public required string DefaultInputType { get; init; } = string.Empty; // e.g., TEXT, SELECT, CHECKBOX, HIDDEN
+    public required string DefaultVisibility { get; init; } = "public";   // public | adminOnly | hidden
+    public required int SeenInProfiles { get; init; }
 }

@@ -91,65 +91,73 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
 
     public async Task<VerticalInsurePurchaseResult> PurchasePoliciesAsync(Guid jobId, string familyUserId, IReadOnlyCollection<Guid> registrationIds, IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card, CancellationToken ct = default)
     {
-        var result = new VerticalInsurePurchaseResult();
         try
         {
             // 1. Validate & load registrations
-            var regs = await ValidateAndLoadAsync(jobId, familyUserId, registrationIds, quoteIds, result, ct);
-            if (!result.Success) return result; // Early exit on validation failure
+            var (isValid, validationError, regs) = await ValidateAndLoadAsync(jobId, familyUserId, registrationIds, quoteIds, ct);
+            if (!isValid)
+            {
+                return new VerticalInsurePurchaseResult
+                {
+                    Success = false,
+                    Error = validationError,
+                    Policies = new()
+                };
+            }
 
             // 2. Execute real purchase if HttpClientFactory available, else stub
             if (_httpClientFactory != null)
             {
-                await ExecuteHttpPurchaseAsync(regs, familyUserId, quoteIds, token, card, result, ct);
+                return await ExecuteHttpPurchaseAsync(regs, familyUserId, quoteIds, token, card, ct);
             }
             else
             {
-                ApplyStubPurchase(regs, familyUserId, result);
-                await _registrationRepo.SaveChangesAsync(ct);
+                return await ApplyStubPurchaseAsync(regs, familyUserId, ct);
             }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[VerticalInsure] purchase failed.");
-            result.Success = false;
-            result.Error = "Insurance purchase failed.";
+            return new VerticalInsurePurchaseResult
+            {
+                Success = false,
+                Error = "Insurance purchase failed.",
+                Policies = new()
+            };
         }
-        return result;
     }
 
-    private async Task<List<Registrations>> ValidateAndLoadAsync(Guid jobId, string familyUserId, IReadOnlyCollection<Guid> registrationIds, IReadOnlyCollection<string> quoteIds, VerticalInsurePurchaseResult result, CancellationToken ct)
+    private async Task<(bool isValid, string? error, List<Registrations> regs)> ValidateAndLoadAsync(Guid jobId, string familyUserId, IReadOnlyCollection<Guid> registrationIds, IReadOnlyCollection<string> quoteIds, CancellationToken ct)
     {
         if (registrationIds.Count == 0 && quoteIds.Count == 0)
         {
-            result.Success = false; result.Error = "No registrations and no quotes supplied."; return new();
+            return (false, "No registrations and no quotes supplied.", new());
         }
         if (registrationIds.Count == 0)
         {
-            result.Success = false; result.Error = "No registration IDs supplied."; return new();
+            return (false, "No registration IDs supplied.", new());
         }
         if (quoteIds.Count == 0)
         {
-            result.Success = false; result.Error = "No insurance quote IDs supplied."; return new();
+            return (false, "No insurance quote IDs supplied.", new());
         }
         if (registrationIds.Count != quoteIds.Count)
         {
-            result.Success = false; result.Error = "Registration / quote count mismatch."; return new();
+            return (false, "Registration / quote count mismatch.", new());
         }
         var regs = await _registrationRepo.ValidateRegistrationsForInsuranceAsync(jobId, familyUserId, registrationIds, ct);
         if (regs.Count == 0)
         {
-            result.Success = false; result.Error = "No matching registrations found."; return new();
+            return (false, "No matching registrations found.", new());
         }
         if (regs.Exists(r => !string.IsNullOrWhiteSpace(r.RegsaverPolicyId)))
         {
-            result.Success = false; result.Error = "One or more registrations already have a policy."; return new();
+            return (false, "One or more registrations already have a policy.", new());
         }
-        result.Success = true; // mark validation success
-        return regs;
+        return (true, null, regs);
     }
 
-    private async Task ExecuteHttpPurchaseAsync(List<Registrations> regs, string familyUserId, IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card, VerticalInsurePurchaseResult result, CancellationToken ct)
+    private async Task<VerticalInsurePurchaseResult> ExecuteHttpPurchaseAsync(List<Registrations> regs, string familyUserId, IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card, CancellationToken ct)
     {
         var client = _httpClientFactory!.CreateClient("verticalinsure");
         var (clientId, clientSecret) = ResolveCredentials();
@@ -166,10 +174,18 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         var response = await client.SendAsync(req, ct);
         if (!response.IsSuccessStatusCode || !(response.StatusCode == System.Net.HttpStatusCode.Created || response.StatusCode == System.Net.HttpStatusCode.OK))
         {
-            result.Success = false; result.Error = $"Insurance purchase HTTP error: {(int)response.StatusCode}"; return;
+            return new VerticalInsurePurchaseResult
+            {
+                Success = false,
+                Error = $"Insurance purchase HTTP error: {(int)response.StatusCode}",
+                Policies = new()
+            };
         }
+
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         var policies = await JsonSerializer.DeserializeAsync<List<VIMakePlayerPaymentResponseDto>>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, ct) ?? new();
+        var policyDict = new Dictionary<Guid, string>();
+
         foreach (var policy in policies)
         {
             if (policy.policy_status == "ACTIVE" && !string.IsNullOrWhiteSpace(policy.policy_number))
@@ -181,12 +197,19 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
                     reg.RegsaverPolicyIdCreateDate = DateTime.UtcNow;
                     reg.Modified = DateTime.UtcNow;
                     reg.LebUserId = familyUserId;
-                    result.Policies[reg.RegistrationId] = policy.policy_number;
+                    policyDict[reg.RegistrationId] = policy.policy_number;
                 }
             }
         }
+
         await _registrationRepo.SaveChangesAsync(ct);
-        result.Success = true;
+
+        return new VerticalInsurePurchaseResult
+        {
+            Success = true,
+            Error = null,
+            Policies = policyDict
+        };
     }
 
     private static VIMakeTokenBatchCCPaymentDto BuildBatchPayload(IReadOnlyCollection<string> quoteIds, string? token, CreditCardInfo? card)
@@ -225,8 +248,10 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         return dto;
     }
 
-    private static void ApplyStubPurchase(IEnumerable<Registrations> regs, string familyUserId, VerticalInsurePurchaseResult result)
+    private async Task<VerticalInsurePurchaseResult> ApplyStubPurchaseAsync(IEnumerable<Registrations> regs, string familyUserId, CancellationToken ct)
     {
+        var policyDict = new Dictionary<Guid, string>();
+
         foreach (var reg in regs)
         {
             var policyNo = $"POL-{reg.RegistrationId.ToString("N").Substring(0, 8).ToUpper()}";
@@ -234,9 +259,17 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
             reg.RegsaverPolicyIdCreateDate = DateTime.UtcNow;
             reg.Modified = DateTime.UtcNow;
             reg.LebUserId = familyUserId;
-            result.Policies[reg.RegistrationId] = policyNo;
+            policyDict[reg.RegistrationId] = policyNo;
         }
-        result.Success = true;
+
+        await _registrationRepo.SaveChangesAsync(ct);
+
+        return new VerticalInsurePurchaseResult
+        {
+            Success = true,
+            Error = null,
+            Policies = policyDict
+        };
     }
 
     private async Task<List<VIPlayerProductDto>> BuildProductsAsync(

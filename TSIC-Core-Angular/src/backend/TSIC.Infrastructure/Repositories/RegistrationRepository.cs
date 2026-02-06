@@ -123,12 +123,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryAdmin
                 && role.Id == RoleConstants.Superuser
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                j.JobName ?? string.Empty,
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -147,12 +148,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryAdmin
                 && role.Name == "SuperDirector"
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                j.JobName ?? string.Empty,
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -171,12 +173,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryAdmin
                 && role.Id == RoleConstants.Director
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                j.JobName ?? string.Empty,
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -198,12 +201,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryUsers
                 && role.Id == RoleConstants.Player
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                $"{(j.JobName ?? string.Empty)}:{u.FirstName} {u.LastName}:{ag.AgegroupName}:{t.TeamName}",
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = $"{(j.JobName ?? string.Empty)}:{u.FirstName} {u.LastName}:{ag.AgegroupName}:{t.TeamName}",
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -222,12 +226,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryUsers
                 && role.Id == RoleConstants.ClubRep
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                j.JobName ?? string.Empty,
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -248,12 +253,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryUsers
                 && role.Id == RoleConstants.Staff
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                $"{(j.JobName ?? string.Empty)}:{ag.AgegroupName}:{t.TeamName}",
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = $"{(j.JobName ?? string.Empty)}:{ag.AgegroupName}:{t.TeamName}",
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -272,12 +278,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryUsers
                 && r.RoleId == RoleConstants.StoreAdmin
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                j.JobName ?? string.Empty,
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -296,12 +303,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryUsers
                 && r.RoleId == RoleConstants.RefAssignor
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                j.JobName ?? string.Empty,
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -320,12 +328,13 @@ public class RegistrationRepository : IRegistrationRepository
                 && DateTime.Now < j.ExpiryUsers
                 && r.RoleId == RoleConstants.Referee
             orderby j.JobName
-            select new RegistrationDto(
-                r.RegistrationId.ToString(),
-                j.JobName ?? string.Empty,
-                $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
-                j.JobPath
-            )
+            select new RegistrationDto
+            {
+                RegId = r.RegistrationId.ToString(),
+                DisplayText = j.JobName ?? string.Empty,
+                JobLogo = $"{TsicConstants.BaseUrlStatics}BannerFiles/{jdo.LogoHeader}",
+                JobPath = j.JobPath
+            }
         ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
@@ -403,7 +412,12 @@ public class RegistrationRepository : IRegistrationRepository
             .Where(r => r.RegistrationId == registrationId && r.JobId == jobId)
             .Join(_context.Jobs, r => r.JobId, j => j.JobId, (r, j) => new { r, j })
             .Join(_context.Customers, x => x.j.CustomerId, c => c.CustomerId, (x, c) => new { x.r, x.j, c })
-            .Select(x => new RegistrationWithInvoiceData(x.c.CustomerAi, x.j.JobAi, x.r.RegistrationAi))
+            .Select(x => new RegistrationWithInvoiceData
+            {
+                CustomerAi = x.c.CustomerAi,
+                JobAi = x.j.JobAi,
+                RegistrationAi = x.r.RegistrationAi
+            })
             .AsNoTracking()
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -444,15 +458,17 @@ public class RegistrationRepository : IRegistrationRepository
                 && r.RegsaverPolicyId == null
                 && r.AssignedTeam != null
                 && r.AssignedTeam.Expireondate > cutoff)
-            .Select(r => new EligibleInsuranceRegistration(
-                r.RegistrationId,
-                r.AssignedTeamId!.Value,
-                r.Assignment,
-                r.User != null ? r.User.FirstName : null,
-                r.User != null ? r.User.LastName : null,
-                r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
-                (r.AssignedTeam != null && r.AssignedTeam.Agegroup != null) ? r.AssignedTeam.Agegroup.TeamFee : null,
-                r.FeeTotal))
+            .Select(r => new EligibleInsuranceRegistration
+            {
+                RegistrationId = r.RegistrationId,
+                AssignedTeamId = r.AssignedTeamId!.Value,
+                Assignment = r.Assignment,
+                FirstName = r.User != null ? r.User.FirstName : null,
+                LastName = r.User != null ? r.User.LastName : null,
+                PerRegistrantFee = r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
+                TeamFee = (r.AssignedTeam != null && r.AssignedTeam.Agegroup != null) ? r.AssignedTeam.Agegroup.TeamFee : null,
+                FeeTotal = r.FeeTotal
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -467,13 +483,15 @@ public class RegistrationRepository : IRegistrationRepository
                 && r.Role.Name == "Director"
                 && r.BActive == true)
             .OrderBy(r => r.RegistrationTs)
-            .Select(r => new DirectorContactInfo(
-                r.User != null ? r.User.Email : null,
-                r.User != null ? r.User.FirstName : null,
-                r.User != null ? r.User.LastName : null,
-                r.User != null ? r.User.Cellphone : null,
-                r.Job != null ? r.Job.JobName : null,
-                r.Job != null && (r.Job.AdnArb == true)))
+            .Select(r => new DirectorContactInfo
+            {
+                Email = r.User != null ? r.User.Email : null,
+                FirstName = r.User != null ? r.User.FirstName : null,
+                LastName = r.User != null ? r.User.LastName : null,
+                Cellphone = r.User != null ? r.User.Cellphone : null,
+                OrgName = r.Job != null ? r.Job.JobName : null,
+                PaymentPlan = r.Job != null && (r.Job.AdnArb == true)
+            })
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -517,22 +535,24 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
-            .Select(r => new RegistrationConfirmationData(
-                r.RegistrationId,
-                (r.User != null ? r.User.FirstName : string.Empty) ?? string.Empty,
-                (r.User != null ? r.User.LastName : string.Empty) ?? string.Empty,
-                (r.AssignedTeam != null ? r.AssignedTeam.TeamName : string.Empty) ?? string.Empty,
-                r.FeeTotal,
-                r.PaidTotal,
-                r.OwedTotal,
-                r.RegsaverPolicyId,
-                r.RegsaverPolicyIdCreateDate,
-                r.AdnSubscriptionId,
-                r.AdnSubscriptionStatus,
-                r.AdnSubscriptionStartDate,
-                r.AdnSubscriptionIntervalLength,
-                r.AdnSubscriptionBillingOccurences,
-                r.AdnSubscriptionAmountPerOccurence))
+            .Select(r => new RegistrationConfirmationData
+            {
+                RegistrationId = r.RegistrationId,
+                PlayerFirst = (r.User != null ? r.User.FirstName : string.Empty) ?? string.Empty,
+                PlayerLast = (r.User != null ? r.User.LastName : string.Empty) ?? string.Empty,
+                TeamName = (r.AssignedTeam != null ? r.AssignedTeam.TeamName : string.Empty) ?? string.Empty,
+                FeeTotal = r.FeeTotal,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+                RegsaverPolicyId = r.RegsaverPolicyId,
+                RegsaverPolicyIdCreateDate = r.RegsaverPolicyIdCreateDate,
+                AdnSubscriptionId = r.AdnSubscriptionId,
+                AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+                AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+                AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength,
+                AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
+                AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -571,7 +591,11 @@ public class RegistrationRepository : IRegistrationRepository
             return null;
         }
 
-        return new RegSaverPolicyInfo(data.RegsaverPolicyId, data.RegsaverPolicyIdCreateDate);
+        return new RegSaverPolicyInfo
+        {
+            PolicyId = data.RegsaverPolicyId,
+            PolicyCreateDate = data.RegsaverPolicyIdCreateDate
+        };
     }
 
     public async Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default)
@@ -586,7 +610,11 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations
             .AsNoTracking()
             .Where(r => r.RegistrationId == registrationId && r.UserId == userId)
-            .Select(r => new RegistrationBasicInfo(r.ClubName, r.JobId))
+            .Select(r => new RegistrationBasicInfo
+            {
+                ClubName = r.ClubName,
+                JobId = r.JobId
+            })
             .FirstOrDefaultAsync(cancellationToken);
     }
 

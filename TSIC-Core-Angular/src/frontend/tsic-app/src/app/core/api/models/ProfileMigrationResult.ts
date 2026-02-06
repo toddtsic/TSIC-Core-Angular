@@ -4,15 +4,15 @@
 /* eslint-disable */
 import type { ProfileMetadata } from './ProfileMetadata';
 export type ProfileMigrationResult = {
-    profileType?: string;
-    success?: boolean;
-    fieldCount?: number;
-    jobsAffected?: number;
-    affectedJobIds?: Array<string>;
-    affectedJobNames?: Array<string>;
-    affectedJobYears?: Array<string>;
-    generatedMetadata?: (null | ProfileMetadata);
-    warnings?: Array<string>;
-    errorMessage?: string | null;
+    profileType: string;
+    success: boolean;
+    fieldCount: number;
+    jobsAffected: number;
+    affectedJobIds: Array<string>;
+    affectedJobNames: Array<string>;
+    affectedJobYears: Array<string>;
+    generatedMetadata: (null | ProfileMetadata);
+    warnings: Array<string>;
+    errorMessage: string | null;
 };
 

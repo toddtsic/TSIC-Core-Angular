@@ -195,11 +195,12 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         _logger.LogInformation("Generated Phase 2 token for user {UserId}, regId {RegistrationId}", userId, registration.RegistrationId);
 
-        return new AuthTokenResponse(
-            AccessToken: token,
-            RefreshToken: null,
-            ExpiresIn: 3600
-        );
+        return new AuthTokenResponse
+        {
+            AccessToken = token,
+            RefreshToken = null,
+            ExpiresIn = 3600
+        };
     }
 
     public async Task<List<ClubRepClubDto>> GetMyClubsAsync(string userId)

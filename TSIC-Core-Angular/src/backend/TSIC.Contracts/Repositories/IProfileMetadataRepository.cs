@@ -101,27 +101,37 @@ public interface IProfileMetadataRepository
 
 // ============ RESULT RECORDS ============
 
-public record JobBasicInfo(
-    string JobName,
-    string? CustomerName,
-    string? CoreRegformPlayer,
-    string? PlayerProfileMetadataJson,
-    string? AdultProfileMetadataJson);
+public record JobBasicInfo
+{
+    public required string JobName { get; init; }
+    public string? CustomerName { get; init; }
+    public string? CoreRegformPlayer { get; init; }
+    public string? PlayerProfileMetadataJson { get; init; }
+    public string? AdultProfileMetadataJson { get; init; }
+}
 
-public record JobWithJsonOptions(
-    Guid JobId,
-    string JobName,
-    string? CustomerName,
-    string? JsonOptions);
+public record JobWithJsonOptions
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public string? CustomerName { get; init; }
+    public string? JsonOptions { get; init; }
+}
 
-public record JobForProfileSummary(
-    Guid JobId,
-    string JobName,
-    string? CoreRegformPlayer,
-    string? PlayerProfileMetadataJson);
+public record JobForProfileSummary
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public string? CoreRegformPlayer { get; init; }
+    public string? PlayerProfileMetadataJson { get; init; }
+}
 
-public record JobKnownProfileType(
-    string? CoreRegformPlayer);
+public record JobKnownProfileType
+{
+    public string? CoreRegformPlayer { get; init; }
+}
 
-public record JobWithPlayerMetadata(
-    string? PlayerProfileMetadataJson);
+public record JobWithPlayerMetadata
+{
+    public string? PlayerProfileMetadataJson { get; init; }
+}

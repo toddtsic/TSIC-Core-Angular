@@ -5,12 +5,12 @@
 import type { ProfileMetadata } from './ProfileMetadata';
 export type MigrationResult = {
     jobId: string;
-    jobName?: string;
-    profileType?: string;
-    success?: boolean;
-    errorMessage?: string | null;
-    warnings?: Array<string>;
-    fieldCount?: number;
-    generatedMetadata?: (null | ProfileMetadata);
+    jobName: string;
+    profileType: string;
+    success: boolean;
+    errorMessage: string | null;
+    warnings: Array<string>;
+    fieldCount: number;
+    generatedMetadata: (null | ProfileMetadata);
 };
 

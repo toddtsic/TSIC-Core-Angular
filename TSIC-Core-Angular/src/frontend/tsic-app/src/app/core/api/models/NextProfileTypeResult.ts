@@ -3,6 +3,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type NextProfileTypeResult = {
-    newProfileType?: string;
+    newProfileType: string;
 };
 

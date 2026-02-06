@@ -2,10 +2,12 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
 
-public record ClubWithUsageInfo(
-    int ClubId,
-    string ClubName,
-    bool IsInUse);
+public record ClubWithUsageInfo
+{
+    public required int ClubId { get; init; }
+    public required string ClubName { get; init; }
+    public required bool IsInUse { get; init; }
+}
 
 /// <summary>
 /// Repository for managing ClubReps entity data access.

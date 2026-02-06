@@ -59,14 +59,16 @@ public class FamilyRepository : IFamilyRepository
         return await _context.Families
             .AsNoTracking()
             .Where(f => f.FamilyUserId == familyUserId)
-            .Select(f => new FamilyContactInfo(
-                f.MomFirstName,
-                f.MomLastName,
-                f.MomEmail,
-                f.MomCellphone,
-                f.FamilyUser.City,
-                f.FamilyUser.State,
-                f.FamilyUser.PostalCode))
+            .Select(f => new FamilyContactInfo
+            {
+                FirstName = f.MomFirstName,
+                LastName = f.MomLastName,
+                Email = f.MomEmail,
+                Phone = f.MomCellphone,
+                City = f.FamilyUser.City,
+                State = f.FamilyUser.State,
+                Zip = f.FamilyUser.PostalCode
+            })
             .SingleOrDefaultAsync(cancellationToken);
     }
 }

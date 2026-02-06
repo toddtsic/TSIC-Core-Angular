@@ -180,21 +180,27 @@ public class JobsController : ControllerBase
             var jobName = jobMetadata.JobName;
             var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
 
-            // Process menu item text with job-level token replacement
-            foreach (var item in menu.Items.Where(i => !string.IsNullOrEmpty(i.Text)))
+            // Process menu items immutably with token replacement
+            var updatedItems = menu.Items.Select(item =>
             {
-                item.Text = item.Text!
-                    .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
-                    .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
-            }
+                var newText = !string.IsNullOrEmpty(item.Text)
+                    ? item.Text.Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
+                               .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase)
+                    : item.Text;
 
-            // Process child menu items
-            foreach (var child in menu.Items.SelectMany(i => i.Children).Where(c => !string.IsNullOrEmpty(c.Text)))
-            {
-                child.Text = child.Text!
-                    .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
-                    .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
-            }
+                var updatedChildren = item.Children.Select(child =>
+                {
+                    var childText = !string.IsNullOrEmpty(child.Text)
+                        ? child.Text.Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
+                                   .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase)
+                        : child.Text;
+                    return child with { Text = childText };
+                }).ToList();
+
+                return item with { Text = newText, Children = updatedChildren };
+            }).ToList();
+
+            menu = menu with { Items = updatedItems };
         }
 
         // Generate ETag based on menu ID and role (for 304 Not Modified support)

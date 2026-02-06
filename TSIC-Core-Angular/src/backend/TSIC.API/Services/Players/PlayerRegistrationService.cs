@@ -76,25 +76,20 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
 
         // Server-side metadata validation BEFORE saving. If it fails, do not persist any changes.
-        var response = new PreSubmitPlayerRegistrationResponseDto
-        {
-            TeamResults = teamResults,
-            NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment"
-        };
-
         try
         {
             var validationErrors = _validationService.ValidatePlayerFormValues(ctx.MetadataJson, request.TeamSelections);
             if (validationErrors.Count > 0)
             {
-                response.ValidationErrors = validationErrors;
-                if (!response.HasFullTeams)
-                {
-                    response.NextTab = "Forms";
-                }
                 // Build insurance offer even on validation errors (non-persistent) for a consistent response shape
-                response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
-                return response;
+                var insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
+                return new PreSubmitPlayerRegistrationResponseDto
+                {
+                    TeamResults = teamResults,
+                    NextTab = teamResults.Exists(r => r.IsFull) ? "Forms" : "Forms",
+                    ValidationErrors = validationErrors,
+                    Insurance = insurance
+                };
             }
         }
         catch (Exception vex)
@@ -105,8 +100,14 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
         await _registrations.SaveChangesAsync();
         // Delegate insurance offer construction to VerticalInsure service.
-        response.Insurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
-        return response;
+        var finalInsurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
+        return new PreSubmitPlayerRegistrationResponseDto
+        {
+            TeamResults = teamResults,
+            NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment",
+            ValidationErrors = null,
+            Insurance = finalInsurance
+        };
     }
 
     private async Task<PreSubmitContext> BuildPreSubmitContextAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request)

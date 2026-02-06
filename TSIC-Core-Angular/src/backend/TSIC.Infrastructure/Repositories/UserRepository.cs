@@ -85,12 +85,14 @@ public class UserRepository : IUserRepository
         return await _context.AspNetUsers
             .AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
-            .Select(u => new UserBasicInfo(
-                u.Id,
-                u.FirstName,
-                u.LastName,
-                u.Email,
-                u.Dob))
+            .Select(u => new UserBasicInfo
+            {
+                UserId = u.Id,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                Birthdate = u.Dob
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -103,24 +105,29 @@ public class UserRepository : IUserRepository
             .Select(u => new { u.Id, u.FirstName, u.LastName })
             .ToListAsync(cancellationToken);
 
-        return data.ToDictionary(x => x.Id, x => new UserNameInfo(x.FirstName, x.LastName));
+        return data.ToDictionary(x => x.Id, x => new UserNameInfo
+        {
+            FirstName = x.FirstName,
+            LastName = x.LastName
+        });
     }
 
     public async Task<UserContactInfo?> GetUserContactInfoAsync(string userId, CancellationToken cancellationToken = default)
     {
         var user = await _context.AspNetUsers
             .Where(u => u.Id == userId)
-            .Select(u => new UserContactInfo(
-                u.FirstName,
-                u.LastName,
-                u.Email,
-                u.StreetAddress,
-                u.City,
-                u.State,
-                u.PostalCode,
-                u.Cellphone,
-                u.Phone
-            ))
+            .Select(u => new UserContactInfo
+            {
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                StreetAddress = u.StreetAddress,
+                City = u.City,
+                State = u.State,
+                PostalCode = u.PostalCode,
+                Cellphone = u.Cellphone,
+                Phone = u.Phone
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
         return user;

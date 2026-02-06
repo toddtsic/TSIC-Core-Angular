@@ -354,7 +354,18 @@ public class AdnApiService : IAdnApiService
     {
         if (resp == null)
         {
-            return new AdnArbCreateResult(false, null, null, null, null, "NULLRESP", "No response from gateway.", "No response from gateway.", null);
+            return new AdnArbCreateResult
+            {
+                Success = false,
+                SubscriptionId = null,
+                TransactionId = null,
+                AuthCode = null,
+                ResponseCode = null,
+                RawGatewayCode = "NULLRESP",
+                MessageForUser = "No response from gateway.",
+                GatewayMessage = "No response from gateway.",
+                CardLast4 = null
+            };
         }
         var success = resp.messages?.resultCode == messageTypeEnum.Ok && !string.IsNullOrWhiteSpace(resp.subscriptionId);
         string userMsg;
@@ -380,7 +391,18 @@ public class AdnApiService : IAdnApiService
             userMsg = gwMsg;
         }
         string? last4 = !string.IsNullOrWhiteSpace(cardNumber) && cardNumber.Length >= 4 ? cardNumber[^4..] : null;
-        return new AdnArbCreateResult(success, resp.subscriptionId, null, null, null, gwCode, userMsg, gwMsg, last4);
+        return new AdnArbCreateResult
+        {
+            Success = success,
+            SubscriptionId = resp.subscriptionId,
+            TransactionId = null,
+            AuthCode = null,
+            ResponseCode = null,
+            RawGatewayCode = gwCode,
+            MessageForUser = userMsg,
+            GatewayMessage = gwMsg,
+            CardLast4 = last4
+        };
     }
 
     public ARBUpdateSubscriptionResponse ADN_UpdateSubscription(AdnArbUpdateRequest request)

@@ -4,12 +4,12 @@ namespace TSIC.Contracts.Dtos;
 /// Lightweight bulletin data for public job landing page display.
 /// Only includes fields necessary for anonymous user view.
 /// </summary>
-public class BulletinDto
+public record BulletinDto
 {
-    public required Guid BulletinId { get; set; }
-    public string? Title { get; set; }
-    public string? Text { get; set; }
-    public DateTime? StartDate { get; set; }
-    public DateTime? EndDate { get; set; }
-    public DateTime CreateDate { get; set; }
+    public required Guid BulletinId { get; init; }
+    public string? Title { get; init; }
+    public string? Text { get; init; }
+    public DateTime? StartDate { get; init; }
+    public DateTime? EndDate { get; init; }
+    public required DateTime CreateDate { get; init; }
 }

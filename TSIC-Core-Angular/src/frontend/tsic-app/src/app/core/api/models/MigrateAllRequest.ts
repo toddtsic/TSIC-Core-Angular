@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type MigrateAllRequest = {
-    dryRun?: boolean;
+    dryRun: boolean;
     profileTypes?: any[] | null;
 };
 

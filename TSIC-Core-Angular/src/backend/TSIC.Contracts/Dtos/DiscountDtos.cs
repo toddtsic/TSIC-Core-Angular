@@ -4,28 +4,28 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TSIC.Contracts.Dtos;
 
-public sealed class ApplyDiscountItemDto
+public sealed record ApplyDiscountItemDto
 {
     [Required]
-    public string PlayerId { get; set; } = string.Empty;
+    public required string PlayerId { get; init; } = string.Empty;
 
     [Range(0, double.MaxValue)]
-    public decimal Amount { get; set; }
+    public required decimal Amount { get; init; }
 }
 
-public sealed class ApplyDiscountRequestDto
+public sealed record ApplyDiscountRequestDto
 {
     [Required]
-    public string JobPath { get; set; } = string.Empty;
+    public required string JobPath { get; init; } = string.Empty;
 
     [Required]
-    public string Code { get; set; } = string.Empty;
+    public required string Code { get; init; } = string.Empty;
 
     [Required]
-    public List<ApplyDiscountItemDto> Items { get; set; } = new();
+    public required List<ApplyDiscountItemDto> Items { get; init; } = new();
 }
 
-public sealed class ApplyDiscountResponseDto
+public sealed record ApplyDiscountResponseDto
 {
     public required bool Success { get; init; }
     public required string? Message { get; init; }
@@ -35,10 +35,10 @@ public sealed class ApplyDiscountResponseDto
     public required int FailureCount { get; init; }
     public required List<PlayerDiscountResult> Results { get; init; }
     // Updated financials for successfully discounted players (key = playerId)
-    public Dictionary<string, RegistrationFinancialsDto> UpdatedFinancials { get; set; } = new();
+    public required Dictionary<string, RegistrationFinancialsDto> UpdatedFinancials { get; init; } = new();
 }
 
-public sealed class PlayerDiscountResult
+public sealed record PlayerDiscountResult
 {
     public required string PlayerId { get; init; }
     public required string PlayerName { get; init; }
@@ -49,7 +49,7 @@ public sealed class PlayerDiscountResult
 
 // Team discount DTOs
 
-public sealed class ApplyTeamDiscountRequestDto
+public sealed record ApplyTeamDiscountRequestDto
 {
     [Required]
     public required string JobPath { get; init; }
@@ -61,7 +61,7 @@ public sealed class ApplyTeamDiscountRequestDto
     public required List<Guid> TeamIds { get; init; }
 }
 
-public sealed class ApplyTeamDiscountResponseDto
+public sealed record ApplyTeamDiscountResponseDto
 {
     public required bool Success { get; init; }
     public required string? Message { get; init; }
@@ -71,7 +71,7 @@ public sealed class ApplyTeamDiscountResponseDto
     public required List<TeamDiscountResult> Results { get; init; }
 }
 
-public sealed class TeamDiscountResult
+public sealed record TeamDiscountResult
 {
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }

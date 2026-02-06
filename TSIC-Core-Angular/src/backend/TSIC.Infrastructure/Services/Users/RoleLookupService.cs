@@ -34,55 +34,55 @@ public class RoleLookupService : IRoleLookupService
         var lSuperUserRoles = await _registrationRepo.GetSuperUserRegistrationsAsync(userId);
         if (lSuperUserRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Superuser", lSuperUserRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Superuser", RoleRegistrations = lSuperUserRoles });
         }
 
         var lSuperDirectorRoles = await _registrationRepo.GetSuperDirectorRegistrationsAsync(userId);
         if (lSuperDirectorRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("SuperDirector", lSuperDirectorRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "SuperDirector", RoleRegistrations = lSuperDirectorRoles });
         }
 
         var lDirectorRoles = await _registrationRepo.GetDirectorRegistrationsAsync(userId);
         if (lDirectorRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Director", lDirectorRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Director", RoleRegistrations = lDirectorRoles });
         }
 
         var lFamilyRoles = await _registrationRepo.GetPlayerRegistrationsAsync(userId);
         if (lFamilyRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Player", lFamilyRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Player", RoleRegistrations = lFamilyRoles });
         }
 
         var lClubRepRoles = await _registrationRepo.GetClubRepRegistrationsAsync(userId);
         if (lClubRepRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Club Rep", lClubRepRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Club Rep", RoleRegistrations = lClubRepRoles });
         }
 
         var lStaffRoles = await _registrationRepo.GetStaffRegistrationsAsync(userId);
         if (lStaffRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Staff", lStaffRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Staff", RoleRegistrations = lStaffRoles });
         }
 
         var lStoreAdminRoles = await _registrationRepo.GetStoreAdminRegistrationsAsync(userId);
         if (lStoreAdminRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Store Admin", lStoreAdminRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Store Admin", RoleRegistrations = lStoreAdminRoles });
         }
 
         var lRefAssignorRoles = await _registrationRepo.GetRefAssignorRegistrationsAsync(userId);
         if (lRefAssignorRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Ref Assignor", lRefAssignorRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Ref Assignor", RoleRegistrations = lRefAssignorRoles });
         }
 
         var lRefRoles = await _registrationRepo.GetRefereeRegistrationsAsync(userId);
         if (lRefRoles.Count > 0)
         {
-            model.Add(new RegistrationRoleDto("Referee", lRefRoles));
+            model.Add(new RegistrationRoleDto { RoleName = "Referee", RoleRegistrations = lRefRoles });
         }
 
         // Apply privilege separation filtering for historical violations

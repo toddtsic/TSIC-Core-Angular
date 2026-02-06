@@ -8,7 +8,8 @@
     "editor.defaultFormatter": "ms-dotnettools.csharp"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.codeActionsOnSave": {}
   },
   "[javascript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
@@ -64,24 +65,25 @@
     "**/bin": true,
     "**/obj": true,
     "**/publish": true,
-    "**/.vs": true
+    "**/.vs": true,
+    "**/tsic-deployment-current": true,
+    "**/reference": true,
+    "**/tools": true
   },
-  "typescript.tsserver.maxTsServerMemory": 2048,
+  "typescript.tsserver.maxTsServerMemory": 1536,
   "typescript.disableAutomaticTypeAcquisition": true,
   "typescript.tsserver.experimental.enableProjectDiagnostics": false,
   "git.enabled": true,
   "git.autorefresh": false,
   "git.autofetch": false,
-  "sonarlint.disableTelemetry": true,
-  "sonarlint.connectedMode.project": {},
-  "sonarlint.output.showAnalyzerLogs": false,
-  "sonarlint.output.showVerboseLogs": false,
-  "sonarlint.pathToNodeExecutable": "",
-  "sonarlint.rules": {},
-  "sonarlint.ls.javaHome": "",
-  "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features",
-    "editor.codeActionsOnSave": {}
-  },
-  "editor.guides.bracketPairs": false
+  "editor.guides.bracketPairs": false,
+  "editor.bracketPairColorization.enabled": false,
+  "editor.minimap.enabled": false,
+  "editor.codeLens": false,
+  "editor.smoothScrolling": false,
+  "editor.cursorSmoothCaretAnimation": "off",
+  "editor.renderWhitespace": "none",
+  "editor.suggest.snippetsPreventQuickSuggestions": true,
+  "search.followSymlinks": false,
+  "extensions.autoUpdate": false
 }

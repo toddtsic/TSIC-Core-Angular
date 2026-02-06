@@ -8,7 +8,7 @@ export type PreSubmitPlayerRegistrationResponseDto = {
     teamResults: Array<PreSubmitTeamResultDto>;
     hasFullTeams?: boolean;
     nextTab: string;
-    insurance?: (null | PreSubmitInsuranceDto);
-    validationErrors?: any[] | null;
+    insurance: (null | PreSubmitInsuranceDto);
+    validationErrors: any[] | null;
 };
 

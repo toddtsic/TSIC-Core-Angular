@@ -18,5 +18,9 @@ namespace TSIC.Application.Validators
     }
 
     // DTO for validation
-    public record LoginRequest(string Username, string Password);
+    public record LoginRequest
+    {
+        public required string Username { get; init; }
+        public required string Password { get; init; }
+    }
 }

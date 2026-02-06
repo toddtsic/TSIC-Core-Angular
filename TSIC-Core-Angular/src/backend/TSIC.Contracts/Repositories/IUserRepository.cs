@@ -57,24 +57,30 @@ public interface IUserRepository
         CancellationToken cancellationToken = default);
 }
 
-public record UserNameInfo(
-    string? FirstName,
-    string? LastName);
+public record UserNameInfo
+{
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+}
 
-public record UserBasicInfo(
-    string UserId,
-    string? FirstName,
-    string? LastName,
-    string? Email,
-    DateTime? Birthdate);
+public record UserBasicInfo
+{
+    public required string UserId { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string? Email { get; init; }
+    public DateTime? Birthdate { get; init; }
+}
 
-public record UserContactInfo(
-    string? FirstName,
-    string? LastName,
-    string? Email,
-    string? StreetAddress,
-    string? City,
-    string? State,
-    string? PostalCode,
-    string? Cellphone,
-    string? Phone);
+public record UserContactInfo
+{
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string? Email { get; init; }
+    public string? StreetAddress { get; init; }
+    public string? City { get; init; }
+    public string? State { get; init; }
+    public string? PostalCode { get; init; }
+    public string? Cellphone { get; init; }
+    public string? Phone { get; init; }
+}

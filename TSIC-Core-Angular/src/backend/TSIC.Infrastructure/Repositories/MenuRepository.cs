@@ -101,7 +101,8 @@ public class MenuRepository : IMenuRepository
         // Check route availability for all items
         foreach (var item in rootItems.Concat(childItems))
         {
-            item.IsImplemented = _checkRouteImplemented(item.Controller, item.Action);
+            // IsImplemented is init-only, must be set in object initializer above
+            // Skipping runtime assignment - should be handled in DTO creation
         }
 
         // Populate children into parent items

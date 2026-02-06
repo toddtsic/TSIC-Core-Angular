@@ -4,6 +4,6 @@
 /* eslint-disable */
 export type ApplyDiscountItemDto = {
     playerId: string;
-    amount?: number;
+    amount: number;
 };
 

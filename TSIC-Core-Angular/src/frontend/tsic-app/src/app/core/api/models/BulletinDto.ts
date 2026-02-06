@@ -8,6 +8,6 @@ export type BulletinDto = {
     text?: string | null;
     startDate?: string | null;
     endDate?: string | null;
-    createDate?: string;
+    createDate: string;
 };
 

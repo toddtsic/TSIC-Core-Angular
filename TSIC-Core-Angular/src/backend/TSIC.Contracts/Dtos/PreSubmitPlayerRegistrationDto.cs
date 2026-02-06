@@ -3,56 +3,56 @@ using TSIC.Contracts.Dtos.VerticalInsure;
 
 namespace TSIC.Contracts.Dtos
 {
-    public class PreSubmitPlayerRegistrationRequestDto
+    public record PreSubmitPlayerRegistrationRequestDto
     {
-        public required string JobPath { get; set; } = string.Empty;
-        public required List<PreSubmitTeamSelectionDto> TeamSelections { get; set; } = new();
+        public required string JobPath { get; init; } = string.Empty;
+        public required List<PreSubmitTeamSelectionDto> TeamSelections { get; init; } = new();
     }
 
-    public class PreSubmitTeamSelectionDto
+    public record PreSubmitTeamSelectionDto
     {
-        public required string PlayerId { get; set; } = string.Empty;
-        public required Guid TeamId { get; set; }
+        public required string PlayerId { get; init; } = string.Empty;
+        public required Guid TeamId { get; init; }
         // Optional: All form field values for this player (names should align to Registrations property names or metadata dbColumn)
-        public Dictionary<string, JsonElement>? FormValues { get; set; }
+        public Dictionary<string, JsonElement>? FormValues { get; init; }
     }
 
-    public class PreSubmitPlayerRegistrationResponseDto
+    public record PreSubmitPlayerRegistrationResponseDto
     {
-        public required List<PreSubmitTeamResultDto> TeamResults { get; set; } = new();
+        public required List<PreSubmitTeamResultDto> TeamResults { get; init; } = new();
         // Use List.Exists for style compliance (avoid LINQ Any in this simple predicate)
         public bool HasFullTeams => TeamResults.Exists(r => r.IsFull);
-        public required string NextTab { get; set; } = ""; // "Team" or "Forms"
+        public required string NextTab { get; init; } = ""; // "Team" or "Forms"
         // Optional: Insurance offer snapshot built post-creation of pending registrations
-        public PreSubmitInsuranceDto? Insurance { get; set; }
+        public required PreSubmitInsuranceDto? Insurance { get; init; }
         // Optional: Client-side forms validation errors echoed / enforced server-side
         // Each entry: playerId, field, message. Presence indicates Forms step should not advance.
-        public List<PreSubmitValidationErrorDto>? ValidationErrors { get; set; }
+        public required List<PreSubmitValidationErrorDto>? ValidationErrors { get; init; }
     }
 
-    public class PreSubmitTeamResultDto
+    public record PreSubmitTeamResultDto
     {
-        public required string PlayerId { get; set; } = string.Empty;
-        public required Guid TeamId { get; set; }
-        public required bool IsFull { get; set; }
-        public required string TeamName { get; set; } = string.Empty;
-        public required string Message { get; set; } = string.Empty;
-        public required bool RegistrationCreated { get; set; }
+        public required string PlayerId { get; init; } = string.Empty;
+        public required Guid TeamId { get; init; }
+        public required bool IsFull { get; init; }
+        public required string TeamName { get; init; } = string.Empty;
+        public required string Message { get; init; } = string.Empty;
+        public required bool RegistrationCreated { get; init; }
     }
 
-    public class PreSubmitInsuranceDto
+    public record PreSubmitInsuranceDto
     {
-        public required bool Available { get; set; }
-        public VIPlayerObjectResponse? PlayerObject { get; set; }
-        public string? Error { get; set; }
-        public DateTime? ExpiresUtc { get; set; }
-        public string? StateId { get; set; }
+        public required bool Available { get; init; }
+        public VIPlayerObjectResponse? PlayerObject { get; init; }
+        public string? Error { get; init; }
+        public DateTime? ExpiresUtc { get; init; }
+        public string? StateId { get; init; }
     }
 
-    public class PreSubmitValidationErrorDto
+    public record PreSubmitValidationErrorDto
     {
-        public required string PlayerId { get; set; } = string.Empty;
-        public required string Field { get; set; } = string.Empty;
-        public required string Message { get; set; } = string.Empty;
+        public required string PlayerId { get; init; } = string.Empty;
+        public required string Field { get; init; } = string.Empty;
+        public required string Message { get; init; } = string.Empty;
     }
 }

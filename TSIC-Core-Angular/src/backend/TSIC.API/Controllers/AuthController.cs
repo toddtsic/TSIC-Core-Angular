@@ -115,12 +115,13 @@ namespace TSIC.API.Controllers
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
-            return Ok(new AuthTokenResponse(
-                AccessToken: token,
-                RefreshToken: refreshToken,
-                ExpiresIn: expirationMinutes * 60, // Convert to seconds
-                RequiresTosSignature: requiresTosSignature
-            ));
+            return Ok(new AuthTokenResponse
+            {
+                AccessToken = token,
+                RefreshToken = refreshToken,
+                ExpiresIn = expirationMinutes * 60, // Convert to seconds
+                RequiresTosSignature = requiresTosSignature
+            });
         }
 
         /// <summary>
@@ -212,11 +213,12 @@ namespace TSIC.API.Controllers
             var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
-            return Ok(new AuthTokenResponse(
-                AccessToken: token,
-                RefreshToken: refreshToken,
-                ExpiresIn: expirationMinutes * 60
-            ));
+            return Ok(new AuthTokenResponse
+            {
+                AccessToken = token,
+                RefreshToken = refreshToken,
+                ExpiresIn = expirationMinutes * 60
+            });
         }
 
         /// <summary>
@@ -278,11 +280,12 @@ namespace TSIC.API.Controllers
             var newRefreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
-            return Ok(new AuthTokenResponse(
-                AccessToken: newAccessToken,
-                RefreshToken: newRefreshToken,
-                ExpiresIn: expirationMinutes * 60
-            ));
+            return Ok(new AuthTokenResponse
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken,
+                ExpiresIn = expirationMinutes * 60
+            });
         }
 
         /// <summary>

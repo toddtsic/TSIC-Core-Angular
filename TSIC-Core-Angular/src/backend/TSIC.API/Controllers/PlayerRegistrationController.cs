@@ -88,11 +88,12 @@ public class PlayerRegistrationController : ControllerBase
         // Generate job-scoped token (jobPath + role, NO regId)
         var token = _tokenService.GenerateJobScopedToken(user, request.JobPath, jobMetadata?.JobLogoPath, "Family");
 
-        return Ok(new AuthTokenResponse(
-            AccessToken: token,
-            RefreshToken: null,
-            ExpiresIn: 3600
-        ));
+        return Ok(new AuthTokenResponse
+        {
+            AccessToken = token,
+            RefreshToken = null,
+            ExpiresIn = 3600
+        });
     }
 
     /// <summary>

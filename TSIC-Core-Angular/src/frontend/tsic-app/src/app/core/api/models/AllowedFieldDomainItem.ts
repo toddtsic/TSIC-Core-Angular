@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type AllowedFieldDomainItem = {
-    name?: string;
-    displayName?: string;
-    defaultInputType?: string;
-    defaultVisibility?: string;
-    seenInProfiles?: number;
+    name: string;
+    displayName: string;
+    defaultInputType: string;
+    defaultVisibility: string;
+    seenInProfiles: number;
 };
 

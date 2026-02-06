@@ -117,23 +117,24 @@ public class PaymentService : IPaymentService
             var ccExpiryDate = FormatExpiry(creditCard.Expiry!);
 
             // Process ADN transaction using ADN_Charge
-            var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest(
-                Env: env,
-                LoginId: credentials.AdnLoginId!,
-                TransactionKey: credentials.AdnTransactionKey!,
-                CardNumber: creditCard.Number!,
-                CardCode: creditCard.Code!,
-                Expiry: ccExpiryDate,
-                FirstName: creditCard.FirstName!,
-                LastName: creditCard.LastName!,
-                Address: creditCard.Address!,
-                Zip: creditCard.Zip!,
-                Email: creditCard.Email!,
-                Phone: creditCard.Phone!,
-                Amount: perTeamAmount,
-                InvoiceNumber: invoiceNumber,
-                Description: description
-            ));
+            var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
+            {
+                Env = env,
+                LoginId = credentials.AdnLoginId!,
+                TransactionKey = credentials.AdnTransactionKey!,
+                CardNumber = creditCard.Number!,
+                CardCode = creditCard.Code!,
+                Expiry = ccExpiryDate,
+                FirstName = creditCard.FirstName!,
+                LastName = creditCard.LastName!,
+                Address = creditCard.Address!,
+                Zip = creditCard.Zip!,
+                Email = creditCard.Email!,
+                Phone = creditCard.Phone!,
+                Amount = perTeamAmount,
+                InvoiceNumber = invoiceNumber,
+                Description = description
+            });
 
             // Validate ADN response
             if (adnResponse?.messages?.resultCode == messageTypeEnum.Ok
@@ -338,23 +339,24 @@ public class PaymentService : IPaymentService
         // Build deterministic invoice number using first registration (pattern: customerAI_jobAI_registrationAI)
         var invoiceReg = registrations[0];
         var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
-        var response = _adnApiService.ADN_Charge(new AdnChargeRequest(
-            Env: env,
-            LoginId: credentials.AdnLoginId!,
-            TransactionKey: credentials.AdnTransactionKey!,
-            CardNumber: cc.Number!,
-            CardCode: cc.Code!,
-            Expiry: FormatExpiry(cc.Expiry!),
-            FirstName: cc.FirstName!,
-            LastName: cc.LastName!,
-            Address: cc.Address!,
-            Zip: cc.Zip!,
-            Email: cc.Email!,
-            Phone: cc.Phone!,
-            Amount: total,
-            InvoiceNumber: invoiceNumber,
-            Description: "Registration Payment"
-        ));
+        var response = _adnApiService.ADN_Charge(new AdnChargeRequest
+        {
+            Env = env,
+            LoginId = credentials.AdnLoginId!,
+            TransactionKey = credentials.AdnTransactionKey!,
+            CardNumber = cc.Number!,
+            CardCode = cc.Code!,
+            Expiry = FormatExpiry(cc.Expiry!),
+            FirstName = cc.FirstName!,
+            LastName = cc.LastName!,
+            Address = cc.Address!,
+            Zip = cc.Zip!,
+            Email = cc.Email!,
+            Phone = cc.Phone!,
+            Amount = total,
+            InvoiceNumber = invoiceNumber,
+            Description = "Registration Payment"
+        });
         if (response == null || response.messages == null)
         {
             return new PaymentResponseDto { Success = false, Message = "Payment gateway returned no response.", ErrorCode = "CHARGE_NULL_RESPONSE" };
@@ -446,26 +448,27 @@ public class PaymentService : IPaymentService
             _logger.LogInformation("Creating ARB subscription for registration {RegistrationId}: perOccurrence={PerOccur} occur={Occur} start={StartDate} basis={Basis}.", reg.RegistrationId, perOccur, args.Occur, args.StartDate, basis);
             var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(reg.JobId, reg.RegistrationId);
             var description = await BuildArbSubscriptionDescriptionAsync(reg);
-            var resp = _adnApiService.ADN_ARB_CreateMonthlySubscription(new AdnArbCreateRequest(
-                Env: args.Env,
-                LoginId: args.LoginId,
-                TransactionKey: args.TransactionKey,
-                CardNumber: args.Card.Number!,
-                CardCode: args.Card.Code!,
-                Expiry: FormatExpiry(args.Card.Expiry!),
-                FirstName: args.Card.FirstName!,
-                LastName: args.Card.LastName!,
-                Address: args.Card.Address!,
-                Zip: args.Card.Zip!,
-                Email: args.Card.Email!,
-                Phone: args.Card.Phone!,
-                InvoiceNumber: invoiceNumber,
-                Description: description,
-                PerIntervalCharge: perOccur,
-                StartDate: args.StartDate,
-                BillingOccurrences: args.Occur,
-                IntervalLength: args.IntervalLen
-            ));
+            var resp = _adnApiService.ADN_ARB_CreateMonthlySubscription(new AdnArbCreateRequest
+            {
+                Env = args.Env,
+                LoginId = args.LoginId,
+                TransactionKey = args.TransactionKey,
+                CardNumber = args.Card.Number!,
+                CardCode = args.Card.Code!,
+                Expiry = FormatExpiry(args.Card.Expiry!),
+                FirstName = args.Card.FirstName!,
+                LastName = args.Card.LastName!,
+                Address = args.Card.Address!,
+                Zip = args.Card.Zip!,
+                Email = args.Card.Email!,
+                Phone = args.Card.Phone!,
+                InvoiceNumber = invoiceNumber,
+                Description = description,
+                PerIntervalCharge = perOccur,
+                StartDate = args.StartDate,
+                BillingOccurrences = args.Occur,
+                IntervalLength = args.IntervalLen
+            });
             if (resp?.messages?.resultCode == messageTypeEnum.Ok && !string.IsNullOrWhiteSpace(resp.subscriptionId))
             {
                 subs[reg.RegistrationId] = resp.subscriptionId;

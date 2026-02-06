@@ -12,6 +12,6 @@ export type ApplyDiscountResponseDto = {
     successCount: number;
     failureCount: number;
     results: Array<PlayerDiscountResult>;
-    updatedFinancials?: Record<string, RegistrationFinancialsDto>;
+    updatedFinancials: Record<string, RegistrationFinancialsDto>;
 };
 

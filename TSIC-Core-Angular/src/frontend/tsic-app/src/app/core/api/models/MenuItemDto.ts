@@ -8,14 +8,14 @@ export type MenuItemDto = {
     index?: number;
     text?: string | null;
     iconName?: string | null;
-    bCollapsed?: boolean;
-    bTextWrap?: boolean;
+    bCollapsed: boolean;
+    bTextWrap: boolean;
     routerLink?: string | null;
     navigateUrl?: string | null;
     controller?: string | null;
     action?: string | null;
     linkTarget?: string | null;
-    isImplemented?: boolean;
-    children?: Array<MenuItemDto>;
+    isImplemented: boolean;
+    children: Array<MenuItemDto>;
 };
 

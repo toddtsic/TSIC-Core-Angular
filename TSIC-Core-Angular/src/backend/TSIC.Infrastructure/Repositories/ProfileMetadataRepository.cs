@@ -37,12 +37,14 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobBasicInfo(
-                j.JobName,
-                null,
-                j.RegformNamePlayer,
-                null,
-                null))
+            .Select(j => new JobBasicInfo
+            {
+                JobName = j.JobName,
+                CustomerName = null,
+                CoreRegformPlayer = j.RegformNamePlayer,
+                PlayerProfileMetadataJson = null,
+                AdultProfileMetadataJson = null
+            })
             .SingleOrDefaultAsync();
     }
 
@@ -51,11 +53,13 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobWithJsonOptions(
-                j.JobId,
-                j.JobName,
-                null,
-                null))
+            .Select(j => new JobWithJsonOptions
+            {
+                JobId = j.JobId,
+                JobName = j.JobName,
+                CustomerName = null,
+                JsonOptions = null
+            })
             .SingleOrDefaultAsync();
     }
 
@@ -64,11 +68,13 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => !string.IsNullOrEmpty(j.RegformNamePlayer) && j.RegformNamePlayer != CoreRegformExcludeMarker)
-            .Select(j => new JobForProfileSummary(
-                j.JobId,
-                j.JobName,
-                j.CoreRegformPlayer,
-                j.PlayerProfileMetadataJson))
+            .Select(j => new JobForProfileSummary
+            {
+                JobId = j.JobId,
+                JobName = j.JobName,
+                CoreRegformPlayer = j.CoreRegformPlayer,
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson
+            })
             .ToListAsync();
     }
 
@@ -80,7 +86,10 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
                 && j.CoreRegformPlayer != "0"
                 && j.CoreRegformPlayer != "1"
                 && j.CoreRegformPlayer != CoreRegformExcludeMarker)
-            .Select(j => new JobKnownProfileType(j.CoreRegformPlayer))
+            .Select(j => new JobKnownProfileType
+            {
+                CoreRegformPlayer = j.CoreRegformPlayer
+            })
             .ToListAsync();
     }
 
@@ -91,7 +100,10 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .Where(j => (j.CoreRegformPlayer.StartsWith(profileType) || j.CoreRegformPlayer == profileType)
                 && j.CoreRegformPlayer != CoreRegformExcludeMarker
                 && !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
-            .Select(j => new JobWithPlayerMetadata(j.PlayerProfileMetadataJson))
+            .Select(j => new JobWithPlayerMetadata
+            {
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson
+            })
             .FirstOrDefaultAsync();
     }
 

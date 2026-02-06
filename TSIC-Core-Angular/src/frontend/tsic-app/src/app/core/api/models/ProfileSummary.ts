@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type ProfileSummary = {
-    profileType?: string;
-    jobCount?: number;
-    migratedJobCount?: number;
-    allJobsMigrated?: boolean;
-    sampleJobNames?: Array<string>;
+    profileType: string;
+    jobCount: number;
+    migratedJobCount: number;
+    allJobsMigrated: boolean;
+    sampleJobNames: Array<string>;
 };
 

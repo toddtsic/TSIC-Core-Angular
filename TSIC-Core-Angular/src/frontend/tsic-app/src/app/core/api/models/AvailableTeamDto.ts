@@ -5,18 +5,18 @@
 export type AvailableTeamDto = {
     teamId: string;
     teamName: string;
-    agegroupId?: string;
+    agegroupId: string;
     agegroupName?: string | null;
     divisionId?: string | null;
     divisionName?: string | null;
-    maxRosterSize?: number;
-    currentRosterSize?: number;
-    rosterIsFull?: boolean;
+    maxRosterSize: number;
+    currentRosterSize: number;
+    rosterIsFull: boolean;
     teamAllowsSelfRostering?: boolean | null;
     agegroupAllowsSelfRostering?: boolean | null;
     perRegistrantFee?: number;
     perRegistrantDeposit?: number;
-    jobUsesWaitlists?: boolean;
+    jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
 };
 

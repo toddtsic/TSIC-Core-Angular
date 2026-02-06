@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CloneProfileResult = {
-    success?: boolean;
-    newProfileType?: string;
-    sourceProfileType?: string;
-    fieldCount?: number;
-    errorMessage?: string | null;
+    success: boolean;
+    newProfileType: string;
+    sourceProfileType: string;
+    fieldCount: number;
+    errorMessage: string | null;
 };
 

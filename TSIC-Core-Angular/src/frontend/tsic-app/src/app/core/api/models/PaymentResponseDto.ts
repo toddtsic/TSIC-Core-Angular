@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type PaymentResponseDto = {
-    success?: boolean;
+    success: boolean;
     message?: string | null;
     errorCode?: string | null;
     transactionId?: string | null;

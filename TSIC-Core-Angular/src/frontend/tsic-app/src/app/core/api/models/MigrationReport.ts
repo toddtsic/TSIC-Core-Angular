@@ -4,13 +4,13 @@
 /* eslint-disable */
 import type { MigrationResult } from './MigrationResult';
 export type MigrationReport = {
-    successCount?: number;
-    failureCount?: number;
-    warningCount?: number;
-    skippedCount?: number;
-    startedAt?: string;
-    completedAt?: string | null;
-    results?: Array<MigrationResult>;
-    globalWarnings?: Array<string>;
+    successCount: number;
+    failureCount: number;
+    warningCount: number;
+    skippedCount: number;
+    startedAt: string;
+    completedAt: string | null;
+    results: Array<MigrationResult>;
+    globalWarnings: Array<string>;
 };
 

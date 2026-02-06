@@ -9,37 +9,37 @@ namespace TSIC.Contracts.Dtos;
 /// VI payment is entirely handled by VerticalInsure; we only persist resulting policy numbers.
 /// JobId and FamilyUserId are derived from JWT claims and NOT accepted as parameters (security principle).
 /// </summary>
-public class InsurancePurchaseRequestDto
+public record InsurancePurchaseRequestDto
 {
     [Required, JsonRequired]
-    public string JobPath { get; set; } = string.Empty;
+    public required string JobPath { get; init; } = string.Empty;
     [Required, JsonRequired]
-    public List<Guid> RegistrationIds { get; set; } = new();
+    public required List<Guid> RegistrationIds { get; init; } = new();
     [Required, JsonRequired]
-    public List<string> QuoteIds { get; set; } = new();
+    public required List<string> QuoteIds { get; init; } = new();
     /// <summary>
     /// Optional credit card information for direct VerticalInsure batch purchase when a Stripe token is not supplied.
     /// </summary>
-    public CreditCardInfo? CreditCard { get; set; }
+    public CreditCardInfo? CreditCard { get; init; }
 }
 
 /// <summary>
 /// Result of attempting to purchase policies. When Success=false, Error contains user-visible reason.
 /// Policies map is only populated on success.
 /// </summary>
-public class VerticalInsurePurchaseResult
+public record VerticalInsurePurchaseResult
 {
-    public bool Success { get; set; }
-    public string? Error { get; set; }
-    public Dictionary<Guid, string> Policies { get; set; } = new();
+    public required bool Success { get; init; }
+    public required string? Error { get; init; }
+    public required Dictionary<Guid, string> Policies { get; init; } = new();
 }
 
 /// <summary>
 /// API response DTO for insurance purchase endpoint.
 /// </summary>
-public class InsurancePurchaseResponseDto
+public record InsurancePurchaseResponseDto
 {
-    public bool Success { get; set; }
-    public string? Error { get; set; }
-    public Dictionary<Guid, string> Policies { get; set; } = new();
+    public required bool Success { get; init; }
+    public string? Error { get; init; }
+    public required Dictionary<Guid, string> Policies { get; init; } = new();
 }

@@ -2,8 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type MigrateProfilesRequest = {
-    dryRun: boolean;
-    profileTypes?: any[] | null;
+export type SetWizardContextRequest = {
+    jobPath: string;
 };
 

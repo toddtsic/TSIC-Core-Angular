@@ -4,9 +4,9 @@
 /* eslint-disable */
 import type { ProfileMetadata } from './ProfileMetadata';
 export type ProfileMetadataWithOptions = {
-    jobId?: string;
-    jobName?: string;
-    metadata?: ProfileMetadata;
+    jobId: string;
+    jobName: string;
+    metadata: ProfileMetadata;
     jsonOptions?: any | null;
 };
 
