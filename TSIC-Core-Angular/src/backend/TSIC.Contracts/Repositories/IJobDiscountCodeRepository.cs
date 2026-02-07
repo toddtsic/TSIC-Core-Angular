@@ -32,4 +32,50 @@ public interface IJobDiscountCodeRepository
         Guid jobId,
         DateTime currentTime,
         CancellationToken cancellationToken = default);
+
+    // === ADMIN MANAGEMENT METHODS (for discount code CRUD operations) ===
+
+    /// <summary>
+    /// Get all discount codes for a job with usage counts.
+    /// </summary>
+    Task<List<JobDiscountCodes>> GetAllByJobIdAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get a single discount code by Ai (tracked for updates).
+    /// </summary>
+    Task<JobDiscountCodes?> GetByIdAsync(
+        int ai,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if a discount code already exists for a job (case-insensitive).
+    /// </summary>
+    Task<bool> CodeExistsAsync(
+        Guid jobId,
+        string codeName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the count of registrations using a specific discount code.
+    /// </summary>
+    Task<int> GetUsageCountAsync(
+        int ai,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Add a new discount code.
+    /// </summary>
+    void Add(JobDiscountCodes code);
+
+    /// <summary>
+    /// Remove a discount code.
+    /// </summary>
+    void Remove(JobDiscountCodes code);
+
+    /// <summary>
+    /// Save all pending changes to the database.
+    /// </summary>
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

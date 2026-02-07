@@ -28,6 +28,7 @@ using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.Registration;
+using TSIC.Application.Services.DiscountCode;
 using TSIC.API.Services.Admin;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.TextSubstitution;
@@ -126,6 +127,7 @@ builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>(
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdministratorService, AdministratorService>();
+builder.Services.AddScoped<IDiscountCodeService, DiscountCodeService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

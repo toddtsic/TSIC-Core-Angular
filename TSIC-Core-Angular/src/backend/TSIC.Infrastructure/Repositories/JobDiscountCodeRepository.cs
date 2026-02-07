@@ -61,4 +61,59 @@ public class JobDiscountCodeRepository : IJobDiscountCodeRepository
                 && d.CodeEndDate >= currentTime)
             .ToListAsync(cancellationToken);
     }
+
+    // === ADMIN MANAGEMENT METHODS ===
+
+    public async Task<List<JobDiscountCodes>> GetAllByJobIdAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.JobDiscountCodes
+            .AsNoTracking()
+            .Where(d => d.JobId == jobId)
+            .OrderByDescending(d => d.Modified)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<JobDiscountCodes?> GetByIdAsync(
+        int ai,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.JobDiscountCodes
+            .FirstOrDefaultAsync(d => d.Ai == ai, cancellationToken);
+    }
+
+    public async Task<bool> CodeExistsAsync(
+        Guid jobId,
+        string codeName,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.JobDiscountCodes
+            .AsNoTracking()
+            .AnyAsync(d => d.JobId == jobId && d.CodeName.ToLower() == codeName.ToLower(), cancellationToken);
+    }
+
+    public async Task<int> GetUsageCountAsync(
+        int ai,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .CountAsync(r => r.DiscountCodeId == ai, cancellationToken);
+    }
+
+    public void Add(JobDiscountCodes code)
+    {
+        _context.JobDiscountCodes.Add(code);
+    }
+
+    public void Remove(JobDiscountCodes code)
+    {
+        _context.JobDiscountCodes.Remove(code);
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
 }

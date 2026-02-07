@@ -100,6 +100,12 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requireSuperUser: true },
 				loadComponent: () => import('./views/admin/administrator-management/administrator-management.component').then(m => m.AdministratorManagementComponent)
+			},
+			{
+				path: 'jobdiscountcodes/admin',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
 			}
 		]
 	},

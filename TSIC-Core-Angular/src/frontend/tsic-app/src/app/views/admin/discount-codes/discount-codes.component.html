@@ -1,0 +1,188 @@
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+    <h2 class="mb-0">Discount Codes</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadDiscountCodes()" [disabled]="isLoading()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+        <button class="btn btn-outline-primary btn-sm" (click)="openBulk()">
+            <i class="bi bi-stars me-1"></i>Bulk Generate
+        </button>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Code
+        </button>
+    </div>
+</div>
+
+<!-- Batch Toolbar (visible when rows selected) -->
+@if (hasSelection()) {
+    <div class="batch-toolbar d-flex align-items-center gap-3 mb-3 px-3 py-2 rounded-2">
+        <span class="fw-semibold">{{ selectedCount() }} selected</span>
+        <div class="vr"></div>
+        <button class="btn btn-success btn-sm" (click)="openBatchConfirm('activate')">
+            <i class="bi bi-check-circle me-1"></i>Activate
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" (click)="openBatchConfirm('inactivate')">
+            <i class="bi bi-x-circle me-1"></i>Deactivate
+        </button>
+        <button class="btn btn-outline-danger btn-sm" 
+                (click)="openBatchConfirm('delete')"
+                [disabled]="hasUsedCodesSelected()"
+                [title]="hasUsedCodesSelected() ? 'Cannot delete used codes' : 'Delete selected codes'">
+            <i class="bi bi-trash me-1"></i>Delete
+        </button>
+    </div>
+}
+
+<!-- Error Alert -->
+@if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+    </div>
+}
+
+<!-- Loading State -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-body-secondary">Loading discount codes...</p>
+    </div>
+}
+
+<!-- Empty State -->
+@if (!isLoading() && !errorMessage() && codes().length === 0) {
+    <div class="text-center py-5">
+        <i class="bi bi-ticket-perforated fs-1 text-body-secondary"></i>
+        <p class="mt-2 text-body-secondary">No discount codes found for this job.</p>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Code
+        </button>
+    </div>
+}
+
+<!-- Data Table -->
+@if (!isLoading() && codes().length > 0) {
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="col-check">
+                        <input type="checkbox" class="form-check-input"
+                            [checked]="allSelectableSelected()"
+                            (change)="toggleSelectAll()"
+                            aria-label="Select all" />
+                    </th>
+                    <th>Code</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Usage</th>
+                    <th>Dates</th>
+                    <th>Expiration</th>
+                    <th>Status</th>
+                    <th class="col-actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (code of codes(); track code.ai) {
+                    <tr [class.table-active]="isSelected(code)">
+                        <td>
+                            <input type="checkbox" class="form-check-input"
+                                [checked]="isSelected(code)"
+                                (change)="toggleSelect(code)"
+                                [attr.aria-label]="'Select ' + code.codeName" />
+                        </td>
+                        <td class="fw-semibold">{{ code.codeName }}</td>
+                        <td>
+                            <span class="badge rounded-pill" [ngClass]="getDiscountTypeBadgeClass(code.discountType)">
+                                {{ getDiscountTypeSymbol(code.discountType) }}
+                            </span>
+                        </td>
+                        <td>{{ code.amount }}{{ getDiscountTypeSymbol(code.discountType) }}</td>
+                        <td>
+                            <div class="usage-container">
+                                <span class="usage-text">{{ code.usageCount }}</span>
+                                @if (code.usageCount > 0) {
+                                    <div class="usage-bar">
+                                        <div class="usage-fill" 
+                                             [ngClass]="getUsageProgressColor(code)"
+                                             [style.width.%]="100"></div>
+                                    </div>
+                                }
+                            </div>
+                        </td>
+                        <td class="text-body-secondary small">
+                            {{ code.startDate | date:'shortDate' }} - {{ code.endDate | date:'shortDate' }}
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill" [ngClass]="getExpirationChipClass(code)">
+                                {{ getExpirationText(code) }}
+                            </span>
+                        </td>
+                        <td>
+                            @if (code.isActive) {
+                                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
+                            } @else {
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" (click)="openEdit(code)" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        (click)="confirmDelete(code)" 
+                                        [disabled]="code.usageCount > 0"
+                                        [title]="code.usageCount > 0 ? 'Cannot delete used code' : 'Delete'">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- Add Modal -->
+@if (showAddModal()) {
+    <code-form-modal
+        mode="add"
+        (close)="showAddModal.set(false)"
+        (saved)="onFormSaved()">
+    </code-form-modal>
+}
+
+<!-- Edit Modal -->
+@if (showEditModal()) {
+    <code-form-modal
+        mode="edit"
+        [code]="editTarget()"
+        (close)="showEditModal.set(false); editTarget.set(null)"
+        (saved)="onFormSaved()">
+    </code-form-modal>
+}
+
+<!-- Bulk Generation Modal -->
+@if (showBulkModal()) {
+    <bulk-code-modal
+        (close)="showBulkModal.set(false)"
+        (saved)="onFormSaved()">
+    </bulk-code-modal>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Discount Code"
+        [message]="'Delete code ' + deleteTarget()?.codeName + '? This cannot be undone.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
+    </confirm-dialog>
+}
