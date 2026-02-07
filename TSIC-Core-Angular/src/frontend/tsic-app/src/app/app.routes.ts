@@ -89,6 +89,11 @@ export const routes: Routes = [
 					}
 				]
 			},
+			// Report launcher — handles all menu items with Controller=Reporting
+			{
+				path: 'reporting/:action',
+				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
+			},
 			// Legacy-compatible admin routes (match menu system controller/action URLs)
 			{
 				path: 'jobadministrator/admin',

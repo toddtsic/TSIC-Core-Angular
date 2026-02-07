@@ -36,6 +36,7 @@ using TSIC.API.Services.Shared.Accounting;
 using TSIC.API.Services.Shared.Bulletins;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
+using TSIC.API.Services.Reporting;
 using TSIC.API.Authorization;
 using Amazon.SimpleEmail;
 using Amazon.Runtime;
@@ -73,6 +74,7 @@ builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ITextSubstitutionRepository, TextSubstitutionRepository>();
 builder.Services.AddScoped<IProfileMetadataRepository, ProfileMetadataRepository>();
 builder.Services.AddScoped<IAdministratorRepository, AdministratorRepository>();
+builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
@@ -124,6 +126,10 @@ builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>(
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdministratorService, AdministratorService>();
+// Reporting
+builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
+builder.Services.AddScoped<IReportingService, ReportingService>();
+builder.Services.AddHttpClient("CrystalReports");
 // Email (Amazon SES only)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.Configure<AwsSettings>(builder.Configuration.GetSection("AWS"));
@@ -356,7 +362,8 @@ builder.Services.AddCors(options =>
                   "https://cp-ng.teamsportsinfo.com")
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowCredentials()
+              .WithExposedHeaders("Content-Disposition");
     });
 });
 

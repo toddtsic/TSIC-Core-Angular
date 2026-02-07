@@ -17,8 +17,10 @@ export class ClientMenuComponent {
     private readonly menuState = inject(MenuStateService);
     private readonly router = inject(Router);
 
-    // Build a set of known child routes under :jobPath for route existence checks
+    // Known child routes under :jobPath — includes both literal paths and wildcard prefixes
+    // (e.g., 'reporting' from 'reporting/:action' so that 'reporting/get_netusers' matches)
     private readonly knownRoutes = this.buildKnownRoutes();
+    private readonly wildcardPrefixes = this.buildWildcardPrefixes();
 
     // Access menu data from JobService
     menus = computed(() => this.jobService.menus());
@@ -142,7 +144,10 @@ export class ClientMenuComponent {
         }
         if (item.controller && item.action) {
             const path = `${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
-            return this.knownRoutes.has(path);
+            // Check exact match first, then wildcard prefix match
+            // (e.g., 'reporting/get_netusers' matches wildcard prefix 'reporting')
+            if (this.knownRoutes.has(path)) return true;
+            return this.wildcardPrefixes.some(prefix => path.startsWith(prefix + '/'));
         }
         // Items with no link at all (parent headers) are considered implemented
         return true;
@@ -206,5 +211,31 @@ export class ClientMenuComponent {
                 this.collectPaths(route.children, fullPath, paths);
             }
         }
+    }
+
+    /**
+     * Collects route prefixes that have parameterized segments (e.g., 'reporting' from 'reporting/:action').
+     * Used for wildcard matching — any menu item path starting with these prefixes is considered implemented.
+     */
+    private buildWildcardPrefixes(): string[] {
+        const prefixes: string[] = [];
+        const jobPathRoute = this.router.config.find(r => r.path === ':jobPath');
+        if (jobPathRoute?.children) {
+            for (const route of jobPathRoute.children) {
+                if (route.path && route.path.includes(':')) {
+                    // Extract the static prefix before the first parameterized segment
+                    const segments = route.path.split('/');
+                    const staticSegments: string[] = [];
+                    for (const seg of segments) {
+                        if (seg.startsWith(':')) break;
+                        staticSegments.push(seg);
+                    }
+                    if (staticSegments.length > 0) {
+                        prefixes.push(staticSegments.join('/').toLowerCase());
+                    }
+                }
+            }
+        }
+        return prefixes;
     }
 }

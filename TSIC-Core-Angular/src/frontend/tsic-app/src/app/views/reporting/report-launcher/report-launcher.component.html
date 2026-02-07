@@ -1,0 +1,32 @@
+<div class="report-launcher">
+    @if (loading()) {
+    <div class="d-flex flex-column align-items-center justify-content-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Generating report...</span>
+        </div>
+        <p class="text-muted">Generating report...</p>
+        <p class="text-muted small">{{ reportAction() }}</p>
+    </div>
+    } @else if (error()) {
+    <div class="d-flex flex-column align-items-center justify-content-center py-5">
+        <i class="bi bi-exclamation-triangle-fill text-warning fs-1 mb-3"></i>
+        <p class="text-danger mb-3">{{ error() }}</p>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm" (click)="retry()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Try Again
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" (click)="goBack()">
+                <i class="bi bi-arrow-left me-1"></i> Go Back
+            </button>
+        </div>
+    </div>
+    } @else {
+    <div class="d-flex flex-column align-items-center justify-content-center py-5">
+        <i class="bi bi-check-circle-fill text-success fs-1 mb-3"></i>
+        <p class="text-muted">Report downloaded successfully.</p>
+        <button class="btn btn-outline-secondary btn-sm" (click)="goBack()">
+            <i class="bi bi-arrow-left me-1"></i> Go Back
+        </button>
+    </div>
+    }
+</div>

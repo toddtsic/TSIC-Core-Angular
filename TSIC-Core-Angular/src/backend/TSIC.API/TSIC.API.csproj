@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="AuthorizeNet.Core" />
+    <PackageReference Include="EPPlus" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
