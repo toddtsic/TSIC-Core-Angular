@@ -11,6 +11,7 @@ public record TeamDetailDto
 
     // Basic Info
     public string? TeamName { get; init; }
+    public string? ClubName { get; init; }
     public bool? Active { get; init; }
     public required int DivRank { get; init; }
     public string? DivisionRequested { get; init; }

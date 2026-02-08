@@ -1,11 +1,18 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkTreeModule } from '@angular/cdk/tree';
+import { Observable } from 'rxjs';
 import { LadtService } from './services/ladt.service';
 import { LeagueDetailComponent } from './components/league-detail.component';
 import { AgegroupDetailComponent } from './components/agegroup-detail.component';
 import { DivisionDetailComponent } from './components/division-detail.component';
 import { TeamDetailComponent } from './components/team-detail.component';
+import { LadtSiblingGridComponent } from './components/ladt-sibling-grid.component';
+import {
+  COLUMNS_BY_LEVEL, ID_FIELD_BY_LEVEL,
+  type LadtColumnDef
+} from './configs/ladt-grid-columns';
+import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
 import type { LadtTreeNodeDto } from '../../../core/api';
 
 /** Flat node for CdkTree display */
@@ -19,6 +26,7 @@ export interface LadtFlatNode {
   playerCount: number;
   expandable: boolean;
   active: boolean;
+  clubName: string | null;
 }
 
 @Component({
@@ -30,7 +38,8 @@ export interface LadtFlatNode {
     LeagueDetailComponent,
     AgegroupDetailComponent,
     DivisionDetailComponent,
-    TeamDetailComponent
+    TeamDetailComponent,
+    LadtSiblingGridComponent
   ],
   templateUrl: './ladt-editor.component.html',
   styleUrl: './ladt-editor.component.scss'
@@ -72,6 +81,15 @@ export class LadtEditorComponent implements OnInit {
   // Selection
   selectedNode = signal<LadtFlatNode | null>(null);
   selectedLevel = computed(() => this.selectedNode()?.level ?? -1);
+
+  // Sibling grid state
+  siblingData = signal<any[]>([]);
+  siblingColumns = signal<LadtColumnDef[]>([]);
+  siblingIdField = signal('');
+  siblingLevelLabel = signal('');
+  siblingLevelIcon = signal('bi-list');
+  siblingParentParts = signal<ParentBreadcrumb[]>([]);
+  isSiblingsLoading = signal(false);
 
   // Mobile drawer
   drawerOpen = signal(false);
@@ -129,7 +147,8 @@ export class LadtEditorComponent implements OnInit {
           teamCount: node.teamCount,
           playerCount: node.playerCount,
           expandable: children.length > 0,
-          active: node.active
+          active: node.active,
+          clubName: node.clubName ?? null
         });
         if (children.length > 0) {
           recurse(children);
@@ -173,6 +192,7 @@ export class LadtEditorComponent implements OnInit {
   selectNode(node: LadtFlatNode): void {
     this.selectedNode.set(node);
     this.drawerOpen.set(false);
+    this.loadSiblings(node);
   }
 
   // ── Level labels ──
@@ -234,14 +254,67 @@ export class LadtEditorComponent implements OnInit {
     });
   }
 
+  // ── Sibling grid ──
+
+  private loadSiblings(node: LadtFlatNode): void {
+    const level = node.level;
+    this.siblingColumns.set(COLUMNS_BY_LEVEL[level]);
+    this.siblingIdField.set(ID_FIELD_BY_LEVEL[level]);
+    this.siblingLevelLabel.set(this.getLevelLabel(level));
+    this.siblingLevelIcon.set(this.getLevelIcon(level));
+    this.siblingParentParts.set(this.getParentParts(node));
+    this.isSiblingsLoading.set(true);
+    this.siblingData.set([]);
+
+    let fetch$: Observable<any[]>;
+    if (level === 0) fetch$ = this.ladtService.getLeagueSiblings();
+    else if (level === 1) fetch$ = this.ladtService.getAgegroupSiblings(node.parentId!);
+    else if (level === 2) fetch$ = this.ladtService.getDivisionSiblings(node.parentId!);
+    else fetch$ = this.ladtService.getTeamSiblings(node.parentId!);
+
+    fetch$.subscribe({
+      next: (data: any[]) => {
+        this.siblingData.set(data);
+        this.isSiblingsLoading.set(false);
+      },
+      error: (err: any) => {
+        this.errorMessage.set(err.error?.message || 'Failed to load siblings');
+        this.isSiblingsLoading.set(false);
+      }
+    });
+  }
+
+  private getParentParts(node: LadtFlatNode): ParentBreadcrumb[] {
+    const parts: ParentBreadcrumb[] = [];
+    let current = node;
+    // Walk up the tree collecting ancestors
+    while (current.parentId) {
+      const parent = this.flatNodes().find(n => n.id === current.parentId);
+      if (!parent) break;
+      parts.unshift({ name: parent.name, level: parent.level });
+      current = parent;
+    }
+    return parts;
+  }
+
+  onGridRowSelected(id: string): void {
+    const node = this.flatNodes().find(n => n.id === id);
+    if (node) {
+      this.selectedNode.set(node);
+    }
+  }
+
   // ── Detail panel callbacks ──
 
   onDetailSaved(): void {
+    const node = this.selectedNode();
     this.loadTree();
+    if (node) this.loadSiblings(node);
   }
 
   onDetailDeleted(): void {
     this.selectedNode.set(null);
+    this.siblingData.set([]);
     this.loadTree();
   }
 

@@ -77,15 +77,24 @@
           <cdk-tree-node *cdkTreeNodeDef="let node" class="tree-node"
                          [class.selected]="selectedNode()?.id === node.id"
                          [class.inactive]="!node.active"
+                         [class.has-club]="node.clubName"
                          [style.padding-left.px]="node.level * 20 + 8">
             <span class="tree-toggle-spacer"></span>
-            <button class="tree-node-btn" (click)="selectNode(node)">
+            <button class="tree-node-btn" (click)="selectNode(node)"
+                    [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
               <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
-              <span class="tree-label">{{ node.name }}</span>
-              @if (!node.active) {
-                <span class="badge bg-danger-subtle text-danger-emphasis ms-1">Inactive</span>
+              @if (node.level === 3 && node.clubName) {
+                <span class="tree-label-group">
+                  <span class="tree-label-primary">{{ node.clubName }}</span>
+                  <span class="tree-label-secondary">{{ node.name }}</span>
+                </span>
+              } @else {
+                <span class="tree-label">{{ node.name }}</span>
               }
               <span class="node-badges ms-auto">
+                @if (!node.active) {
+                  <span class="badge bg-danger-subtle text-danger-emphasis">Inactive</span>
+                }
                 @if (node.level < 3) {
                   <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount }}</span>
                 }
@@ -103,15 +112,27 @@
           <cdk-tree-node *cdkTreeNodeDef="let node; when: hasChild" class="tree-node"
                          [class.selected]="selectedNode()?.id === node.id"
                          [class.inactive]="!node.active"
+                         [class.has-club]="node.clubName"
                          [style.padding-left.px]="node.level * 20 + 8">
             <button class="tree-toggle" (click)="toggleNode(node)">
               <i class="bi" [class.bi-chevron-right]="!isNodeExpanded(node)"
                  [class.bi-chevron-down]="isNodeExpanded(node)"></i>
             </button>
-            <button class="tree-node-btn" (click)="selectNode(node)">
+            <button class="tree-node-btn" (click)="selectNode(node)"
+                    [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
               <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
-              <span class="tree-label">{{ node.name }}</span>
+              @if (node.level === 3 && node.clubName) {
+                <span class="tree-label-group">
+                  <span class="tree-label-primary">{{ node.clubName }}</span>
+                  <span class="tree-label-secondary">{{ node.name }}</span>
+                </span>
+              } @else {
+                <span class="tree-label">{{ node.name }}</span>
+              }
               <span class="node-badges ms-auto">
+                @if (!node.active) {
+                  <span class="badge bg-danger-subtle text-danger-emphasis">Inactive</span>
+                }
                 @if (node.level < 3) {
                   <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount }}</span>
                 }
@@ -147,30 +168,55 @@
         <i class="bi bi-hand-index fs-1 text-body-secondary"></i>
         <p class="mt-3 text-body-secondary">Select an item from the tree to view its details.</p>
       </div>
-    } @else if (selectedLevel() === 0) {
-      <app-league-detail
-        [leagueId]="selectedNode()!.id"
-        (saved)="onDetailSaved()"
-      />
-    } @else if (selectedLevel() === 1) {
-      <app-agegroup-detail
-        [agegroupId]="selectedNode()!.id"
-        (saved)="onDetailSaved()"
-        (deleted)="onDetailDeleted()"
-      />
-    } @else if (selectedLevel() === 2) {
-      <app-division-detail
-        [divisionId]="selectedNode()!.id"
-        (saved)="onDetailSaved()"
-        (deleted)="onDetailDeleted()"
-      />
-    } @else if (selectedLevel() === 3) {
-      <app-team-detail
-        [teamId]="selectedNode()!.id"
-        (saved)="onDetailSaved()"
-        (deleted)="onDetailDeleted()"
-        (cloned)="onDetailSaved()"
-      />
+    } @else {
+      <!-- Sibling comparison grid -->
+      <div class="sibling-grid-container">
+        @if (isSiblingsLoading()) {
+          <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+        } @else {
+          <app-ladt-sibling-grid
+            [columns]="siblingColumns()"
+            [data]="siblingData()"
+            [selectedId]="selectedNode()!.id"
+            [idField]="siblingIdField()"
+            [levelLabel]="siblingLevelLabel()"
+            [levelIcon]="siblingLevelIcon()"
+            [parentParts]="siblingParentParts()"
+            (rowSelected)="onGridRowSelected($event)"
+          />
+        }
+      </div>
+
+      <!-- Detail form for selected entity -->
+      <div class="detail-form-container">
+        @if (selectedLevel() === 0) {
+          <app-league-detail
+            [leagueId]="selectedNode()!.id"
+            (saved)="onDetailSaved()"
+          />
+        } @else if (selectedLevel() === 1) {
+          <app-agegroup-detail
+            [agegroupId]="selectedNode()!.id"
+            (saved)="onDetailSaved()"
+            (deleted)="onDetailDeleted()"
+          />
+        } @else if (selectedLevel() === 2) {
+          <app-division-detail
+            [divisionId]="selectedNode()!.id"
+            (saved)="onDetailSaved()"
+            (deleted)="onDetailDeleted()"
+          />
+        } @else if (selectedLevel() === 3) {
+          <app-team-detail
+            [teamId]="selectedNode()!.id"
+            (saved)="onDetailSaved()"
+            (deleted)="onDetailDeleted()"
+            (cloned)="onDetailSaved()"
+          />
+        }
+      </div>
     }
   </main>
 </div>

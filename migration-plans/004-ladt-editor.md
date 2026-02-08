@@ -39,27 +39,24 @@ The legacy `LADT/Admin` page is **one of the most heavily used and critical** ad
 ## 3. Modern Vision
 
 **Layout**: Master-detail preserved, but modernized:
-- **Left panel (30% width)**: **Syncfusion TreeGrid** with expand/collapse, live counts, search/filter
-- **Right panel (70% width)**: Context-sensitive form or data table based on selection
+- **Left panel (320px)**: **Angular CDK Tree** with signal-driven expand/collapse, live counts, add-child buttons per node
+- **Right panel (flex)**: Sibling comparison grid (top) + detail edit form (bottom)
 
 **Key improvements**:
-- ✅ **Add buttons at every level** - "Add Agegroup" button visible on league row even if no agegroups exist yet
-- ✅ **Modal dialogs for add/edit** - Clean forms with validation, date pickers, color pickers, typeahead
-- ✅ **Collapsible form sections** - Team form organized into tabs/accordions (Basic Info, Dates, Fees, Roster Rules, Schedule Prefs)
+- ✅ **Sibling comparison grid** - Clicking a node shows ALL siblings at that level (e.g., all agegroups for the league) in a horizontally-scrollable native HTML table with frozen name column — replicates the legacy's most powerful UX for comparing properties across entities
+- ✅ **Add buttons at every level** - "+" button visible on league/agegroup/division rows to add child entities
+- ✅ **Inline detail forms** - Edit forms below the comparison grid (no modals needed — detail form updates, grid refreshes)
 - ✅ **Optimistic UI updates** - Tree updates instantly without full reload, preserves expand state
-- ✅ **Real-time validation** - Field-level validation as you type
 - ✅ **Mobile responsive** - Off-canvas drawer for tree on mobile, detail panel takes full width, breadcrumb bar for context
-- ✅ **Smart defaults** - New agegroup inherits fees from previous agegroup, new team inherits from division/agegroup
+- ✅ **Signal-driven expansion** - CDK Tree flat mode with custom `visibleNodes` computed signal (bypasses CDK expansion model which doesn't filter visibility for flat trees)
 
 ## 4. Design Alignment
 
-- **Angular CDK Tree** (`@angular/cdk/tree`) for left tree panel - expand/collapse, expand all/collapse all, keyboard navigation, full template control with zero CSS conflicts
+- **Angular CDK Tree** (`@angular/cdk/tree`) for left tree panel — signal-driven expansion (`expandedIds` signal + `visibleNodes` computed) bypasses CDK's built-in expansion model which doesn't filter visibility for flat trees
+- **Native HTML table** for sibling comparison grid — `position: sticky` frozen name column, `overflow: auto` scrolling, CSS variable themed. Deliberately NOT Syncfusion: the grid is read-only for comparison; editing happens in the detail form below. Native table is lighter, zero `::ng-deep` hacks, fully CSS-variable themed
 - **Off-canvas drawer** on mobile (< 768px) - tree slides in from left, detail panel takes full width, breadcrumb bar shows current selection path
 - Bootstrap forms + CSS variables (all 8 palettes)
-- `TsicDialogComponent` for modals (reusable add/edit dialogs)
 - Signal-based state, OnPush change detection
-- Toast notifications via existing `ToastService`
-- Confirmation dialog pattern from existing migrations
 - WCAG AA compliant (keyboard nav, ARIA labels, focus management)
 
 ## 5. Database Entities
@@ -87,25 +84,22 @@ The legacy `LADT/Admin` page is **one of the most heavily used and critical** ad
 ## 6. UI Standards Created / Employed
 
 ### CREATED (new patterns this module introduces)
-- **CDK Tree Navigation** - Angular CDK Tree with expand/collapse, expand all/collapse all, live counts, context actions, zero CSS conflicts with palette system
-- **Master-Detail Admin Layout** - 30% tree navigator + 70% detail panel, responsive split
+- **CDK Tree with Signal-Driven Expansion** - Angular CDK Tree (`@angular/cdk/tree`) with `expandedIds` signal + `visibleNodes` computed signal. Bypasses CDK's built-in expansion model (which doesn't filter flat node visibility). Expand all/collapse all/toggle per node all update a single `Set<string>` signal.
+- **Sibling Comparison Grid** - Native HTML `<table>` with `position: sticky; left: 0` frozen name column, `overflow: auto` horizontal+vertical scrolling, type-aware cell rendering (checkmarks for booleans, formatted currency/dates, ellipsis for long text). Click a row to select that entity in the tree. Driven by `LadtColumnDef[]` configs per hierarchy level.
+- **Master-Detail Admin Layout** - 320px tree panel + flex detail panel (sibling grid on top, detail form on bottom), responsive split
 - **Mobile Drawer Pattern** - Off-canvas tree drawer on mobile (< 768px), breadcrumb bar for current selection path, detail panel takes full width
-- **Context-Sensitive Action Toolbar** - Changes based on tree selection level (league/agegroup/division/team)
-- **Multi-Section Form Modal** - Accordion/tabs for forms with 40+ fields (teams)
-- **Tree Node Action Menu** - Inline action buttons per node (add child, edit, delete, clone)
-- **Smart Form Defaults** - New entities inherit parent values (fees, dates, roster rules)
-- **Live Aggregate Counts** - Real-time team/player counts in tree nodes
-- **Collapsible Tree Persistence** - Expand/collapse state survives CRUD operations
+- **Context-Sensitive Add Buttons** - Per-node "+" buttons in tree visible on hover (add agegroup on leagues, add division on agegroups, add team on divisions)
+- **Live Aggregate Counts** - Blue team count + green player count badges at all tree levels
+- **Collapsible Tree Persistence** - Expand/collapse state survives CRUD operations (signal-based, not CDK-managed)
 
 ### EMPLOYED (existing patterns reused)
-- `TsicDialogComponent` for modals
-- `ConfirmDialogComponent` for destructive actions
-- `ToastService` for success/error feedback
-- Signal-based state management
-- CSS variable design system tokens
-- `@if` / `@for` template syntax
+- Signal-based state management (all component state as signals)
+- CSS variable design system tokens (all colors, spacing, borders)
+- `@if` / `@for` / `@switch` template syntax
 - OnPush change detection
 - `inject()` dependency injection
+- Repository pattern (LeagueRepository, AgegroupRepository, DivisionRepository, TeamRepository)
+- `FormsModule` with `[(ngModel)]` for detail edit forms
 
 ---
 
@@ -125,7 +119,7 @@ The legacy `LADT/Admin` page is **one of the most heavily used and critical** ad
 
 ### Phase 1: Backend - DTOs
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `TSIC.Contracts/Dtos/Ladt/LadtTreeDtos.cs` (tree structure DTOs)
@@ -343,7 +337,7 @@ public record UpdateTeamRequest
 
 ### Phase 2: Backend - Repository Interfaces & Implementations
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `TSIC.Contracts/Repositories/ILeagueRepository.cs`
@@ -382,7 +376,7 @@ public record UpdateTeamRequest
 
 ### Phase 3: Backend - Service Interfaces & Implementations
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `TSIC.Contracts/Services/ILadtService.cs`
@@ -429,7 +423,7 @@ public record UpdateTeamRequest
 
 ### Phase 4: Backend - Controller
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `TSIC.API/Controllers/LadtController.cs`
@@ -467,11 +461,21 @@ public record UpdateTeamRequest
 - `DELETE api/ladt/teams/{teamId:guid}` → `void`
 - `POST api/ladt/teams/{teamId:guid}/clone` → `TeamDetailDto`
 
+**Sibling Batch Queries** (for comparison grid):
+- `GET api/ladt/leagues/siblings` → `List<LeagueDetailDto>` (all leagues for job)
+- `GET api/ladt/agegroups/by-league/{leagueId:guid}` → `List<AgegroupDetailDto>` (all agegroups in league)
+- `GET api/ladt/divisions/by-agegroup/{agegroupId:guid}` → `List<DivisionDetailDto>` (all divisions in agegroup)
+- `GET api/ladt/teams/by-division/{divId:guid}` → `List<TeamDetailDto>` (all teams in division, with player counts)
+
+**Batch Operations**:
+- `POST api/ladt/batch/waitlist-agegroups` → `int` (creates WAITLIST agegroups for all leagues)
+- `POST api/ladt/batch/update-fees/{agegroupId:guid}` → `int` (updates player fees to match agegroup)
+
 **Authorization**: All endpoints `[Authorize(Policy = "AdminOnly")]`, derive `jobId` from JWT via `GetJobIdFromRegistrationAsync()`.
 
 ### Phase 5: Backend - DI Registration
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to modify**:
 - `TSIC.API/Program.cs`
@@ -487,7 +491,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 6: Frontend - LADT Service
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `src/app/core/services/ladt.service.ts`
@@ -517,7 +521,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 7: Frontend - Master-Detail Layout Component
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `src/app/views/ladt-admin/ladt-admin.component.ts`
@@ -634,7 +638,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 8: Frontend - CDK Tree Navigation Component
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `src/app/views/ladt-admin/components/ladt-tree.component.ts`
@@ -704,7 +708,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 9: Frontend - Detail Panel Components
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `src/app/views/ladt-admin/components/league-detail.component.ts` (league editor form)
@@ -746,7 +750,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 10: Frontend - Modal Dialogs (Add/Edit Forms)
 
-**Status**: [ ] Pending
+**Status**: [ ] Deferred — detail components handle editing inline via form panels
 
 **Files to create**:
 - `src/app/views/ladt-admin/modals/league-form-modal.component.ts`
@@ -785,7 +789,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 11: Frontend - Routing
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to modify**:
 - `src/app/app.routes.ts`
@@ -802,7 +806,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 12: Backend - Post-Build API Model Regeneration
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Action**: Run `.\scripts\2-Regenerate-API-Models.ps1`
 - Generates TypeScript types from DTOs
@@ -810,7 +814,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ### Phase 13: Testing & Polish
 
-**Status**: [ ] Pending
+**Status**: [ ] In progress
 
 **Critical tests**:
 1. **Tree navigation**: Expand/collapse, expand all/collapse all, selection persists after CRUD
@@ -832,114 +836,110 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 ## 9. Files Summary
 
-| File | Action | LOC Est. |
-|------|--------|----------|
-| `TSIC.Contracts/Dtos/Ladt/LadtTreeDtos.cs` | Create | 50 |
-| `TSIC.Contracts/Dtos/Ladt/LeagueDtos.cs` | Create | 60 |
-| `TSIC.Contracts/Dtos/Ladt/AgegroupDtos.cs` | Create | 150 |
-| `TSIC.Contracts/Dtos/Ladt/DivisionDtos.cs` | Create | 40 |
-| `TSIC.Contracts/Dtos/Ladt/TeamDtos.cs` | Create | 180 |
-| `TSIC.Contracts/Repositories/ILeagueRepository.cs` | Create | 30 |
-| `TSIC.Infrastructure/Repositories/LeagueRepository.cs` | Create | 80 |
-| `TSIC.Contracts/Repositories/IAgegroupRepository.cs` | Create | 40 |
-| `TSIC.Infrastructure/Repositories/AgegroupRepository.cs` | Create | 120 |
-| `TSIC.Contracts/Repositories/IDivisionRepository.cs` | Create | 30 |
-| `TSIC.Infrastructure/Repositories/DivisionRepository.cs` | Create | 80 |
-| `TSIC.Contracts/Repositories/ITeamRepository.cs` | Create | 40 |
-| `TSIC.Infrastructure/Repositories/TeamRepository.cs` | Create | 150 |
-| `TSIC.Contracts/Services/ILadtService.cs` | Create | 70 |
-| `TSIC.Application/Services/Ladt/LadtService.cs` | Create | 1,200 |
-| `TSIC.API/Controllers/LadtController.cs` | Create | 350 |
-| `TSIC.API/Program.cs` | Edit | +10 |
-| `views/ladt-admin/ladt-admin.component.ts` | Create | 300 |
-| `views/ladt-admin/ladt-admin.component.html` | Create | 120 |
-| `views/ladt-admin/ladt-admin.component.scss` | Create | 100 |
-| `views/ladt-admin/components/ladt-tree.component.ts` | Create | 250 |
-| `views/ladt-admin/components/league-detail.component.ts` | Create | 120 |
-| `views/ladt-admin/components/agegroup-detail.component.ts` | Create | 150 |
-| `views/ladt-admin/components/division-detail.component.ts` | Create | 120 |
-| `views/ladt-admin/components/team-detail.component.ts` | Create | 150 |
-| `views/ladt-admin/modals/league-form-modal.component.ts` | Create | 180 |
-| `views/ladt-admin/modals/agegroup-form-modal.component.ts` | Create | 400 |
-| `views/ladt-admin/modals/division-form-modal.component.ts` | Create | 150 |
-| `views/ladt-admin/modals/team-form-modal.component.ts` | Create | 600 |
-| `core/services/ladt.service.ts` | Create | 280 |
-| `app.routes.ts` | Edit | +7 |
+### Backend Files (all created)
 
-**Total estimated LOC**: ~4,850 lines
+| File | Status | LOC |
+|------|--------|-----|
+| `TSIC.Contracts/Dtos/Ladt/LadtTreeDtos.cs` | Done | ~30 |
+| `TSIC.Contracts/Dtos/Ladt/LeagueDtos.cs` | Done | 41 |
+| `TSIC.Contracts/Dtos/Ladt/AgegroupDtos.cs` | Done | 100 |
+| `TSIC.Contracts/Dtos/Ladt/DivisionDtos.cs` | Done | 22 |
+| `TSIC.Contracts/Dtos/Ladt/TeamDtos.cs` | Done | 161 |
+| `TSIC.Contracts/Repositories/ILeagueRepository.cs` | Done | ~20 |
+| `TSIC.Infrastructure/Repositories/LeagueRepository.cs` | Done | ~60 |
+| `TSIC.Contracts/Repositories/IAgegroupRepository.cs` | Done | ~25 |
+| `TSIC.Infrastructure/Repositories/AgegroupRepository.cs` | Done | ~80 |
+| `TSIC.Contracts/Repositories/IDivisionRepository.cs` | Done | ~20 |
+| `TSIC.Infrastructure/Repositories/DivisionRepository.cs` | Done | ~60 |
+| `TSIC.Contracts/Repositories/ITeamRepository.cs` | Done | ~30 |
+| `TSIC.Infrastructure/Repositories/TeamRepository.cs` | Done | ~120 |
+| `TSIC.Contracts/Services/ILadtService.cs` | Done | 56 |
+| `TSIC.API/Services/Admin/LadtService.cs` | Done | ~750 |
+| `TSIC.API/Controllers/LadtController.cs` | Done | 430 |
+| `TSIC.API/Program.cs` | Modified | +10 |
+
+### Frontend Files (all created)
+
+| File | Status | LOC |
+|------|--------|-----|
+| `ladt-editor/ladt-editor.component.ts` | Done | 299 |
+| `ladt-editor/ladt-editor.component.html` | Done | 200 |
+| `ladt-editor/ladt-editor.component.scss` | Done | 243 |
+| `ladt-editor/services/ladt.service.ts` | Done | 141 |
+| `ladt-editor/configs/ladt-grid-columns.ts` | Done | 128 |
+| `ladt-editor/components/ladt-sibling-grid.component.ts` | Done | ~180 |
+| `ladt-editor/components/league-detail.component.ts` | Done | ~120 |
+| `ladt-editor/components/agegroup-detail.component.ts` | Done | ~200 |
+| `ladt-editor/components/division-detail.component.ts` | Done | ~100 |
+| `ladt-editor/components/team-detail.component.ts` | Done | ~350 |
+| `core/api/models/` (auto-generated) | Done | ~15 files |
+| `app.routes.ts` | Modified | +7 |
 
 ---
 
 ## 10. Key Design Decisions
 
-1. **Angular CDK Tree over Syncfusion TreeGrid** - CDK Tree is free, lightweight (~5KB vs ~200KB), has zero CSS conflicts with our 8-palette design system, and provides full template control. The hierarchy is only 4 levels deep — a navigation tree, not a data grid. CDK provides expand/collapse, expand all/collapse all, keyboard nav, and ARIA tree roles out of the box.
+1. **Angular CDK Tree over Syncfusion TreeGrid** - CDK Tree is free, lightweight (~5KB vs ~200KB), has zero CSS conflicts with our 8-palette design system, and provides full template control. The hierarchy is only 4 levels deep — a navigation tree, not a data grid.
 
-2. **Single service for all 4 levels** - `LadtService` handles all CRUD instead of 4 separate services. Simpler DI, easier to share validation/authorization logic.
+2. **Signal-driven expansion (not CDK's built-in)** - CDK Tree with `levelAccessor` + flat nodes does NOT manage node visibility — it renders all nodes always (`_computeRenderingData` returns `renderNodes: nodes`). The `cdkTreeNodeToggle` directive also caused double-toggle bugs. Solution: custom `expandedIds` signal + `visibleNodes` computed signal that filters flat nodes before passing to CdkTree as `[dataSource]`. CDK just renders what it's given.
 
-3. **Master-detail layout preserved** - Users love the left tree + right detail pattern. Don't fix what isn't broken.
+3. **Native HTML table over Syncfusion Grid for sibling comparison** - The comparison grid is read-only; editing happens in the detail form below. A plain `<table>` with CSS `position: sticky` achieves frozen columns natively, with zero bundle cost, zero `::ng-deep` hacks, and full CSS variable theming. Syncfusion Grid would be overkill.
 
-4. **Mobile off-canvas drawer** - On mobile (< 768px), the tree slides in as a drawer from the left. Detail panel takes full width. Breadcrumb bar at top shows current selection path (League > Agegroup > Division > Team) for context. Drawer auto-closes on node selection.
+4. **Single service for all 4 levels** - `LadtService` handles all CRUD instead of 4 separate services. Simpler DI, easier to share validation/authorization logic. Private `MapLeague/MapAgegroup/MapDivision/MapTeam` helpers reused by both single-entity and batch-sibling methods.
 
-5. **UX friction fixes**:
-   - ✅ Add buttons visible at all times (not hidden until entity exists)
-   - ✅ Contextual "Add Lower Level" button changes label based on selection
-   - ✅ Modal dialogs instead of inline grid editing (better validation UX)
+5. **Sibling batch endpoints** - 4 dedicated GET endpoints (`leagues/siblings`, `agegroups/by-league/{id}`, etc.) avoid N+1 detail fetches when loading the comparison grid. Each reuses existing Map helpers.
 
-6. **Team form as accordion** - 40+ fields would be overwhelming in single scrolling form. Accordion sections group related fields logically.
+6. **Master-detail layout preserved** with sibling grid enhancement - Right panel splits vertically: sibling comparison grid (top, scrollable) + detail edit form (bottom, max 50%). Click a row in the grid to switch selected entity without going back to the tree.
 
-7. **Smart defaults** - New agegroup inherits previous agegroup's fees/dates. New team inherits agegroup/division defaults. Reduces data entry time by 80%.
+7. **Mobile off-canvas drawer** - On mobile (< 768px), the tree slides in as a drawer from the left. Detail panel takes full width. Breadcrumb bar at top shows current selection path. Drawer auto-closes on node selection.
 
-8. **Optimistic UI updates** - Tree updates immediately after add/edit/delete, then refreshes from server. Preserves expand/collapse state and scroll position.
+8. **Context-sensitive add buttons** - Per-node "+" buttons visible on hover: leagues get "Add Age Group", agegroups get "Add Division", divisions get "Add Team". No modals needed — stub entities created server-side with sensible defaults.
 
-9. **No CKEditor in team comments** - Legacy inline CKEditor in jqGrid caused crashes. Use plain textarea instead (sufficient for comments).
+9. **Soft delete teams with clear user feedback** - If players are rostered to a team, the backend sets `Active=false` instead of deleting the row. The API returns a `DeleteTeamResultDto` with `wasDeactivated: true/false` and a human-readable `message`. Tree node renders dimmed (reduced opacity, strikethrough name, red "Inactive" badge).
 
-10. **Validation at field level** - Real-time validation as user types (e.g., "Team name already exists", "Start date must be before end date").
+10. **Authorization via JWT** - ALL endpoints derive jobId from token via `GetJobIdFromRegistrationAsync()`, never from route params. Each entity validated for job ownership before any CRUD operation.
 
-11. **Soft delete teams with clear user feedback** - If players are rostered to a team, the backend sets `Active=false` instead of deleting the row (preserves historical data and registration references). The API returns a `DeleteTeamResultDto` with `wasDeactivated: true/false` and a human-readable `message`. The frontend handles the two outcomes distinctly:
-    - **Hard delete** (no players): team disappears from tree, selection clears — user sees it's gone.
-    - **Soft delete** (has players): detail panel stays open with an alert explaining the team was deactivated, the `Active` toggle updates to unchecked, and the tree node renders dimmed (reduced opacity, strikethrough name, red "Inactive" badge). The user is never left wondering what happened.
+11. **Single tree fetch** - `GetLadtTreeAsync()` returns full 4-level hierarchy in one query (with counts). Reduces N+1 queries, improves performance.
 
-12. **Authorization via JWT** - ALL endpoints derive jobId from token, never from route params. Prevents cross-job data access vulnerabilities.
-
-13. **Single tree fetch** - `GetLadtTreeAsync()` returns full 4-level hierarchy in one query (with counts). Reduces N+1 queries, improves performance.
+12. **No CKEditor in team comments** - Legacy inline CKEditor in jqGrid caused crashes. Use plain textarea instead.
 
 ---
 
 ## 11. Verification Checklist
 
-- [ ] Backend compiles (`dotnet build`)
-- [ ] All 4 repositories implement CRUD correctly
-- [ ] `LadtService` returns hierarchical tree with accurate counts
-- [ ] API endpoints respond correctly (test via Swagger)
-- [ ] TypeScript models generated (run regeneration script)
-- [ ] Frontend compiles (`ng build`)
-- [ ] CDK Tree loads full hierarchy with expand/collapse working
-- [ ] Expand All / Collapse All buttons work correctly
-- [ ] Tree selection updates detail panel (league/agegroup/division/team)
-- [ ] Add agegroup from league level (no friction)
-- [ ] Add division from division list (no friction)
-- [ ] Add team from team list (no friction)
-- [ ] Auto-create stub division when adding agegroup
-- [ ] Edit agegroup modal saves correctly, tree updates without full reload
-- [ ] Edit team modal (40+ fields) saves correctly, all sections accessible
+- [x] Backend compiles (`dotnet build`) — 0 errors, warnings only
+- [x] All 4+2 repositories implement CRUD correctly (League, Agegroup, Division, Team + existing)
+- [x] `LadtService` returns hierarchical tree with accurate counts
+- [x] Sibling batch endpoints return all siblings at each level
+- [x] TypeScript models generated (run regeneration script)
+- [x] Frontend compiles (`ng build`) — 0 errors
+- [x] CDK Tree loads full hierarchy with signal-driven expand/collapse
+- [x] Expand All / Collapse All buttons work correctly
+- [x] Tree selection updates detail panel AND loads sibling comparison grid
+- [x] Add agegroup from league level (+ button on hover)
+- [x] Add division from agegroup level (+ button on hover)
+- [x] Add team from division level (+ button on hover)
+- [x] Auto-create stub division when adding agegroup
+- [x] Blue team count + green player count badges at all hierarchy levels
+- [x] Inactive nodes dimmed with strikethrough + red "Inactive" badge
+- [ ] Sibling comparison grid: frozen name column stays visible during horizontal scroll
+- [ ] Sibling comparison grid: click row selects entity in tree + detail form
+- [ ] Sibling comparison grid: boolean checkmarks, currency formatting, date formatting
+- [ ] Edit detail form saves correctly, grid + tree both refresh
 - [ ] Delete agegroup/division with children shows validation error
-- [ ] Delete team with rostered players deactivates (dimmed in tree, alert shown, Active unchecked)
+- [ ] Delete team with rostered players deactivates (dimmed in tree)
 - [ ] Delete team with no players permanently removes it from tree
 - [ ] Clone team creates duplicate with " (Copy)" suffix
 - [ ] Add Waitlists batch operation creates WAITLIST agegroups for all leagues
 - [ ] Update Player Fees batch operation updates all player registrations
-- [ ] Search/filter in tree narrows nodes in real-time
 - [ ] Tree expand/collapse state persists after CRUD operations
-- [ ] Tree scroll position preserved after CRUD operations
 - [ ] Team/player counts aggregate correctly at all levels
-- [ ] Footer shows total teams/players across all leagues
+- [ ] Header shows total teams/players across all leagues
 - [ ] Mobile drawer: tree slides in/out, breadcrumb shows current path
 - [ ] Mobile: backdrop closes drawer on tap, node selection closes drawer
-- [ ] All 8 color palettes render correctly (CDK Tree uses CSS variables natively)
-- [ ] Keyboard navigation works (Tab, Enter, Arrow keys — CDK ARIA tree)
+- [ ] All 8 color palettes render correctly (all CSS variable themed)
 - [ ] Performance test: 500+ teams load in < 2s, smooth scrolling
-- [ ] Route `/:jobPath/ladt/admin` accessible to Directors/SuperDirectors/Superusers only
-- [ ] Menu item for `LADT/Admin` no longer shows "Coming Soon" badge
+- [ ] Route accessible to Directors/SuperDirectors/Superusers only
 
 ---
 
@@ -1000,7 +1000,20 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | 7 | LadtService LOC estimate raised to ~1,200 | Original 800 LOC underestimated for 4-entity CRUD + tree + batch ops + validation |
 | 8 | All templates use `@if`/`@for` (not `*ngIf`/`*ngFor`) | Project standard: modern Angular control flow syntax |
 | 9 | Soft delete returns `DeleteTeamResultDto` with distinct frontend handling | Admin must clearly see whether team was deleted vs deactivated — dimmed tree node + alert + Active toggle update for soft delete; disappears for hard delete |
+| 10 | Signal-driven expansion replaces CDK's built-in expansion model | CDK Tree with `levelAccessor` + flat nodes does NOT manage visibility — renders all nodes always. `expandedIds` signal + `visibleNodes` computed signal filters flat nodes before passing to CdkTree. Also fixes double-toggle bug from `cdkTreeNodeToggle` directive. |
+| 11 | Sibling comparison grid added (native HTML table, NOT Syncfusion) | Replicates legacy's most powerful UX: click a node → see ALL siblings in a scrollable table with frozen name column. Native `<table>` + CSS `position: sticky` is lighter, zero dependencies, zero `::ng-deep` hacks, fully CSS-variable themed. Grid is read-only for comparison; editing stays in detail form. |
+| 12 | Backend sibling batch endpoints added | 4 GET endpoints (`leagues/siblings`, `agegroups/by-league/{id}`, `divisions/by-agegroup/{id}`, `teams/by-division/{id}`) avoid N+1 detail fetches for comparison grid. Reuse existing Map helpers. |
+| 13 | Detail panel split: grid (top) + form (bottom) | Right panel splits vertically — sibling grid fills available space, detail form capped at 50% height with own scroll. Click grid row to switch selected entity. |
+| 14 | Modal dialogs deferred | Inline detail forms handle all editing. Modals may be added later for bulk operations or "focus mode" editing. |
 
 ---
 
-**This migration plan is ready for implementation. The Angular CDK Tree provides expand/collapse, expand all/collapse all, keyboard navigation, and ARIA accessibility with zero CSS conflicts across all 8 palettes. The off-canvas drawer pattern on mobile gives directors full detail-panel width while keeping the tree navigation one tap away. Smart defaults and frictionless add-at-every-level UX will significantly improve the director experience.**
+**Implementation is substantially complete. Core features working:**
+- Angular CDK Tree with signal-driven expand/collapse (bypasses CDK limitations with flat trees)
+- Sibling comparison grid using native HTML table with frozen name column + horizontal scroll (no Syncfusion)
+- 4 backend batch endpoints for sibling data, reusing existing Map helpers
+- Detail edit forms for all 4 entity levels, integrated below the comparison grid
+- Mobile off-canvas drawer, breadcrumb bar, responsive layout
+- All 8 palettes supported via CSS variable theming throughout
+
+**Remaining work**: Manual testing, UX polish, and edge case handling (see verification checklist).

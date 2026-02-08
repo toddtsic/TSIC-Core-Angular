@@ -111,6 +111,24 @@ export class LadtService {
     return this.http.post<string>(`${this.apiUrl}/teams/stub/${divId}`, null);
   }
 
+  // ── Sibling batch queries ──
+
+  getLeagueSiblings(): Observable<LeagueDetailDto[]> {
+    return this.http.get<LeagueDetailDto[]>(`${this.apiUrl}/leagues/siblings`);
+  }
+
+  getAgegroupSiblings(leagueId: string): Observable<AgegroupDetailDto[]> {
+    return this.http.get<AgegroupDetailDto[]>(`${this.apiUrl}/agegroups/by-league/${leagueId}`);
+  }
+
+  getDivisionSiblings(agegroupId: string): Observable<DivisionDetailDto[]> {
+    return this.http.get<DivisionDetailDto[]>(`${this.apiUrl}/divisions/by-agegroup/${agegroupId}`);
+  }
+
+  getTeamSiblings(divId: string): Observable<TeamDetailDto[]> {
+    return this.http.get<TeamDetailDto[]>(`${this.apiUrl}/teams/by-division/${divId}`);
+  }
+
   // ── Batch ──
 
   addWaitlistAgegroups(): Observable<number> {

@@ -442,5 +442,29 @@ public class TeamRepository : ITeamRepository
             .AsNoTracking()
             .AnyAsync(t => t.TeamId == teamId && t.JobId == jobId, cancellationToken);
     }
+
+    public async Task<Dictionary<Guid, string?>> GetClubNamesByJobAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null)
+            .Join(_context.Registrations,
+                t => t.ClubrepRegistrationid,
+                r => r.RegistrationId,
+                (t, r) => new { t.TeamId, r.ClubName })
+            .ToDictionaryAsync(x => x.TeamId, x => x.ClubName, cancellationToken);
+    }
+
+    public async Task<string?> GetClubNameForTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.TeamId == teamId && t.ClubrepRegistrationid != null)
+            .Join(_context.Registrations,
+                t => t.ClubrepRegistrationid,
+                r => r.RegistrationId,
+                (t, r) => r.ClubName)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }
 

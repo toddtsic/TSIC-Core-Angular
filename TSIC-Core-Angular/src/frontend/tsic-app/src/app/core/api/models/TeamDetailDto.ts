@@ -9,6 +9,7 @@ export type TeamDetailDto = {
     leagueId: string;
     jobId: string;
     teamName?: string | null;
+    clubName?: string | null;
     active?: boolean | null;
     divRank: number;
     divisionRequested?: string | null;

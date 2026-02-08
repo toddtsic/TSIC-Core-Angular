@@ -12,6 +12,7 @@ export type LadtTreeNodeDto = {
     playerCount: number;
     expanded: boolean;
     active: boolean;
+    clubName?: string | null;
     children?: any[] | null;
 };
 

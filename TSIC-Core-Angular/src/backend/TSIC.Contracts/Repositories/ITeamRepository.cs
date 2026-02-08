@@ -251,6 +251,19 @@ public interface ITeamRepository
     /// Check if a team belongs to a job.
     /// </summary>
     Task<bool> BelongsToJobAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get club names for all teams in a job (bulk, for tree/grid).
+    /// Joins Teams → Registrations via ClubrepRegistrationid to get ClubName.
+    /// Returns TeamId → ClubName mapping (only teams with a club rep).
+    /// </summary>
+    Task<Dictionary<Guid, string?>> GetClubNamesByJobAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get club name for a single team (for detail view).
+    /// Returns null if team has no ClubrepRegistrationid.
+    /// </summary>
+    Task<string?> GetClubNameForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
 }
 
 public record TeamWithRegistrationInfo

@@ -42,6 +42,13 @@ public interface ILadtService
     Task<TeamDetailDto> CloneTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<Guid> AddStubTeamAsync(Guid divId, Guid jobId, string userId, CancellationToken cancellationToken = default);
 
+    // ── Sibling batch queries ──
+
+    Task<List<LeagueDetailDto>> GetLeagueSiblingsAsync(Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<AgegroupDetailDto>> GetAgegroupsByLeagueAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<DivisionDetailDto>> GetDivisionsByAgegroupAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<TeamDetailDto>> GetTeamsByDivisionAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default);
+
     // ── Batch operations ──
 
     Task<int> AddWaitlistAgegroupsAsync(Guid jobId, string userId, CancellationToken cancellationToken = default);

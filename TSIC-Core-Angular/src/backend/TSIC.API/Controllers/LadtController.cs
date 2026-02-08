@@ -327,6 +327,62 @@ public class LadtController : ControllerBase
     }
 
     // ═══════════════════════════════════════════
+    // Sibling Batch Queries
+    // ═══════════════════════════════════════════
+
+    [HttpGet("leagues/siblings")]
+    public async Task<ActionResult<List<LeagueDetailDto>>> GetLeagueSiblings(CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var list = await _ladtService.GetLeagueSiblingsAsync(jobId!.Value, cancellationToken);
+        return Ok(list);
+    }
+
+    [HttpGet("agegroups/by-league/{leagueId:guid}")]
+    public async Task<ActionResult<List<AgegroupDetailDto>>> GetAgegroupsByLeague(Guid leagueId, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var list = await _ladtService.GetAgegroupsByLeagueAsync(leagueId, jobId!.Value, cancellationToken);
+            return Ok(list);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpGet("divisions/by-agegroup/{agegroupId:guid}")]
+    public async Task<ActionResult<List<DivisionDetailDto>>> GetDivisionsByAgegroup(Guid agegroupId, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var list = await _ladtService.GetDivisionsByAgegroupAsync(agegroupId, jobId!.Value, cancellationToken);
+            return Ok(list);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpGet("teams/by-division/{divId:guid}")]
+    public async Task<ActionResult<List<TeamDetailDto>>> GetTeamsByDivision(Guid divId, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var list = await _ladtService.GetTeamsByDivisionAsync(divId, jobId!.Value, cancellationToken);
+            return Ok(list);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    // ═══════════════════════════════════════════
     // Batch Operations
     // ═══════════════════════════════════════════
 

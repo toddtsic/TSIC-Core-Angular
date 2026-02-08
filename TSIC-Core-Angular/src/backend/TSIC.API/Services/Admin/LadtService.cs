@@ -39,6 +39,7 @@ public sealed class LadtService : ILadtService
     {
         var leagues = await _leagueRepo.GetLeaguesByJobIdAsync(jobId, cancellationToken);
         var playerCounts = await _teamRepo.GetPlayerCountsByTeamAsync(jobId, cancellationToken);
+        var clubNames = await _teamRepo.GetClubNamesByJobAsync(jobId, cancellationToken);
 
         var totalTeams = 0;
         var totalPlayers = 0;
@@ -77,6 +78,7 @@ public sealed class LadtService : ILadtService
                             PlayerCount = pc,
                             Expanded = false,
                             Active = team.Active == true,
+                            ClubName = clubNames.GetValueOrDefault(team.TeamId),
                             Children = null
                         });
                     }
@@ -442,7 +444,8 @@ public sealed class LadtService : ILadtService
         var team = await _teamRepo.GetByIdReadOnlyAsync(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
         var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
-        return MapTeam(team, playerCount);
+        var clubName = await _teamRepo.GetClubNameForTeamAsync(teamId, cancellationToken);
+        return MapTeam(team, playerCount, clubName);
     }
 
     public async Task<TeamDetailDto> CreateTeamAsync(CreateTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
@@ -563,7 +566,8 @@ public sealed class LadtService : ILadtService
 
         await _teamRepo.SaveChangesAsync(cancellationToken);
         var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
-        return MapTeam(team, playerCount);
+        var clubName = await _teamRepo.GetClubNameForTeamAsync(teamId, cancellationToken);
+        return MapTeam(team, playerCount, clubName);
     }
 
     public async Task<DeleteTeamResultDto> DeleteTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default)
@@ -771,6 +775,39 @@ public sealed class LadtService : ILadtService
     }
 
     // ═══════════════════════════════════════════
+    // Sibling Batch Queries
+    // ═══════════════════════════════════════════
+
+    public async Task<List<LeagueDetailDto>> GetLeagueSiblingsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var leagues = await _leagueRepo.GetLeaguesByJobIdAsync(jobId, cancellationToken);
+        return leagues.Select(MapLeague).ToList();
+    }
+
+    public async Task<List<AgegroupDetailDto>> GetAgegroupsByLeagueAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        await ValidateLeagueOwnershipAsync(leagueId, jobId, cancellationToken);
+        var agegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, cancellationToken);
+        return agegroups.Select(MapAgegroup).ToList();
+    }
+
+    public async Task<List<DivisionDetailDto>> GetDivisionsByAgegroupAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
+        var divisions = await _divisionRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
+        return divisions.Select(MapDivision).ToList();
+    }
+
+    public async Task<List<TeamDetailDto>> GetTeamsByDivisionAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        await ValidateDivisionOwnershipAsync(divId, jobId, cancellationToken);
+        var teams = await _teamRepo.GetByDivisionIdAsync(divId, cancellationToken);
+        var playerCounts = await _teamRepo.GetPlayerCountsByTeamAsync(jobId, cancellationToken);
+        var clubNames = await _teamRepo.GetClubNamesByJobAsync(jobId, cancellationToken);
+        return teams.Select(t => MapTeam(t, playerCounts.GetValueOrDefault(t.TeamId, 0), clubNames.GetValueOrDefault(t.TeamId))).ToList();
+    }
+
+    // ═══════════════════════════════════════════
     // Validation Helpers
     // ═══════════════════════════════════════════
 
@@ -865,7 +902,7 @@ public sealed class LadtService : ILadtService
         MaxRoundNumberToShow = d.MaxRoundNumberToShow
     };
 
-    private static TeamDetailDto MapTeam(TSIC.Domain.Entities.Teams t, int playerCount) => new()
+    private static TeamDetailDto MapTeam(TSIC.Domain.Entities.Teams t, int playerCount, string? clubName = null) => new()
     {
         TeamId = t.TeamId,
         DivId = t.DivId,
@@ -873,6 +910,7 @@ public sealed class LadtService : ILadtService
         LeagueId = t.LeagueId,
         JobId = t.JobId,
         TeamName = t.TeamName,
+        ClubName = clubName,
         Active = t.Active,
         DivRank = t.DivRank,
         DivisionRequested = t.DivisionRequested,

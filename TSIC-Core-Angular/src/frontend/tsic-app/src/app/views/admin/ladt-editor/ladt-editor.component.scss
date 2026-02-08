@@ -63,6 +63,10 @@
   min-height: 32px;
   padding-right: var(--space-1);
 
+  &.has-club {
+    min-height: 40px;
+  }
+
   &:hover {
     background: var(--bs-tertiary-bg);
   }
@@ -144,6 +148,28 @@
   white-space: nowrap;
 }
 
+.tree-label-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.tree-label-primary {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-label-secondary {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .node-badges {
   display: flex;
   gap: 0.25rem;
@@ -176,8 +202,9 @@
 
 .detail-panel {
   flex: 1;
-  overflow-y: auto;
-  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -188,6 +215,22 @@
   justify-content: center;
   height: 100%;
   text-align: center;
+}
+
+// ── Sibling Grid + Detail Split ──
+
+.sibling-grid-container {
+  flex: 1;
+  min-height: 200px;
+  overflow: hidden;
+  border-bottom: 2px solid var(--bs-border-color);
+}
+
+.detail-form-container {
+  flex: 0 0 auto;
+  max-height: 50%;
+  overflow-y: auto;
+  padding: var(--space-4);
 }
 
 // ── Mobile Breadcrumb ──

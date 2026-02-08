@@ -26,5 +26,6 @@ public record LadtTreeNodeDto
     public required int PlayerCount { get; init; }
     public required bool Expanded { get; init; }
     public required bool Active { get; init; }
+    public string? ClubName { get; init; }
     public List<LadtTreeNodeDto>? Children { get; init; }
 }
