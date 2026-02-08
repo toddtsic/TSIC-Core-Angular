@@ -76,6 +76,8 @@ builder.Services.AddScoped<ITextSubstitutionRepository, TextSubstitutionReposito
 builder.Services.AddScoped<IProfileMetadataRepository, ProfileMetadataRepository>();
 builder.Services.AddScoped<IAdministratorRepository, AdministratorRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
+builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
+builder.Services.AddScoped<IDivisionRepository, DivisionRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
@@ -129,6 +131,7 @@ builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdministratorService, AdministratorService>();
 builder.Services.AddScoped<IDiscountCodeService, DiscountCodeService>();
+builder.Services.AddScoped<ILadtService, LadtService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

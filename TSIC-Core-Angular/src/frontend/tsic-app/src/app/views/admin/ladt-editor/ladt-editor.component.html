@@ -1,0 +1,176 @@
+<!-- Error banner -->
+@if (errorMessage()) {
+  <div class="alert alert-danger d-flex align-items-center mx-3 mt-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    {{ errorMessage() }}
+    <button type="button" class="btn-close ms-auto" (click)="errorMessage.set(null)"></button>
+  </div>
+}
+
+<!-- Mobile breadcrumb bar (< 768px) -->
+<div class="mobile-breadcrumb d-md-none">
+  <button class="btn btn-sm btn-outline-secondary" (click)="toggleDrawer()">
+    <i class="bi bi-list me-1"></i>Tree
+  </button>
+  @if (selectedNode()) {
+    <span class="breadcrumb-label">
+      <i class="bi {{ getLevelIcon(selectedLevel()) }} me-1"></i>
+      {{ selectedNode()!.name }}
+    </span>
+  }
+</div>
+
+<!-- Main layout -->
+<div class="ladt-layout">
+  <!-- Backdrop for mobile drawer -->
+  @if (drawerOpen()) {
+    <div class="drawer-backdrop d-md-none" (click)="drawerOpen.set(false)"></div>
+  }
+
+  <!-- Tree panel (left) -->
+  <aside class="tree-panel" [class.drawer-open]="drawerOpen()">
+    <div class="tree-header">
+      <h6 class="mb-0">LADT Hierarchy</h6>
+      <div class="tree-stats">
+        <span class="badge bg-primary-subtle text-primary-emphasis">{{ totalTeams() }} teams</span>
+        <span class="badge bg-success-subtle text-success-emphasis">{{ totalPlayers() }} players</span>
+      </div>
+    </div>
+
+    <div class="tree-toolbar">
+      <button class="btn btn-sm btn-outline-secondary" (click)="expandAll()" title="Expand all">
+        <i class="bi bi-arrows-expand"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()" title="Collapse all">
+        <i class="bi bi-arrows-collapse"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-secondary ms-auto" (click)="loadTree()" title="Refresh"
+              [disabled]="isLoading()">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><button class="dropdown-item" (click)="addWaitlistAgegroups()">
+            <i class="bi bi-hourglass-split me-2"></i>Add WAITLIST Age Groups
+          </button></li>
+        </ul>
+      </div>
+    </div>
+
+    @if (isLoading()) {
+      <div class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    } @else if (flatNodes().length === 0) {
+      <div class="text-center py-4 text-body-secondary">
+        <i class="bi bi-folder2-open fs-3 d-block mb-2"></i>
+        No leagues found for this job.
+      </div>
+    } @else {
+      <div class="tree-scroll">
+        <cdk-tree [dataSource]="visibleNodes()" [levelAccessor]="levelAccessor" [trackBy]="trackById">
+          <cdk-tree-node *cdkTreeNodeDef="let node" class="tree-node"
+                         [class.selected]="selectedNode()?.id === node.id"
+                         [class.inactive]="!node.active"
+                         [style.padding-left.px]="node.level * 20 + 8">
+            <span class="tree-toggle-spacer"></span>
+            <button class="tree-node-btn" (click)="selectNode(node)">
+              <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
+              <span class="tree-label">{{ node.name }}</span>
+              @if (!node.active) {
+                <span class="badge bg-danger-subtle text-danger-emphasis ms-1">Inactive</span>
+              }
+              <span class="node-badges ms-auto">
+                @if (node.level < 3) {
+                  <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount }}</span>
+                }
+                <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount }}</span>
+              </span>
+            </button>
+            <!-- Add child button for leaf nodes at levels 0-2 -->
+            @if (node.level === 2) {
+              <button class="btn-add-child" title="Add Team" (click)="addStubTeam(node.id); $event.stopPropagation()">
+                <i class="bi bi-plus-circle"></i>
+              </button>
+            }
+          </cdk-tree-node>
+
+          <cdk-tree-node *cdkTreeNodeDef="let node; when: hasChild" class="tree-node"
+                         [class.selected]="selectedNode()?.id === node.id"
+                         [class.inactive]="!node.active"
+                         [style.padding-left.px]="node.level * 20 + 8">
+            <button class="tree-toggle" (click)="toggleNode(node)">
+              <i class="bi" [class.bi-chevron-right]="!isNodeExpanded(node)"
+                 [class.bi-chevron-down]="isNodeExpanded(node)"></i>
+            </button>
+            <button class="tree-node-btn" (click)="selectNode(node)">
+              <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
+              <span class="tree-label">{{ node.name }}</span>
+              <span class="node-badges ms-auto">
+                @if (node.level < 3) {
+                  <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount }}</span>
+                }
+                <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount }}</span>
+              </span>
+            </button>
+            <!-- Add child buttons by level -->
+            @if (node.level === 0) {
+              <button class="btn-add-child" title="Add Age Group" (click)="addStubAgegroup(node.id); $event.stopPropagation()">
+                <i class="bi bi-plus-circle"></i>
+              </button>
+            }
+            @if (node.level === 1) {
+              <button class="btn-add-child" title="Add Division" (click)="addStubDivision(node.id); $event.stopPropagation()">
+                <i class="bi bi-plus-circle"></i>
+              </button>
+            }
+            @if (node.level === 2) {
+              <button class="btn-add-child" title="Add Team" (click)="addStubTeam(node.id); $event.stopPropagation()">
+                <i class="bi bi-plus-circle"></i>
+              </button>
+            }
+          </cdk-tree-node>
+        </cdk-tree>
+      </div>
+    }
+  </aside>
+
+  <!-- Detail panel (right) -->
+  <main class="detail-panel">
+    @if (!selectedNode()) {
+      <div class="empty-detail">
+        <i class="bi bi-hand-index fs-1 text-body-secondary"></i>
+        <p class="mt-3 text-body-secondary">Select an item from the tree to view its details.</p>
+      </div>
+    } @else if (selectedLevel() === 0) {
+      <app-league-detail
+        [leagueId]="selectedNode()!.id"
+        (saved)="onDetailSaved()"
+      />
+    } @else if (selectedLevel() === 1) {
+      <app-agegroup-detail
+        [agegroupId]="selectedNode()!.id"
+        (saved)="onDetailSaved()"
+        (deleted)="onDetailDeleted()"
+      />
+    } @else if (selectedLevel() === 2) {
+      <app-division-detail
+        [divisionId]="selectedNode()!.id"
+        (saved)="onDetailSaved()"
+        (deleted)="onDetailDeleted()"
+      />
+    } @else if (selectedLevel() === 3) {
+      <app-team-detail
+        [teamId]="selectedNode()!.id"
+        (saved)="onDetailSaved()"
+        (deleted)="onDetailDeleted()"
+        (cloned)="onDetailSaved()"
+      />
+    }
+  </main>
+</div>

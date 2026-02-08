@@ -8,7 +8,8 @@
       "Bash(dotnet add package:*)",
       "Bash(git add:*)",
       "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nfeat: port ReportingController with ~97 endpoints and Angular report launcher\n\nServer-side Crystal Reports proxy, SP-based Excel exports \\(EPPlus\\), iCal schedule\nexport, and export history tracking — all following clean architecture with JWT-derived\ncontext. Single Angular route \\(reporting/:action\\) handles all report menu items with\nwildcard prefix matching to remove Coming Soon badges.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nfeat: implement LADT editor with signal-driven tree expansion and hierarchy badges\n\nBackend: LadtController, LadtService, League/Division repositories,\nLADT admin methods on AgeGroup/Team repositories. Frontend: full LADT\nhierarchy editor with league/agegroup/division/team detail panels,\nsignal-based expand/collapse \\(bypasses broken CDK FlatTreeControl\\),\nblue team + green player badges at all levels, and add-child stubs.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

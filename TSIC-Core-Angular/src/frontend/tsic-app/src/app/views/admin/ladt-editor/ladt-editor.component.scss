@@ -1,0 +1,243 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+// ── Layout ──
+
+.ladt-layout {
+  display: flex;
+  height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+// ── Tree Panel ──
+
+.tree-panel {
+  width: 320px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+}
+
+.tree-header {
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--bs-border-color);
+
+  h6 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color);
+  }
+
+  .tree-stats {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+  }
+}
+
+.tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.tree-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+// ── Tree Nodes ──
+
+.tree-node {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding-right: var(--space-1);
+
+  &:hover {
+    background: var(--bs-tertiary-bg);
+  }
+
+  &.selected {
+    background: rgba(var(--bs-primary-rgb), 0.1);
+
+    .tree-label {
+      font-weight: 600;
+      color: var(--bs-primary);
+    }
+  }
+
+  &.inactive {
+    opacity: 0.55;
+
+    .tree-label {
+      text-decoration: line-through;
+      font-style: italic;
+    }
+  }
+}
+
+.tree-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--bs-body-color);
+  }
+
+  .bi {
+    font-size: 0.7rem;
+  }
+}
+
+.tree-toggle-spacer {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.tree-node-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: none;
+  background: none;
+  color: var(--bs-body-color);
+  cursor: pointer;
+  padding: 2px 4px;
+  text-align: left;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.tree-icon {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+
+  &.level-0 { color: var(--bs-primary); }
+  &.level-1 { color: var(--bs-success); }
+  &.level-2 { color: var(--bs-warning); }
+  &.level-3 { color: var(--bs-info); }
+}
+
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-badges {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.btn-add-child {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--bs-primary);
+  }
+
+  .tree-node:hover & {
+    display: flex;
+  }
+}
+
+// ── Detail Panel ──
+
+.detail-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.empty-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+// ── Mobile Breadcrumb ──
+
+.mobile-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+}
+
+.breadcrumb-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Mobile Drawer ──
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1040;
+}
+
+@media (max-width: 767.98px) {
+  .tree-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1050;
+    width: 300px;
+    min-width: 300px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+
+    &.drawer-open {
+      transform: translateX(0);
+      box-shadow: var(--bs-box-shadow-lg, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+    }
+  }
+
+  .detail-panel {
+    padding: var(--space-3);
+  }
+}

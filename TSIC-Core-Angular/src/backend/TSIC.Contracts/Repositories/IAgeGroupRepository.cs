@@ -33,6 +33,27 @@ public interface IAgeGroupRepository
     /// Get age group by ID.
     /// </summary>
     Task<Agegroups?> GetByIdAsync(Guid ageGroupId, CancellationToken cancellationToken = default);
+
+    // ── LADT Admin methods ──
+
+    /// <summary>
+    /// Get all agegroups for a league (read-only, for LADT tree).
+    /// </summary>
+    Task<List<Agegroups>> GetByLeagueIdAsync(Guid leagueId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if an agegroup has any teams (for delete validation).
+    /// </summary>
+    Task<bool> HasTeamsAsync(Guid agegroupId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if an agegroup belongs to a job (via League → JobLeagues).
+    /// </summary>
+    Task<bool> BelongsToJobAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
+
+    void Add(Agegroups agegroup);
+    void Remove(Agegroups agegroup);
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
 public record AgeGroupForRegistration

@@ -209,6 +209,48 @@ public interface ITeamRepository
     /// Bulk update team fees efficiently using UpdateRange.
     /// </summary>
     Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default);
+
+    // ── LADT Admin methods ──
+
+    /// <summary>
+    /// Get all teams for a division (read-only, for LADT tree).
+    /// </summary>
+    Task<List<Teams>> GetByDivisionIdAsync(Guid divId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all teams for an agegroup (read-only, for LADT tree when no division).
+    /// </summary>
+    Task<List<Teams>> GetByAgegroupIdAsync(Guid agegroupId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get team by ID with full details (read-only).
+    /// </summary>
+    Task<Teams?> GetByIdReadOnlyAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get max DivRank for a division (for new team ordering).
+    /// </summary>
+    Task<int> GetMaxDivRankAsync(Guid divId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if a team has any rostered players (for delete validation).
+    /// </summary>
+    Task<bool> HasRosteredPlayersAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get player count for a team.
+    /// </summary>
+    Task<int> GetPlayerCountAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get player counts for all teams in a job (bulk, for tree).
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetPlayerCountsByTeamAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if a team belongs to a job.
+    /// </summary>
+    Task<bool> BelongsToJobAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
 }
 
 public record TeamWithRegistrationInfo

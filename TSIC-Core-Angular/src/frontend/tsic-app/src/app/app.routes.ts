@@ -112,6 +112,12 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
+			},
+			{
+				path: 'ladt/admin',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/ladt-editor/ladt-editor.component').then(m => m.LadtEditorComponent)
 			}
 		]
 	},

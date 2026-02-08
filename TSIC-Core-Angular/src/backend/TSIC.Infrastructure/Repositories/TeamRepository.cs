@@ -371,5 +371,76 @@ public class TeamRepository : ITeamRepository
             .Select(t => (Guid?)t.AgegroupId)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    // ── LADT Admin methods ──
+
+    public async Task<List<Teams>> GetByDivisionIdAsync(Guid divId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.DivId == divId)
+            .OrderBy(t => t.DivRank)
+            .ThenBy(t => t.TeamName)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Teams>> GetByAgegroupIdAsync(Guid agegroupId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.AgegroupId == agegroupId)
+            .OrderBy(t => t.DivRank)
+            .ThenBy(t => t.TeamName)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Teams?> GetByIdReadOnlyAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TeamId == teamId, cancellationToken);
+    }
+
+    public async Task<int> GetMaxDivRankAsync(Guid divId, CancellationToken cancellationToken = default)
+    {
+        var maxRank = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.DivId == divId)
+            .Select(t => (int?)t.DivRank)
+            .MaxAsync(cancellationToken);
+
+        return maxRank ?? 0;
+    }
+
+    public async Task<bool> HasRosteredPlayersAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .AnyAsync(r => r.AssignedTeamId == teamId && r.BActive == true, cancellationToken);
+    }
+
+    public async Task<int> GetPlayerCountAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .CountAsync(r => r.AssignedTeamId == teamId && r.BActive == true, cancellationToken);
+    }
+
+    public async Task<Dictionary<Guid, int>> GetPlayerCountsByTeamAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true && r.AssignedTeamId != null)
+            .GroupBy(r => r.AssignedTeamId!.Value)
+            .Select(g => new { TeamId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);
+    }
+
+    public async Task<bool> BelongsToJobAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .AnyAsync(t => t.TeamId == teamId && t.JobId == jobId, cancellationToken);
+    }
 }
 

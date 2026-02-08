@@ -70,4 +70,40 @@ public class AgeGroupRepository : IAgeGroupRepository
     {
         return await _context.Agegroups.FindAsync(new object[] { ageGroupId }, cancellationToken);
     }
+
+    // ── LADT Admin methods ──
+
+    public async Task<List<Agegroups>> GetByLeagueIdAsync(Guid leagueId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.LeagueId == leagueId)
+            .OrderBy(a => a.SortAge)
+            .ThenBy(a => a.AgegroupName)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> HasTeamsAsync(Guid agegroupId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .AnyAsync(t => t.AgegroupId == agegroupId, cancellationToken);
+    }
+
+    public async Task<bool> BelongsToJobAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.AgegroupId == agegroupId)
+            .Join(_context.JobLeagues.Where(jl => jl.JobId == jobId),
+                a => a.LeagueId, jl => jl.LeagueId, (a, jl) => true)
+            .AnyAsync(cancellationToken);
+    }
+
+    public void Add(Agegroups agegroup) => _context.Agegroups.Add(agegroup);
+
+    public void Remove(Agegroups agegroup) => _context.Agegroups.Remove(agegroup);
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => await _context.SaveChangesAsync(cancellationToken);
 }
