@@ -91,6 +91,11 @@ The legacy `LADT/Admin` page is **one of the most heavily used and critical** ad
 - **Context-Sensitive Add Buttons** - Per-node "+" buttons in tree visible on hover (add agegroup on leagues, add division on agegroups, add team on divisions)
 - **Live Aggregate Counts** - Blue team count + green player count badges at all tree levels
 - **Collapsible Tree Persistence** - Expand/collapse state survives CRUD operations (signal-based, not CDK-managed)
+- **Two-Line Tree Nodes** - Team nodes with club rep show club name (primary, bold) + team name (secondary, smaller muted text) via flex-column label group
+- **Special Entity Visual Distinction** - `isSpecial` flag on `LadtFlatNode` applies muted opacity + italic styling for segregated entities (Dropped Teams, WAITLIST age groups, "Unassigned" divisions)
+- **Protected Entity Pattern** - "Unassigned" division demonstrates the pattern: backend `InvalidOperationException` guards + frontend disabled fields + info banner explaining the restriction
+- **Client-Side Duplicate Name Validation** - Division detail component checks `siblingNames` input before calling API, preventing unnecessary round-trips
+- **Collision-Safe Stub Naming** - Auto-generated names ("Pool A/B/C...") skip existing names using a HashSet lookup loop
 
 ### EMPLOYED (existing patterns reused)
 - Signal-based state management (all component state as signals)
@@ -854,7 +859,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | `TSIC.Contracts/Repositories/ITeamRepository.cs` | Done | ~30 |
 | `TSIC.Infrastructure/Repositories/TeamRepository.cs` | Done | ~120 |
 | `TSIC.Contracts/Services/ILadtService.cs` | Done | 56 |
-| `TSIC.API/Services/Admin/LadtService.cs` | Done | ~750 |
+| `TSIC.API/Services/Admin/LadtService.cs` | Done | ~960 |
 | `TSIC.API/Controllers/LadtController.cs` | Done | 430 |
 | `TSIC.API/Program.cs` | Modified | +10 |
 
@@ -862,15 +867,15 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 | File | Status | LOC |
 |------|--------|-----|
-| `ladt-editor/ladt-editor.component.ts` | Done | 299 |
-| `ladt-editor/ladt-editor.component.html` | Done | 200 |
-| `ladt-editor/ladt-editor.component.scss` | Done | 243 |
+| `ladt-editor/ladt-editor.component.ts` | Done | ~370 |
+| `ladt-editor/ladt-editor.component.html` | Done | ~225 |
+| `ladt-editor/ladt-editor.component.scss` | Done | ~300 |
 | `ladt-editor/services/ladt.service.ts` | Done | 141 |
-| `ladt-editor/configs/ladt-grid-columns.ts` | Done | 128 |
-| `ladt-editor/components/ladt-sibling-grid.component.ts` | Done | ~180 |
+| `ladt-editor/configs/ladt-grid-columns.ts` | Done | 143 |
+| `ladt-editor/components/ladt-sibling-grid.component.ts` | Done | ~350 |
 | `ladt-editor/components/league-detail.component.ts` | Done | ~120 |
 | `ladt-editor/components/agegroup-detail.component.ts` | Done | ~200 |
-| `ladt-editor/components/division-detail.component.ts` | Done | ~100 |
+| `ladt-editor/components/division-detail.component.ts` | Done | ~180 |
 | `ladt-editor/components/team-detail.component.ts` | Done | ~350 |
 | `core/api/models/` (auto-generated) | Done | ~15 files |
 | `app.routes.ts` | Modified | +7 |
@@ -922,24 +927,40 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - [x] Auto-create stub division when adding agegroup
 - [x] Blue team count + green player count badges at all hierarchy levels
 - [x] Inactive nodes dimmed with strikethrough + red "Inactive" badge
-- [ ] Sibling comparison grid: frozen name column stays visible during horizontal scroll
-- [ ] Sibling comparison grid: click row selects entity in tree + detail form
-- [ ] Sibling comparison grid: boolean checkmarks, currency formatting, date formatting
-- [ ] Edit detail form saves correctly, grid + tree both refresh
-- [ ] Delete agegroup/division with children shows validation error
-- [ ] Delete team with rostered players deactivates (dimmed in tree)
-- [ ] Delete team with no players permanently removes it from tree
-- [ ] Clone team creates duplicate with " (Copy)" suffix
-- [ ] Add Waitlists batch operation creates WAITLIST agegroups for all leagues
+- [x] Sibling comparison grid: frozen name column stays visible during horizontal scroll
+- [x] Sibling comparison grid: click row selects entity in tree + detail form
+- [x] Sibling comparison grid: boolean checkmarks, currency formatting, date formatting
+- [x] Sibling comparison grid: row numbers (frozen) + sortable column headers
+- [x] Edit detail form saves correctly, grid + tree both refresh
+- [x] Delete agegroup/division with children shows validation error
+- [x] Delete team with rostered players deactivates (dimmed in tree)
+- [x] Delete team with no players permanently removes it from tree
+- [x] Clone team creates duplicate with " (Copy)" suffix
+- [x] Add Waitlists batch operation creates WAITLIST agegroups for all leagues
 - [ ] Update Player Fees batch operation updates all player registrations
-- [ ] Tree expand/collapse state persists after CRUD operations
-- [ ] Team/player counts aggregate correctly at all levels
-- [ ] Header shows total teams/players across all leagues
-- [ ] Mobile drawer: tree slides in/out, breadcrumb shows current path
-- [ ] Mobile: backdrop closes drawer on tap, node selection closes drawer
+- [x] Tree expand/collapse state persists after CRUD operations
+- [x] Team/player counts aggregate correctly at all levels
+- [x] Header shows total teams/players across all leagues
+- [x] Mobile drawer: tree slides in/out, breadcrumb shows current path
+- [x] Mobile: backdrop closes drawer on tap, node selection closes drawer
 - [ ] All 8 color palettes render correctly (all CSS variable themed)
 - [ ] Performance test: 500+ teams load in < 2s, smooth scrolling
-- [ ] Route accessible to Directors/SuperDirectors/Superusers only
+- [x] Route accessible to Directors/SuperDirectors/Superusers only
+- [x] Club name display: teams with club rep show two-line layout (club name + team name)
+- [x] Club name column in team sibling grid (frozen)
+- [x] Tree tooltips show full club/team name on hover
+- [x] Inactive badge flush right in tree nodes
+- [x] Age groups sorted: regular alpha first, specials (Dropped Teams, WAITLIST*) last
+- [x] Special age groups visually distinguished (muted/italic)
+- [x] Initial tree state: leagues expanded on first load
+- [x] Collapse All keeps leagues expanded (showing age groups)
+- [x] "Unassigned" division auto-created with every age group (not "Pool A")
+- [x] "Unassigned" division: cannot be deleted (backend + frontend protection)
+- [x] "Unassigned" division: cannot be renamed (backend + frontend protection)
+- [x] "Unassigned" division: visual distinction in tree (muted/italic)
+- [x] "Unassigned" division: sorted first among sibling divisions in tree
+- [x] Division duplicate name prevention (client + server validation)
+- [x] Stub division naming collision-safe ("Pool A", "Pool B", etc., skipping existing names)
 
 ---
 
@@ -1005,15 +1026,26 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | 12 | Backend sibling batch endpoints added | 4 GET endpoints (`leagues/siblings`, `agegroups/by-league/{id}`, `divisions/by-agegroup/{id}`, `teams/by-division/{id}`) avoid N+1 detail fetches for comparison grid. Reuse existing Map helpers. |
 | 13 | Detail panel split: grid (top) + form (bottom) | Right panel splits vertically — sibling grid fills available space, detail form capped at 50% height with own scroll. Click grid row to switch selected entity. |
 | 14 | Modal dialogs deferred | Inline detail forms handle all editing. Modals may be added later for bulk operations or "focus mode" editing. |
+| 15 | Club name display on teams | Teams registered by a club rep show two-line layout in tree (club name primary, team name secondary) and a frozen "Club" column in the team sibling grid. Uses `ClubRepRegistrationId → Registrations.ClubName` join via `TeamRepository.GetClubNamesByJobAsync()` bulk dictionary. |
+| 16 | Sibling grid: row numbers + sortable columns | Frozen row-number column (#) as first column, all headers sortable (click to toggle asc/desc). Row numbers reflect current sort order. Sort state stored as signals, reset when data source changes. |
+| 17 | Tree tooltips + flush-right Inactive badge | All tree nodes have `[title]` showing full club + team name on hover. "Inactive" badge moved into `node-badges ms-auto` group for consistent right-alignment. |
+| 18 | Age group sorting with special segregation | Age groups sorted alphabetically within each league, with "Dropped Teams" and "WAITLIST*" groups pushed to the bottom. Specials visually distinguished with muted opacity + italic text. |
+| 19 | Initial expansion state: leagues expanded | On first load, `collapseAll()` runs which keeps all league-level nodes expanded (showing age groups). Collapse All button behaves the same way. |
+| 20 | "Unassigned" division business rule | Every age group MUST always have an "Unassigned" division. Cannot be deleted or renamed (backend `InvalidOperationException` + frontend disabled fields). Auto-created when age groups are created. Division duplicate name prevention (client + server). Stub division naming changed from count-based to collision-safe. "Unassigned" divisions visually muted in tree and sorted first among siblings. |
 
 ---
 
 **Implementation is substantially complete. Core features working:**
 - Angular CDK Tree with signal-driven expand/collapse (bypasses CDK limitations with flat trees)
 - Sibling comparison grid using native HTML table with frozen name column + horizontal scroll (no Syncfusion)
+- Sibling grid enhancements: row numbers (frozen), sortable columns, club name column for teams
 - 4 backend batch endpoints for sibling data, reusing existing Map helpers
 - Detail edit forms for all 4 entity levels, integrated below the comparison grid
+- Club name display: two-line tree nodes for teams with club rep, bulk lookup via repository
+- Age group sorting: regular alpha first, specials (Dropped Teams, WAITLIST*) last with visual distinction
+- "Unassigned" division business rule: auto-created, never deletable/renameable, duplicate name prevention
+- Tree tooltips, flush-right Inactive badges, initial expansion state (leagues expanded)
 - Mobile off-canvas drawer, breadcrumb bar, responsive layout
 - All 8 palettes supported via CSS variable theming throughout
 
-**Remaining work**: Manual testing, UX polish, and edge case handling (see verification checklist).
+**Remaining work**: Manual testing across all 8 palettes, performance testing with large datasets, and edge case handling (see verification checklist).

@@ -207,6 +207,7 @@
         } @else if (selectedLevel() === 2) {
           <app-division-detail
             [divisionId]="selectedNode()!.id"
+            [siblingNames]="siblingDivisionNames()"
             (saved)="onDetailSaved()"
             (deleted)="onDetailDeleted()"
           />

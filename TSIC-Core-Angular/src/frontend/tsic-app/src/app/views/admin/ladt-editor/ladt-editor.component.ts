@@ -92,6 +92,14 @@ export class LadtEditorComponent implements OnInit {
   siblingParentParts = signal<ParentBreadcrumb[]>([]);
   isSiblingsLoading = signal(false);
 
+  // Sibling division names (for duplicate validation in division-detail)
+  siblingDivisionNames = computed(() => {
+    if (this.selectedLevel() !== 2) return [];
+    return this.siblingData()
+      .map((d: any) => d.divName as string)
+      .filter(Boolean);
+  });
+
   // Mobile drawer
   drawerOpen = signal(false);
 
@@ -118,9 +126,9 @@ export class LadtEditorComponent implements OnInit {
         const flat = this.flattenTree(root.leagues as LadtTreeNodeDto[]);
         this.flatNodes.set(flat);
 
-        // First load: expand all; otherwise preserve existing expansion
+        // First load: show leagues expanded (age groups visible)
         if (this.expandedIds().size === 0) {
-          this.expandAll();
+          this.collapseAll();
         }
 
         this.isLoading.set(false);
@@ -150,6 +158,16 @@ export class LadtEditorComponent implements OnInit {
           });
         }
 
+        // Sort divisions: "Unassigned" first, then alpha
+        if (node.level === 1 && children.length > 0) {
+          children = [...children].sort((a, b) => {
+            const aUnassigned = a.name.toUpperCase() === 'UNASSIGNED';
+            const bUnassigned = b.name.toUpperCase() === 'UNASSIGNED';
+            if (aUnassigned !== bUnassigned) return aUnassigned ? -1 : 1;
+            return a.name.localeCompare(b.name);
+          });
+        }
+
         result.push({
           id: node.id,
           parentId: node.parentId ?? null,
@@ -161,7 +179,8 @@ export class LadtEditorComponent implements OnInit {
           expandable: children.length > 0,
           active: node.active,
           clubName: node.clubName ?? null,
-          isSpecial: node.level === 1 && this.isSpecialAgegroup(node.name)
+          isSpecial: (node.level === 1 && this.isSpecialAgegroup(node.name)) ||
+                     (node.level === 2 && node.name.toUpperCase() === 'UNASSIGNED')
         });
         if (children.length > 0) {
           recurse(children);
@@ -190,7 +209,11 @@ export class LadtEditorComponent implements OnInit {
   }
 
   collapseAll(): void {
-    this.expandedIds.set(new Set());
+    const next = new Set<string>();
+    for (const n of this.flatNodes()) {
+      if (n.level === 0 && n.expandable) next.add(n.id);
+    }
+    this.expandedIds.set(next);
   }
 
   toggleNode(node: LadtFlatNode): void {

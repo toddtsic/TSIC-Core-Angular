@@ -14,6 +14,8 @@ namespace TSIC.API.Services.Admin;
 /// </summary>
 public sealed class LadtService : ILadtService
 {
+    private const string UnassignedDivisionName = "Unassigned";
+
     private readonly ILeagueRepository _leagueRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IDivisionRepository _divisionRepo;
@@ -246,7 +248,7 @@ public sealed class LadtService : ILadtService
         {
             DivId = Guid.NewGuid(),
             AgegroupId = ag.AgegroupId,
-            DivName = "Pool A",
+            DivName = UnassignedDivisionName,
             LebUserId = userId,
             Modified = DateTime.UtcNow
         };
@@ -342,7 +344,7 @@ public sealed class LadtService : ILadtService
         {
             DivId = Guid.NewGuid(),
             AgegroupId = ag.AgegroupId,
-            DivName = "Pool A",
+            DivName = UnassignedDivisionName,
             LebUserId = userId,
             Modified = DateTime.UtcNow
         };
@@ -368,6 +370,12 @@ public sealed class LadtService : ILadtService
     {
         await ValidateAgegroupOwnershipAsync(request.AgegroupId, jobId, cancellationToken);
 
+        // Check for duplicate division name within the same age group
+        var existing = await _divisionRepo.GetByAgegroupIdAsync(request.AgegroupId, cancellationToken);
+        if (existing.Any(d => string.Equals(d.DivName, request.DivName, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException(
+                $"A division named '{request.DivName}' already exists in this age group.");
+
         var div = new Divisions
         {
             DivId = Guid.NewGuid(),
@@ -389,6 +397,21 @@ public sealed class LadtService : ILadtService
         var div = await _divisionRepo.GetByIdAsync(divId, cancellationToken)
             ?? throw new KeyNotFoundException($"Division {divId} not found.");
 
+        // Block renaming the "Unassigned" division
+        if (string.Equals(div.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(request.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Cannot rename the 'Unassigned' division.");
+
+        // Check for duplicate division name within the same age group
+        if (!string.Equals(div.DivName, request.DivName, StringComparison.OrdinalIgnoreCase))
+        {
+            var siblings = await _divisionRepo.GetByAgegroupIdAsync(div.AgegroupId, cancellationToken);
+            if (siblings.Any(d => d.DivId != divId
+                && string.Equals(d.DivName, request.DivName, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException(
+                    $"A division named '{request.DivName}' already exists in this age group.");
+        }
+
         div.DivName = request.DivName;
         div.MaxRoundNumberToShow = request.MaxRoundNumberToShow;
         div.LebUserId = userId;
@@ -402,11 +425,14 @@ public sealed class LadtService : ILadtService
     {
         await ValidateDivisionOwnershipAsync(divId, jobId, cancellationToken);
 
-        if (await _divisionRepo.HasTeamsAsync(divId, cancellationToken))
-            throw new InvalidOperationException("Cannot delete division that contains teams. Remove all teams first.");
-
         var div = await _divisionRepo.GetByIdAsync(divId, cancellationToken)
             ?? throw new KeyNotFoundException($"Division {divId} not found.");
+
+        if (string.Equals(div.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Cannot delete the 'Unassigned' division.");
+
+        if (await _divisionRepo.HasTeamsAsync(divId, cancellationToken))
+            throw new InvalidOperationException("Cannot delete division that contains teams. Remove all teams first.");
 
         _divisionRepo.Remove(div);
         await _divisionRepo.SaveChangesAsync(cancellationToken);
@@ -416,15 +442,18 @@ public sealed class LadtService : ILadtService
     {
         await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
 
-        // Count existing divisions to generate name
+        // Find next available "Pool X" name that doesn't collide with existing divisions
         var existing = await _divisionRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
-        var letter = (char)('A' + existing.Count);
+        var existingNames = existing.Select(d => d.DivName?.ToUpperInvariant()).ToHashSet();
+        var letter = 'A';
+        string divName;
+        do { divName = $"Pool {letter}"; letter++; } while (existingNames.Contains(divName.ToUpperInvariant()));
 
         var div = new Divisions
         {
             DivId = Guid.NewGuid(),
             AgegroupId = agegroupId,
-            DivName = $"Pool {letter}",
+            DivName = divName,
             LebUserId = userId,
             Modified = DateTime.UtcNow
         };
@@ -735,7 +764,7 @@ public sealed class LadtService : ILadtService
             {
                 DivId = Guid.NewGuid(),
                 AgegroupId = waitlistAg.AgegroupId,
-                DivName = "Pool A",
+                DivName = UnassignedDivisionName,
                 LebUserId = userId,
                 Modified = DateTime.UtcNow
             };

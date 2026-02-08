@@ -14,7 +14,9 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
         <i class="bi bi-grid-3x3-gap text-warning"></i>
         <h5 class="mb-0">Division Details</h5>
       </div>
-      <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()" [disabled]="isSaving()">
+      <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()"
+              [disabled]="isSaving() || isUnassigned()"
+              [title]="isUnassigned() ? 'The Unassigned division cannot be deleted' : 'Delete this division'">
         <i class="bi bi-trash me-1"></i>Delete
       </button>
     </div>
@@ -24,6 +26,13 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
       </div>
     } @else if (division()) {
+      @if (isUnassigned()) {
+        <div class="alert alert-info py-2 d-flex align-items-center" role="alert">
+          <i class="bi bi-lock me-2"></i>
+          The 'Unassigned' division is required and cannot be renamed or deleted.
+        </div>
+      }
+
       @if (showDeleteConfirm()) {
         <div class="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <span><i class="bi bi-exclamation-triangle me-2"></i>Delete this division? This cannot be undone.</span>
@@ -38,7 +47,8 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
         <div class="row g-3">
           <div class="col-md-8">
             <label class="form-label">Division Name</label>
-            <input class="form-control" [(ngModel)]="form.divName" name="divName">
+            <input class="form-control" [(ngModel)]="form.divName" name="divName"
+                   [disabled]="isUnassigned()">
           </div>
           <div class="col-md-4">
             <label class="form-label">Max Round # to Show</label>
@@ -71,6 +81,7 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
 })
 export class DivisionDetailComponent implements OnChanges {
   @Input({ required: true }) divisionId!: string;
+  @Input() siblingNames: string[] = [];
   @Output() saved = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
 
@@ -82,6 +93,7 @@ export class DivisionDetailComponent implements OnChanges {
   saveMessage = signal<string | null>(null);
   isError = signal(false);
   showDeleteConfirm = signal(false);
+  isUnassigned = signal(false);
 
   form: any = {};
 
@@ -98,6 +110,7 @@ export class DivisionDetailComponent implements OnChanges {
       next: (detail) => {
         this.division.set(detail);
         this.form = { ...detail };
+        this.isUnassigned.set(detail.divName?.toUpperCase() === 'UNASSIGNED');
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
@@ -105,8 +118,23 @@ export class DivisionDetailComponent implements OnChanges {
   }
 
   save(): void {
-    this.isSaving.set(true);
     this.saveMessage.set(null);
+
+    // Client-side duplicate name check
+    const newName = (this.form.divName ?? '').trim();
+    const currentName = this.division()?.divName ?? '';
+    if (newName.toUpperCase() !== currentName.toUpperCase()) {
+      const duplicate = this.siblingNames.some(
+        n => n.toUpperCase() === newName.toUpperCase()
+      );
+      if (duplicate) {
+        this.isError.set(true);
+        this.saveMessage.set(`A division named '${newName}' already exists in this age group.`);
+        return;
+      }
+    }
+
+    this.isSaving.set(true);
 
     const request: UpdateDivisionRequest = {
       divName: this.form.divName,
