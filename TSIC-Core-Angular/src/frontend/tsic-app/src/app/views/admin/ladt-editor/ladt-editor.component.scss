@@ -88,6 +88,19 @@
       font-style: italic;
     }
   }
+
+  &.special {
+    opacity: 0.6;
+
+    .tree-label {
+      font-style: italic;
+      color: var(--bs-secondary-color);
+    }
+
+    .tree-icon {
+      color: var(--bs-secondary-color) !important;
+    }
+  }
 }
 
 .tree-toggle {

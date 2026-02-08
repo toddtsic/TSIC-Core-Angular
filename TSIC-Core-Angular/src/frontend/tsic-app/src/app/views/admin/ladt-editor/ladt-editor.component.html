@@ -78,6 +78,7 @@
                          [class.selected]="selectedNode()?.id === node.id"
                          [class.inactive]="!node.active"
                          [class.has-club]="node.clubName"
+                         [class.special]="node.isSpecial"
                          [style.padding-left.px]="node.level * 20 + 8">
             <span class="tree-toggle-spacer"></span>
             <button class="tree-node-btn" (click)="selectNode(node)"
@@ -113,6 +114,7 @@
                          [class.selected]="selectedNode()?.id === node.id"
                          [class.inactive]="!node.active"
                          [class.has-club]="node.clubName"
+                         [class.special]="node.isSpecial"
                          [style.padding-left.px]="node.level * 20 + 8">
             <button class="tree-toggle" (click)="toggleNode(node)">
               <i class="bi" [class.bi-chevron-right]="!isNodeExpanded(node)"

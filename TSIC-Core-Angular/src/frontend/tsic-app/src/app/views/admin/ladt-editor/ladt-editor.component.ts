@@ -27,6 +27,7 @@ export interface LadtFlatNode {
   expandable: boolean;
   active: boolean;
   clubName: string | null;
+  isSpecial: boolean;
 }
 
 @Component({
@@ -137,7 +138,18 @@ export class LadtEditorComponent implements OnInit {
     const result: LadtFlatNode[] = [];
     const recurse = (items: LadtTreeNodeDto[]) => {
       for (const node of items) {
-        const children = (node.children ?? []) as LadtTreeNodeDto[];
+        let children = (node.children ?? []) as LadtTreeNodeDto[];
+
+        // Sort age groups: regular alpha first, then specials (Dropped Teams, WAITLIST*)
+        if (node.level === 0 && children.length > 0) {
+          children = [...children].sort((a, b) => {
+            const aSpecial = this.isSpecialAgegroup(a.name);
+            const bSpecial = this.isSpecialAgegroup(b.name);
+            if (aSpecial !== bSpecial) return aSpecial ? 1 : -1;
+            return a.name.localeCompare(b.name);
+          });
+        }
+
         result.push({
           id: node.id,
           parentId: node.parentId ?? null,
@@ -148,7 +160,8 @@ export class LadtEditorComponent implements OnInit {
           playerCount: node.playerCount,
           expandable: children.length > 0,
           active: node.active,
-          clubName: node.clubName ?? null
+          clubName: node.clubName ?? null,
+          isSpecial: node.level === 1 && this.isSpecialAgegroup(node.name)
         });
         if (children.length > 0) {
           recurse(children);
@@ -157,6 +170,11 @@ export class LadtEditorComponent implements OnInit {
     };
     recurse(nodes);
     return result;
+  }
+
+  private isSpecialAgegroup(name: string): boolean {
+    const upper = name.toUpperCase();
+    return upper === 'DROPPED TEAMS' || upper.startsWith('WAITLIST');
   }
 
   isNodeExpanded(node: LadtFlatNode): boolean {
