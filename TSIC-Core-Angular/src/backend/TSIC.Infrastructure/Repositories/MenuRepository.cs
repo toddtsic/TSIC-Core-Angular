@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -113,5 +114,79 @@ public class MenuRepository : IMenuRepository
             Tag = menu.Tag,
             Items = rootItems
         };
+    }
+
+    // ─── Admin methods ────────────────────────────────────────────────
+
+    public async Task<List<JobMenus>> GetAllMenusForJobAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobMenus
+            .AsNoTracking()
+            .Include(m => m.Role)
+            .Where(m => m.JobId == jobId)
+            .OrderBy(m => m.Role != null ? m.Role.Name : "zzz")
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<JobMenus?> GetMenuByIdAsync(
+        Guid menuId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobMenus
+            .FirstOrDefaultAsync(m => m.MenuId == menuId, cancellationToken);
+    }
+
+    public async Task<JobMenuItems?> GetMenuItemByIdAsync(
+        Guid menuItemId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobMenuItems
+            .FirstOrDefaultAsync(mi => mi.MenuItemId == menuItemId, cancellationToken);
+    }
+
+    public async Task<List<JobMenuItems>> GetMenuItemsByMenuIdAsync(
+        Guid menuId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobMenuItems
+            .AsNoTracking()
+            .Where(mi => mi.MenuId == menuId)
+            .OrderBy(mi => mi.Index)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<JobMenuItems>> GetSiblingItemsAsync(
+        Guid menuId, Guid? parentMenuItemId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobMenuItems
+            .Where(mi => mi.MenuId == menuId && mi.ParentMenuItemId == parentMenuItemId)
+            .OrderBy(mi => mi.Index)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> GetSiblingCountAsync(
+        Guid menuId, Guid? parentMenuItemId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobMenuItems
+            .CountAsync(mi => mi.MenuId == menuId && mi.ParentMenuItemId == parentMenuItemId, cancellationToken);
+    }
+
+    public async Task<List<string>> GetExistingMenuRoleIdsForJobAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.JobMenus
+            .AsNoTracking()
+            .Where(m => m.JobId == jobId && m.RoleId != null)
+            .Select(m => m.RoleId!)
+            .ToListAsync(cancellationToken);
+    }
+
+    public void AddMenu(JobMenus menu) => _context.JobMenus.Add(menu);
+
+    public void AddMenuItem(JobMenuItems menuItem) => _context.JobMenuItems.Add(menuItem);
+
+    public void RemoveMenuItem(JobMenuItems menuItem) => _context.JobMenuItems.Remove(menuItem);
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }

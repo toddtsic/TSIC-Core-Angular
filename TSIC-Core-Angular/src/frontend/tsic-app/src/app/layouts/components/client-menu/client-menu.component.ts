@@ -144,6 +144,7 @@ export class ClientMenuComponent {
         }
         if (item.controller && item.action) {
             const path = `${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
+            console.log('Checking route:', path, 'Known routes:', Array.from(this.knownRoutes), 'Wildcards:', this.wildcardPrefixes);
             // Check exact match first, then wildcard prefix match
             // (e.g., 'reporting/get_netusers' matches wildcard prefix 'reporting')
             if (this.knownRoutes.has(path)) return true;

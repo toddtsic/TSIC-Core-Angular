@@ -1,0 +1,153 @@
+<div class="menu-admin-container">
+    <div class="header">
+        <h1>Menu Administration</h1>
+        <button class="btn btn-primary" (click)="ensureAllRoleMenus()" [disabled]="isLoading()">
+            <i class="bi bi-plus-circle"></i> Ensure All Role Menus
+        </button>
+    </div>
+
+    @if (isLoading()) {
+    <div class="loading">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+    }
+
+    @if (!isLoading() && menus().length === 0) {
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No menus found for this job. Click "Ensure All Role Menus" to create default menus.
+    </div>
+    }
+
+    @if (!isLoading() && menus().length > 0) {
+    <div class="content">
+        <!-- Role Selector -->
+        <div class="role-selector">
+            <label for="roleSelect" class="form-label">Select Role:</label>
+            <select id="roleSelect" class="form-select" [value]="selectedRoleId() ?? ''"
+                (change)="onRoleChange($any($event.target).value)">
+                @for (menu of menus(); track menu.menuId) {
+                <option [value]="menu.roleId">
+                    {{ menu.roleName }}
+                    @if (!menu.active) { <span class="text-muted">(Inactive)</span> }
+                </option>
+                }
+            </select>
+        </div>
+
+        <!-- Menu Preview Area -->
+        @if (selectedMenu(); as menu) {
+        <div class="menu-preview">
+            <!-- Menu-level controls -->
+            <div class="menu-controls">
+                <div class="menu-status">
+                    <label class="form-check">
+                        <input type="checkbox" class="form-check-input" [checked]="menu.active"
+                            (change)="toggleMenuActive(menu)">
+                        <span class="form-check-label">Menu Active</span>
+                    </label>
+                </div>
+                <button class="btn btn-sm btn-success" (click)="createParentItem()">
+                    <i class="bi bi-plus"></i> Add Parent Item
+                </button>
+            </div>
+
+            <!-- WYSIWYG Sidebar Preview -->
+            <div class="sidebar-preview">
+                <div class="sidebar-header">
+                    <span>{{ menu.roleName }} Menu Preview</span>
+                </div>
+
+                @if (menu.items.length === 0) {
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>No menu items yet. Click "Add Parent Item" to get started.</p>
+                </div>
+                }
+
+                @for (parentItem of menu.items; track parentItem.menuItemId) {
+                <div class="menu-item-group" [class.inactive]="!parentItem.active">
+                    <!-- Parent Item -->
+                    <div class="menu-item parent-item">
+                        <div class="item-content">
+                            <button class="expand-toggle" (click)="toggleItemExpanded(parentItem.menuItemId)"
+                                [class.expanded]="isItemExpanded(parentItem.menuItemId)">
+                                <i class="bi" [class.bi-chevron-right]="!isItemExpanded(parentItem.menuItemId)"
+                                    [class.bi-chevron-down]="isItemExpanded(parentItem.menuItemId)"></i>
+                            </button>
+                            @if (parentItem.iconName) {
+                            <i class="item-icon bi bi-{{ parentItem.iconName }}"></i>
+                            }
+                            <span class="item-text">{{ parentItem.text }}</span>
+                            @if (!parentItem.active) {
+                            <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </div>
+
+                        <!-- Parent item controls -->
+                        <div class="item-controls">
+                            <button class="btn-icon" (click)="editItem(parentItem)" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn-icon" (click)="moveItemUp(parentItem, menu.items)" title="Move Up">
+                                <i class="bi bi-arrow-up"></i>
+                            </button>
+                            <button class="btn-icon" (click)="moveItemDown(parentItem, menu.items)" title="Move Down">
+                                <i class="bi bi-arrow-down"></i>
+                            </button>
+                            <button class="btn-icon" (click)="createChildItem(parentItem)" title="Add Child">
+                                <i class="bi bi-plus-circle"></i>
+                            </button>
+                            <button class="btn-icon text-danger" (click)="deleteItem(parentItem)" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Child Items -->
+                    @if (isItemExpanded(parentItem.menuItemId) && parentItem.children && parentItem.children.length > 0)
+                    {
+                    <div class="child-items">
+                        @for (childItem of parentItem.children; track childItem.menuItemId) {
+                        <div class="menu-item child-item" [class.inactive]="!childItem.active">
+                            <div class="item-content">
+                                @if (childItem.iconName) {
+                                <i class="item-icon bi bi-{{ childItem.iconName }}"></i>
+                                }
+                                <span class="item-text">{{ childItem.text }}</span>
+                                @if (!childItem.active) {
+                                <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </div>
+
+                            <!-- Child item controls -->
+                            <div class="item-controls">
+                                <button class="btn-icon" (click)="editItem(childItem)" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn-icon" (click)="moveItemUp(childItem, parentItem.children!)"
+                                    title="Move Up">
+                                    <i class="bi bi-arrow-up"></i>
+                                </button>
+                                <button class="btn-icon" (click)="moveItemDown(childItem, parentItem.children!)"
+                                    title="Move Down">
+                                    <i class="bi bi-arrow-down"></i>
+                                </button>
+                                <button class="btn-icon text-danger" (click)="deleteItem(childItem)" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        }
+                    </div>
+                    }
+                </div>
+                }
+            </div>
+        </div>
+        }
+    </div>
+    }
+</div>

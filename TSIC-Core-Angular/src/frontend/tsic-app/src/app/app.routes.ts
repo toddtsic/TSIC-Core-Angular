@@ -96,6 +96,12 @@ export const routes: Routes = [
 			},
 			// Legacy-compatible admin routes (match menu system controller/action URLs)
 			{
+				path: 'menu/admin',
+				canActivate: [authGuard],
+				data: { requireSuperUser: true },
+				loadComponent: () => import('./views/menu-admin/menu-admin.component').then(m => m.MenuAdminComponent)
+			},
+			{
 				path: 'jobadministrator/admin',
 				canActivate: [authGuard],
 				data: { requireSuperUser: true },
