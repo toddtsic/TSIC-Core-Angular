@@ -141,8 +141,12 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     };
 
     // Login with centralized TOS check
+    this.authService.loginLoading.set(true);
+    this.authService.loginError.set(null);
+
     this.authService.login(credentials).subscribe({
       next: (response) => {
+        this.authService.loginLoading.set(false);
         const user = this.authService.getCurrentUser();
         if (!user) return;
 
@@ -157,8 +161,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
         this.router.navigateByUrl(intendedDestination);
       },
       error: (error) => {
+        this.authService.loginLoading.set(false);
         this.submitted.set(false);
-        console.error('Login error:', error);
+        const msg = error?.error?.Error || error?.error?.message || 'Invalid username or password.';
+        this.authService.loginError.set(msg);
       }
     });
   }
