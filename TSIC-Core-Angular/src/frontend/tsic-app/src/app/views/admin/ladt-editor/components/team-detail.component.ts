@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter, OnChanges, signal, inject } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
-import type { TeamDetailDto, UpdateTeamRequest } from '../../../../core/api';
+import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest } from '../../../../core/api';
 
 @Component({
   selector: 'app-team-detail',
@@ -18,6 +18,11 @@ import type { TeamDetailDto, UpdateTeamRequest } from '../../../../core/api';
         }
       </div>
       <div class="d-flex gap-2">
+        @if (team()?.clubRepRegistrationId) {
+          <button class="btn btn-sm btn-outline-primary" (click)="confirmChangeClub()" [disabled]="isSaving()">
+            <i class="bi bi-arrow-left-right me-1"></i>Change Club
+          </button>
+        }
         <button class="btn btn-sm btn-outline-secondary" (click)="clone()" [disabled]="isSaving()" title="Clone team">
           <i class="bi bi-copy me-1"></i>Clone
         </button>
@@ -41,6 +46,47 @@ import type { TeamDetailDto, UpdateTeamRequest } from '../../../../core/api';
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary" (click)="showDropConfirm.set(false)">Cancel</button>
             <button class="btn btn-sm btn-danger" (click)="doDrop()">Drop</button>
+          </div>
+        </div>
+      }
+
+      @if (showChangeClub()) {
+        <div class="alert alert-info" role="alert">
+          <h6 class="alert-heading mb-2">
+            <i class="bi bi-arrow-left-right me-1"></i>Move to Different Club
+          </h6>
+          <p class="small mb-2">Current club: <strong>{{ team()?.clubName }}</strong></p>
+
+          <div class="btn-group btn-group-sm mb-2">
+            <button type="button" class="btn"
+                    [class.btn-primary]="moveScope() === 'single'"
+                    [class.btn-outline-primary]="moveScope() !== 'single'"
+                    (click)="moveScope.set('single')">Just this team</button>
+            <button type="button" class="btn"
+                    [class.btn-primary]="moveScope() === 'all'"
+                    [class.btn-outline-primary]="moveScope() !== 'all'"
+                    (click)="moveScope.set('all')">All teams from this club</button>
+          </div>
+
+          <select class="form-select form-select-sm mb-2"
+                  [ngModel]="selectedTargetRegistrationId()"
+                  (ngModelChange)="selectedTargetRegistrationId.set($event)"
+                  [ngModelOptions]="{standalone: true}">
+            <option value="">Select target club...</option>
+            @for (club of clubRegistrations(); track club.registrationId) {
+              <option [value]="club.registrationId">{{ club.clubName }}</option>
+            }
+          </select>
+
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelChangeClub()">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" (click)="doChangeClub()"
+                    [disabled]="!selectedTargetRegistrationId() || isMoving()">
+              @if (isMoving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Move
+            </button>
           </div>
         </div>
       }
@@ -232,6 +278,7 @@ export class TeamDetailComponent implements OnChanges {
   @Input({ required: true }) teamId!: string;
   @Output() saved = new EventEmitter<void>();
   @Output() cloned = new EventEmitter<void>();
+  @Output() clubChanged = new EventEmitter<void>();
 
   private readonly ladtService = inject(LadtService);
 
@@ -241,6 +288,11 @@ export class TeamDetailComponent implements OnChanges {
   saveMessage = signal<string | null>(null);
   isError = signal(false);
   showDropConfirm = signal(false);
+  showChangeClub = signal(false);
+  clubRegistrations = signal<ClubRegistrationDto[]>([]);
+  selectedTargetRegistrationId = signal('');
+  moveScope = signal<'single' | 'all'>('single');
+  isMoving = signal(false);
 
   form: any = {};
 
@@ -252,6 +304,7 @@ export class TeamDetailComponent implements OnChanges {
     this.isLoading.set(true);
     this.saveMessage.set(null);
     this.showDropConfirm.set(false);
+    this.showChangeClub.set(false);
 
     this.ladtService.getTeam(this.teamId).subscribe({
       next: (detail) => {
@@ -365,5 +418,58 @@ export class TeamDetailComponent implements OnChanges {
         this.saveMessage.set(err.error?.message || 'Failed to clone team.');
       }
     });
+  }
+
+  confirmChangeClub(): void {
+    this.saveMessage.set(null);
+    this.selectedTargetRegistrationId.set('');
+    this.moveScope.set('single');
+    this.ladtService.getClubRegistrationsForJob().subscribe({
+      next: (clubs) => {
+        // Filter out the current team's club
+        const currentRegId = this.team()?.clubRepRegistrationId;
+        this.clubRegistrations.set(clubs.filter(c => c.registrationId !== currentRegId));
+        this.showChangeClub.set(true);
+      },
+      error: (err) => {
+        this.isError.set(true);
+        this.saveMessage.set(err.error?.message || 'Failed to load club list.');
+      }
+    });
+  }
+
+  doChangeClub(): void {
+    const targetId = this.selectedTargetRegistrationId();
+    if (!targetId) return;
+
+    this.isMoving.set(true);
+    this.saveMessage.set(null);
+
+    const request: MoveTeamToClubRequest = {
+      targetRegistrationId: targetId,
+      moveAllFromClub: this.moveScope() === 'all'
+    };
+
+    this.ladtService.moveTeamToClub(this.teamId, request).subscribe({
+      next: (result) => {
+        this.isMoving.set(false);
+        this.showChangeClub.set(false);
+        this.isError.set(false);
+        this.saveMessage.set(result.message);
+        this.loadDetail();
+        this.clubChanged.emit();
+      },
+      error: (err) => {
+        this.isMoving.set(false);
+        this.isError.set(true);
+        this.saveMessage.set(err.error?.message || 'Failed to move team.');
+      }
+    });
+  }
+
+  cancelChangeClub(): void {
+    this.showChangeClub.set(false);
+    this.selectedTargetRegistrationId.set('');
+    this.clubRegistrations.set([]);
   }
 }

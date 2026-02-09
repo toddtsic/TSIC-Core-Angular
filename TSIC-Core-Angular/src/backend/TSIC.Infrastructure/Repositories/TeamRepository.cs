@@ -495,5 +495,12 @@ public class TeamRepository : ITeamRepository
         result.UnionWith(t2Ids);
         return result;
     }
+
+    public async Task<List<Teams>> GetTeamsByClubRepRegistrationAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId)
+            .ToListAsync(ct);
+    }
 }
 

@@ -743,4 +743,20 @@ public class RegistrationRepository : IRegistrationRepository
 
         return registrations.Count;
     }
+
+    public async Task<List<ClubRegistrationInfo>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.RoleId == RoleConstants.ClubRep
+                && r.ClubName != null)
+            .Select(r => new ClubRegistrationInfo
+            {
+                RegistrationId = r.RegistrationId,
+                ClubName = r.ClubName!,
+                UserId = r.UserId ?? ""
+            })
+            .ToListAsync(ct);
+    }
 }

@@ -42,6 +42,8 @@ public interface ILadtService
     Task<DropTeamResultDto> DropTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<TeamDetailDto> CloneTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<Guid> AddStubTeamAsync(Guid divId, Guid jobId, string userId, CancellationToken cancellationToken = default);
+    Task<List<ClubRegistrationDto>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
+    Task<MoveTeamToClubResultDto> MoveTeamToClubAsync(Guid teamId, MoveTeamToClubRequest request, Guid jobId, string userId, CancellationToken ct = default);
 
     // ── Sibling batch queries ──
 

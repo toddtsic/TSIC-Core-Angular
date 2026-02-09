@@ -15,7 +15,10 @@ import type {
   TeamDetailDto,
   CreateTeamRequest,
   UpdateTeamRequest,
-  DropTeamResultDto
+  DropTeamResultDto,
+  ClubRegistrationDto,
+  MoveTeamToClubRequest,
+  MoveTeamToClubResultDto
 } from '../../../../core/api';
 
 @Injectable({
@@ -109,6 +112,14 @@ export class LadtService {
 
   addStubTeam(divId: string): Observable<string> {
     return this.http.post<string>(`${this.apiUrl}/teams/stub/${divId}`, null);
+  }
+
+  getClubRegistrationsForJob(): Observable<ClubRegistrationDto[]> {
+    return this.http.get<ClubRegistrationDto[]>(`${this.apiUrl}/clubs-for-job`);
+  }
+
+  moveTeamToClub(teamId: string, request: MoveTeamToClubRequest): Observable<MoveTeamToClubResultDto> {
+    return this.http.post<MoveTeamToClubResultDto>(`${this.apiUrl}/teams/${teamId}/change-club`, request);
   }
 
   // ── Sibling batch queries ──

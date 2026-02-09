@@ -275,6 +275,13 @@ public interface ITeamRepository
     /// Get all team IDs that appear in any Schedule rows for a job (bulk, for tree).
     /// </summary>
     Task<HashSet<Guid>> GetScheduledTeamIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all teams in a job sharing the same ClubrepRegistrationid.
+    /// Used for batch "move all teams from this club" operation.
+    /// Returns tracked entities for in-place updates.
+    /// </summary>
+    Task<List<Teams>> GetTeamsByClubRepRegistrationAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

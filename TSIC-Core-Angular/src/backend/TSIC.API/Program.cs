@@ -79,6 +79,7 @@ builder.Services.AddScoped<IAdministratorRepository, AdministratorRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
 builder.Services.AddScoped<IDivisionRepository, DivisionRepository>();
+builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();

@@ -29,6 +29,7 @@ export type { CheckExistingRegistrationsResponse } from './models/CheckExistingR
 export type { ChildDto } from './models/ChildDto';
 export type { CloneProfileRequest } from './models/CloneProfileRequest';
 export type { CloneProfileResult } from './models/CloneProfileResult';
+export type { ClubRegistrationDto } from './models/ClubRegistrationDto';
 export type { ClubRepClubDto } from './models/ClubRepClubDto';
 export type { ClubRepRegistrationRequest } from './models/ClubRepRegistrationRequest';
 export type { ClubRepRegistrationResponse } from './models/ClubRepRegistrationResponse';
@@ -75,6 +76,8 @@ export type { MigrateAllRequest } from './models/MigrateAllRequest';
 export type { MigrateProfilesRequest } from './models/MigrateProfilesRequest';
 export type { MigrationReport } from './models/MigrationReport';
 export type { MigrationResult } from './models/MigrationResult';
+export type { MoveTeamToClubRequest } from './models/MoveTeamToClubRequest';
+export type { MoveTeamToClubResultDto } from './models/MoveTeamToClubResultDto';
 export type { NextProfileTypeResult } from './models/NextProfileTypeResult';
 export type { OptionSet } from './models/OptionSet';
 export type { OptionSetUpdateRequest } from './models/OptionSetUpdateRequest';

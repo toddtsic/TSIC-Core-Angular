@@ -865,10 +865,12 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | `TSIC.Infrastructure/Repositories/DivisionRepository.cs` | Done | ~60 |
 | `TSIC.Contracts/Repositories/ITeamRepository.cs` | Done | ~30 |
 | `TSIC.Infrastructure/Repositories/TeamRepository.cs` | Done | ~120 |
-| `TSIC.Contracts/Services/ILadtService.cs` | Done | 56 |
-| `TSIC.API/Services/Admin/LadtService.cs` | Done | ~960 |
-| `TSIC.API/Controllers/LadtController.cs` | Done | 430 |
-| `TSIC.API/Program.cs` | Modified | +10 |
+| `TSIC.Contracts/Repositories/IScheduleRepository.cs` | Done | ~10 |
+| `TSIC.Infrastructure/Repositories/ScheduleRepository.cs` | Done | ~67 |
+| `TSIC.Contracts/Services/ILadtService.cs` | Done | 59 |
+| `TSIC.API/Services/Admin/LadtService.cs` | Done | ~1,060 |
+| `TSIC.API/Controllers/LadtController.cs` | Done | ~445 |
+| `TSIC.API/Program.cs` | Modified | +11 |
 
 ### Frontend Files (all created)
 
@@ -970,6 +972,18 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - [x] "Unassigned" division: sorted first among sibling divisions in tree
 - [x] Division duplicate name prevention (client + server validation)
 - [x] Stub division naming collision-safe ("Pool A", "Pool B", etc., skipping existing names)
+- [x] Move Team to Club: "Change Club" button visible only for teams with `clubRepRegistrationId`
+- [x] Move Team to Club: "Change Club" button hidden for league teams / admin-created stubs (no club context)
+- [x] Move Team to Club: target club dropdown excludes current club
+- [x] Move Team to Club: single team mode updates one team, batch mode updates all teams from same club
+- [x] Move Team to Club: `ClubrepRegistrationid`, `ClubrepId`, `ClubTeamId` (if applicable) updated in DB
+- [x] Move Team to Club: source club rep Registration fees decrease, target club rep fees increase (via `SynchronizeClubRepFinancialsAsync`)
+- [x] Move Team to Club: batch move all teams → source club rep fees go to $0
+- [x] Move Team to Club: schedule round-robin game names (`T1Name`/`T2Name` where `T1Type == "T"`) reflect new club name prefix
+- [x] Move Team to Club: `BShowTeamNameOnlyInSchedules` flag respected (no club prefix when true)
+- [x] Move Team to Club: championship/bracket games (`T1Type != "T"`) unchanged
+- [x] Move Team to Club: tree refreshes after move showing updated club name labels
+- [ ] Move Team to Club: edge case — only one club registered → dropdown empty, Move button disabled
 
 ---
 
@@ -1043,6 +1057,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | 20 | "Unassigned" division business rule | Every age group MUST always have an "Unassigned" division. Cannot be deleted or renamed (backend `InvalidOperationException` + frontend disabled fields). Auto-created when age groups are created. Division duplicate name prevention (client + server). Stub division naming changed from count-based to collision-safe. "Unassigned" divisions visually muted in tree and sorted first among siblings. |
 | 21 | Update Player Fees rewrite | Original implementation incorrectly copied `ag.TeamFee` down to `team.FeeBase`, violating coalescing principle and not updating player registrations at all. Rewritten to: (1) resolve per-team base fee via in-memory coalescing (Team.FeeBase → Team.PerRegistrantFee → AG.TeamFee → AG.RosterFee → 0), (2) recalculate FeeProcessing with non-CC payment discount (processing applies only to CC-payable portion), (3) refresh PaidTotal from RegistrationAccounting records, (4) recompute FeeTotal/OwedTotal. Added `GetPaymentSummariesAsync` to IRegistrationAccountingRepository and `GetActivePlayerRegistrationsByTeamIdsAsync` to IRegistrationRepository. LadtService gained 4 new deps: IRegistrationRepository, IRegistrationAccountingRepository, IJobRepository, IRegistrationRecordFeeCalculatorService. Frontend button renamed "Push Fees" → "Update Player Fees" with updated tooltip and success message. |
 | 22 | Drop Team replaces team delete | Teams are NEVER hard-deleted. The "-" button triggers a "Drop" operation: move team to "Dropped Teams" agegroup/division (auto-created per league), deactivate, zero all 8 player fee fields. Scheduled teams blocked at backend (checks `Schedule.T1Id`/`T2Id`). No frontend pre-check for schedule status — avoids TOCTOU race condition; backend is sole authority. New repository methods: `IsTeamScheduledAsync`, `GetScheduledTeamIdsAsync` (ITeamRepository), `ZeroFeesForTeamAsync` (IRegistrationRepository). New DTO: `DropTeamResultDto`. New endpoint: `POST teams/{teamId}/drop`. Frontend `canDelete()` always shows "-" for teams; `confirmDelete()` routes team-level nodes to `dropTeam()` with "Drop" confirm messaging. |
+| 23 | Move Team to Different Club | Tournament teams registered by club reps can be reassigned to a different club. Two modes: single team or batch (all teams from same club). Updates `ClubrepRegistrationid`, `ClubrepId`, `ClubTeamId` (if non-null, finds/creates matching ClubTeam under target club), and audit fields. After move: recalculates financials for BOTH source and target club reps via `SynchronizeClubRepFinancialsAsync`, and syncs denormalized schedule team names via new `SynchronizeScheduleNamesForTeamAsync` (reusable "single point of truth" — recomposes `T1Name`/`T2Name` from Teams.TeamName + Registrations.ClubName + Jobs.BShowTeamNameOnlyInSchedules; only updates round-robin games where `T1Type/T2Type == "T"`). New files: `IScheduleRepository.cs`, `ScheduleRepository.cs`. New DTOs: `MoveTeamToClubRequest`, `MoveTeamToClubResultDto`, `ClubRegistrationDto`. Extended `TeamDetailDto` with `ClubRepRegistrationId` and `ClubTeamId`. New endpoints: `GET clubs-for-job`, `POST teams/{teamId}/change-club`. LadtService gained 3 new deps: `IClubTeamRepository`, `IClubRepository`, `IScheduleRepository`. Frontend: "Change Club" button only visible for teams with `clubRepRegistrationId`; inline panel with scope toggle (single/all), target club dropdown (current club filtered out), and move action. Tree refreshes after move to reflect new club name labels. |
 
 ---
 
@@ -1060,5 +1075,6 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - All 8 palettes supported via CSS variable theming throughout
 - Update Player Fees: recalculates player registration fees using coalescing hierarchy, processing fee non-CC discount, PaidTotal refresh from accounting records
 - Drop Team: moves team to "Dropped Teams" agegroup/division, deactivates, zeros player fees; scheduled teams blocked at backend (no TOCTOU race)
+- Move Team to Different Club: single or batch reassignment with financial recalculation for both clubs, schedule name sync via reusable `SynchronizeScheduleNamesForTeamAsync`, ClubTeamId migration; frontend inline panel with scope toggle and filtered target dropdown
 
 **Remaining work**: Manual testing across all 8 palettes, performance testing with large datasets (see verification checklist).

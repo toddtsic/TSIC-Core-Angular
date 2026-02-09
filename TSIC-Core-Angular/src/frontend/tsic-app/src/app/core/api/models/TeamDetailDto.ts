@@ -49,6 +49,8 @@ export type TeamDetailDto = {
     requests?: string | null;
     keywordPairs?: string | null;
     teamComments?: string | null;
+    clubRepRegistrationId?: string | null;
+    clubTeamId?: number;
     playerCount?: number;
 };
 

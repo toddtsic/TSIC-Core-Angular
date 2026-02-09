@@ -25,6 +25,9 @@ public sealed class LadtService : ILadtService
     private readonly IRegistrationAccountingRepository _regAcctRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IRegistrationRecordFeeCalculatorService _feeCalc;
+    private readonly IClubTeamRepository _clubTeamRepo;
+    private readonly IClubRepository _clubRepo;
+    private readonly IScheduleRepository _scheduleRepo;
 
     public LadtService(
         ILeagueRepository leagueRepo,
@@ -34,7 +37,10 @@ public sealed class LadtService : ILadtService
         IRegistrationRepository registrationRepo,
         IRegistrationAccountingRepository regAcctRepo,
         IJobRepository jobRepo,
-        IRegistrationRecordFeeCalculatorService feeCalc)
+        IRegistrationRecordFeeCalculatorService feeCalc,
+        IClubTeamRepository clubTeamRepo,
+        IClubRepository clubRepo,
+        IScheduleRepository scheduleRepo)
     {
         _leagueRepo = leagueRepo;
         _agegroupRepo = agegroupRepo;
@@ -44,6 +50,9 @@ public sealed class LadtService : ILadtService
         _regAcctRepo = regAcctRepo;
         _jobRepo = jobRepo;
         _feeCalc = feeCalc;
+        _clubTeamRepo = clubTeamRepo;
+        _clubRepo = clubRepo;
+        _scheduleRepo = scheduleRepo;
     }
 
     // ═══════════════════════════════════════════
@@ -825,6 +834,126 @@ public sealed class LadtService : ILadtService
         return team.TeamId;
     }
 
+    public async Task<List<ClubRegistrationDto>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var clubs = await _registrationRepo.GetClubRegistrationsForJobAsync(jobId, ct);
+        return clubs.Select(c => new ClubRegistrationDto
+        {
+            RegistrationId = c.RegistrationId,
+            ClubName = c.ClubName
+        }).OrderBy(c => c.ClubName).ToList();
+    }
+
+    public async Task<MoveTeamToClubResultDto> MoveTeamToClubAsync(
+        Guid teamId, MoveTeamToClubRequest request, Guid jobId, string userId, CancellationToken ct = default)
+    {
+        // 1. Validate team belongs to this job
+        await ValidateTeamOwnershipAsync(teamId, jobId, ct);
+
+        // 2. Fetch the team (tracked for updates)
+        var team = await _teamRepo.GetTeamFromTeamId(teamId, ct)
+            ?? throw new KeyNotFoundException($"Team {teamId} not found.");
+
+        // 3. Guard: team must have club rep context
+        if (!team.ClubrepRegistrationid.HasValue)
+            throw new InvalidOperationException("Team has no club rep context — cannot change club.");
+
+        var sourceRegistrationId = team.ClubrepRegistrationid.Value;
+
+        // 4. Guard: can't move to same club
+        if (sourceRegistrationId == request.TargetRegistrationId)
+            throw new InvalidOperationException("Team is already assigned to this club.");
+
+        // 5. Fetch target registration and validate
+        var targetReg = await _registrationRepo.GetByIdAsync(request.TargetRegistrationId, ct)
+            ?? throw new KeyNotFoundException("Target club registration not found.");
+        if (targetReg.JobId != jobId)
+            throw new InvalidOperationException("Target registration does not belong to this event.");
+
+        // 6. Determine scope: single team or all teams from this club
+        List<TSIC.Domain.Entities.Teams> teamsToMove;
+        if (request.MoveAllFromClub)
+        {
+            teamsToMove = await _teamRepo.GetTeamsByClubRepRegistrationAsync(jobId, sourceRegistrationId, ct);
+        }
+        else
+        {
+            teamsToMove = [team];
+        }
+
+        // 7. Resolve target club for ClubTeamId reassignment (if any team has one)
+        TSIC.Domain.Entities.Clubs? targetClub = null;
+        if (teamsToMove.Exists(t => t.ClubTeamId.HasValue) && !string.IsNullOrEmpty(targetReg.ClubName))
+        {
+            targetClub = await _clubRepo.GetByNameAsync(targetReg.ClubName, ct);
+        }
+
+        // 8. Update each team
+        foreach (var t in teamsToMove)
+        {
+            t.ClubrepRegistrationid = request.TargetRegistrationId;
+            t.ClubrepId = targetReg.UserId;
+
+            // Reassign ClubTeamId if present
+            if (t.ClubTeamId.HasValue && targetClub is not null)
+            {
+                var sourceClubTeam = await _clubTeamRepo.GetByIdAsync(t.ClubTeamId.Value, ct);
+                if (sourceClubTeam != null)
+                {
+                    // Find or create matching ClubTeam under target club
+                    var targetClubTeams = await _clubTeamRepo.GetByClubIdAsync(targetClub.ClubId, ct);
+                    var match = targetClubTeams.Find(ct2 =>
+                        ct2.ClubTeamName == sourceClubTeam.ClubTeamName
+                        && ct2.ClubTeamGradYear == sourceClubTeam.ClubTeamGradYear);
+
+                    if (match != null)
+                    {
+                        t.ClubTeamId = match.ClubTeamId;
+                    }
+                    else
+                    {
+                        var newCt = new TSIC.Domain.Entities.ClubTeams
+                        {
+                            ClubId = targetClub.ClubId,
+                            ClubTeamName = sourceClubTeam.ClubTeamName,
+                            ClubTeamGradYear = sourceClubTeam.ClubTeamGradYear,
+                            ClubTeamLevelOfPlay = sourceClubTeam.ClubTeamLevelOfPlay,
+                            LebUserId = userId,
+                            Modified = DateTime.UtcNow
+                        };
+                        _clubTeamRepo.Add(newCt);
+                        await _clubTeamRepo.SaveChangesAsync(ct);
+                        t.ClubTeamId = newCt.ClubTeamId;
+                    }
+                }
+            }
+
+            t.LebUserId = userId;
+            t.Modified = DateTime.UtcNow;
+        }
+
+        // 9. Save all team changes
+        await _teamRepo.SaveChangesAsync(ct);
+
+        // 10. Recalculate club rep financials for BOTH clubs
+        await _registrationRepo.SynchronizeClubRepFinancialsAsync(sourceRegistrationId, userId, ct);
+        await _registrationRepo.SynchronizeClubRepFinancialsAsync(request.TargetRegistrationId, userId, ct);
+
+        // 11. Sync denormalized schedule team names
+        foreach (var t in teamsToMove)
+        {
+            await _scheduleRepo.SynchronizeScheduleNamesForTeamAsync(t.TeamId, jobId, ct);
+        }
+
+        return new MoveTeamToClubResultDto
+        {
+            TeamsAffected = teamsToMove.Count,
+            Message = teamsToMove.Count == 1
+                ? $"Team moved to {targetReg.ClubName}."
+                : $"{teamsToMove.Count} teams moved to {targetReg.ClubName}."
+        };
+    }
+
     // ═══════════════════════════════════════════
     // Batch Operations
     // ═══════════════════════════════════════════
@@ -1135,6 +1264,8 @@ public sealed class LadtService : ILadtService
         Requests = t.Requests,
         KeywordPairs = t.KeywordPairs,
         TeamComments = t.TeamComments,
+        ClubRepRegistrationId = t.ClubrepRegistrationid,
+        ClubTeamId = t.ClubTeamId,
         PlayerCount = playerCount
     };
 }

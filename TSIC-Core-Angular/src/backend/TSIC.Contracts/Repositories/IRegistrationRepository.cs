@@ -296,6 +296,13 @@ public interface IRegistrationRepository
     /// Returns the number of registrations affected.
     /// </summary>
     Task<int> ZeroFeesForTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get distinct club registrations for a job (club reps with RoleId = ClubRep).
+    /// Returns RegistrationId + ClubName + UserId for each club rep.
+    /// Used to populate the "target club" dropdown in LADT move-team.
+    /// </summary>
+    Task<List<ClubRegistrationInfo>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
 }
 
 public record RegistrationWithInvoiceData
@@ -369,4 +376,11 @@ public record ClubRepFinancialTotals
     public required decimal FeeTotal { get; init; }
     public required decimal OwedTotal { get; init; }
     public required decimal PaidTotal { get; init; }
+}
+
+public record ClubRegistrationInfo
+{
+    public required Guid RegistrationId { get; init; }
+    public required string ClubName { get; init; }
+    public required string UserId { get; init; }
 }

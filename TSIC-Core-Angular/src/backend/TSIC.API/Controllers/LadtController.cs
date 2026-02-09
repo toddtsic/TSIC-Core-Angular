@@ -341,6 +341,32 @@ public class LadtController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
+    [HttpGet("clubs-for-job")]
+    public async Task<ActionResult<List<ClubRegistrationDto>>> GetClubRegistrationsForJob(CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var clubs = await _ladtService.GetClubRegistrationsForJobAsync(jobId!.Value, cancellationToken);
+        return Ok(clubs);
+    }
+
+    [HttpPost("teams/{teamId:guid}/change-club")]
+    public async Task<ActionResult<MoveTeamToClubResultDto>> MoveTeamToClub(
+        Guid teamId, [FromBody] MoveTeamToClubRequest request, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var result = await _ladtService.MoveTeamToClubAsync(teamId, request, jobId!.Value, userId!, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     // ═══════════════════════════════════════════
     // Sibling Batch Queries
     // ═══════════════════════════════════════════

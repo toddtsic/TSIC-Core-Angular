@@ -64,6 +64,10 @@ public record TeamDetailDto
     public string? KeywordPairs { get; init; }
     public string? TeamComments { get; init; }
 
+    // Club context (for move-team feature)
+    public Guid? ClubRepRegistrationId { get; init; }
+    public int? ClubTeamId { get; init; }
+
     // Player count (from Registrations join)
     public int PlayerCount { get; init; }
 }
@@ -165,4 +169,22 @@ public record UpdateTeamRequest
     public string? Requests { get; init; }
     public string? KeywordPairs { get; init; }
     public string? TeamComments { get; init; }
+}
+
+public record MoveTeamToClubRequest
+{
+    public required Guid TargetRegistrationId { get; init; }
+    public required bool MoveAllFromClub { get; init; }
+}
+
+public record MoveTeamToClubResultDto
+{
+    public required int TeamsAffected { get; init; }
+    public required string Message { get; init; }
+}
+
+public record ClubRegistrationDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string ClubName { get; init; }
 }
