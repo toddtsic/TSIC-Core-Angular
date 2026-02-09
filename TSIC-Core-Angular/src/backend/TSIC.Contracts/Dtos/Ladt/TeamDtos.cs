@@ -117,6 +117,13 @@ public record DeleteTeamResultDto
     public required string Message { get; init; }
 }
 
+public record DropTeamResultDto
+{
+    public required bool WasDropped { get; init; }
+    public required string Message { get; init; }
+    public required int PlayersAffected { get; init; }
+}
+
 public record UpdateTeamRequest
 {
     public string? TeamName { get; init; }

@@ -26,4 +26,18 @@ public interface IRegistrationAccountingRepository
     /// Get the most recent Authorize.Net transaction ID for the given registration IDs.
     /// </summary>
     Task<string?> GetLatestAdnTransactionIdAsync(IEnumerable<Guid> registrationIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get payment summaries (total payments and non-CC payments) for a batch of registrations.
+    /// Used for fee recalculation — processing fees apply only to the CC-payable portion.
+    /// </summary>
+    Task<Dictionary<Guid, PaymentSummary>> GetPaymentSummariesAsync(
+        IReadOnlyCollection<Guid> registrationIds,
+        CancellationToken cancellationToken = default);
+}
+
+public record PaymentSummary
+{
+    public required decimal TotalPayments { get; init; }
+    public required decimal NonCcPayments { get; init; }
 }

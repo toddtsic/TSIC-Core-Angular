@@ -707,4 +707,40 @@ public class RegistrationRepository : IRegistrationRepository
             await _context.SaveChangesAsync(cancellationToken);
         }
     }
+
+    public async Task<List<Registrations>> GetActivePlayerRegistrationsByTeamIdsAsync(
+        Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.JobId == jobId
+                && r.BActive == true
+                && r.AssignedTeamId.HasValue
+                && teamIds.Contains(r.AssignedTeamId.Value))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> ZeroFeesForTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var registrations = await _context.Registrations
+            .Where(r => r.JobId == jobId && r.AssignedTeamId == teamId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var reg in registrations)
+        {
+            reg.FeeBase = 0;
+            reg.FeeProcessing = 0;
+            reg.FeeDiscount = 0;
+            reg.FeeDiscountMp = 0;
+            reg.FeeDonation = 0;
+            reg.FeeLatefee = 0;
+            reg.FeeTotal = 0;
+            reg.OwedTotal = 0;
+            reg.Modified = DateTime.UtcNow;
+        }
+
+        if (registrations.Count > 0)
+            await _context.SaveChangesAsync(cancellationToken);
+
+        return registrations.Count;
+    }
 }

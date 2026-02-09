@@ -189,7 +189,8 @@
   flex-shrink: 0;
 }
 
-.btn-add-child {
+.btn-add-child,
+.btn-remove-node {
   display: none;
   align-items: center;
   justify-content: center;
@@ -202,13 +203,17 @@
   padding: 0;
   flex-shrink: 0;
 
-  &:hover {
-    color: var(--bs-primary);
-  }
-
   .tree-node:hover & {
     display: flex;
   }
+}
+
+.btn-add-child:hover {
+  color: var(--bs-primary);
+}
+
+.btn-remove-node:hover {
+  color: var(--bs-danger);
 }
 
 // ── Detail Panel ──

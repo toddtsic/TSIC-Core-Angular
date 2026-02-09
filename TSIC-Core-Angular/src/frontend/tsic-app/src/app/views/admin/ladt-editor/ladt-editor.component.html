@@ -102,6 +102,13 @@
                 <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount }}</span>
               </span>
             </button>
+            <!-- Delete button for leaf nodes (levels 1+, except Unassigned divisions) -->
+            @if (canDelete(node)) {
+              <button class="btn-remove-node" [title]="'Delete ' + getLevelLabel(node.level)"
+                      (click)="confirmDelete(node); $event.stopPropagation()">
+                <i class="bi bi-dash-circle"></i>
+              </button>
+            }
             <!-- Add child button for leaf nodes at levels 0-2 -->
             @if (node.level === 2) {
               <button class="btn-add-child" title="Add Team" (click)="addStubTeam(node.id); $event.stopPropagation()">
@@ -141,6 +148,13 @@
                 <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount }}</span>
               </span>
             </button>
+            <!-- Delete button (levels 1+, except Unassigned divisions) -->
+            @if (canDelete(node)) {
+              <button class="btn-remove-node" [title]="'Delete ' + getLevelLabel(node.level)"
+                      (click)="confirmDelete(node); $event.stopPropagation()">
+                <i class="bi bi-dash-circle"></i>
+              </button>
+            }
             <!-- Add child buttons by level -->
             @if (node.level === 0) {
               <button class="btn-add-child" title="Add Age Group" (click)="addStubAgegroup(node.id); $event.stopPropagation()">

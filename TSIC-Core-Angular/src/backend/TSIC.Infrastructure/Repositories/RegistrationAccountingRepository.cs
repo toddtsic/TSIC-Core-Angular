@@ -41,4 +41,36 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .Select(a => a.AdnTransactionId)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<Dictionary<Guid, PaymentSummary>> GetPaymentSummariesAsync(
+        IReadOnlyCollection<Guid> registrationIds, CancellationToken cancellationToken = default)
+    {
+        if (registrationIds.Count == 0) return new();
+
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(ra => ra.RegistrationId.HasValue
+                && registrationIds.Contains(ra.RegistrationId.Value)
+                && ra.Active == true)
+            .Join(_context.AccountingPaymentMethods,
+                ra => ra.PaymentMethodId,
+                apm => apm.PaymentMethodId,
+                (ra, apm) => new { ra.RegistrationId, ra.Payamt, apm.PaymentMethod })
+            .GroupBy(x => x.RegistrationId!.Value)
+            .Select(g => new
+            {
+                RegistrationId = g.Key,
+                TotalPayments = g.Sum(x => x.Payamt ?? 0),
+                NonCcPayments = g.Where(x => x.PaymentMethod != "Credit Card Payment")
+                                 .Sum(x => x.Payamt ?? 0)
+            })
+            .ToDictionaryAsync(
+                x => x.RegistrationId,
+                x => new PaymentSummary
+                {
+                    TotalPayments = x.TotalPayments,
+                    NonCcPayments = x.NonCcPayments
+                },
+                cancellationToken);
+    }
 }

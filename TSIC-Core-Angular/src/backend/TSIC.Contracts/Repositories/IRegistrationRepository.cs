@@ -280,6 +280,22 @@ public interface IRegistrationRepository
         Guid clubRepRegistrationId,
         string userId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all active registrations assigned to any of the given teams.
+    /// Returns tracked entities for in-place fee recalculation.
+    /// </summary>
+    Task<List<Registrations>> GetActivePlayerRegistrationsByTeamIdsAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Zero out all fee fields for registrations assigned to a team.
+    /// Used when dropping a team to the "Dropped Teams" agegroup.
+    /// Returns the number of registrations affected.
+    /// </summary>
+    Task<int> ZeroFeesForTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
 }
 
 public record RegistrationWithInvoiceData

@@ -15,7 +15,8 @@ import type {
   TeamDetailDto,
   CreateTeamRequest,
   UpdateTeamRequest,
-  DeleteTeamResultDto
+  DeleteTeamResultDto,
+  DropTeamResultDto
 } from '../../../../core/api';
 
 @Injectable({
@@ -101,6 +102,10 @@ export class LadtService {
 
   deleteTeam(teamId: string): Observable<DeleteTeamResultDto> {
     return this.http.delete<DeleteTeamResultDto>(`${this.apiUrl}/teams/${teamId}`);
+  }
+
+  dropTeam(teamId: string): Observable<DropTeamResultDto> {
+    return this.http.post<DropTeamResultDto>(`${this.apiUrl}/teams/${teamId}/drop`, null);
   }
 
   cloneTeam(teamId: string): Observable<TeamDetailDto> {

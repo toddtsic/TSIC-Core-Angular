@@ -466,5 +466,33 @@ public class TeamRepository : ITeamRepository
                 (t, r) => r.ClubName)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<bool> IsTeamScheduledAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Schedule
+            .AsNoTracking()
+            .AnyAsync(s => s.JobId == jobId && (s.T1Id == teamId || s.T2Id == teamId), cancellationToken);
+    }
+
+    public async Task<HashSet<Guid>> GetScheduledTeamIdsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var t1Ids = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.T1Id != null)
+            .Select(s => s.T1Id!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var t2Ids = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.T2Id != null)
+            .Select(s => s.T2Id!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var result = new HashSet<Guid>(t1Ids);
+        result.UnionWith(t2Ids);
+        return result;
+    }
 }
 

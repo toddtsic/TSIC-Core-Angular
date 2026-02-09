@@ -377,7 +377,12 @@ public record UpdateTeamRequest
 - `GetTeamByIdAsync(Guid teamId)` → `Teams?` (tracked)
 - `GetTeamsWithCountsAsync(Guid jobId)` → `List<TeamWithCountsDto>` (player counts from Registrations)
 - `GetMaxDivRankAsync(Guid divId)` → `int` (for new team ordering)
+- `IsTeamScheduledAsync(Guid teamId, Guid jobId)` → `bool` (check if team is on any Schedule via T1Id/T2Id)
+- `GetScheduledTeamIdsAsync(Guid jobId)` → `HashSet<Guid>` (bulk schedule check for all teams in job)
 - `Add(Teams team)` / `Remove(Teams team)` / `SaveChangesAsync()`
+
+**IRegistrationRepository** (extended for Drop Team):
+- `ZeroFeesForTeamAsync(Guid teamId, Guid jobId)` → `int` (zeros all 8 fee fields for registrations assigned to team, returns count affected)
 
 ### Phase 3: Backend - Service Interfaces & Implementations
 
@@ -407,7 +412,7 @@ public record UpdateTeamRequest
 - `DeleteAgegroupAsync(Guid agegroupId)` → `bool` (cascade delete divisions/teams or prevent if teams exist)
 - `AddAgegroupDivisionAsync(Guid agegroupId)` → `Guid` (creates stub division)
 - `AddWaitlistAgegroupsAsync(Guid jobId)` → `int` (batch creates WAITLIST agegroups for all leagues)
-- `UpdatePlayerFeesToAgegroupFeesAsync(Guid jobId, Guid agegroupId)` → `int` (batch updates all player registration fees to match agegroup TeamFee)
+- `UpdatePlayerFeesToAgegroupFeesAsync(Guid agegroupId, Guid jobId)` → `int` (recalculates player registration fees using coalescing hierarchy: Team.FeeBase → Team.PerRegistrantFee → AG.TeamFee → AG.RosterFee; handles processing fee non-CC discount, PaidTotal refresh from RegistrationAccounting)
 
 **Division CRUD**:
 - `GetDivisionDetailAsync(Guid divId)` → `DivisionDetailDto`
@@ -420,7 +425,8 @@ public record UpdateTeamRequest
 - `GetTeamDetailAsync(Guid teamId)` → `TeamDetailDto`
 - `CreateTeamAsync(Guid divId, CreateTeamRequest request)` → `TeamDetailDto`
 - `UpdateTeamAsync(Guid teamId, UpdateTeamRequest request)` → `TeamDetailDto`
-- `DeleteTeamAsync(Guid teamId)` → `bool` (prevent if players rostered, or soft delete via Active=false)
+- `DeleteTeamAsync(Guid teamId)` → `DeleteTeamResultDto` (prevent if players rostered, or soft delete via Active=false)
+- `DropTeamAsync(Guid teamId, Guid jobId, string userId)` → `DropTeamResultDto` (move to "Dropped Teams" agegroup/division, deactivate, zero player fees — blocked if team is on a schedule)
 - `CloneTeamAsync(Guid teamId)` → `TeamDetailDto` (duplicates team with new ID, appends " (Copy)" to name)
 
 **Validation Helpers**:
@@ -463,7 +469,8 @@ public record UpdateTeamRequest
 - `GET api/ladt/teams/{teamId:guid}` → `TeamDetailDto`
 - `POST api/ladt/teams` → `TeamDetailDto` (create)
 - `PUT api/ladt/teams/{teamId:guid}` → `TeamDetailDto` (update)
-- `DELETE api/ladt/teams/{teamId:guid}` → `void`
+- `DELETE api/ladt/teams/{teamId:guid}` → `DeleteTeamResultDto`
+- `POST api/ladt/teams/{teamId:guid}/drop` → `DropTeamResultDto` (move to "Dropped Teams", deactivate, zero fees)
 - `POST api/ladt/teams/{teamId:guid}/clone` → `TeamDetailDto`
 
 **Sibling Batch Queries** (for comparison grid):
@@ -474,7 +481,7 @@ public record UpdateTeamRequest
 
 **Batch Operations**:
 - `POST api/ladt/batch/waitlist-agegroups` → `int` (creates WAITLIST agegroups for all leagues)
-- `POST api/ladt/batch/update-fees/{agegroupId:guid}` → `int` (updates player fees to match agegroup)
+- `POST api/ladt/batch/update-fees/{agegroupId:guid}` → `int` (recalculates player registration fees for teams in agegroup using coalescing fee hierarchy)
 
 **Authorization**: All endpoints `[Authorize(Policy = "AdminOnly")]`, derive `jobId` from JWT via `GetJobIdFromRegistrationAsync()`.
 
@@ -900,7 +907,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 8. **Context-sensitive add buttons** - Per-node "+" buttons visible on hover: leagues get "Add Age Group", agegroups get "Add Division", divisions get "Add Team". No modals needed — stub entities created server-side with sensible defaults.
 
-9. **Soft delete teams with clear user feedback** - If players are rostered to a team, the backend sets `Active=false` instead of deleting the row. The API returns a `DeleteTeamResultDto` with `wasDeactivated: true/false` and a human-readable `message`. Tree node renders dimmed (reduced opacity, strikethrough name, red "Inactive" badge).
+9. **Drop Team instead of delete** - Teams are NEVER hard-deleted. The "-" button on team nodes triggers a "Drop" operation: the team is moved to a special "Dropped Teams" agegroup/division (auto-created per league if not existing), deactivated (`Active=false`), and all player fees are zeroed (8 fee fields). Scheduled teams (appearing in `Schedule.T1Id` or `T2Id`) are blocked at the backend — no frontend pre-check (avoids TOCTOU race condition). The API returns `DropTeamResultDto` with `wasDropped`, `message`, and `playersAffected`. Tree renders dropped teams dimmed (reduced opacity, strikethrough name, red "Inactive" badge) inside the "Dropped Teams" special age group.
 
 10. **Authorization via JWT** - ALL endpoints derive jobId from token via `GetJobIdFromRegistrationAsync()`, never from route params. Each entity validated for job ownership before any CRUD operation.
 
@@ -933,11 +940,13 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - [x] Sibling comparison grid: row numbers (frozen) + sortable column headers
 - [x] Edit detail form saves correctly, grid + tree both refresh
 - [x] Delete agegroup/division with children shows validation error
-- [x] Delete team with rostered players deactivates (dimmed in tree)
-- [x] Delete team with no players permanently removes it from tree
+- [x] Drop team moves to "Dropped Teams" agegroup/division, deactivates, zeros player fees
+- [x] Drop team blocked for scheduled teams (backend returns 400 with message)
+- [x] "Dropped Teams" agegroup/division auto-created per league on first drop
+- [x] Dropped teams appear dimmed in tree under "Dropped Teams" special agegroup
 - [x] Clone team creates duplicate with " (Copy)" suffix
 - [x] Add Waitlists batch operation creates WAITLIST agegroups for all leagues
-- [ ] Update Player Fees batch operation updates all player registrations
+- [x] Update Player Fees batch operation updates all player registrations
 - [x] Tree expand/collapse state persists after CRUD operations
 - [x] Team/player counts aggregate correctly at all levels
 - [x] Header shows total teams/players across all leagues
@@ -1032,6 +1041,8 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | 18 | Age group sorting with special segregation | Age groups sorted alphabetically within each league, with "Dropped Teams" and "WAITLIST*" groups pushed to the bottom. Specials visually distinguished with muted opacity + italic text. |
 | 19 | Initial expansion state: leagues expanded | On first load, `collapseAll()` runs which keeps all league-level nodes expanded (showing age groups). Collapse All button behaves the same way. |
 | 20 | "Unassigned" division business rule | Every age group MUST always have an "Unassigned" division. Cannot be deleted or renamed (backend `InvalidOperationException` + frontend disabled fields). Auto-created when age groups are created. Division duplicate name prevention (client + server). Stub division naming changed from count-based to collision-safe. "Unassigned" divisions visually muted in tree and sorted first among siblings. |
+| 21 | Update Player Fees rewrite | Original implementation incorrectly copied `ag.TeamFee` down to `team.FeeBase`, violating coalescing principle and not updating player registrations at all. Rewritten to: (1) resolve per-team base fee via in-memory coalescing (Team.FeeBase → Team.PerRegistrantFee → AG.TeamFee → AG.RosterFee → 0), (2) recalculate FeeProcessing with non-CC payment discount (processing applies only to CC-payable portion), (3) refresh PaidTotal from RegistrationAccounting records, (4) recompute FeeTotal/OwedTotal. Added `GetPaymentSummariesAsync` to IRegistrationAccountingRepository and `GetActivePlayerRegistrationsByTeamIdsAsync` to IRegistrationRepository. LadtService gained 4 new deps: IRegistrationRepository, IRegistrationAccountingRepository, IJobRepository, IRegistrationRecordFeeCalculatorService. Frontend button renamed "Push Fees" → "Update Player Fees" with updated tooltip and success message. |
+| 22 | Drop Team replaces team delete | Teams are NEVER hard-deleted. The "-" button triggers a "Drop" operation: move team to "Dropped Teams" agegroup/division (auto-created per league), deactivate, zero all 8 player fee fields. Scheduled teams blocked at backend (checks `Schedule.T1Id`/`T2Id`). No frontend pre-check for schedule status — avoids TOCTOU race condition; backend is sole authority. New repository methods: `IsTeamScheduledAsync`, `GetScheduledTeamIdsAsync` (ITeamRepository), `ZeroFeesForTeamAsync` (IRegistrationRepository). New DTO: `DropTeamResultDto`. New endpoint: `POST teams/{teamId}/drop`. Frontend `canDelete()` always shows "-" for teams; `confirmDelete()` routes team-level nodes to `dropTeam()` with "Drop" confirm messaging. |
 
 ---
 
@@ -1047,5 +1058,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - Tree tooltips, flush-right Inactive badges, initial expansion state (leagues expanded)
 - Mobile off-canvas drawer, breadcrumb bar, responsive layout
 - All 8 palettes supported via CSS variable theming throughout
+- Update Player Fees: recalculates player registration fees using coalescing hierarchy, processing fee non-CC discount, PaidTotal refresh from accounting records
+- Drop Team: moves team to "Dropped Teams" agegroup/division, deactivates, zeros player fees; scheduled teams blocked at backend (no TOCTOU race)
 
-**Remaining work**: Manual testing across all 8 palettes, performance testing with large datasets, and edge case handling (see verification checklist).
+**Remaining work**: Manual testing across all 8 palettes, performance testing with large datasets (see verification checklist).

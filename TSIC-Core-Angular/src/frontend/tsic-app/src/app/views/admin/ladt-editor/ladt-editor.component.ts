@@ -113,7 +113,7 @@ export class LadtEditorComponent implements OnInit {
     this.loadTree();
   }
 
-  loadTree(): void {
+  loadTree(selectId?: string): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
@@ -132,6 +132,15 @@ export class LadtEditorComponent implements OnInit {
         }
 
         this.isLoading.set(false);
+
+        // After adding a child: expand ancestors and select the new node
+        if (selectId) {
+          const newNode = flat.find(n => n.id === selectId);
+          if (newNode) {
+            this.expandAncestors(newNode, flat);
+            this.selectNode(newNode);
+          }
+        }
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to load tree data');
@@ -262,22 +271,103 @@ export class LadtEditorComponent implements OnInit {
 
   addStubAgegroup(leagueId: string): void {
     this.ladtService.addStubAgegroup(leagueId).subscribe({
-      next: () => this.loadTree(),
+      next: (newId) => {
+        this.ensureExpanded(leagueId);
+        this.loadTree(newId);
+      },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to add age group')
     });
   }
 
   addStubDivision(agegroupId: string): void {
     this.ladtService.addStubDivision(agegroupId).subscribe({
-      next: () => this.loadTree(),
+      next: (newId) => {
+        this.ensureExpanded(agegroupId);
+        this.loadTree(newId);
+      },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to add division')
     });
   }
 
   addStubTeam(divId: string): void {
     this.ladtService.addStubTeam(divId).subscribe({
-      next: () => this.loadTree(),
+      next: (newId) => {
+        this.ensureExpanded(divId);
+        this.loadTree(newId);
+      },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to add team')
+    });
+  }
+
+  private ensureExpanded(nodeId: string): void {
+    this.expandedIds.update(ids => {
+      const next = new Set(ids);
+      next.add(nodeId);
+      return next;
+    });
+  }
+
+  private expandAncestors(node: LadtFlatNode, flat: LadtFlatNode[]): void {
+    this.expandedIds.update(ids => {
+      const next = new Set(ids);
+      let current: LadtFlatNode | undefined = node;
+      while (current?.parentId) {
+        next.add(current.parentId);
+        current = flat.find(n => n.id === current!.parentId);
+      }
+      return next;
+    });
+  }
+
+  // ── Delete ──
+
+  /** Frontend guard: can this node be removed via the tree "-" button? */
+  canDelete(node: LadtFlatNode): boolean {
+    // Leagues (level 0) are never deletable from the tree
+    if (node.level === 0) return false;
+    // "Unassigned" divisions are protected
+    if (node.level === 2 && node.isSpecial) return false;
+    // Agegroups & divisions: blocked if any teams exist underneath
+    if (node.level <= 2 && node.teamCount > 0) return false;
+    // Teams: always show "-" (backend guards scheduled teams, drop handles players)
+    return true;
+  }
+
+  confirmDelete(node: LadtFlatNode): void {
+    // Teams are "dropped" (moved to Dropped Teams), not deleted
+    if (node.level === 3) {
+      if (!confirm(`Drop team "${node.name}"? It will be moved to Dropped Teams and deactivated.`)) return;
+
+      this.ladtService.dropTeam(node.id).subscribe({
+        next: (result) => {
+          if (this.selectedNode()?.id === node.id) {
+            this.selectedNode.set(null);
+            this.siblingData.set([]);
+          }
+          this.loadTree();
+          this.errorMessage.set(result.message);
+        },
+        error: (err) => this.errorMessage.set(err.error?.message || 'Failed to drop team')
+      });
+      return;
+    }
+
+    const label = this.getLevelLabel(node.level);
+    if (!confirm(`Delete ${label} "${node.name}"?`)) return;
+
+    let delete$: Observable<void>;
+    if (node.level === 1) delete$ = this.ladtService.deleteAgegroup(node.id);
+    else delete$ = this.ladtService.deleteDivision(node.id);
+
+    delete$.subscribe({
+      next: () => {
+        if (this.selectedNode()?.id === node.id) {
+          this.selectedNode.set(null);
+          this.siblingData.set([]);
+        }
+        this.loadTree();
+      },
+      error: (err) => this.errorMessage.set(err.error?.message || `Failed to delete ${label}`)
     });
   }
 

@@ -264,6 +264,16 @@ public interface ITeamRepository
     /// Returns null if team has no ClubrepRegistrationid.
     /// </summary>
     Task<string?> GetClubNameForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if a team appears in any Schedule rows (T1Id or T2Id).
+    /// </summary>
+    Task<bool> IsTeamScheduledAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all team IDs that appear in any Schedule rows for a job (bulk, for tree).
+    /// </summary>
+    Task<HashSet<Guid>> GetScheduledTeamIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
 
 public record TeamWithRegistrationInfo

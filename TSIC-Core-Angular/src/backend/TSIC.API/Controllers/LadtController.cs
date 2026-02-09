@@ -297,6 +297,21 @@ public class LadtController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
+    [HttpPost("teams/{teamId:guid}/drop")]
+    public async Task<ActionResult<DropTeamResultDto>> DropTeam(Guid teamId, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var result = await _ladtService.DropTeamAsync(teamId, jobId!.Value, userId!, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     [HttpPost("teams/{teamId:guid}/clone")]
     public async Task<ActionResult<TeamDetailDto>> CloneTeam(Guid teamId, CancellationToken cancellationToken)
     {

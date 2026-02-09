@@ -16,8 +16,8 @@ import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/
       </div>
       <div class="d-flex gap-2">
         <button class="btn btn-sm btn-outline-secondary" (click)="pushFees()" [disabled]="isSaving()"
-                title="Update all team fees to match this age group">
-          <i class="bi bi-currency-dollar me-1"></i>Push Fees
+                title="Recalculate player fees using age group fee hierarchy">
+          <i class="bi bi-currency-dollar me-1"></i>Update Player Fees
         </button>
         <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()" [disabled]="isSaving()">
           <i class="bi bi-trash me-1"></i>Delete
@@ -315,12 +315,12 @@ export class AgegroupDetailComponent implements OnChanges {
       next: (count) => {
         this.isSaving.set(false);
         this.isError.set(false);
-        this.saveMessage.set(`Updated fees for ${count} team(s).`);
+        this.saveMessage.set(`Updated fees for ${count} registration(s).`);
       },
       error: (err) => {
         this.isSaving.set(false);
         this.isError.set(true);
-        this.saveMessage.set(err.error?.message || 'Failed to push fees.');
+        this.saveMessage.set(err.error?.message || 'Failed to update player fees.');
       }
     });
   }

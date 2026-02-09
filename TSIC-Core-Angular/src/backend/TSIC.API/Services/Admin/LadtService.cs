@@ -2,6 +2,7 @@ using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
+using TSIC.API.Services.Players;
 
 // Note: Use TSIC.Domain.Entities.Teams (fully-qualified) to resolve
 // collision with TSIC.API.Services.Teams namespace.
@@ -20,17 +21,29 @@ public sealed class LadtService : ILadtService
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IDivisionRepository _divisionRepo;
     private readonly ITeamRepository _teamRepo;
+    private readonly IRegistrationRepository _registrationRepo;
+    private readonly IRegistrationAccountingRepository _regAcctRepo;
+    private readonly IJobRepository _jobRepo;
+    private readonly IRegistrationRecordFeeCalculatorService _feeCalc;
 
     public LadtService(
         ILeagueRepository leagueRepo,
         IAgeGroupRepository agegroupRepo,
         IDivisionRepository divisionRepo,
-        ITeamRepository teamRepo)
+        ITeamRepository teamRepo,
+        IRegistrationRepository registrationRepo,
+        IRegistrationAccountingRepository regAcctRepo,
+        IJobRepository jobRepo,
+        IRegistrationRecordFeeCalculatorService feeCalc)
     {
         _leagueRepo = leagueRepo;
         _agegroupRepo = agegroupRepo;
         _divisionRepo = divisionRepo;
         _teamRepo = teamRepo;
+        _registrationRepo = registrationRepo;
+        _regAcctRepo = regAcctRepo;
+        _jobRepo = jobRepo;
+        _feeCalc = feeCalc;
     }
 
     // ═══════════════════════════════════════════
@@ -631,6 +644,88 @@ public sealed class LadtService : ILadtService
         };
     }
 
+    public async Task<DropTeamResultDto> DropTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    {
+        await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
+
+        // 1. Block if team is on a schedule
+        if (await _teamRepo.IsTeamScheduledAsync(teamId, jobId, cancellationToken))
+            throw new InvalidOperationException("Cannot drop a team that is assigned to a schedule.");
+
+        var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Team {teamId} not found.");
+
+        // 2. Find or create "Dropped Teams" agegroup + division under the same league
+        var droppedAgId = await FindOrCreateDroppedTeamsAgegroupAsync(team.LeagueId, userId, cancellationToken);
+        var droppedDivId = await FindOrCreateDroppedTeamsDivisionAsync(droppedAgId, userId, cancellationToken);
+
+        // 3. Zero out all player fees for this team
+        var playersAffected = await _registrationRepo.ZeroFeesForTeamAsync(teamId, jobId, cancellationToken);
+
+        // 4. Move team to Dropped Teams and deactivate
+        team.AgegroupId = droppedAgId;
+        team.DivId = droppedDivId;
+        team.Active = false;
+        team.LebUserId = userId;
+        team.Modified = DateTime.UtcNow;
+
+        await _teamRepo.SaveChangesAsync(cancellationToken);
+
+        return new DropTeamResultDto
+        {
+            WasDropped = true,
+            Message = $"Team moved to Dropped Teams and deactivated. {playersAffected} player fee(s) zeroed.",
+            PlayersAffected = playersAffected
+        };
+    }
+
+    private async Task<Guid> FindOrCreateDroppedTeamsAgegroupAsync(Guid leagueId, string userId, CancellationToken cancellationToken)
+    {
+        const string DroppedTeamsName = "Dropped Teams";
+        var agegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, cancellationToken);
+        var existing = agegroups.Find(a =>
+            string.Equals(a.AgegroupName, DroppedTeamsName, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null) return existing.AgegroupId;
+
+        var ag = new Agegroups
+        {
+            AgegroupId = Guid.NewGuid(),
+            LeagueId = leagueId,
+            AgegroupName = DroppedTeamsName,
+            MaxTeams = 999,
+            MaxTeamsPerClub = 999,
+            SortAge = 254,
+            LebUserId = userId,
+            Modified = DateTime.UtcNow
+        };
+        _agegroupRepo.Add(ag);
+        await _agegroupRepo.SaveChangesAsync(cancellationToken);
+        return ag.AgegroupId;
+    }
+
+    private async Task<Guid> FindOrCreateDroppedTeamsDivisionAsync(Guid droppedAgId, string userId, CancellationToken cancellationToken)
+    {
+        const string DroppedTeamsName = "Dropped Teams";
+        var divisions = await _divisionRepo.GetByAgegroupIdAsync(droppedAgId, cancellationToken);
+        var existing = divisions.Find(d =>
+            string.Equals(d.DivName, DroppedTeamsName, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null) return existing.DivId;
+
+        var div = new Divisions
+        {
+            DivId = Guid.NewGuid(),
+            AgegroupId = droppedAgId,
+            DivName = DroppedTeamsName,
+            LebUserId = userId,
+            Modified = DateTime.UtcNow
+        };
+        _divisionRepo.Add(div);
+        await _divisionRepo.SaveChangesAsync(cancellationToken);
+        return div.DivId;
+    }
+
     public async Task<TeamDetailDto> CloneTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default)
     {
         await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
@@ -786,21 +881,82 @@ public sealed class LadtService : ILadtService
         var ag = await _agegroupRepo.GetByIdAsync(agegroupId, cancellationToken)
             ?? throw new KeyNotFoundException($"Agegroup {agegroupId} not found.");
 
+        // Get teams for this age group
         var teams = await _teamRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
         if (teams.Count == 0) return 0;
 
-        // Load tracked versions for update
+        // Get active player registrations assigned to these teams (tracked for update)
         var teamIds = teams.Select(t => t.TeamId).ToList();
-        var trackedTeams = await _teamRepo.GetTeamsForJobAsync(jobId, teamIds, cancellationToken);
+        var registrations = await _registrationRepo.GetActivePlayerRegistrationsByTeamIdsAsync(jobId, teamIds, cancellationToken);
+        if (registrations.Count == 0) return 0;
 
-        foreach (var team in trackedTeams)
+        // Get job fee settings and payment summaries
+        var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId);
+        var addProcessingFees = feeSettings?.BAddProcessingFees ?? false;
+
+        var regIds = registrations.Select(r => r.RegistrationId).ToList();
+        var payments = await _regAcctRepo.GetPaymentSummariesAsync(regIds, cancellationToken);
+
+        // Build fee-per-team using in-memory coalescing
+        var feeByTeam = teams.ToDictionary(t => t.TeamId, t => ResolveBaseFee(t, ag));
+
+        // Recalculate each registration
+        var updated = 0;
+        foreach (var reg in registrations)
         {
-            team.FeeBase = ag.TeamFee ?? 0;
-            team.Modified = DateTime.UtcNow;
+            if (!reg.AssignedTeamId.HasValue) continue;
+
+            var resolvedFee = feeByTeam.GetValueOrDefault(reg.AssignedTeamId.Value);
+            var summary = payments.GetValueOrDefault(reg.RegistrationId);
+
+            // Refresh PaidTotal from actual accounting records
+            reg.PaidTotal = summary?.TotalPayments ?? 0;
+
+            // Guard: skip if fee unchanged and nothing owed
+            if (reg.FeeBase == resolvedFee && reg.OwedTotal <= 0)
+                continue;
+
+            if (resolvedFee == 0)
+            {
+                // Zero fee: clear all fee fields
+                reg.FeeBase = 0;
+                reg.FeeDiscount = 0;
+                reg.FeeProcessing = 0;
+                reg.FeeDonation = 0;
+                reg.FeeLatefee = 0;
+            }
+            else
+            {
+                reg.FeeBase = resolvedFee;
+                reg.FeeProcessing = addProcessingFees
+                    ? _feeCalc.GetDefaultProcessing(Math.Max(resolvedFee - (summary?.NonCcPayments ?? 0), 0))
+                    : 0;
+            }
+
+            reg.FeeTotal = reg.FeeBase - reg.FeeDiscount + reg.FeeProcessing + reg.FeeDonation + reg.FeeLatefee;
+            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            reg.Modified = DateTime.UtcNow;
+            updated++;
         }
 
-        await _teamRepo.UpdateTeamFeesAsync(trackedTeams, cancellationToken);
-        return trackedTeams.Count;
+        if (updated > 0)
+            await _registrationRepo.SaveChangesAsync(cancellationToken);
+
+        return updated;
+    }
+
+    /// <summary>
+    /// Coalescing fee resolution: Team.FeeBase → Team.PerRegistrantFee → AG.TeamFee → AG.RosterFee → 0.
+    /// Returns the effective base fee for a team, checking team-level fees first,
+    /// then falling back to age group fees.
+    /// </summary>
+    private static decimal ResolveBaseFee(TSIC.Domain.Entities.Teams team, Agegroups ag)
+    {
+        if ((team.FeeBase ?? 0) > 0) return team.FeeBase!.Value;
+        if ((team.PerRegistrantFee ?? 0) > 0) return team.PerRegistrantFee!.Value;
+        if ((ag.TeamFee ?? 0) > 0) return ag.TeamFee!.Value;
+        if ((ag.RosterFee ?? 0) > 0) return ag.RosterFee!.Value;
+        return 0;
     }
 
     // ═══════════════════════════════════════════

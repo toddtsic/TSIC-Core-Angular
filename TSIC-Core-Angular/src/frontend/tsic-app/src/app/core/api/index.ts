@@ -41,6 +41,7 @@ export type { CreditCardInfo } from './models/CreditCardInfo';
 export type { DeleteTeamResultDto } from './models/DeleteTeamResultDto';
 export type { DiscountCodeDto } from './models/DiscountCodeDto';
 export type { DivisionDetailDto } from './models/DivisionDetailDto';
+export type { DropTeamResultDto } from './models/DropTeamResultDto';
 export type { EmailHealthStatus } from './models/EmailHealthStatus';
 export type { FamilyPlayerDto } from './models/FamilyPlayerDto';
 export type { FamilyPlayerRegistrationDto } from './models/FamilyPlayerRegistrationDto';
