@@ -17,6 +17,7 @@ import type {
   UpdateTeamRequest,
   DropTeamResultDto,
   ClubRegistrationDto,
+  CloneTeamRequest,
   MoveTeamToClubRequest,
   MoveTeamToClubResultDto
 } from '../../../../core/api';
@@ -106,8 +107,8 @@ export class LadtService {
     return this.http.post<DropTeamResultDto>(`${this.apiUrl}/teams/${teamId}/drop`, null);
   }
 
-  cloneTeam(teamId: string): Observable<TeamDetailDto> {
-    return this.http.post<TeamDetailDto>(`${this.apiUrl}/teams/${teamId}/clone`, null);
+  cloneTeam(teamId: string, request: CloneTeamRequest): Observable<TeamDetailDto> {
+    return this.http.post<TeamDetailDto>(`${this.apiUrl}/teams/${teamId}/clone`, request);
   }
 
   addStubTeam(divId: string): Observable<string> {

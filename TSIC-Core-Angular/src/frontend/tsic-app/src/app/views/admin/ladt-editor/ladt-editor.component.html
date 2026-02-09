@@ -48,15 +48,17 @@
               [disabled]="isLoading()">
         <i class="bi bi-arrow-clockwise"></i>
       </button>
-      <div class="dropdown">
-        <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
-          <i class="bi bi-plus-lg"></i>
+      <div class="dropdown" style="position: relative;">
+        <button class="btn btn-sm btn-outline-primary dropdown-toggle" (click)="actionsOpen.set(!actionsOpen())">
+          <i class="bi bi-gear"></i>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-          <li><button class="dropdown-item" (click)="addWaitlistAgegroups()">
-            <i class="bi bi-hourglass-split me-2"></i>Add WAITLIST Age Groups
-          </button></li>
-        </ul>
+        @if (actionsOpen()) {
+          <ul class="dropdown-menu dropdown-menu-end show">
+            <li><button class="dropdown-item" (click)="addWaitlistAgegroups(); actionsOpen.set(false)">
+              <i class="bi bi-collection me-2"></i>Add WAITLIST Age Groups
+            </button></li>
+          </ul>
+        }
       </div>
     </div>
 

@@ -40,7 +40,7 @@ public interface ILadtService
     Task<TeamDetailDto> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<DeleteTeamResultDto> DeleteTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
     Task<DropTeamResultDto> DropTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
-    Task<TeamDetailDto> CloneTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
+    Task<TeamDetailDto> CloneTeamAsync(Guid teamId, CloneTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<Guid> AddStubTeamAsync(Guid divId, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<List<ClubRegistrationDto>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
     Task<MoveTeamToClubResultDto> MoveTeamToClubAsync(Guid teamId, MoveTeamToClubRequest request, Guid jobId, string userId, CancellationToken ct = default);

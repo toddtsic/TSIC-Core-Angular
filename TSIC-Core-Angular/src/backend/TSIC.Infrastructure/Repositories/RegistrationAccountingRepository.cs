@@ -73,4 +73,11 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
                 },
                 cancellationToken);
     }
+
+    public async Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .AnyAsync(ra => ra.TeamId == teamId && ra.Active == true, cancellationToken);
+    }
 }

@@ -108,15 +108,18 @@ export class LadtEditorComponent implements OnInit {
   deleteDialogTitle = computed(() => {
     const node = this.deleteTargetNode();
     if (!node) return 'Confirm';
-    return node.level === 3 ? 'Drop Team' : `Delete ${this.getLevelLabel(node.level)}`;
+    return node.level === 3 ? 'Remove Team' : `Delete ${this.getLevelLabel(node.level)}`;
   });
   deleteDialogMessage = computed(() => {
     const node = this.deleteTargetNode();
     if (!node) return '';
-    if (node.level === 3) return `Drop team "${node.name}"? It will be moved to Dropped Teams and deactivated.`;
+    if (node.level === 3) return `Remove team "${node.name}"? If the team has no players, payments, or schedule history it will be permanently deleted. Otherwise it will be moved to Dropped Teams and deactivated.`;
     return `Delete ${this.getLevelLabel(node.level)} "${node.name}"?`;
   });
-  deleteDialogConfirmLabel = computed(() => this.deleteTargetNode()?.level === 3 ? 'Drop' : 'Delete');
+  deleteDialogConfirmLabel = computed(() => this.deleteTargetNode()?.level === 3 ? 'Remove' : 'Delete');
+
+  // Actions dropdown
+  actionsOpen = signal(false);
 
   // Mobile drawer
   drawerOpen = signal(false);

@@ -427,7 +427,7 @@ public record UpdateTeamRequest
 - `UpdateTeamAsync(Guid teamId, UpdateTeamRequest request)` → `TeamDetailDto`
 - `DeleteTeamAsync(Guid teamId)` → `DeleteTeamResultDto` (prevent if players rostered, or soft delete via Active=false)
 - `DropTeamAsync(Guid teamId, Guid jobId, string userId)` → `DropTeamResultDto` (move to "Dropped Teams" agegroup/division, deactivate, zero player fees — blocked if team is on a schedule)
-- `CloneTeamAsync(Guid teamId)` → `TeamDetailDto` (duplicates team with new ID, appends " (Copy)" to name)
+- `CloneTeamAsync(Guid teamId, CloneTeamRequest request)` → `TeamDetailDto` (duplicates team with admin-chosen name; optionally links to source club and creates new ClubTeam entry, with club rep financial sync)
 
 **Validation Helpers**:
 - `ValidateJobOwnershipAsync(Guid entityId, string entityType, Guid jobId)` → `bool` (ensures league/agegroup/division/team belongs to job)
@@ -909,7 +909,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 
 8. **Context-sensitive add buttons** - Per-node "+" buttons visible on hover: leagues get "Add Age Group", agegroups get "Add Division", divisions get "Add Team". No modals needed — stub entities created server-side with sensible defaults.
 
-9. **Drop Team instead of delete** - Teams are NEVER hard-deleted. The "-" button on team nodes triggers a "Drop" operation: the team is moved to a special "Dropped Teams" agegroup/division (auto-created per league if not existing), deactivated (`Active=false`), and all player fees are zeroed (8 fee fields). Scheduled teams (appearing in `Schedule.T1Id` or `T2Id`) are blocked at the backend — no frontend pre-check (avoids TOCTOU race condition). The API returns `DropTeamResultDto` with `wasDropped`, `message`, and `playersAffected`. Tree renders dropped teams dimmed (reduced opacity, strikethrough name, red "Inactive" badge) inside the "Dropped Teams" special age group.
+9. **Smart Drop/Delete** - The "-" button triggers a "Remove" operation with dual-path backend logic. **Clean teams** (no players, no payments, no schedule history) are permanently hard-deleted. **Teams with history** are soft-dropped: moved to "Dropped Teams" agegroup/division (auto-created per league), deactivated (`Active=false`), all player fees zeroed (8 fields). Both paths recalculate club rep financials via `SynchronizeClubRepFinancialsAsync`. Scheduled teams are blocked. The API returns `DropTeamResultDto` with `wasDropped`, `wasDeleted`, `message`, and `playersAffected`. Frontend confirmation text explains both possible outcomes since the decision is made server-side.
 
 10. **Authorization via JWT** - ALL endpoints derive jobId from token via `GetJobIdFromRegistrationAsync()`, never from route params. Each entity validated for job ownership before any CRUD operation.
 
@@ -942,11 +942,16 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - [x] Sibling comparison grid: row numbers (frozen) + sortable column headers
 - [x] Edit detail form saves correctly, grid + tree both refresh
 - [x] Delete agegroup/division with children shows validation error
-- [x] Drop team moves to "Dropped Teams" agegroup/division, deactivates, zeros player fees
-- [x] Drop team blocked for scheduled teams (backend returns 400 with message)
+- [x] Remove team: clean teams (no players/payments/schedule) are hard-deleted permanently
+- [x] Remove team: teams with history are soft-dropped to "Dropped Teams" agegroup/division
+- [x] Remove team: both paths recalculate club rep financials
+- [x] Remove team: scheduled teams blocked (backend returns 400 with message)
+- [x] Remove team: confirmation text explains both possible outcomes
 - [x] "Dropped Teams" agegroup/division auto-created per league on first drop
 - [x] Dropped teams appear dimmed in tree under "Dropped Teams" special agegroup
-- [x] Clone team creates duplicate with " (Copy)" suffix
+- [x] Clone team: dialog prompts for name + "Add to club library" checkbox
+- [x] Clone team: with club library checked → creates ClubTeam + links to club rep + syncs financials
+- [x] Clone team: without club library → pure league team (no club association)
 - [x] Add Waitlists batch operation creates WAITLIST agegroups for all leagues
 - [x] Update Player Fees batch operation updates all player registrations
 - [x] Tree expand/collapse state persists after CRUD operations
@@ -984,6 +989,9 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - [x] Move Team to Club: championship/bracket games (`T1Type != "T"`) unchanged
 - [x] Move Team to Club: tree refreshes after move showing updated club name labels
 - [ ] Move Team to Club: edge case — only one club registered → dropdown empty, Move button disabled
+- [x] Move Team to Club: "Change Club" in overflow menu (three-dots) behind warning modal gate
+- [x] Tree toolbar: gear icon dropdown for Actions (signal-toggled, not Bootstrap JS)
+- [x] Tree toolbar: "Add WAITLIST Age Groups" in Actions dropdown with `bi-collection` icon
 
 ---
 
@@ -1056,8 +1064,10 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | 19 | Initial expansion state: leagues expanded | On first load, `collapseAll()` runs which keeps all league-level nodes expanded (showing age groups). Collapse All button behaves the same way. |
 | 20 | "Unassigned" division business rule | Every age group MUST always have an "Unassigned" division. Cannot be deleted or renamed (backend `InvalidOperationException` + frontend disabled fields). Auto-created when age groups are created. Division duplicate name prevention (client + server). Stub division naming changed from count-based to collision-safe. "Unassigned" divisions visually muted in tree and sorted first among siblings. |
 | 21 | Update Player Fees rewrite | Original implementation incorrectly copied `ag.TeamFee` down to `team.FeeBase`, violating coalescing principle and not updating player registrations at all. Rewritten to: (1) resolve per-team base fee via in-memory coalescing (Team.FeeBase → Team.PerRegistrantFee → AG.TeamFee → AG.RosterFee → 0), (2) recalculate FeeProcessing with non-CC payment discount (processing applies only to CC-payable portion), (3) refresh PaidTotal from RegistrationAccounting records, (4) recompute FeeTotal/OwedTotal. Added `GetPaymentSummariesAsync` to IRegistrationAccountingRepository and `GetActivePlayerRegistrationsByTeamIdsAsync` to IRegistrationRepository. LadtService gained 4 new deps: IRegistrationRepository, IRegistrationAccountingRepository, IJobRepository, IRegistrationRecordFeeCalculatorService. Frontend button renamed "Push Fees" → "Update Player Fees" with updated tooltip and success message. |
-| 22 | Drop Team replaces team delete | Teams are NEVER hard-deleted. The "-" button triggers a "Drop" operation: move team to "Dropped Teams" agegroup/division (auto-created per league), deactivate, zero all 8 player fee fields. Scheduled teams blocked at backend (checks `Schedule.T1Id`/`T2Id`). No frontend pre-check for schedule status — avoids TOCTOU race condition; backend is sole authority. New repository methods: `IsTeamScheduledAsync`, `GetScheduledTeamIdsAsync` (ITeamRepository), `ZeroFeesForTeamAsync` (IRegistrationRepository). New DTO: `DropTeamResultDto`. New endpoint: `POST teams/{teamId}/drop`. Frontend `canDelete()` always shows "-" for teams; `confirmDelete()` routes team-level nodes to `dropTeam()` with "Drop" confirm messaging. |
-| 23 | Move Team to Different Club | Tournament teams registered by club reps can be reassigned to a different club. Two modes: single team or batch (all teams from same club). Updates `ClubrepRegistrationid`, `ClubrepId`, `ClubTeamId` (if non-null, finds/creates matching ClubTeam under target club), and audit fields. After move: recalculates financials for BOTH source and target club reps via `SynchronizeClubRepFinancialsAsync`, and syncs denormalized schedule team names via new `SynchronizeScheduleNamesForTeamAsync` (reusable "single point of truth" — recomposes `T1Name`/`T2Name` from Teams.TeamName + Registrations.ClubName + Jobs.BShowTeamNameOnlyInSchedules; only updates round-robin games where `T1Type/T2Type == "T"`). New files: `IScheduleRepository.cs`, `ScheduleRepository.cs`. New DTOs: `MoveTeamToClubRequest`, `MoveTeamToClubResultDto`, `ClubRegistrationDto`. Extended `TeamDetailDto` with `ClubRepRegistrationId` and `ClubTeamId`. New endpoints: `GET clubs-for-job`, `POST teams/{teamId}/change-club`. LadtService gained 3 new deps: `IClubTeamRepository`, `IClubRepository`, `IScheduleRepository`. Frontend: "Change Club" button only visible for teams with `clubRepRegistrationId`; inline panel with scope toggle (single/all), target club dropdown (current club filtered out), and move action. Tree refreshes after move to reflect new club name labels. |
+| 22 | Smart Drop/Delete replaces simple team delete | The "-" button triggers a "Remove" operation with dual-path logic. **Hard delete**: teams with no players, no payments, and no schedule history are permanently deleted (`_teamRepo.Remove`). **Soft drop**: teams with any history are moved to "Dropped Teams" agegroup/division (auto-created per league), deactivated, all 8 player fee fields zeroed. Both paths recalculate club rep financials via `SynchronizeClubRepFinancialsAsync`. Scheduled teams blocked at backend (checks `Schedule.T1Id`/`T2Id`). New repository method: `HasPaymentsForTeamAsync` (IRegistrationAccountingRepository). Extended DTO: `DropTeamResultDto` gained `WasDeleted` bool (true = hard deleted, false = soft dropped). Frontend confirmation text updated: "If the team has no players, payments, or schedule history it will be permanently deleted. Otherwise it will be moved to Dropped Teams and deactivated." Button label changed from "Drop" to "Remove". |
+| 23 | Enhanced Clone with Club Library | Clone button now opens an inline dialog instead of firing immediately. Admin enters a team name (pre-filled with "Name (Copy)") and optionally checks "Add to club's team library" (only shown for club-registered teams, checked by default). When checked: backend copies `ClubrepRegistrationid` + `ClubrepId` from source, creates a new `ClubTeams` row (cloned from source's ClubTeam with the new name), links it to the clone, and recalculates club rep financials via `SynchronizeClubRepFinancialsAsync`. When unchecked: pure league team with no club association (original behavior). New DTO: `CloneTeamRequest` with `TeamName` + `AddToClubLibrary`. Updated endpoint: `POST teams/{teamId}/clone` now accepts `[FromBody] CloneTeamRequest`. Frontend: `showCloneDialog`, `cloneName`, `cloneAddToClub` signals; `openCloneDialog()` and `doClone()` methods replace the old fire-and-forget `clone()`. |
+| 24 | Move Team to Different Club | Tournament teams registered by club reps can be reassigned to a different club. Two modes: single team or batch (all teams from same club). Updates `ClubrepRegistrationid`, `ClubrepId`, `ClubTeamId` (if non-null, finds/creates matching ClubTeam under target club), and audit fields. After move: recalculates financials for BOTH source and target club reps via `SynchronizeClubRepFinancialsAsync`, and syncs denormalized schedule team names via new `SynchronizeScheduleNamesForTeamAsync` (reusable "single point of truth" — recomposes `T1Name`/`T2Name` from Teams.TeamName + Registrations.ClubName + Jobs.BShowTeamNameOnlyInSchedules; only updates round-robin games where `T1Type/T2Type == "T"`). New files: `IScheduleRepository.cs`, `ScheduleRepository.cs`. New DTOs: `MoveTeamToClubRequest`, `MoveTeamToClubResultDto`, `ClubRegistrationDto`. Extended `TeamDetailDto` with `ClubRepRegistrationId` and `ClubTeamId`. New endpoints: `GET clubs-for-job`, `POST teams/{teamId}/change-club`. LadtService gained 3 new deps: `IClubTeamRepository`, `IClubRepository`, `IScheduleRepository`. Frontend: "Change Club" moved to overflow menu (three-dots `⋮` button) behind a warning modal gate (`ConfirmDialogComponent` with `confirmVariant="warning"`). Inline panel with scope toggle (single/all), target club dropdown (current club filtered out), and move action. Tree refreshes after move to reflect new club name labels. |
+| 25 | Tree toolbar: gear Actions dropdown | Replaced the ambiguous "+" dropdown button (which used broken Bootstrap JS `data-bs-toggle`) with a gear icon (`bi-gear`) dropdown using signal-toggled `@if (actionsOpen())` pattern. Contains "Add WAITLIST Age Groups" item with `bi-collection` icon. Bootstrap dropdown JS is not loaded in Angular — all dropdowns in this module use signal-toggled visibility. |
 
 ---
 
@@ -1074,7 +1084,9 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - Mobile off-canvas drawer, breadcrumb bar, responsive layout
 - All 8 palettes supported via CSS variable theming throughout
 - Update Player Fees: recalculates player registration fees using coalescing hierarchy, processing fee non-CC discount, PaidTotal refresh from accounting records
-- Drop Team: moves team to "Dropped Teams" agegroup/division, deactivates, zeros player fees; scheduled teams blocked at backend (no TOCTOU race)
-- Move Team to Different Club: single or batch reassignment with financial recalculation for both clubs, schedule name sync via reusable `SynchronizeScheduleNamesForTeamAsync`, ClubTeamId migration; frontend inline panel with scope toggle and filtered target dropdown
+- Smart Drop/Delete: clean teams (no players/payments/schedule) are permanently deleted; teams with history are soft-dropped to "Dropped Teams" agegroup/division; both paths recalculate club rep financials; scheduled teams blocked at backend (no TOCTOU race)
+- Enhanced Clone with Club Library: dialog prompts for team name + "Add to club library" checkbox; when checked, creates new ClubTeam + copies club rep association + syncs financials; supports "admin adds team for club rep" workflow
+- Move Team to Different Club: single or batch reassignment with financial recalculation for both clubs, schedule name sync via reusable `SynchronizeScheduleNamesForTeamAsync`, ClubTeamId migration; "Change Club" moved to overflow menu behind warning modal gate
+- UI polish: gear icon Actions dropdown (signal-toggled, not Bootstrap JS), overflow menu for dangerous operations, warning modal gates for irreversible actions
 
 **Remaining work**: Manual testing across all 8 palettes, performance testing with large datasets (see verification checklist).

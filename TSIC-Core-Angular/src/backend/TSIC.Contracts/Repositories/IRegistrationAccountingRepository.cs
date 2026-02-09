@@ -34,6 +34,11 @@ public interface IRegistrationAccountingRepository
     Task<Dictionary<Guid, PaymentSummary>> GetPaymentSummariesAsync(
         IReadOnlyCollection<Guid> registrationIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check whether any active payment records exist for the given team.
+    /// </summary>
+    Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
 }
 
 public record PaymentSummary

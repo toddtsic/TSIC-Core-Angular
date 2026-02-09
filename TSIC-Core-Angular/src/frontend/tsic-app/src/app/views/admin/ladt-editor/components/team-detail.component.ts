@@ -2,12 +2,13 @@ import { Component, Input, Output, EventEmitter, OnChanges, signal, inject } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
+import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest } from '../../../../core/api';
 
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmDialogComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -18,17 +19,26 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
         }
       </div>
       <div class="d-flex gap-2">
-        @if (team()?.clubRepRegistrationId) {
-          <button class="btn btn-sm btn-outline-primary" (click)="confirmChangeClub()" [disabled]="isSaving()">
-            <i class="bi bi-arrow-left-right me-1"></i>Change Club
-          </button>
-        }
-        <button class="btn btn-sm btn-outline-secondary" (click)="clone()" [disabled]="isSaving()" title="Clone team">
+        <button class="btn btn-sm btn-outline-secondary" (click)="openCloneDialog()" [disabled]="isSaving()" title="Clone team">
           <i class="bi bi-copy me-1"></i>Clone
         </button>
         <button class="btn btn-sm btn-outline-danger" (click)="confirmDrop()" [disabled]="isSaving()">
           <i class="bi bi-box-arrow-down me-1"></i>Drop
         </button>
+        <div style="position: relative;">
+          <button class="btn btn-sm btn-outline-secondary" (click)="moreOpen.set(!moreOpen())" title="More actions">
+            <i class="bi bi-three-dots-vertical"></i>
+          </button>
+          @if (moreOpen()) {
+            <ul class="dropdown-menu dropdown-menu-end show" style="position: absolute; right: 0; top: 100%;">
+              @if (team()?.clubRepRegistrationId) {
+                <li><button class="dropdown-item" (click)="confirmChangeClub(); moreOpen.set(false)">
+                  <i class="bi bi-arrow-left-right me-2"></i>Change Club
+                </button></li>
+              }
+            </ul>
+          }
+        </div>
       </div>
     </div>
 
@@ -46,6 +56,42 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary" (click)="showDropConfirm.set(false)">Cancel</button>
             <button class="btn btn-sm btn-danger" (click)="doDrop()">Drop</button>
+          </div>
+        </div>
+      }
+
+      @if (showCloneDialog()) {
+        <div class="alert alert-secondary" role="alert">
+          <h6 class="alert-heading mb-2">
+            <i class="bi bi-copy me-1"></i>Clone Team
+          </h6>
+          <div class="mb-2">
+            <label class="form-label small mb-1">New Team Name</label>
+            <input class="form-control form-control-sm"
+                   [ngModel]="cloneName()"
+                   (ngModelChange)="cloneName.set($event)"
+                   [ngModelOptions]="{standalone: true}">
+          </div>
+          @if (team()?.clubRepRegistrationId) {
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="cloneAddToClub"
+                     [ngModel]="cloneAddToClub()"
+                     (ngModelChange)="cloneAddToClub.set($event)"
+                     [ngModelOptions]="{standalone: true}">
+              <label class="form-check-label small" for="cloneAddToClub">
+                Add to {{ team()?.clubName }}'s team library
+              </label>
+            </div>
+          }
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="showCloneDialog.set(false)">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" (click)="doClone()"
+                    [disabled]="!cloneName().trim() || isSaving()">
+              @if (isSaving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Clone
+            </button>
           </div>
         </div>
       }
@@ -259,6 +305,17 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
         }
       </form>
     }
+
+    @if (showChangeClubWarning()) {
+      <confirm-dialog
+        title="Change Club — Are You Sure?"
+        message="This operation will reassign team ownership to a different club. It affects club rep financials, schedule data, and team assignments. Only proceed if you are certain this is correct."
+        confirmLabel="I Understand, Proceed"
+        confirmVariant="warning"
+        (confirmed)="onChangeClubWarningConfirmed()"
+        (cancelled)="showChangeClubWarning.set(false)"
+      />
+    }
   `,
   styles: [`
     :host { display: block; }
@@ -293,6 +350,11 @@ export class TeamDetailComponent implements OnChanges {
   selectedTargetRegistrationId = signal('');
   moveScope = signal<'single' | 'all'>('single');
   isMoving = signal(false);
+  moreOpen = signal(false);
+  showChangeClubWarning = signal(false);
+  showCloneDialog = signal(false);
+  cloneName = signal('');
+  cloneAddToClub = signal(false);
 
   form: any = {};
 
@@ -403,12 +465,22 @@ export class TeamDetailComponent implements OnChanges {
     });
   }
 
-  clone(): void {
+  openCloneDialog(): void {
+    this.cloneName.set(`${this.team()?.teamName ?? ''} (Copy)`);
+    this.cloneAddToClub.set(!!this.team()?.clubRepRegistrationId);
+    this.showCloneDialog.set(true);
+  }
+
+  doClone(): void {
+    const name = this.cloneName()?.trim();
+    if (!name) return;
+
     this.isSaving.set(true);
-    this.ladtService.cloneTeam(this.teamId).subscribe({
+    this.ladtService.cloneTeam(this.teamId, { teamName: name, addToClubLibrary: this.cloneAddToClub() }).subscribe({
       next: () => {
         this.isSaving.set(false);
         this.isError.set(false);
+        this.showCloneDialog.set(false);
         this.saveMessage.set('Team cloned successfully.');
         this.cloned.emit();
       },
@@ -421,6 +493,11 @@ export class TeamDetailComponent implements OnChanges {
   }
 
   confirmChangeClub(): void {
+    this.showChangeClubWarning.set(true);
+  }
+
+  onChangeClubWarningConfirmed(): void {
+    this.showChangeClubWarning.set(false);
     this.saveMessage.set(null);
     this.selectedTargetRegistrationId.set('');
     this.moveScope.set('single');

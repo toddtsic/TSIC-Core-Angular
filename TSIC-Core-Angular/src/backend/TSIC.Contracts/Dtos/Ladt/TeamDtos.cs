@@ -124,6 +124,7 @@ public record DeleteTeamResultDto
 public record DropTeamResultDto
 {
     public required bool WasDropped { get; init; }
+    public required bool WasDeleted { get; init; }
     public required string Message { get; init; }
     public required int PlayersAffected { get; init; }
 }
@@ -169,6 +170,12 @@ public record UpdateTeamRequest
     public string? Requests { get; init; }
     public string? KeywordPairs { get; init; }
     public string? TeamComments { get; init; }
+}
+
+public record CloneTeamRequest
+{
+    public required string TeamName { get; init; }
+    public required bool AddToClubLibrary { get; init; }
 }
 
 public record MoveTeamToClubRequest

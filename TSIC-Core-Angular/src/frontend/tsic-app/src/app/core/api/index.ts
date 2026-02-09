@@ -29,6 +29,7 @@ export type { CheckExistingRegistrationsResponse } from './models/CheckExistingR
 export type { ChildDto } from './models/ChildDto';
 export type { CloneProfileRequest } from './models/CloneProfileRequest';
 export type { CloneProfileResult } from './models/CloneProfileResult';
+export type { CloneTeamRequest } from './models/CloneTeamRequest';
 export type { ClubRegistrationDto } from './models/ClubRegistrationDto';
 export type { ClubRepClubDto } from './models/ClubRepClubDto';
 export type { ClubRepRegistrationRequest } from './models/ClubRepRegistrationRequest';

@@ -2,10 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DropTeamResultDto = {
-    wasDropped: boolean;
-    wasDeleted: boolean;
-    message: string;
-    playersAffected: number;
+export type CloneTeamRequest = {
+    teamName: string;
+    addToClubLibrary: boolean;
 };
 

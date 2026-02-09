@@ -657,21 +657,46 @@ public sealed class LadtService : ILadtService
     {
         await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
 
-        // 1. Block if team is on a schedule
-        if (await _teamRepo.IsTeamScheduledAsync(teamId, jobId, cancellationToken))
-            throw new InvalidOperationException("Cannot drop a team that is assigned to a schedule.");
-
         var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
 
-        // 2. Find or create "Dropped Teams" agegroup + division under the same league
+        // Check all three conditions for hard delete eligibility
+        var isScheduled = await _teamRepo.IsTeamScheduledAsync(teamId, jobId, cancellationToken);
+        var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
+        var hasPayments = await _regAcctRepo.HasPaymentsForTeamAsync(teamId, cancellationToken);
+
+        // Hard delete: no players, no payments, no schedule — clean team with no footprint
+        if (!isScheduled && playerCount == 0 && !hasPayments)
+        {
+            var clubRepRegId = team.ClubrepRegistrationid;
+            _teamRepo.Remove(team);
+            await _teamRepo.SaveChangesAsync(cancellationToken);
+
+            // Recalculate club rep financials since team fees were baked in
+            if (clubRepRegId.HasValue)
+                await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRepRegId.Value, userId, cancellationToken);
+
+            return new DropTeamResultDto
+            {
+                WasDropped = false,
+                WasDeleted = true,
+                Message = "Team permanently deleted (no players, payments, or schedule history).",
+                PlayersAffected = 0
+            };
+        }
+
+        // Soft drop: team has history — block if scheduled, otherwise move to Dropped Teams
+        if (isScheduled)
+            throw new InvalidOperationException("Cannot drop a team that is assigned to a schedule.");
+
+        // Find or create "Dropped Teams" agegroup + division under the same league
         var droppedAgId = await FindOrCreateDroppedTeamsAgegroupAsync(team.LeagueId, userId, cancellationToken);
         var droppedDivId = await FindOrCreateDroppedTeamsDivisionAsync(droppedAgId, userId, cancellationToken);
 
-        // 3. Zero out all player fees for this team
+        // Zero out all player fees for this team
         var playersAffected = await _registrationRepo.ZeroFeesForTeamAsync(teamId, jobId, cancellationToken);
 
-        // 4. Move team to Dropped Teams and deactivate
+        // Move team to Dropped Teams and deactivate
         team.AgegroupId = droppedAgId;
         team.DivId = droppedDivId;
         team.Active = false;
@@ -680,9 +705,14 @@ public sealed class LadtService : ILadtService
 
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
+        // Recalculate club rep financials after fee zeroing
+        if (team.ClubrepRegistrationid.HasValue)
+            await _registrationRepo.SynchronizeClubRepFinancialsAsync(team.ClubrepRegistrationid.Value, userId, cancellationToken);
+
         return new DropTeamResultDto
         {
             WasDropped = true,
+            WasDeleted = false,
             Message = $"Team moved to Dropped Teams and deactivated. {playersAffected} player fee(s) zeroed.",
             PlayersAffected = playersAffected
         };
@@ -735,7 +765,7 @@ public sealed class LadtService : ILadtService
         return div.DivId;
     }
 
-    public async Task<TeamDetailDto> CloneTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    public async Task<TeamDetailDto> CloneTeamAsync(Guid teamId, CloneTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
     {
         await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
         var source = await _teamRepo.GetByIdReadOnlyAsync(teamId, cancellationToken)
@@ -752,7 +782,7 @@ public sealed class LadtService : ILadtService
             LeagueId = source.LeagueId,
             AgegroupId = source.AgegroupId,
             DivId = source.DivId,
-            TeamName = $"{source.TeamName} (Copy)",
+            TeamName = request.TeamName,
             Active = true,
             DivRank = maxRank + 1,
             DivisionRequested = source.DivisionRequested,
@@ -796,8 +826,41 @@ public sealed class LadtService : ILadtService
             Modified = DateTime.UtcNow
         };
 
+        // Optionally link clone to the source team's club
+        if (request.AddToClubLibrary && source.ClubrepRegistrationid.HasValue)
+        {
+            clone.ClubrepRegistrationid = source.ClubrepRegistrationid;
+            clone.ClubrepId = source.ClubrepId;
+
+            // Create a new ClubTeam entry for this clone
+            if (source.ClubTeamId.HasValue)
+            {
+                var sourceClubTeam = await _clubTeamRepo.GetByIdAsync(source.ClubTeamId.Value, cancellationToken);
+                if (sourceClubTeam != null)
+                {
+                    var newClubTeam = new ClubTeams
+                    {
+                        ClubId = sourceClubTeam.ClubId,
+                        ClubTeamName = request.TeamName,
+                        ClubTeamGradYear = sourceClubTeam.ClubTeamGradYear,
+                        ClubTeamLevelOfPlay = sourceClubTeam.ClubTeamLevelOfPlay,
+                        LebUserId = userId,
+                        Modified = DateTime.UtcNow
+                    };
+                    _clubTeamRepo.Add(newClubTeam);
+                    await _clubTeamRepo.SaveChangesAsync(cancellationToken);
+                    clone.ClubTeamId = newClubTeam.ClubTeamId;
+                }
+            }
+        }
+
         _teamRepo.Add(clone);
         await _teamRepo.SaveChangesAsync(cancellationToken);
+
+        // Recalculate club rep financials since the new team carries fees
+        if (clone.ClubrepRegistrationid.HasValue)
+            await _registrationRepo.SynchronizeClubRepFinancialsAsync(clone.ClubrepRegistrationid.Value, userId, cancellationToken);
+
         return MapTeam(clone, 0);
     }
 

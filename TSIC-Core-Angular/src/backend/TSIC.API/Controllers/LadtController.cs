@@ -313,14 +313,14 @@ public class LadtController : ControllerBase
     }
 
     [HttpPost("teams/{teamId:guid}/clone")]
-    public async Task<ActionResult<TeamDetailDto>> CloneTeam(Guid teamId, CancellationToken cancellationToken)
+    public async Task<ActionResult<TeamDetailDto>> CloneTeam(Guid teamId, [FromBody] CloneTeamRequest request, CancellationToken cancellationToken)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var detail = await _ladtService.CloneTeamAsync(teamId, jobId!.Value, userId!, cancellationToken);
+            var detail = await _ladtService.CloneTeamAsync(teamId, request, jobId!.Value, userId!, cancellationToken);
             return Ok(detail);
         }
         catch (KeyNotFoundException) { return NotFound(); }
