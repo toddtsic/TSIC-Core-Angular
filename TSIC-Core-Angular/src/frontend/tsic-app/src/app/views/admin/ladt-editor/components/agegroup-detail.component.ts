@@ -15,11 +15,15 @@ import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/
         <h5 class="mb-0">Age Group Details</h5>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" (click)="pushFees()" [disabled]="isSaving()"
-                title="Recalculate player fees using age group fee hierarchy">
-          <i class="bi bi-currency-dollar me-1"></i>Update Player Fees
-        </button>
-        <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()" [disabled]="isSaving()">
+        @if (hasFeesChanged()) {
+          <button class="btn btn-sm btn-outline-warning" (click)="pushFees()" [disabled]="isSaving()"
+                  title="Fees have been modified — push updated fees to all players in this age group">
+            <i class="bi bi-currency-dollar me-1"></i>Push Fees to Players
+          </button>
+        }
+        <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()"
+                [disabled]="isSaving() || !canDelete"
+                [title]="!canDelete ? 'Remove all teams before deleting this age group' : 'Delete this age group'">
           <i class="bi bi-trash me-1"></i>Delete
         </button>
       </div>
@@ -204,6 +208,8 @@ import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/
 })
 export class AgegroupDetailComponent implements OnChanges {
   @Input({ required: true }) agegroupId!: string;
+  @Input() canDelete = true;
+  @Input() playerCount = 0;
   @Output() saved = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
 
@@ -287,6 +293,17 @@ export class AgegroupDetailComponent implements OnChanges {
         this.saveMessage.set(err.error?.message || 'Failed to save age group.');
       }
     });
+  }
+
+  hasFeesChanged(): boolean {
+    if (this.playerCount === 0) return false;
+    const original = this.agegroup();
+    if (!original) return false;
+    return this.form.teamFee !== original.teamFee ||
+           this.form.rosterFee !== original.rosterFee ||
+           this.form.discountFee !== original.discountFee ||
+           this.form.lateFee !== original.lateFee ||
+           this.form.playerFeeOverride !== original.playerFeeOverride;
   }
 
   confirmDelete(): void {

@@ -215,6 +215,8 @@
         } @else if (selectedLevel() === 1) {
           <app-agegroup-detail
             [agegroupId]="selectedNode()!.id"
+            [canDelete]="canDelete(selectedNode()!)"
+            [playerCount]="selectedNode()!.playerCount"
             (saved)="onDetailSaved()"
             (deleted)="onDetailDeleted()"
           />
@@ -222,6 +224,7 @@
           <app-division-detail
             [divisionId]="selectedNode()!.id"
             [siblingNames]="siblingDivisionNames()"
+            [canDelete]="canDelete(selectedNode()!)"
             (saved)="onDetailSaved()"
             (deleted)="onDetailDeleted()"
           />
@@ -229,7 +232,6 @@
           <app-team-detail
             [teamId]="selectedNode()!.id"
             (saved)="onDetailSaved()"
-            (deleted)="onDetailDeleted()"
             (cloned)="onDetailSaved()"
           />
         }

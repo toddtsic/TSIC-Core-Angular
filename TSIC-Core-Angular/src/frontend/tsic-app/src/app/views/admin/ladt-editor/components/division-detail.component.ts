@@ -15,8 +15,8 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
         <h5 class="mb-0">Division Details</h5>
       </div>
       <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()"
-              [disabled]="isSaving() || isUnassigned()"
-              [title]="isUnassigned() ? 'The Unassigned division cannot be deleted' : 'Delete this division'">
+              [disabled]="isSaving() || !canDelete"
+              [title]="isUnassigned() ? 'The Unassigned division cannot be deleted' : !canDelete ? 'Remove all teams before deleting this division' : 'Delete this division'">
         <i class="bi bi-trash me-1"></i>Delete
       </button>
     </div>
@@ -82,6 +82,7 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
 export class DivisionDetailComponent implements OnChanges {
   @Input({ required: true }) divisionId!: string;
   @Input() siblingNames: string[] = [];
+  @Input() canDelete = true;
   @Output() saved = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
 

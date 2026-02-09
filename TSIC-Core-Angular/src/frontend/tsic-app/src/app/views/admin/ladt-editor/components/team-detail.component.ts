@@ -21,8 +21,8 @@ import type { TeamDetailDto, UpdateTeamRequest } from '../../../../core/api';
         <button class="btn btn-sm btn-outline-secondary" (click)="clone()" [disabled]="isSaving()" title="Clone team">
           <i class="bi bi-copy me-1"></i>Clone
         </button>
-        <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()" [disabled]="isSaving()">
-          <i class="bi bi-trash me-1"></i>Delete
+        <button class="btn btn-sm btn-outline-danger" (click)="confirmDrop()" [disabled]="isSaving()">
+          <i class="bi bi-box-arrow-down me-1"></i>Drop
         </button>
       </div>
     </div>
@@ -32,21 +32,15 @@ import type { TeamDetailDto, UpdateTeamRequest } from '../../../../core/api';
         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
       </div>
     } @else if (team()) {
-      @if (showDeleteConfirm()) {
+      @if (showDropConfirm()) {
         <div class="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <span>
             <i class="bi bi-exclamation-triangle me-2"></i>
-            @if ((team()?.playerCount ?? 0) > 0) {
-              Team has {{ team()?.playerCount }} player(s). It will be deactivated instead of deleted.
-            } @else {
-              Delete this team? This cannot be undone.
-            }
+            Drop this team? It will be moved to Dropped Teams and deactivated.
           </span>
           <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-secondary" (click)="showDeleteConfirm.set(false)">Cancel</button>
-            <button class="btn btn-sm btn-danger" (click)="doDelete()">
-              {{ (team()?.playerCount ?? 0) > 0 ? 'Deactivate' : 'Delete' }}
-            </button>
+            <button class="btn btn-sm btn-outline-secondary" (click)="showDropConfirm.set(false)">Cancel</button>
+            <button class="btn btn-sm btn-danger" (click)="doDrop()">Drop</button>
           </div>
         </div>
       }
@@ -237,7 +231,6 @@ import type { TeamDetailDto, UpdateTeamRequest } from '../../../../core/api';
 export class TeamDetailComponent implements OnChanges {
   @Input({ required: true }) teamId!: string;
   @Output() saved = new EventEmitter<void>();
-  @Output() deleted = new EventEmitter<void>();
   @Output() cloned = new EventEmitter<void>();
 
   private readonly ladtService = inject(LadtService);
@@ -247,7 +240,7 @@ export class TeamDetailComponent implements OnChanges {
   isSaving = signal(false);
   saveMessage = signal<string | null>(null);
   isError = signal(false);
-  showDeleteConfirm = signal(false);
+  showDropConfirm = signal(false);
 
   form: any = {};
 
@@ -258,7 +251,7 @@ export class TeamDetailComponent implements OnChanges {
   private loadDetail(): void {
     this.isLoading.set(true);
     this.saveMessage.set(null);
-    this.showDeleteConfirm.set(false);
+    this.showDropConfirm.set(false);
 
     this.ladtService.getTeam(this.teamId).subscribe({
       next: (detail) => {
@@ -333,34 +326,26 @@ export class TeamDetailComponent implements OnChanges {
     });
   }
 
-  confirmDelete(): void {
-    this.showDeleteConfirm.set(true);
+  confirmDrop(): void {
+    this.showDropConfirm.set(true);
   }
 
-  doDelete(): void {
+  doDrop(): void {
     this.isSaving.set(true);
-    this.ladtService.deleteTeam(this.teamId).subscribe({
+    this.ladtService.dropTeam(this.teamId).subscribe({
       next: (result) => {
         this.isSaving.set(false);
-        this.showDeleteConfirm.set(false);
-
-        if (result.wasDeactivated) {
-          // Soft delete: team still exists but is now inactive.
-          // Reload the detail so the form reflects Active = false.
-          this.isError.set(false);
-          this.saveMessage.set(result.message);
-          this.loadDetail();
-          this.saved.emit(); // refresh tree to show inactive state
-        } else {
-          // Hard delete: team is gone, clear selection.
-          this.deleted.emit();
-        }
+        this.showDropConfirm.set(false);
+        this.isError.set(false);
+        this.saveMessage.set(result.message);
+        this.loadDetail();
+        this.saved.emit(); // refresh tree to show moved/inactive state
       },
       error: (err) => {
         this.isSaving.set(false);
         this.isError.set(true);
-        this.saveMessage.set(err.error?.message || 'Failed to delete team.');
-        this.showDeleteConfirm.set(false);
+        this.saveMessage.set(err.error?.message || 'Failed to drop team.');
+        this.showDropConfirm.set(false);
       }
     });
   }

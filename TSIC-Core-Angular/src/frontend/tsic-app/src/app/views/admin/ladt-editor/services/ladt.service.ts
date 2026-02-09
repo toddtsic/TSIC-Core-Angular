@@ -15,7 +15,6 @@ import type {
   TeamDetailDto,
   CreateTeamRequest,
   UpdateTeamRequest,
-  DeleteTeamResultDto,
   DropTeamResultDto
 } from '../../../../core/api';
 
@@ -98,10 +97,6 @@ export class LadtService {
 
   updateTeam(teamId: string, request: UpdateTeamRequest): Observable<TeamDetailDto> {
     return this.http.put<TeamDetailDto>(`${this.apiUrl}/teams/${teamId}`, request);
-  }
-
-  deleteTeam(teamId: string): Observable<DeleteTeamResultDto> {
-    return this.http.delete<DeleteTeamResultDto>(`${this.apiUrl}/teams/${teamId}`);
   }
 
   dropTeam(teamId: string): Observable<DropTeamResultDto> {
