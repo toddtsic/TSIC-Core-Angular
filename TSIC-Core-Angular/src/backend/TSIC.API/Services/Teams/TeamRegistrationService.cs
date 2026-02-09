@@ -29,6 +29,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
+    private readonly IClubTeamRepository _clubTeams;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -45,7 +46,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         ITeamFeeCalculator teamFeeCalculator,
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
-        IJobDiscountCodeRepository discountCodeRepo)
+        IJobDiscountCodeRepository discountCodeRepo,
+        IClubTeamRepository clubTeams)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -62,6 +64,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _textSubstitution = textSubstitution;
         _emailService = emailService;
         _discountCodeRepo = discountCodeRepo;
+        _clubTeams = clubTeams;
     }
 
     /// <summary>
@@ -291,12 +294,39 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         int currentYear = DateTime.Now.Year;
 
+        // Resolve club to get ClubId
+        var club = await _clubs.GetByNameAsync(clubName);
+        var effectiveClubId = club?.ClubId ?? 0;
+
         var registeredTeams = await GetRegisteredTeamsForJobAsync(jobId, userId);
         var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName, currentYear);
         var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
 
-        _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups",
-            registeredTeams.Count, suggestions.Count, ageGroups.Count);
+        // Fetch available ClubTeams for this club, excluding those already registered for this event
+        var allClubTeams = effectiveClubId > 0
+            ? await _clubTeams.GetByClubIdAsync(effectiveClubId)
+            : new List<Domain.Entities.ClubTeams>();
+
+        var registeredClubTeamIds = registeredTeams
+            .Select(t => t.ClubTeamId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToHashSet();
+
+        var availableClubTeams = allClubTeams
+            .Where(ct => !registeredClubTeamIds.Contains(ct.ClubTeamId))
+            .Select(ct => new ClubTeamDto
+            {
+                ClubTeamId = ct.ClubTeamId,
+                ClubTeamName = ct.ClubTeamName,
+                ClubTeamGradYear = ct.ClubTeamGradYear,
+                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay
+            })
+            .OrderBy(ct => ct.ClubTeamName)
+            .ToList();
+
+        _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups, {ClubTeamCount} available club teams",
+            registeredTeams.Count, suggestions.Count, ageGroups.Count, availableClubTeams.Count);
 
         // Fetch club rep contact info for payment form prefill
         var contactInfo = await _users.GetUserContactInfoAsync(userId);
@@ -319,8 +349,9 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         return new TeamsMetadataResponse
         {
-            ClubId = 0,
+            ClubId = effectiveClubId,
             ClubName = clubName,
+            ClubTeams = availableClubTeams,
             SuggestedTeamNames = suggestions,
             RegisteredTeams = registeredTeams,
             AgeGroups = ageGroups,
@@ -356,7 +387,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             RegistrationTs = t.RegistrationTs,
             BWaiverSigned3 = t.BWaiverSigned3,
             CcOwedTotal = t.OwedTotal,
-            CkOwedTotal = t.FeeBase - t.PaidTotal
+            CkOwedTotal = t.FeeBase - t.PaidTotal,
+            ClubTeamId = t.ClubTeamId
         }).ToList();
     }
 
@@ -403,13 +435,13 @@ public class TeamRegistrationService : ITeamRegistrationService
 
     public async Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, Guid regId, string userId)
     {
-        _logger.LogInformation("Registering team for event. TeamName: {TeamName}, AgeGroupId: {AgeGroupId}, RegId: {RegId}, User: {UserId}",
-            request.TeamName, request.AgeGroupId, regId, userId);
+        _logger.LogInformation("Registering team for event. ClubTeamId: {ClubTeamId}, TeamName: {TeamName}, AgeGroupId: {AgeGroupId}, RegId: {RegId}, User: {UserId}",
+            request.ClubTeamId, request.TeamName, request.AgeGroupId, regId, userId);
 
-        // Validate team name
-        if (string.IsNullOrWhiteSpace(request.TeamName))
+        // Validate: either ClubTeamId (existing) or TeamName (new) must be provided
+        if (!request.ClubTeamId.HasValue && string.IsNullOrWhiteSpace(request.TeamName))
         {
-            throw new InvalidOperationException("Team name is required");
+            throw new InvalidOperationException("Either select an existing team or provide a new team name");
         }
 
         // Get club rep registration from token - this provides all context (clubName, jobId)
@@ -511,6 +543,57 @@ public class TeamRegistrationService : ITeamRegistrationService
             currentFeeTotal: 0  // New team has no fees yet
         );
 
+        // Resolve or create ClubTeam
+        int clubTeamId;
+        string teamName;
+        string levelOfPlay;
+
+        if (request.ClubTeamId.HasValue)
+        {
+            // Selecting an existing ClubTeam
+            var clubTeam = await _clubTeams.GetByIdAsync(request.ClubTeamId.Value);
+            if (clubTeam == null)
+            {
+                throw new InvalidOperationException("Selected team not found");
+            }
+            if (clubTeam.ClubId != effectiveClubId)
+            {
+                _logger.LogWarning("ClubTeam {ClubTeamId} belongs to club {ClubTeamClubId}, not {ExpectedClubId}",
+                    clubTeam.ClubTeamId, clubTeam.ClubId, effectiveClubId);
+                throw new InvalidOperationException("Selected team does not belong to your club");
+            }
+            clubTeamId = clubTeam.ClubTeamId;
+            teamName = clubTeam.ClubTeamName;
+            levelOfPlay = request.LevelOfPlay ?? clubTeam.ClubTeamLevelOfPlay;
+        }
+        else
+        {
+            // Creating a new ClubTeam
+            if (string.IsNullOrWhiteSpace(request.ClubTeamGradYear))
+            {
+                throw new InvalidOperationException("Graduation year is required when creating a new team");
+            }
+
+            var newClubTeam = new Domain.Entities.ClubTeams
+            {
+                ClubId = effectiveClubId,
+                ClubTeamName = request.TeamName!.Trim(),
+                ClubTeamGradYear = request.ClubTeamGradYear,
+                ClubTeamLevelOfPlay = request.LevelOfPlay ?? string.Empty,
+                LebUserId = userId,
+                Modified = DateTime.UtcNow
+            };
+            _clubTeams.Add(newClubTeam);
+            await _clubTeams.SaveChangesAsync();
+
+            clubTeamId = newClubTeam.ClubTeamId;
+            teamName = newClubTeam.ClubTeamName;
+            levelOfPlay = request.LevelOfPlay ?? string.Empty;
+
+            _logger.LogInformation("Created new ClubTeam {ClubTeamId} '{ClubTeamName}' for club {ClubId}",
+                clubTeamId, teamName, effectiveClubId);
+        }
+
         // Create team registration
         var team = new Domain.Entities.Teams
         {
@@ -518,8 +601,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             JobId = jobId,
             LeagueId = (Guid)leagueId,
             AgegroupId = request.AgeGroupId,
-            TeamName = request.TeamName,
-            LevelOfPlay = request.LevelOfPlay,
+            TeamName = teamName,
+            LevelOfPlay = levelOfPlay,
+            ClubTeamId = clubTeamId,
             ClubrepRegistrationid = clubRepRegistration.RegistrationId,  // Track which club rep registered this team
             FeeBase = feeBase,
             FeeProcessing = feeProcessing,
@@ -534,8 +618,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         _teams.Add(team);
         await _teams.SaveChangesAsync();
 
-        _logger.LogInformation("Team registered successfully. TeamId: {TeamId}, TeamName: {TeamName}, FeeBase: {FeeBase}, FeeProcessing: {FeeProcessing}",
-            team.TeamId, request.TeamName, feeBase, feeProcessing);
+        _logger.LogInformation("Team registered successfully. TeamId: {TeamId}, TeamName: {TeamName}, ClubTeamId: {ClubTeamId}, FeeBase: {FeeBase}, FeeProcessing: {FeeProcessing}",
+            team.TeamId, teamName, clubTeamId, feeBase, feeProcessing);
 
         return new RegisterTeamResponse
         {

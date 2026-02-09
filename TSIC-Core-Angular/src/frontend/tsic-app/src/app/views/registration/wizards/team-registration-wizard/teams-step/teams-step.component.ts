@@ -29,17 +29,15 @@ import type {
     SuggestedTeamNameDto,
     RegisteredTeamDto,
     AgeGroupDto,
+    ClubTeamDto,
 } from '@core/api';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { TeamRegistrationModalComponent } from './modals/team-registration-modal/team-registration-modal.component';
-
-interface RegistrationData {
-    teamName: string;
-    ageGroupId: string;
-    levelOfPlay: string;
-}
+import {
+    TeamRegistrationModalComponent,
+    type RegistrationData,
+} from './modals/team-registration-modal/team-registration-modal.component';
 
 interface FinancialSummary {
     feesTotal: number;
@@ -105,6 +103,7 @@ export class TeamsStepComponent implements OnInit {
     );
     private readonly registeredTeamsSignal = signal<RegisteredTeamDto[]>([]);
     private readonly ageGroupsSignal = signal<AgeGroupDto[]>([]);
+    private readonly clubTeamsSignal = signal<ClubTeamDto[]>([]);
     private readonly recentlyAddedTeamNames = signal<string[]>([]);
 
     // Metadata for payment configuration
@@ -130,6 +129,7 @@ export class TeamsStepComponent implements OnInit {
     readonly suggestedTeamNames = computed(() => this.suggestedTeamNamesSignal());
     readonly registeredTeams = computed(() => this.registeredTeamsSignal());
     readonly ageGroups = computed(() => this.ageGroupsSignal());
+    readonly clubTeams = computed(() => this.clubTeamsSignal());
 
     // Public computed properties
     readonly availableLevelsOfPlay = computed(() =>
@@ -182,6 +182,7 @@ export class TeamsStepComponent implements OnInit {
         this.suggestedTeamNamesSignal.set([]);
         this.registeredTeamsSignal.set([]);
         this.ageGroupsSignal.set([]);
+        this.clubTeamsSignal.set([]);
         this.recentlyAddedTeamNames.set([]);
 
         // Clear payment metadata
@@ -228,6 +229,7 @@ export class TeamsStepComponent implements OnInit {
                 this.suggestedTeamNamesSignal.set(response.suggestedTeamNames);
                 this.registeredTeamsSignal.set(response.registeredTeams);
                 this.ageGroupsSignal.set(response.ageGroups);
+                this.clubTeamsSignal.set(response.clubTeams);
                 this.refundPolicyHtml.set(response.playerRegRefundPolicy || null);
 
                 // Store payment metadata
@@ -269,7 +271,9 @@ export class TeamsStepComponent implements OnInit {
 
     onTeamAddedAnother(data: RegistrationData): void {
         this.registerTeam(data, () => {
-            this.recentlyAddedTeamNames.update((arr) => [...arr, data.teamName]);
+            if (data.teamName) {
+                this.recentlyAddedTeamNames.update((arr) => [...arr, data.teamName!]);
+            }
             this.loadTeamsMetadata(false);
         });
     }
@@ -336,7 +340,9 @@ export class TeamsStepComponent implements OnInit {
 
         this.teamService
             .registerTeamForEvent({
+                clubTeamId: data.clubTeamId,
                 teamName: data.teamName,
+                clubTeamGradYear: data.clubTeamGradYear,
                 ageGroupId: data.ageGroupId,
                 levelOfPlay: data.levelOfPlay,
             })

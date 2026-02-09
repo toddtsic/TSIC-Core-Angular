@@ -258,7 +258,8 @@ public class TeamRepository : ITeamRepository
                           DepositDue = (t.PaidTotal >= ag.RosterFee) ? 0 : (ag.RosterFee ?? 0) - (t.PaidTotal ?? 0),
                           AdditionalDue = (t.OwedTotal == 0 && (j.BTeamsFullPaymentRequired ?? false)) ? 0 : (ag.TeamFee ?? 0),
                           RegistrationTs = t.Createdate,
-                          BWaiverSigned3 = reg.BWaiverSigned3
+                          BWaiverSigned3 = reg.BWaiverSigned3,
+                          ClubTeamId = t.ClubTeamId
                       })
             .AsNoTracking()
             .ToListAsync(cancellationToken);

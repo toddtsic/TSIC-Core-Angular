@@ -33,6 +33,7 @@ export type { ClubRepClubDto } from './models/ClubRepClubDto';
 export type { ClubRepRegistrationRequest } from './models/ClubRepRegistrationRequest';
 export type { ClubRepRegistrationResponse } from './models/ClubRepRegistrationResponse';
 export type { ClubSearchResult } from './models/ClubSearchResult';
+export type { ClubTeamDto } from './models/ClubTeamDto';
 export type { CreateAgegroupRequest } from './models/CreateAgegroupRequest';
 export type { CreateDivisionRequest } from './models/CreateDivisionRequest';
 export type { CreateMenuItemRequest } from './models/CreateMenuItemRequest';

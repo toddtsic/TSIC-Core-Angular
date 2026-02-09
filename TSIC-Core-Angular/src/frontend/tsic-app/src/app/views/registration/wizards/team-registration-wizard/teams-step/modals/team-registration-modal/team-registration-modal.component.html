@@ -3,32 +3,9 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="d-flex align-items-center gap-2 flex-nowrap">
-                    <h5 class="modal-title mb-0">Register a New Team</h5>
-                    @if (suggestedTeamNames.length > 0) {
-                    <button #infoP="ngbPopover" type="button" class="btn btn-warning btn-sm d-md-none shrink-0"
-                        [ngbPopover]="infoTpl" [popoverTitle]="'Team Naming Guidelines'" [autoClose]="'outside'"
-                        [container]="'body'" [placement]="'bottom'" [popoverClass]="'tsic-popover'"
-                        aria-label="Show important information about team naming">
-                        <i class="bi bi-info-circle-fill me-1"></i> Pro tips
-                    </button>
-                    }
-                </div>
+                <h5 class="modal-title mb-0">Register a Team</h5>
                 <button type="button" class="btn-close" (click)="onClose()" aria-label="Close"></button>
             </div>
-
-            <ng-template #infoTpl>
-                <div class="tsic-popover-content">
-                    <ul class="mb-0 ps-3 small">
-                        <li>WHENEVER YOU CAN, name your team THE SAME ACROSS ALL EVENTS.</li>
-                        <li>To help you do this you can select from a list of team names based on
-                            your club's registration history (last 2 calendar years).</li>
-                        <li>DO NOT include your club name in the team name.</li>
-                        <li>The best format for naming team is &lbrace;age group&rbrace; &lbrace;team name&rbrace;,
-                            e.g., "2029 Green" or "U12 White".</li>
-                    </ul>
-                </div>
-            </ng-template>
 
             <form>
                 <div class="modal-body">
@@ -37,67 +14,146 @@
                         <i class="bi bi-check-circle-fill me-2"></i>{{ successMessage() }}
                     </div>
                     }
-                    @if (suggestedTeamNames.length > 0) {
-                    <div class="mt-2">
-                        <div class="form-label small fw-semibold mb-1 team-history-label d-none d-md-block">
-                            <ul>
+
+                    <!-- Mode Toggle (only show if club has existing teams) -->
+                    @if (clubTeams.length > 0) {
+                    <div class="btn-group w-100 mb-3" role="group" aria-label="Team selection mode">
+                        <button type="button" class="btn btn-sm"
+                            [class.btn-primary]="mode() === 'select'"
+                            [class.btn-outline-primary]="mode() !== 'select'"
+                            (click)="setMode('select')">
+                            <i class="bi bi-list-check me-1"></i>Select Existing Team
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            [class.btn-primary]="mode() === 'create'"
+                            [class.btn-outline-primary]="mode() !== 'create'"
+                            (click)="setMode('create')">
+                            <i class="bi bi-plus-circle me-1"></i>Register New Team
+                        </button>
+                    </div>
+                    }
+
+                    <!-- SELECT EXISTING CLUBTEAM -->
+                    @if (mode() === 'select') {
+                    <div class="mb-3">
+                        <label for="clubTeamSelect" class="form-label fw-semibold">
+                            Select Team <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="clubTeamSelect"
+                            [ngModel]="selectedClubTeamId()"
+                            (ngModelChange)="selectedClubTeamId.set($event); onClubTeamSelected()"
+                            [ngModelOptions]="{standalone: true}" required>
+                            <option value="">Choose a team...</option>
+                            @for (ct of availableClubTeams(); track ct.clubTeamId) {
+                            <option [value]="ct.clubTeamId.toString()">
+                                {{ ct.clubTeamName }} ({{ ct.clubTeamGradYear }})
+                            </option>
+                            }
+                        </select>
+
+                        @if (selectedClubTeam()) {
+                        <div class="mt-2 p-2 bg-light rounded small">
+                            <strong>{{ selectedClubTeam()!.clubTeamName }}</strong>
+                            &mdash; Grad Year: {{ selectedClubTeam()!.clubTeamGradYear }},
+                            LOP: {{ selectedClubTeam()!.clubTeamLevelOfPlay }}
+                        </div>
+                        }
+                    </div>
+                    }
+
+                    <!-- CREATE NEW CLUBTEAM -->
+                    @if (mode() === 'create') {
+                    <!-- Team Name -->
+                    <div class="mb-3">
+                        @if (suggestedTeamNames.length > 0) {
+                        <div class="form-label small fw-semibold mb-1 d-none d-md-block">
+                            <ul class="mb-1">
                                 <li>WHENEVER YOU CAN, name your team THE SAME ACROSS ALL EVENTS.</li>
-                                <li>To help you do this you can select from a list of team names based on
-                                    your club's registration history (last 2 calendar years).</li>
                                 <li>DO NOT include your club name in the team name.</li>
-                                <li>The best format for naming team is &lbrace;age group&rbrace; &lbrace;team
-                                    name&rbrace;,
-                                    e.g., "2029 Green" or "U12 White".</li>
+                                <li>Best format: &lbrace;age group&rbrace; &lbrace;team name&rbrace;, e.g., "2029 Green"
+                                    or "U12 White".</li>
                             </ul>
                         </div>
+                        }
+
+                        <label for="teamName" class="form-label fw-semibold">
+                            Team Name <span class="text-danger">*</span>
+                        </label>
 
                         @if (specialCharBlocked()) {
-                        <div class="alert alert-danger d-flex align-items-center gap-2 mt-2 mb-0 py-2 px-3 small">
+                        <div class="alert alert-danger d-flex align-items-center gap-2 mb-2 py-2 px-3 small">
                             <i class="bi bi-x-circle-fill shrink-0"></i>
-                            <div>
-                                Team names may only contain letters, numbers, and spaces. Special characters (like
-                                apostrophes, colons) are not allowed.
-                            </div>
+                            <div>Team names may only contain letters, numbers, and spaces.</div>
                         </div>
                         }
 
                         @if (teamNameWarning()) {
-                        <div class="alert alert-warning d-flex align-items-center gap-2 mt-2 mb-0 py-2 px-3 small">
+                        <div class="alert alert-warning d-flex align-items-center gap-2 mb-2 py-2 px-3 small">
                             <i class="bi bi-exclamation-triangle-fill shrink-0"></i>
-                            <div>
-                                {{ teamNameWarning()!.message }}
-                            </div>
+                            <div>{{ teamNameWarning()!.message }}</div>
                         </div>
                         }
 
-                        <div class="combobox-container">
-                            <input type="text" class="form-control combobox-input mt-2" id="teamName"
-                                [ngModel]="teamNameInput()" (ngModelChange)="teamNameInput.set($event)"
-                                (input)="onTeamNameInput($event)" [ngModelOptions]="{standalone: true}"
-                                placeholder="Select name from list or type new name" autocomplete="off"
-                                spellcheck="false" autofocus required maxlength="40" pattern="[a-zA-Z0-9\s]+">
+                        <input type="text" class="form-control" id="teamName"
+                            [ngModel]="teamNameInput()" (ngModelChange)="teamNameInput.set($event)"
+                            (input)="onTeamNameInput($event)" [ngModelOptions]="{standalone: true}"
+                            placeholder="Enter team name" autocomplete="off"
+                            spellcheck="false" autofocus required maxlength="80" pattern="[a-zA-Z0-9\s]+">
 
-                            <select size="6" class="form-select team-history-select combobox-dropdown"
-                                (change)="selectFromList($event)">
-                                <option value="" disabled selected class="text-muted fst-italic">← Click any team name
-                                    to
-                                    use it</option>
-                                @for (suggestion of filteredSuggestions(); track suggestion.teamName) {
-                                <option [value]="suggestion.teamName">
-                                    {{ suggestion.teamName }} (used {{ suggestion.usageCount }}x)
-                                </option>
-                                }
-                            </select>
-                        </div>
+                        @if (suggestedTeamNames.length > 0 && filteredSuggestions().length > 0) {
+                        <select size="4" class="form-select mt-1 small" (change)="selectFromList($event)">
+                            <option value="" disabled selected class="text-muted fst-italic">
+                                Click a name from history to use it</option>
+                            @for (suggestion of filteredSuggestions(); track suggestion.teamName) {
+                            <option [value]="suggestion.teamName">
+                                {{ suggestion.teamName }} (used {{ suggestion.usageCount }}x)
+                            </option>
+                            }
+                        </select>
+                        }
+                    </div>
+
+                    <!-- Graduation Year -->
+                    <div class="col-md-6 mb-3">
+                        <label for="gradYear" class="form-label fw-semibold">
+                            Graduation Year <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="gradYear"
+                            [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
+                            [ngModelOptions]="{standalone: true}" required>
+                            <option value="">Select year...</option>
+                            @for (year of gradYearOptions(); track year) {
+                            <option [value]="year">{{ year }}</option>
+                            }
+                        </select>
                     </div>
                     }
 
-                    <div class="col-md-6 mt-3">
-                        <label for="ageGroup" class="form-label fw-semibold">Age Group <span
-                                class="text-danger">*</span></label>
-                        <select class="form-select" id="ageGroup" [ngModel]="selectedAgeGroupId()"
-                            (ngModelChange)="selectedAgeGroupId.set($event)" [ngModelOptions]="{standalone: true}"
-                            required>
+                    <!-- Level of Play (shared between both modes) -->
+                    <div class="col-md-12 mb-3">
+                        <label for="levelOfPlay" class="form-label fw-semibold">
+                            Level of Play <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="levelOfPlay"
+                            [ngModel]="levelOfPlayInput()"
+                            (ngModelChange)="levelOfPlayInput.set($event)"
+                            [ngModelOptions]="{standalone: true}" required>
+                            <option value="">Select level...</option>
+                            @for (lop of availableLevelsOfPlay; track lop.value) {
+                            <option [value]="lop.value">{{ lop.label }}</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Age Group (shared between both modes) -->
+                    <div class="col-md-6 mb-3">
+                        <label for="ageGroup" class="form-label fw-semibold">
+                            Age Group <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="ageGroup"
+                            [ngModel]="selectedAgeGroupId()"
+                            (ngModelChange)="selectedAgeGroupId.set($event)"
+                            [ngModelOptions]="{standalone: true}" required>
                             <option value="">Select age group...</option>
                             @for (ag of filteredAgeGroups(); track ag.ageGroupId) {
                             @let isFull = ag.registeredCount >= ag.maxTeams;
@@ -108,31 +164,19 @@
                             }
                         </select>
                     </div>
-
-                    <div class="col-md-12 mt-3">
-                        <label for="levelOfPlay" class="form-label fw-semibold">Level of Play <span
-                                class="text-danger">*</span></label>
-                        <select class="form-select" id="levelOfPlay" [ngModel]="levelOfPlayInput()"
-                            (ngModelChange)="levelOfPlayInput.set($event)" [ngModelOptions]="{standalone: true}"
-                            required>
-                            <option value="">Select level...</option>
-                            @for (lop of availableLevelsOfPlay; track lop.value) {
-                            <option [value]="lop.value">{{ lop.label }}</option>
-                            }
-                        </select>
-                    </div>
                 </div>
 
-                <div class="modal-footer mt-4 d-flex gap-2 justify-content-between">
+                <!-- Footer -->
+                <div class="modal-footer d-flex gap-2 justify-content-between">
                     <button type="button" class="btn btn-secondary" (click)="onClose()">Cancel</button>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-primary" (click)="onRegisterAddAnother()"
-                            [disabled]="isRegistering || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
+                            [disabled]="isRegistering || !isFormValid()">
                             @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
                             Register &amp; Add Another
                         </button>
                         <button type="button" class="btn btn-primary" (click)="onRegister()"
-                            [disabled]="isRegistering || !teamNameInput() || !selectedAgeGroupId() || !levelOfPlayInput()">
+                            [disabled]="isRegistering || !isFormValid()">
                             @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
                             Register and Return
                         </button>

@@ -67,6 +67,7 @@ builder.Services.AddScoped<IJobDiscountCodeRepository, JobDiscountCodeRepository
 builder.Services.AddScoped<IClubRepRepository, ClubRepRepository>();
 builder.Services.AddScoped<IJobLeagueRepository, JobLeagueRepository>();
 builder.Services.AddScoped<IClubRepository, ClubRepository>();
+builder.Services.AddScoped<IClubTeamRepository, ClubTeamRepository>();
 builder.Services.AddScoped<IFamiliesRepository, FamiliesRepository>();
 builder.Services.AddScoped<IFamilyMemberRepository, FamilyMemberRepository>();
 builder.Services.AddScoped<IRegistrationAccountingRepository, RegistrationAccountingRepository>();

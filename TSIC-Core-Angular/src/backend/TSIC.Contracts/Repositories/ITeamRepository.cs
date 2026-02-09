@@ -18,6 +18,7 @@ public record RegisteredTeamInfo
     public required decimal AdditionalDue { get; init; }
     public required DateTime RegistrationTs { get; init; }
     public required bool BWaiverSigned3 { get; init; }
+    public int? ClubTeamId { get; init; }
 }
 
 public record AvailableTeamQueryResult

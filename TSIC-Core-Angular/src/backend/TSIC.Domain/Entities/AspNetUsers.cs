@@ -107,6 +107,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<ClubReps> ClubRepsLebUser { get; set; } = new List<ClubReps>();
 
+    public virtual ICollection<ClubTeams> ClubTeams { get; set; } = new List<ClubTeams>();
+
     public virtual ICollection<Clubs> Clubs { get; set; } = new List<Clubs>();
 
     public virtual ICollection<Clubs1> Clubs1 { get; set; } = new List<Clubs1>();

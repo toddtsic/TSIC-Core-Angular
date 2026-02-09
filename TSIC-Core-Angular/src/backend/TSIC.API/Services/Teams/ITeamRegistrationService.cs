@@ -29,8 +29,9 @@ public interface ITeamRegistrationService
     Task<TeamsMetadataResponse> GetTeamsMetadataAsync(Guid regId, string userId, bool bPayBalanceDue = false);
 
     /// <summary>
-    /// Register a team for the current event with specified name, age group, and level of play.
-    /// Creates a Teams record with TeamName directly (no ClubTeam reference).
+    /// Register a team for the current event.
+    /// Either selects an existing ClubTeam (by ClubTeamId) or creates a new one (from TeamName + GradYear + LevelOfPlay).
+    /// Creates a Teams record linked to the ClubTeam via ClubTeamId.
     /// Context derived from regId.
     /// </summary>
     Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, Guid regId, string userId);

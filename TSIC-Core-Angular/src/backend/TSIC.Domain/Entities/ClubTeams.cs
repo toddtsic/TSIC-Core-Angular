@@ -13,13 +13,11 @@ public partial class ClubTeams
 
     public string ClubTeamGradYear { get; set; } = null!;
 
-    public string? ClubTeamLevelOfPlay { get; set; }
+    public string ClubTeamLevelOfPlay { get; set; } = null!;
 
     public string? LebUserId { get; set; }
 
     public DateTime? Modified { get; set; }
-
-    public bool? Active { get; set; }
 
     public virtual Clubs Club { get; set; } = null!;
 

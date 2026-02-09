@@ -86,6 +86,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<ClubReps> ClubReps { get; set; }
 
+    public virtual DbSet<ClubTeams> ClubTeams { get; set; }
+
     public virtual DbSet<Clubs> Clubs { get; set; }
 
     public virtual DbSet<Clubs1> Clubs1 { get; set; }
@@ -1677,6 +1679,32 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.LebUser).WithMany(p => p.ClubRepsLebUser)
                 .HasForeignKey(d => d.LebUserId)
                 .HasConstraintName("FK__ClubReps__LebUse__630707D2");
+        });
+
+        modelBuilder.Entity<ClubTeams>(entity =>
+        {
+            entity.HasKey(e => e.ClubTeamId).HasName("PK__ClubTeam__831909DC4E195C75");
+
+            entity.ToTable("ClubTeams", "Clubs");
+
+            entity.Property(e => e.ClubTeamGradYear).IsUnicode(false);
+            entity.Property(e => e.ClubTeamLevelOfPlay)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.ClubTeamName).HasMaxLength(80);
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Club).WithMany(p => p.ClubTeams)
+                .HasForeignKey(d => d.ClubId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__ClubTeams__ClubI__28A55C13");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.ClubTeams)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK__ClubTeams__LebUs__2999804C");
         });
 
         modelBuilder.Entity<Clubs>(entity =>
@@ -6493,6 +6521,10 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.AgegroupId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Leagues.teams_Leagues.agegroups_agegroupID");
+
+            entity.HasOne(d => d.ClubTeam).WithMany(p => p.Teams)
+                .HasForeignKey(d => d.ClubTeamId)
+                .HasConstraintName("FK__teams__ClubTeamI__2B81C8BE");
 
             entity.HasOne(d => d.Clubrep).WithMany(p => p.TeamsClubrep)
                 .HasForeignKey(d => d.ClubrepId)

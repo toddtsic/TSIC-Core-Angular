@@ -1,31 +1,25 @@
-import { Component, Input, Output, EventEmitter, computed, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { SuggestedTeamNameDto, AgeGroupDto } from '@core/api';
-import { NgbPopover } from '@ng-bootstrap/ng-bootstrap';
-
-interface RegistrationData {
-    teamName: string;
+import type { SuggestedTeamNameDto, AgeGroupDto, ClubTeamDto } from '@core/api';
+export interface RegistrationData {
+    clubTeamId?: number;
+    teamName?: string;
+    clubTeamGradYear?: string;
     ageGroupId: string;
     levelOfPlay: string;
 }
 
-/**
- * Team Registration Modal Component
- *
- * Dumb presentation component for registering a team.
- * Receives data via inputs, emits events for parent handling.
- * Filtering/sorting handled locally via computed properties.
- */
 @Component({
     selector: 'app-team-registration-modal',
     standalone: true,
-    imports: [CommonModule, FormsModule, NgbPopover],
+    imports: [CommonModule, FormsModule],
     templateUrl: './team-registration-modal.component.html',
     styleUrls: ['./team-registration-modal.component.scss']
 })
 export class TeamRegistrationModalComponent {
     @Input() isOpen = false;
+    @Input() clubTeams: ClubTeamDto[] = [];
     @Input() suggestedTeamNames: SuggestedTeamNameDto[] = [];
     @Input() ageGroups: AgeGroupDto[] = [];
     @Input() availableLevelsOfPlay: { value: string; label: string }[] = [];
@@ -34,51 +28,88 @@ export class TeamRegistrationModalComponent {
     @Output() closed = new EventEmitter<void>();
     @Output() register = new EventEmitter<RegistrationData>();
     @Output() addAnother = new EventEmitter<RegistrationData>();
-    // clubName input removed: warning logic handles null gracefully
 
-    // Form state (exposed for template binding)
+    // Mode: 'select' existing ClubTeam or 'create' new one
+    readonly mode = signal<'select' | 'create'>('select');
+
+    // Select existing mode
+    readonly selectedClubTeamId = signal<string>('');
+
+    // Create new mode
     readonly teamNameInput = signal('');
+    readonly gradYear = signal<string>('');
+    readonly gradYearOptions = signal<(string | number)[]>(this.buildGradYears());
+
+    // Shared fields
     readonly selectedAgeGroupId = signal('');
     readonly levelOfPlayInput = signal('');
+
+    // UI state
     readonly successMessage = signal('');
     readonly specialCharBlocked = signal(false);
+    private readonly usedClubTeamIds = signal<Set<number>>(new Set());
     private readonly usedNames = signal<Set<string>>(new Set());
 
-    // Derived state for template
+    // Auto-set mode based on available ClubTeams
+    constructor() {
+        effect(() => {
+            if (this.isOpen) {
+                const hasClubTeams = this.clubTeams.length > 0;
+                this.mode.set(hasClubTeams ? 'select' : 'create');
+            }
+        });
+    }
+
+    // When a ClubTeam is selected, pre-fill LOP
+    readonly selectedClubTeam = computed(() => {
+        const id = Number(this.selectedClubTeamId());
+        if (!id) return null;
+        return this.clubTeams.find(ct => ct.clubTeamId === id) ?? null;
+    });
+
     readonly teamNameWarning = computed(() => {
+        if (this.mode() !== 'create') return null;
         const teamName = this.teamNameInput().trim();
-
-        if (!teamName) {
-            return null;
-        }
-
-        // Check length first (max 30 characters recommended)
+        if (!teamName) return null;
         if (teamName.length > 30) {
-            return {
-                message: `Your team name may get cut off in schedules, consider shortening.`,
-                suggestedName: teamName.substring(0, 30)
-            };
+            return { message: 'Your team name may get cut off in schedules, consider shortening.' };
         }
-
-        // Note: Club name detection disabled - requires club context
         return null;
     });
 
     readonly filteredSuggestions = computed(() => {
         const input = this.teamNameInput().toLowerCase().trim();
         const exclude = this.usedNames();
-        const list = this.suggestedTeamNames.filter(s => !exclude.has(this.normalizeName(s.teamName)));
-
-        // Don't filter if input exactly matches a suggestion (user selected from list)
-        if (input && list.some(s => s.teamName.toLowerCase() === input)) {
-            return list;
-        }
-
+        const list = this.suggestedTeamNames.filter(s => !exclude.has(s.teamName.trim().toLowerCase()));
+        if (input && list.some(s => s.teamName.toLowerCase() === input)) return list;
         if (!input) return list;
         return list.filter(s => s.teamName.toLowerCase().includes(input));
     });
 
     readonly filteredAgeGroups = computed(() => this.getFilteredAgeGroups());
+
+    readonly availableClubTeams = computed(() => {
+        const excluded = this.usedClubTeamIds();
+        return this.clubTeams.filter(ct => !excluded.has(ct.clubTeamId));
+    });
+
+    readonly hasAvailableClubTeams = computed(() => this.availableClubTeams().length > 0);
+
+    readonly isFormValid = computed(() => {
+        if (!this.selectedAgeGroupId() || !this.levelOfPlayInput()) return false;
+        if (this.mode() === 'select') return !!this.selectedClubTeamId();
+        return !!this.teamNameInput().trim() && !!this.gradYear();
+    });
+
+    onClubTeamSelected(): void {
+        const ct = this.selectedClubTeam();
+        if (ct) {
+            // Pre-fill level of play from ClubTeam
+            const lopOptions = this.availableLevelsOfPlay;
+            const match = lopOptions.find(opt => opt.value.startsWith(ct.clubTeamLevelOfPlay));
+            this.levelOfPlayInput.set(match?.value ?? ct.clubTeamLevelOfPlay);
+        }
+    }
 
     selectFromList(event: Event): void {
         const select = event.target as HTMLSelectElement;
@@ -94,7 +125,6 @@ export class TeamRegistrationModalComponent {
         if (input.value !== sanitized) {
             input.value = sanitized;
             this.teamNameInput.set(sanitized);
-            // Show feedback that special chars were blocked
             this.specialCharBlocked.set(true);
             setTimeout(() => this.specialCharBlocked.set(false), 3000);
         }
@@ -104,14 +134,16 @@ export class TeamRegistrationModalComponent {
         const data = this.getFormData();
         if (!data) return;
         this.addAnother.emit(data);
-        this.showSuccessMessage(`"${data.teamName}" registered!`);
-        // Exclude the just-used name immediately for the next iteration
-        const norm = this.normalizeName(data.teamName);
-        this.usedNames.update(curr => {
-            const next = new Set(curr);
-            next.add(norm);
-            return next;
-        });
+
+        const displayName = data.teamName ?? this.selectedClubTeam()?.clubTeamName ?? 'Team';
+        this.showSuccessMessage(`"${displayName}" registered!`);
+
+        if (data.clubTeamId) {
+            this.usedClubTeamIds.update(curr => { const next = new Set(curr); next.add(data.clubTeamId!); return next; });
+        }
+        if (data.teamName) {
+            this.usedNames.update(curr => { const next = new Set(curr); next.add(data.teamName!.trim().toLowerCase()); return next; });
+        }
         this.clearInputs();
     }
 
@@ -123,21 +155,31 @@ export class TeamRegistrationModalComponent {
 
     onClose(): void {
         this.clearForm();
-        // Reset session-specific exclusions
+        this.usedClubTeamIds.set(new Set());
         this.usedNames.set(new Set());
         this.closed.emit();
     }
 
+    setMode(mode: 'select' | 'create'): void {
+        this.mode.set(mode);
+        this.clearInputs();
+    }
+
     private getFormData(): RegistrationData | null {
-        const teamName = this.teamNameInput().trim();
         const ageGroupId = this.selectedAgeGroupId();
         const levelOfPlay = this.levelOfPlayInput().trim();
+        if (!ageGroupId || !levelOfPlay) return null;
 
-        if (!teamName || !ageGroupId || !levelOfPlay) {
-            return null;
+        if (this.mode() === 'select') {
+            const clubTeamId = Number(this.selectedClubTeamId());
+            if (!clubTeamId) return null;
+            return { clubTeamId, ageGroupId, levelOfPlay };
+        } else {
+            const teamName = this.teamNameInput().trim();
+            const clubTeamGradYear = this.gradYear();
+            if (!teamName || !clubTeamGradYear) return null;
+            return { teamName, clubTeamGradYear, ageGroupId, levelOfPlay };
         }
-
-        return { teamName, ageGroupId, levelOfPlay };
     }
 
     private getFilteredAgeGroups(): AgeGroupDto[] {
@@ -160,7 +202,6 @@ export class TeamRegistrationModalComponent {
         const bFull = this.toNumber(b.registeredCount) >= this.toNumber(b.maxTeams) && !bName.startsWith('waitlist');
         const aWaitlist = aName.startsWith('waitlist');
         const bWaitlist = bName.startsWith('waitlist');
-
         if (aFull && !bFull) return 1;
         if (!aFull && bFull) return -1;
         if (aWaitlist && !bWaitlist) return 1;
@@ -173,12 +214,10 @@ export class TeamRegistrationModalComponent {
         return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
     }
 
-    private normalizeName(value: string): string {
-        return value.trim().toLowerCase();
-    }
-
     private clearInputs(): void {
+        this.selectedClubTeamId.set('');
         this.teamNameInput.set('');
+        this.gradYear.set('');
         this.selectedAgeGroupId.set('');
         this.levelOfPlayInput.set('');
     }
@@ -190,5 +229,14 @@ export class TeamRegistrationModalComponent {
 
     private showSuccessMessage(message: string): void {
         this.successMessage.set(message);
+    }
+
+    private buildGradYears(): (string | number)[] {
+        const currentYear = new Date().getFullYear();
+        const years: number[] = [];
+        for (let i = 0; i < 20; i++) {
+            years.push(currentYear + i);
+        }
+        return years;
     }
 }

@@ -3,7 +3,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export type RegisterTeamRequest = {
-    teamName: string;
+    clubTeamId?: number;
+    teamName?: string | null;
+    clubTeamGradYear?: string | null;
     ageGroupId: string;
     levelOfPlay?: string | null;
 };

@@ -8,6 +8,7 @@ export type RegisteredTeamDto = {
     ageGroupId: string;
     ageGroupName: string;
     levelOfPlay: string | null;
+    clubTeamId?: number;
     feeBase: number;
     feeProcessing: number;
     feeTotal: number;

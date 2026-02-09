@@ -79,6 +79,7 @@ public sealed record TeamsMetadataResponse
 {
     public required int ClubId { get; init; }
     public required string ClubName { get; init; }
+    public required List<ClubTeamDto> ClubTeams { get; init; }
     public required List<SuggestedTeamNameDto> SuggestedTeamNames { get; init; }
     public required List<RegisteredTeamDto> RegisteredTeams { get; init; }
     public required List<AgeGroupDto> AgeGroups { get; init; }
@@ -90,6 +91,14 @@ public sealed record TeamsMetadataResponse
     public required bool BApplyProcessingFeesToTeamDeposit { get; init; }
     public required bool HasActiveDiscountCodes { get; init; }
     public UserContactInfoDto? ClubRepContactInfo { get; init; }
+}
+
+public sealed record ClubTeamDto
+{
+    public required int ClubTeamId { get; init; }
+    public required string ClubTeamName { get; init; }
+    public required string ClubTeamGradYear { get; init; }
+    public required string ClubTeamLevelOfPlay { get; init; }
 }
 
 public sealed record SuggestedTeamNameDto
@@ -106,6 +115,7 @@ public sealed record RegisteredTeamDto
     public required Guid AgeGroupId { get; init; }
     public required string AgeGroupName { get; init; }
     public required string? LevelOfPlay { get; init; }
+    public int? ClubTeamId { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeTotal { get; init; }
@@ -131,7 +141,9 @@ public sealed record AgeGroupDto
 
 public sealed record RegisterTeamRequest
 {
-    public required string TeamName { get; init; }
+    public int? ClubTeamId { get; init; }
+    public string? TeamName { get; init; }
+    public string? ClubTeamGradYear { get; init; }
     public required Guid AgeGroupId { get; init; }
     public string? LevelOfPlay { get; init; }
 }
@@ -140,12 +152,24 @@ public class RegisterTeamRequestValidator : AbstractValidator<RegisterTeamReques
 {
     public RegisterTeamRequestValidator()
     {
-        RuleFor(x => x.TeamName)
-            .NotEmpty().WithMessage("Team name is required")
-            .MaximumLength(100).WithMessage("Team name cannot exceed 100 characters");
-
         RuleFor(x => x.AgeGroupId)
             .NotEmpty().WithMessage("Age group is required");
+
+        RuleFor(x => x)
+            .Must(x => x.ClubTeamId.HasValue || !string.IsNullOrWhiteSpace(x.TeamName))
+            .WithMessage("Either select an existing team or provide a new team name");
+
+        RuleFor(x => x.TeamName)
+            .MaximumLength(80).WithMessage("Team name cannot exceed 80 characters")
+            .When(x => !string.IsNullOrWhiteSpace(x.TeamName));
+
+        RuleFor(x => x.ClubTeamGradYear)
+            .NotEmpty().WithMessage("Graduation year is required when creating a new team")
+            .When(x => !x.ClubTeamId.HasValue);
+
+        RuleFor(x => x.LevelOfPlay)
+            .NotEmpty().WithMessage("Level of play is required when creating a new team")
+            .When(x => !x.ClubTeamId.HasValue);
     }
 }
 

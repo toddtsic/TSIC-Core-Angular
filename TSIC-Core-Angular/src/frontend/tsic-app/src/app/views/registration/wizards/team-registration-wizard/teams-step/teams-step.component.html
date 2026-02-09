@@ -190,7 +190,8 @@
 }
 
 <!-- Registration Modal Component -->
-<app-team-registration-modal [isOpen]="showRegistrationModal()" [suggestedTeamNames]="suggestedTeamNamesForModal()"
-    [ageGroups]="ageGroups()" [availableLevelsOfPlay]="levelsOfPlayOptions()" [isRegistering]="isRegistering()"
+<app-team-registration-modal [isOpen]="showRegistrationModal()" [clubTeams]="clubTeams()"
+    [suggestedTeamNames]="suggestedTeamNamesForModal()" [ageGroups]="ageGroups()"
+    [availableLevelsOfPlay]="levelsOfPlayOptions()" [isRegistering]="isRegistering()"
     (closed)="closeRegistrationModal()" (register)="onTeamRegistered($event)" (addAnother)="onTeamAddedAnother($event)">
 </app-team-registration-modal>
