@@ -8,6 +8,7 @@ import { AgegroupDetailComponent } from './components/agegroup-detail.component'
 import { DivisionDetailComponent } from './components/division-detail.component';
 import { TeamDetailComponent } from './components/team-detail.component';
 import { LadtSiblingGridComponent } from './components/ladt-sibling-grid.component';
+import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import {
   COLUMNS_BY_LEVEL, ID_FIELD_BY_LEVEL,
   type LadtColumnDef
@@ -40,7 +41,8 @@ export interface LadtFlatNode {
     AgegroupDetailComponent,
     DivisionDetailComponent,
     TeamDetailComponent,
-    LadtSiblingGridComponent
+    LadtSiblingGridComponent,
+    ConfirmDialogComponent
   ],
   templateUrl: './ladt-editor.component.html',
   styleUrl: './ladt-editor.component.scss'
@@ -99,6 +101,22 @@ export class LadtEditorComponent implements OnInit {
       .map((d: any) => d.divName as string)
       .filter(Boolean);
   });
+
+  // Delete confirmation dialog
+  showDeleteConfirm = signal(false);
+  deleteTargetNode = signal<LadtFlatNode | null>(null);
+  deleteDialogTitle = computed(() => {
+    const node = this.deleteTargetNode();
+    if (!node) return 'Confirm';
+    return node.level === 3 ? 'Drop Team' : `Delete ${this.getLevelLabel(node.level)}`;
+  });
+  deleteDialogMessage = computed(() => {
+    const node = this.deleteTargetNode();
+    if (!node) return '';
+    if (node.level === 3) return `Drop team "${node.name}"? It will be moved to Dropped Teams and deactivated.`;
+    return `Delete ${this.getLevelLabel(node.level)} "${node.name}"?`;
+  });
+  deleteDialogConfirmLabel = computed(() => this.deleteTargetNode()?.level === 3 ? 'Drop' : 'Delete');
 
   // Mobile drawer
   drawerOpen = signal(false);
@@ -334,10 +352,18 @@ export class LadtEditorComponent implements OnInit {
   }
 
   confirmDelete(node: LadtFlatNode): void {
+    this.deleteTargetNode.set(node);
+    this.showDeleteConfirm.set(true);
+  }
+
+  onDeleteConfirmed(): void {
+    const node = this.deleteTargetNode();
+    if (!node) return;
+    this.showDeleteConfirm.set(false);
+    this.deleteTargetNode.set(null);
+
     // Teams are "dropped" (moved to Dropped Teams), not deleted
     if (node.level === 3) {
-      if (!confirm(`Drop team "${node.name}"? It will be moved to Dropped Teams and deactivated.`)) return;
-
       this.ladtService.dropTeam(node.id).subscribe({
         next: (result) => {
           if (this.selectedNode()?.id === node.id) {
@@ -353,8 +379,6 @@ export class LadtEditorComponent implements OnInit {
     }
 
     const label = this.getLevelLabel(node.level);
-    if (!confirm(`Delete ${label} "${node.name}"?`)) return;
-
     let delete$: Observable<void>;
     if (node.level === 1) delete$ = this.ladtService.deleteAgegroup(node.id);
     else delete$ = this.ladtService.deleteDivision(node.id);
@@ -369,6 +393,11 @@ export class LadtEditorComponent implements OnInit {
       },
       error: (err) => this.errorMessage.set(err.error?.message || `Failed to delete ${label}`)
     });
+  }
+
+  onDeleteCancelled(): void {
+    this.showDeleteConfirm.set(false);
+    this.deleteTargetNode.set(null);
   }
 
   // ── Batch ──

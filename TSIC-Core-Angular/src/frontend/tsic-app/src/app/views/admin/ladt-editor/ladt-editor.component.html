@@ -237,3 +237,15 @@
     }
   </main>
 </div>
+
+<!-- Delete / Drop confirmation dialog -->
+@if (showDeleteConfirm()) {
+  <confirm-dialog
+    [title]="deleteDialogTitle()"
+    [message]="deleteDialogMessage()"
+    [confirmLabel]="deleteDialogConfirmLabel()"
+    confirmVariant="danger"
+    (confirmed)="onDeleteConfirmed()"
+    (cancelled)="onDeleteCancelled()"
+  />
+}
