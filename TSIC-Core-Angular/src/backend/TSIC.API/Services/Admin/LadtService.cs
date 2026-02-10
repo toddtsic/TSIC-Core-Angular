@@ -139,6 +139,7 @@ public sealed class LadtService : ILadtService
                     PlayerCount = agPlayerCount,
                     Expanded = false,
                     Active = true,
+                    Color = ag.Color,
                     Children = divisionNodes
                 });
             }

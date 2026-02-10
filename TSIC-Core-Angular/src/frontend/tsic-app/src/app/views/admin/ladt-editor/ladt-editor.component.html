@@ -106,6 +106,9 @@
                     <span class="tree-label-secondary">{{ node.name }}</span>
                   </span>
                 } @else {
+                  @if (node.level === 1 && node.color) {
+                    <span class="tree-color-dot" [style.background]="node.color"></span>
+                  }
                   <span class="tree-label">{{ node.name }}</span>
                 }
                 <span class="node-badges ms-auto">
@@ -153,6 +156,9 @@
                   <span class="tree-label-secondary">{{ node.name }}</span>
                 </span>
               } @else {
+                @if (node.level === 1 && node.color) {
+                  <span class="tree-color-dot" [style.background]="node.color"></span>
+                }
                 <span class="tree-label">{{ node.name }}</span>
               }
               <span class="node-badges ms-auto">

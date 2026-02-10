@@ -27,6 +27,7 @@ public record LadtTreeNodeDto
     public required bool Expanded { get; init; }
     public required bool Active { get; init; }
     public string? ClubName { get; init; }
+    public string? Color { get; init; }
     public List<LadtTreeNodeDto>? Children { get; init; }
 }
 

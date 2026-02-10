@@ -13,6 +13,7 @@ export type LadtTreeNodeDto = {
     expanded: boolean;
     active: boolean;
     clubName?: string | null;
+    color?: string | null;
     children?: any[] | null;
 };
 

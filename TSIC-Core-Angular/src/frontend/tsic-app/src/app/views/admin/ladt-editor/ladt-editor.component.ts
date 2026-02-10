@@ -28,6 +28,7 @@ export interface LadtFlatNode {
   expandable: boolean;
   active: boolean;
   clubName: string | null;
+  color: string | null;
   isSpecial: boolean;
   isPhantom?: boolean;
 }
@@ -102,6 +103,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           expandable: false,
           active: true,
           clubName: null,
+          color: null,
           isSpecial: false,
           isPhantom: true
         });
@@ -253,6 +255,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           expandable: children.length > 0,
           active: node.active,
           clubName: node.clubName ?? null,
+          color: node.color ?? null,
           isSpecial: (node.level === 1 && this.isSpecialAgegroup(node.name)) ||
                      (node.level === 2 && node.name.toUpperCase() === 'UNASSIGNED')
         });
