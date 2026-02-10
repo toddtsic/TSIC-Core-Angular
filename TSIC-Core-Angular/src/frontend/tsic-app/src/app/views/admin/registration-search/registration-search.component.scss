@@ -1,0 +1,234 @@
+@import '@syncfusion/ej2-base/styles/material.css';
+@import '@syncfusion/ej2-grids/styles/material.css';
+
+.registration-search-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  height: 100%;
+}
+
+// Filter Panel
+.filter-panel {
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+
+  // Glassmorphic elevated surface for chrome
+  backdrop-filter: blur(8px);
+  background: linear-gradient(
+    135deg,
+    var(--glass-white-10) 0%,
+    var(--glass-white-5) 100%
+  );
+}
+
+.filter-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+    margin-bottom: 0;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 0.875rem;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+    &:focus {
+      border-color: var(--bs-primary);
+      outline: 0;
+      box-shadow: 0 0 0 0.2rem var(--bs-primary-fade-20);
+    }
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+
+  .btn {
+    padding: var(--space-2) var(--space-4);
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
+}
+
+// Results Container
+.results-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow: hidden;
+}
+
+.results-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+
+  .result-count {
+    font-weight: 600;
+    color: var(--bs-body-color);
+  }
+}
+
+// Grid Styling
+.tight-table {
+  ::ng-deep {
+    .e-grid {
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-card-bg);
+
+      .e-headercell {
+        background: var(--bs-secondary-bg);
+        color: var(--bs-body-color);
+        font-weight: 600;
+        font-size: 0.875rem;
+        padding: var(--space-2) var(--space-3);
+        border-bottom: 2px solid var(--bs-border-color);
+      }
+
+      .e-rowcell {
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.875rem;
+        color: var(--bs-body-color);
+        border-bottom: 1px solid var(--bs-border-color-translucent);
+      }
+
+      .e-row:hover {
+        background: var(--bs-tertiary-bg);
+      }
+
+      .e-altrow {
+        background: var(--bs-secondary-bg);
+      }
+
+      .e-gridpager {
+        background: var(--bs-card-bg);
+        border-top: 1px solid var(--bs-border-color);
+        padding: var(--space-2);
+
+        .e-pagercontainer {
+          color: var(--bs-body-color);
+        }
+      }
+    }
+  }
+}
+
+.detail-link {
+  color: var(--bs-primary);
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    text-decoration: underline;
+    color: var(--bs-primary-hover);
+  }
+}
+
+// Financial Cell Styling
+.owed-positive {
+  color: var(--bs-danger) !important;
+  font-weight: 600;
+}
+
+.owed-zero {
+  color: var(--bs-success) !important;
+  font-weight: 600;
+}
+
+// Aggregate Row Styling
+::ng-deep {
+  .e-gridfooter {
+    background: var(--bs-secondary-bg) !important;
+    border-top: 2px solid var(--bs-border-color) !important;
+    font-weight: 700;
+
+    .e-summarycell {
+      padding: var(--space-3) !important;
+      color: var(--bs-body-color) !important;
+    }
+
+    .aggregate-label {
+      text-align: right;
+      padding-right: var(--space-2);
+      font-weight: 700;
+      color: var(--bs-body-color);
+    }
+
+    .aggregate-value {
+      text-align: right;
+      font-weight: 700;
+      color: var(--bs-primary);
+    }
+  }
+}
+
+// Badge Styling
+.badge {
+  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+  font-weight: 600;
+}
+
+// Desktop Only (Hide on Mobile)
+@media (max-width: 767px) {
+  .registration-search-container {
+    display: none;
+  }
+}
+
+// Spinner
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+}
+
+// Responsive adjustments for smaller desktop screens
+@media (max-width: 1200px) {
+  .filter-row {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 992px) {
+  .filter-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

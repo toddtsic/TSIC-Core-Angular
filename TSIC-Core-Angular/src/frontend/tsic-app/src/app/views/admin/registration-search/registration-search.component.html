@@ -1,0 +1,316 @@
+<!-- Desktop View -->
+@if (!isMobile()) {
+  <div class="registration-search-container">
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+      <div class="filter-grid">
+        <!-- Row 1 -->
+        <div class="filter-row">
+          <div class="form-group">
+            <label for="filterName">Name</label>
+            <input
+              type="text"
+              id="filterName"
+              class="form-control"
+              placeholder="First or Last"
+              [ngModel]="searchRequest().name"
+              (ngModelChange)="updateName($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="filterEmail">Email</label>
+            <input
+              type="text"
+              id="filterEmail"
+              class="form-control"
+              placeholder="Email address"
+              [ngModel]="searchRequest().email"
+              (ngModelChange)="updateEmail($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="filterRole">Role</label>
+            <select
+              id="filterRole"
+              class="form-select"
+              [ngModel]="searchRequest().roleId"
+              (ngModelChange)="updateRoleId($event)"
+            >
+              <option value="">All Roles</option>
+              @for (role of filterOptions()?.roles; track role.value) {
+                <option [value]="role.value">{{ role.text }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="filterTeam">Team</label>
+            <select
+              id="filterTeam"
+              class="form-select"
+              [ngModel]="searchRequest().teamId"
+              (ngModelChange)="updateTeamId($event)"
+            >
+              <option value="">All Teams</option>
+              @for (team of filterOptions()?.teams; track team.value) {
+                <option [value]="team.value">{{ team.text }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 2 -->
+        <div class="filter-row">
+          <div class="form-group">
+            <label for="filterAgegroup">Agegroup</label>
+            <select
+              id="filterAgegroup"
+              class="form-select"
+              [ngModel]="searchRequest().agegroupId"
+              (ngModelChange)="updateAgegroupId($event)"
+            >
+              <option value="">All Agegroups</option>
+              @for (ag of filterOptions()?.agegroups; track ag.value) {
+                <option [value]="ag.value">{{ ag.text }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="filterDivision">Division</label>
+            <select
+              id="filterDivision"
+              class="form-select"
+              [ngModel]="searchRequest().divisionId"
+              (ngModelChange)="updateDivisionId($event)"
+            >
+              <option value="">All Divisions</option>
+              @for (div of filterOptions()?.divisions; track div.value) {
+                <option [value]="div.value">{{ div.text }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="filterClub">Club</label>
+            <input
+              type="text"
+              id="filterClub"
+              class="form-control"
+              placeholder="Club name"
+              [ngModel]="searchRequest().clubName"
+              (ngModelChange)="updateClubName($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="filterStatus">Status</label>
+            <select
+              id="filterStatus"
+              class="form-select"
+              [ngModel]="searchRequest().active === null ? 'all' : searchRequest().active ? 'active' : 'inactive'"
+              (ngModelChange)="updateActive($event)"
+            >
+              <option value="all">All</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 3 -->
+        <div class="filter-row">
+          <div class="form-group">
+            <label for="filterDateFrom">Date From</label>
+            <input
+              type="date"
+              id="filterDateFrom"
+              class="form-control"
+              [ngModel]="searchRequest().regDateFrom"
+              (ngModelChange)="updateRegDateFrom($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="filterDateTo">Date To</label>
+            <input
+              type="date"
+              id="filterDateTo"
+              class="form-control"
+              [ngModel]="searchRequest().regDateTo"
+              (ngModelChange)="updateRegDateTo($event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="filterOwes">Owes Money</label>
+            <select
+              id="filterOwes"
+              class="form-select"
+              [ngModel]="searchRequest().owesFilter"
+              (ngModelChange)="updateOwesFilter($event)"
+            >
+              <option value="any">All</option>
+              <option value="owes">Owes Money</option>
+              <option value="paid">Paid Up</option>
+            </select>
+          </div>
+
+          <div class="form-group action-buttons">
+            <button
+              type="button"
+              class="btn btn-primary"
+              (click)="executeSearch()"
+              [disabled]="isSearching()"
+            >
+              @if (isSearching()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+              }
+              Search
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="clearFilters()"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              class="btn btn-info"
+              (click)="onEmailSelected()"
+              [disabled]="!canEmailSelected"
+            >
+              Email Selected
+            </button>
+            <button
+              type="button"
+              class="btn btn-success"
+              (click)="exportExcel()"
+            >
+              Export
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Grid -->
+    <div class="results-container">
+      @if (searchResults()) {
+        <div class="results-summary">
+          <span class="result-count">
+            {{ searchResults()!.count }} registration(s) found
+          </span>
+        </div>
+
+        <ejs-grid
+          #grid
+          [dataSource]="gridDataSource()"
+          [allowPaging]="true"
+          [allowSorting]="true"
+          [allowExcelExport]="true"
+          [frozenColumns]="4"
+          [pageSettings]="pageSettings"
+          [sortSettings]="sortSettings"
+          (actionBegin)="onActionBegin($event)"
+          (rowSelected)="onRowSelected()"
+          (rowDeselected)="onRowSelected()"
+          (queryCellInfo)="queryCellInfo($event)"
+          class="tight-table"
+        >
+          <e-columns>
+            <!-- Frozen columns (checkbox, Row, Name, Active) -->
+            <e-column type="checkbox" width="40"></e-column>
+            <e-column headerText="Row" width="55" textAlign="Center" [allowSorting]="false">
+              <ng-template #template let-data>
+                <span class="row-number">{{ data._rowNum }}</span>
+              </ng-template>
+            </e-column>
+            <e-column field="lastName" headerText="Name" width="170">
+              <ng-template #template let-data>
+                <a href="javascript:void(0)" (click)="openDetail(data.registrationId)" class="detail-link">
+                  {{ data.lastName }}, {{ data.firstName }}
+                </a>
+              </ng-template>
+            </e-column>
+            <e-column field="active" headerText="Active" width="70" textAlign="Center">
+              <ng-template #template let-data>
+                @if (data.active) {
+                  <span class="badge bg-success">Yes</span>
+                } @else {
+                  <span class="badge bg-secondary">No</span>
+                }
+              </ng-template>
+            </e-column>
+
+            <!-- Scrollable columns -->
+            <e-column field="registrationTs" headerText="RegDate" width="100" type="date" format="M/d/yyyy"></e-column>
+            <e-column field="roleName" headerText="Role" width="100"></e-column>
+            <e-column field="phone" headerText="CellPhone" width="120"></e-column>
+            <e-column field="dob" headerText="Dob" width="100" type="date" format="M/d/yyyy"></e-column>
+            <e-column field="position" headerText="Psn" width="80"></e-column>
+            <e-column field="paidTotal" headerText="$Paid" width="90" textAlign="Right" format="C2"></e-column>
+            <e-column field="owedTotal" headerText="$Owed" width="90" textAlign="Right" format="C2"></e-column>
+            <e-column field="teamName" headerText="Assignment" width="160"></e-column>
+          </e-columns>
+
+          <e-aggregates>
+            <e-aggregate>
+              <e-columns>
+                <e-column field="paidTotal" type="Custom">
+                  <ng-template #footerTemplate>
+                    <div class="aggregate-value">{{ searchResults()!.totalPaid | currency }}</div>
+                  </ng-template>
+                </e-column>
+                <e-column field="owedTotal" type="Custom">
+                  <ng-template #footerTemplate>
+                    <div class="aggregate-value">{{ searchResults()!.totalOwed | currency }}</div>
+                  </ng-template>
+                </e-column>
+              </e-columns>
+            </e-aggregate>
+          </e-aggregates>
+        </ejs-grid>
+      }
+    </div>
+  </div>
+}
+
+<!-- Mobile View -->
+@if (isMobile()) {
+  <app-mobile-quick-lookup></app-mobile-quick-lookup>
+}
+
+<!-- Detail Panel -->
+@if (isPanelOpen()) {
+  <app-registration-detail-panel
+    [detail]="selectedDetail()"
+    [isOpen]="isPanelOpen()"
+    (closed)="closePanel()"
+    (refundRequested)="onRefundRequested($event)"
+  ></app-registration-detail-panel>
+}
+
+<!-- Refund Modal -->
+@if (showRefundModal()) {
+  <app-refund-modal
+    [accountingRecord]="refundTarget()"
+    [isOpen]="showRefundModal()"
+    (closed)="showRefundModal.set(false)"
+    (refunded)="onRefundComplete()"
+  ></app-refund-modal>
+}
+
+<!-- Batch Email Modal -->
+@if (showBatchEmailModal()) {
+  <app-batch-email-modal
+    [registrationIds]="selectedRegistrationIds"
+    [recipientCount]="selectedRegistrations().size"
+    [isOpen]="showBatchEmailModal()"
+    (closed)="showBatchEmailModal.set(false)"
+    (sent)="onBatchEmailComplete()"
+  ></app-batch-email-modal>
+}

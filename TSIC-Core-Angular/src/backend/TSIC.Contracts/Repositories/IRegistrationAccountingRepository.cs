@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -39,6 +40,24 @@ public interface IRegistrationAccountingRepository
     /// Check whether any active payment records exist for the given team.
     /// </summary>
     Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all accounting records for a registration, joined with payment method.
+    /// Sets CanRefund = true for CC payments with a transaction ID.
+    /// Ordered by Createdate desc. AsNoTracking.
+    /// </summary>
+    Task<List<AccountingRecordDto>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get a single accounting record by AId (tracked, for refund operations).
+    /// Includes Registration navigation for financial recalculation.
+    /// </summary>
+    Task<RegistrationAccounting?> GetByAIdAsync(int aId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all payment method options for the create-accounting dropdown. AsNoTracking.
+    /// </summary>
+    Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default);
 }
 
 public record PaymentSummary

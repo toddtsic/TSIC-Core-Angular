@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Domain.Entities;
 
@@ -304,6 +305,34 @@ public interface IRegistrationRepository
     /// Used to populate the "target club" dropdown in LADT move-team.
     /// </summary>
     Task<List<ClubRegistrationInfo>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── Registration Search methods ──
+
+    /// <summary>
+    /// Server-side paged search with multi-criteria filtering and aggregates.
+    /// Joins Registrations → AspNetUsers, Teams, Roles, Agegroups, Divisions.
+    /// Computes Count + Aggregates (TotalFees, TotalPaid, TotalOwed) BEFORE paging.
+    /// AsNoTracking.
+    /// </summary>
+    Task<RegistrationSearchResponse> SearchAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns distinct roles, teams, agegroups, divisions, club names for this job's registrations.
+    /// Used to populate filter dropdowns. AsNoTracking.
+    /// </summary>
+    Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Full registration detail with user data, profile values, accounting records, and metadata schema.
+    /// Validates registrationId belongs to jobId. AsNoTracking.
+    /// </summary>
+    Task<RegistrationDetailDto?> GetRegistrationDetailAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update dynamic profile fields on a registration entity.
+    /// Validates registration belongs to job. Maps key (dbColumn) to entity property via reflection.
+    /// </summary>
+    Task UpdateRegistrationProfileAsync(Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default);
 
     // ── Roster Swapper methods ──
 

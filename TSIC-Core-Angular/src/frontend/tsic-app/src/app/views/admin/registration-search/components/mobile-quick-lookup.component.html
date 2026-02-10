@@ -1,0 +1,116 @@
+<div class="mobile-lookup">
+  <div class="search-header">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+      <input type="text" class="search-input"
+        [ngModel]="searchText()" (ngModelChange)="searchText.set($event); onSearchInput()"
+        placeholder="Search by name, email, or team..." />
+    </div>
+  </div>
+
+  @if (totalCount() > 0) {
+    <div class="results-header"><p>{{ totalCount() }} result(s) found</p></div>
+  }
+
+  @if (isSearching() && currentPage() === 1) {
+    <div class="loading-state"><div class="spinner-large"></div><p>Searching...</p></div>
+  }
+
+  @if (results().length > 0) {
+    <div class="results-list">
+      @for (result of results(); track result.registrationId) {
+        <div class="lookup-card" [class.expanded]="expandedId() === result.registrationId" (click)="toggleExpand(result.registrationId)">
+          <div class="card-header">
+            <div class="card-title">
+              <strong>{{ result.firstName }} {{ result.lastName }}</strong>
+              <span class="owes-badge" [class.paid-up]="result.owedTotal === 0" [class.owes]="result.owedTotal > 0">
+                @if (result.owedTotal === 0) {
+                  <svg class="badge-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                  </svg>
+                  Paid
+                } @else {
+                  <svg class="badge-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                  </svg>
+                  Owes ${{ result.owedTotal.toFixed(2) }}
+                }
+              </span>
+            </div>
+            <div class="card-subtitle">
+              {{ result.roleName }}
+              @if (result.teamName) { &bull; {{ result.teamName }} }
+            </div>
+          </div>
+
+          @if (expandedId() === result.registrationId) {
+            <div class="card-detail" (click)="$event.stopPropagation()">
+              @if (expandedDetail(); as detail) {
+                <div class="detail-section">
+                  <div class="detail-row">
+                    <svg class="detail-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                    </svg>
+                    <span>{{ detail.email }}</span>
+                  </div>
+                  @if (detail.phone) {
+                    <div class="detail-row">
+                      <svg class="detail-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                      </svg>
+                      <span>{{ detail.phone }}</span>
+                    </div>
+                  }
+                  <div class="fee-breakdown">
+                    <div class="fee-row"><span>Total Fees:</span><strong>${{ detail.feeTotal.toFixed(2) }}</strong></div>
+                    <div class="fee-row"><span>Amount Paid:</span><strong>${{ detail.paidTotal.toFixed(2) }}</strong></div>
+                    <div class="fee-row" [class.owes]="detail.owedTotal > 0"><span>Amount Owed:</span><strong>${{ detail.owedTotal.toFixed(2) }}</strong></div>
+                  </div>
+                  <div class="card-actions">
+                    @if (detail.phone) {
+                      <a [href]="'tel:' + detail.phone" class="action-link">
+                        <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                        </svg>
+                        Call
+                      </a>
+                    }
+                    <a [href]="'mailto:' + detail.email" class="action-link">
+                      <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                      </svg>
+                      Email
+                    </a>
+                  </div>
+                </div>
+              } @else {
+                <div class="detail-loading"><div class="spinner"></div><span>Loading details...</span></div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    @if (hasMoreResults()) {
+      <div class="load-more-container">
+        <button type="button" class="btn-load-more" (click)="loadMore()" [disabled]="isSearching()">
+          @if (isSearching()) { <span class="spinner"></span> Loading... } @else { Load More }
+        </button>
+      </div>
+    }
+  }
+
+  @if (!isSearching() && results().length === 0 && searchText()) {
+    <div class="empty-state">
+      <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+      <p>No results found for "{{ searchText() }}"</p>
+    </div>
+  }
+</div>

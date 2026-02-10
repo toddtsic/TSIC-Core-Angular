@@ -1,0 +1,183 @@
+@if (isOpen()) {
+  <div class="detail-backdrop" (click)="close()"></div>
+}
+
+<div class="detail-panel" [class.open]="isOpen()">
+  @if (detail(); as reg) {
+    <div class="panel-header">
+      <div class="header-content">
+        <h3 class="panel-title">{{ reg.firstName }} {{ reg.lastName }}</h3>
+        <div class="header-meta">
+          <span class="meta-item">{{ reg.roleName }}</span>
+          @if (reg.teamName) {
+            <span class="meta-separator">&bull;</span>
+            <span class="meta-item">{{ reg.teamName }}</span>
+          }
+          <span class="meta-separator">&bull;</span>
+          <span class="badge" [class.badge-success]="reg.active" [class.badge-secondary]="!reg.active">
+            {{ reg.active ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+      </div>
+      <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
+    </div>
+
+    <div class="tab-bar">
+      <button type="button" class="tab-button" [class.active]="activeTab() === 'details'" (click)="setActiveTab('details')">Details</button>
+      <button type="button" class="tab-button" [class.active]="activeTab() === 'accounting'" (click)="setActiveTab('accounting')">Accounting</button>
+      <button type="button" class="tab-button" [class.active]="activeTab() === 'email'" (click)="setActiveTab('email')">Email</button>
+    </div>
+
+    <div class="panel-body">
+      @if (activeTab() === 'details') {
+        <div class="tab-content">
+          <form class="detail-form">
+            @if (metadataFields().length > 0) {
+              @for (field of metadataFields(); track field.key) {
+                <div class="form-group">
+                  <label [for]="'field-' + field.key" class="form-label">
+                    {{ field.label }}
+                    @if (field.required) { <span class="text-danger">*</span> }
+                  </label>
+                  @switch (field.type) {
+                    @case ('text') {
+                      <input [id]="'field-' + field.key" type="text" class="form-control"
+                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                        [name]="field.key" [required]="field.required || false">
+                    }
+                    @case ('textarea') {
+                      <textarea [id]="'field-' + field.key" class="form-control"
+                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                        [name]="field.key" [required]="field.required || false" rows="3"></textarea>
+                    }
+                    @case ('date') {
+                      <input [id]="'field-' + field.key" type="date" class="form-control"
+                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                        [name]="field.key" [required]="field.required || false">
+                    }
+                    @case ('select') {
+                      <select [id]="'field-' + field.key" class="form-select"
+                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                        [name]="field.key" [required]="field.required || false">
+                        <option value="">-- Select --</option>
+                        @for (option of field.options || []; track option) {
+                          <option [value]="option">{{ option }}</option>
+                        }
+                      </select>
+                    }
+                    @case ('checkbox') {
+                      <div class="form-check">
+                        <input [id]="'field-' + field.key" type="checkbox" class="form-check-input"
+                          [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                          [name]="field.key">
+                        <label class="form-check-label" [for]="'field-' + field.key">{{ field.label }}</label>
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            } @else {
+              <div class="alert alert-info">No profile fields defined for this registration type.</div>
+            }
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary" (click)="saveProfile()" [disabled]="isSaving()">
+                @if (isSaving()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      }
+
+      @if (activeTab() === 'accounting') {
+        <div class="tab-content">
+          <div class="financial-summary">
+            <div class="summary-item">
+              <span class="summary-label">Total Fees:</span>
+              <span class="summary-value">{{ getFinancialSummary().fees | currency }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Total Paid:</span>
+              <span class="summary-value text-success">{{ getFinancialSummary().paid | currency }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Amount Owed:</span>
+              <span class="summary-value" [class.text-danger]="getFinancialSummary().owed > 0">
+                {{ getFinancialSummary().owed | currency }}
+              </span>
+            </div>
+          </div>
+
+          @if (reg.accountingRecords && reg.accountingRecords.length > 0) {
+            <div class="table-responsive">
+              <table class="table table-sm accounting-table">
+                <thead>
+                  <tr><th>#</th><th>Date</th><th>Method</th><th>Due</th><th>Paid</th><th>Comment</th><th></th></tr>
+                </thead>
+                <tbody>
+                  @for (record of reg.accountingRecords; track record.aId; let idx = $index) {
+                    <tr>
+                      <td>{{ idx + 1 }}</td>
+                      <td>{{ record.date | date:'short' }}</td>
+                      <td>
+                        {{ record.paymentMethod }}
+                        @if (record.adnCc4) { <span class="text-muted"> (****{{ record.adnCc4 }})</span> }
+                      </td>
+                      <td>{{ record.dueAmount | currency }}</td>
+                      <td>{{ record.paidAmount | currency }}</td>
+                      <td><small class="text-muted">{{ record.comment || '—' }}</small></td>
+                      <td>
+                        @if (record.canRefund) {
+                          <button type="button" class="btn btn-sm btn-outline-danger" (click)="onRefundClick(record)">Refund</button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="alert alert-info">No accounting records found.</div>
+          }
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-outline-primary" disabled>+ Add Payment Record</button>
+            <small class="text-muted ms-2">(Coming soon)</small>
+          </div>
+        </div>
+      }
+
+      @if (activeTab() === 'email') {
+        <div class="tab-content">
+          <form class="email-form">
+            <div class="token-chips">
+              <span class="token-label">Insert Token:</span>
+              <button type="button" class="token-chip" (click)="insertEmailToken('!PERSON')">!PERSON</button>
+              <button type="button" class="token-chip" (click)="insertEmailToken('!EMAIL')">!EMAIL</button>
+              <button type="button" class="token-chip" (click)="insertEmailToken('!JOBNAME')">!JOBNAME</button>
+              <button type="button" class="token-chip" (click)="insertEmailToken('!AMTFEES')">!AMTFEES</button>
+              <button type="button" class="token-chip" (click)="insertEmailToken('!AMTPAID')">!AMTPAID</button>
+              <button type="button" class="token-chip" (click)="insertEmailToken('!AMTOWED')">!AMTOWED</button>
+            </div>
+            <div class="form-group">
+              <label for="email-subject" class="form-label">Subject</label>
+              <input id="email-subject" type="text" class="form-control"
+                [ngModel]="emailSubject()" (ngModelChange)="emailSubject.set($event)"
+                name="subject" placeholder="Enter email subject">
+            </div>
+            <div class="form-group">
+              <label for="email-body" class="form-label">Message</label>
+              <textarea id="email-body" class="form-control"
+                [ngModel]="emailBody()" (ngModelChange)="emailBody.set($event)"
+                name="body" rows="8" placeholder="Enter email message (use tokens like !PERSON, !AMTOWED, etc.)"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-outline-secondary" (click)="previewEmail()" [disabled]="!emailSubject() || !emailBody()">Preview</button>
+              <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="!emailSubject() || !emailBody()">Send Email</button>
+            </div>
+          </form>
+        </div>
+      }
+    </div>
+  }
+</div>

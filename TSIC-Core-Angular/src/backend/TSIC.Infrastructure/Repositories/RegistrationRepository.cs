@@ -1,5 +1,7 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -759,6 +761,366 @@ public class RegistrationRepository : IRegistrationRepository
                 UserId = r.UserId ?? ""
             })
             .ToListAsync(ct);
+    }
+
+    // ── Registration Search methods ──
+
+    public async Task<RegistrationSearchResponse> SearchAsync(
+        Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default)
+    {
+        var query = _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId);
+
+        // Active filter
+        if (request.Active.HasValue)
+            query = query.Where(r => r.BActive == request.Active.Value);
+
+        // Name filter (searches first + last, supports "John Smith" split)
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            var parts = request.Name.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 2)
+            {
+                var first = parts[0];
+                var last = parts[1];
+                query = query.Where(r => r.User != null
+                    && r.User.FirstName != null && r.User.FirstName.Contains(first)
+                    && r.User.LastName != null && r.User.LastName.Contains(last));
+            }
+            else
+            {
+                var term = parts[0];
+                query = query.Where(r => r.User != null
+                    && ((r.User.FirstName != null && r.User.FirstName.Contains(term))
+                        || (r.User.LastName != null && r.User.LastName.Contains(term))));
+            }
+        }
+
+        // Email filter
+        if (!string.IsNullOrWhiteSpace(request.Email))
+            query = query.Where(r => r.User != null && r.User.Email != null && r.User.Email.Contains(request.Email));
+
+        // Role filter
+        if (!string.IsNullOrWhiteSpace(request.RoleId))
+            query = query.Where(r => r.RoleId == request.RoleId);
+
+        // Team filter
+        if (request.TeamId.HasValue)
+            query = query.Where(r => r.AssignedTeamId == request.TeamId.Value);
+
+        // Agegroup filter
+        if (request.AgegroupId.HasValue)
+            query = query.Where(r => r.AssignedAgegroupId == request.AgegroupId.Value);
+
+        // Division filter
+        if (request.DivisionId.HasValue)
+            query = query.Where(r => r.AssignedDivId == request.DivisionId.Value);
+
+        // Club name filter
+        if (!string.IsNullOrWhiteSpace(request.ClubName))
+            query = query.Where(r => r.ClubName != null && r.ClubName.Contains(request.ClubName));
+
+        // Owes filter
+        if (request.OwesFilter == "owes")
+            query = query.Where(r => r.OwedTotal > 0);
+        else if (request.OwesFilter == "paid")
+            query = query.Where(r => r.OwedTotal <= 0);
+
+        // Date range
+        if (request.RegDateFrom.HasValue)
+            query = query.Where(r => r.RegistrationTs >= request.RegDateFrom.Value);
+        if (request.RegDateTo.HasValue)
+            query = query.Where(r => r.RegistrationTs <= request.RegDateTo.Value);
+
+        // Compute count + aggregates BEFORE paging
+        var aggregates = await query
+            .GroupBy(r => 1)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                TotalFees = g.Sum(r => r.FeeTotal),
+                TotalPaid = g.Sum(r => r.PaidTotal),
+                TotalOwed = g.Sum(r => r.OwedTotal)
+            })
+            .FirstOrDefaultAsync(ct);
+
+        // Project to DTO with joins
+        var projected = query.Select(r => new RegistrationSearchResultDto
+        {
+            RegistrationId = r.RegistrationId,
+            RegistrationAi = r.RegistrationAi,
+            FirstName = r.User != null ? r.User.FirstName ?? "" : "",
+            LastName = r.User != null ? r.User.LastName ?? "" : "",
+            Email = r.User != null ? r.User.Email ?? "" : "",
+            Phone = r.User != null ? r.User.PhoneNumber : null,
+            Dob = r.User != null ? r.User.Dob : null,
+            RoleName = r.Role != null ? r.Role.Name ?? "" : "",
+            Active = r.BActive ?? false,
+            Position = r.Position,
+            TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
+            AgegroupName = r.AssignedTeam != null && r.AssignedTeam.Agegroup != null
+                ? r.AssignedTeam.Agegroup.AgegroupName : null,
+            DivisionName = r.AssignedTeam != null && r.AssignedTeam.Div != null
+                ? r.AssignedTeam.Div.DivName : null,
+            ClubName = r.ClubName,
+            FeeTotal = r.FeeTotal,
+            PaidTotal = r.PaidTotal,
+            OwedTotal = r.OwedTotal,
+            RegistrationTs = r.RegistrationTs,
+            Modified = r.Modified
+        });
+
+        // Apply sorting
+        projected = (request.SortField?.ToLowerInvariant()) switch
+        {
+            "firstname" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.FirstName) : projected.OrderBy(r => r.FirstName),
+            "lastname" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.LastName) : projected.OrderBy(r => r.LastName),
+            "email" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.Email) : projected.OrderBy(r => r.Email),
+            "rolename" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.RoleName) : projected.OrderBy(r => r.RoleName),
+            "dob" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.Dob) : projected.OrderBy(r => r.Dob),
+            "position" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.Position) : projected.OrderBy(r => r.Position),
+            "teamname" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.TeamName) : projected.OrderBy(r => r.TeamName),
+            "feetotal" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.FeeTotal) : projected.OrderBy(r => r.FeeTotal),
+            "paidtotal" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.PaidTotal) : projected.OrderBy(r => r.PaidTotal),
+            "owedtotal" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.OwedTotal) : projected.OrderBy(r => r.OwedTotal),
+            "registrationts" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.RegistrationTs) : projected.OrderBy(r => r.RegistrationTs),
+            "registrationai" => request.SortDirection == "desc"
+                ? projected.OrderByDescending(r => r.RegistrationAi) : projected.OrderBy(r => r.RegistrationAi),
+            _ => projected.OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
+        };
+
+        // Apply paging
+        var results = await projected
+            .Skip(request.Skip)
+            .Take(Math.Min(request.Take, 100))
+            .ToListAsync(ct);
+
+        return new RegistrationSearchResponse
+        {
+            Result = results,
+            Count = aggregates?.Count ?? 0,
+            TotalFees = aggregates?.TotalFees ?? 0,
+            TotalPaid = aggregates?.TotalPaid ?? 0,
+            TotalOwed = aggregates?.TotalOwed ?? 0
+        };
+    }
+
+    public async Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var roles = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.RoleId != null && r.Role != null)
+            .Select(r => new { r.RoleId, r.Role!.Name })
+            .Distinct()
+            .OrderBy(r => r.Name)
+            .Select(r => new FilterOption { Value = r.RoleId!, Text = r.Name ?? "" })
+            .ToListAsync(ct);
+
+        var teams = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.AssignedTeamId != null && r.AssignedTeam != null)
+            .Select(r => new { r.AssignedTeamId, r.AssignedTeam!.TeamName })
+            .Distinct()
+            .OrderBy(r => r.TeamName)
+            .Select(r => new FilterOption { Value = r.AssignedTeamId!.Value.ToString(), Text = r.TeamName ?? "" })
+            .ToListAsync(ct);
+
+        var agegroups = await _context.Agegroups
+            .AsNoTracking()
+            .Where(ag => _context.Registrations.Any(r => r.JobId == jobId && r.AssignedAgegroupId == ag.AgegroupId))
+            .OrderBy(ag => ag.AgegroupName)
+            .Select(ag => new FilterOption { Value = ag.AgegroupId.ToString(), Text = ag.AgegroupName ?? "" })
+            .ToListAsync(ct);
+
+        var divisions = await _context.Divisions
+            .AsNoTracking()
+            .Where(d => _context.Registrations.Any(r => r.JobId == jobId && r.AssignedDivId == d.DivId))
+            .OrderBy(d => d.DivName)
+            .Select(d => new FilterOption { Value = d.DivId.ToString(), Text = d.DivName ?? "" })
+            .ToListAsync(ct);
+
+        var clubs = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.ClubName != null && r.ClubName != "")
+            .Select(r => r.ClubName!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync(ct);
+
+        return new RegistrationFilterOptionsDto
+        {
+            Roles = roles,
+            Teams = teams,
+            Agegroups = agegroups,
+            Divisions = divisions,
+            Clubs = clubs
+        };
+    }
+
+    public async Task<RegistrationDetailDto?> GetRegistrationDetailAsync(
+        Guid registrationId, Guid jobId, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.Role)
+            .Include(r => r.AssignedTeam)
+            .Include(r => r.Job)
+            .Include(r => r.RegistrationAccounting)
+                .ThenInclude(a => a.PaymentMethod)
+            .Where(r => r.RegistrationId == registrationId && r.JobId == jobId)
+            .FirstOrDefaultAsync(ct);
+
+        if (reg == null) return null;
+
+        // Build profile values from entity columns using reflection
+        var profileValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var profileProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Act", "BackcheckExplain", "BgCheckDate", "CertDate", "CertNo", "ClassRank",
+            "ClubName", "Gpa", "GradYear", "HealthInsurer", "HealthInsurerGroupNo",
+            "HealthInsurerPhone", "HealthInsurerPolicyNo", "HeightInches", "InsuredName",
+            "JerseySize", "Kilt", "MedicalNote", "Position", "SchoolTeamName", "Psat",
+            "Region", "RoommatePref", "Sat", "SatMath", "SatVerbal", "SatWriting",
+            "SchoolGrade", "SchoolName", "Shoes", "ShortsSize", "SportAssnId",
+            "SportAssnIdexpDate", "SportYearsExp", "TShirt", "UniformNo",
+            "VolChildreninprogram", "Volposition", "WeightLbs", "NightGroup", "DayGroup",
+            "SpecialRequests", "Reversible", "Gloves", "Sweatshirt", "FiveTenFive",
+            "Threehundredshuttle", "Fourtyyarddash", "Fastestshot", "BCollegeCommit",
+            "CollegeCommit", "WhoReferred", "StrongHand", "ClubCoach", "ClubCoachEmail",
+            "SchoolCoach", "SchoolCoachEmail", "SchoolActivities", "HonorsAcademic",
+            "HonorsAthletic", "OtherSports", "HeadshotPath", "SchoolLevelClasses",
+            "Height", "MomTwitter", "DadTwitter", "MomInstagram", "DadInstagram",
+            "Twitter", "Instagram", "ClubTeamName", "Sweatpants", "SkillLevel",
+            "Snapchat", "TikTokHandle", "RecruitingHandle", "PreviousCoach1", "PreviousCoach2"
+        };
+
+        var regType = typeof(Registrations);
+        foreach (var propName in profileProps)
+        {
+            var prop = regType.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop != null)
+            {
+                var val = prop.GetValue(reg);
+                profileValues[propName] = val?.ToString();
+            }
+        }
+
+        // Build accounting records
+        var accountingRecords = reg.RegistrationAccounting
+            .OrderByDescending(a => a.Createdate)
+            .Select(a => new AccountingRecordDto
+            {
+                AId = a.AId,
+                Date = a.Createdate,
+                PaymentMethod = a.PaymentMethod?.PaymentMethod ?? a.Paymeth ?? "",
+                DueAmount = a.Dueamt,
+                PaidAmount = a.Payamt,
+                Comment = a.Comment,
+                CheckNo = a.CheckNo,
+                PromoCode = a.PromoCode,
+                Active = a.Active,
+                AdnTransactionId = a.AdnTransactionId,
+                AdnCc4 = a.AdnCc4,
+                AdnCcExpDate = a.AdnCcexpDate,
+                AdnInvoiceNo = a.AdnInvoiceNo,
+                CanRefund = !string.IsNullOrWhiteSpace(a.AdnTransactionId)
+                    && (a.PaymentMethod?.PaymentMethod?.Contains("Credit Card") == true
+                        || (a.Paymeth != null && a.Paymeth.Contains("Credit Card")))
+            })
+            .ToList();
+
+        return new RegistrationDetailDto
+        {
+            RegistrationId = reg.RegistrationId,
+            RegistrationAi = reg.RegistrationAi,
+            FirstName = reg.User?.FirstName ?? "",
+            LastName = reg.User?.LastName ?? "",
+            Email = reg.User?.Email ?? "",
+            Phone = reg.User?.PhoneNumber,
+            RoleName = reg.Role?.Name ?? "",
+            Active = reg.BActive ?? false,
+            TeamName = reg.AssignedTeam?.TeamName,
+            FeeBase = reg.FeeBase,
+            FeeProcessing = reg.FeeProcessing,
+            FeeDiscount = reg.FeeDiscount,
+            FeeTotal = reg.FeeTotal,
+            PaidTotal = reg.PaidTotal,
+            OwedTotal = reg.OwedTotal,
+            ProfileValues = profileValues,
+            ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
+            AccountingRecords = accountingRecords
+        };
+    }
+
+    public async Task UpdateRegistrationProfileAsync(
+        Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .Where(r => r.RegistrationId == request.RegistrationId && r.JobId == jobId)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Registration not found or does not belong to this job.");
+
+        var regType = typeof(Registrations);
+        foreach (var (key, value) in request.ProfileValues)
+        {
+            var prop = regType.GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop == null || !prop.CanWrite) continue;
+
+            // Type conversion
+            var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+
+            if (value == null)
+            {
+                if (Nullable.GetUnderlyingType(prop.PropertyType) != null || !prop.PropertyType.IsValueType)
+                    prop.SetValue(reg, null);
+            }
+            else if (targetType == typeof(string))
+            {
+                prop.SetValue(reg, value);
+            }
+            else if (targetType == typeof(DateTime) && DateTime.TryParse(value, out var dt))
+            {
+                prop.SetValue(reg, dt);
+            }
+            else if (targetType == typeof(bool) && bool.TryParse(value, out var b))
+            {
+                prop.SetValue(reg, b);
+            }
+            else if (targetType == typeof(double) && double.TryParse(value, out var d))
+            {
+                prop.SetValue(reg, d);
+            }
+            else if (targetType == typeof(decimal) && decimal.TryParse(value, out var dec))
+            {
+                prop.SetValue(reg, dec);
+            }
+            else if (targetType == typeof(int) && int.TryParse(value, out var i))
+            {
+                prop.SetValue(reg, i);
+            }
+            else if (targetType == typeof(string))
+            {
+                prop.SetValue(reg, value);
+            }
+        }
+
+        reg.Modified = DateTime.UtcNow;
+        reg.LebUserId = userId;
+
+        await _context.SaveChangesAsync(ct);
     }
 
     // ── Roster Swapper methods ──

@@ -1,0 +1,80 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="close()">
+    <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Send Batch Email</h3>
+        <button type="button" class="btn-close" (click)="close()" [disabled]="isSending()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="email-form">
+          <div class="form-group">
+            <label for="email-subject">Subject</label>
+            <input type="text" id="email-subject" class="form-control"
+              [ngModel]="subject()" (ngModelChange)="subject.set($event)"
+              placeholder="Enter email subject" [disabled]="isSending()" />
+          </div>
+          <div class="form-group">
+            <label for="email-body">Body</label>
+            <textarea #bodyTextarea id="email-body" class="form-control email-body"
+              [ngModel]="bodyTemplate()" (ngModelChange)="bodyTemplate.set($event)"
+              placeholder="Enter email body (use tokens below to personalize)" rows="8" [disabled]="isSending()"></textarea>
+          </div>
+        </div>
+
+        <div class="tokens-section">
+          <h4>Available Tokens</h4>
+          <p class="tokens-help">Click a token to insert it at cursor position</p>
+          <div class="token-chips">
+            @for (tokenInfo of availableTokens; track tokenInfo.token) {
+              <button type="button" class="token-chip" (click)="insertToken(tokenInfo.token, bodyTextarea)"
+                [disabled]="isSending()" [title]="tokenInfo.description">{{ tokenInfo.token }}</button>
+            }
+          </div>
+        </div>
+
+        @if (showPreviews() && previews().length > 0) {
+          <div class="preview-section">
+            <h4>Email Previews (First 3)</h4>
+            <div class="preview-cards">
+              @for (preview of previews(); track preview.recipientEmail) {
+                <div class="preview-card">
+                  <div class="preview-header"><strong>To:</strong> {{ preview.recipientName }} &lt;{{ preview.recipientEmail }}&gt;</div>
+                  <div class="preview-subject"><strong>Subject:</strong> {{ preview.renderedSubject }}</div>
+                  <div class="preview-body"><div [innerHTML]="preview.renderedBody"></div></div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (sendResult(); as result) {
+          <div class="result-section">
+            <div class="result-summary">
+              <h4>Send Results</h4>
+              <p><strong>{{ result.sent }}</strong> of <strong>{{ result.totalRecipients }}</strong> emails sent successfully</p>
+            </div>
+            @if (result.failedAddresses.length > 0) {
+              <details class="failed-addresses">
+                <summary>Failed Addresses ({{ result.failedAddresses.length }})</summary>
+                <ul>@for (address of result.failedAddresses; track address) { <li>{{ address }}</li> }</ul>
+              </details>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="isSending()">
+          @if (sendResult()) { Close } @else { Cancel }
+        </button>
+        @if (!sendResult()) {
+          <button type="button" class="btn btn-outline" (click)="previewEmail()" [disabled]="isSending()">Preview</button>
+          <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="isSending()">
+            @if (isSending()) { <span class="spinner"></span> Sending... } @else { Send to {{ recipientCount() }} recipient(s) }
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}
