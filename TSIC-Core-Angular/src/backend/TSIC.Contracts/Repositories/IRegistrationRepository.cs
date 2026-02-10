@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -303,6 +304,32 @@ public interface IRegistrationRepository
     /// Used to populate the "target club" dropdown in LADT move-team.
     /// </summary>
     Task<List<ClubRegistrationInfo>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── Roster Swapper methods ──
+
+    /// <summary>
+    /// Get roster for a specific team, joined with User + Role for display names.
+    /// Returns all registrations (active + inactive). AsNoTracking.
+    /// </summary>
+    Task<List<SwapperPlayerDto>> GetRosterByTeamIdAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all Unassigned Adult registrations for a job.
+    /// These are master coach/adult records in the unassigned pool. AsNoTracking.
+    /// </summary>
+    Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get tracked registrations for bulk transfer operations.
+    /// Validates each belongs to sourcePoolId (team) or has Unassigned Adult role (if sourcePoolId = Guid.Empty).
+    /// </summary>
+    Task<List<Registrations>> GetRegistrationsForTransferAsync(List<Guid> registrationIds, Guid sourcePoolId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if a Staff registration already exists for this user on this team.
+    /// Used to prevent duplicate staff assignments. AsNoTracking.
+    /// </summary>
+    Task<Registrations?> GetExistingStaffAssignmentAsync(string userId, Guid teamId, Guid jobId, CancellationToken ct = default);
 }
 
 public record RegistrationWithInvoiceData

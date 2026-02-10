@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -282,6 +283,19 @@ public interface ITeamRepository
     /// Returns tracked entities for in-place updates.
     /// </summary>
     Task<List<Teams>> GetTeamsByClubRepRegistrationAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
+
+    // ── Roster Swapper methods ──
+
+    /// <summary>
+    /// Get all team pools for the Roster Swapper dropdown.
+    /// Returns teams with agegroup/division names, roster counts, and a synthetic Unassigned Adults entry.
+    /// </summary>
+    Task<List<SwapperPoolOptionDto>> GetSwapperPoolOptionsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get team with its parent agegroup for fee coalescing. AsNoTracking.
+    /// </summary>
+    Task<(Teams Team, Agegroups Agegroup)?> GetTeamWithFeeContextAsync(Guid teamId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

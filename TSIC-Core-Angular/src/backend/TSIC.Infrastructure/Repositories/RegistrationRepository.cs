@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -758,5 +759,126 @@ public class RegistrationRepository : IRegistrationRepository
                 UserId = r.UserId ?? ""
             })
             .ToListAsync(ct);
+    }
+
+    // ── Roster Swapper methods ──
+
+    public async Task<List<SwapperPlayerDto>> GetRosterByTeamIdAsync(Guid teamId, Guid jobId, CancellationToken ct = default)
+    {
+        var raw = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.AssignedTeamId == teamId && r.JobId == jobId)
+            .Select(r => new
+            {
+                r.RegistrationId,
+                LastName = r.User != null ? r.User.LastName ?? "" : "",
+                FirstName = r.User != null ? r.User.FirstName ?? "" : "",
+                RoleName = r.Role != null ? r.Role.Name ?? "" : "",
+                BActive = r.BActive ?? false,
+                School = r.SchoolName,
+                GradeRaw = r.SchoolGrade,
+                GradYearRaw = r.GradYear,
+                r.Position,
+                Dob = r.User != null ? r.User.Dob : (DateTime?)null,
+                Gender = r.User != null ? r.User.Gender : null,
+                r.SkillLevel,
+                YrsExpRaw = r.SportYearsExp,
+                Requests = r.SpecialRequests,
+                PrevCoach = r.PreviousCoach1,
+                r.FeeBase,
+                r.FeeTotal,
+                r.OwedTotal,
+                r.RegistrationTs
+            })
+            .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
+            .ToListAsync(ct);
+
+        return raw.Select(r => new SwapperPlayerDto
+        {
+            RegistrationId = r.RegistrationId,
+            PlayerName = string.IsNullOrWhiteSpace(r.LastName) && string.IsNullOrWhiteSpace(r.FirstName)
+                ? "Unknown"
+                : $"{r.LastName}, {r.FirstName}".Trim().TrimEnd(',').Trim(),
+            RoleName = r.RoleName,
+            BActive = r.BActive,
+            School = r.School,
+            Grade = short.TryParse(r.GradeRaw, out var g) ? g : null,
+            GradYear = int.TryParse(r.GradYearRaw, out var gy) ? gy : null,
+            Position = r.Position,
+            Dob = r.Dob,
+            Gender = r.Gender,
+            SkillLevel = r.SkillLevel,
+            YrsExp = int.TryParse(r.YrsExpRaw, out var ye) ? ye : null,
+            Requests = r.Requests,
+            PrevCoach = r.PrevCoach,
+            FeeBase = r.FeeBase,
+            FeeTotal = r.FeeTotal,
+            OwedTotal = r.OwedTotal,
+            RegistrationTs = r.RegistrationTs
+        }).ToList();
+    }
+
+    public async Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
+            .Select(r => new SwapperPlayerDto
+            {
+                RegistrationId = r.RegistrationId,
+                PlayerName = (r.User != null ? (r.User.LastName ?? "") + ", " + (r.User.FirstName ?? "") : "Unknown").Trim(),
+                RoleName = r.Role != null ? r.Role.Name ?? "" : "",
+                BActive = r.BActive ?? false,
+                School = r.SchoolName,
+                Grade = null,
+                GradYear = null,
+                Position = r.Position,
+                Dob = r.User != null ? r.User.Dob : null,
+                Gender = r.User != null ? r.User.Gender : null,
+                SkillLevel = null,
+                YrsExp = null,
+                Requests = r.SpecialRequests,
+                PrevCoach = null,
+                FeeBase = r.FeeBase,
+                FeeTotal = r.FeeTotal,
+                OwedTotal = r.OwedTotal,
+                RegistrationTs = r.RegistrationTs
+            })
+            .OrderBy(p => p.PlayerName)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<Registrations>> GetRegistrationsForTransferAsync(
+        List<Guid> registrationIds, Guid sourcePoolId, Guid jobId, CancellationToken ct = default)
+    {
+        var query = _context.Registrations
+            .Include(r => r.Role)
+            .Include(r => r.User)
+            .Where(r => registrationIds.Contains(r.RegistrationId) && r.JobId == jobId);
+
+        if (sourcePoolId == Guid.Empty)
+        {
+            // Source is Unassigned Adults pool — validate role
+            query = query.Where(r => r.Role!.Name == RoleConstants.Names.UnassignedAdultName);
+        }
+        else
+        {
+            // Source is a team — validate AssignedTeamId
+            query = query.Where(r => r.AssignedTeamId == sourcePoolId);
+        }
+
+        return await query.ToListAsync(ct);
+    }
+
+    public async Task<Registrations?> GetExistingStaffAssignmentAsync(
+        string userId, Guid teamId, Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.UserId == userId
+                && r.AssignedTeamId == teamId
+                && r.JobId == jobId
+                && r.RoleId == RoleConstants.Staff)
+            .FirstOrDefaultAsync(ct);
     }
 }

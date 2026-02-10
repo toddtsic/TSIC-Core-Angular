@@ -1,0 +1,307 @@
+<div class="roster-swapper-container">
+
+  <!-- Header -->
+  <div class="swapper-header">
+    <h5 class="mb-0">Roster Swapper</h5>
+    <button class="btn btn-sm btn-outline-secondary" (click)="loadPoolOptions()"
+            title="Refresh pool options">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
+  </div>
+
+  @if (isLoading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  } @else {
+
+    <div class="swapper-panels">
+
+      <!-- ─── SOURCE PANEL ─── -->
+      <div class="swapper-panel">
+        <div class="panel-header">
+          <label class="form-label fw-semibold text-uppercase small mb-1">Source Pool</label>
+          <select class="form-select form-select-sm"
+                  [ngModel]="sourcePoolId()"
+                  (ngModelChange)="onSourcePoolChange($event)">
+            <option [ngValue]="null" disabled>Select a pool...</option>
+            @for (group of groupedPoolOptions(); track group.label) {
+              <optgroup [label]="group.label">
+                @for (pool of group.pools; track pool.poolId) {
+                  <option [value]="pool.poolId"
+                          [disabled]="pool.poolId === targetPoolId()">
+                    {{ pool.poolName }}
+                    ({{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }})
+                  </option>
+                }
+              </optgroup>
+            }
+          </select>
+
+          <!-- Capacity bar -->
+          @if (sourcePool() && !isSourceUnassigned() && sourcePool()!.maxCount > 0) {
+            <div class="capacity-bar mt-1">
+              <div class="capacity-fill"
+                   [style.width.%]="capacityPercent(sourcePool())"
+                   [style.background]="capacityColor(sourcePool())">
+              </div>
+            </div>
+            <small class="text-body-secondary">
+              {{ sourcePool()!.rosterCount }}/{{ sourcePool()!.maxCount }} players
+            </small>
+          }
+
+          <!-- Filter -->
+          @if (sourceRoster().length > 0) {
+            <input type="text" class="form-control form-control-sm mt-2"
+                   placeholder="Filter players..."
+                   [ngModel]="sourceFilter()"
+                   (ngModelChange)="sourceFilter.set($event)" />
+          }
+        </div>
+
+        <div class="panel-body">
+          @if (sourcePoolId() && filteredSourceRoster().length > 0) {
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr>
+                  <th class="col-check">
+                    <input type="checkbox" class="form-check-input"
+                           [checked]="sourceSelected().size > 0 && sourceSelected().size === filteredSourceRoster().length"
+                           (change)="sourceSelected().size === filteredSourceRoster().length ? deselectAllSource() : selectAllSource()" />
+                  </th>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th class="text-center">Active</th>
+                  <th class="text-end">Fee</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (player of filteredSourceRoster(); track player.registrationId) {
+                  <tr [class.table-active]="sourceSelected().has(player.registrationId)"
+                      [class.text-body-tertiary]="!player.bActive">
+                    <td>
+                      <input type="checkbox" class="form-check-input"
+                             [checked]="sourceSelected().has(player.registrationId)"
+                             (change)="toggleSourceSelect(player.registrationId)" />
+                    </td>
+                    <td class="text-nowrap">{{ player.playerName }}</td>
+                    <td>
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ player.roleName }}</span>
+                    </td>
+                    <td class="text-center">
+                      <div class="form-check form-switch d-inline-block mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               [checked]="player.bActive"
+                               (change)="toggleActive(player)" />
+                      </div>
+                    </td>
+                    <td class="text-end text-nowrap">{{ player.feeTotal | currency }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else if (sourcePoolId()) {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+              Empty roster
+            </div>
+          } @else {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-arrow-up-circle fs-3 d-block mb-1"></i>
+              Select a source pool
+            </div>
+          }
+        </div>
+
+        <div class="panel-footer">
+          <button class="btn btn-primary btn-sm"
+                  [disabled]="sourceSelected().size === 0 || !targetPoolId() || isLoadingPreview()"
+                  (click)="moveSourceToTarget()">
+            Move Selected <i class="bi bi-arrow-right"></i> ({{ sourceSelected().size }})
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── TARGET PANEL ─── -->
+      <div class="swapper-panel">
+        <div class="panel-header">
+          <label class="form-label fw-semibold text-uppercase small mb-1">Target Pool</label>
+          <select class="form-select form-select-sm"
+                  [ngModel]="targetPoolId()"
+                  (ngModelChange)="onTargetPoolChange($event)">
+            <option [ngValue]="null" disabled>Select a pool...</option>
+            @for (group of groupedPoolOptions(); track group.label) {
+              <optgroup [label]="group.label">
+                @for (pool of group.pools; track pool.poolId) {
+                  <option [value]="pool.poolId"
+                          [disabled]="pool.poolId === sourcePoolId()">
+                    {{ pool.poolName }}
+                    ({{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }})
+                  </option>
+                }
+              </optgroup>
+            }
+          </select>
+
+          <!-- Capacity bar -->
+          @if (targetPool() && !isTargetUnassigned() && targetPool()!.maxCount > 0) {
+            <div class="capacity-bar mt-1">
+              <div class="capacity-fill"
+                   [style.width.%]="capacityPercent(targetPool())"
+                   [style.background]="capacityColor(targetPool())">
+              </div>
+            </div>
+            <small class="text-body-secondary">
+              {{ targetPool()!.rosterCount }}/{{ targetPool()!.maxCount }} players
+            </small>
+          }
+
+          <!-- Filter -->
+          @if (targetRoster().length > 0) {
+            <input type="text" class="form-control form-control-sm mt-2"
+                   placeholder="Filter players..."
+                   [ngModel]="targetFilter()"
+                   (ngModelChange)="targetFilter.set($event)" />
+          }
+        </div>
+
+        <div class="panel-body">
+          @if (targetPoolId() && filteredTargetRoster().length > 0) {
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th class="text-center">Active</th>
+                  <th class="text-end">Fee</th>
+                  <th class="col-check">
+                    <input type="checkbox" class="form-check-input"
+                           [checked]="targetSelected().size > 0 && targetSelected().size === filteredTargetRoster().length"
+                           (change)="targetSelected().size === filteredTargetRoster().length ? deselectAllTarget() : selectAllTarget()" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (player of filteredTargetRoster(); track player.registrationId) {
+                  <tr [class.table-active]="targetSelected().has(player.registrationId)"
+                      [class.text-body-tertiary]="!player.bActive">
+                    <td class="text-nowrap">{{ player.playerName }}</td>
+                    <td>
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ player.roleName }}</span>
+                    </td>
+                    <td class="text-center">
+                      <div class="form-check form-switch d-inline-block mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               [checked]="player.bActive"
+                               (change)="toggleActive(player)" />
+                      </div>
+                    </td>
+                    <td class="text-end text-nowrap">{{ player.feeTotal | currency }}</td>
+                    <td>
+                      <input type="checkbox" class="form-check-input"
+                             [checked]="targetSelected().has(player.registrationId)"
+                             (change)="toggleTargetSelect(player.registrationId)" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else if (targetPoolId()) {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+              Empty roster
+            </div>
+          } @else {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-arrow-up-circle fs-3 d-block mb-1"></i>
+              Select a target pool
+            </div>
+          }
+        </div>
+
+        <div class="panel-footer">
+          <button class="btn btn-primary btn-sm"
+                  [disabled]="targetSelected().size === 0 || !sourcePoolId() || isLoadingPreview()"
+                  (click)="moveTargetToSource()">
+            <i class="bi bi-arrow-left"></i> Move Selected ({{ targetSelected().size }})
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── FEE IMPACT PREVIEW ─── -->
+    @if (feePreview() && feePreview()!.length > 0) {
+      <div class="fee-preview-panel">
+        <h6 class="mb-2">Transfer Preview</h6>
+        <p class="text-body-secondary mb-2">{{ confirmMessage() }}</p>
+
+        @if (hasFeeImpact()) {
+          <table class="table table-sm mb-2">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Type</th>
+                <th class="text-end">Current Fee</th>
+                <th class="text-end">New Fee</th>
+                <th class="text-end">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of feePreview()!; track item.registrationId) {
+                <tr [class.table-warning]="item.warning">
+                  <td>{{ item.playerName }}</td>
+                  <td>
+                    <span class="badge"
+                          [class.bg-primary-subtle]="item.transferType === 'player-swap'"
+                          [class.text-primary-emphasis]="item.transferType === 'player-swap'"
+                          [class.bg-success-subtle]="item.transferType === 'staff-create'"
+                          [class.text-success-emphasis]="item.transferType === 'staff-create'"
+                          [class.bg-danger-subtle]="item.transferType === 'staff-delete'"
+                          [class.text-danger-emphasis]="item.transferType === 'staff-delete'"
+                          [class.bg-info-subtle]="item.transferType === 'staff-move'"
+                          [class.text-info-emphasis]="item.transferType === 'staff-move'">
+                      {{ item.transferType }}
+                    </span>
+                  </td>
+                  <td class="text-end">{{ item.currentFeeTotal | currency }}</td>
+                  <td class="text-end">{{ item.newFeeTotal | currency }}</td>
+                  <td class="text-end" [class.text-danger]="item.feeDelta > 0" [class.text-success]="item.feeDelta < 0">
+                    @if (item.feeDelta !== 0) {
+                      {{ item.feeDelta > 0 ? '+' : '' }}{{ item.feeDelta | currency }}
+                    } @else {
+                      —
+                    }
+                  </td>
+                </tr>
+                @if (item.warning) {
+                  <tr>
+                    <td colspan="5" class="text-warning-emphasis small py-1">
+                      <i class="bi bi-exclamation-triangle me-1"></i>{{ item.warning }}
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        }
+
+        <div class="d-flex justify-content-end gap-2">
+          <button class="btn btn-outline-secondary btn-sm" (click)="cancelTransfer()">Cancel</button>
+          <button class="btn btn-primary btn-sm"
+                  [disabled]="isTransferring()"
+                  (click)="confirmTransfer()">
+            @if (isTransferring()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            Confirm Transfer
+          </button>
+        </div>
+      </div>
+    }
+
+  }
+</div>

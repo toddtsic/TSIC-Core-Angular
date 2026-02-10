@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -501,6 +503,88 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams
             .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId)
             .ToListAsync(ct);
+    }
+
+    // ── Roster Swapper methods ──
+
+    public async Task<List<SwapperPoolOptionDto>> GetSwapperPoolOptionsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Get club names for teams that have a club rep (TeamId → ClubName)
+        var clubNames = await GetClubNamesByJobAsync(jobId, ct);
+
+        // Get all teams with agegroup/division names and roster counts
+        var rawTeams = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId)
+            .Select(t => new
+            {
+                t.TeamId,
+                TeamName = t.TeamName ?? "Unnamed Team",
+                AgegroupName = t.Agegroup.AgegroupName,
+                DivName = t.Div != null ? t.Div.DivName : null,
+                t.AgegroupId,
+                t.DivId,
+                RosterCount = _context.Registrations.Count(r => r.AssignedTeamId == t.TeamId && r.JobId == jobId),
+                t.MaxCount,
+                Active = t.Active ?? true
+            })
+            .OrderBy(t => t.AgegroupName)
+            .ThenBy(t => t.DivName)
+            .ThenBy(t => t.TeamName)
+            .ToListAsync(ct);
+
+        // Compose display name: "{ClubName}:{TeamName}" when club name is available
+        var teams = rawTeams.Select(t =>
+        {
+            var clubName = clubNames.GetValueOrDefault(t.TeamId);
+            return new SwapperPoolOptionDto
+            {
+                PoolId = t.TeamId,
+                PoolName = !string.IsNullOrEmpty(clubName) ? $"{clubName}:{t.TeamName}" : t.TeamName,
+                IsUnassignedAdultsPool = false,
+                AgegroupName = t.AgegroupName,
+                DivName = t.DivName,
+                AgegroupId = t.AgegroupId,
+                DivId = t.DivId,
+                RosterCount = t.RosterCount,
+                MaxCount = t.MaxCount,
+                Active = t.Active
+            };
+        }).ToList();
+
+        // Add synthetic Unassigned Adults pool entry
+        var unassignedCount = await _context.Registrations
+            .AsNoTracking()
+            .CountAsync(r => r.JobId == jobId && r.Role!.Name == RoleConstants.Names.UnassignedAdultName, ct);
+
+        var unassignedPool = new SwapperPoolOptionDto
+        {
+            PoolId = Guid.Empty,
+            PoolName = "Unassigned Adults",
+            IsUnassignedAdultsPool = true,
+            AgegroupName = null,
+            DivName = null,
+            AgegroupId = null,
+            DivId = null,
+            RosterCount = unassignedCount,
+            MaxCount = 0,
+            Active = true
+        };
+
+        var result = new List<SwapperPoolOptionDto>(teams.Count + 1) { unassignedPool };
+        result.AddRange(teams);
+        return result;
+    }
+
+    public async Task<(Teams Team, Agegroups Agegroup)?> GetTeamWithFeeContextAsync(Guid teamId, CancellationToken ct = default)
+    {
+        var team = await _context.Teams
+            .AsNoTracking()
+            .Include(t => t.Agegroup)
+            .FirstOrDefaultAsync(t => t.TeamId == teamId, ct);
+
+        if (team == null) return null;
+        return (team, team.Agegroup);
     }
 }
 
