@@ -37,6 +37,17 @@ public class LadtController : ControllerBase
     }
 
     // ═══════════════════════════════════════════
+    // Lookups
+    // ═══════════════════════════════════════════
+
+    [HttpGet("sports")]
+    public async Task<ActionResult<List<SportOptionDto>>> GetSports(CancellationToken cancellationToken)
+    {
+        var sports = await _ladtService.GetSportsAsync(cancellationToken);
+        return Ok(sports);
+    }
+
+    // ═══════════════════════════════════════════
     // League
     // ═══════════════════════════════════════════
 

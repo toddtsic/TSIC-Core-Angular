@@ -101,7 +101,58 @@ public async Task DropTeam_WithPaymentHistory_MovesToDroppedTeams()
 | 21 | Create stub team | Division exists | `POST /api/ladt/teams/stub/{divId}` | New team created with defaults (inactive, zero fees), returns new ID |
 | 22 | Create stub under nonexistent parent | Invalid parent ID | `POST /api/ladt/teams/stub/{badId}` | 404, no orphan records created |
 
-**Estimated effort**: ~22 tests, 2-3 days
+#### 1.7 Season/Year Immutability (CRITICAL — Data Integrity)
+
+Season and Year are Job-level properties that MUST be consistent across all LADT entities. They cannot change once set, and must always match the Job's values.
+
+| # | Test | Seed State | Action | Assert |
+|---|------|-----------|--------|--------|
+| 23 | Stub agegroup gets Season from Job | Job with Season="Spring" | `POST /api/ladt/agegroups/stub/{leagueId}` | New agegroup has `Season="Spring"` (not null) |
+| 24 | Created agegroup gets Season from Job | Job with Season="Fall" | `POST /api/ladt/agegroups` (full create) | Agegroup `Season="Fall"` regardless of what request sends |
+| 25 | Update agegroup cannot overwrite Season | Agegroup with Season="Spring" | `PUT /api/ladt/agegroups/{id}` with any payload | Agegroup `Season` unchanged (still "Spring") |
+| 26 | Stub team gets Season AND Year from Job | Job with Season="Fall", Year="2026" | `POST /api/ladt/teams/stub/{divId}` | New team has `Season="Fall"`, `Year="2026"` (not null) |
+| 27 | Created team gets Season/Year from Job | Job with Season="Spring", Year="2025" | `POST /api/ladt/teams` (full create) | Team `Season="Spring"`, `Year="2025"` regardless of request |
+| 28 | Update team cannot overwrite Season/Year | Team with Season="Fall", Year="2026" | `PUT /api/ladt/teams/{id}` with any payload | Team `Season`/`Year` unchanged |
+| 29 | Cloned team inherits Season/Year from source | Source team with Season="Fall", Year="2026" | `POST /api/ladt/teams/{id}/clone` | Clone has identical `Season`/`Year` as source |
+| 30 | Season/Year NOT in UpdateAgegroupRequest schema | N/A | Inspect OpenAPI spec | `UpdateAgegroupRequest` schema has no `season` property |
+| 31 | Season/Year NOT in UpdateTeamRequest schema | N/A | Inspect OpenAPI spec | `UpdateTeamRequest` schema has no `season`/`year` properties |
+| 32 | Season/Year NOT in CreateAgegroupRequest schema | N/A | Inspect OpenAPI spec | `CreateAgegroupRequest` schema has no `season` property |
+| 33 | Season/Year NOT in CreateTeamRequest schema | N/A | Inspect OpenAPI spec | `CreateTeamRequest` schema has no `season`/`year` properties |
+
+```csharp
+[Fact]
+public async Task CreateStubAgegroup_SetsSeasonFromJob()
+{
+    // Arrange: Job with Season="Spring 2026"
+    // Act: POST /api/ladt/agegroups/stub/{leagueId}
+    // Assert: new agegroup has Season="Spring 2026", not null
+}
+
+[Fact]
+public async Task UpdateAgegroup_DoesNotOverwriteSeason()
+{
+    // Arrange: Agegroup with Season="Spring 2026"
+    // Act: PUT /api/ladt/agegroups/{id} with all fields
+    // Assert: agegroup Season still "Spring 2026" (unchanged)
+}
+
+[Fact]
+public async Task CreateStubTeam_SetsSeasonAndYearFromJob()
+{
+    // Arrange: Job with Season="Fall", Year="2026"
+    // Act: POST /api/ladt/teams/stub/{divId}
+    // Assert: new team has Season="Fall", Year="2026"
+}
+```
+
+#### 1.8 Sport Dropdown Lookup
+
+| # | Test | Seed State | Action | Assert |
+|---|------|-----------|--------|--------|
+| 34 | Get sports returns all sports | 3 Sports in DB | `GET /api/ladt/sports` | Returns 3 items with SportId and SportName, alphabetically sorted |
+| 35 | Update league with valid SportId | League + valid Sport | `PUT /api/ladt/leagues/{id}` with SportId | League's SportId updated, response includes SportName |
+
+**Estimated effort**: ~35 tests, 3-4 days
 
 ---
 
@@ -177,14 +228,18 @@ These are your "sleep well at night" tests. They verify that the full stack work
 | 4 | **Move team to different club** | Select team → Change Club → warning dialog → select target club → confirm | Team's club name updated in tree, sibling grid reflects change |
 | 5 | **Fee cascade** | Select agegroup → edit fee field → save → click "Push fees to players" → confirm | Count message displayed, navigate to affected team to verify |
 
+| 6 | **Edit league Sport dropdown** | Select league → verify Sport dropdown loads options → change Sport → save → grid and detail both reflect new Sport name | Sport dropdown populated, save succeeds, SportName column updated |
+| 7 | **Edit agegroup Color** | Select agegroup → verify Color dropdown shows color swatches → change Color → save → grid shows color dot next to name | Color dropdown works, save succeeds, agegroup name column has color dot |
+
 ### Smoke Test Variants (run in CI)
 
 | # | Scenario | Purpose |
 |---|----------|---------|
-| 6 | Load tree with 50+ teams | Performance sanity check — page loads within 3 seconds |
-| 7 | Mobile viewport (375px) | Drawer opens on tree click, detail panel full width |
+| 8 | Load tree with 50+ teams | Performance sanity check — page loads within 3 seconds |
+| 9 | Mobile viewport (375px) | Drawer opens on tree click, detail panel full width |
+| 10 | Season/Year not editable in UI | Select agegroup → verify no Season field. Select team → verify no Season/Year fields. | Immutable fields not exposed |
 
-**Estimated effort**: 5-7 tests, 2 days (including Playwright setup)
+**Estimated effort**: 7-10 tests, 2-3 days (including Playwright setup)
 
 ---
 
@@ -193,12 +248,13 @@ These are your "sleep well at night" tests. They verify that the full stack work
 ```
 Phase 1 (Week 1):  Backend integration tests 1.1–1.2     → 9 tests  (drop/delete guards)
 Phase 2 (Week 1):  Backend integration tests 1.3–1.6     → 13 tests (fees, clubs, batch, stubs)
-Phase 3 (Week 2):  E2E smoke tests 3.1–3.5               → 5 tests  (critical user journeys)
-Phase 4 (Week 2):  Frontend state tests 2.1–2.4           → 12 tests (signal orchestration)
-Phase 5 (Week 3):  E2E edge cases 3.6–3.7                 → 2 tests  (performance, mobile)
+Phase 3 (Week 1):  Backend integration tests 1.7–1.8     → 13 tests (season/year immutability, sport lookup)
+Phase 4 (Week 2):  E2E smoke tests 3.1–3.7               → 7 tests  (critical user journeys incl. Sport/Color)
+Phase 5 (Week 2):  Frontend state tests 2.1–2.4           → 12 tests (signal orchestration)
+Phase 6 (Week 3):  E2E edge cases 3.8–3.10                → 3 tests  (performance, mobile, field absence)
 ```
 
-**Total: ~41 tests across 3 layers**
+**Total: ~57 tests across 3 layers**
 
 ---
 
@@ -224,18 +280,20 @@ Phase 5 (Week 3):  E2E edge cases 3.6–3.7                 → 2 tests  (perfor
 | `Tests/Integration/LadtClubReassignTests.cs` | Backend | Club team ownership transfer | 80 |
 | `Tests/Integration/LadtBatchOperationTests.cs` | Backend | WAITLIST idempotency | 80 |
 | `Tests/Integration/LadtStubCreationTests.cs` | Backend | Hierarchy creation integrity | 80 |
+| `Tests/Integration/LadtSeasonYearTests.cs` | Backend | Season/Year immutability across all paths | 180 |
+| `Tests/Integration/LadtSportLookupTests.cs` | Backend | Sports endpoint + league sport update | 50 |
 | `ladt-editor.component.spec.ts` | Frontend | Signal state machine tests | 200 |
-| `e2e/ladt-editor.spec.ts` | E2E | Critical user journeys | 250 |
+| `e2e/ladt-editor.spec.ts` | E2E | Critical user journeys (incl. Sport/Color) | 320 |
 
-**Total estimated**: ~1,060 LOC of test code
+**Total estimated**: ~1,360 LOC of test code
 
 ---
 
 ## Success Metrics
 
-- ✅ All 22 backend tests pass against a fresh database
+- ✅ All 35 backend tests pass against a fresh database
 - ✅ All 12 frontend state tests pass with mocked services
-- ✅ All 5 E2E smoke tests pass end-to-end
+- ✅ All 10 E2E smoke tests pass end-to-end
 - ✅ Zero false positives (no tests that break on irrelevant changes)
 - ✅ Backend tests run in < 30 seconds (fast feedback loop)
 - ✅ E2E tests run in < 2 minutes
@@ -259,3 +317,7 @@ Phase 5 (Week 3):  E2E edge cases 3.6–3.7                 → 2 tests  (perfor
 | Date | Amendment | Rationale |
 |------|-----------|-----------|
 | 2026-02-09 | Initial testing plan created | Establish testing strategy for mission-critical LADT editor |
+| 2026-02-10 | Added Season/Year immutability tests (1.7, 11 tests) | Season/Year are Job-level invariants — create/stub must set from Job, update must never overwrite. Critical data integrity concern since these fields were removed from UI edit forms but backend previously accepted them in request DTOs. |
+| 2026-02-10 | Added Sport lookup tests (1.8, 2 tests) | New `GET /api/ladt/sports` endpoint for league Sport dropdown. Verify lookup returns sorted list and league update persists SportId. |
+| 2026-02-10 | Added E2E journeys for Sport dropdown and Color dropdown (3.6-3.7) | New UI widgets (Sport `<select>`, Color `<select>` with swatches, color dot in grid) need end-to-end validation. |
+| 2026-02-10 | Added E2E smoke test for immutable field absence (3.10) | Verify Season/Year fields are NOT rendered in agegroup/team detail forms — guards against accidental re-introduction. |

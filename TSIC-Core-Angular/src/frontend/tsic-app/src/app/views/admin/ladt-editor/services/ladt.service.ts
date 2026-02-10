@@ -20,7 +20,8 @@ import type {
   CloneTeamRequest,
   MoveTeamToClubRequest,
   MoveTeamToClubResultDto,
-  CreateStubRequest
+  CreateStubRequest,
+  SportOptionDto
 } from '../../../../core/api';
 
 @Injectable({
@@ -125,6 +126,12 @@ export class LadtService {
 
   moveTeamToClub(teamId: string, request: MoveTeamToClubRequest): Observable<MoveTeamToClubResultDto> {
     return this.http.post<MoveTeamToClubResultDto>(`${this.apiUrl}/teams/${teamId}/change-club`, request);
+  }
+
+  // ── Lookups ──
+
+  getSports(): Observable<SportOptionDto[]> {
+    return this.http.get<SportOptionDto[]>(`${this.apiUrl}/sports`);
   }
 
   // ── Sibling batch queries ──

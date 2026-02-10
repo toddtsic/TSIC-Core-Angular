@@ -31,8 +31,6 @@ export type UpdateTeamRequest = {
     schoolGradeMin?: number;
     schoolGradeMax?: number;
     gender?: string | null;
-    season?: string | null;
-    year?: string | null;
     dow?: string | null;
     dow2?: string | null;
     fieldId1?: string | null;

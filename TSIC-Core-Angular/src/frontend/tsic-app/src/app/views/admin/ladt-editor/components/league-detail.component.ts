@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter, OnChanges, signal, inject } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
-import type { LeagueDetailDto, UpdateLeagueRequest } from '../../../../core/api';
+import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto } from '../../../../core/api';
 
 @Component({
   selector: 'app-league-detail',
@@ -29,18 +29,16 @@ import type { LeagueDetailDto, UpdateLeagueRequest } from '../../../../core/api'
           </div>
           <div class="col-md-6">
             <label class="form-label">Sport</label>
-            <input class="form-control" [value]="league()?.sportName ?? ''" disabled>
+            <select class="form-select" [(ngModel)]="form.sportId" name="sportId">
+              @for (sport of sports(); track sport.sportId) {
+                <option [ngValue]="sport.sportId">{{ sport.sportName }}</option>
+              }
+            </select>
           </div>
         </div>
 
         <h6 class="section-label mt-4">Settings</h6>
         <div class="row g-3">
-          <div class="col-md-6">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowCoachScoreEntry" name="bAllowCoachScoreEntry">
-              <label class="form-check-label">Allow Coach Score Entry</label>
-            </div>
-          </div>
           <div class="col-md-6">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideContacts" name="bHideContacts">
@@ -53,30 +51,6 @@ import type { LeagueDetailDto, UpdateLeagueRequest } from '../../../../core/api'
               <label class="form-check-label">Hide Standings</label>
             </div>
           </div>
-          <div class="col-md-6">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bShowScheduleToTeamMembers" name="bShowScheduleToTeamMembers">
-              <label class="form-check-label">Show Schedule to Team Members</label>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bTakeAttendance" name="bTakeAttendance">
-              <label class="form-check-label">Take Attendance</label>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bTrackPenaltyMinutes" name="bTrackPenaltyMinutes">
-              <label class="form-check-label">Track Penalty Minutes</label>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bTrackSportsmanshipScores" name="bTrackSportsmanshipScores">
-              <label class="form-check-label">Track Sportsmanship Scores</label>
-            </div>
-          </div>
         </div>
 
         <h6 class="section-label mt-4">Advanced</h6>
@@ -84,22 +58,11 @@ import type { LeagueDetailDto, UpdateLeagueRequest } from '../../../../core/api'
           <div class="col-md-6">
             <label class="form-label">Reschedule Emails To (addon)</label>
             <input class="form-control" [(ngModel)]="form.rescheduleEmailsToAddon" name="rescheduleEmailsToAddon">
+            <small class="form-text text-body-secondary">Separate emails with semi-colon, no spaces</small>
           </div>
           <div class="col-md-6">
             <label class="form-label">Player Fee Override</label>
             <input class="form-control" type="number" step="0.01" [(ngModel)]="form.playerFeeOverride" name="playerFeeOverride">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Points Method</label>
-            <input class="form-control" [(ngModel)]="form.pointsMethod" name="pointsMethod">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Levels of Play</label>
-            <input class="form-control" [(ngModel)]="form.strLop" name="strLop">
-          </div>
-          <div class="col-md-12">
-            <label class="form-label">Grad Years</label>
-            <input class="form-control" [(ngModel)]="form.strGradYears" name="strGradYears">
           </div>
         </div>
 
@@ -141,6 +104,7 @@ export class LeagueDetailComponent implements OnChanges {
   private readonly ladtService = inject(LadtService);
 
   league = signal<LeagueDetailDto | null>(null);
+  sports = signal<SportOptionDto[]>([]);
   isLoading = signal(false);
   isSaving = signal(false);
   saveMessage = signal<string | null>(null);
@@ -149,6 +113,7 @@ export class LeagueDetailComponent implements OnChanges {
 
   ngOnChanges(): void {
     this.loadDetail();
+    this.loadSports();
   }
 
   private loadDetail(): void {
@@ -165,6 +130,13 @@ export class LeagueDetailComponent implements OnChanges {
     });
   }
 
+  private loadSports(): void {
+    if (this.sports().length > 0) return;
+    this.ladtService.getSports().subscribe({
+      next: (list) => this.sports.set(list)
+    });
+  }
+
   save(): void {
     this.isSaving.set(true);
     this.saveMessage.set(null);
@@ -172,19 +144,10 @@ export class LeagueDetailComponent implements OnChanges {
     const request: UpdateLeagueRequest = {
       leagueName: this.form.leagueName,
       sportId: this.form.sportId,
-      bAllowCoachScoreEntry: this.form.bAllowCoachScoreEntry,
       bHideContacts: this.form.bHideContacts,
       bHideStandings: this.form.bHideStandings,
-      bShowScheduleToTeamMembers: this.form.bShowScheduleToTeamMembers,
-      bTakeAttendance: this.form.bTakeAttendance,
-      bTrackPenaltyMinutes: this.form.bTrackPenaltyMinutes,
-      bTrackSportsmanshipScores: this.form.bTrackSportsmanshipScores,
       rescheduleEmailsToAddon: this.form.rescheduleEmailsToAddon,
-      playerFeeOverride: this.form.playerFeeOverride,
-      standingsSortProfileId: this.form.standingsSortProfileId,
-      pointsMethod: this.form.pointsMethod,
-      strLop: this.form.strLop,
-      strGradYears: this.form.strGradYears
+      playerFeeOverride: this.form.playerFeeOverride
     };
 
     this.ladtService.updateLeague(this.leagueId, request).subscribe({

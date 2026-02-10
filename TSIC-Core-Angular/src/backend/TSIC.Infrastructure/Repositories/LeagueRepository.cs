@@ -58,6 +58,14 @@ public class LeagueRepository : ILeagueRepository
             .AnyAsync(jl => jl.LeagueId == leagueId && jl.JobId == jobId, cancellationToken);
     }
 
+    public async Task<List<Sports>> GetAllSportsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Sports
+            .AsNoTracking()
+            .OrderBy(s => s.SportName)
+            .ToListAsync(cancellationToken);
+    }
+
     public void Add(Leagues league) => _context.Leagues.Add(league);
 
     public void Remove(Leagues league) => _context.Leagues.Remove(league);

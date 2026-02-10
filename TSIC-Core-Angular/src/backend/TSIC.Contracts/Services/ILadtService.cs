@@ -12,6 +12,10 @@ public interface ILadtService
 
     Task<LadtTreeRootDto> GetLadtTreeAsync(Guid jobId, CancellationToken cancellationToken = default);
 
+    // ── Lookups ──
+
+    Task<List<SportOptionDto>> GetSportsAsync(CancellationToken cancellationToken = default);
+
     // ── League ──
 
     Task<LeagueDetailDto> GetLeagueDetailAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default);

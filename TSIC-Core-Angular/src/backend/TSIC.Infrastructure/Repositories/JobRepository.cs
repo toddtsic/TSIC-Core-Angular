@@ -261,6 +261,15 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<JobSeasonYear?> GetJobSeasonYearAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobSeasonYear { Season = j.Season, Year = j.Year })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<string?> GetJobNameAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs

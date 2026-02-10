@@ -170,6 +170,20 @@ public sealed class LadtService : ILadtService
     }
 
     // ═══════════════════════════════════════════
+    // Lookups
+    // ═══════════════════════════════════════════
+
+    public async Task<List<SportOptionDto>> GetSportsAsync(CancellationToken cancellationToken = default)
+    {
+        var sports = await _leagueRepo.GetAllSportsAsync(cancellationToken);
+        return sports.Select(s => new SportOptionDto
+        {
+            SportId = s.SportId,
+            SportName = s.SportName ?? string.Empty
+        }).ToList();
+    }
+
+    // ═══════════════════════════════════════════
     // League CRUD
     // ═══════════════════════════════════════════
 
@@ -189,19 +203,10 @@ public sealed class LadtService : ILadtService
 
         league.LeagueName = request.LeagueName;
         league.SportId = request.SportId;
-        league.BAllowCoachScoreEntry = request.BAllowCoachScoreEntry;
         league.BHideContacts = request.BHideContacts;
         league.BHideStandings = request.BHideStandings;
-        league.BShowScheduleToTeamMembers = request.BShowScheduleToTeamMembers;
-        league.BTakeAttendance = request.BTakeAttendance;
-        league.BTrackPenaltyMinutes = request.BTrackPenaltyMinutes;
-        league.BTrackSportsmanshipScores = request.BTrackSportsmanshipScores;
         league.RescheduleEmailsToAddon = request.RescheduleEmailsToAddon;
         league.PlayerFeeOverride = request.PlayerFeeOverride;
-        league.StandingsSortProfileId = request.StandingsSortProfileId;
-        league.PointsMethod = request.PointsMethod;
-        league.StrLop = request.StrLop;
-        league.StrGradYears = request.StrGradYears;
         league.LebUserId = userId;
         league.Modified = DateTime.UtcNow;
 
@@ -226,13 +231,14 @@ public sealed class LadtService : ILadtService
     public async Task<AgegroupDetailDto> CreateAgegroupAsync(CreateAgegroupRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
     {
         await ValidateLeagueOwnershipAsync(request.LeagueId, jobId, cancellationToken);
+        var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
 
         var ag = new Agegroups
         {
             AgegroupId = Guid.NewGuid(),
             LeagueId = request.LeagueId,
             AgegroupName = request.AgegroupName,
-            Season = request.Season,
+            Season = jobSY?.Season,
             Color = request.Color,
             Gender = request.Gender,
             DobMin = request.DobMin,
@@ -288,7 +294,7 @@ public sealed class LadtService : ILadtService
             ?? throw new KeyNotFoundException($"Agegroup {agegroupId} not found.");
 
         ag.AgegroupName = request.AgegroupName;
-        ag.Season = request.Season;
+        // Season is immutable (set from Job on creation) — never overwrite
         ag.Color = request.Color;
         ag.Gender = request.Gender;
         ag.DobMin = request.DobMin;
@@ -347,12 +353,14 @@ public sealed class LadtService : ILadtService
     public async Task<Guid> AddStubAgegroupAsync(Guid leagueId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default)
     {
         await ValidateLeagueOwnershipAsync(leagueId, jobId, cancellationToken);
+        var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
 
         var ag = new Agegroups
         {
             AgegroupId = Guid.NewGuid(),
             LeagueId = leagueId,
             AgegroupName = string.IsNullOrWhiteSpace(name) ? "New Age Group" : name.Trim(),
+            Season = jobSY?.Season,
             MaxTeams = 0,
             MaxTeamsPerClub = 0,
             SortAge = 0,
@@ -517,6 +525,7 @@ public sealed class LadtService : ILadtService
             ?? throw new KeyNotFoundException($"Agegroup {div.AgegroupId} not found.");
 
         var maxRank = await _teamRepo.GetMaxDivRankAsync(request.DivId, cancellationToken);
+        var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
 
         var team = new TSIC.Domain.Entities.Teams
         {
@@ -553,8 +562,8 @@ public sealed class LadtService : ILadtService
             SchoolGradeMin = request.SchoolGradeMin,
             SchoolGradeMax = request.SchoolGradeMax,
             Gender = request.Gender,
-            Season = request.Season,
-            Year = request.Year,
+            Season = jobSY?.Season,
+            Year = jobSY?.Year,
             Dow = request.Dow,
             Dow2 = request.Dow2,
             FieldId1 = request.FieldId1,
@@ -608,8 +617,7 @@ public sealed class LadtService : ILadtService
         team.SchoolGradeMin = request.SchoolGradeMin;
         team.SchoolGradeMax = request.SchoolGradeMax;
         if (request.Gender != null) team.Gender = request.Gender;
-        if (request.Season != null) team.Season = request.Season;
-        if (request.Year != null) team.Year = request.Year;
+        // Season/Year are immutable (set from Job on creation) — never overwrite
         team.Dow = request.Dow;
         team.Dow2 = request.Dow2;
         team.FieldId1 = request.FieldId1;
@@ -881,6 +889,7 @@ public sealed class LadtService : ILadtService
             ?? throw new KeyNotFoundException($"Agegroup {div.AgegroupId} not found.");
 
         var maxRank = await _teamRepo.GetMaxDivRankAsync(divId, cancellationToken);
+        var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
 
         var team = new TSIC.Domain.Entities.Teams
         {
@@ -892,6 +901,8 @@ public sealed class LadtService : ILadtService
             TeamName = string.IsNullOrWhiteSpace(name) ? "New Team" : name.Trim(),
             Active = true,
             DivRank = maxRank + 1,
+            Season = jobSY?.Season,
+            Year = jobSY?.Year,
             MaxCount = 0,
             BHideRoster = false,
             LebUserId = userId,
@@ -1229,19 +1240,10 @@ public sealed class LadtService : ILadtService
         LeagueName = l.LeagueName ?? string.Empty,
         SportId = l.SportId,
         SportName = l.Sport?.SportName,
-        BAllowCoachScoreEntry = l.BAllowCoachScoreEntry,
         BHideContacts = l.BHideContacts,
         BHideStandings = l.BHideStandings,
-        BShowScheduleToTeamMembers = l.BShowScheduleToTeamMembers,
-        BTakeAttendance = l.BTakeAttendance,
-        BTrackPenaltyMinutes = l.BTrackPenaltyMinutes,
-        BTrackSportsmanshipScores = l.BTrackSportsmanshipScores,
         RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
-        PlayerFeeOverride = l.PlayerFeeOverride,
-        StandingsSortProfileId = l.StandingsSortProfileId,
-        PointsMethod = l.PointsMethod,
-        StrLop = l.StrLop,
-        StrGradYears = l.StrGradYears
+        PlayerFeeOverride = l.PlayerFeeOverride
     };
 
     private static AgegroupDetailDto MapAgegroup(Agegroups a) => new()

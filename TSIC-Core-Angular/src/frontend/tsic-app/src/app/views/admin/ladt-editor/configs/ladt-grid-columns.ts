@@ -11,6 +11,8 @@ export interface LadtColumnDef {
   group?: string;
   frozen?: boolean;
   width?: string;
+  /** When set, renders a color swatch dot using the value from this field on the row */
+  colorField?: string;
 }
 
 // ── League ──
@@ -19,35 +21,18 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
   { field: 'leagueName', header: 'League', type: 'string', frozen: true, width: '180px' },
   { field: 'sportName', header: 'Sport', type: 'string' },
   { field: 'playerFeeOverride', header: 'Player Fee Override', type: 'currency' },
-  { field: 'pointsMethod', header: 'Points Method', type: 'number' },
-  { field: 'standingsSortProfileId', header: 'Standings Sort', type: 'number' },
-  { field: 'strLop', header: 'Levels of Play', type: 'string' },
-  { field: 'strGradYears', header: 'Grad Years', type: 'string' },
   { field: 'rescheduleEmailsToAddon', header: 'Reschedule Emails', type: 'string' },
-  { field: 'bAllowCoachScoreEntry', header: 'Coach Score Entry', type: 'boolean' },
-  { field: 'bShowScheduleToTeamMembers', header: 'Show Schedule', type: 'boolean' },
-  { field: 'bTakeAttendance', header: 'Attendance', type: 'boolean' },
   { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean' },
   { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean' },
-  { field: 'bTrackPenaltyMinutes', header: 'Penalty Min', type: 'boolean' },
-  { field: 'bTrackSportsmanshipScores', header: 'Sportsmanship', type: 'boolean' },
 ];
 
 // ── Agegroup ──
 
 export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
-  { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px' },
-  { field: 'season', header: 'Season', type: 'string' },
+  { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
   { field: 'color', header: 'Color', type: 'string' },
   { field: 'gender', header: 'Gender', type: 'string' },
   { field: 'sortAge', header: 'Sort', type: 'number' },
-  // Eligibility
-  { field: 'dobMin', header: 'DOB Min', type: 'dateOnly', group: 'Eligibility' },
-  { field: 'dobMax', header: 'DOB Max', type: 'dateOnly', group: 'Eligibility' },
-  { field: 'gradYearMin', header: 'Grad Yr Min', type: 'number', group: 'Eligibility' },
-  { field: 'gradYearMax', header: 'Grad Yr Max', type: 'number', group: 'Eligibility' },
-  { field: 'schoolGradeMin', header: 'Grade Min', type: 'number', group: 'Eligibility' },
-  { field: 'schoolGradeMax', header: 'Grade Max', type: 'number', group: 'Eligibility' },
   // Fees
   { field: 'teamFee', header: 'Team Fee', type: 'currency', group: 'Fees' },
   { field: 'teamFeeLabel', header: 'Team Fee Label', type: 'string', group: 'Fees' },
@@ -85,7 +70,6 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'active', header: 'Active', type: 'boolean' },
   { field: 'playerCount', header: 'Players', type: 'number' },
   { field: 'divRank', header: 'Rank', type: 'number' },
-  { field: 'color', header: 'Color', type: 'string' },
   { field: 'divisionRequested', header: 'Div Requested', type: 'string' },
   { field: 'lastLeagueRecord', header: 'Last Record', type: 'string' },
   { field: 'levelOfPlay', header: 'LOP', type: 'string' },
@@ -109,18 +93,7 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'effectiveasofdate', header: 'Effective', type: 'date', group: 'Dates' },
   { field: 'expireondate', header: 'Expires', type: 'date', group: 'Dates' },
   // Eligibility
-  { field: 'dobMin', header: 'DOB Min', type: 'dateOnly', group: 'Eligibility' },
-  { field: 'dobMax', header: 'DOB Max', type: 'dateOnly', group: 'Eligibility' },
-  { field: 'gradYearMin', header: 'Grad Yr Min', type: 'number', group: 'Eligibility' },
-  { field: 'gradYearMax', header: 'Grad Yr Max', type: 'number', group: 'Eligibility' },
-  { field: 'schoolGradeMin', header: 'Grade Min', type: 'number', group: 'Eligibility' },
-  { field: 'schoolGradeMax', header: 'Grade Max', type: 'number', group: 'Eligibility' },
   { field: 'gender', header: 'Gender', type: 'string', group: 'Eligibility' },
-  { field: 'season', header: 'Season', type: 'string', group: 'Eligibility' },
-  { field: 'year', header: 'Year', type: 'string', group: 'Eligibility' },
-  // Schedule
-  { field: 'dow', header: 'Day 1', type: 'string', group: 'Schedule' },
-  { field: 'dow2', header: 'Day 2', type: 'string', group: 'Schedule' },
   // Advanced
   { field: 'requests', header: 'Requests', type: 'string', group: 'Advanced' },
   { field: 'keywordPairs', header: 'Keywords', type: 'string', group: 'Advanced' },

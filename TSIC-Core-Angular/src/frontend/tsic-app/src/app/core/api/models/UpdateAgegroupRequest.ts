@@ -4,7 +4,6 @@
 /* eslint-disable */
 export type UpdateAgegroupRequest = {
     agegroupName?: string | null;
-    season?: string | null;
     color?: string | null;
     gender?: string | null;
     dobMin?: string | null;

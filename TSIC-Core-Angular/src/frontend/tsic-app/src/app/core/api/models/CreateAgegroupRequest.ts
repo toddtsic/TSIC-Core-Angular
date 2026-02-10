@@ -5,7 +5,6 @@
 export type CreateAgegroupRequest = {
     leagueId: string;
     agegroupName: string;
-    season?: string | null;
     color?: string | null;
     gender?: string | null;
     dobMin?: string | null;

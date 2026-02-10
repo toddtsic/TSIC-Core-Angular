@@ -128,6 +128,7 @@ export type { ScheduleExportRequest } from './models/ScheduleExportRequest';
 export type { ScheduleICalExportRequest } from './models/ScheduleICalExportRequest';
 export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
 export type { SetWizardContextRequest } from './models/SetWizardContextRequest';
+export type { SportOptionDto } from './models/SportOptionDto';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { TeamDetailDto } from './models/TeamDetailDto';
 export type { TeamDiscountResult } from './models/TeamDiscountResult';

@@ -102,8 +102,6 @@ public record CreateTeamRequest
     public short? SchoolGradeMin { get; init; }
     public short? SchoolGradeMax { get; init; }
     public string? Gender { get; init; }
-    public string? Season { get; init; }
-    public string? Year { get; init; }
     public string? Dow { get; init; }
     public string? Dow2 { get; init; }
     public Guid? FieldId1 { get; init; }
@@ -159,8 +157,6 @@ public record UpdateTeamRequest
     public short? SchoolGradeMin { get; init; }
     public short? SchoolGradeMax { get; init; }
     public string? Gender { get; init; }
-    public string? Season { get; init; }
-    public string? Year { get; init; }
     public string? Dow { get; init; }
     public string? Dow2 { get; init; }
     public Guid? FieldId1 { get; init; }

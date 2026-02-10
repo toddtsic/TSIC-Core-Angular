@@ -144,10 +144,6 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
             <input class="form-control" [(ngModel)]="form.teamName" name="teamName">
           </div>
           <div class="col-md-3">
-            <label class="form-label">Color</label>
-            <input class="form-control" [(ngModel)]="form.color" name="color">
-          </div>
-          <div class="col-md-3">
             <div class="form-check form-switch mt-4">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.active" name="active">
               <label class="form-check-label">Active</label>
@@ -230,14 +226,6 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
         <h6 class="section-label mt-4">Eligibility</h6>
         <div class="row g-3">
           <div class="col-md-3">
-            <label class="form-label">DOB Min</label>
-            <input class="form-control" type="date" [(ngModel)]="form.dobMin" name="dobMin">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">DOB Max</label>
-            <input class="form-control" type="date" [(ngModel)]="form.dobMax" name="dobMax">
-          </div>
-          <div class="col-md-3">
             <label class="form-label">Gender</label>
             <select class="form-select" [(ngModel)]="form.gender" name="gender">
               <option [ngValue]="null">Any</option>
@@ -247,28 +235,8 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Season</label>
-            <input class="form-control" [(ngModel)]="form.season" name="season">
-          </div>
-          <div class="col-md-3">
             <label class="form-label">Level of Play</label>
             <input class="form-control" [(ngModel)]="form.levelOfPlay" name="levelOfPlay">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Year</label>
-            <input class="form-control" [(ngModel)]="form.year" name="year">
-          </div>
-        </div>
-
-        <h6 class="section-label mt-4">Schedule Preferences</h6>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Day of Week 1</label>
-            <input class="form-control" [(ngModel)]="form.dow" name="dow">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Day of Week 2</label>
-            <input class="form-control" [(ngModel)]="form.dow2" name="dow2">
           </div>
         </div>
 
@@ -372,6 +340,13 @@ export class TeamDetailComponent implements OnChanges {
       next: (detail) => {
         this.team.set(detail);
         this.form = { ...detail };
+        // Normalize DateTime strings to YYYY-MM-DD for <input type="date">
+        for (const key of ['startdate', 'enddate', 'effectiveasofdate', 'expireondate',
+                           'discountFeeStart', 'discountFeeEnd', 'lateFeeStart', 'lateFeeEnd']) {
+          if (this.form[key]) {
+            this.form[key] = String(this.form[key]).substring(0, 10);
+          }
+        }
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
@@ -411,8 +386,6 @@ export class TeamDetailComponent implements OnChanges {
       schoolGradeMin: this.form.schoolGradeMin,
       schoolGradeMax: this.form.schoolGradeMax,
       gender: this.form.gender,
-      season: this.form.season,
-      year: this.form.year,
       dow: this.form.dow,
       dow2: this.form.dow2,
       fieldId1: this.form.fieldId1,
@@ -428,6 +401,12 @@ export class TeamDetailComponent implements OnChanges {
       next: (updated) => {
         this.team.set(updated);
         this.form = { ...updated };
+        for (const key of ['startdate', 'enddate', 'effectiveasofdate', 'expireondate',
+                           'discountFeeStart', 'discountFeeEnd', 'lateFeeStart', 'lateFeeEnd']) {
+          if (this.form[key]) {
+            this.form[key] = String(this.form[key]).substring(0, 10);
+          }
+        }
         this.isSaving.set(false);
         this.isError.set(false);
         this.saveMessage.set('Team saved successfully.');

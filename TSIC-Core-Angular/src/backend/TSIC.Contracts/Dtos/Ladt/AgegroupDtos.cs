@@ -38,7 +38,6 @@ public record CreateAgegroupRequest
 {
     public required Guid LeagueId { get; init; }
     public required string AgegroupName { get; init; }
-    public string? Season { get; init; }
     public string? Color { get; init; }
     public string? Gender { get; init; }
     public DateOnly? DobMin { get; init; }
@@ -70,7 +69,6 @@ public record CreateAgegroupRequest
 public record UpdateAgegroupRequest
 {
     public string? AgegroupName { get; init; }
-    public string? Season { get; init; }
     public string? Color { get; init; }
     public string? Gender { get; init; }
     public DateOnly? DobMin { get; init; }

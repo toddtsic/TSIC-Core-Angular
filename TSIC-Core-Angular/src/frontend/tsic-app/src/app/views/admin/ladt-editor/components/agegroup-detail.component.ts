@@ -1,8 +1,35 @@
-import { Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, HostListener, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
 import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/api';
+
+const HTML_COLORS = [
+  { name: 'Red', value: '#FF0000' },
+  { name: 'Blue', value: '#0000FF' },
+  { name: 'Green', value: '#008000' },
+  { name: 'Orange', value: '#FFA500' },
+  { name: 'Purple', value: '#800080' },
+  { name: 'Yellow', value: '#FFFF00' },
+  { name: 'Teal', value: '#008080' },
+  { name: 'Navy', value: '#000080' },
+  { name: 'Maroon', value: '#800000' },
+  { name: 'Lime', value: '#00FF00' },
+  { name: 'Lawn Green', value: '#7CFC00' },
+  { name: 'Aqua', value: '#00FFFF' },
+  { name: 'Pale Turquoise', value: '#AFEEEE' },
+  { name: 'Fuchsia', value: '#FF00FF' },
+  { name: 'Pink', value: '#FFC0CB' },
+  { name: 'Khaki', value: '#F0E68C' },
+  { name: 'Silver', value: '#C0C0C0' },
+  { name: 'Gray', value: '#808080' },
+  { name: 'Black', value: '#000000' },
+  { name: 'White', value: '#FFFFFF' },
+  { name: 'Olive', value: '#808000' },
+  { name: 'Coral', value: '#FF7F50' },
+  { name: 'Crimson', value: '#DC143C' },
+  { name: 'Dodger Blue', value: '#1E90FF' },
+];
 
 @Component({
   selector: 'app-agegroup-detail',
@@ -47,13 +74,9 @@ import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/
 
       <form (ngSubmit)="save()">
         <div class="row g-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label">Name</label>
             <input class="form-control" [(ngModel)]="form.agegroupName" name="agegroupName">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Season</label>
-            <input class="form-control" [(ngModel)]="form.season" name="season">
           </div>
           <div class="col-md-3">
             <label class="form-label">Gender</label>
@@ -66,39 +89,34 @@ import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/
           </div>
           <div class="col-md-3">
             <label class="form-label">Color</label>
-            <input class="form-control" [(ngModel)]="form.color" name="color">
+            <div class="color-picker-wrapper" (click)="$event.stopPropagation()">
+              <button type="button" class="form-select text-start" (click)="colorDropdownOpen.set(!colorDropdownOpen())">
+                @if (form.color) {
+                  <span class="color-dot" [style.background]="form.color"></span>
+                  {{ getColorName(form.color) }}
+                } @else {
+                  None
+                }
+              </button>
+              @if (colorDropdownOpen()) {
+                <div class="color-dropdown">
+                  <div class="color-option" (click)="selectColor(null)">
+                    <span class="color-dot" style="background: transparent; border: 1px dashed var(--bs-border-color);"></span>
+                    None
+                  </div>
+                  @for (c of colorOptions; track c.value) {
+                    <div class="color-option" [class.active]="form.color === c.value" (click)="selectColor(c.value)">
+                      <span class="color-dot" [style.background]="c.value"></span>
+                      {{ c.name }}
+                    </div>
+                  }
+                </div>
+              }
+            </div>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
             <label class="form-label">Sort Order</label>
             <input class="form-control" type="number" [(ngModel)]="form.sortAge" name="sortAge">
-          </div>
-        </div>
-
-        <h6 class="section-label mt-4">Eligibility</h6>
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label">DOB Min</label>
-            <input class="form-control" type="date" [(ngModel)]="form.dobMin" name="dobMin">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">DOB Max</label>
-            <input class="form-control" type="date" [(ngModel)]="form.dobMax" name="dobMax">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Grad Year Min</label>
-            <input class="form-control" type="number" [(ngModel)]="form.gradYearMin" name="gradYearMin">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Grad Year Max</label>
-            <input class="form-control" type="number" [(ngModel)]="form.gradYearMax" name="gradYearMax">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">School Grade Min</label>
-            <input class="form-control" type="number" [(ngModel)]="form.schoolGradeMin" name="schoolGradeMin">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">School Grade Max</label>
-            <input class="form-control" type="number" [(ngModel)]="form.schoolGradeMax" name="schoolGradeMax">
           </div>
         </div>
 
@@ -204,6 +222,53 @@ import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/
       border-bottom: 1px solid var(--bs-border-color);
       padding-bottom: var(--space-1);
     }
+    .color-picker-wrapper {
+      position: relative;
+    }
+    .color-picker-wrapper .form-select {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      cursor: pointer;
+    }
+    .color-dot {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid var(--bs-border-color);
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .color-dropdown {
+      position: absolute;
+      z-index: 1050;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 240px;
+      overflow-y: auto;
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      box-shadow: 0 4px 12px rgba(0,0,0,.15);
+      margin-top: 2px;
+    }
+    .color-option {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: var(--space-1) var(--space-2);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .color-option:hover {
+      background: var(--bs-tertiary-bg);
+    }
+    .color-option.active {
+      background: var(--bs-primary-bg-subtle);
+      font-weight: 600;
+    }
   `]
 })
 export class AgegroupDetailComponent implements OnChanges {
@@ -221,8 +286,15 @@ export class AgegroupDetailComponent implements OnChanges {
   saveMessage = signal<string | null>(null);
   isError = signal(false);
   showDeleteConfirm = signal(false);
+  colorDropdownOpen = signal(false);
 
+  colorOptions = HTML_COLORS;
   form: any = {};
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.colorDropdownOpen.set(false);
+  }
 
   ngOnChanges(): void {
     this.loadDetail();
@@ -237,6 +309,10 @@ export class AgegroupDetailComponent implements OnChanges {
       next: (detail) => {
         this.agegroup.set(detail);
         this.form = { ...detail };
+        // Normalize hex color to uppercase to match dropdown values
+        if (this.form.color) {
+          this.form.color = this.form.color.toUpperCase();
+        }
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
@@ -249,7 +325,6 @@ export class AgegroupDetailComponent implements OnChanges {
 
     const request: UpdateAgegroupRequest = {
       agegroupName: this.form.agegroupName,
-      season: this.form.season,
       color: this.form.color,
       gender: this.form.gender,
       dobMin: this.form.dobMin,
@@ -304,6 +379,15 @@ export class AgegroupDetailComponent implements OnChanges {
            this.form.discountFee !== original.discountFee ||
            this.form.lateFee !== original.lateFee ||
            this.form.playerFeeOverride !== original.playerFeeOverride;
+  }
+
+  getColorName(hex: string): string {
+    return this.colorOptions.find(c => c.value === hex)?.name ?? hex;
+  }
+
+  selectColor(value: string | null): void {
+    this.form.color = value;
+    this.colorDropdownOpen.set(false);
   }
 
   confirmDelete(): void {

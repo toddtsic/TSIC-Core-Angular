@@ -69,17 +69,20 @@ The legacy `LADT/Admin` page is **one of the most heavily used and critical** ad
 
 ### Key Fields by Level:
 
-**Leagues**:
-- LeagueId (Guid, PK), LeagueName, SportId, BAllowCoachScoreEntry, BHideContacts, BHideStandings, BShowScheduleToTeamMembers, PlayerFeeOverride, StandingsSortProfileId, RescheduleEmailsToAddon
+**Leagues** (editable fields):
+- LeagueId (Guid, PK), LeagueName, SportId (dropdown from Sports entity), BHideContacts, BHideStandings, RescheduleEmailsToAddon, PlayerFeeOverride
+- *Removed from editing*: BAllowCoachScoreEntry, BShowScheduleToTeamMembers, BTakeAttendance, BTrackPenaltyMinutes, BTrackSportsmanshipScores, PointsMethod, StrLop, StrGradYears, StandingsSortProfileId
 
-**Agegroups** (25+ fields):
-- AgegroupId (Guid, PK), LeagueId (FK), AgegroupName, Season, Color, Gender, DobMin, DobMax, GradYearMin, GradYearMax, SchoolGradeMin, SchoolGradeMax, TeamFee, TeamFeeLabel, RosterFee, RosterFeeLabel, DiscountFee, DiscountFeeStart, DiscountFeeEnd, LateFee, LateFeeStart, LateFeeEnd, MaxTeams, MaxTeamsPerClub, BAllowSelfRostering, BChampionsByDivision, BAllowApiRosterAccess, SortAge
+**Agegroups** (editable fields):
+- AgegroupId (Guid, PK), LeagueId (FK), AgegroupName, Color (HTML color dropdown with swatches), Gender, TeamFee, TeamFeeLabel, RosterFee, RosterFeeLabel, DiscountFee, DiscountFeeStart, DiscountFeeEnd, LateFee, LateFeeStart, LateFeeEnd, MaxTeams, MaxTeamsPerClub, BAllowSelfRostering, BChampionsByDivision, BAllowApiRosterAccess, BHideStandings, PlayerFeeOverride, SortAge
+- *Removed from editing*: Season (immutable — set from Job on creation), DobMin, DobMax, GradYearMin, GradYearMax, SchoolGradeMin, SchoolGradeMax
 
 **Divisions**:
 - DivId (Guid, PK), AgegroupId (FK), DivName, MaxRoundNumberToShow
 
-**Teams** (40+ fields):
-- TeamId (Guid, PK), DivId (FK), AgegroupId (FK), LeagueId (FK), JobId (FK), TeamName, Active, DivRank, DivisionRequested, MaxCount, PerRegistrantFee, PerRegistrantDeposit, FeeBase, Startdate, Enddate, Effectiveasofdate, Expireondate, DiscountFee, DiscountFeeStart, DiscountFeeEnd, LateFee, LateFeeStart, LateFeeEnd, DobMin, DobMax, GradYearMin, GradYearMax, SchoolGradeMin, SchoolGradeMax, Dow, Dow2, FieldId1, FieldId2, FieldId3, BAllowSelfRostering, BHideRoster, LevelOfPlay, LastLeagueRecord, Requests, KeywordPairs, TeamComments
+**Teams** (editable fields):
+- TeamId (Guid, PK), DivId (FK), AgegroupId (FK), LeagueId (FK), JobId (FK), TeamName, Active, DivRank, DivisionRequested, LastLeagueRecord, MaxCount, BAllowSelfRostering, BHideRoster, FeeBase, PerRegistrantFee, PerRegistrantDeposit, DiscountFee, DiscountFeeStart, DiscountFeeEnd, LateFee, LateFeeStart, LateFeeEnd, Startdate, Enddate, Effectiveasofdate, Expireondate, DobMin, DobMax, GradYearMin, GradYearMax, SchoolGradeMin, SchoolGradeMax, Gender, Dow, Dow2, FieldId1, FieldId2, FieldId3, LevelOfPlay, Requests, KeywordPairs, TeamComments
+- *Removed from editing*: Season, Year (immutable — set from Job on creation), Color (managed at agegroup level)
 
 ## 6. UI Standards Created / Employed
 
@@ -161,7 +164,7 @@ public record LadtTreeNodeDto
 }
 ```
 
-**League DTOs**:
+**League DTOs** (streamlined — removed 9 rarely-edited fields):
 ```csharp
 public record LeagueDetailDto
 {
@@ -169,74 +172,60 @@ public record LeagueDetailDto
     public required string LeagueName { get; init; }
     public required Guid? SportId { get; init; }
     public string? SportName { get; init; }
-    public required bool BAllowCoachScoreEntry { get; init; }
-    public required bool BHideContacts { get; init; }
-    public required bool BHideStandings { get; init; }
-    public required bool BShowScheduleToTeamMembers { get; init; }
+    public bool? BHideContacts { get; init; }
+    public bool? BHideStandings { get; init; }
     public string? RescheduleEmailsToAddon { get; init; }
-    public required decimal PlayerFeeOverride { get; init; }
-    public int? StandingsSortProfileId { get; init; }
+    public decimal? PlayerFeeOverride { get; init; }
 }
 
 public record UpdateLeagueRequest
 {
     public required string LeagueName { get; init; }
     public Guid? SportId { get; init; }
-    public required bool BAllowCoachScoreEntry { get; init; }
-    public required bool BHideContacts { get; init; }
-    public required bool BHideStandings { get; init; }
-    public required bool BShowScheduleToTeamMembers { get; init; }
+    public bool? BHideContacts { get; init; }
+    public bool? BHideStandings { get; init; }
     public string? RescheduleEmailsToAddon { get; init; }
-    public required decimal PlayerFeeOverride { get; init; }
-    public int? StandingsSortProfileId { get; init; }
+    public decimal? PlayerFeeOverride { get; init; }
+}
+
+public record SportOptionDto
+{
+    public required Guid SportId { get; init; }
+    public required string SportName { get; init; }
 }
 ```
 
-**Agegroup DTOs** (25+ fields):
+**Agegroup DTOs** (Season read-only — set from Job on creation, never updated):
 ```csharp
 public record AgegroupDetailDto
 {
     public required Guid AgegroupId { get; init; }
     public required Guid LeagueId { get; init; }
-    public required string AgegroupName { get; init; }
-    public required string Season { get; init; }
-    public required string Color { get; init; }
-    public required string Gender { get; init; }
-    public DateOnly? DobMin { get; init; }
+    public string? AgegroupName { get; init; }
+    public string? Season { get; init; }        // Read-only (from Job)
+    public string? Color { get; init; }          // HTML color name dropdown
+    public string? Gender { get; init; }
+    public DateOnly? DobMin { get; init; }       // In DTO for grid display, not in edit form
     public DateOnly? DobMax { get; init; }
-    public int? GradYearMin { get; init; }
-    public int? GradYearMax { get; init; }
-    public short? SchoolGradeMin { get; init; }
-    public short? SchoolGradeMax { get; init; }
-    public required decimal TeamFee { get; init; }
-    public string? TeamFeeLabel { get; init; }
-    public required decimal RosterFee { get; init; }
-    public string? RosterFeeLabel { get; init; }
-    public required decimal DiscountFee { get; init; }
-    public DateTime? DiscountFeeStart { get; init; }
-    public DateTime? DiscountFeeEnd { get; init; }
-    public required decimal LateFee { get; init; }
-    public DateTime? LateFeeStart { get; init; }
-    public DateTime? LateFeeEnd { get; init; }
+    // ... fees, limits, toggles
     public required int MaxTeams { get; init; }
     public required int MaxTeamsPerClub { get; init; }
-    public required bool BAllowSelfRostering { get; init; }
-    public required bool BChampionsByDivision { get; init; }
-    public required bool BAllowApiRosterAccess { get; init; }
     public required byte SortAge { get; init; }
 }
 
 public record CreateAgegroupRequest
 {
+    public required Guid LeagueId { get; init; }
     public required string AgegroupName { get; init; }
-    public required string Color { get; init; }
-    public required string Gender { get; init; }
-    // ... all 25+ fields
+    // NO Season — backend sets from Job automatically
+    public string? Color { get; init; }
+    public string? Gender { get; init; }
+    // ... fees, limits, toggles (NO eligibility fields)
 }
 
 public record UpdateAgegroupRequest
 {
-    // Same fields as Create (minus AgegroupId/LeagueId)
+    // Same as Create minus LeagueId. NO Season — immutable.
 }
 ```
 
@@ -263,80 +252,53 @@ public record UpdateDivisionRequest
 }
 ```
 
-**Team DTOs** (40+ fields - organized into groups):
+**Team DTOs** (Season/Year read-only — set from Job on creation, never updated):
 ```csharp
 public record TeamDetailDto
 {
     // Identity
     public required Guid TeamId { get; init; }
-    public required Guid DivId { get; init; }
+    public Guid? DivId { get; init; }
     public required Guid AgegroupId { get; init; }
     public required Guid LeagueId { get; init; }
     public required Guid JobId { get; init; }
 
     // Basic Info
-    public required string TeamName { get; init; }
-    public required bool Active { get; init; }
+    public string? TeamName { get; init; }
+    public string? ClubName { get; init; }
+    public bool? Active { get; init; }
     public required int DivRank { get; init; }
     public string? DivisionRequested { get; init; }
     public string? LastLeagueRecord { get; init; }
+    public string? Color { get; init; }
 
     // Roster Limits
     public required int MaxCount { get; init; }
-    public required bool BAllowSelfRostering { get; init; }
+    public bool? BAllowSelfRostering { get; init; }
     public required bool BHideRoster { get; init; }
 
-    // Fees
-    public required decimal FeeBase { get; init; }
-    public required decimal PerRegistrantFee { get; init; }
-    public decimal? PerRegistrantDeposit { get; init; }
-    public required decimal DiscountFee { get; init; }
-    public DateTime? DiscountFeeStart { get; init; }
-    public DateTime? DiscountFeeEnd { get; init; }
-    public required decimal LateFee { get; init; }
-    public DateTime? LateFeeStart { get; init; }
-    public DateTime? LateFeeEnd { get; init; }
+    // Fees, Dates, Eligibility (all present in DTO for grid/read)
+    // ...
 
-    // Dates
-    public DateTime? Startdate { get; init; }
-    public DateTime? Enddate { get; init; }
-    public DateTime? Effectiveasofdate { get; init; }
-    public DateTime? Expireondate { get; init; }
+    // Immutable (read-only — set from Job on creation)
+    public string? Season { get; init; }
+    public string? Year { get; init; }
 
-    // Eligibility
-    public DateOnly? DobMin { get; init; }
-    public DateOnly? DobMax { get; init; }
-    public int? GradYearMin { get; init; }
-    public int? GradYearMax { get; init; }
-    public short? SchoolGradeMin { get; init; }
-    public short? SchoolGradeMax { get; init; }
-    public required string Gender { get; init; }
-    public required string Season { get; init; }
-    public required int Year { get; init; }
-
-    // Schedule Preferences
-    public string? Dow { get; init; } // Day of week preference
-    public string? Dow2 { get; init; }
-    public Guid? FieldId1 { get; init; }
-    public Guid? FieldId2 { get; init; }
-    public Guid? FieldId3 { get; init; }
-
-    // Advanced
-    public string? LevelOfPlay { get; init; }
-    public string? Requests { get; init; }
-    public string? KeywordPairs { get; init; }
-    public string? TeamComments { get; init; }
+    // ... schedule, advanced, club context, player count
 }
 
 public record CreateTeamRequest
 {
+    public required Guid DivId { get; init; }
     public required string TeamName { get; init; }
-    // ... all 40+ fields (use smart defaults from parent agegroup/division)
+    // NO Season, Year — backend sets from Job automatically
+    // ... all other fields
 }
 
 public record UpdateTeamRequest
 {
-    // Same fields as Create (minus TeamId/DivId/AgegroupId/LeagueId/JobId)
+    // NO Season, Year — immutable, not overwritable
+    // ... all other editable fields
 }
 ```
 
@@ -443,6 +405,9 @@ public record UpdateTeamRequest
 
 **Tree Loading**:
 - `GET api/ladt/tree` → `LadtTreeRootDto` (full hierarchy with counts)
+
+**Lookups**:
+- `GET api/ladt/sports` → `List<SportOptionDto>` (all sports for league dropdown)
 
 **League**:
 - `GET api/ladt/leagues/{leagueId:guid}` → `LeagueDetailDto`
@@ -1068,15 +1033,21 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | 23 | Enhanced Clone with Club Library | Clone button now opens an inline dialog instead of firing immediately. Admin enters a team name (pre-filled with "Name (Copy)") and optionally checks "Add to club's team library" (only shown for club-registered teams, checked by default). When checked: backend copies `ClubrepRegistrationid` + `ClubrepId` from source, creates a new `ClubTeams` row (cloned from source's ClubTeam with the new name), links it to the clone, and recalculates club rep financials via `SynchronizeClubRepFinancialsAsync`. When unchecked: pure league team with no club association (original behavior). New DTO: `CloneTeamRequest` with `TeamName` + `AddToClubLibrary`. Updated endpoint: `POST teams/{teamId}/clone` now accepts `[FromBody] CloneTeamRequest`. Frontend: `showCloneDialog`, `cloneName`, `cloneAddToClub` signals; `openCloneDialog()` and `doClone()` methods replace the old fire-and-forget `clone()`. |
 | 24 | Move Team to Different Club | Tournament teams registered by club reps can be reassigned to a different club. Two modes: single team or batch (all teams from same club). Updates `ClubrepRegistrationid`, `ClubrepId`, `ClubTeamId` (if non-null, finds/creates matching ClubTeam under target club), and audit fields. After move: recalculates financials for BOTH source and target club reps via `SynchronizeClubRepFinancialsAsync`, and syncs denormalized schedule team names via new `SynchronizeScheduleNamesForTeamAsync` (reusable "single point of truth" — recomposes `T1Name`/`T2Name` from Teams.TeamName + Registrations.ClubName + Jobs.BShowTeamNameOnlyInSchedules; only updates round-robin games where `T1Type/T2Type == "T"`). New files: `IScheduleRepository.cs`, `ScheduleRepository.cs`. New DTOs: `MoveTeamToClubRequest`, `MoveTeamToClubResultDto`, `ClubRegistrationDto`. Extended `TeamDetailDto` with `ClubRepRegistrationId` and `ClubTeamId`. New endpoints: `GET clubs-for-job`, `POST teams/{teamId}/change-club`. LadtService gained 3 new deps: `IClubTeamRepository`, `IClubRepository`, `IScheduleRepository`. Frontend: "Change Club" moved to overflow menu (three-dots `⋮` button) behind a warning modal gate (`ConfirmDialogComponent` with `confirmVariant="warning"`). Inline panel with scope toggle (single/all), target club dropdown (current club filtered out), and move action. Tree refreshes after move to reflect new club name labels. |
 | 25 | Tree toolbar: gear Actions dropdown | Replaced the ambiguous "+" dropdown button (which used broken Bootstrap JS `data-bs-toggle`) with a gear icon (`bi-gear`) dropdown using signal-toggled `@if (actionsOpen())` pattern. Contains "Add WAITLIST Age Groups" item with `bi-collection` icon. Bootstrap dropdown JS is not loaded in Angular — all dropdowns in this module use signal-toggled visibility. |
+| 26 | Detail panel streamlining — League | Removed 9 rarely-edited fields (BAllowCoachScoreEntry, BShowScheduleToTeamMembers, BTakeAttendance, BTrackPenaltyMinutes, BTrackSportsmanshipScores, PointsMethod, StrLop, StrGradYears, StandingsSortProfileId) from detail form and sibling grid. Sport field changed from disabled text input to `<select>` dropdown populated from `GET /api/ladt/sports` (new endpoint). Added helper text to Reschedule Emails: "Separate emails with semi-colon, no spaces". New backend: `SportOptionDto`, `ILeagueRepository.GetAllSportsAsync()`, `ILadtService.GetSportsAsync()`, `LadtController.GetSports()`. |
+| 27 | Detail panel streamlining — Agegroup | Removed eligibility fields (DobMin, DobMax, GradYearMin, GradYearMax, SchoolGradeMin, SchoolGradeMax) and Season from detail form and sibling grid. Color field changed from text input to `<select>` dropdown of 20 HTML color names with inline color swatch squares. Agegroup name column in sibling grid now renders a color dot (`colorField` property on `LadtColumnDef`). |
+| 28 | Detail panel streamlining — Team | Removed Color (managed at agegroup level), DobMin, DobMax, Season, Year from detail form and sibling grid. Removed entire Schedule Preferences section (Dow, Dow2). Remaining eligibility: Gender, Level of Play only. |
+| 29 | Season/Year immutability enforcement | `Season` and `Year` are Job-level properties that MUST be consistent across all LADT entities. **Updates**: Removed from `UpdateAgegroupRequest` and `UpdateTeamRequest` DTOs entirely — backend update methods no longer touch these fields. **Creates/Stubs**: Backend now fetches `Season`/`Year` from `_jobRepo.GetJobSeasonYearAsync(jobId)` instead of trusting the request. This prevents null-writes from frontend forms that no longer have these fields. New: `JobSeasonYear` record, `IJobRepository.GetJobSeasonYearAsync()`, `JobRepository.GetJobSeasonYearAsync()`. **Clones**: Copy from source team (already correct since source is in same Job). |
 
 ---
 
 **Implementation is substantially complete. Core features working:**
 - Angular CDK Tree with signal-driven expand/collapse (bypasses CDK limitations with flat trees)
 - Sibling comparison grid using native HTML table with frozen name column + horizontal scroll (no Syncfusion)
-- Sibling grid enhancements: row numbers (frozen), sortable columns, club name column for teams
+- Sibling grid enhancements: row numbers (frozen), sortable columns, club name column for teams, color dot for agegroup name
 - 4 backend batch endpoints for sibling data, reusing existing Map helpers
 - Detail edit forms for all 4 entity levels, integrated below the comparison grid
+- **Detail panel streamlining**: League (Sport dropdown, 9 fields removed), Agegroup (HTML color dropdown, eligibility section removed), Team (color/schedule/season/year removed)
+- **Season/Year immutability**: enforced server-side — set from Job on create/stub, never overwritten on update, removed from Update/Create DTOs
 - Club name display: two-line tree nodes for teams with club rep, bulk lookup via repository
 - Age group sorting: regular alpha first, specials (Dropped Teams, WAITLIST*) last with visual distinction
 - "Unassigned" division business rule: auto-created, never deletable/renameable, duplicate name prevention

@@ -32,6 +32,11 @@ public interface ILeagueRepository
     /// </summary>
     Task<bool> BelongsToJobAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Get all sports for dropdown selection.
+    /// </summary>
+    Task<List<Sports>> GetAllSportsAsync(CancellationToken cancellationToken = default);
+
     void Add(Leagues league);
     void Remove(Leagues league);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

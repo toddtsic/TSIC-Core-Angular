@@ -80,6 +80,9 @@ export interface ParentBreadcrumb {
                       {{ formatDateOnly(row[col.field]) }}
                     }
                     @default {
+                      @if (col.colorField && row[col.colorField]) {
+                        <span class="color-dot" [style.background]="row[col.colorField]"></span>
+                      }
                       {{ row[col.field] ?? '' }}
                     }
                   }
@@ -227,6 +230,17 @@ export interface ParentBreadcrumb {
         text-decoration: line-through;
         font-style: italic;
       }
+    }
+
+    /* Color swatch dot for columns with colorField */
+    .color-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+      border: 1px solid var(--bs-border-color);
     }
 
     /* Cell type alignment */

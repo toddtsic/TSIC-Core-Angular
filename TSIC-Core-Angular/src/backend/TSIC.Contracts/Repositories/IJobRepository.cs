@@ -127,6 +127,11 @@ public interface IJobRepository
     Task<string?> GetJobSeasonAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get job season and year for LADT entity creation.
+    /// </summary>
+    Task<JobSeasonYear?> GetJobSeasonYearAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get job name by job ID.
     /// </summary>
     Task<string?> GetJobNameAsync(Guid jobId, CancellationToken cancellationToken = default);
@@ -219,4 +224,10 @@ public record AdultConfirmationEmailInfo
     public string? RegFormFrom { get; init; }
     public string? RegFormCcs { get; init; }
     public string? RegFormBccs { get; init; }
+}
+
+public record JobSeasonYear
+{
+    public string? Season { get; init; }
+    public string? Year { get; init; }
 }

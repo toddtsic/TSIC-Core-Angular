@@ -7,18 +7,9 @@ export type LeagueDetailDto = {
     leagueName: string;
     sportId: string;
     sportName?: string | null;
-    bAllowCoachScoreEntry: boolean;
     bHideContacts: boolean;
     bHideStandings: boolean;
-    bShowScheduleToTeamMembers: boolean;
-    bTakeAttendance: boolean;
-    bTrackPenaltyMinutes: boolean;
-    bTrackSportsmanshipScores: boolean;
     rescheduleEmailsToAddon?: string | null;
     playerFeeOverride?: number;
-    standingsSortProfileId?: number;
-    pointsMethod?: number;
-    strLop?: string | null;
-    strGradYears?: string | null;
 };
 
