@@ -7,5 +7,6 @@ export type LadtTreeRootDto = {
     leagues: Array<LadtTreeNodeDto>;
     totalTeams: number;
     totalPlayers: number;
+    scheduledTeamIds: Array<string>;
 };
 

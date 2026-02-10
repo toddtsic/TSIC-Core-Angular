@@ -62,6 +62,36 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   flatNodes = signal<LadtFlatNode[]>([]);
   private rawTree = signal<LadtTreeNodeDto[]>([]);
 
+  // Scheduled team IDs (raw data from backend, used for KPI computation)
+  scheduledTeamIds = signal<Set<string>>(new Set());
+
+  // ── Team Status KPIs (computed from tree data) ──
+  teamStatusKpis = computed(() => {
+    const scheduledIds = this.scheduledTeamIds();
+    let waitlisted = 0;
+    let nonWaitlisted = 0;
+    let scheduled = 0;
+
+    for (const league of this.rawTree()) {
+      for (const ag of (league.children ?? []) as LadtTreeNodeDto[]) {
+        const agName = (ag.name ?? '').toUpperCase();
+        const isWaitlist = agName.startsWith('WAITLIST');
+        const isDropped = agName === 'DROPPED TEAMS';
+
+        for (const div of (ag.children ?? []) as LadtTreeNodeDto[]) {
+          for (const team of (div.children ?? []) as LadtTreeNodeDto[]) {
+            if (!team.active) continue;
+            if (isWaitlist) waitlisted++;
+            else if (!isDropped) nonWaitlisted++;
+            if (scheduledIds.has(team.id)) scheduled++;
+          }
+        }
+      }
+    }
+
+    return { waitlisted, nonWaitlisted, scheduled };
+  });
+
   // Expansion state (reactive)
   expandedIds = signal(new Set<string>());
 
@@ -189,6 +219,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         this.rawTree.set(root.leagues as LadtTreeNodeDto[]);
         this.totalTeams.set(root.totalTeams);
         this.totalPlayers.set(root.totalPlayers);
+        this.scheduledTeamIds.set(new Set(root.scheduledTeamIds ?? []));
 
         const flat = this.flattenTree(root.leagues as LadtTreeNodeDto[]);
         this.flatNodes.set(flat);

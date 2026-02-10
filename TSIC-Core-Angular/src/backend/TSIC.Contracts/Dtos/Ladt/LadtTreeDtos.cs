@@ -9,6 +9,7 @@ public record LadtTreeRootDto
     public required List<LadtTreeNodeDto> Leagues { get; init; }
     public required int TotalTeams { get; init; }
     public required int TotalPlayers { get; init; }
+    public required List<Guid> ScheduledTeamIds { get; init; }
 }
 
 /// <summary>

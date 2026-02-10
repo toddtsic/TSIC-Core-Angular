@@ -35,6 +35,23 @@
         <span class="badge bg-primary-subtle text-primary-emphasis">{{ totalTeams() }} teams</span>
         <span class="badge bg-success-subtle text-success-emphasis">{{ totalPlayers() }} players</span>
       </div>
+      <div class="tree-kpis">
+        <span class="kpi-badge kpi-waitlisted">
+          <span class="kpi-dot"></span>
+          Active Waitlisted Teams
+          <span class="kpi-count">{{ teamStatusKpis().waitlisted }}</span>
+        </span>
+        <span class="kpi-badge kpi-active">
+          <span class="kpi-dot"></span>
+          Active Non Waitlisted Teams
+          <span class="kpi-count">{{ teamStatusKpis().nonWaitlisted }}</span>
+        </span>
+        <span class="kpi-badge kpi-scheduled">
+          <span class="kpi-dot"></span>
+          Active Scheduled Teams
+          <span class="kpi-count">{{ teamStatusKpis().scheduled }}</span>
+        </span>
+      </div>
     </div>
 
     <div class="tree-toolbar">
