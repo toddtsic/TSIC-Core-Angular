@@ -19,7 +19,8 @@ import type {
   ClubRegistrationDto,
   CloneTeamRequest,
   MoveTeamToClubRequest,
-  MoveTeamToClubResultDto
+  MoveTeamToClubResultDto,
+  CreateStubRequest
 } from '../../../../core/api';
 
 @Injectable({
@@ -63,8 +64,9 @@ export class LadtService {
     return this.http.delete<void>(`${this.apiUrl}/agegroups/${agegroupId}`);
   }
 
-  addStubAgegroup(leagueId: string): Observable<string> {
-    return this.http.post<string>(`${this.apiUrl}/agegroups/stub/${leagueId}`, null);
+  addStubAgegroup(leagueId: string, name?: string): Observable<string> {
+    const body: CreateStubRequest | null = name ? { name } : null;
+    return this.http.post<string>(`${this.apiUrl}/agegroups/stub/${leagueId}`, body);
   }
 
   // ── Division ──
@@ -85,8 +87,9 @@ export class LadtService {
     return this.http.delete<void>(`${this.apiUrl}/divisions/${divId}`);
   }
 
-  addStubDivision(agegroupId: string): Observable<string> {
-    return this.http.post<string>(`${this.apiUrl}/divisions/stub/${agegroupId}`, null);
+  addStubDivision(agegroupId: string, name?: string): Observable<string> {
+    const body: CreateStubRequest | null = name ? { name } : null;
+    return this.http.post<string>(`${this.apiUrl}/divisions/stub/${agegroupId}`, body);
   }
 
   // ── Team ──
@@ -111,8 +114,9 @@ export class LadtService {
     return this.http.post<TeamDetailDto>(`${this.apiUrl}/teams/${teamId}/clone`, request);
   }
 
-  addStubTeam(divId: string): Observable<string> {
-    return this.http.post<string>(`${this.apiUrl}/teams/stub/${divId}`, null);
+  addStubTeam(divId: string, name?: string): Observable<string> {
+    const body: CreateStubRequest | null = name ? { name } : null;
+    return this.http.post<string>(`${this.apiUrl}/teams/stub/${divId}`, body);
   }
 
   getClubRegistrationsForJob(): Observable<ClubRegistrationDto[]> {

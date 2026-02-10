@@ -23,7 +23,7 @@ public interface ILadtService
     Task<AgegroupDetailDto> CreateAgegroupAsync(CreateAgegroupRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<AgegroupDetailDto> UpdateAgegroupAsync(Guid agegroupId, UpdateAgegroupRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task DeleteAgegroupAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
-    Task<Guid> AddStubAgegroupAsync(Guid leagueId, Guid jobId, string userId, CancellationToken cancellationToken = default);
+    Task<Guid> AddStubAgegroupAsync(Guid leagueId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default);
 
     // ── Division ──
 
@@ -31,7 +31,7 @@ public interface ILadtService
     Task<DivisionDetailDto> CreateDivisionAsync(CreateDivisionRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<DivisionDetailDto> UpdateDivisionAsync(Guid divId, UpdateDivisionRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task DeleteDivisionAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default);
-    Task<Guid> AddStubDivisionAsync(Guid agegroupId, Guid jobId, string userId, CancellationToken cancellationToken = default);
+    Task<Guid> AddStubDivisionAsync(Guid agegroupId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default);
 
     // ── Team ──
 
@@ -41,7 +41,7 @@ public interface ILadtService
     Task<DeleteTeamResultDto> DeleteTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default);
     Task<DropTeamResultDto> DropTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<TeamDetailDto> CloneTeamAsync(Guid teamId, CloneTeamRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
-    Task<Guid> AddStubTeamAsync(Guid divId, Guid jobId, string userId, CancellationToken cancellationToken = default);
+    Task<Guid> AddStubTeamAsync(Guid divId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default);
     Task<List<ClubRegistrationDto>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
     Task<MoveTeamToClubResultDto> MoveTeamToClubAsync(Guid teamId, MoveTeamToClubRequest request, Guid jobId, string userId, CancellationToken ct = default);
 

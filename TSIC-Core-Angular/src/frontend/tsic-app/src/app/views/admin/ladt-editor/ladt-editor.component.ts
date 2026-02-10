@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, AfterViewChecked, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkTreeModule } from '@angular/cdk/tree';
 import { Observable } from 'rxjs';
@@ -29,6 +29,7 @@ export interface LadtFlatNode {
   active: boolean;
   clubName: string | null;
   isSpecial: boolean;
+  isPhantom?: boolean;
 }
 
 @Component({
@@ -47,7 +48,7 @@ export interface LadtFlatNode {
   templateUrl: './ladt-editor.component.html',
   styleUrl: './ladt-editor.component.scss'
 })
-export class LadtEditorComponent implements OnInit {
+export class LadtEditorComponent implements OnInit, AfterViewChecked {
   private readonly ladtService = inject(LadtService);
 
   // ── State ──
@@ -67,6 +68,7 @@ export class LadtEditorComponent implements OnInit {
   visibleNodes = computed(() => {
     const all = this.flatNodes();
     const expanded = this.expandedIds();
+    const phantomParent = this.phantomParentId();
     const result: LadtFlatNode[] = [];
     let skipLevel = -1;
 
@@ -78,6 +80,34 @@ export class LadtEditorComponent implements OnInit {
         skipLevel = node.level;
       }
     }
+
+    // Inject phantom node after the parent's last visible descendant
+    if (phantomParent) {
+      const parentIdx = result.findIndex(n => n.id === phantomParent);
+      if (parentIdx >= 0) {
+        const parentNode = result[parentIdx];
+        const childLevel = parentNode.level + 1;
+        let insertIdx = parentIdx + 1;
+        while (insertIdx < result.length && result[insertIdx].level > parentNode.level) {
+          insertIdx++;
+        }
+        result.splice(insertIdx, 0, {
+          id: '__phantom__',
+          parentId: phantomParent,
+          name: '',
+          level: childLevel,
+          isLeaf: true,
+          teamCount: 0,
+          playerCount: 0,
+          expandable: false,
+          active: true,
+          clubName: null,
+          isSpecial: false,
+          isPhantom: true
+        });
+      }
+    }
+
     return result;
   });
 
@@ -124,14 +154,28 @@ export class LadtEditorComponent implements OnInit {
   // Mobile drawer
   drawerOpen = signal(false);
 
+  // Inline creation (phantom node)
+  phantomParentId = signal<string | null>(null);
+  private shouldFocusPhantom = false;
+
   // CdkTree accessors
   readonly levelAccessor = (node: LadtFlatNode) => node.level;
   readonly trackById = (_: number, node: LadtFlatNode) => node.id;
 
-  hasChild = (_: number, node: LadtFlatNode) => node.expandable;
+  hasChild = (_: number, node: LadtFlatNode) => node.expandable && !node.isPhantom;
 
   ngOnInit(): void {
     this.loadTree();
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.shouldFocusPhantom) {
+      const input = document.querySelector('.phantom-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        this.shouldFocusPhantom = false;
+      }
+    }
   }
 
   loadTree(selectId?: string): void {
@@ -288,36 +332,50 @@ export class LadtEditorComponent implements OnInit {
     }
   }
 
-  // ── Add Stubs ──
+  // ── Inline Creation (Phantom Node) ──
 
-  addStubAgegroup(leagueId: string): void {
-    this.ladtService.addStubAgegroup(leagueId).subscribe({
+  startAdd(parentId: string): void {
+    this.ensureExpanded(parentId);
+    this.phantomParentId.set(parentId);
+    this.shouldFocusPhantom = true;
+  }
+
+  commitPhantom(name: string): void {
+    const parentId = this.phantomParentId();
+    if (!parentId) return;
+
+    const parentNode = this.flatNodes().find(n => n.id === parentId);
+    if (!parentNode) return;
+
+    const trimmedName = name.trim();
+    const nameArg = trimmedName || undefined;
+
+    let stub$: Observable<string>;
+    if (parentNode.level === 0) {
+      stub$ = this.ladtService.addStubAgegroup(parentId, nameArg);
+    } else if (parentNode.level === 1) {
+      stub$ = this.ladtService.addStubDivision(parentId, nameArg);
+    } else {
+      stub$ = this.ladtService.addStubTeam(parentId, nameArg);
+    }
+
+    this.phantomParentId.set(null);
+
+    stub$.subscribe({
       next: (newId) => {
-        this.ensureExpanded(leagueId);
+        this.ensureExpanded(parentId);
         this.loadTree(newId);
       },
-      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to add age group')
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to create entity');
+      }
     });
   }
 
-  addStubDivision(agegroupId: string): void {
-    this.ladtService.addStubDivision(agegroupId).subscribe({
-      next: (newId) => {
-        this.ensureExpanded(agegroupId);
-        this.loadTree(newId);
-      },
-      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to add division')
-    });
-  }
-
-  addStubTeam(divId: string): void {
-    this.ladtService.addStubTeam(divId).subscribe({
-      next: (newId) => {
-        this.ensureExpanded(divId);
-        this.loadTree(newId);
-      },
-      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to add team')
-    });
+  cancelPhantom(): void {
+    if (this.phantomParentId()) {
+      this.phantomParentId.set(null);
+    }
   }
 
   private ensureExpanded(nodeId: string): void {

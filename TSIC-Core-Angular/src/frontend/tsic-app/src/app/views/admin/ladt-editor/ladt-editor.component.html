@@ -81,41 +81,56 @@
                          [class.inactive]="!node.active"
                          [class.has-club]="node.clubName"
                          [class.special]="node.isSpecial"
+                         [class.phantom]="node.isPhantom"
                          [style.padding-left.px]="node.level * 20 + 8">
-            <span class="tree-toggle-spacer"></span>
-            <button class="tree-node-btn" (click)="selectNode(node)"
-                    [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
+            @if (node.isPhantom) {
+              <span class="tree-toggle-spacer"></span>
               <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
-              @if (node.level === 3 && node.clubName) {
-                <span class="tree-label-group">
-                  <span class="tree-label-primary">{{ node.clubName }}</span>
-                  <span class="tree-label-secondary">{{ node.name }}</span>
+              <input
+                #phantomInput
+                class="form-control form-control-sm phantom-input"
+                type="text"
+                [placeholder]="'New ' + getLevelLabel(node.level) + '...'"
+                (keydown.enter)="commitPhantom(phantomInput.value); $event.preventDefault()"
+                (keydown.escape)="cancelPhantom(); $event.preventDefault()"
+                (blur)="cancelPhantom()"
+              />
+            } @else {
+              <span class="tree-toggle-spacer"></span>
+              <button class="tree-node-btn" (click)="selectNode(node)"
+                      [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
+                <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
+                @if (node.level === 3 && node.clubName) {
+                  <span class="tree-label-group">
+                    <span class="tree-label-primary">{{ node.clubName }}</span>
+                    <span class="tree-label-secondary">{{ node.name }}</span>
+                  </span>
+                } @else {
+                  <span class="tree-label">{{ node.name }}</span>
+                }
+                <span class="node-badges ms-auto">
+                  @if (!node.active) {
+                    <span class="badge bg-danger-subtle text-danger-emphasis">Inactive</span>
+                  }
+                  @if (node.level < 3) {
+                    <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount }}</span>
+                  }
+                  <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount }}</span>
                 </span>
-              } @else {
-                <span class="tree-label">{{ node.name }}</span>
+              </button>
+              <!-- Delete button for leaf nodes (levels 1+, except Unassigned divisions) -->
+              @if (canDelete(node)) {
+                <button class="btn-remove-node" [title]="'Delete ' + getLevelLabel(node.level)"
+                        (click)="confirmDelete(node); $event.stopPropagation()">
+                  <i class="bi bi-dash-circle"></i>
+                </button>
               }
-              <span class="node-badges ms-auto">
-                @if (!node.active) {
-                  <span class="badge bg-danger-subtle text-danger-emphasis">Inactive</span>
-                }
-                @if (node.level < 3) {
-                  <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount }}</span>
-                }
-                <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount }}</span>
-              </span>
-            </button>
-            <!-- Delete button for leaf nodes (levels 1+, except Unassigned divisions) -->
-            @if (canDelete(node)) {
-              <button class="btn-remove-node" [title]="'Delete ' + getLevelLabel(node.level)"
-                      (click)="confirmDelete(node); $event.stopPropagation()">
-                <i class="bi bi-dash-circle"></i>
-              </button>
-            }
-            <!-- Add child button for leaf nodes at levels 0-2 -->
-            @if (node.level === 2) {
-              <button class="btn-add-child" title="Add Team" (click)="addStubTeam(node.id); $event.stopPropagation()">
-                <i class="bi bi-plus-circle"></i>
-              </button>
+              <!-- Add child button for leaf nodes at levels 0-2 -->
+              @if (node.level === 2) {
+                <button class="btn-add-child" title="Add Team" (click)="startAdd(node.id); $event.stopPropagation()">
+                  <i class="bi bi-plus-circle"></i>
+                </button>
+              }
             }
           </cdk-tree-node>
 
@@ -159,17 +174,17 @@
             }
             <!-- Add child buttons by level -->
             @if (node.level === 0) {
-              <button class="btn-add-child" title="Add Age Group" (click)="addStubAgegroup(node.id); $event.stopPropagation()">
+              <button class="btn-add-child" title="Add Age Group" (click)="startAdd(node.id); $event.stopPropagation()">
                 <i class="bi bi-plus-circle"></i>
               </button>
             }
             @if (node.level === 1) {
-              <button class="btn-add-child" title="Add Division" (click)="addStubDivision(node.id); $event.stopPropagation()">
+              <button class="btn-add-child" title="Add Division" (click)="startAdd(node.id); $event.stopPropagation()">
                 <i class="bi bi-plus-circle"></i>
               </button>
             }
             @if (node.level === 2) {
-              <button class="btn-add-child" title="Add Team" (click)="addStubTeam(node.id); $event.stopPropagation()">
+              <button class="btn-add-child" title="Add Team" (click)="startAdd(node.id); $event.stopPropagation()">
                 <i class="bi bi-plus-circle"></i>
               </button>
             }

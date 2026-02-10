@@ -138,14 +138,14 @@ public class LadtController : ControllerBase
     }
 
     [HttpPost("agegroups/stub/{leagueId:guid}")]
-    public async Task<ActionResult<Guid>> AddStubAgegroup(Guid leagueId, CancellationToken cancellationToken)
+    public async Task<ActionResult<Guid>> AddStubAgegroup(Guid leagueId, [FromBody] CreateStubRequest? request, CancellationToken cancellationToken)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var id = await _ladtService.AddStubAgegroupAsync(leagueId, jobId!.Value, userId!, cancellationToken);
+            var id = await _ladtService.AddStubAgegroupAsync(leagueId, jobId!.Value, userId!, request?.Name, cancellationToken);
             return Ok(id);
         }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
@@ -218,14 +218,14 @@ public class LadtController : ControllerBase
     }
 
     [HttpPost("divisions/stub/{agegroupId:guid}")]
-    public async Task<ActionResult<Guid>> AddStubDivision(Guid agegroupId, CancellationToken cancellationToken)
+    public async Task<ActionResult<Guid>> AddStubDivision(Guid agegroupId, [FromBody] CreateStubRequest? request, CancellationToken cancellationToken)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var id = await _ladtService.AddStubDivisionAsync(agegroupId, jobId!.Value, userId!, cancellationToken);
+            var id = await _ladtService.AddStubDivisionAsync(agegroupId, jobId!.Value, userId!, request?.Name, cancellationToken);
             return Ok(id);
         }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
@@ -328,14 +328,14 @@ public class LadtController : ControllerBase
     }
 
     [HttpPost("teams/stub/{divId:guid}")]
-    public async Task<ActionResult<Guid>> AddStubTeam(Guid divId, CancellationToken cancellationToken)
+    public async Task<ActionResult<Guid>> AddStubTeam(Guid divId, [FromBody] CreateStubRequest? request, CancellationToken cancellationToken)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var id = await _ladtService.AddStubTeamAsync(divId, jobId!.Value, userId!, cancellationToken);
+            var id = await _ladtService.AddStubTeamAsync(divId, jobId!.Value, userId!, request?.Name, cancellationToken);
             return Ok(id);
         }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }

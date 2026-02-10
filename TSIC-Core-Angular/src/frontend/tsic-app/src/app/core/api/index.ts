@@ -39,6 +39,7 @@ export type { ClubTeamDto } from './models/ClubTeamDto';
 export type { CreateAgegroupRequest } from './models/CreateAgegroupRequest';
 export type { CreateDivisionRequest } from './models/CreateDivisionRequest';
 export type { CreateMenuItemRequest } from './models/CreateMenuItemRequest';
+export type { CreateStubRequest } from './models/CreateStubRequest';
 export type { CreateTeamRequest } from './models/CreateTeamRequest';
 export type { CreditCardInfo } from './models/CreditCardInfo';
 export type { DeleteTeamResultDto } from './models/DeleteTeamResultDto';

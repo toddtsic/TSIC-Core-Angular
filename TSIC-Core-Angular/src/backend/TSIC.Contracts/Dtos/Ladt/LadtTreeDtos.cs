@@ -29,3 +29,12 @@ public record LadtTreeNodeDto
     public string? ClubName { get; init; }
     public List<LadtTreeNodeDto>? Children { get; init; }
 }
+
+/// <summary>
+/// Optional request body for stub creation endpoints.
+/// When null or when Name is null/empty, the backend uses its default naming logic.
+/// </summary>
+public record CreateStubRequest
+{
+    public string? Name { get; init; }
+}

@@ -302,3 +302,33 @@
     padding: var(--space-3);
   }
 }
+
+// ── Phantom Node (Inline Creation) ──
+
+.tree-node.phantom {
+  min-height: 32px;
+}
+
+.phantom-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: var(--space-half, 2px) var(--space-1);
+  font-size: 0.85rem;
+  color: var(--bs-body-color);
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-sm, 4px);
+  outline: none;
+
+  &:focus {
+    box-shadow: var(--shadow-focus, 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15));
+    border-color: var(--bs-primary);
+  }
+
+  &::placeholder {
+    color: var(--bs-secondary-color);
+    font-style: italic;
+    opacity: 0.7;
+  }
+}

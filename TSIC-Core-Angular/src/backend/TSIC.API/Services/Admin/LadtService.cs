@@ -344,7 +344,7 @@ public sealed class LadtService : ILadtService
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<Guid> AddStubAgegroupAsync(Guid leagueId, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    public async Task<Guid> AddStubAgegroupAsync(Guid leagueId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default)
     {
         await ValidateLeagueOwnershipAsync(leagueId, jobId, cancellationToken);
 
@@ -352,7 +352,7 @@ public sealed class LadtService : ILadtService
         {
             AgegroupId = Guid.NewGuid(),
             LeagueId = leagueId,
-            AgegroupName = "New Age Group",
+            AgegroupName = string.IsNullOrWhiteSpace(name) ? "New Age Group" : name.Trim(),
             MaxTeams = 0,
             MaxTeamsPerClub = 0,
             SortAge = 0,
@@ -460,16 +460,23 @@ public sealed class LadtService : ILadtService
         await _divisionRepo.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<Guid> AddStubDivisionAsync(Guid agegroupId, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    public async Task<Guid> AddStubDivisionAsync(Guid agegroupId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default)
     {
         await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
 
-        // Find next available "Pool X" name that doesn't collide with existing divisions
-        var existing = await _divisionRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
-        var existingNames = existing.Select(d => d.DivName?.ToUpperInvariant()).ToHashSet();
-        var letter = 'A';
         string divName;
-        do { divName = $"Pool {letter}"; letter++; } while (existingNames.Contains(divName.ToUpperInvariant()));
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            divName = name.Trim();
+        }
+        else
+        {
+            // Find next available "Pool X" name that doesn't collide with existing divisions
+            var existing = await _divisionRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
+            var existingNames = existing.Select(d => d.DivName?.ToUpperInvariant()).ToHashSet();
+            var letter = 'A';
+            do { divName = $"Pool {letter}"; letter++; } while (existingNames.Contains(divName.ToUpperInvariant()));
+        }
 
         var div = new Divisions
         {
@@ -864,7 +871,7 @@ public sealed class LadtService : ILadtService
         return MapTeam(clone, 0);
     }
 
-    public async Task<Guid> AddStubTeamAsync(Guid divId, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    public async Task<Guid> AddStubTeamAsync(Guid divId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default)
     {
         await ValidateDivisionOwnershipAsync(divId, jobId, cancellationToken);
 
@@ -882,7 +889,7 @@ public sealed class LadtService : ILadtService
             LeagueId = ag.LeagueId,
             AgegroupId = ag.AgegroupId,
             DivId = divId,
-            TeamName = "New Team",
+            TeamName = string.IsNullOrWhiteSpace(name) ? "New Team" : name.Trim(),
             Active = true,
             DivRank = maxRank + 1,
             MaxCount = 0,
