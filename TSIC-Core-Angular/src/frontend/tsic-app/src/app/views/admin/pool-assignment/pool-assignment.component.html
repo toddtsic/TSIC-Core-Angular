@@ -1,0 +1,454 @@
+<div class="pool-assignment-container">
+
+  <!-- Header -->
+  <div class="pool-header">
+    <h5 class="mb-0">Team Pool Assignment</h5>
+    <button class="btn btn-sm btn-outline-secondary" (click)="loadDivisionOptions()"
+            title="Refresh division options">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
+  </div>
+
+  @if (isLoading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  } @else {
+
+    <div class="pool-panels">
+
+      <!-- ─── SOURCE PANEL ─── -->
+      <div class="pool-panel">
+        <div class="panel-header">
+          <label class="form-label fw-semibold text-uppercase small mb-1">Source Division</label>
+          <select class="form-select form-select-sm"
+                  [ngModel]="sourceDivId()"
+                  (ngModelChange)="onSourceDivChange($event)">
+            <option [ngValue]="null" disabled>Select a division...</option>
+            @for (group of groupedDivisionOptions(); track group.label) {
+              <optgroup [label]="group.label">
+                @for (div of group.divisions; track div.divId) {
+                  <option [value]="div.divId"
+                          [disabled]="div.divId === targetDivId()">
+                    {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
+                    ({{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }})
+                  </option>
+                }
+              </optgroup>
+            }
+          </select>
+
+          <!-- Capacity bar -->
+          @if (sourceDiv() && sourceDiv()!.maxTeams > 0) {
+            <div class="capacity-bar mt-1">
+              <div class="capacity-fill"
+                   [style.width.%]="capacityPercent(sourceDiv())"
+                   [style.background]="capacityColor(sourceDiv())">
+              </div>
+            </div>
+            <small class="text-body-secondary">
+              {{ sourceDiv()!.teamCount }}/{{ sourceDiv()!.maxTeams }} teams
+            </small>
+          }
+
+          <!-- Filter -->
+          @if (sourceTeams().length > 0) {
+            <input type="text" class="form-control form-control-sm mt-2"
+                   placeholder="Filter teams..."
+                   [ngModel]="sourceFilter()"
+                   (ngModelChange)="sourceFilter.set($event)" />
+          }
+        </div>
+
+        <div class="panel-body">
+          @if (sourceDivId() && sortedFilteredSourceTeams().length > 0) {
+            <div class="table-scroll-wrapper">
+              <table class="table table-sm table-hover mb-0 pool-table">
+                <thead>
+                  <tr>
+                    <th class="col-check frozen frozen-0">
+                      <input type="checkbox" class="form-check-input"
+                             [checked]="sourceSelected().size > 0 && sourceSelected().size === sortedFilteredSourceTeams().length"
+                             (change)="sourceSelected().size === sortedFilteredSourceTeams().length ? deselectAllSource() : selectAllSource()" />
+                    </th>
+                    <th class="col-rownum frozen frozen-1">#</th>
+                    <th class="col-swap frozen frozen-2"></th>
+                    <th class="col-name frozen frozen-3 sortable" (click)="onSort('source', 'teamName')">
+                      Team <i class="bi" [ngClass]="sortIcon('source', 'teamName')"></i>
+                    </th>
+                    <th class="col-active frozen frozen-4 sortable" (click)="onSort('source', 'active')">
+                      Active <i class="bi" [ngClass]="sortIcon('source', 'active')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'clubName')">
+                      Club <i class="bi" [ngClass]="sortIcon('source', 'clubName')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('source', 'rosterCount')">
+                      Roster <i class="bi" [ngClass]="sortIcon('source', 'rosterCount')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('source', 'divRank')">
+                      Rank <i class="bi" [ngClass]="sortIcon('source', 'divRank')"></i>
+                    </th>
+                    <th class="text-end sortable" (click)="onSort('source', 'feeTotal')">
+                      Fee <i class="bi" [ngClass]="sortIcon('source', 'feeTotal')"></i>
+                    </th>
+                    <th class="text-end sortable" (click)="onSort('source', 'owedTotal')">
+                      Owed <i class="bi" [ngClass]="sortIcon('source', 'owedTotal')"></i>
+                    </th>
+                    <th class="text-center">Sched</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (team of sortedFilteredSourceTeams(); track team.teamId; let i = $index) {
+                    <tr [class.table-active]="sourceSelected().has(team.teamId)"
+                        [class.text-body-tertiary]="!team.active">
+                      <td class="col-check frozen frozen-0">
+                        <input type="checkbox" class="form-check-input"
+                               [checked]="sourceSelected().has(team.teamId)"
+                               (change)="toggleSourceSelect(team.teamId)" />
+                      </td>
+                      <td class="col-rownum frozen frozen-1 text-body-secondary">{{ i + 1 }}</td>
+                      <td class="col-swap frozen frozen-2">
+                        <button class="btn btn-sm btn-outline-primary swap-btn"
+                                [disabled]="!targetDivId() || swappingId() === team.teamId"
+                                (click)="swapToTarget(team)"
+                                title="Move to target division">
+                          @if (swappingId() === team.teamId) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-arrow-right"></i>
+                          }
+                        </button>
+                      </td>
+                      <td class="col-name frozen frozen-3 text-nowrap">{{ team.teamName }}</td>
+                      <td class="col-active frozen frozen-4">
+                        <div class="form-check form-switch d-inline-block mb-0">
+                          <input class="form-check-input" type="checkbox" role="switch"
+                                 [checked]="team.active"
+                                 (change)="toggleActive(team)" />
+                        </div>
+                      </td>
+                      <td class="text-nowrap">{{ team.clubName }}</td>
+                      <td class="text-center">{{ team.rosterCount }}/{{ team.maxCount }}</td>
+                      <td class="text-center">
+                        @if (editingDivRankTeamId() === team.teamId) {
+                          <select class="form-select form-select-sm inline-rank-select"
+                                  [ngModel]="editingDivRankValue()"
+                                  (ngModelChange)="editingDivRankValue.set($event)"
+                                  (change)="saveDivRankEdit(team)">
+                            @for (rank of sourceRankOptions(); track rank) {
+                              <option [ngValue]="rank">{{ rank }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <span class="editable-rank" (click)="startDivRankEdit(team)"
+                                title="Click to edit rank">{{ team.divRank }}</span>
+                        }
+                      </td>
+                      <td class="text-end text-nowrap">{{ team.feeTotal | currency }}</td>
+                      <td class="text-end text-nowrap">{{ team.owedTotal | currency }}</td>
+                      <td class="text-center">
+                        @if (team.isScheduled) {
+                          <i class="bi bi-calendar-check text-primary" title="Has scheduled games"></i>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else if (sourceDivId()) {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+              No teams in this division
+            </div>
+          } @else {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-arrow-up-circle fs-3 d-block mb-1"></i>
+              Select a source division
+            </div>
+          }
+        </div>
+
+        <div class="panel-footer">
+          <button class="btn btn-primary btn-sm"
+                  [disabled]="sourceSelected().size === 0 || !targetDivId() || isLoadingPreview()"
+                  (click)="moveSelectedToTarget()">
+            @if (isLoadingPreview() && transferDirection() === 'source-to-target') {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            Move Selected <i class="bi bi-arrow-right"></i> ({{ sourceSelected().size }})
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── TARGET PANEL ─── -->
+      <div class="pool-panel">
+        <div class="panel-header">
+          <label class="form-label fw-semibold text-uppercase small mb-1">Target Division</label>
+          <select class="form-select form-select-sm"
+                  [ngModel]="targetDivId()"
+                  (ngModelChange)="onTargetDivChange($event)">
+            <option [ngValue]="null" disabled>Select a division...</option>
+            @for (group of groupedDivisionOptions(); track group.label) {
+              <optgroup [label]="group.label">
+                @for (div of group.divisions; track div.divId) {
+                  <option [value]="div.divId"
+                          [disabled]="div.divId === sourceDivId()">
+                    {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
+                    ({{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }})
+                  </option>
+                }
+              </optgroup>
+            }
+          </select>
+
+          <!-- Capacity bar -->
+          @if (targetDiv() && targetDiv()!.maxTeams > 0) {
+            <div class="capacity-bar mt-1">
+              <div class="capacity-fill"
+                   [style.width.%]="capacityPercent(targetDiv())"
+                   [style.background]="capacityColor(targetDiv())">
+              </div>
+            </div>
+            <small class="text-body-secondary">
+              {{ targetDiv()!.teamCount }}/{{ targetDiv()!.maxTeams }} teams
+            </small>
+          }
+
+          <!-- Filter -->
+          @if (targetTeams().length > 0) {
+            <input type="text" class="form-control form-control-sm mt-2"
+                   placeholder="Filter teams..."
+                   [ngModel]="targetFilter()"
+                   (ngModelChange)="targetFilter.set($event)" />
+          }
+        </div>
+
+        <div class="panel-body">
+          @if (targetDivId() && sortedFilteredTargetTeams().length > 0) {
+            <div class="table-scroll-wrapper">
+              <table class="table table-sm table-hover mb-0 pool-table">
+                <thead>
+                  <tr>
+                    <th class="col-check frozen frozen-0">
+                      <input type="checkbox" class="form-check-input"
+                             [checked]="targetSelected().size > 0 && targetSelected().size === sortedFilteredTargetTeams().length"
+                             (change)="targetSelected().size === sortedFilteredTargetTeams().length ? deselectAllTarget() : selectAllTarget()" />
+                    </th>
+                    <th class="col-rownum frozen frozen-1">#</th>
+                    <th class="col-swap frozen frozen-2"></th>
+                    <th class="col-name frozen frozen-3 sortable" (click)="onSort('target', 'teamName')">
+                      Team <i class="bi" [ngClass]="sortIcon('target', 'teamName')"></i>
+                    </th>
+                    <th class="col-active frozen frozen-4 sortable" (click)="onSort('target', 'active')">
+                      Active <i class="bi" [ngClass]="sortIcon('target', 'active')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'clubName')">
+                      Club <i class="bi" [ngClass]="sortIcon('target', 'clubName')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('target', 'rosterCount')">
+                      Roster <i class="bi" [ngClass]="sortIcon('target', 'rosterCount')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('target', 'divRank')">
+                      Rank <i class="bi" [ngClass]="sortIcon('target', 'divRank')"></i>
+                    </th>
+                    <th class="text-end sortable" (click)="onSort('target', 'feeTotal')">
+                      Fee <i class="bi" [ngClass]="sortIcon('target', 'feeTotal')"></i>
+                    </th>
+                    <th class="text-end sortable" (click)="onSort('target', 'owedTotal')">
+                      Owed <i class="bi" [ngClass]="sortIcon('target', 'owedTotal')"></i>
+                    </th>
+                    <th class="text-center">Sched</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (team of sortedFilteredTargetTeams(); track team.teamId; let i = $index) {
+                    <tr [class.table-active]="targetSelected().has(team.teamId)"
+                        [class.text-body-tertiary]="!team.active">
+                      <td class="col-check frozen frozen-0">
+                        <input type="checkbox" class="form-check-input"
+                               [checked]="targetSelected().has(team.teamId)"
+                               (change)="toggleTargetSelect(team.teamId)" />
+                      </td>
+                      <td class="col-rownum frozen frozen-1 text-body-secondary">{{ i + 1 }}</td>
+                      <td class="col-swap frozen frozen-2">
+                        <button class="btn btn-sm btn-outline-primary swap-btn"
+                                [disabled]="!sourceDivId() || swappingId() === team.teamId"
+                                (click)="swapToSource(team)"
+                                title="Move to source division">
+                          @if (swappingId() === team.teamId) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-arrow-left"></i>
+                          }
+                        </button>
+                      </td>
+                      <td class="col-name frozen frozen-3 text-nowrap">{{ team.teamName }}</td>
+                      <td class="col-active frozen frozen-4">
+                        <div class="form-check form-switch d-inline-block mb-0">
+                          <input class="form-check-input" type="checkbox" role="switch"
+                                 [checked]="team.active"
+                                 (change)="toggleActive(team)" />
+                        </div>
+                      </td>
+                      <td class="text-nowrap">{{ team.clubName }}</td>
+                      <td class="text-center">{{ team.rosterCount }}/{{ team.maxCount }}</td>
+                      <td class="text-center">
+                        @if (editingDivRankTeamId() === team.teamId) {
+                          <select class="form-select form-select-sm inline-rank-select"
+                                  [ngModel]="editingDivRankValue()"
+                                  (ngModelChange)="editingDivRankValue.set($event)"
+                                  (change)="saveDivRankEdit(team)">
+                            @for (rank of targetRankOptions(); track rank) {
+                              <option [ngValue]="rank">{{ rank }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <span class="editable-rank" (click)="startDivRankEdit(team)"
+                                title="Click to edit rank">{{ team.divRank }}</span>
+                        }
+                      </td>
+                      <td class="text-end text-nowrap">{{ team.feeTotal | currency }}</td>
+                      <td class="text-end text-nowrap">{{ team.owedTotal | currency }}</td>
+                      <td class="text-center">
+                        @if (team.isScheduled) {
+                          <i class="bi bi-calendar-check text-primary" title="Has scheduled games"></i>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else if (targetDivId()) {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+              No teams in this division
+            </div>
+          } @else {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-arrow-up-circle fs-3 d-block mb-1"></i>
+              Select a target division
+            </div>
+          }
+        </div>
+
+        <div class="panel-footer">
+          <button class="btn btn-primary btn-sm"
+                  [disabled]="targetSelected().size === 0 || !sourceDivId() || isLoadingPreview()"
+                  (click)="moveSelectedToSource()">
+            @if (isLoadingPreview() && transferDirection() === 'target-to-source') {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-arrow-left"></i> Move Selected ({{ targetSelected().size }})
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── TRANSFER PREVIEW PANEL ─── -->
+    @if (transferPreview()) {
+      <div class="transfer-preview-panel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Transfer Preview</h6>
+          <button class="btn-close btn-close-sm" (click)="cancelTransferPreview()" aria-label="Close"></button>
+        </div>
+
+        @if (transferPreview()!.requiresSymmetricalSwap && !canConfirmTransfer()) {
+          <div class="alert alert-warning py-2 small mb-2">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <strong>Symmetrical swap required</strong> — some teams have scheduled games.
+            Select an equal number of teams from the other panel, then click "Update Preview".
+          </div>
+          <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-sm btn-outline-primary" (click)="updatePreview()"
+                    [disabled]="isLoadingPreview()">
+              @if (isLoadingPreview()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Update Preview
+            </button>
+          </div>
+        }
+
+        @if (transferPreview()!.teams.length > 0) {
+          <div class="table-responsive">
+            <table class="table table-sm mb-2">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th class="text-center">Direction</th>
+                  <th class="text-end">Current Fee</th>
+                  <th class="text-end">New Fee</th>
+                  <th class="text-end">Delta</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (tp of transferPreview()!.teams; track tp.teamId) {
+                  <tr>
+                    <td class="text-nowrap">{{ tp.teamName }}</td>
+                    <td class="text-center">
+                      @if (tp.direction === 'forward') {
+                        <i class="bi bi-arrow-right text-primary"></i>
+                      } @else {
+                        <i class="bi bi-arrow-left text-info"></i>
+                      }
+                    </td>
+                    <td class="text-end">{{ tp.currentFeeTotal | currency }}</td>
+                    <td class="text-end">{{ tp.newFeeTotal | currency }}</td>
+                    <td class="text-end"
+                        [class.text-danger]="tp.feeDelta > 0"
+                        [class.text-success]="tp.feeDelta < 0">
+                      {{ tp.feeDelta >= 0 ? '+' : '' }}{{ tp.feeDelta | currency }}
+                    </td>
+                    <td>
+                      @if (tp.warning) {
+                        <span class="badge bg-warning-subtle text-warning-emphasis" [title]="tp.warning">
+                          <i class="bi bi-exclamation-triangle"></i>
+                        </span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        @if (transferPreview()!.clubRepImpacts.length > 0) {
+          <div class="club-rep-impact">
+            <h6 class="small fw-semibold text-uppercase mb-1">Club Rep Impact</h6>
+            @for (cr of transferPreview()!.clubRepImpacts; track cr.clubRepRegistrationId) {
+              <div class="d-flex justify-content-between small">
+                <span>{{ cr.clubName }}</span>
+                <span>
+                  {{ cr.currentTotal | currency }} &rarr; {{ cr.newTotal | currency }}
+                  <span [class.text-danger]="cr.delta > 0" [class.text-success]="cr.delta < 0">
+                    ({{ cr.delta >= 0 ? '+' : '' }}{{ cr.delta | currency }})
+                  </span>
+                </span>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button class="btn btn-sm btn-outline-secondary" (click)="cancelTransferPreview()">Cancel</button>
+          <button class="btn btn-sm btn-primary"
+                  [disabled]="!canConfirmTransfer()"
+                  (click)="confirmTransfer()">
+            @if (isTransferring()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            Confirm Transfer
+          </button>
+        </div>
+      </div>
+    }
+
+  }
+</div>

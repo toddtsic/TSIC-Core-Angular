@@ -32,6 +32,13 @@ public interface IDivisionRepository
     /// </summary>
     Task<bool> BelongsToJobAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Get all divisions for a job grouped by agegroup (for Pool Assignment dropdown).
+    /// Joins Division -> Agegroup -> League -> JobLeagues to filter by job.
+    /// </summary>
+    Task<List<Dtos.PoolAssignment.PoolDivisionOptionDto>> GetPoolAssignmentOptionsAsync(
+        Guid jobId, CancellationToken cancellationToken = default);
+
     void Add(Divisions division);
     void Remove(Divisions division);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

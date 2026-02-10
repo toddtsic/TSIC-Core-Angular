@@ -132,6 +132,20 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
+			},
+			// Pool Assignment
+			{
+				path: 'admin/pool-assignment',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
+			},
+			// Legacy-compatible route for Pool Assignment
+			{
+				path: 'teampoolassignment/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
 			}
 		]
 	},

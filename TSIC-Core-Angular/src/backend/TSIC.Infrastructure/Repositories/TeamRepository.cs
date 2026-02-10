@@ -415,6 +415,14 @@ public class TeamRepository : ITeamRepository
         return maxRank ?? 0;
     }
 
+    public async Task<int> GetNextDivRankAsync(Guid divId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.DivId == divId && t.Active == true)
+            .CountAsync(cancellationToken) + 1;
+    }
+
     public async Task<bool> HasRosteredPlayersAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
@@ -503,6 +511,94 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams
             .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId)
             .ToListAsync(ct);
+    }
+
+    // ── Pool Assignment methods ──
+
+    public async Task<List<Contracts.Dtos.PoolAssignment.PoolTeamDto>> GetPoolAssignmentTeamsAsync(
+        Guid divId, Guid jobId, CancellationToken ct = default)
+    {
+        var clubNames = await GetClubNamesByJobAsync(jobId, ct);
+        var scheduledTeamIds = await GetScheduledTeamIdsAsync(jobId, ct);
+
+        var rawTeams = await _context.Teams
+            .AsNoTracking()
+            .Include(t => t.Agegroup)
+            .Include(t => t.Div)
+            .Where(t => t.JobId == jobId && t.DivId == divId)
+            .Select(t => new
+            {
+                t.TeamId,
+                TeamName = t.TeamName ?? "Unnamed Team",
+                t.AgegroupId,
+                AgegroupName = t.Agegroup.AgegroupName ?? "",
+                DivId = t.DivId,
+                DivName = t.Div != null ? t.Div.DivName : null,
+                Active = t.Active ?? true,
+                t.DivRank,
+                t.MaxCount,
+                FeeBase = t.FeeBase ?? 0m,
+                FeeTotal = t.FeeTotal ?? 0m,
+                OwedTotal = t.OwedTotal ?? 0m,
+                RosterCount = _context.Registrations.Count(r => r.AssignedTeamId == t.TeamId && r.JobId == jobId)
+            })
+            .OrderBy(t => t.DivRank)
+            .ThenBy(t => t.TeamName)
+            .ToListAsync(ct);
+
+        return rawTeams.Select(t => new Contracts.Dtos.PoolAssignment.PoolTeamDto
+        {
+            TeamId = t.TeamId,
+            TeamName = t.TeamName,
+            ClubName = clubNames.GetValueOrDefault(t.TeamId),
+            Active = t.Active,
+            DivRank = t.DivRank,
+            RosterCount = t.RosterCount,
+            MaxCount = t.MaxCount,
+            FeeBase = t.FeeBase,
+            FeeTotal = t.FeeTotal,
+            OwedTotal = t.OwedTotal,
+            IsScheduled = scheduledTeamIds.Contains(t.TeamId),
+            AgegroupId = t.AgegroupId,
+            AgegroupName = t.AgegroupName,
+            DivId = t.DivId,
+            DivName = t.DivName
+        }).ToList();
+    }
+
+    public async Task<List<Teams>> GetTeamsForPoolTransferAsync(
+        List<Guid> teamIds, Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .Include(t => t.Agegroup)
+            .Include(t => t.Div)
+            .Include(t => t.Job)
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .ToListAsync(ct);
+    }
+
+    public async Task RenumberDivRanksAsync(Guid divId, CancellationToken ct = default)
+    {
+        var teams = await _context.Teams
+            .Where(t => t.DivId == divId && t.Active == true)
+            .OrderBy(t => t.DivRank)
+            .ThenBy(t => t.TeamName)
+            .ToListAsync(ct);
+
+        for (int i = 0; i < teams.Count; i++)
+        {
+            teams[i].DivRank = i + 1;
+        }
+
+        if (teams.Count > 0)
+            await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<Teams?> GetTeamByDivRankAsync(Guid divId, int divRank, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .Where(t => t.DivId == divId && t.DivRank == divRank && t.Active == true)
+            .FirstOrDefaultAsync(ct);
     }
 
     // ── Roster Swapper methods ──

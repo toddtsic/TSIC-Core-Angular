@@ -136,6 +136,7 @@ builder.Services.AddScoped<IAdministratorService, AdministratorService>();
 builder.Services.AddScoped<IDiscountCodeService, DiscountCodeService>();
 builder.Services.AddScoped<ILadtService, LadtService>();
 builder.Services.AddScoped<IRosterSwapperService, RosterSwapperService>();
+builder.Services.AddScoped<IPoolAssignmentService, PoolAssignmentService>();
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));

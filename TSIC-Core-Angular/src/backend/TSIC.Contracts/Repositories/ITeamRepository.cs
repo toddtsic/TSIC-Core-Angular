@@ -235,6 +235,12 @@ public interface ITeamRepository
     Task<int> GetMaxDivRankAsync(Guid divId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the next available DivRank for a division (active team count + 1).
+    /// Preferred over GetMaxDivRankAsync for new team creation to ensure contiguous ranking.
+    /// </summary>
+    Task<int> GetNextDivRankAsync(Guid divId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check if a team has any rostered players (for delete validation).
     /// </summary>
     Task<bool> HasRosteredPlayersAsync(Guid teamId, CancellationToken cancellationToken = default);
@@ -283,6 +289,31 @@ public interface ITeamRepository
     /// Returns tracked entities for in-place updates.
     /// </summary>
     Task<List<Teams>> GetTeamsByClubRepRegistrationAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
+
+    // ── Pool Assignment methods ──
+
+    /// <summary>
+    /// Get teams for a division with club names, roster counts, and schedule status.
+    /// </summary>
+    Task<List<Dtos.PoolAssignment.PoolTeamDto>> GetPoolAssignmentTeamsAsync(
+        Guid divId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get tracked team entities for transfer mutation.
+    /// </summary>
+    Task<List<Teams>> GetTeamsForPoolTransferAsync(
+        List<Guid> teamIds, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Renumber DivRanks sequentially for active teams in a division (1, 2, 3, ...).
+    /// </summary>
+    Task RenumberDivRanksAsync(Guid divId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the active team that currently holds a specific DivRank in a division.
+    /// Returns tracked entity for swap mutation. Null if no team at that rank.
+    /// </summary>
+    Task<Teams?> GetTeamByDivRankAsync(Guid divId, int divRank, CancellationToken ct = default);
 
     // ── Roster Swapper methods ──
 

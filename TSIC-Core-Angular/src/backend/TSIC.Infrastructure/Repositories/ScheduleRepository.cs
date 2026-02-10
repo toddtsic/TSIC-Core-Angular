@@ -64,4 +64,32 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (schedules.Count > 0)
             await _context.SaveChangesAsync(ct);
     }
+
+    public async Task<int> SynchronizeScheduleDivisionForTeamAsync(
+        Guid teamId, Guid jobId, Guid newAgegroupId, string newAgegroupName,
+        Guid newDivId, string newDivName, CancellationToken ct = default)
+    {
+        var schedules = await _context.Schedule
+            .Where(s => s.JobId == jobId
+                && ((s.T1Id == teamId && s.T1Type == "T")
+                 || (s.T2Id == teamId && s.T2Type == "T")))
+            .ToListAsync(ct);
+
+        foreach (var s in schedules)
+        {
+            // Update the game's grouping when this team is T1 (home)
+            if (s.T1Id == teamId)
+            {
+                s.AgegroupId = newAgegroupId;
+                s.AgegroupName = newAgegroupName;
+                s.DivId = newDivId;
+                s.DivName = newDivName;
+            }
+        }
+
+        if (schedules.Count > 0)
+            await _context.SaveChangesAsync(ct);
+
+        return schedules.Count;
+    }
 }

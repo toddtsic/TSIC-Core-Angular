@@ -527,7 +527,7 @@ public sealed class LadtService : ILadtService
         var ag = await _agegroupRepo.GetByIdAsync(div.AgegroupId, cancellationToken)
             ?? throw new KeyNotFoundException($"Agegroup {div.AgegroupId} not found.");
 
-        var maxRank = await _teamRepo.GetMaxDivRankAsync(request.DivId, cancellationToken);
+        var nextRank = await _teamRepo.GetNextDivRankAsync(request.DivId, cancellationToken);
         var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
 
         var team = new TSIC.Domain.Entities.Teams
@@ -539,7 +539,7 @@ public sealed class LadtService : ILadtService
             DivId = request.DivId,
             TeamName = request.TeamName,
             Active = request.Active ?? true,
-            DivRank = maxRank + 1,
+            DivRank = nextRank,
             DivisionRequested = request.DivisionRequested,
             Color = request.Color,
             MaxCount = request.MaxCount,
@@ -648,9 +648,14 @@ public sealed class LadtService : ILadtService
             // Soft delete: set Active = false (players are still assigned)
             var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Team {teamId} not found.");
+            var divId = team.DivId;
             team.Active = false;
             team.Modified = DateTime.UtcNow;
             await _teamRepo.SaveChangesAsync(cancellationToken);
+
+            // Renumber remaining active teams to maintain contiguous 1..N ranking
+            if (divId.HasValue)
+                await _teamRepo.RenumberDivRanksAsync(divId.Value, cancellationToken);
 
             return new DeleteTeamResultDto
             {
@@ -661,8 +666,13 @@ public sealed class LadtService : ILadtService
 
         var teamToDelete = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
+        var deletedDivId = teamToDelete.DivId;
         _teamRepo.Remove(teamToDelete);
         await _teamRepo.SaveChangesAsync(cancellationToken);
+
+        // Renumber remaining active teams to maintain contiguous 1..N ranking
+        if (deletedDivId.HasValue)
+            await _teamRepo.RenumberDivRanksAsync(deletedDivId.Value, cancellationToken);
 
         return new DeleteTeamResultDto
         {
@@ -683,12 +693,19 @@ public sealed class LadtService : ILadtService
         var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
         var hasPayments = await _regAcctRepo.HasPaymentsForTeamAsync(teamId, cancellationToken);
 
+        // Capture source division for renumbering after removal
+        var sourceDivId = team.DivId;
+
         // Hard delete: no players, no payments, no schedule — clean team with no footprint
         if (!isScheduled && playerCount == 0 && !hasPayments)
         {
             var clubRepRegId = team.ClubrepRegistrationid;
             _teamRepo.Remove(team);
             await _teamRepo.SaveChangesAsync(cancellationToken);
+
+            // Renumber remaining active teams to maintain contiguous 1..N ranking
+            if (sourceDivId.HasValue)
+                await _teamRepo.RenumberDivRanksAsync(sourceDivId.Value, cancellationToken);
 
             // Recalculate club rep financials since team fees were baked in
             if (clubRepRegId.HasValue)
@@ -722,6 +739,10 @@ public sealed class LadtService : ILadtService
         team.Modified = DateTime.UtcNow;
 
         await _teamRepo.SaveChangesAsync(cancellationToken);
+
+        // Renumber source division to maintain contiguous 1..N ranking
+        if (sourceDivId.HasValue)
+            await _teamRepo.RenumberDivRanksAsync(sourceDivId.Value, cancellationToken);
 
         // Recalculate club rep financials after fee zeroing
         if (team.ClubrepRegistrationid.HasValue)
@@ -789,9 +810,9 @@ public sealed class LadtService : ILadtService
         var source = await _teamRepo.GetByIdReadOnlyAsync(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
 
-        var maxRank = source.DivId.HasValue
-            ? await _teamRepo.GetMaxDivRankAsync(source.DivId.Value, cancellationToken)
-            : 0;
+        var nextRank = source.DivId.HasValue
+            ? await _teamRepo.GetNextDivRankAsync(source.DivId.Value, cancellationToken)
+            : 1;
 
         var clone = new TSIC.Domain.Entities.Teams
         {
@@ -802,7 +823,7 @@ public sealed class LadtService : ILadtService
             DivId = source.DivId,
             TeamName = request.TeamName,
             Active = true,
-            DivRank = maxRank + 1,
+            DivRank = nextRank,
             DivisionRequested = source.DivisionRequested,
             Color = source.Color,
             MaxCount = source.MaxCount,
@@ -891,7 +912,7 @@ public sealed class LadtService : ILadtService
         var ag = await _agegroupRepo.GetByIdAsync(div.AgegroupId, cancellationToken)
             ?? throw new KeyNotFoundException($"Agegroup {div.AgegroupId} not found.");
 
-        var maxRank = await _teamRepo.GetMaxDivRankAsync(divId, cancellationToken);
+        var nextRank = await _teamRepo.GetNextDivRankAsync(divId, cancellationToken);
         var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
 
         var team = new TSIC.Domain.Entities.Teams
@@ -903,7 +924,7 @@ public sealed class LadtService : ILadtService
             DivId = divId,
             TeamName = string.IsNullOrWhiteSpace(name) ? "New Team" : name.Trim(),
             Active = true,
-            DivRank = maxRank + 1,
+            DivRank = nextRank,
             Season = jobSY?.Season,
             Year = jobSY?.Year,
             MaxCount = 0,
