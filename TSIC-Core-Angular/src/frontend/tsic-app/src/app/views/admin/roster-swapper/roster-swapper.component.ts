@@ -5,14 +5,16 @@ import { ToastService } from '@shared-ui/toast.service';
 import {
     RosterSwapperService,
     SwapperPoolOptionDto,
-    SwapperPlayerDto,
-    RosterTransferFeePreviewDto
+    SwapperPlayerDto
 } from './services/roster-swapper.service';
 
 interface PoolGroup {
     label: string;
     pools: SwapperPoolOptionDto[];
 }
+
+type SortDir = 'asc' | 'desc' | null;
+type SortColumn = keyof SwapperPlayerDto | null;
 
 @Component({
     selector: 'app-roster-swapper',
@@ -36,8 +38,10 @@ export class RosterSwapperComponent {
     readonly sourceRoster = signal<SwapperPlayerDto[]>([]);
     readonly sourceSelected = signal<Set<string>>(new Set());
     readonly sourceFilter = signal('');
-    readonly filteredSourceRoster = computed(() =>
-        this.filterPlayers(this.sourceRoster(), this.sourceFilter()));
+    readonly sourceSortCol = signal<SortColumn>(null);
+    readonly sourceSortDir = signal<SortDir>(null);
+    readonly sortedFilteredSourceRoster = computed(() =>
+        this.sortPlayers(this.filterPlayers(this.sourceRoster(), this.sourceFilter()), this.sourceSortCol(), this.sourceSortDir()));
     readonly isSourceUnassigned = computed(() => this.sourcePool()?.isUnassignedAdultsPool ?? false);
 
     // Target panel
@@ -46,53 +50,18 @@ export class RosterSwapperComponent {
     readonly targetRoster = signal<SwapperPlayerDto[]>([]);
     readonly targetSelected = signal<Set<string>>(new Set());
     readonly targetFilter = signal('');
-    readonly filteredTargetRoster = computed(() =>
-        this.filterPlayers(this.targetRoster(), this.targetFilter()));
+    readonly targetSortCol = signal<SortColumn>(null);
+    readonly targetSortDir = signal<SortDir>(null);
+    readonly sortedFilteredTargetRoster = computed(() =>
+        this.sortPlayers(this.filterPlayers(this.targetRoster(), this.targetFilter()), this.targetSortCol(), this.targetSortDir()));
     readonly isTargetUnassigned = computed(() => this.targetPool()?.isUnassignedAdultsPool ?? false);
 
     // Transfer state
-    readonly feePreview = signal<RosterTransferFeePreviewDto[] | null>(null);
-    readonly transferDirection = signal<'source-to-target' | 'target-to-source'>('source-to-target');
-    readonly isTransferring = signal(false);
-    readonly isLoadingPreview = signal(false);
-    readonly showTransferConfirm = signal(false);
+    readonly swappingId = signal<string | null>(null); // registrationId currently being swapped
+    readonly isBatchSwapping = signal(false);
 
     // General
     readonly isLoading = signal(false);
-
-    // Transfer type detection
-    readonly transferType = computed(() => {
-        const dir = this.transferDirection();
-        const srcUnassigned = dir === 'source-to-target' ? this.isSourceUnassigned() : this.isTargetUnassigned();
-        const tgtUnassigned = dir === 'source-to-target' ? this.isTargetUnassigned() : this.isSourceUnassigned();
-        if (srcUnassigned && !tgtUnassigned) return 'staff-create';
-        if (!srcUnassigned && tgtUnassigned) return 'staff-delete';
-        return 'player-swap';
-    });
-
-    readonly confirmMessage = computed(() => {
-        const preview = this.feePreview();
-        if (!preview || preview.length === 0) return '';
-        const dir = this.transferDirection();
-        const srcName = dir === 'source-to-target'
-            ? (this.sourcePool()?.poolName ?? 'Source')
-            : (this.targetPool()?.poolName ?? 'Target');
-        const tgtName = dir === 'source-to-target'
-            ? (this.targetPool()?.poolName ?? 'Target')
-            : (this.sourcePool()?.poolName ?? 'Source');
-        const count = preview.length;
-        const type = preview[0]?.transferType ?? 'player-swap';
-        switch (type) {
-            case 'staff-create':
-                return `Assign ${count} coach(es) to ${tgtName}. New Staff registrations will be created. Original Unassigned Adult records are preserved.`;
-            case 'staff-delete':
-                return `Remove ${count} staff from ${srcName}. Staff registrations will be deleted. Original Unassigned Adult records remain in the pool.`;
-            case 'staff-move':
-                return `Move ${count} staff from ${srcName} to ${tgtName}.`;
-            default:
-                return `Move ${count} player(s) from ${srcName} to ${tgtName}. Fees will be recalculated.`;
-        }
-    });
 
     constructor() {
         this.loadPoolOptions();
@@ -116,7 +85,8 @@ export class RosterSwapperComponent {
         this.sourcePoolId.set(poolId);
         this.sourceSelected.set(new Set());
         this.sourceFilter.set('');
-        this.feePreview.set(null);
+        this.sourceSortCol.set(null);
+        this.sourceSortDir.set(null);
         if (!poolId) {
             this.sourceRoster.set([]);
             return;
@@ -128,7 +98,8 @@ export class RosterSwapperComponent {
         this.targetPoolId.set(poolId);
         this.targetSelected.set(new Set());
         this.targetFilter.set('');
-        this.feePreview.set(null);
+        this.targetSortCol.set(null);
+        this.targetSortDir.set(null);
         if (!poolId) {
             this.targetRoster.set([]);
             return;
@@ -148,6 +119,54 @@ export class RosterSwapperComponent {
         });
     }
 
+    // ── Sorting ──
+
+    onSort(panel: 'source' | 'target', col: SortColumn) {
+        const currentCol = panel === 'source' ? this.sourceSortCol() : this.targetSortCol();
+        const currentDir = panel === 'source' ? this.sourceSortDir() : this.targetSortDir();
+
+        let newDir: SortDir;
+        if (currentCol !== col) {
+            newDir = 'asc';
+        } else if (currentDir === 'asc') {
+            newDir = 'desc';
+        } else {
+            newDir = null;
+        }
+
+        if (panel === 'source') {
+            this.sourceSortCol.set(newDir ? col : null);
+            this.sourceSortDir.set(newDir);
+        } else {
+            this.targetSortCol.set(newDir ? col : null);
+            this.targetSortDir.set(newDir);
+        }
+    }
+
+    private sortPlayers(roster: SwapperPlayerDto[], col: SortColumn, dir: SortDir): SwapperPlayerDto[] {
+        if (!col || !dir) return roster;
+        const mult = dir === 'asc' ? 1 : -1;
+        return [...roster].sort((a, b) => {
+            const aVal = a[col];
+            const bVal = b[col];
+            if (aVal == null && bVal == null) return 0;
+            if (aVal == null) return 1;
+            if (bVal == null) return -1;
+            if (typeof aVal === 'string' && typeof bVal === 'string') {
+                return aVal.localeCompare(bVal) * mult;
+            }
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return (aVal - bVal) * mult;
+            }
+            if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+                return ((aVal ? 1 : 0) - (bVal ? 1 : 0)) * mult;
+            }
+            return String(aVal).localeCompare(String(bVal)) * mult;
+        });
+    }
+
+    // ── Selection ──
+
     toggleSourceSelect(regId: string) {
         const current = new Set(this.sourceSelected());
         if (current.has(regId)) current.delete(regId);
@@ -163,7 +182,7 @@ export class RosterSwapperComponent {
     }
 
     selectAllSource() {
-        this.sourceSelected.set(new Set(this.filteredSourceRoster().map(p => p.registrationId)));
+        this.sourceSelected.set(new Set(this.sortedFilteredSourceRoster().map(p => p.registrationId)));
     }
 
     deselectAllSource() {
@@ -171,71 +190,67 @@ export class RosterSwapperComponent {
     }
 
     selectAllTarget() {
-        this.targetSelected.set(new Set(this.filteredTargetRoster().map(p => p.registrationId)));
+        this.targetSelected.set(new Set(this.sortedFilteredTargetRoster().map(p => p.registrationId)));
     }
 
     deselectAllTarget() {
         this.targetSelected.set(new Set());
     }
 
-    moveSourceToTarget() {
+    // ── Single-row swap ──
+
+    swapToTarget(player: SwapperPlayerDto) {
+        if (!this.targetPoolId() || !this.sourcePoolId()) {
+            this.toast.show('Select a target team first.', 'warning');
+            return;
+        }
+        this.executeSwap([player.registrationId], this.sourcePoolId()!, this.targetPoolId()!, player.playerName);
+    }
+
+    swapToSource(player: SwapperPlayerDto) {
+        if (!this.sourcePoolId() || !this.targetPoolId()) {
+            this.toast.show('Select a source team first.', 'warning');
+            return;
+        }
+        this.executeSwap([player.registrationId], this.targetPoolId()!, this.sourcePoolId()!, player.playerName);
+    }
+
+    // ── Batch swap ──
+
+    swapSelectedToTarget() {
         if (this.sourceSelected().size === 0 || !this.sourcePoolId() || !this.targetPoolId()) return;
-        this.transferDirection.set('source-to-target');
-        this.requestPreview(Array.from(this.sourceSelected()), this.sourcePoolId()!, this.targetPoolId()!);
+        this.isBatchSwapping.set(true);
+        this.executeSwap(
+            Array.from(this.sourceSelected()),
+            this.sourcePoolId()!,
+            this.targetPoolId()!
+        );
     }
 
-    moveTargetToSource() {
+    swapSelectedToSource() {
         if (this.targetSelected().size === 0 || !this.targetPoolId() || !this.sourcePoolId()) return;
-        this.transferDirection.set('target-to-source');
-        this.requestPreview(Array.from(this.targetSelected()), this.targetPoolId()!, this.sourcePoolId()!);
+        this.isBatchSwapping.set(true);
+        this.executeSwap(
+            Array.from(this.targetSelected()),
+            this.targetPoolId()!,
+            this.sourcePoolId()!
+        );
     }
 
-    private requestPreview(regIds: string[], sourcePoolId: string, targetPoolId: string) {
-        this.isLoadingPreview.set(true);
-        this.swapperService.previewTransfer({
+    private executeSwap(regIds: string[], sourcePoolId: string, targetPoolId: string, playerName?: string) {
+        if (regIds.length === 1) this.swappingId.set(regIds[0]);
+
+        this.swapperService.executeTransfer({
             registrationIds: regIds,
             sourcePoolId,
             targetPoolId
         }).subscribe({
-            next: preview => {
-                this.feePreview.set(preview);
-                this.isLoadingPreview.set(false);
-                this.showTransferConfirm.set(true);
-            },
-            error: err => {
-                this.toast.show(err?.error?.message || 'Failed to generate transfer preview.', 'danger', 4000);
-                this.isLoadingPreview.set(false);
-            }
-        });
-    }
-
-    confirmTransfer() {
-        const preview = this.feePreview();
-        if (!preview) return;
-
-        const dir = this.transferDirection();
-        const sourceId = dir === 'source-to-target' ? this.sourcePoolId()! : this.targetPoolId()!;
-        const targetId = dir === 'source-to-target' ? this.targetPoolId()! : this.sourcePoolId()!;
-        const regIds = preview
-            .filter(p => p.transferType !== 'invalid' && !p.warning?.includes('will be skipped'))
-            .map(p => p.registrationId);
-
-        if (regIds.length === 0) {
-            this.toast.show('No valid registrations to transfer.', 'warning');
-            this.cancelTransfer();
-            return;
-        }
-
-        this.isTransferring.set(true);
-        this.swapperService.executeTransfer({
-            registrationIds: regIds,
-            sourcePoolId: sourceId,
-            targetPoolId: targetId
-        }).subscribe({
             next: result => {
-                this.toast.show(result.message, 'success', 3000);
-                this.isTransferring.set(false);
-                this.cancelTransfer();
+                this.toast.show(playerName ? `${playerName} swapped. ${result.message}` : result.message, 'success', 3000);
+                this.swappingId.set(null);
+                this.isBatchSwapping.set(false);
+                this.sourceSelected.set(new Set());
+                this.targetSelected.set(new Set());
                 // Reload both rosters
                 if (this.sourcePoolId()) this.loadRoster('source', this.sourcePoolId()!);
                 if (this.targetPoolId()) this.loadRoster('target', this.targetPoolId()!);
@@ -245,22 +260,19 @@ export class RosterSwapperComponent {
                 });
             },
             error: err => {
-                this.toast.show(err?.error?.message || 'Transfer failed.', 'danger', 4000);
-                this.isTransferring.set(false);
+                this.toast.show(err?.error?.message || 'Swap failed.', 'danger', 4000);
+                this.swappingId.set(null);
+                this.isBatchSwapping.set(false);
             }
         });
     }
 
-    cancelTransfer() {
-        this.feePreview.set(null);
-        this.showTransferConfirm.set(false);
-    }
+    // ── Active toggle ──
 
     toggleActive(player: SwapperPlayerDto) {
         const newActive = !player.bActive;
         this.swapperService.togglePlayerActive(player.registrationId, newActive).subscribe({
             next: () => {
-                // Update in-place
                 const updateRoster = (roster: SwapperPlayerDto[]) =>
                     roster.map(p => p.registrationId === player.registrationId
                         ? { ...p, bActive: newActive }
@@ -274,7 +286,8 @@ export class RosterSwapperComponent {
         });
     }
 
-    // Capacity bar helpers
+    // ── Helpers ──
+
     capacityPercent(pool: SwapperPoolOptionDto | null): number {
         if (!pool || pool.maxCount === 0) return 0;
         return Math.min(100, Math.round((pool.rosterCount / pool.maxCount) * 100));
@@ -287,16 +300,21 @@ export class RosterSwapperComponent {
         return 'var(--bs-success)';
     }
 
-    hasFeeImpact(): boolean {
-        const preview = this.feePreview();
-        if (!preview) return false;
-        return preview.some(p => p.feeDelta !== 0);
+    sortIcon(panel: 'source' | 'target', col: SortColumn): string {
+        const currentCol = panel === 'source' ? this.sourceSortCol() : this.targetSortCol();
+        const currentDir = panel === 'source' ? this.sourceSortDir() : this.targetSortDir();
+        if (currentCol !== col || !currentDir) return 'bi-chevron-expand';
+        return currentDir === 'asc' ? 'bi-sort-up' : 'bi-sort-down';
     }
 
     private filterPlayers(roster: SwapperPlayerDto[], filter: string): SwapperPlayerDto[] {
         if (!filter.trim()) return roster;
         const lower = filter.toLowerCase();
-        return roster.filter(p => p.playerName.toLowerCase().includes(lower));
+        return roster.filter(p =>
+            p.playerName.toLowerCase().includes(lower) ||
+            (p.school ?? '').toLowerCase().includes(lower) ||
+            (p.position ?? '').toLowerCase().includes(lower) ||
+            (p.requests ?? '').toLowerCase().includes(lower));
     }
 
     private groupByCategory(pools: SwapperPoolOptionDto[]): PoolGroup[] {

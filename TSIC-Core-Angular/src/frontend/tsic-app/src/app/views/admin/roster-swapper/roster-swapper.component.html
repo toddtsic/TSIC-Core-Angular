@@ -22,11 +22,11 @@
       <!-- ─── SOURCE PANEL ─── -->
       <div class="swapper-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Source Pool</label>
+          <label class="form-label fw-semibold text-uppercase small mb-1">Source Team</label>
           <select class="form-select form-select-sm"
                   [ngModel]="sourcePoolId()"
                   (ngModelChange)="onSourcePoolChange($event)">
-            <option [ngValue]="null" disabled>Select a pool...</option>
+            <option [ngValue]="null" disabled>Select a team...</option>
             @for (group of groupedPoolOptions(); track group.label) {
               <optgroup [label]="group.label">
                 @for (pool of group.pools; track pool.poolId) {
@@ -63,46 +63,103 @@
         </div>
 
         <div class="panel-body">
-          @if (sourcePoolId() && filteredSourceRoster().length > 0) {
-            <table class="table table-sm table-hover mb-0">
-              <thead>
-                <tr>
-                  <th class="col-check">
-                    <input type="checkbox" class="form-check-input"
-                           [checked]="sourceSelected().size > 0 && sourceSelected().size === filteredSourceRoster().length"
-                           (change)="sourceSelected().size === filteredSourceRoster().length ? deselectAllSource() : selectAllSource()" />
-                  </th>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th class="text-center">Active</th>
-                  <th class="text-end">Fee</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (player of filteredSourceRoster(); track player.registrationId) {
-                  <tr [class.table-active]="sourceSelected().has(player.registrationId)"
-                      [class.text-body-tertiary]="!player.bActive">
-                    <td>
+          @if (sourcePoolId() && sortedFilteredSourceRoster().length > 0) {
+            <div class="table-scroll-wrapper">
+              <table class="table table-sm table-hover mb-0 roster-table">
+                <thead>
+                  <tr>
+                    <th class="col-check frozen frozen-0">
                       <input type="checkbox" class="form-check-input"
-                             [checked]="sourceSelected().has(player.registrationId)"
-                             (change)="toggleSourceSelect(player.registrationId)" />
-                    </td>
-                    <td class="text-nowrap">{{ player.playerName }}</td>
-                    <td>
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ player.roleName }}</span>
-                    </td>
-                    <td class="text-center">
-                      <div class="form-check form-switch d-inline-block mb-0">
-                        <input class="form-check-input" type="checkbox" role="switch"
-                               [checked]="player.bActive"
-                               (change)="toggleActive(player)" />
-                      </div>
-                    </td>
-                    <td class="text-end text-nowrap">{{ player.feeTotal | currency }}</td>
+                             [checked]="sourceSelected().size > 0 && sourceSelected().size === sortedFilteredSourceRoster().length"
+                             (change)="sourceSelected().size === sortedFilteredSourceRoster().length ? deselectAllSource() : selectAllSource()" />
+                    </th>
+                    <th class="col-rownum frozen frozen-1">#</th>
+                    <th class="col-swap frozen frozen-2"></th>
+                    <th class="col-name frozen frozen-3 sortable" (click)="onSort('source', 'playerName')">
+                      Name <i class="bi" [ngClass]="sortIcon('source', 'playerName')"></i>
+                    </th>
+                    <th class="col-active frozen frozen-4 sortable" (click)="onSort('source', 'bActive')">
+                      Active <i class="bi" [ngClass]="sortIcon('source', 'bActive')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'school')">
+                      School <i class="bi" [ngClass]="sortIcon('source', 'school')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('source', 'grade')">
+                      Grade <i class="bi" [ngClass]="sortIcon('source', 'grade')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('source', 'gradYear')">
+                      GradYr <i class="bi" [ngClass]="sortIcon('source', 'gradYear')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'position')">
+                      Pos <i class="bi" [ngClass]="sortIcon('source', 'position')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'dob')">
+                      DOB <i class="bi" [ngClass]="sortIcon('source', 'dob')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'skillLevel')">
+                      Skill <i class="bi" [ngClass]="sortIcon('source', 'skillLevel')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('source', 'yrsExp')">
+                      Yrs <i class="bi" [ngClass]="sortIcon('source', 'yrsExp')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'registrationTs')">
+                      RegDate <i class="bi" [ngClass]="sortIcon('source', 'registrationTs')"></i>
+                    </th>
+                    <th>Requests</th>
+                    <th>Role</th>
+                    <th class="text-end sortable" (click)="onSort('source', 'feeTotal')">
+                      Fee <i class="bi" [ngClass]="sortIcon('source', 'feeTotal')"></i>
+                    </th>
                   </tr>
-                }
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  @for (player of sortedFilteredSourceRoster(); track player.registrationId; let i = $index) {
+                    <tr [class.table-active]="sourceSelected().has(player.registrationId)"
+                        [class.text-body-tertiary]="!player.bActive">
+                      <td class="col-check frozen frozen-0">
+                        <input type="checkbox" class="form-check-input"
+                               [checked]="sourceSelected().has(player.registrationId)"
+                               (change)="toggleSourceSelect(player.registrationId)" />
+                      </td>
+                      <td class="col-rownum frozen frozen-1 text-body-secondary">{{ i + 1 }}</td>
+                      <td class="col-swap frozen frozen-2">
+                        <button class="btn btn-sm btn-outline-primary swap-btn"
+                                [disabled]="!targetPoolId() || swappingId() === player.registrationId"
+                                (click)="swapToTarget(player)"
+                                title="Swap to target team">
+                          @if (swappingId() === player.registrationId) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-arrow-right"></i>
+                          }
+                        </button>
+                      </td>
+                      <td class="col-name frozen frozen-3 text-nowrap">{{ player.playerName }}</td>
+                      <td class="col-active frozen frozen-4">
+                        <div class="form-check form-switch d-inline-block mb-0">
+                          <input class="form-check-input" type="checkbox" role="switch"
+                                 [checked]="player.bActive"
+                                 (change)="toggleActive(player)" />
+                        </div>
+                      </td>
+                      <td class="text-nowrap">{{ player.school }}</td>
+                      <td class="text-center">{{ player.grade }}</td>
+                      <td class="text-center">{{ player.gradYear }}</td>
+                      <td class="text-nowrap">{{ player.position }}</td>
+                      <td class="text-nowrap">{{ player.dob | date:'M/d/yyyy' }}</td>
+                      <td class="text-nowrap">{{ player.skillLevel }}</td>
+                      <td class="text-center">{{ player.yrsExp }}</td>
+                      <td class="text-nowrap">{{ player.registrationTs | date:'M/d/yy' }}</td>
+                      <td class="text-truncate col-requests" [title]="player.requests ?? ''">{{ player.requests }}</td>
+                      <td>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ player.roleName }}</span>
+                      </td>
+                      <td class="text-end text-nowrap">{{ player.feeTotal | currency }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           } @else if (sourcePoolId()) {
             <div class="text-center text-body-secondary py-4">
               <i class="bi bi-inbox fs-3 d-block mb-1"></i>
@@ -111,16 +168,19 @@
           } @else {
             <div class="text-center text-body-secondary py-4">
               <i class="bi bi-arrow-up-circle fs-3 d-block mb-1"></i>
-              Select a source pool
+              Select a source team
             </div>
           }
         </div>
 
         <div class="panel-footer">
           <button class="btn btn-primary btn-sm"
-                  [disabled]="sourceSelected().size === 0 || !targetPoolId() || isLoadingPreview()"
-                  (click)="moveSourceToTarget()">
-            Move Selected <i class="bi bi-arrow-right"></i> ({{ sourceSelected().size }})
+                  [disabled]="sourceSelected().size === 0 || !targetPoolId() || isBatchSwapping()"
+                  (click)="swapSelectedToTarget()">
+            @if (isBatchSwapping()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            Swap Selected <i class="bi bi-arrow-right"></i> ({{ sourceSelected().size }})
           </button>
         </div>
       </div>
@@ -128,11 +188,11 @@
       <!-- ─── TARGET PANEL ─── -->
       <div class="swapper-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Target Pool</label>
+          <label class="form-label fw-semibold text-uppercase small mb-1">Target Team</label>
           <select class="form-select form-select-sm"
                   [ngModel]="targetPoolId()"
                   (ngModelChange)="onTargetPoolChange($event)">
-            <option [ngValue]="null" disabled>Select a pool...</option>
+            <option [ngValue]="null" disabled>Select a team...</option>
             @for (group of groupedPoolOptions(); track group.label) {
               <optgroup [label]="group.label">
                 @for (pool of group.pools; track pool.poolId) {
@@ -169,46 +229,103 @@
         </div>
 
         <div class="panel-body">
-          @if (targetPoolId() && filteredTargetRoster().length > 0) {
-            <table class="table table-sm table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th class="text-center">Active</th>
-                  <th class="text-end">Fee</th>
-                  <th class="col-check">
-                    <input type="checkbox" class="form-check-input"
-                           [checked]="targetSelected().size > 0 && targetSelected().size === filteredTargetRoster().length"
-                           (change)="targetSelected().size === filteredTargetRoster().length ? deselectAllTarget() : selectAllTarget()" />
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (player of filteredTargetRoster(); track player.registrationId) {
-                  <tr [class.table-active]="targetSelected().has(player.registrationId)"
-                      [class.text-body-tertiary]="!player.bActive">
-                    <td class="text-nowrap">{{ player.playerName }}</td>
-                    <td>
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ player.roleName }}</span>
-                    </td>
-                    <td class="text-center">
-                      <div class="form-check form-switch d-inline-block mb-0">
-                        <input class="form-check-input" type="checkbox" role="switch"
-                               [checked]="player.bActive"
-                               (change)="toggleActive(player)" />
-                      </div>
-                    </td>
-                    <td class="text-end text-nowrap">{{ player.feeTotal | currency }}</td>
-                    <td>
+          @if (targetPoolId() && sortedFilteredTargetRoster().length > 0) {
+            <div class="table-scroll-wrapper">
+              <table class="table table-sm table-hover mb-0 roster-table">
+                <thead>
+                  <tr>
+                    <th class="col-check frozen frozen-0">
                       <input type="checkbox" class="form-check-input"
-                             [checked]="targetSelected().has(player.registrationId)"
-                             (change)="toggleTargetSelect(player.registrationId)" />
-                    </td>
+                             [checked]="targetSelected().size > 0 && targetSelected().size === sortedFilteredTargetRoster().length"
+                             (change)="targetSelected().size === sortedFilteredTargetRoster().length ? deselectAllTarget() : selectAllTarget()" />
+                    </th>
+                    <th class="col-rownum frozen frozen-1">#</th>
+                    <th class="col-swap frozen frozen-2"></th>
+                    <th class="col-name frozen frozen-3 sortable" (click)="onSort('target', 'playerName')">
+                      Name <i class="bi" [ngClass]="sortIcon('target', 'playerName')"></i>
+                    </th>
+                    <th class="col-active frozen frozen-4 sortable" (click)="onSort('target', 'bActive')">
+                      Active <i class="bi" [ngClass]="sortIcon('target', 'bActive')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'school')">
+                      School <i class="bi" [ngClass]="sortIcon('target', 'school')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('target', 'grade')">
+                      Grade <i class="bi" [ngClass]="sortIcon('target', 'grade')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('target', 'gradYear')">
+                      GradYr <i class="bi" [ngClass]="sortIcon('target', 'gradYear')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'position')">
+                      Pos <i class="bi" [ngClass]="sortIcon('target', 'position')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'dob')">
+                      DOB <i class="bi" [ngClass]="sortIcon('target', 'dob')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'skillLevel')">
+                      Skill <i class="bi" [ngClass]="sortIcon('target', 'skillLevel')"></i>
+                    </th>
+                    <th class="sortable text-center" (click)="onSort('target', 'yrsExp')">
+                      Yrs <i class="bi" [ngClass]="sortIcon('target', 'yrsExp')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'registrationTs')">
+                      RegDate <i class="bi" [ngClass]="sortIcon('target', 'registrationTs')"></i>
+                    </th>
+                    <th>Requests</th>
+                    <th>Role</th>
+                    <th class="text-end sortable" (click)="onSort('target', 'feeTotal')">
+                      Fee <i class="bi" [ngClass]="sortIcon('target', 'feeTotal')"></i>
+                    </th>
                   </tr>
-                }
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  @for (player of sortedFilteredTargetRoster(); track player.registrationId; let i = $index) {
+                    <tr [class.table-active]="targetSelected().has(player.registrationId)"
+                        [class.text-body-tertiary]="!player.bActive">
+                      <td class="col-check frozen frozen-0">
+                        <input type="checkbox" class="form-check-input"
+                               [checked]="targetSelected().has(player.registrationId)"
+                               (change)="toggleTargetSelect(player.registrationId)" />
+                      </td>
+                      <td class="col-rownum frozen frozen-1 text-body-secondary">{{ i + 1 }}</td>
+                      <td class="col-swap frozen frozen-2">
+                        <button class="btn btn-sm btn-outline-primary swap-btn"
+                                [disabled]="!sourcePoolId() || swappingId() === player.registrationId"
+                                (click)="swapToSource(player)"
+                                title="Swap to source team">
+                          @if (swappingId() === player.registrationId) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-arrow-left"></i>
+                          }
+                        </button>
+                      </td>
+                      <td class="col-name frozen frozen-3 text-nowrap">{{ player.playerName }}</td>
+                      <td class="col-active frozen frozen-4">
+                        <div class="form-check form-switch d-inline-block mb-0">
+                          <input class="form-check-input" type="checkbox" role="switch"
+                                 [checked]="player.bActive"
+                                 (change)="toggleActive(player)" />
+                        </div>
+                      </td>
+                      <td class="text-nowrap">{{ player.school }}</td>
+                      <td class="text-center">{{ player.grade }}</td>
+                      <td class="text-center">{{ player.gradYear }}</td>
+                      <td class="text-nowrap">{{ player.position }}</td>
+                      <td class="text-nowrap">{{ player.dob | date:'M/d/yyyy' }}</td>
+                      <td class="text-nowrap">{{ player.skillLevel }}</td>
+                      <td class="text-center">{{ player.yrsExp }}</td>
+                      <td class="text-nowrap">{{ player.registrationTs | date:'M/d/yy' }}</td>
+                      <td class="text-truncate col-requests" [title]="player.requests ?? ''">{{ player.requests }}</td>
+                      <td>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ player.roleName }}</span>
+                      </td>
+                      <td class="text-end text-nowrap">{{ player.feeTotal | currency }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           } @else if (targetPoolId()) {
             <div class="text-center text-body-secondary py-4">
               <i class="bi bi-inbox fs-3 d-block mb-1"></i>
@@ -217,91 +334,24 @@
           } @else {
             <div class="text-center text-body-secondary py-4">
               <i class="bi bi-arrow-up-circle fs-3 d-block mb-1"></i>
-              Select a target pool
+              Select a target team
             </div>
           }
         </div>
 
         <div class="panel-footer">
           <button class="btn btn-primary btn-sm"
-                  [disabled]="targetSelected().size === 0 || !sourcePoolId() || isLoadingPreview()"
-                  (click)="moveTargetToSource()">
-            <i class="bi bi-arrow-left"></i> Move Selected ({{ targetSelected().size }})
+                  [disabled]="targetSelected().size === 0 || !sourcePoolId() || isBatchSwapping()"
+                  (click)="swapSelectedToSource()">
+            @if (isBatchSwapping()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-arrow-left"></i> Swap Selected ({{ targetSelected().size }})
           </button>
         </div>
       </div>
 
     </div>
-
-    <!-- ─── FEE IMPACT PREVIEW ─── -->
-    @if (feePreview() && feePreview()!.length > 0) {
-      <div class="fee-preview-panel">
-        <h6 class="mb-2">Transfer Preview</h6>
-        <p class="text-body-secondary mb-2">{{ confirmMessage() }}</p>
-
-        @if (hasFeeImpact()) {
-          <table class="table table-sm mb-2">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Type</th>
-                <th class="text-end">Current Fee</th>
-                <th class="text-end">New Fee</th>
-                <th class="text-end">Change</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of feePreview()!; track item.registrationId) {
-                <tr [class.table-warning]="item.warning">
-                  <td>{{ item.playerName }}</td>
-                  <td>
-                    <span class="badge"
-                          [class.bg-primary-subtle]="item.transferType === 'player-swap'"
-                          [class.text-primary-emphasis]="item.transferType === 'player-swap'"
-                          [class.bg-success-subtle]="item.transferType === 'staff-create'"
-                          [class.text-success-emphasis]="item.transferType === 'staff-create'"
-                          [class.bg-danger-subtle]="item.transferType === 'staff-delete'"
-                          [class.text-danger-emphasis]="item.transferType === 'staff-delete'"
-                          [class.bg-info-subtle]="item.transferType === 'staff-move'"
-                          [class.text-info-emphasis]="item.transferType === 'staff-move'">
-                      {{ item.transferType }}
-                    </span>
-                  </td>
-                  <td class="text-end">{{ item.currentFeeTotal | currency }}</td>
-                  <td class="text-end">{{ item.newFeeTotal | currency }}</td>
-                  <td class="text-end" [class.text-danger]="item.feeDelta > 0" [class.text-success]="item.feeDelta < 0">
-                    @if (item.feeDelta !== 0) {
-                      {{ item.feeDelta > 0 ? '+' : '' }}{{ item.feeDelta | currency }}
-                    } @else {
-                      —
-                    }
-                  </td>
-                </tr>
-                @if (item.warning) {
-                  <tr>
-                    <td colspan="5" class="text-warning-emphasis small py-1">
-                      <i class="bi bi-exclamation-triangle me-1"></i>{{ item.warning }}
-                    </td>
-                  </tr>
-                }
-              }
-            </tbody>
-          </table>
-        }
-
-        <div class="d-flex justify-content-end gap-2">
-          <button class="btn btn-outline-secondary btn-sm" (click)="cancelTransfer()">Cancel</button>
-          <button class="btn btn-primary btn-sm"
-                  [disabled]="isTransferring()"
-                  (click)="confirmTransfer()">
-            @if (isTransferring()) {
-              <span class="spinner-border spinner-border-sm me-1"></span>
-            }
-            Confirm Transfer
-          </button>
-        </div>
-      </div>
-    }
 
   }
 </div>

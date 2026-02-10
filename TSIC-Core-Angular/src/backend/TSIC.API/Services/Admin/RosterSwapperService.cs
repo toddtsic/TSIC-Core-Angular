@@ -349,7 +349,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 if (roleName == RoleConstants.Names.StaffName)
                 {
                     // FLOW 4: Staff → Different Team (no fee recalc)
-                    _registrationRepo.Update(reg);
+                    // Entity is already tracked — EF detects property changes automatically
                     playersTransferred++;
                 }
                 else
@@ -362,7 +362,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     reg.FeeTotal = total;
                     reg.OwedTotal = total - reg.PaidTotal;
 
-                    _registrationRepo.Update(reg);
+                    // Entity is already tracked — EF detects property changes automatically
                     playersTransferred++;
                     feesRecalculated++;
                 }
@@ -409,7 +409,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
         reg.BActive = active;
         reg.Modified = DateTime.UtcNow;
         reg.LebUserId = adminUserId;
-        _registrationRepo.Update(reg);
+        // Entity is already tracked via FindAsync — EF detects property changes automatically
         await _registrationRepo.SaveChangesAsync(ct);
     }
 

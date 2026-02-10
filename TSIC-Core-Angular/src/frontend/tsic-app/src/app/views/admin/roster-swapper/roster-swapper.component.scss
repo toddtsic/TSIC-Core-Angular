@@ -41,7 +41,9 @@
 
 .panel-body {
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-footer {
@@ -50,6 +52,169 @@
     display: flex;
     justify-content: flex-end;
 }
+
+// ── Horizontal scroll wrapper ──
+
+.table-scroll-wrapper {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+// ── Roster table ──
+
+.roster-table {
+    white-space: nowrap;
+    font-size: 0.8125rem;
+
+    th, td {
+        padding: var(--space-1) var(--space-2);
+        vertical-align: middle;
+    }
+
+    th {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        border-bottom-width: 2px;
+        position: sticky;
+        top: 0;
+        background: var(--bs-body-bg);
+        z-index: 1;
+    }
+}
+
+// ── Frozen columns (sticky left) ──
+
+$check-width: 32px;
+$rownum-width: 32px;
+$swap-width: 40px;
+$name-width: 160px;
+$active-width: 52px;
+
+.frozen {
+    position: sticky;
+    z-index: 2;
+    background-color: var(--bs-body-bg);
+
+    tr.table-active & {
+        background-color: var(--bs-body-bg);
+        background-image: linear-gradient(var(--bs-table-active-bg), var(--bs-table-active-bg));
+    }
+
+    tr:hover & {
+        background-color: var(--bs-body-bg);
+        background-image: linear-gradient(var(--bs-table-hover-bg), var(--bs-table-hover-bg));
+    }
+}
+
+// Frozen header cells: sticky top + sticky left
+thead .frozen {
+    z-index: 3;
+}
+
+// frozen-0: Checkbox
+.frozen-0 {
+    left: 0;
+}
+
+// frozen-1: Row number
+.frozen-1 {
+    left: $check-width;
+}
+
+// frozen-2: Swap button
+.frozen-2 {
+    left: $check-width + $rownum-width;
+}
+
+// frozen-3: Name
+.frozen-3 {
+    left: $check-width + $rownum-width + $swap-width;
+}
+
+// frozen-4: Active (last frozen, with border)
+.frozen-4 {
+    left: $check-width + $rownum-width + $swap-width + $name-width;
+    border-right: 2px solid var(--bs-border-color);
+}
+
+.col-active {
+    width: $active-width;
+    min-width: $active-width;
+    text-align: center;
+}
+
+.col-rownum {
+    width: $rownum-width;
+    min-width: $rownum-width;
+    text-align: center;
+    font-size: 0.6875rem;
+}
+
+.col-swap {
+    width: $swap-width;
+    min-width: $swap-width;
+    text-align: center;
+}
+
+.col-name {
+    min-width: $name-width;
+    max-width: 220px;
+    font-weight: 500;
+}
+
+.col-check {
+    width: 32px;
+    min-width: 32px;
+    text-align: center;
+}
+
+.col-requests {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// ── Swap button ──
+
+.swap-btn {
+    padding: 0 var(--space-1);
+    line-height: 1.4;
+    font-size: 0.75rem;
+    border-radius: var(--bs-border-radius-sm);
+
+    .spinner-border-sm {
+        width: 0.75rem;
+        height: 0.75rem;
+    }
+}
+
+// ── Sortable column headers ──
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+
+    &:hover {
+        color: var(--bs-primary);
+    }
+
+    .bi {
+        font-size: 0.625rem;
+        opacity: 0.5;
+        margin-left: 2px;
+    }
+
+    &:hover .bi {
+        opacity: 0.8;
+    }
+}
+
+// ── Capacity bar ──
 
 .capacity-bar {
     height: 6px;
@@ -63,45 +228,8 @@
     transition: width 0.3s ease;
 }
 
-.fee-preview-panel {
-    border: 1px solid var(--bs-warning-border-subtle);
-    background: var(--bs-warning-bg-subtle);
-    border-radius: var(--bs-border-radius);
-    padding: var(--space-3);
-    animation: slideUp 0.15s ease-out;
-}
+// ── Mobile: stack panels vertically ──
 
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.col-check {
-    width: 36px;
-}
-
-.table {
-    th {
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        color: var(--bs-secondary-color);
-        border-bottom-width: 2px;
-    }
-
-    td {
-        vertical-align: middle;
-    }
-}
-
-// Mobile: stack panels vertically
 @media (max-width: 767.98px) {
     .swapper-panels {
         grid-template-columns: 1fr;
