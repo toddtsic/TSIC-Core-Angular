@@ -466,6 +466,27 @@ public class TeamRepository : ITeamRepository
             .ToDictionaryAsync(x => x.TeamId, x => x.ClubName, cancellationToken);
     }
 
+    public async Task<Dictionary<Guid, string?>> GetClubRepNamesByJobAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null)
+            .Join(_context.Registrations,
+                t => t.ClubrepRegistrationid,
+                r => r.RegistrationId,
+                (t, r) => new { t.TeamId, r.UserId })
+            .Join(_context.AspNetUsers,
+                tr => tr.UserId,
+                u => u.Id,
+                (tr, u) => new { tr.TeamId, u.FirstName, u.LastName })
+            .ToDictionaryAsync(
+                x => x.TeamId,
+                x => string.IsNullOrWhiteSpace(x.FirstName) && string.IsNullOrWhiteSpace(x.LastName)
+                    ? null
+                    : $"{x.FirstName} {x.LastName}".Trim(),
+                cancellationToken);
+    }
+
     public async Task<string?> GetClubNameForTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
         return await _context.Teams
@@ -519,6 +540,7 @@ public class TeamRepository : ITeamRepository
         Guid divId, Guid jobId, CancellationToken ct = default)
     {
         var clubNames = await GetClubNamesByJobAsync(jobId, ct);
+        var clubRepNames = await GetClubRepNamesByJobAsync(jobId, ct);
         var scheduledTeamIds = await GetScheduledTeamIdsAsync(jobId, ct);
 
         var rawTeams = await _context.Teams
@@ -530,6 +552,9 @@ public class TeamRepository : ITeamRepository
             {
                 t.TeamId,
                 TeamName = t.TeamName ?? "Unnamed Team",
+                t.LevelOfPlay,
+                t.TeamComments,
+                t.Createdate,
                 t.AgegroupId,
                 AgegroupName = t.Agegroup.AgegroupName ?? "",
                 DivId = t.DivId,
@@ -551,6 +576,10 @@ public class TeamRepository : ITeamRepository
             TeamId = t.TeamId,
             TeamName = t.TeamName,
             ClubName = clubNames.GetValueOrDefault(t.TeamId),
+            ClubRepName = clubRepNames.GetValueOrDefault(t.TeamId),
+            LevelOfPlay = t.LevelOfPlay,
+            RegistrationTs = t.Createdate,
+            TeamComments = t.TeamComments,
             Active = t.Active,
             DivRank = t.DivRank,
             RosterCount = t.RosterCount,

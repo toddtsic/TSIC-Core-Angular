@@ -5,7 +5,7 @@
   position: fixed;
   top: 0;
   right: 0;
-  width: 480px;
+  width: 560px;
   height: 100vh;
   background: var(--bs-body-bg);
   border-left: 1px solid var(--bs-border-color);
@@ -133,6 +133,107 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+// ── Detail Sections ──
+.detail-section {
+  padding: var(--space-4);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.section-title {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// ── Form Grid Layouts ──
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: var(--space-3);
+}
+
+// ── Demographics Form ──
+.demographics-form,
+.non-player-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+// ── Family Contact Grid ──
+.family-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.family-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+
+.family-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.family-heading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-body-color);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+// ── Registration Info (read-only) ──
+.registration-info {
+  background: var(--bs-tertiary-bg);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.info-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.info-value {
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+  word-break: break-word;
 }
 
 // Details Tab - Form

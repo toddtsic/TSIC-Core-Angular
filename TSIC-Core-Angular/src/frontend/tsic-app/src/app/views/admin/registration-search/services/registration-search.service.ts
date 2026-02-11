@@ -8,6 +8,8 @@ import type {
 	RegistrationFilterOptionsDto,
 	RegistrationDetailDto,
 	UpdateRegistrationProfileRequest,
+	UpdateFamilyContactRequest,
+	UpdateUserDemographicsRequest,
 	CreateAccountingRecordRequest,
 	AccountingRecordDto,
 	RefundRequest,
@@ -28,6 +30,10 @@ export type {
 	RegistrationFilterOptionsDto,
 	RegistrationDetailDto,
 	UpdateRegistrationProfileRequest,
+	UpdateFamilyContactRequest,
+	UpdateUserDemographicsRequest,
+	FamilyContactDto,
+	UserDemographicsDto,
 	CreateAccountingRecordRequest,
 	AccountingRecordDto,
 	RefundRequest,
@@ -62,6 +68,14 @@ export class RegistrationSearchService {
 
 	updateProfile(registrationId: string, request: UpdateRegistrationProfileRequest): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/${registrationId}/profile`, request);
+	}
+
+	updateFamilyContact(registrationId: string, request: UpdateFamilyContactRequest): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/${registrationId}/family`, request);
+	}
+
+	updateDemographics(registrationId: string, request: UpdateUserDemographicsRequest): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/${registrationId}/demographics`, request);
 	}
 
 	createAccountingRecord(registrationId: string, request: CreateAccountingRecordRequest): Observable<AccountingRecordDto> {

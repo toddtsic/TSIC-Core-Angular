@@ -3,6 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AccountingRecordDto } from './AccountingRecordDto';
+import type { FamilyContactDto } from './FamilyContactDto';
+import type { UserDemographicsDto } from './UserDemographicsDto';
 export type RegistrationDetailDto = {
     registrationId: string;
     registrationAi: number;
@@ -21,6 +23,10 @@ export type RegistrationDetailDto = {
     owedTotal: number;
     profileValues: Record<string, string>;
     profileMetadataJson?: string | null;
+    familyContact?: (null | FamilyContactDto);
+    userDemographics?: (null | UserDemographicsDto);
+    registrationDate?: string | null;
+    modifiedDate?: string | null;
     accountingRecords: Array<AccountingRecordDto>;
 };
 

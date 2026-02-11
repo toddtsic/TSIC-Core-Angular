@@ -968,10 +968,9 @@ public class RegistrationRepository : IRegistrationRepository
             Modified = r.Modified
         });
 
-        // Default sort + cap at 5000 rows (sorting done client-side)
+        // Default sort (sorting done client-side)
         var results = await projected
             .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
-            .Take(5000)
             .ToListAsync(ct);
 
         // Format phone numbers (xxx-xxx-xxxx) after materialization
@@ -1158,6 +1157,7 @@ public class RegistrationRepository : IRegistrationRepository
             .Include(r => r.Role)
             .Include(r => r.AssignedTeam)
             .Include(r => r.Job)
+            .Include(r => r.FamilyUser)
             .Include(r => r.RegistrationAccounting)
                 .ThenInclude(a => a.PaymentMethod)
             .Where(r => r.RegistrationId == registrationId && r.JobId == jobId)
@@ -1241,6 +1241,28 @@ public class RegistrationRepository : IRegistrationRepository
             OwedTotal = reg.OwedTotal,
             ProfileValues = profileValues,
             ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
+            FamilyContact = reg.FamilyUser != null ? new FamilyContactDto
+            {
+                MomFirstName = reg.FamilyUser.MomFirstName,
+                MomLastName = reg.FamilyUser.MomLastName,
+                MomCellphone = reg.FamilyUser.MomCellphone,
+                MomEmail = reg.FamilyUser.MomEmail,
+                DadFirstName = reg.FamilyUser.DadFirstName,
+                DadLastName = reg.FamilyUser.DadLastName,
+                DadCellphone = reg.FamilyUser.DadCellphone,
+                DadEmail = reg.FamilyUser.DadEmail,
+            } : null,
+            UserDemographics = reg.User != null ? new UserDemographicsDto
+            {
+                Gender = reg.User.Gender,
+                DateOfBirth = reg.User.Dob,
+                StreetAddress = reg.User.StreetAddress,
+                City = reg.User.City,
+                State = reg.User.State,
+                PostalCode = reg.User.PostalCode,
+            } : null,
+            RegistrationDate = reg.RegistrationTs,
+            ModifiedDate = reg.Modified,
             AccountingRecords = accountingRecords
         };
     }
@@ -1299,6 +1321,65 @@ public class RegistrationRepository : IRegistrationRepository
 
         reg.Modified = DateTime.UtcNow;
         reg.LebUserId = userId;
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateFamilyContactAsync(
+        Guid jobId, string userId, UpdateFamilyContactRequest request, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == request.RegistrationId && r.JobId == jobId)
+            .Select(r => new { r.FamilyUserId })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Registration not found or does not belong to this job.");
+
+        if (string.IsNullOrEmpty(reg.FamilyUserId))
+            throw new InvalidOperationException("This registration has no linked family account.");
+
+        var family = await _context.Families
+            .Where(f => f.FamilyUserId == reg.FamilyUserId)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Family record not found.");
+
+        var fc = request.FamilyContact;
+        family.MomFirstName = fc.MomFirstName;
+        family.MomLastName = fc.MomLastName;
+        family.MomCellphone = fc.MomCellphone;
+        family.MomEmail = fc.MomEmail;
+        family.DadFirstName = fc.DadFirstName;
+        family.DadLastName = fc.DadLastName;
+        family.DadCellphone = fc.DadCellphone;
+        family.DadEmail = fc.DadEmail;
+        family.Modified = DateTime.UtcNow;
+        family.LebUserId = userId;
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateUserDemographicsAsync(
+        Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == request.RegistrationId && r.JobId == jobId)
+            .Select(r => new { r.UserId })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Registration not found or does not belong to this job.");
+
+        var user = await _context.AspNetUsers
+            .Where(u => u.Id == reg.UserId)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("User record not found.");
+
+        var demo = request.Demographics;
+        user.Gender = demo.Gender;
+        user.Dob = demo.DateOfBirth;
+        user.StreetAddress = demo.StreetAddress;
+        user.City = demo.City;
+        user.State = demo.State;
+        user.PostalCode = demo.PostalCode;
 
         await _context.SaveChangesAsync(ct);
     }

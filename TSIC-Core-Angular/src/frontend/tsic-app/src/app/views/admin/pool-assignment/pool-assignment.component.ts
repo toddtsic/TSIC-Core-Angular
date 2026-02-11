@@ -440,7 +440,8 @@ export class PoolAssignmentComponent {
         const lower = filter.toLowerCase();
         return teams.filter(t =>
             t.teamName.toLowerCase().includes(lower) ||
-            (t.clubName ?? '').toLowerCase().includes(lower));
+            (t.clubName ?? '').toLowerCase().includes(lower) ||
+            (t.clubRepName ?? '').toLowerCase().includes(lower));
     }
 
     private groupByAgegroup(divisions: PoolDivisionOptionDto[]): AgegroupGroup[] {

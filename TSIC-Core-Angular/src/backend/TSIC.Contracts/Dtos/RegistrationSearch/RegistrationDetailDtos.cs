@@ -35,8 +35,64 @@ public record RegistrationDetailDto
     // Metadata schema (from Job.PlayerProfileMetadataJson — for form rendering)
     public string? ProfileMetadataJson { get; init; }
 
+    // Family contact info (from Families entity, null if no family link)
+    public FamilyContactDto? FamilyContact { get; init; }
+
+    // User demographics (from AspNetUsers)
+    public UserDemographicsDto? UserDemographics { get; init; }
+
+    // Registration timestamps
+    public DateTime? RegistrationDate { get; init; }
+    public DateTime? ModifiedDate { get; init; }
+
     // Accounting records
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
+}
+
+/// <summary>
+/// Family contact information from the Families entity.
+/// </summary>
+public record FamilyContactDto
+{
+    public string? MomFirstName { get; init; }
+    public string? MomLastName { get; init; }
+    public string? MomCellphone { get; init; }
+    public string? MomEmail { get; init; }
+    public string? DadFirstName { get; init; }
+    public string? DadLastName { get; init; }
+    public string? DadCellphone { get; init; }
+    public string? DadEmail { get; init; }
+}
+
+/// <summary>
+/// User demographics from AspNetUsers.
+/// </summary>
+public record UserDemographicsDto
+{
+    public string? Gender { get; init; }
+    public DateTime? DateOfBirth { get; init; }
+    public string? StreetAddress { get; init; }
+    public string? City { get; init; }
+    public string? State { get; init; }
+    public string? PostalCode { get; init; }
+}
+
+/// <summary>
+/// Update family contact info for a registration's linked family.
+/// </summary>
+public record UpdateFamilyContactRequest
+{
+    public required Guid RegistrationId { get; init; }
+    public required FamilyContactDto FamilyContact { get; init; }
+}
+
+/// <summary>
+/// Update user demographics for a registration's linked user.
+/// </summary>
+public record UpdateUserDemographicsRequest
+{
+    public required Guid RegistrationId { get; init; }
+    public required UserDemographicsDto Demographics { get; init; }
 }
 
 /// <summary>

@@ -334,6 +334,16 @@ public interface IRegistrationRepository
     /// </summary>
     Task UpdateRegistrationProfileAsync(Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default);
 
+    /// <summary>
+    /// Update family contact info for a registration's linked Families entity.
+    /// </summary>
+    Task UpdateFamilyContactAsync(Guid jobId, string userId, UpdateFamilyContactRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update user demographics on the AspNetUsers entity linked to a registration.
+    /// </summary>
+    Task UpdateUserDemographicsAsync(Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default);
+
     // ── Roster Swapper methods ──
 
     /// <summary>

@@ -15,22 +15,6 @@
       <div class="filter-bar-compact">
         <div class="filter-row">
           <div class="form-group">
-            <label for="filterName">Name</label>
-            <input type="text" id="filterName" class="form-control"
-              placeholder="First or Last"
-              [ngModel]="searchRequest().name"
-              (ngModelChange)="updateName($event)" />
-          </div>
-
-          <div class="form-group">
-            <label for="filterEmail">Email</label>
-            <input type="text" id="filterEmail" class="form-control"
-              placeholder="Email address"
-              [ngModel]="searchRequest().email"
-              (ngModelChange)="updateEmail($event)" />
-          </div>
-
-          <div class="form-group">
             <label>Role</label>
             <ejs-multiselect
               [dataSource]="filterOptions()?.roles ?? []"
@@ -43,24 +27,6 @@
               [closePopupOnSelect]="false"
               [changeOnBlur]="false"
               placeholder="All Roles"
-              [itemTemplate]="countBadgeTemplate"
-              cssClass="filter-ms"
-              [popupWidth]="'auto'">
-            </ejs-multiselect>
-          </div>
-
-          <div class="form-group">
-            <label>Status</label>
-            <ejs-multiselect
-              [dataSource]="filterOptions()?.activeStatuses ?? []"
-              [fields]="msFields"
-              [value]="searchRequest().activeStatuses"
-              (change)="updateMultiSelect('activeStatuses', $event.value)"
-              [mode]="'CheckBox'"
-              [showDropDownIcon]="true"
-              [closePopupOnSelect]="false"
-              [changeOnBlur]="false"
-              placeholder="All Statuses"
               [itemTemplate]="countBadgeTemplate"
               cssClass="filter-ms"
               [popupWidth]="'auto'">
@@ -83,6 +49,56 @@
               cssClass="filter-ms"
               [popupWidth]="'auto'">
             </ejs-multiselect>
+          </div>
+
+          <div class="form-group">
+            <label>Position</label>
+            <ejs-multiselect
+              [dataSource]="filterOptions()?.positions ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().positions"
+              (change)="updateMultiSelect('positions', $event.value)"
+              [mode]="'CheckBox'"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
+              placeholder="All"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
+            </ejs-multiselect>
+          </div>
+
+          <div class="form-group">
+            <label>Grad Year</label>
+            <ejs-multiselect
+              [dataSource]="filterOptions()?.gradYears ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().gradYears"
+              (change)="updateMultiSelect('gradYears', $event.value)"
+              [mode]="'CheckBox'"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
+              placeholder="All"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
+            </ejs-multiselect>
+          </div>
+        </div>
+
+        <!-- LADT Tree (essential) -->
+        <div class="filter-row-ladt">
+          <div class="form-group form-group-tree">
+            <label>League / Agegroup / Division / Team</label>
+            <div class="tree-scroll-container">
+              <app-ladt-tree-filter
+                [treeData]="ladtTree()"
+                [checkedIds]="ladtCheckedIds()"
+                (checkedIdsChange)="onLadtCheckedChange($event)">
+              </app-ladt-tree-filter>
+            </div>
           </div>
         </div>
 
@@ -111,7 +127,7 @@
             <button type="button" class="btn btn-info" (click)="onEmailSelected()" [disabled]="!canEmailSelected">
               Email Selected
             </button>
-            <button type="button" class="btn btn-success" (click)="exportExcel()">Export</button>
+            <button type="button" class="btn btn-success" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">Export</button>
           </div>
         </div>
       </div>
@@ -119,10 +135,24 @@
       <!-- Expandable "More Filters" -->
       @if (moreFiltersExpanded()) {
         <div class="filter-bar-expanded">
-          <!-- Row: Text filters -->
+          <!-- Section: General -->
           <div class="filter-section">
-            <div class="section-label">Text Filters</div>
+            <div class="section-label">General</div>
             <div class="filter-row">
+              <div class="form-group">
+                <label for="filterName">Name</label>
+                <input type="text" id="filterName" class="form-control"
+                  placeholder="First or Last"
+                  [ngModel]="searchRequest().name"
+                  (ngModelChange)="updateName($event)" />
+              </div>
+              <div class="form-group">
+                <label for="filterEmail">Email</label>
+                <input type="text" id="filterEmail" class="form-control"
+                  placeholder="Email address"
+                  [ngModel]="searchRequest().email"
+                  (ngModelChange)="updateEmail($event)" />
+              </div>
               <div class="form-group">
                 <label for="filterPhone">Phone</label>
                 <input type="text" id="filterPhone" class="form-control"
@@ -131,11 +161,21 @@
                   (ngModelChange)="updatePhone($event)" />
               </div>
               <div class="form-group">
-                <label for="filterSchool">School</label>
-                <input type="text" id="filterSchool" class="form-control"
-                  placeholder="School name"
-                  [ngModel]="searchRequest().schoolName"
-                  (ngModelChange)="updateSchoolName($event)" />
+                <label>Status</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.activeStatuses ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().activeStatuses"
+                  (change)="updateMultiSelect('activeStatuses', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
+                  placeholder="All Statuses"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms"
+                  [popupWidth]="'auto'">
+                </ejs-multiselect>
               </div>
               <div class="form-group">
                 <label for="filterDateFrom">Date From</label>
@@ -152,19 +192,16 @@
             </div>
           </div>
 
-          <!-- Row: Organization filters -->
+          <!-- Section: Organization -->
           <div class="filter-section">
             <div class="section-label">Organization</div>
-            <div class="filter-row filter-row-org">
-              <div class="form-group form-group-tree">
-                <label>League / Agegroup / Division / Team</label>
-                <div class="tree-scroll-container">
-                  <app-ladt-tree-filter
-                    [treeData]="ladtTree()"
-                    [checkedIds]="ladtCheckedIds()"
-                    (checkedIdsChange)="onLadtCheckedChange($event)">
-                  </app-ladt-tree-filter>
-                </div>
+            <div class="filter-row">
+              <div class="form-group">
+                <label for="filterSchool">School</label>
+                <input type="text" id="filterSchool" class="form-control"
+                  placeholder="School name"
+                  [ngModel]="searchRequest().schoolName"
+                  (ngModelChange)="updateSchoolName($event)" />
               </div>
               <div class="form-group">
                 <label>Club</label>
@@ -187,10 +224,10 @@
             </div>
           </div>
 
-          <!-- Row: Demographics -->
+          <!-- Section: Demographics -->
           <div class="filter-section">
             <div class="section-label">Demographics</div>
-            <div class="filter-row filter-row-5">
+            <div class="filter-row">
               <div class="form-group">
                 <label>Gender</label>
                 <ejs-multiselect
@@ -198,38 +235,6 @@
                   [fields]="msFields"
                   [value]="searchRequest().genders"
                   (change)="updateMultiSelect('genders', $event.value)"
-                  [mode]="'CheckBox'"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  [changeOnBlur]="false"
-                  placeholder="All"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
-              </div>
-              <div class="form-group">
-                <label>Position</label>
-                <ejs-multiselect
-                  [dataSource]="filterOptions()?.positions ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().positions"
-                  (change)="updateMultiSelect('positions', $event.value)"
-                  [mode]="'CheckBox'"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  [changeOnBlur]="false"
-                  placeholder="All"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
-              </div>
-              <div class="form-group">
-                <label>Grad Year</label>
-                <ejs-multiselect
-                  [dataSource]="filterOptions()?.gradYears ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().gradYears"
-                  (change)="updateMultiSelect('gradYears', $event.value)"
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
@@ -274,7 +279,7 @@
             </div>
           </div>
 
-          <!-- Row: Billing & Mobile -->
+          <!-- Section: Billing & Mobile -->
           <div class="filter-section">
             <div class="section-label">Billing &amp; Mobile</div>
             <div class="filter-row">
@@ -310,12 +315,10 @@
                   cssClass="filter-ms">
                 </ejs-multiselect>
               </div>
-              <div class="form-group"></div>
-              <div class="form-group"></div>
             </div>
           </div>
 
-          <!-- Row: Club Roster Search -->
+          <!-- Section: Club Roster Search -->
           <div class="filter-section">
             <div class="section-label">Club Roster Search</div>
             <div class="filter-row">
@@ -347,8 +350,6 @@
                   }
                 </select>
               </div>
-              <div class="form-group"></div>
-              <div class="form-group"></div>
             </div>
           </div>
         </div>

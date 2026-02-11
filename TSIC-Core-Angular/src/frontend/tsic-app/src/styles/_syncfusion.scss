@@ -13,15 +13,28 @@
   // Glassmorphic effect
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
+
+  // Override Syncfusion's hardcoded #fff on the table element
+  .e-table {
+    background-color: var(--bs-body-bg) !important;
+  }
+
+  // Override Syncfusion's hardcoded #fff on frozen column cells
+  .e-leftfreeze,
+  .e-rightfreeze,
+  .e-fixedfreeze {
+    background-color: inherit !important;
+  }
 }
 
 /* Header */
 .e-grid .e-gridheader {
-  background: var(--bs-light) !important;
+  background: var(--bs-secondary-bg) !important;
   border-bottom: 1px solid var(--border-color) !important;
 
   .e-headercell {
-    color: var(--bs-dark) !important;
+    background-color: var(--bs-secondary-bg) !important;
+    color: var(--bs-body-color) !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     font-size: 0.875rem !important;
@@ -40,10 +53,10 @@
 
 /* Grid Content */
 .e-grid .e-gridcontent {
-  background: transparent !important;
+  background: var(--bs-body-bg) !important;
 
   .e-row {
-    background: transparent !important;
+    background: var(--bs-body-bg) !important;
     border-bottom: 1px solid rgba(var(--bs-border-color-rgb), 0.2) !important;
 
     &:hover {
@@ -51,7 +64,7 @@
     }
 
     &.e-altrow {
-      background: rgba(var(--bs-secondary-bg-rgb), 0.3) !important;
+      background: var(--bs-tertiary-bg) !important;
 
       &:hover {
         background: rgba(var(--bs-primary-rgb), 0.08) !important;
@@ -62,6 +75,7 @@
   .e-rowcell {
     padding: 0.75rem 0.5rem !important;
     color: var(--bs-body-color) !important;
+    background-color: inherit !important;
     border-right: 1px solid rgba(var(--bs-border-color-rgb), 0.1) !important;
     font-size: 0.875rem !important;
 
@@ -73,15 +87,16 @@
 
 /* Footer / Aggregates */
 .e-grid .e-gridfooter {
-  background: var(--bs-light) !important;
-  border-top: 2px solid var(--bs-primary) !important;
+  background: var(--bs-body-bg) !important;
+  border-top: 2px solid var(--bs-border-color) !important;
   font-weight: 700 !important;
 
   .e-summaryrow {
-    background: var(--bs-light) !important;
+    background: var(--bs-body-bg) !important;
 
     .e-summarycell {
-      color: var(--bs-dark) !important;
+      color: var(--bs-body-color) !important;
+      background-color: var(--bs-body-bg) !important;
       font-weight: 700 !important;
       padding: 0.75rem 0.5rem !important;
       border-right: 1px solid rgba(var(--bs-border-color-rgb), 0.3) !important;
@@ -188,16 +203,19 @@
 
 /* Pager */
 .e-grid .e-gridpager {
-  background: var(--bs-secondary-bg) !important;
-  border-top: 1px solid var(--border-color) !important;
+  background: var(--bs-body-bg) !important;
+  border-top: 1px solid var(--bs-border-color) !important;
   padding: 0.75rem !important;
+  color: var(--bs-body-color) !important;
 
   .e-pagercontainer {
+    background: transparent !important;
+
     .e-numericcontainer {
       .e-numericitem {
         background: transparent !important;
         color: var(--bs-body-color) !important;
-        border: 1px solid var(--border-color) !important;
+        border: 1px solid var(--bs-border-color) !important;
         border-radius: var(--bs-border-radius) !important;
 
         &:hover {
@@ -206,11 +224,45 @@
 
         &.e-currentitem {
           background: var(--bs-primary) !important;
-          color: var(--bs-light) !important;
+          color: #fff !important;
           border-color: var(--bs-primary) !important;
         }
       }
     }
+
+    // Nav buttons (first, prev, next, last)
+    .e-first,
+    .e-prev,
+    .e-next,
+    .e-last,
+    .e-pp,
+    .e-np {
+      background: transparent !important;
+      color: var(--bs-body-color) !important;
+      border: 1px solid var(--bs-border-color) !important;
+      border-radius: var(--bs-border-radius) !important;
+
+      &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.1) !important;
+        color: var(--bs-primary) !important;
+      }
+
+      &.e-disable {
+        opacity: 0.4 !important;
+      }
+    }
+
+    .e-icons {
+      color: var(--bs-body-color) !important;
+    }
+  }
+
+  // Page info text ("1 of 250 pages (5,000 items)")
+  .e-parentmsgbar,
+  .e-pagecountmsg,
+  .e-pagesizes {
+    color: var(--bs-body-color) !important;
+    opacity: 0.8;
   }
 }
 

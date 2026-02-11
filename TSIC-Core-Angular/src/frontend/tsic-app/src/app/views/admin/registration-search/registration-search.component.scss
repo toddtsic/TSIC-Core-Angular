@@ -43,6 +43,12 @@
   grid-template-columns: 2fr 1fr;
 }
 
+.filter-row-ladt {
+  .form-group-tree .tree-scroll-container {
+    max-height: 200px;
+  }
+}
+
 .form-group-tree {
   .tree-scroll-container {
     max-height: 320px;
@@ -420,13 +426,14 @@
 // ── Aggregate Row Styling ──
 ::ng-deep {
   .e-gridfooter {
-    background: var(--bs-secondary-bg) !important;
+    background: var(--bs-body-bg) !important;
     border-top: 2px solid var(--bs-border-color) !important;
     font-weight: 700;
 
     .e-summarycell {
       padding: var(--space-3) !important;
       color: var(--bs-body-color) !important;
+      background-color: var(--bs-body-bg) !important;
     }
 
     .aggregate-label {

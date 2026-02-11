@@ -24,6 +24,10 @@ public record PoolTeamDto
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public string? ClubName { get; init; }
+    public string? ClubRepName { get; init; }
+    public string? LevelOfPlay { get; init; }
+    public DateTime? RegistrationTs { get; init; }
+    public string? TeamComments { get; init; }
     public required bool Active { get; init; }
     public required int DivRank { get; init; }
     public required int RosterCount { get; init; }

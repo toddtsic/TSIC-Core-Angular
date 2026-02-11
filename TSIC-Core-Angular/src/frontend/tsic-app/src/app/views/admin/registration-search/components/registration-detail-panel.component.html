@@ -29,66 +29,291 @@
     </div>
 
     <div class="panel-body">
+      <!-- ═══════════════════════ DETAILS TAB ═══════════════════════ -->
       @if (activeTab() === 'details') {
         <div class="tab-content">
-          <form class="detail-form">
-            @if (metadataFields().length > 0) {
-              @for (field of metadataFields(); track field.key) {
+
+          <!-- ── Section: Demographics (all roles) ── -->
+          <div class="detail-section">
+            <h4 class="section-title">Demographics</h4>
+            <form class="demographics-form">
+              <div class="form-row-2">
                 <div class="form-group">
-                  <label [for]="'field-' + field.key" class="form-label">
-                    {{ field.label }}
-                    @if (field.required) { <span class="text-danger">*</span> }
-                  </label>
-                  @switch (field.type) {
-                    @case ('text') {
-                      <input [id]="'field-' + field.key" type="text" class="form-control"
-                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
-                        [name]="field.key" [required]="field.required || false">
-                    }
-                    @case ('textarea') {
-                      <textarea [id]="'field-' + field.key" class="form-control"
-                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
-                        [name]="field.key" [required]="field.required || false" rows="3"></textarea>
-                    }
-                    @case ('date') {
-                      <input [id]="'field-' + field.key" type="date" class="form-control"
-                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
-                        [name]="field.key" [required]="field.required || false">
-                    }
-                    @case ('select') {
-                      <select [id]="'field-' + field.key" class="form-select"
-                        [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
-                        [name]="field.key" [required]="field.required || false">
-                        <option value="">-- Select --</option>
-                        @for (option of field.options || []; track option) {
-                          <option [value]="option">{{ option }}</option>
-                        }
-                      </select>
-                    }
-                    @case ('checkbox') {
-                      <div class="form-check">
-                        <input [id]="'field-' + field.key" type="checkbox" class="form-check-input"
-                          [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
-                          [name]="field.key">
-                        <label class="form-check-label" [for]="'field-' + field.key">{{ field.label }}</label>
-                      </div>
-                    }
-                  }
+                  <label for="demo-gender" class="form-label">Gender</label>
+                  <select id="demo-gender" class="form-select"
+                    [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
+                    name="gender">
+                    <option value="">-- Select --</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="demo-dob" class="form-label">Date of Birth</label>
+                  <input id="demo-dob" type="date" class="form-control"
+                    [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
+                    name="dateOfBirth">
+                </div>
+              </div>
+              <!-- Address fields: non-player only (player address lives on Family Contact) -->
+              @if (!isPlayerRole()) {
+                <div class="form-group">
+                  <label for="demo-address" class="form-label">Street Address</label>
+                  <input id="demo-address" type="text" class="form-control"
+                    [ngModel]="demographics().streetAddress" (ngModelChange)="updateDemographicsField('streetAddress', $event)"
+                    name="streetAddress">
+                </div>
+                <div class="form-row-3">
+                  <div class="form-group">
+                    <label for="demo-city" class="form-label">City</label>
+                    <input id="demo-city" type="text" class="form-control"
+                      [ngModel]="demographics().city" (ngModelChange)="updateDemographicsField('city', $event)"
+                      name="city">
+                  </div>
+                  <div class="form-group">
+                    <label for="demo-state" class="form-label">State</label>
+                    <input id="demo-state" type="text" class="form-control"
+                      [ngModel]="demographics().state" (ngModelChange)="updateDemographicsField('state', $event)"
+                      name="state">
+                  </div>
+                  <div class="form-group">
+                    <label for="demo-zip" class="form-label">Postal Code</label>
+                    <input id="demo-zip" type="text" class="form-control"
+                      [ngModel]="demographics().postalCode" (ngModelChange)="updateDemographicsField('postalCode', $event)"
+                      name="postalCode">
+                  </div>
                 </div>
               }
-            } @else {
-              <div class="alert alert-info">No profile fields defined for this registration type.</div>
-            }
-            <div class="form-actions">
-              <button type="button" class="btn btn-primary" (click)="saveProfile()" [disabled]="isSaving()">
-                @if (isSaving()) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                Save Changes
-              </button>
+              <div class="form-actions">
+                <button type="button" class="btn btn-primary" (click)="saveDemographics()" [disabled]="isSavingDemographics()">
+                  @if (isSavingDemographics()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                  Save Demographics
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- ── Section: Family Contact (player roles only) ── -->
+          @if (isPlayerRole() && hasFamilyLink()) {
+            <div class="detail-section">
+              <h4 class="section-title">Family Contact</h4>
+              <form class="family-form">
+                <div class="family-grid">
+                  <div class="family-column">
+                    <h5 class="family-heading">Mother / Guardian 1</h5>
+                    <div class="form-row-2">
+                      <div class="form-group">
+                        <label for="mom-first" class="form-label">First Name</label>
+                        <input id="mom-first" type="text" class="form-control"
+                          [ngModel]="familyContact().momFirstName" (ngModelChange)="updateFamilyField('momFirstName', $event)"
+                          name="momFirstName">
+                      </div>
+                      <div class="form-group">
+                        <label for="mom-last" class="form-label">Last Name</label>
+                        <input id="mom-last" type="text" class="form-control"
+                          [ngModel]="familyContact().momLastName" (ngModelChange)="updateFamilyField('momLastName', $event)"
+                          name="momLastName">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="mom-phone" class="form-label">Cellphone</label>
+                      <input id="mom-phone" type="tel" class="form-control"
+                        [ngModel]="familyContact().momCellphone" (ngModelChange)="updateFamilyField('momCellphone', $event)"
+                        name="momCellphone">
+                    </div>
+                    <div class="form-group">
+                      <label for="mom-email" class="form-label">Email</label>
+                      <input id="mom-email" type="email" class="form-control"
+                        [ngModel]="familyContact().momEmail" (ngModelChange)="updateFamilyField('momEmail', $event)"
+                        name="momEmail">
+                    </div>
+                  </div>
+
+                  <div class="family-column">
+                    <h5 class="family-heading">Father / Guardian 2</h5>
+                    <div class="form-row-2">
+                      <div class="form-group">
+                        <label for="dad-first" class="form-label">First Name</label>
+                        <input id="dad-first" type="text" class="form-control"
+                          [ngModel]="familyContact().dadFirstName" (ngModelChange)="updateFamilyField('dadFirstName', $event)"
+                          name="dadFirstName">
+                      </div>
+                      <div class="form-group">
+                        <label for="dad-last" class="form-label">Last Name</label>
+                        <input id="dad-last" type="text" class="form-control"
+                          [ngModel]="familyContact().dadLastName" (ngModelChange)="updateFamilyField('dadLastName', $event)"
+                          name="dadLastName">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="dad-phone" class="form-label">Cellphone</label>
+                      <input id="dad-phone" type="tel" class="form-control"
+                        [ngModel]="familyContact().dadCellphone" (ngModelChange)="updateFamilyField('dadCellphone', $event)"
+                        name="dadCellphone">
+                    </div>
+                    <div class="form-group">
+                      <label for="dad-email" class="form-label">Email</label>
+                      <input id="dad-email" type="email" class="form-control"
+                        [ngModel]="familyContact().dadEmail" (ngModelChange)="updateFamilyField('dadEmail', $event)"
+                        name="dadEmail">
+                    </div>
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button type="button" class="btn btn-primary" (click)="saveFamilyContact()" [disabled]="isSavingFamily()">
+                    @if (isSavingFamily()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    Save Family Contact
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          }
+
+          <!-- ── Section: Non-Player Fields ── -->
+          @if (!isPlayerRole()) {
+            <div class="detail-section">
+              <h4 class="section-title">Registration Info</h4>
+              <form class="non-player-form">
+                <div class="form-group">
+                  <label for="np-clubName" class="form-label">Club Name</label>
+                  <input id="np-clubName" type="text" class="form-control"
+                    [ngModel]="profileValues()['ClubName']" (ngModelChange)="profileValues()['ClubName'] = $event"
+                    name="ClubName">
+                </div>
+                <div class="form-group">
+                  <label for="np-specialRequests" class="form-label">Special Requests</label>
+                  <textarea id="np-specialRequests" class="form-control"
+                    [ngModel]="profileValues()['SpecialRequests']" (ngModelChange)="profileValues()['SpecialRequests'] = $event"
+                    name="SpecialRequests" rows="3"></textarea>
+                </div>
+                <div class="form-row-2">
+                  <div class="form-group">
+                    <label for="np-yearsExp" class="form-label">Years of Experience</label>
+                    <input id="np-yearsExp" type="number" class="form-control"
+                      [ngModel]="profileValues()['SportYearsExp']" (ngModelChange)="profileValues()['SportYearsExp'] = $event"
+                      name="SportYearsExp" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="np-sportAssn" class="form-label">Sport Association #</label>
+                    <input id="np-sportAssn" type="text" class="form-control"
+                      [ngModel]="profileValues()['SportAssnId']" (ngModelChange)="profileValues()['SportAssnId'] = $event"
+                      name="SportAssnId">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="np-sportAssnExp" class="form-label">Assn # Expiration</label>
+                  <input id="np-sportAssnExp" type="date" class="form-control"
+                    [ngModel]="profileValues()['SportAssnIdexpDate']" (ngModelChange)="profileValues()['SportAssnIdexpDate'] = $event"
+                    name="SportAssnIdexpDate">
+                </div>
+                <div class="form-actions">
+                  <button type="button" class="btn btn-primary" (click)="saveProfile()" [disabled]="isSaving()">
+                    @if (isSaving()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          }
+
+          <!-- ── Section: Player Profile Fields (metadata-driven) ── -->
+          @if (isPlayerRole()) {
+            <div class="detail-section">
+              <h4 class="section-title">Player Profile</h4>
+              <form class="detail-form">
+                @if (metadataFields().length > 0) {
+                  @for (field of metadataFields(); track field.key) {
+                    <div class="form-group">
+                      <label [for]="'field-' + field.key" class="form-label">
+                        {{ field.label }}
+                        @if (field.required) { <span class="text-danger">*</span> }
+                      </label>
+                      @switch (field.type) {
+                        @case ('text') {
+                          <input [id]="'field-' + field.key" type="text" class="form-control"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                            [name]="field.key" [required]="field.required || false">
+                        }
+                        @case ('number') {
+                          <input [id]="'field-' + field.key" type="number" class="form-control"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                            [name]="field.key" [required]="field.required || false">
+                        }
+                        @case ('textarea') {
+                          <textarea [id]="'field-' + field.key" class="form-control"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                            [name]="field.key" [required]="field.required || false" rows="3"></textarea>
+                        }
+                        @case ('date') {
+                          <input [id]="'field-' + field.key" type="date" class="form-control"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                            [name]="field.key" [required]="field.required || false">
+                        }
+                        @case ('select') {
+                          <select [id]="'field-' + field.key" class="form-select"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                            [name]="field.key" [required]="field.required || false">
+                            <option value="">-- Select --</option>
+                            @for (option of field.options || []; track option) {
+                              <option [value]="option">{{ option }}</option>
+                            }
+                          </select>
+                        }
+                        @case ('checkbox') {
+                          <div class="form-check">
+                            <input [id]="'field-' + field.key" type="checkbox" class="form-check-input"
+                              [ngModel]="profileValues()[field.key]" (ngModelChange)="profileValues()[field.key] = $event"
+                              [name]="field.key">
+                            <label class="form-check-label" [for]="'field-' + field.key">{{ field.label }}</label>
+                          </div>
+                        }
+                      }
+                    </div>
+                  }
+                } @else {
+                  <div class="alert alert-info">No profile fields defined for this job.</div>
+                }
+                <div class="form-actions">
+                  <button type="button" class="btn btn-primary" (click)="saveProfile()" [disabled]="isSaving()">
+                    @if (isSaving()) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    Save Profile
+                  </button>
+                </div>
+              </form>
+            </div>
+          }
+
+          <!-- ── Section: Registration Info (all roles, read-only) ── -->
+          <div class="detail-section registration-info">
+            <h4 class="section-title">Registration Info</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Registration #</span>
+                <span class="info-value">{{ reg.registrationAi }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Email</span>
+                <span class="info-value">{{ reg.email }}</span>
+              </div>
+              @if (reg.registrationDate) {
+                <div class="info-item">
+                  <span class="info-label">Registered</span>
+                  <span class="info-value">{{ reg.registrationDate | date:'medium' }}</span>
+                </div>
+              }
+              @if (reg.modifiedDate) {
+                <div class="info-item">
+                  <span class="info-label">Last Modified</span>
+                  <span class="info-value">{{ reg.modifiedDate | date:'medium' }}</span>
+                </div>
+              }
+            </div>
+          </div>
         </div>
       }
 
+      <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
       @if (activeTab() === 'accounting') {
         <div class="tab-content">
           <div class="financial-summary">
@@ -147,6 +372,7 @@
         </div>
       }
 
+      <!-- ═══════════════════════ EMAIL TAB ═══════════════════════ -->
       @if (activeTab() === 'email') {
         <div class="tab-content">
           <form class="email-form">
@@ -172,7 +398,6 @@
                 name="body" rows="8" placeholder="Enter email message (use tokens like !PERSON, !AMTOWED, etc.)"></textarea>
             </div>
             <div class="form-actions">
-              <button type="button" class="btn btn-outline-secondary" (click)="previewEmail()" [disabled]="!emailSubject() || !emailBody()">Preview</button>
               <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="!emailSubject() || !emailBody()">Send Email</button>
             </div>
           </form>

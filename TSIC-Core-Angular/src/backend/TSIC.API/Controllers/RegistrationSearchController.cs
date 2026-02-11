@@ -103,6 +103,54 @@ public class RegistrationSearchController : ControllerBase
         }
     }
 
+    [HttpPut("{registrationId:guid}/family")]
+    public async Task<ActionResult> UpdateFamilyContact(
+        Guid registrationId, [FromBody] UpdateFamilyContactRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var sanitized = request with { RegistrationId = registrationId };
+
+        try
+        {
+            await _searchService.UpdateFamilyContactAsync(jobId!.Value, userId!, sanitized, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{registrationId:guid}/demographics")]
+    public async Task<ActionResult> UpdateDemographics(
+        Guid registrationId, [FromBody] UpdateUserDemographicsRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var sanitized = request with { RegistrationId = registrationId };
+
+        try
+        {
+            await _searchService.UpdateUserDemographicsAsync(jobId!.Value, userId!, sanitized, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{registrationId:guid}/accounting")]
     public async Task<ActionResult<AccountingRecordDto>> CreateAccountingRecord(
         Guid registrationId, [FromBody] CreateAccountingRecordRequest request, CancellationToken ct)

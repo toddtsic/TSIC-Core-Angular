@@ -25,25 +25,6 @@ interface TreeFlatNode {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="ladt-tree-filter">
-      <div class="tree-toolbar">
-        <button type="button" class="tree-btn" (click)="expandAll()" title="Expand All">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </button>
-        <button type="button" class="tree-btn" (click)="collapseAll()" title="Collapse All">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="18 15 12 9 6 15"></polyline>
-          </svg>
-        </button>
-        <span class="tree-badges tree-toolbar-badges">
-          <span class="tree-badge-label">Teams</span>
-          <span class="tree-badge-label">Players</span>
-        </span>
-      </div>
-
       @for (node of visibleNodes(); track node.id) {
         <div class="tree-node"
              [class.tree-special]="node.isSpecial"
@@ -81,15 +62,6 @@ interface TreeFlatNode {
       }
 
       <!-- Totals row -->
-      @if (flatNodes().length > 0) {
-        <div class="tree-totals">
-          <span>Totals</span>
-          <span class="tree-badges">
-            <span class="tree-badge badge-teams">{{ totalTeams() }}</span>
-            <span class="tree-badge badge-players">{{ totalPlayers() }}</span>
-          </span>
-        </div>
-      }
     </div>
   `,
   styles: [`
@@ -98,53 +70,11 @@ interface TreeFlatNode {
       line-height: 1.4;
     }
 
-    .tree-toolbar {
-      display: flex;
-      align-items: center;
-      gap: var(--space-1);
-      padding: var(--space-1) 0;
-      border-bottom: 1px solid var(--bs-border-color);
-      margin-bottom: var(--space-1);
-    }
-
-    .tree-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
-      background: var(--bs-body-bg);
-      color: var(--bs-secondary-color);
-      cursor: pointer;
-      padding: 0;
-    }
-
-    .tree-btn:hover {
-      background: var(--bs-tertiary-bg);
-      color: var(--bs-body-color);
-    }
-
     .tree-badges {
       display: flex;
       gap: var(--space-1);
       margin-left: auto;
       flex-shrink: 0;
-    }
-
-    .tree-toolbar-badges {
-      gap: var(--space-2);
-    }
-
-    .tree-badge-label {
-      font-size: 0.625rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      color: var(--bs-secondary-color);
-      min-width: 32px;
-      text-align: center;
     }
 
     .tree-badge {
@@ -226,27 +156,6 @@ interface TreeFlatNode {
       cursor: pointer;
     }
 
-    .tree-totals {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: var(--space-1) 4px;
-      border-top: 1px solid var(--bs-border-color);
-      margin-top: var(--space-1);
-      font-weight: 600;
-      font-size: 0.8125rem;
-      color: var(--bs-body-color);
-    }
-
-    .tree-totals .tree-badges {
-      margin-left: auto;
-    }
-
-    .tree-totals .tree-badge {
-      font-size: 0.6875rem;
-      min-width: 28px;
-      height: 20px;
-    }
   `]
 })
 export class LadtTreeFilterComponent implements OnChanges {
@@ -258,10 +167,6 @@ export class LadtTreeFilterComponent implements OnChanges {
   flatNodes = signal<TreeFlatNode[]>([]);
   expandedIds = signal<Set<string>>(new Set());
   private parentMap = new Map<string, string | null>(); // childId → parentId
-
-  // Totals
-  totalTeams = signal(0);
-  totalPlayers = signal(0);
 
   // Visible nodes (respects expansion)
   visibleNodes = computed(() => {
@@ -311,8 +216,6 @@ export class LadtTreeFilterComponent implements OnChanges {
   private buildFlatNodes(): void {
     const result: TreeFlatNode[] = [];
     this.parentMap.clear();
-    let totalTeams = 0;
-    let totalPlayers = 0;
 
     const collectDescendantIds = (node: LadtTreeNodeDto): string[] => {
       const children = (node.children ?? []) as LadtTreeNodeDto[];
@@ -356,12 +259,6 @@ export class LadtTreeFilterComponent implements OnChanges {
           this.parentMap.set(node.id, null);
         }
 
-        // Aggregate totals at league level
-        if (node.level === 0) {
-          totalTeams += node.teamCount;
-          totalPlayers += node.playerCount;
-        }
-
         const descendantIds = collectDescendantIds(node);
 
         result.push({
@@ -386,12 +283,9 @@ export class LadtTreeFilterComponent implements OnChanges {
 
     recurse(this.treeData);
     this.flatNodes.set(result);
-    this.totalTeams.set(totalTeams);
-    this.totalPlayers.set(totalPlayers);
 
-    // Default: expand league level
-    const leagueIds = result.filter(n => n.level === 0).map(n => n.id);
-    this.expandedIds.set(new Set(leagueIds));
+    // Default: start fully collapsed — user expands as needed
+    this.expandedIds.set(new Set());
   }
 
   private isSpecialAgegroup(name: string): boolean {
@@ -419,16 +313,6 @@ export class LadtTreeFilterComponent implements OnChanges {
     });
   }
 
-  expandAll(): void {
-    const allExpandable = this.flatNodes().filter(n => n.expandable).map(n => n.id);
-    this.expandedIds.set(new Set(allExpandable));
-  }
-
-  collapseAll(): void {
-    // Keep only league level expanded
-    const leagueIds = this.flatNodes().filter(n => n.level === 0).map(n => n.id);
-    this.expandedIds.set(new Set(leagueIds));
-  }
 
   onCheck(node: TreeFlatNode, event: Event): void {
     const isChecked = (event.target as HTMLInputElement).checked;

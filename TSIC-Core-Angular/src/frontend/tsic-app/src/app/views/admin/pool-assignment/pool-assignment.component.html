@@ -78,25 +78,24 @@
                     <th class="col-name frozen frozen-3 sortable" (click)="onSort('source', 'teamName')">
                       Team <i class="bi" [ngClass]="sortIcon('source', 'teamName')"></i>
                     </th>
-                    <th class="col-active frozen frozen-4 sortable" (click)="onSort('source', 'active')">
-                      Active <i class="bi" [ngClass]="sortIcon('source', 'active')"></i>
-                    </th>
                     <th class="sortable" (click)="onSort('source', 'clubName')">
                       Club <i class="bi" [ngClass]="sortIcon('source', 'clubName')"></i>
                     </th>
-                    <th class="sortable text-center" (click)="onSort('source', 'rosterCount')">
-                      Roster <i class="bi" [ngClass]="sortIcon('source', 'rosterCount')"></i>
+                    <th class="sortable" (click)="onSort('source', 'clubRepName')">
+                      ClubRep <i class="bi" [ngClass]="sortIcon('source', 'clubRepName')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'levelOfPlay')">
+                      LOP <i class="bi" [ngClass]="sortIcon('source', 'levelOfPlay')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'registrationTs')">
+                      RegDate <i class="bi" [ngClass]="sortIcon('source', 'registrationTs')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('source', 'teamComments')">
+                      Comments <i class="bi" [ngClass]="sortIcon('source', 'teamComments')"></i>
                     </th>
                     <th class="sortable text-center" (click)="onSort('source', 'divRank')">
                       Rank <i class="bi" [ngClass]="sortIcon('source', 'divRank')"></i>
                     </th>
-                    <th class="text-end sortable" (click)="onSort('source', 'feeTotal')">
-                      Fee <i class="bi" [ngClass]="sortIcon('source', 'feeTotal')"></i>
-                    </th>
-                    <th class="text-end sortable" (click)="onSort('source', 'owedTotal')">
-                      Owed <i class="bi" [ngClass]="sortIcon('source', 'owedTotal')"></i>
-                    </th>
-                    <th class="text-center">Sched</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -122,15 +121,11 @@
                         </button>
                       </td>
                       <td class="col-name frozen frozen-3 text-nowrap">{{ team.teamName }}</td>
-                      <td class="col-active frozen frozen-4">
-                        <div class="form-check form-switch d-inline-block mb-0">
-                          <input class="form-check-input" type="checkbox" role="switch"
-                                 [checked]="team.active"
-                                 (change)="toggleActive(team)" />
-                        </div>
-                      </td>
                       <td class="text-nowrap">{{ team.clubName }}</td>
-                      <td class="text-center">{{ team.rosterCount }}/{{ team.maxCount }}</td>
+                      <td class="text-nowrap">{{ team.clubRepName }}</td>
+                      <td>{{ team.levelOfPlay }}</td>
+                      <td class="text-nowrap">{{ team.registrationTs | date:'M/d/yy' }}</td>
+                      <td class="col-comments">{{ team.teamComments }}</td>
                       <td class="text-center">
                         @if (editingDivRankTeamId() === team.teamId) {
                           <select class="form-select form-select-sm inline-rank-select"
@@ -144,13 +139,6 @@
                         } @else {
                           <span class="editable-rank" (click)="startDivRankEdit(team)"
                                 title="Click to edit rank">{{ team.divRank }}</span>
-                        }
-                      </td>
-                      <td class="text-end text-nowrap">{{ team.feeTotal | currency }}</td>
-                      <td class="text-end text-nowrap">{{ team.owedTotal | currency }}</td>
-                      <td class="text-center">
-                        @if (team.isScheduled) {
-                          <i class="bi bi-calendar-check text-primary" title="Has scheduled games"></i>
                         }
                       </td>
                     </tr>
@@ -242,25 +230,24 @@
                     <th class="col-name frozen frozen-3 sortable" (click)="onSort('target', 'teamName')">
                       Team <i class="bi" [ngClass]="sortIcon('target', 'teamName')"></i>
                     </th>
-                    <th class="col-active frozen frozen-4 sortable" (click)="onSort('target', 'active')">
-                      Active <i class="bi" [ngClass]="sortIcon('target', 'active')"></i>
-                    </th>
                     <th class="sortable" (click)="onSort('target', 'clubName')">
                       Club <i class="bi" [ngClass]="sortIcon('target', 'clubName')"></i>
                     </th>
-                    <th class="sortable text-center" (click)="onSort('target', 'rosterCount')">
-                      Roster <i class="bi" [ngClass]="sortIcon('target', 'rosterCount')"></i>
+                    <th class="sortable" (click)="onSort('target', 'clubRepName')">
+                      ClubRep <i class="bi" [ngClass]="sortIcon('target', 'clubRepName')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'levelOfPlay')">
+                      LOP <i class="bi" [ngClass]="sortIcon('target', 'levelOfPlay')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'registrationTs')">
+                      RegDate <i class="bi" [ngClass]="sortIcon('target', 'registrationTs')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSort('target', 'teamComments')">
+                      Comments <i class="bi" [ngClass]="sortIcon('target', 'teamComments')"></i>
                     </th>
                     <th class="sortable text-center" (click)="onSort('target', 'divRank')">
                       Rank <i class="bi" [ngClass]="sortIcon('target', 'divRank')"></i>
                     </th>
-                    <th class="text-end sortable" (click)="onSort('target', 'feeTotal')">
-                      Fee <i class="bi" [ngClass]="sortIcon('target', 'feeTotal')"></i>
-                    </th>
-                    <th class="text-end sortable" (click)="onSort('target', 'owedTotal')">
-                      Owed <i class="bi" [ngClass]="sortIcon('target', 'owedTotal')"></i>
-                    </th>
-                    <th class="text-center">Sched</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -286,15 +273,11 @@
                         </button>
                       </td>
                       <td class="col-name frozen frozen-3 text-nowrap">{{ team.teamName }}</td>
-                      <td class="col-active frozen frozen-4">
-                        <div class="form-check form-switch d-inline-block mb-0">
-                          <input class="form-check-input" type="checkbox" role="switch"
-                                 [checked]="team.active"
-                                 (change)="toggleActive(team)" />
-                        </div>
-                      </td>
                       <td class="text-nowrap">{{ team.clubName }}</td>
-                      <td class="text-center">{{ team.rosterCount }}/{{ team.maxCount }}</td>
+                      <td class="text-nowrap">{{ team.clubRepName }}</td>
+                      <td>{{ team.levelOfPlay }}</td>
+                      <td class="text-nowrap">{{ team.registrationTs | date:'M/d/yy' }}</td>
+                      <td class="col-comments">{{ team.teamComments }}</td>
                       <td class="text-center">
                         @if (editingDivRankTeamId() === team.teamId) {
                           <select class="form-select form-select-sm inline-rank-select"
@@ -308,13 +291,6 @@
                         } @else {
                           <span class="editable-rank" (click)="startDivRankEdit(team)"
                                 title="Click to edit rank">{{ team.divRank }}</span>
-                        }
-                      </td>
-                      <td class="text-end text-nowrap">{{ team.feeTotal | currency }}</td>
-                      <td class="text-end text-nowrap">{{ team.owedTotal | currency }}</td>
-                      <td class="text-center">
-                        @if (team.isScheduled) {
-                          <i class="bi bi-calendar-check text-primary" title="Has scheduled games"></i>
                         }
                       </td>
                     </tr>

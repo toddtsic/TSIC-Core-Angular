@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, signal, input, output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { BatchEmailResponse, RenderedEmailPreview } from '@core/api';
+import type { BatchEmailResponse } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 
@@ -41,8 +41,6 @@ export class BatchEmailModalComponent {
 
   subject = signal<string>('');
   bodyTemplate = signal<string>('');
-  previews = signal<RenderedEmailPreview[]>([]);
-  showPreviews = signal<boolean>(false);
   isSending = signal<boolean>(false);
   sendResult = signal<BatchEmailResponse | null>(null);
 
@@ -56,23 +54,6 @@ export class BatchEmailModalComponent {
     const currentBody = this.bodyTemplate();
     this.bodyTemplate.set(currentBody.substring(0, start) + token + currentBody.substring(end));
     setTimeout(() => { textarea.focus(); const p = start + token.length; textarea.setSelectionRange(p, p); }, 0);
-  }
-
-  previewEmail(): void {
-    if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required for preview', 'danger', 4000); return; }
-    const ids = this.registrationIds();
-    if (ids.length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
-
-    this.searchService.previewEmail({
-      registrationIds: ids.slice(0, 3), subject: this.subject(), bodyTemplate: this.bodyTemplate()
-    }).subscribe({
-      next: (response) => {
-        this.previews.set(response.previews);
-        this.showPreviews.set(true);
-        this.toast.show(`Generated ${response.previews.length} preview(s)`, 'success', 3000);
-      },
-      error: (err) => { this.toast.show(`Preview failed: ${err.error?.message || 'Unknown error'}`, 'danger', 4000); }
-    });
   }
 
   sendEmail(): void {
@@ -97,6 +78,6 @@ export class BatchEmailModalComponent {
   }
 
   private resetForm(): void {
-    this.subject.set(''); this.bodyTemplate.set(''); this.previews.set([]); this.showPreviews.set(false); this.isSending.set(false); this.sendResult.set(null);
+    this.subject.set(''); this.bodyTemplate.set(''); this.isSending.set(false); this.sendResult.set(null);
   }
 }

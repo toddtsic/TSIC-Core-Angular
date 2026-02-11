@@ -33,21 +33,6 @@
           </div>
         </div>
 
-        @if (showPreviews() && previews().length > 0) {
-          <div class="preview-section">
-            <h4>Email Previews (First 3)</h4>
-            <div class="preview-cards">
-              @for (preview of previews(); track preview.recipientEmail) {
-                <div class="preview-card">
-                  <div class="preview-header"><strong>To:</strong> {{ preview.recipientName }} &lt;{{ preview.recipientEmail }}&gt;</div>
-                  <div class="preview-subject"><strong>Subject:</strong> {{ preview.renderedSubject }}</div>
-                  <div class="preview-body"><div [innerHTML]="preview.renderedBody"></div></div>
-                </div>
-              }
-            </div>
-          </div>
-        }
-
         @if (sendResult(); as result) {
           <div class="result-section">
             <div class="result-summary">
@@ -69,7 +54,6 @@
           @if (sendResult()) { Close } @else { Cancel }
         </button>
         @if (!sendResult()) {
-          <button type="button" class="btn btn-outline" (click)="previewEmail()" [disabled]="isSending()">Preview</button>
           <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="isSending()">
             @if (isSending()) { <span class="spinner"></span> Sending... } @else { Send to {{ recipientCount() }} recipient(s) }
           </button>
