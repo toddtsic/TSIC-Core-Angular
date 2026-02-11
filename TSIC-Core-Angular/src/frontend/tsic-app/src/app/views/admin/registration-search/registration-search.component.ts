@@ -62,6 +62,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   // LADT tree state
   ladtTree = signal<LadtTreeNodeDto[]>([]);
+  ladtTreeLoading = signal(true);
   ladtCheckedIds = signal<Set<string>>(new Set());
 
   // Search state — multi-select arrays
@@ -223,9 +224,16 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   private loadLadtTree(): void {
+    this.ladtTreeLoading.set(true);
     this.searchService.getLadtTree().subscribe({
-      next: (root) => this.ladtTree.set(root.leagues as LadtTreeNodeDto[]),
-      error: (err) => console.error('Error loading LADT tree:', err)
+      next: (root) => {
+        this.ladtTree.set(root.leagues as LadtTreeNodeDto[]);
+        this.ladtTreeLoading.set(false);
+      },
+      error: (err) => {
+        console.error('Error loading LADT tree:', err);
+        this.ladtTreeLoading.set(false);
+      }
     });
   }
 

@@ -167,6 +167,31 @@
   }
 }
 
+/* Sorted / Focused Header Cells – keep text readable in dark mode */
+.e-grid .e-gridheader {
+
+  .e-headercell.e-ascending,
+  .e-headercell.e-descending,
+  .e-headercell.e-focus,
+  .e-headercell.e-focused,
+  .e-headercell.e-mousepointer {
+    background-color: var(--bs-secondary-bg) !important;
+    color: var(--bs-body-color) !important;
+
+    .e-headercelldiv,
+    .e-headercelldiv .e-headertext {
+      color: var(--bs-body-color) !important;
+    }
+
+    .e-sortfilterdiv,
+    .e-icons,
+    .e-icon-ascending,
+    .e-icon-descending {
+      color: var(--bs-primary) !important;
+    }
+  }
+}
+
 /* Sort Icons */
 .e-grid .e-sortnumber {
   background: var(--bs-primary) !important;
@@ -174,9 +199,12 @@
 }
 
 .e-grid .e-sortfilterdiv {
-  .e-sortfilter {
-    color: var(--bs-primary) !important;
-  }
+  color: var(--bs-primary) !important;
+}
+
+.e-grid .e-icon-ascending,
+.e-grid .e-icon-descending {
+  color: var(--bs-primary) !important;
 }
 
 /* Filter Bar */

@@ -93,11 +93,18 @@
           <div class="form-group form-group-tree">
             <label>League / Agegroup / Division / Team</label>
             <div class="tree-scroll-container">
-              <app-ladt-tree-filter
-                [treeData]="ladtTree()"
-                [checkedIds]="ladtCheckedIds()"
-                (checkedIdsChange)="onLadtCheckedChange($event)">
-              </app-ladt-tree-filter>
+              @if (ladtTreeLoading()) {
+                <div class="tree-loading">
+                  <span class="spinner-border spinner-border-sm"></span>
+                  <span>Loading tree&hellip;</span>
+                </div>
+              } @else {
+                <app-ladt-tree-filter
+                  [treeData]="ladtTree()"
+                  [checkedIds]="ladtCheckedIds()"
+                  (checkedIdsChange)="onLadtCheckedChange($event)">
+                </app-ladt-tree-filter>
+              }
             </div>
           </div>
         </div>
