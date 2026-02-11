@@ -11,6 +11,7 @@ import { RegistrationDetailPanelComponent } from './components/registration-deta
 import { RefundModalComponent } from './components/refund-modal.component';
 import { BatchEmailModalComponent } from './components/batch-email-modal.component';
 import { MobileQuickLookupComponent } from './components/mobile-quick-lookup.component';
+import { LadtTreeFilterComponent } from './components/ladt-tree-filter.component';
 
 import type {
   RegistrationSearchRequest,
@@ -19,7 +20,8 @@ import type {
   RegistrationSearchResultDto,
   RegistrationDetailDto,
   AccountingRecordDto,
-  FilterOption
+  FilterOption,
+  LadtTreeNodeDto
 } from '@core/api';
 
 interface FilterChip {
@@ -40,7 +42,8 @@ interface FilterChip {
     RegistrationDetailPanelComponent,
     RefundModalComponent,
     BatchEmailModalComponent,
-    MobileQuickLookupComponent
+    MobileQuickLookupComponent,
+    LadtTreeFilterComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [CheckBoxSelectionService],
@@ -56,6 +59,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   // Filter options
   filterOptions = signal<RegistrationFilterOptionsDto | null>(null);
+
+  // LADT tree state
+  ladtTree = signal<LadtTreeNodeDto[]>([]);
+  ladtCheckedIds = signal<Set<string>>(new Set());
 
   // Search state — multi-select arrays
   searchRequest = signal<RegistrationSearchRequest>({
@@ -78,7 +85,9 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     arbSubscriptionStatuses: [],
     mobileRegistrationRoles: [],
     regDateFrom: undefined,
-    regDateTo: undefined
+    regDateTo: undefined,
+    rosterThreshold: undefined,
+    rosterThresholdClub: undefined
   });
 
   searchResults = signal<RegistrationSearchResponse | null>(null);
@@ -140,9 +149,28 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     addArrayChips('Role', 'roleIds', req.roleIds, opts?.roles);
     addArrayChips('Status', 'activeStatuses', req.activeStatuses, opts?.activeStatuses);
     addArrayChips('Pay', 'payStatuses', req.payStatuses, opts?.payStatuses);
-    addArrayChips('Team', 'teamIds', req.teamIds, opts?.teams);
-    addArrayChips('Agegroup', 'agegroupIds', req.agegroupIds, opts?.agegroups);
-    addArrayChips('Division', 'divisionIds', req.divisionIds, opts?.divisions);
+    // LADT tree chips — show only the highest-level checked ancestor to avoid chip overload.
+    // E.g., checking agegroup "2027" shows one "Agegroup: 2027" chip instead of 50+ team/division chips.
+    const treeCheckedIds = this.ladtCheckedIds();
+    if (treeCheckedIds.size > 0) {
+      const levelConfig: Record<number, { category: string; filterKey: keyof RegistrationSearchRequest }> = {
+        1: { category: 'Agegroup', filterKey: 'agegroupIds' },
+        2: { category: 'Division', filterKey: 'divisionIds' },
+        3: { category: 'Team', filterKey: 'teamIds' }
+      };
+      const walkForChips = (nodes: LadtTreeNodeDto[], ancestorChecked: boolean) => {
+        for (const node of nodes) {
+          const isChecked = treeCheckedIds.has(node.id);
+          if (isChecked && !ancestorChecked && node.level >= 1) {
+            const cfg = levelConfig[node.level];
+            if (cfg) chips.push({ category: cfg.category, label: node.name, filterKey: cfg.filterKey, value: node.id });
+          }
+          const children = (node.children ?? []) as LadtTreeNodeDto[];
+          if (children.length > 0) walkForChips(children, ancestorChecked || (isChecked && node.level >= 1));
+        }
+      };
+      walkForChips(this.ladtTree(), false);
+    }
     addArrayChips('Club', 'clubNames', req.clubNames, opts?.clubs);
     addArrayChips('Gender', 'genders', req.genders, opts?.genders);
     addArrayChips('Position', 'positions', req.positions, opts?.positions);
@@ -158,6 +186,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (req.schoolName) chips.push({ category: 'School', label: req.schoolName, filterKey: 'schoolName', value: req.schoolName });
     if (req.regDateFrom) chips.push({ category: 'From', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
     if (req.regDateTo) chips.push({ category: 'To', label: req.regDateTo, filterKey: 'regDateTo', value: req.regDateTo });
+    if (req.rosterThreshold != null) chips.push({ category: 'Roster <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
+    if (req.rosterThresholdClub) chips.push({ category: 'Roster Club', label: req.rosterThresholdClub, filterKey: 'rosterThresholdClub', value: req.rosterThresholdClub });
 
     return chips;
   });
@@ -166,6 +196,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.checkMobileView();
     window.addEventListener('resize', this.resizeHandler);
     this.loadFilterOptions();
+    this.loadLadtTree();
   }
 
   ngOnDestroy(): void {
@@ -181,11 +212,20 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       next: (options) => {
         this.filterOptions.set(options);
         this.applyDefaultChecked(options);
+        // Store default state as baseline so any filter change triggers dirty immediately
+        this.lastSearchedRequest.set(JSON.stringify(this.sanitizeRequest(this.searchRequest())));
       },
       error: (err) => {
         this.toast.show('Failed to load filter options', 'danger', 4000);
         console.error('Error loading filter options:', err);
       }
+    });
+  }
+
+  private loadLadtTree(): void {
+    this.searchService.getLadtTree().subscribe({
+      next: (root) => this.ladtTree.set(root.leagues as LadtTreeNodeDto[]),
+      error: (err) => console.error('Error loading LADT tree:', err)
     });
   }
 
@@ -244,8 +284,11 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       arbSubscriptionStatuses: [],
       mobileRegistrationRoles: [],
       regDateFrom: undefined,
-      regDateTo: undefined
+      regDateTo: undefined,
+      rosterThreshold: undefined,
+      rosterThresholdClub: undefined
     });
+    this.ladtCheckedIds.set(new Set());
     this.searchResults.set(null);
     this.lastSearchedRequest.set(null);
   }
@@ -255,11 +298,64 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   removeFilterChip(chip: FilterChip): void {
+    // Tree-sourced chips: remove node + all descendants + ancestors, then re-derive
+    if (chip.filterKey === 'teamIds' || chip.filterKey === 'agegroupIds' || chip.filterKey === 'divisionIds') {
+      const updated = new Set(this.ladtCheckedIds());
+      updated.delete(chip.value);
+
+      // Remove all descendants of the target node
+      const removeDescendants = (nodes: LadtTreeNodeDto[]): boolean => {
+        for (const n of nodes) {
+          if (n.id === chip.value) {
+            const collect = (items: LadtTreeNodeDto[]) => {
+              for (const c of items) {
+                updated.delete(c.id);
+                collect((c.children ?? []) as LadtTreeNodeDto[]);
+              }
+            };
+            collect((n.children ?? []) as LadtTreeNodeDto[]);
+            return true;
+          }
+          const children = (n.children ?? []) as LadtTreeNodeDto[];
+          if (children.length > 0 && removeDescendants(children)) return true;
+        }
+        return false;
+      };
+      removeDescendants(this.ladtTree());
+
+      // Remove ancestors (they can't be fully checked anymore)
+      const findParent = (nodes: LadtTreeNodeDto[], targetId: string): string | null => {
+        for (const n of nodes) {
+          const children = (n.children ?? []) as LadtTreeNodeDto[];
+          for (const c of children) {
+            if (c.id === targetId) return n.id;
+          }
+          const found = findParent(children, targetId);
+          if (found) return found;
+        }
+        return null;
+      };
+      let parentId = findParent(this.ladtTree(), chip.value);
+      while (parentId) {
+        updated.delete(parentId);
+        parentId = findParent(this.ladtTree(), parentId);
+      }
+
+      // Re-derive searchRequest from updated checked set
+      this.onLadtCheckedChange(updated);
+      this.executeSearch();
+      return;
+    }
+
     this.searchRequest.update(req => {
       const updated = { ...req };
       const current = (updated as any)[chip.filterKey];
       if (Array.isArray(current)) {
         (updated as any)[chip.filterKey] = current.filter((v: any) => String(v) !== chip.value);
+      } else if (chip.filterKey === 'rosterThreshold') {
+        updated.rosterThreshold = undefined;
+      } else if (chip.filterKey === 'rosterThresholdClub') {
+        updated.rosterThresholdClub = undefined;
       } else {
         (updated as any)[chip.filterKey] = chip.filterKey === 'name' || chip.filterKey === 'email'
           || chip.filterKey === 'phone' || chip.filterKey === 'schoolName' ? '' : undefined;
@@ -360,6 +456,50 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.toast.show('Batch email sent successfully', 'success', 4000);
   }
 
+  // ── LADT tree selection handler ──
+
+  onLadtCheckedChange(checkedIds: Set<string>): void {
+    this.ladtCheckedIds.set(checkedIds);
+
+    // Derive teamIds/agegroupIds/divisionIds from checked tree nodes
+    const teamIds: string[] = [];
+    const agegroupIds: string[] = [];
+    const divisionIds: string[] = [];
+
+    // Classify ALL checked nodes by level. Always recurse so the backend OR filter
+    // catches registrations assigned at any level (team, division, or agegroup).
+    const classify = (nodes: LadtTreeNodeDto[]) => {
+      for (const node of nodes) {
+        if (checkedIds.has(node.id)) {
+          if (node.level === 1) agegroupIds.push(node.id);
+          else if (node.level === 2) divisionIds.push(node.id);
+          else if (node.level === 3) teamIds.push(node.id);
+        }
+        const children = (node.children ?? []) as LadtTreeNodeDto[];
+        if (children.length > 0) classify(children);
+      }
+    };
+    classify(this.ladtTree());
+
+    this.searchRequest.update(req => ({
+      ...req,
+      teamIds,
+      agegroupIds,
+      divisionIds
+    }));
+  }
+
+  // ── Roster threshold helpers ──
+
+  updateRosterThreshold(value: string): void {
+    const num = value === '' || value == null ? undefined : Number(value);
+    this.searchRequest.update(req => ({ ...req, rosterThreshold: num }));
+  }
+
+  updateRosterThresholdClub(value: string): void {
+    this.searchRequest.update(req => ({ ...req, rosterThresholdClub: value || undefined }));
+  }
+
   // ── Multi-select update helpers ──
 
   updateMultiSelect(field: keyof RegistrationSearchRequest, values: string[]): void {
@@ -412,7 +552,9 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       activeStatuses: clean(req.activeStatuses),
       payStatuses: clean(req.payStatuses),
       arbSubscriptionStatuses: clean(req.arbSubscriptionStatuses),
-      mobileRegistrationRoles: clean(req.mobileRegistrationRoles)
+      mobileRegistrationRoles: clean(req.mobileRegistrationRoles),
+      rosterThreshold: req.rosterThreshold ?? undefined,
+      rosterThresholdClub: req.rosterThresholdClub || undefined
     };
   }
 }

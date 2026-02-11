@@ -16,7 +16,8 @@ import type {
 	BatchEmailRequest,
 	BatchEmailResponse,
 	EmailPreviewRequest,
-	EmailPreviewResponse
+	EmailPreviewResponse,
+	LadtTreeRootDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -37,7 +38,9 @@ export type {
 	EmailPreviewRequest,
 	EmailPreviewResponse,
 	RenderedEmailPreview,
-	FilterOption
+	FilterOption,
+	LadtTreeRootDto,
+	LadtTreeNodeDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -79,5 +82,9 @@ export class RegistrationSearchService {
 
 	previewEmail(request: EmailPreviewRequest): Observable<EmailPreviewResponse> {
 		return this.http.post<EmailPreviewResponse>(`${this.apiUrl}/email-preview`, request);
+	}
+
+	getLadtTree(): Observable<LadtTreeRootDto> {
+		return this.http.get<LadtTreeRootDto>(`${environment.apiUrl}/ladt/tree`);
 	}
 }

@@ -41,6 +41,7 @@
               [showSelectAll]="true"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
               placeholder="All Roles"
               [itemTemplate]="countBadgeTemplate"
               cssClass="filter-ms"
@@ -58,6 +59,7 @@
               [mode]="'CheckBox'"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
               placeholder="All Statuses"
               [itemTemplate]="countBadgeTemplate"
               cssClass="filter-ms"
@@ -75,6 +77,7 @@
               [mode]="'CheckBox'"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
               placeholder="All"
               [itemTemplate]="countBadgeTemplate"
               cssClass="filter-ms"
@@ -94,7 +97,7 @@
               (click)="executeSearch()"
               [disabled]="isSearching()">
               @if (isSearching()) { <span class="spinner-border spinner-border-sm me-1"></span> }
-              @if (filtersAreDirty()) { Update Results } @else { Search }
+              @if (filtersAreDirty() && searchResults()) { Update Results } @else { Search }
             </button>
             <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear</button>
             <button type="button" class="btn btn-outline-secondary" (click)="toggleMoreFilters()">
@@ -152,55 +155,16 @@
           <!-- Row: Organization filters -->
           <div class="filter-section">
             <div class="section-label">Organization</div>
-            <div class="filter-row">
-              <div class="form-group">
-                <label>Team</label>
-                <ejs-multiselect
-                  [dataSource]="filterOptions()?.teams ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().teamIds"
-                  (change)="updateMultiSelect('teamIds', $event.value)"
-                  [mode]="'CheckBox'"
-                  [showSelectAll]="true"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  [enableFiltering]="true"
-                  placeholder="All Teams"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
-              </div>
-              <div class="form-group">
-                <label>Agegroup</label>
-                <ejs-multiselect
-                  [dataSource]="filterOptions()?.agegroups ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().agegroupIds"
-                  (change)="updateMultiSelect('agegroupIds', $event.value)"
-                  [mode]="'CheckBox'"
-                  [showSelectAll]="true"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  placeholder="All Agegroups"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
-              </div>
-              <div class="form-group">
-                <label>Division</label>
-                <ejs-multiselect
-                  [dataSource]="filterOptions()?.divisions ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().divisionIds"
-                  (change)="updateMultiSelect('divisionIds', $event.value)"
-                  [mode]="'CheckBox'"
-                  [showSelectAll]="true"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  placeholder="All Divisions"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
+            <div class="filter-row filter-row-org">
+              <div class="form-group form-group-tree">
+                <label>League / Agegroup / Division / Team</label>
+                <div class="tree-scroll-container">
+                  <app-ladt-tree-filter
+                    [treeData]="ladtTree()"
+                    [checkedIds]="ladtCheckedIds()"
+                    (checkedIdsChange)="onLadtCheckedChange($event)">
+                  </app-ladt-tree-filter>
+                </div>
               </div>
               <div class="form-group">
                 <label>Club</label>
@@ -213,6 +177,7 @@
                   [showSelectAll]="true"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   [enableFiltering]="true"
                   placeholder="All Clubs"
                   [itemTemplate]="countBadgeTemplate"
@@ -236,6 +201,7 @@
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
@@ -251,6 +217,7 @@
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
@@ -266,6 +233,7 @@
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
@@ -281,6 +249,7 @@
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
@@ -296,6 +265,7 @@
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
@@ -318,6 +288,7 @@
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
@@ -333,10 +304,48 @@
                   [mode]="'CheckBox'"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
                   placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
                 </ejs-multiselect>
+              </div>
+              <div class="form-group"></div>
+              <div class="form-group"></div>
+            </div>
+          </div>
+
+          <!-- Row: Club Roster Search -->
+          <div class="filter-section">
+            <div class="section-label">Club Roster Search</div>
+            <div class="filter-row">
+              <div class="form-group">
+                <label for="rosterThreshold">Teams With Roster Count &lt;=</label>
+                <select id="rosterThreshold" class="form-select"
+                  [ngModel]="searchRequest().rosterThreshold ?? ''"
+                  (ngModelChange)="updateRosterThreshold($event)">
+                  <option value="">-- Not Filtered --</option>
+                  <option [ngValue]="0">0</option>
+                  <option [ngValue]="1">1</option>
+                  <option [ngValue]="2">2</option>
+                  <option [ngValue]="3">3</option>
+                  <option [ngValue]="5">5</option>
+                  <option [ngValue]="10">10</option>
+                  <option [ngValue]="15">15</option>
+                  <option [ngValue]="20">20</option>
+                  <option [ngValue]="25">25</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="rosterClub">Club (optional)</label>
+                <select id="rosterClub" class="form-select"
+                  [ngModel]="searchRequest().rosterThresholdClub ?? ''"
+                  (ngModelChange)="updateRosterThresholdClub($event)">
+                  <option value="">All Clubs</option>
+                  @for (club of filterOptions()?.clubs ?? []; track club.value) {
+                    <option [value]="club.value">{{ club.text }}</option>
+                  }
+                </select>
               </div>
               <div class="form-group"></div>
               <div class="form-group"></div>

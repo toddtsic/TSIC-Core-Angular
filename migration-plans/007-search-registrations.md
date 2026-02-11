@@ -266,6 +266,10 @@ No navigation, no back button, no re-entering filters.
 
 - **Batch Email Composer with Token Reference** — modal with template editor, clickable token insertion, preview rendering (substitutes tokens for first N recipients to show admin what the email will look like), and batch send with progress/result feedback.
 
+- **LADT Hierarchical Checkbox Tree Filter** — standalone component rendering League > Agegroup > Division > Team as an indented tree with tri-state checkboxes (check/uncheck cascade), expand/collapse, pill count badges (teams/players), and special node styling. Replaces flat multi-select dropdowns when the data has a parent-child hierarchy that provides essential context for selection. Tree data from existing `/api/ladt/tree` endpoint; checked IDs emitted to parent for classification by level. Reusable for any hierarchical filter scenario (e.g., location trees, category taxonomies).
+
+- **Dirty-State "Update Results" Button** — search button that pulses yellow (`btn-warning` + `pulse-glow` animation) when filters have changed since last search. Detects changes by comparing `JSON.stringify(sanitizeRequest(current))` against last-searched snapshot. Requires `[changeOnBlur]="false"` on Syncfusion multi-selects for immediate activation. Baseline set after filter options load so changes are detected even before first search. Button text switches between "Search" and "Update Results" contextually.
+
 ### EMPLOYED (existing patterns reused)
 
 - Syncfusion grid with `GridAllModule` (from team-registration-wizard teams-step)
@@ -394,6 +398,10 @@ public record RegistrationSearchRequest
     // Date range
     public DateTime? RegDateFrom { get; init; }
     public DateTime? RegDateTo { get; init; }
+
+    // Club roster threshold search
+    public int? RosterThreshold { get; init; }
+    public string? RosterThresholdClub { get; init; }
     // NOTE: No Skip/Take/SortField/SortDirection — grid handles paging/sorting client-side
 }
 
@@ -643,9 +651,10 @@ SearchAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct)
     --   ActiveStatuses: converts "True"/"False" strings to booleans, uses boolValues.Contains(r.BActive.Value)
     --   PayStatuses: OR logic — "PAID IN FULL" → OwedTotal == 0, "UNDER PAID" → OwedTotal > 0, "OVER PAID" → OwedTotal < 0
     --   RoleIds: request.RoleIds.Contains(r.RoleId)
-    --   TeamIds: request.TeamIds.Contains(r.AssignedTeamId.Value)
-    --   AgegroupIds: request.AgegroupIds.Contains(r.AssignedAgegroupId.Value)
-    --   DivisionIds: request.DivisionIds.Contains(r.AssignedDivId.Value)
+    --   TeamIds/AgegroupIds/DivisionIds: OR logic across levels — tree selections
+    --     at different levels are unioned so a registration matches if assigned at
+    --     ANY checked level (team, division, or agegroup). Frontend always emits
+    --     IDs at all descendant levels for full coverage.
     --   ClubNames: request.ClubNames.Contains(r.ClubName)
     --   Genders: request.Genders.Contains(r.User.Gender)
     --   Positions: request.Positions.Contains(r.Position)
@@ -659,6 +668,8 @@ SearchAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct)
     --   Phone: contains match on User.Cellphone
     --   SchoolName: contains match on r.SchoolName
     --   RegDateFrom/RegDateTo: bracket on RegistrationTs
+    --   RosterThreshold: subquery finds club rep registrations whose teams have
+    --     roster counts <= threshold. Optional RosterThresholdClub narrows to one club.
     -- Joins: Registrations → AspNetUsers, Teams, AspNetRoles, Agegroups, Divisions
     -- Returns ALL matching results (no Skip/Take — client-side paging, capped at 5000)
     -- Computes aggregates (TotalFees, TotalPaid, TotalOwed) across full result set
@@ -866,6 +877,29 @@ builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService
 - `getPaymentMethods(): Observable<PaymentMethodOptionDto[]>`
 - `sendBatchEmail(request: BatchEmailRequest): Observable<BatchEmailResponse>`
 - `previewEmail(request: EmailPreviewRequest): Observable<EmailPreviewResponse>`
+- `getLadtTree(): Observable<LadtTreeRootDto>` (calls `/api/ladt/tree`)
+
+### Phase 8b: Frontend — LADT Tree Filter Component
+
+**Status**: [x] Complete
+
+**File created**:
+- `src/app/views/admin/registration-search/components/ladt-tree-filter.component.ts`
+
+**Standalone component** with inline template and styles. Replaces the flat Team/Agegroup/Division multi-select dropdowns with a hierarchical checkbox tree showing League > Agegroup > Division > Team with count badges at every level.
+
+**Inputs**: `treeData: LadtTreeNodeDto[]`, `checkedIds: Set<string>`
+**Outputs**: `checkedIdsChange: EventEmitter<Set<string>>`
+
+**Features**:
+- **Tree flattening** with sorting: regular agegroups alpha-first, specials (Dropped Teams, WAITLIST*) at bottom; divisions with "Unassigned" first
+- **Tri-state checkboxes**: check parent → check all descendants, uncheck parent → uncheck all descendants, partial children → parent shows indeterminate
+- **Expand/collapse**: league level expanded by default, expand-all/collapse-all toolbar buttons
+- **Count badges**: pill badges per node — blue (`--bs-info`) for teams, primary (`--bs-primary`) for players
+- **Totals row**: aggregated team/player counts across all leagues
+- **Special node styling**: italic + reduced opacity for Dropped Teams and WAITLIST agegroups
+
+**Data flow**: Parent loads tree via `getLadtTree()` which calls `/api/ladt/tree`. Tree component manages expansion/check state internally and emits `Set<string>` of checked node IDs. Parent's `onLadtCheckedChange()` handler classifies IDs by level into `teamIds`/`agegroupIds`/`divisionIds` arrays — always emitting IDs at ALL descendant levels (not just highest checked ancestor) so the backend OR filter catches registrations assigned at any level.
 
 ### Phase 9: Frontend — Registration Search Component (Main Grid)
 
@@ -896,8 +930,14 @@ searchRequest = signal<RegistrationSearchRequest>({
   activeStatuses: ['True'],  // Default: Active pre-checked
   payStatuses: [], arbSubscriptionStatuses: [],
   mobileRegistrationRoles: [],
-  regDateFrom: undefined, regDateTo: undefined
+  regDateFrom: undefined, regDateTo: undefined,
+  rosterThreshold: undefined, rosterThresholdClub: undefined
 });
+
+// LADT tree state
+ladtTree = signal<LadtTreeNodeDto[]>([]);
+ladtCheckedIds = signal<Set<string>>(new Set());
+ladtNodeMap = computed(/* flat Map<id, {name, level}> for chip label lookups */);
 searchResults = signal<RegistrationSearchResponse | null>(null);
 isSearching = signal(false);
 
@@ -953,7 +993,8 @@ isMobile = signal(false);
 
 *Expandable "More Filters" (toggled via button):*
 - **Text Filters**: Phone, School Name, Date From, Date To
-- **Organization**: Team, Agegroup, Division, Club (all `ejs-multiselect` with counts, Team/Club have `enableFiltering`)
+- **Organization**: LADT checkbox tree (League/Agegroup/Division/Team hierarchy with count badges) + Club dropdown (see Phase 9b)
+- **Club Roster Search**: Roster threshold dropdown (0–25) + optional Club dropdown
 - **Demographics**: Gender, Position, Grad Year, Grade, Age Range (5-column grid, all `ejs-multiselect` with counts)
 - **Billing & Mobile**: ARB Subscription, Mobile Registrations (both `ejs-multiselect` with counts)
 
@@ -1372,13 +1413,15 @@ readonly pageSize = 20;
 | `TSIC.Contracts/Services/IRegistrationSearchService.cs` | Create | ~25 |
 | `TSIC.API/Services/Admin/RegistrationSearchService.cs` | Create | ~450 |
 | `TSIC.API/Controllers/RegistrationSearchController.cs` | Create | ~140 |
+| `TSIC.Contracts/Extensions/StringExtensions.cs` | Create | ~15 |
 | `TSIC.API/Program.cs` | Edit (1 DI line) | +1 |
 
 ### Frontend Files
 
 | File | Action | LOC (est.) |
 |------|--------|------------|
-| `views/admin/registration-search/services/registration-search.service.ts` | Create | ~60 |
+| `views/admin/registration-search/components/ladt-tree-filter.component.ts` | Create | ~445 |
+| `views/admin/registration-search/services/registration-search.service.ts` | Create | ~90 |
 | `views/admin/registration-search/registration-search.component.ts` | Create | ~300 |
 | `views/admin/registration-search/registration-search.component.html` | Create | ~280 |
 | `views/admin/registration-search/registration-search.component.scss` | Create | ~150 |
@@ -1427,7 +1470,11 @@ readonly pageSize = 20;
 
 13. **Desktop/tablet-first with dedicated mobile quick lookup** — this is fundamentally a power-user desktop interface. Processing refunds, editing 40-field forms, composing batch emails, and scanning 10-column financial grids is desk work. Rather than degrading the desktop experience to chase responsive parity (horizontal-scrolling grids, full-width panels that lose context, stacked filter inputs requiring endless scrolling), we build two intentionally different experiences: (a) the full desktop UI at 768px+ with zero mobile compromises, and (b) a purpose-built mobile quick lookup at < 768px optimized for the one thing an admin does on their phone — "which team is this kid on?" / "does this person owe money?" The mobile mode uses the same API endpoints with simplified parameters, so there's no backend duplication. This pattern — separate mobile mode instead of responsive degradation — should be the standard for data-heavy admin tools going forward.
 
-14. **Multi-select filters with count badges (legacy parity)** — the legacy system used checkbox lists with purple count badges showing how many registrations matched each filter option (e.g., "Player (347)", "Active (892)"). The modern implementation uses Syncfusion `ejs-multiselect` with `mode="CheckBox"` and custom `itemTemplate` for count badge pills. All 14 filter categories support multi-select with registration counts computed via parallel `Task.WhenAll` GroupBy queries in the repository. The compact bar shows the 5 most-used filters (Name, Email, Role, Status, Pay Status) always visible, with 13 additional filters in an expandable "More Filters" section. Active filter selections appear as removable chips between the filter panel and grid, giving admins at-a-glance visibility of their current filter criteria. This matches the legacy system's accordion-category checkbox approach while providing a more modern, compact layout.
+14. **Multi-select filters with count badges (legacy parity, pre-LADT tree)** — the legacy system used checkbox lists with purple count badges showing how many registrations matched each filter option (e.g., "Player (347)", "Active (892)"). The modern implementation uses Syncfusion `ejs-multiselect` with `mode="CheckBox"` and custom `itemTemplate` for count badge pills. All 14 filter categories support multi-select with registration counts computed via parallel `Task.WhenAll` GroupBy queries in the repository. The compact bar shows the 5 most-used filters (Name, Email, Role, Status, Pay Status) always visible, with 13 additional filters in an expandable "More Filters" section. Active filter selections appear as removable chips between the filter panel and grid, giving admins at-a-glance visibility of their current filter criteria. This matches the legacy system's accordion-category checkbox approach while providing a more modern, compact layout.
+
+15. **LADT tree filter over flat dropdowns for Organization** — the legacy system used a single hierarchical LADT checkbox tree for filtering by League/Agegroup/Division/Team, which maintains relationships and shows count context at every level. The flat multi-select dropdowns (Team, Agegroup, Division) in the initial implementation lost this relationship context — you couldn't see which teams belonged to which divisions. The LADT tree restores the legacy hierarchy with modern tri-state checkboxes, expand/collapse, and pill count badges. Club remains a separate dropdown (clubs aren't part of the LADT hierarchy). Backend filter logic changed from AND to OR across LADT levels: if you check agegroup "2027" AND a division in "2028", the results are the union (not intersection). The frontend emits IDs at ALL descendant levels so the backend OR filter catches registrations regardless of which level they're assigned at (`AssignedTeamId` vs `AssignedAgegroupId` vs `AssignedDivId`).
+
+16. **Club roster threshold search (legacy feature restoration)** — the legacy system had a "Search for Club Reps With Teams With Roster Counts <=" feature that was heavily used by directors to find under-rostered clubs. This is a cross-entity correlated subquery: find Teams where `COUNT(active registrations) <= threshold`, then find the club rep registration (`Teams.ClubrepRegistrationid`) for those teams. Optional club name filter narrows to a specific club. The threshold dropdown offers common values (0, 1, 2, 3, 5, 10, 15, 20, 25) rather than a free-text input, because directors typically check for specific roster minimums.
 
 ---
 
@@ -1438,7 +1485,12 @@ readonly pageSize = 20;
 | 1 | Added dedicated Mobile Quick Lookup mode (Phase 13) | This interface is fundamentally a desktop power-user tool. Rather than degrading the desktop experience with responsive compromises (horizontal-scrolling grids, full-width panels that lose the context-preservation benefit, 8+ stacked filter inputs), we build a separate purpose-built mobile experience: single search input, card-based results with owes badges, tap-to-expand detail with Call/Email actions. No refunds, no batch email, no profile editing on mobile — those are desk work. Desktop UI hidden below 768px; mobile UI hidden above 768px. Slide-over panel removed from mobile entirely. New files: `mobile-quick-lookup.component.{ts,html,scss}` (~330 LOC). New UI standard established: "Mobile Quick Lookup Mode" pattern for data-heavy admin tools. Added design decision #13. Updated test cases 36-47. |
 | 2 | Switched from server-side to client-side paging | Originally planned server-side paging via Syncfusion `DataManager` with `skip`/`take`/`sortField`/`sortDirection` parameters. After implementation, switched to client-side paging: backend returns ALL matching results (capped at 5,000), Syncfusion grid handles paging and sorting locally. Eliminates repeated API round-trips for every page change or sort click. Aggregates (TotalFees/TotalPaid/TotalOwed) computed once server-side across full result set. Removed `Skip`, `Take`, `SortField`, `SortDirection` from `RegistrationSearchRequest`. Updated design decision #3. |
 | 3 | Multi-select filters with count badges — full legacy parity refactor | Replaced all single-select `<select>` dropdowns with Syncfusion `ejs-multiselect` (mode=CheckBox) with count badges. All 14 filter categories now support multi-select. Backend: `GetFilterOptionsAsync` rewritten with parallel `Task.WhenAll` GroupBy count queries; `SearchAsync` updated from single-value equality to multi-value `.Contains()` predicates. Frontend: compact bar (5 most-used filters always visible) + expandable "More Filters" (13 additional filters in categorized sections) + filter chips strip showing active selections with remove capability. Added `FilterOption.Count` and `FilterOption.DefaultChecked` properties. Active Status defaults to "Active" pre-checked. COVID waiver filter intentionally excluded. Added design decision #14. |
+| 4 | LADT tree filter replaces flat Organization dropdowns | Replaced the 4 flat multi-select dropdowns (Team, Agegroup, Division, Club) in the "Organization" filter section with a hierarchical LADT checkbox tree + standalone Club dropdown. The tree shows League > Agegroup > Division > Team with tri-state checkboxes, expand/collapse, count badges (teams in blue, players in primary), and special node handling (Dropped Teams, WAITLIST at bottom). Backend: Team/Agegroup/Division filters changed from AND to OR logic — tree selections at different levels are unioned. Frontend classifies checked nodes at ALL descendant levels (not just highest ancestor) so the OR filter catches registrations assigned at any level. New file: `ladt-tree-filter.component.ts` (~445 LOC). Updated Phase 9 Organization section, added Phase 8b. Added design decision #15. |
+| 5 | Club roster threshold search | Added "Club Roster Search" section to More Filters. Helps directors find club reps whose teams are under-rostered. Backend: new `RosterThreshold` and `RosterThresholdClub` fields on `RegistrationSearchRequest`; subquery finds club rep registrations whose teams have `COUNT(active players) <= threshold`, optionally filtered by club name. Frontend: two dropdowns — roster count threshold (0–25) and optional club filter. Filter chips and clear-filters include these new fields. |
+| 6 | Syncfusion dark/light theme fix | Removed `@import '@syncfusion/ej2-base/styles/material.css'` and `@import '@syncfusion/ej2-grids/styles/material.css'` from `registration-search.component.scss`. These Material theme imports were overriding the global Bootstrap5 theme (`bootstrap5-lite.css`) which supports dark mode via `e-dark-mode` class. Removing them fixed dark mode and reduced the lazy chunk from 1.65 MB to 311 KB. |
+| 7 | Dirty-state "Update Results" button fixes | (a) Added `[changeOnBlur]="false"` to all 14 Syncfusion multi-select dropdowns so the dirty-state button activates immediately when a checkbox is toggled in the dropdown, not when the dropdown closes. (b) Set `lastSearchedRequest` baseline after default filter options load, so filter changes are detected as dirty even before the first search. (c) Button text reads "Update Results" when dirty + results exist, "Search" otherwise. |
+| 8 | CellPhone column fix + phone formatting | Fixed blank CellPhone column: backend projection was mapping `r.User.PhoneNumber` (empty ASP.NET Identity field) instead of `r.User.Cellphone`. Applied in both search results and detail endpoint. Created reusable `StringExtensions.FormatPhone()` extension method that formats 10-digit numbers as `xxx-xxx-xxxx`. New file: `TSIC.Contracts/Extensions/StringExtensions.cs`. |
 
 ---
 
-**Status**: Implementation in progress. Phases 1–15 complete. Phase 16 (Testing & Polish) pending.
+**Status**: Implementation in progress. Phases 1–15 complete (including 8b). Phase 16 (Testing & Polish) pending.

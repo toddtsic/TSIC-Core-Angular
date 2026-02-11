@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -836,17 +837,19 @@ public class RegistrationRepository : IRegistrationRepository
         if (request.RoleIds is { Count: > 0 })
             query = query.Where(r => r.RoleId != null && request.RoleIds.Contains(r.RoleId));
 
-        // Teams (multi-select)
-        if (request.TeamIds is { Count: > 0 })
-            query = query.Where(r => r.AssignedTeamId != null && request.TeamIds.Contains(r.AssignedTeamId.Value));
+        // LADT tree filters: OR across levels (tree selections at different levels are unioned)
+        var hasTeamIds = request.TeamIds is { Count: > 0 };
+        var hasAgegroupIds = request.AgegroupIds is { Count: > 0 };
+        var hasDivisionIds = request.DivisionIds is { Count: > 0 };
 
-        // Agegroups (multi-select)
-        if (request.AgegroupIds is { Count: > 0 })
-            query = query.Where(r => r.AssignedAgegroupId != null && request.AgegroupIds.Contains(r.AssignedAgegroupId.Value));
-
-        // Divisions (multi-select)
-        if (request.DivisionIds is { Count: > 0 })
-            query = query.Where(r => r.AssignedDivId != null && request.DivisionIds.Contains(r.AssignedDivId.Value));
+        if (hasTeamIds || hasAgegroupIds || hasDivisionIds)
+        {
+            query = query.Where(r =>
+                (hasTeamIds && r.AssignedTeamId != null && request.TeamIds!.Contains(r.AssignedTeamId.Value)) ||
+                (hasAgegroupIds && r.AssignedAgegroupId != null && request.AgegroupIds!.Contains(r.AssignedAgegroupId.Value)) ||
+                (hasDivisionIds && r.AssignedDivId != null && request.DivisionIds!.Contains(r.AssignedDivId.Value))
+            );
+        }
 
         // Club names (multi-select)
         if (request.ClubNames is { Count: > 0 })
@@ -909,6 +912,24 @@ public class RegistrationRepository : IRegistrationRepository
         if (request.RegDateTo.HasValue)
             query = query.Where(r => r.RegistrationTs <= request.RegDateTo.Value);
 
+        // ── Club roster threshold search ──
+        if (request.RosterThreshold != null)
+        {
+            var underRosteredClubRepIds = _context.Teams
+                .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null && t.Active == true)
+                .Where(t => _context.Registrations
+                    .Count(r => r.AssignedTeamId == t.TeamId && r.BActive == true) <= request.RosterThreshold.Value)
+                .Select(t => t.ClubrepRegistrationid!.Value)
+                .Distinct();
+
+            if (!string.IsNullOrWhiteSpace(request.RosterThresholdClub))
+                underRosteredClubRepIds = underRosteredClubRepIds
+                    .Where(id => _context.Registrations
+                        .Any(r => r.RegistrationId == id && r.ClubName == request.RosterThresholdClub));
+
+            query = query.Where(r => underRosteredClubRepIds.Contains(r.RegistrationId));
+        }
+
         // Compute count + aggregates BEFORE paging
         var aggregates = await query
             .GroupBy(r => 1)
@@ -929,7 +950,7 @@ public class RegistrationRepository : IRegistrationRepository
             FirstName = r.User != null ? r.User.FirstName ?? "" : "",
             LastName = r.User != null ? r.User.LastName ?? "" : "",
             Email = r.User != null ? r.User.Email ?? "" : "",
-            Phone = r.User != null ? r.User.PhoneNumber : null,
+            Phone = r.User != null ? r.User.Cellphone : null,
             Dob = r.User != null ? r.User.Dob : null,
             RoleName = r.Role != null ? r.Role.Name ?? "" : "",
             Active = r.BActive ?? false,
@@ -952,6 +973,10 @@ public class RegistrationRepository : IRegistrationRepository
             .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
             .Take(5000)
             .ToListAsync(ct);
+
+        // Format phone numbers (xxx-xxx-xxxx) after materialization
+        for (var i = 0; i < results.Count; i++)
+            results[i] = results[i] with { Phone = results[i].Phone.FormatPhone() };
 
         return new RegistrationSearchResponse
         {
@@ -1204,7 +1229,7 @@ public class RegistrationRepository : IRegistrationRepository
             FirstName = reg.User?.FirstName ?? "",
             LastName = reg.User?.LastName ?? "",
             Email = reg.User?.Email ?? "",
-            Phone = reg.User?.PhoneNumber,
+            Phone = reg.User?.Cellphone.FormatPhone(),
             RoleName = reg.Role?.Name ?? "",
             Active = reg.BActive ?? false,
             TeamName = reg.AssignedTeam?.TeamName,

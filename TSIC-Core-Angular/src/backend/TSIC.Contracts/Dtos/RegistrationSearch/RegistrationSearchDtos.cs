@@ -34,6 +34,10 @@ public record RegistrationSearchRequest
     // Date range
     public DateTime? RegDateFrom { get; init; }
     public DateTime? RegDateTo { get; init; }
+
+    // Club roster threshold search
+    public int? RosterThreshold { get; init; }
+    public string? RosterThresholdClub { get; init; }
 }
 
 /// <summary>

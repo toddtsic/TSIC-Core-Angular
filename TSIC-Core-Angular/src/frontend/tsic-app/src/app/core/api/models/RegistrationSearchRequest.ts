@@ -23,5 +23,7 @@ export type RegistrationSearchRequest = {
     mobileRegistrationRoles?: any[] | null;
     regDateFrom?: string | null;
     regDateTo?: string | null;
+    rosterThreshold?: number;
+    rosterThresholdClub?: string | null;
 };
 
