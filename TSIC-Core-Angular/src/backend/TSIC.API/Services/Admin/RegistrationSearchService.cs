@@ -47,9 +47,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task<RegistrationSearchResponse> SearchAsync(
         Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default)
     {
-        // Enforce max page size
-        var sanitized = request with { Take = Math.Min(request.Take, 100) };
-        return await _registrationRepo.SearchAsync(jobId, sanitized, ct);
+        return await _registrationRepo.SearchAsync(jobId, request, ct);
     }
 
     public async Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(

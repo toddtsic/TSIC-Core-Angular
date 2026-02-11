@@ -8,6 +8,15 @@ export type RegistrationFilterOptionsDto = {
     teams: Array<FilterOption>;
     agegroups: Array<FilterOption>;
     divisions: Array<FilterOption>;
-    clubs: Array<string>;
+    clubs: Array<FilterOption>;
+    activeStatuses: Array<FilterOption>;
+    payStatuses: Array<FilterOption>;
+    genders: Array<FilterOption>;
+    positions: Array<FilterOption>;
+    gradYears: Array<FilterOption>;
+    grades: Array<FilterOption>;
+    ageRanges: Array<FilterOption>;
+    arbSubscriptionStatuses: Array<FilterOption>;
+    mobileRegistrations: Array<FilterOption>;
 };
 

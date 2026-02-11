@@ -5,5 +5,7 @@
 export type FilterOption = {
     value: string;
     text: string;
+    count?: number;
+    defaultChecked?: boolean;
 };
 

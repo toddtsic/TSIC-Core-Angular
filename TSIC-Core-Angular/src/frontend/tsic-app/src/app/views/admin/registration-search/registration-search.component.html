@@ -1,201 +1,369 @@
+<!-- Reusable multiselect item template for count badges -->
+<ng-template #countBadgeTemplate let-data>
+  <span class="filter-item">
+    <span class="filter-item-text">{{ data.text }}</span>
+    <span class="filter-item-count">{{ data.count }}</span>
+  </span>
+</ng-template>
+
 <!-- Desktop View -->
 @if (!isMobile()) {
   <div class="registration-search-container">
     <!-- Filter Panel -->
     <div class="filter-panel">
-      <div class="filter-grid">
-        <!-- Row 1 -->
+      <!-- Compact Bar (always visible) -->
+      <div class="filter-bar-compact">
         <div class="filter-row">
           <div class="form-group">
             <label for="filterName">Name</label>
-            <input
-              type="text"
-              id="filterName"
-              class="form-control"
+            <input type="text" id="filterName" class="form-control"
               placeholder="First or Last"
               [ngModel]="searchRequest().name"
-              (ngModelChange)="updateName($event)"
-            />
+              (ngModelChange)="updateName($event)" />
           </div>
 
           <div class="form-group">
             <label for="filterEmail">Email</label>
-            <input
-              type="text"
-              id="filterEmail"
-              class="form-control"
+            <input type="text" id="filterEmail" class="form-control"
               placeholder="Email address"
               [ngModel]="searchRequest().email"
-              (ngModelChange)="updateEmail($event)"
-            />
+              (ngModelChange)="updateEmail($event)" />
           </div>
 
           <div class="form-group">
-            <label for="filterRole">Role</label>
-            <select
-              id="filterRole"
-              class="form-select"
-              [ngModel]="searchRequest().roleId"
-              (ngModelChange)="updateRoleId($event)"
-            >
-              <option value="">All Roles</option>
-              @for (role of filterOptions()?.roles; track role.value) {
-                <option [value]="role.value">{{ role.text }}</option>
-              }
-            </select>
+            <label>Role</label>
+            <ejs-multiselect
+              [dataSource]="filterOptions()?.roles ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().roleIds"
+              (change)="updateMultiSelect('roleIds', $event.value)"
+              [mode]="'CheckBox'"
+              [showSelectAll]="true"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              placeholder="All Roles"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
+            </ejs-multiselect>
           </div>
 
           <div class="form-group">
-            <label for="filterTeam">Team</label>
-            <select
-              id="filterTeam"
-              class="form-select"
-              [ngModel]="searchRequest().teamId"
-              (ngModelChange)="updateTeamId($event)"
-            >
-              <option value="">All Teams</option>
-              @for (team of filterOptions()?.teams; track team.value) {
-                <option [value]="team.value">{{ team.text }}</option>
-              }
-            </select>
+            <label>Status</label>
+            <ejs-multiselect
+              [dataSource]="filterOptions()?.activeStatuses ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().activeStatuses"
+              (change)="updateMultiSelect('activeStatuses', $event.value)"
+              [mode]="'CheckBox'"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              placeholder="All Statuses"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
+            </ejs-multiselect>
+          </div>
+
+          <div class="form-group">
+            <label>Pay Status</label>
+            <ejs-multiselect
+              [dataSource]="filterOptions()?.payStatuses ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().payStatuses"
+              (change)="updateMultiSelect('payStatuses', $event.value)"
+              [mode]="'CheckBox'"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              placeholder="All"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
+            </ejs-multiselect>
           </div>
         </div>
 
-        <!-- Row 2 -->
-        <div class="filter-row">
-          <div class="form-group">
-            <label for="filterAgegroup">Agegroup</label>
-            <select
-              id="filterAgegroup"
-              class="form-select"
-              [ngModel]="searchRequest().agegroupId"
-              (ngModelChange)="updateAgegroupId($event)"
-            >
-              <option value="">All Agegroups</option>
-              @for (ag of filterOptions()?.agegroups; track ag.value) {
-                <option [value]="ag.value">{{ ag.text }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="filterDivision">Division</label>
-            <select
-              id="filterDivision"
-              class="form-select"
-              [ngModel]="searchRequest().divisionId"
-              (ngModelChange)="updateDivisionId($event)"
-            >
-              <option value="">All Divisions</option>
-              @for (div of filterOptions()?.divisions; track div.value) {
-                <option [value]="div.value">{{ div.text }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="filterClub">Club</label>
-            <input
-              type="text"
-              id="filterClub"
-              class="form-control"
-              placeholder="Club name"
-              [ngModel]="searchRequest().clubName"
-              (ngModelChange)="updateClubName($event)"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="filterStatus">Status</label>
-            <select
-              id="filterStatus"
-              class="form-select"
-              [ngModel]="searchRequest().active === null ? 'all' : searchRequest().active ? 'active' : 'inactive'"
-              (ngModelChange)="updateActive($event)"
-            >
-              <option value="all">All</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Inactive Only</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Row 3 -->
-        <div class="filter-row">
-          <div class="form-group">
-            <label for="filterDateFrom">Date From</label>
-            <input
-              type="date"
-              id="filterDateFrom"
-              class="form-control"
-              [ngModel]="searchRequest().regDateFrom"
-              (ngModelChange)="updateRegDateFrom($event)"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="filterDateTo">Date To</label>
-            <input
-              type="date"
-              id="filterDateTo"
-              class="form-control"
-              [ngModel]="searchRequest().regDateTo"
-              (ngModelChange)="updateRegDateTo($event)"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="filterOwes">Owes Money</label>
-            <select
-              id="filterOwes"
-              class="form-select"
-              [ngModel]="searchRequest().owesFilter"
-              (ngModelChange)="updateOwesFilter($event)"
-            >
-              <option value="any">All</option>
-              <option value="owes">Owes Money</option>
-              <option value="paid">Paid Up</option>
-            </select>
-          </div>
-
-          <div class="form-group action-buttons">
-            <button
-              type="button"
-              class="btn btn-primary"
+        <!-- Action buttons row -->
+        <div class="action-row">
+          <div class="action-buttons">
+            <button type="button"
+              class="btn"
+              [class.btn-primary]="!filtersAreDirty()"
+              [class.btn-warning]="filtersAreDirty()"
+              [class.search-dirty]="filtersAreDirty()"
               (click)="executeSearch()"
-              [disabled]="isSearching()"
-            >
-              @if (isSearching()) {
-                <span class="spinner-border spinner-border-sm me-2"></span>
-              }
-              Search
+              [disabled]="isSearching()">
+              @if (isSearching()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              @if (filtersAreDirty()) { Update Results } @else { Search }
             </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              (click)="clearFilters()"
-            >
-              Clear
+            <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="toggleMoreFilters()">
+              @if (moreFiltersExpanded()) { Less Filters } @else { More Filters }
+              <svg class="toggle-arrow" [class.expanded]="moreFiltersExpanded()" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
-            <button
-              type="button"
-              class="btn btn-info"
-              (click)="onEmailSelected()"
-              [disabled]="!canEmailSelected"
-            >
+          </div>
+          <div class="action-buttons-right">
+            <button type="button" class="btn btn-info" (click)="onEmailSelected()" [disabled]="!canEmailSelected">
               Email Selected
             </button>
-            <button
-              type="button"
-              class="btn btn-success"
-              (click)="exportExcel()"
-            >
-              Export
-            </button>
+            <button type="button" class="btn btn-success" (click)="exportExcel()">Export</button>
           </div>
         </div>
       </div>
+
+      <!-- Expandable "More Filters" -->
+      @if (moreFiltersExpanded()) {
+        <div class="filter-bar-expanded">
+          <!-- Row: Text filters -->
+          <div class="filter-section">
+            <div class="section-label">Text Filters</div>
+            <div class="filter-row">
+              <div class="form-group">
+                <label for="filterPhone">Phone</label>
+                <input type="text" id="filterPhone" class="form-control"
+                  placeholder="Cell phone"
+                  [ngModel]="searchRequest().phone"
+                  (ngModelChange)="updatePhone($event)" />
+              </div>
+              <div class="form-group">
+                <label for="filterSchool">School</label>
+                <input type="text" id="filterSchool" class="form-control"
+                  placeholder="School name"
+                  [ngModel]="searchRequest().schoolName"
+                  (ngModelChange)="updateSchoolName($event)" />
+              </div>
+              <div class="form-group">
+                <label for="filterDateFrom">Date From</label>
+                <input type="date" id="filterDateFrom" class="form-control"
+                  [ngModel]="searchRequest().regDateFrom"
+                  (ngModelChange)="updateRegDateFrom($event)" />
+              </div>
+              <div class="form-group">
+                <label for="filterDateTo">Date To</label>
+                <input type="date" id="filterDateTo" class="form-control"
+                  [ngModel]="searchRequest().regDateTo"
+                  (ngModelChange)="updateRegDateTo($event)" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Row: Organization filters -->
+          <div class="filter-section">
+            <div class="section-label">Organization</div>
+            <div class="filter-row">
+              <div class="form-group">
+                <label>Team</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.teams ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().teamIds"
+                  (change)="updateMultiSelect('teamIds', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showSelectAll]="true"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  [enableFiltering]="true"
+                  placeholder="All Teams"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Agegroup</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.agegroups ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().agegroupIds"
+                  (change)="updateMultiSelect('agegroupIds', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showSelectAll]="true"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All Agegroups"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Division</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.divisions ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().divisionIds"
+                  (change)="updateMultiSelect('divisionIds', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showSelectAll]="true"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All Divisions"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Club</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.clubs ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().clubNames"
+                  (change)="updateMultiSelect('clubNames', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showSelectAll]="true"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  [enableFiltering]="true"
+                  placeholder="All Clubs"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row: Demographics -->
+          <div class="filter-section">
+            <div class="section-label">Demographics</div>
+            <div class="filter-row filter-row-5">
+              <div class="form-group">
+                <label>Gender</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.genders ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().genders"
+                  (change)="updateMultiSelect('genders', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Position</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.positions ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().positions"
+                  (change)="updateMultiSelect('positions', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Grad Year</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.gradYears ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().gradYears"
+                  (change)="updateMultiSelect('gradYears', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Grade</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.grades ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().grades"
+                  (change)="updateMultiSelect('grades', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Age Range</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.ageRanges ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().ageRangeIds"
+                  (change)="updateMultiSelect('ageRangeIds', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row: Billing & Mobile -->
+          <div class="filter-section">
+            <div class="section-label">Billing &amp; Mobile</div>
+            <div class="filter-row">
+              <div class="form-group">
+                <label>ARB Subscription</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.arbSubscriptionStatuses ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().arbSubscriptionStatuses"
+                  (change)="updateMultiSelect('arbSubscriptionStatuses', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group">
+                <label>Mobile Registrations</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.mobileRegistrations ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().mobileRegistrationRoles"
+                  (change)="updateMultiSelect('mobileRegistrationRoles', $event.value)"
+                  [mode]="'CheckBox'"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  placeholder="All"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
+              </div>
+              <div class="form-group"></div>
+              <div class="form-group"></div>
+            </div>
+          </div>
+        </div>
+      }
     </div>
+
+    <!-- Filter Chips Strip -->
+    @if (activeFilterChips().length > 0 && searchResults()) {
+      <div class="filter-chips-strip">
+        @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
+          <span class="filter-chip">
+            <span class="chip-category">{{ chip.category }}:</span>
+            <span class="chip-label">{{ chip.label }}</span>
+            <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </span>
+        }
+        <button type="button" class="chip-clear-all" (click)="clearAllChips()">Clear All</button>
+      </div>
+    }
 
     <!-- Results Grid -->
     <div class="results-container">
@@ -208,14 +376,13 @@
 
         <ejs-grid
           #grid
-          [dataSource]="gridDataSource()"
+          [dataSource]="searchResults()!.result"
           [allowPaging]="true"
           [allowSorting]="true"
           [allowExcelExport]="true"
           [frozenColumns]="4"
           [pageSettings]="pageSettings"
           [sortSettings]="sortSettings"
-          (actionBegin)="onActionBegin($event)"
           (rowSelected)="onRowSelected()"
           (rowDeselected)="onRowSelected()"
           (queryCellInfo)="queryCellInfo($event)"
@@ -224,11 +391,7 @@
           <e-columns>
             <!-- Frozen columns (checkbox, Row, Name, Active) -->
             <e-column type="checkbox" width="40"></e-column>
-            <e-column headerText="Row" width="55" textAlign="Center" [allowSorting]="false">
-              <ng-template #template let-data>
-                <span class="row-number">{{ data._rowNum }}</span>
-              </ng-template>
-            </e-column>
+            <e-column headerText="Row" width="55" textAlign="Center" [allowSorting]="false"></e-column>
             <e-column field="lastName" headerText="Name" width="170">
               <ng-template #template let-data>
                 <a href="javascript:void(0)" (click)="openDetail(data.registrationId)" class="detail-link">

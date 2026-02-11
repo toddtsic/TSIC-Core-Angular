@@ -23,33 +23,30 @@ export class MobileQuickLookupComponent {
   isSearching = signal<boolean>(false);
   expandedId = signal<string | null>(null);
   expandedDetail = signal<RegistrationDetailDto | null>(null);
-  currentPage = signal<number>(1);
+  visibleCount = signal<number>(20);
 
+  private allResults: RegistrationSearchResultDto[] = [];
   readonly pageSize = 20;
   private searchTimeout: any = null;
 
   onSearchInput(): void {
     if (this.searchTimeout) { clearTimeout(this.searchTimeout); }
-    this.searchTimeout = setTimeout(() => { this.currentPage.set(1); this.executeSearch(); }, 400);
+    this.searchTimeout = setTimeout(() => { this.executeSearch(); }, 400);
   }
 
   executeSearch(): void {
     const search = this.searchText();
-    if (!search.trim()) { this.results.set([]); this.totalCount.set(0); return; }
+    if (!search.trim()) { this.allResults = []; this.results.set([]); this.totalCount.set(0); return; }
 
     this.isSearching.set(true);
-    const page = this.currentPage();
+    this.visibleCount.set(this.pageSize);
 
-    this.searchService.search({
-      name: search,
-      skip: (page - 1) * this.pageSize,
-      take: this.pageSize
-    }).subscribe({
+    this.searchService.search({ name: search }).subscribe({
       next: (response) => {
         this.isSearching.set(false);
-        if (page === 1) { this.results.set(response.result); }
-        else { this.results.set([...this.results(), ...response.result]); }
+        this.allResults = response.result;
         this.totalCount.set(response.count);
+        this.results.set(this.allResults.slice(0, this.visibleCount()));
       },
       error: (err) => {
         this.isSearching.set(false);
@@ -58,7 +55,11 @@ export class MobileQuickLookupComponent {
     });
   }
 
-  loadMore(): void { this.currentPage.set(this.currentPage() + 1); this.executeSearch(); }
+  loadMore(): void {
+    const newCount = this.visibleCount() + this.pageSize;
+    this.visibleCount.set(newCount);
+    this.results.set(this.allResults.slice(0, newCount));
+  }
 
   toggleExpand(registrationId: string): void {
     if (this.expandedId() === registrationId) { this.expandedId.set(null); this.expandedDetail.set(null); return; }

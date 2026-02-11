@@ -2,6 +2,7 @@ namespace TSIC.Contracts.Dtos.RegistrationSearch;
 
 /// <summary>
 /// Search request sent from the grid filter panel.
+/// All multi-select filters use List for multi-value selection.
 /// POST body because filter criteria can be complex.
 /// </summary>
 public record RegistrationSearchRequest
@@ -9,27 +10,30 @@ public record RegistrationSearchRequest
     // Text filters
     public string? Name { get; init; }
     public string? Email { get; init; }
+    public string? Phone { get; init; }
+    public string? SchoolName { get; init; }
 
-    // Dropdown filters
-    public string? RoleId { get; init; }
-    public Guid? TeamId { get; init; }
-    public Guid? AgegroupId { get; init; }
-    public Guid? DivisionId { get; init; }
-    public string? ClubName { get; init; }
+    // Multi-select filters
+    public List<string>? RoleIds { get; init; }
+    public List<Guid>? TeamIds { get; init; }
+    public List<Guid>? AgegroupIds { get; init; }
+    public List<Guid>? DivisionIds { get; init; }
+    public List<string>? ClubNames { get; init; }
+    public List<string>? Genders { get; init; }
+    public List<string>? Positions { get; init; }
+    public List<string>? GradYears { get; init; }
+    public List<string>? Grades { get; init; }
+    public List<int>? AgeRangeIds { get; init; }
 
-    // Status filters
-    public bool? Active { get; init; }
-    public string? OwesFilter { get; init; }
+    // Status filters (multi-select)
+    public List<string>? ActiveStatuses { get; init; }
+    public List<string>? PayStatuses { get; init; }
+    public List<string>? ArbSubscriptionStatuses { get; init; }
+    public List<string>? MobileRegistrationRoles { get; init; }
 
     // Date range
     public DateTime? RegDateFrom { get; init; }
     public DateTime? RegDateTo { get; init; }
-
-    // Paging & sorting
-    public int Skip { get; init; }
-    public int Take { get; init; } = 20;
-    public string? SortField { get; init; }
-    public string? SortDirection { get; init; }
 }
 
 /// <summary>
@@ -67,33 +71,51 @@ public record RegistrationSearchResultDto
 }
 
 /// <summary>
-/// Paged response wrapper with server-side aggregates.
+/// Response wrapper with aggregates across all matching records.
 /// </summary>
 public record RegistrationSearchResponse
 {
     public required List<RegistrationSearchResultDto> Result { get; init; }
     public required int Count { get; init; }
 
-    // Aggregates across ALL matching records (not just current page)
+    // Aggregates across ALL matching records
     public required decimal TotalFees { get; init; }
     public required decimal TotalPaid { get; init; }
     public required decimal TotalOwed { get; init; }
 }
 
 /// <summary>
-/// Filter dropdown options loaded once on component init.
+/// Filter options with counts, loaded once on component init.
 /// </summary>
 public record RegistrationFilterOptionsDto
 {
+    // Organization
     public required List<FilterOption> Roles { get; init; }
     public required List<FilterOption> Teams { get; init; }
     public required List<FilterOption> Agegroups { get; init; }
     public required List<FilterOption> Divisions { get; init; }
-    public required List<string> Clubs { get; init; }
+    public required List<FilterOption> Clubs { get; init; }
+
+    // Status
+    public required List<FilterOption> ActiveStatuses { get; init; }
+    public required List<FilterOption> PayStatuses { get; init; }
+
+    // Demographics
+    public required List<FilterOption> Genders { get; init; }
+    public required List<FilterOption> Positions { get; init; }
+    public required List<FilterOption> GradYears { get; init; }
+    public required List<FilterOption> Grades { get; init; }
+    public required List<FilterOption> AgeRanges { get; init; }
+
+    // Billing & Mobile
+    public required List<FilterOption> ArbSubscriptionStatuses { get; init; }
+    public required List<FilterOption> MobileRegistrations { get; init; }
 }
 
 public record FilterOption
 {
     public required string Value { get; init; }
     public required string Text { get; init; }
+    public int Count { get; init; }
+    public bool DefaultChecked { get; init; }
 }

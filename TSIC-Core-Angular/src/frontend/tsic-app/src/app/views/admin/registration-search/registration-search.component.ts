@@ -1,8 +1,9 @@
-import { Component, OnInit, OnDestroy, ViewChild, signal, computed, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { QueryCellInfoEventArgs } from '@syncfusion/ej2-grids';
+import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
 import { RegistrationSearchService } from './services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -17,8 +18,16 @@ import type {
   RegistrationFilterOptionsDto,
   RegistrationSearchResultDto,
   RegistrationDetailDto,
-  AccountingRecordDto
+  AccountingRecordDto,
+  FilterOption
 } from '@core/api';
+
+interface FilterChip {
+  category: string;
+  label: string;
+  filterKey: keyof RegistrationSearchRequest;
+  value: string;
+}
 
 @Component({
   selector: 'app-registration-search',
@@ -27,11 +36,14 @@ import type {
     CommonModule,
     FormsModule,
     GridAllModule,
+    MultiSelectModule,
     RegistrationDetailPanelComponent,
     RefundModalComponent,
     BatchEmailModalComponent,
     MobileQuickLookupComponent
   ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  providers: [CheckBoxSelectionService],
   templateUrl: './registration-search.component.html',
   styleUrl: './registration-search.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -45,34 +57,43 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   // Filter options
   filterOptions = signal<RegistrationFilterOptionsDto | null>(null);
 
-  // Search state
+  // Search state — multi-select arrays
   searchRequest = signal<RegistrationSearchRequest>({
     name: '',
     email: '',
-    roleId: '',
-    teamId: '',
-    agegroupId: '',
-    divisionId: '',
-    clubName: '',
-    active: true,
-    owesFilter: 'any',
+    phone: '',
+    schoolName: '',
+    roleIds: [],
+    teamIds: [],
+    agegroupIds: [],
+    divisionIds: [],
+    clubNames: [],
+    genders: [],
+    positions: [],
+    gradYears: [],
+    grades: [],
+    ageRangeIds: [],
+    activeStatuses: ['True'],  // Default: Active pre-checked
+    payStatuses: [],
+    arbSubscriptionStatuses: [],
+    mobileRegistrationRoles: [],
     regDateFrom: undefined,
-    regDateTo: undefined,
-    skip: 0,
-    take: 20,
-    sortField: 'lastName',
-    sortDirection: 'asc'
+    regDateTo: undefined
   });
 
   searchResults = signal<RegistrationSearchResponse | null>(null);
   isSearching = signal(false);
 
-  /** Syncfusion DataResult format: { result, count } enables server-side paging */
-  gridDataSource = computed(() => {
-    const res = this.searchResults();
-    if (!res) return { result: [], count: 0 };
-    return { result: res.result, count: res.count };
+  // Dirty-state tracking: detect when filters changed since last search
+  private lastSearchedRequest = signal<string | null>(null);
+  filtersAreDirty = computed(() => {
+    const last = this.lastSearchedRequest();
+    if (last === null) return false; // No search yet — not "dirty"
+    return JSON.stringify(this.sanitizeRequest(this.searchRequest())) !== last;
   });
+
+  // Expandable "More Filters" state
+  moreFiltersExpanded = signal(false);
 
   // Selection state
   selectedRegistrations = signal<Set<string>>(new Set());
@@ -94,11 +115,57 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   pageSettings: PageSettingsModel = { pageSize: 20 };
   sortSettings: SortSettingsModel = { columns: [{ field: 'lastName', direction: 'Ascending' }] };
 
+  // Syncfusion MultiSelect fields
+  msFields = { value: 'value', text: 'text' };
+
+  // Filter chips computed from active filter selections
+  activeFilterChips = computed<FilterChip[]>(() => {
+    const req = this.searchRequest();
+    const opts = this.filterOptions();
+    const chips: FilterChip[] = [];
+
+    const addArrayChips = (
+      category: string,
+      filterKey: keyof RegistrationSearchRequest,
+      values: any[] | null | undefined,
+      options?: FilterOption[]
+    ) => {
+      if (!values?.length) return;
+      for (const val of values) {
+        const label = options?.find(o => o.value === String(val))?.text ?? String(val);
+        chips.push({ category, label, filterKey, value: String(val) });
+      }
+    };
+
+    addArrayChips('Role', 'roleIds', req.roleIds, opts?.roles);
+    addArrayChips('Status', 'activeStatuses', req.activeStatuses, opts?.activeStatuses);
+    addArrayChips('Pay', 'payStatuses', req.payStatuses, opts?.payStatuses);
+    addArrayChips('Team', 'teamIds', req.teamIds, opts?.teams);
+    addArrayChips('Agegroup', 'agegroupIds', req.agegroupIds, opts?.agegroups);
+    addArrayChips('Division', 'divisionIds', req.divisionIds, opts?.divisions);
+    addArrayChips('Club', 'clubNames', req.clubNames, opts?.clubs);
+    addArrayChips('Gender', 'genders', req.genders, opts?.genders);
+    addArrayChips('Position', 'positions', req.positions, opts?.positions);
+    addArrayChips('Grad Year', 'gradYears', req.gradYears, opts?.gradYears);
+    addArrayChips('Grade', 'grades', req.grades, opts?.grades);
+    addArrayChips('Age Range', 'ageRangeIds', req.ageRangeIds, opts?.ageRanges);
+    addArrayChips('Subscription', 'arbSubscriptionStatuses', req.arbSubscriptionStatuses, opts?.arbSubscriptionStatuses);
+    addArrayChips('Mobile Reg', 'mobileRegistrationRoles', req.mobileRegistrationRoles, opts?.mobileRegistrations);
+
+    if (req.name) chips.push({ category: 'Name', label: req.name, filterKey: 'name', value: req.name });
+    if (req.email) chips.push({ category: 'Email', label: req.email, filterKey: 'email', value: req.email });
+    if (req.phone) chips.push({ category: 'Phone', label: req.phone, filterKey: 'phone', value: req.phone });
+    if (req.schoolName) chips.push({ category: 'School', label: req.schoolName, filterKey: 'schoolName', value: req.schoolName });
+    if (req.regDateFrom) chips.push({ category: 'From', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
+    if (req.regDateTo) chips.push({ category: 'To', label: req.regDateTo, filterKey: 'regDateTo', value: req.regDateTo });
+
+    return chips;
+  });
+
   ngOnInit(): void {
     this.checkMobileView();
     window.addEventListener('resize', this.resizeHandler);
     this.loadFilterOptions();
-    this.executeSearch();
   }
 
   ngOnDestroy(): void {
@@ -111,7 +178,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   loadFilterOptions(): void {
     this.searchService.getFilterOptions().subscribe({
-      next: (options) => this.filterOptions.set(options),
+      next: (options) => {
+        this.filterOptions.set(options);
+        this.applyDefaultChecked(options);
+      },
       error: (err) => {
         this.toast.show('Failed to load filter options', 'danger', 4000);
         console.error('Error loading filter options:', err);
@@ -119,15 +189,26 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Apply DefaultChecked values from filter options to the search request */
+  private applyDefaultChecked(opts: RegistrationFilterOptionsDto): void {
+    const getDefaults = (options: FilterOption[] | null | undefined) =>
+      options?.filter(o => o.defaultChecked).map(o => o.value) ?? [];
+
+    const defaultGenders = getDefaults(opts.genders);
+
+    this.searchRequest.update(req => ({
+      ...req,
+      genders: defaultGenders.length ? defaultGenders : req.genders
+    }));
+  }
+
   executeSearch(): void {
     this.isSearching.set(true);
     const req = this.sanitizeRequest(this.searchRequest());
-    const skip = req.skip ?? 0;
+    this.lastSearchedRequest.set(JSON.stringify(req));
     this.searchService.search(req).subscribe({
       next: (results) => {
-        // Stamp row numbers onto each result for the grid template
-        const numbered = results.result.map((r, i) => ({ ...r, _rowNum: skip + i + 1 }));
-        this.searchResults.set({ ...results, result: numbered });
+        this.searchResults.set(results);
         this.selectedRegistrations.set(new Set());
         this.isSearching.set(false);
       },
@@ -140,24 +221,56 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   clearFilters(): void {
+    const opts = this.filterOptions();
+    const defaultGenders = opts?.genders?.filter(o => o.defaultChecked).map(o => o.value) ?? [];
+
     this.searchRequest.set({
       name: '',
       email: '',
-      roleId: '',
-      teamId: '',
-      agegroupId: '',
-      divisionId: '',
-      clubName: '',
-      active: true,
-      owesFilter: 'any',
+      phone: '',
+      schoolName: '',
+      roleIds: [],
+      teamIds: [],
+      agegroupIds: [],
+      divisionIds: [],
+      clubNames: [],
+      genders: defaultGenders,
+      positions: [],
+      gradYears: [],
+      grades: [],
+      ageRangeIds: [],
+      activeStatuses: ['True'],
+      payStatuses: [],
+      arbSubscriptionStatuses: [],
+      mobileRegistrationRoles: [],
       regDateFrom: undefined,
-      regDateTo: undefined,
-      skip: 0,
-      take: 20,
-      sortField: 'RegistrationTs',
-      sortDirection: 'desc'
+      regDateTo: undefined
+    });
+    this.searchResults.set(null);
+    this.lastSearchedRequest.set(null);
+  }
+
+  toggleMoreFilters(): void {
+    this.moreFiltersExpanded.update(v => !v);
+  }
+
+  removeFilterChip(chip: FilterChip): void {
+    this.searchRequest.update(req => {
+      const updated = { ...req };
+      const current = (updated as any)[chip.filterKey];
+      if (Array.isArray(current)) {
+        (updated as any)[chip.filterKey] = current.filter((v: any) => String(v) !== chip.value);
+      } else {
+        (updated as any)[chip.filterKey] = chip.filterKey === 'name' || chip.filterKey === 'email'
+          || chip.filterKey === 'phone' || chip.filterKey === 'schoolName' ? '' : undefined;
+      }
+      return updated;
     });
     this.executeSearch();
+  }
+
+  clearAllChips(): void {
+    this.clearFilters();
   }
 
   onRowSelected(): void {
@@ -195,7 +308,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.toast.show('Refund processed successfully', 'success', 4000);
     this.executeSearch();
 
-    // Refresh detail panel if open
     const currentDetail = this.selectedDetail();
     if (currentDetail && this.isPanelOpen()) {
       this.openDetail(currentDetail.registrationId);
@@ -208,33 +320,16 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
   }
 
-  onActionBegin(args: any): void {
-    if (args.requestType === 'paging') {
-      args.cancel = true;
-      const currentRequest = this.searchRequest();
-      const pageSize = args.pageSize || 20;
-      const currentPage = args.currentPage || 1;
-      this.searchRequest.set({
-        ...currentRequest,
-        skip: (currentPage - 1) * pageSize,
-        take: pageSize
-      });
-      this.executeSearch();
-    } else if (args.requestType === 'sorting' && args.columnName) {
-      args.cancel = true;
-      const currentRequest = this.searchRequest();
-      this.searchRequest.set({
-        ...currentRequest,
-        skip: 0,
-        sortField: args.columnName,
-        sortDirection: args.direction === 'Descending' ? 'desc' : 'asc'
-      });
-      this.executeSearch();
-    }
-  }
-
   queryCellInfo(args: QueryCellInfoEventArgs): void {
-    if (args.column?.field === 'owedTotal') {
+    if (args.column?.headerText === 'Row' && args.cell) {
+      const page = (this.grid.pageSettings.currentPage as number) || 1;
+      const pageSize = (this.grid.pageSettings.pageSize as number) || 20;
+      const currentViewData = this.grid.getCurrentViewRecords();
+      const rowIndex = currentViewData.indexOf(args.data as any);
+      if (rowIndex >= 0) {
+        args.cell.textContent = String((page - 1) * pageSize + rowIndex + 1);
+      }
+    } else if (args.column?.field === 'owedTotal') {
       const record = args.data as RegistrationSearchResultDto;
       if (args.cell) {
         if (record.owedTotal === 0) {
@@ -265,22 +360,12 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.toast.show('Batch email sent successfully', 'success', 4000);
   }
 
-  /** Convert empty strings to null so Guid? fields don't fail model binding */
-  private sanitizeRequest(req: RegistrationSearchRequest): RegistrationSearchRequest {
-    return {
-      ...req,
-      name: req.name || undefined,
-      email: req.email || undefined,
-      roleId: req.roleId || undefined,
-      teamId: req.teamId || undefined,
-      agegroupId: req.agegroupId || undefined,
-      divisionId: req.divisionId || undefined,
-      clubName: req.clubName || undefined,
-      owesFilter: req.owesFilter === 'any' ? undefined : req.owesFilter
-    };
+  // ── Multi-select update helpers ──
+
+  updateMultiSelect(field: keyof RegistrationSearchRequest, values: string[]): void {
+    this.searchRequest.update(req => ({ ...req, [field]: values ?? [] }));
   }
 
-  // Update filter helpers
   updateName(value: string): void {
     this.searchRequest.update(req => ({ ...req, name: value }));
   }
@@ -289,33 +374,12 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.searchRequest.update(req => ({ ...req, email: value }));
   }
 
-  updateRoleId(value: string): void {
-    this.searchRequest.update(req => ({ ...req, roleId: value || null }));
+  updatePhone(value: string): void {
+    this.searchRequest.update(req => ({ ...req, phone: value }));
   }
 
-  updateTeamId(value: string): void {
-    this.searchRequest.update(req => ({ ...req, teamId: value || null }));
-  }
-
-  updateAgegroupId(value: string): void {
-    this.searchRequest.update(req => ({ ...req, agegroupId: value || null }));
-  }
-
-  updateDivisionId(value: string): void {
-    this.searchRequest.update(req => ({ ...req, divisionId: value || null }));
-  }
-
-  updateClubName(value: string): void {
-    this.searchRequest.update(req => ({ ...req, clubName: value }));
-  }
-
-  updateActive(value: string): void {
-    const active = value === 'all' ? null : value === 'active';
-    this.searchRequest.update(req => ({ ...req, active }));
-  }
-
-  updateOwesFilter(value: string): void {
-    this.searchRequest.update(req => ({ ...req, owesFilter: value || 'any' }));
+  updateSchoolName(value: string): void {
+    this.searchRequest.update(req => ({ ...req, schoolName: value }));
   }
 
   updateRegDateFrom(value: string): void {
@@ -324,5 +388,31 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   updateRegDateTo(value: string): void {
     this.searchRequest.update(req => ({ ...req, regDateTo: value || undefined }));
+  }
+
+  /** Convert empty arrays to undefined so backend ignores them */
+  private sanitizeRequest(req: RegistrationSearchRequest): RegistrationSearchRequest {
+    const clean = (arr: any[] | null | undefined) => arr?.length ? arr : undefined;
+    return {
+      ...req,
+      name: req.name || undefined,
+      email: req.email || undefined,
+      phone: req.phone || undefined,
+      schoolName: req.schoolName || undefined,
+      roleIds: clean(req.roleIds),
+      teamIds: clean(req.teamIds),
+      agegroupIds: clean(req.agegroupIds),
+      divisionIds: clean(req.divisionIds),
+      clubNames: clean(req.clubNames),
+      genders: clean(req.genders),
+      positions: clean(req.positions),
+      gradYears: clean(req.gradYears),
+      grades: clean(req.grades),
+      ageRangeIds: clean(req.ageRangeIds),
+      activeStatuses: clean(req.activeStatuses),
+      payStatuses: clean(req.payStatuses),
+      arbSubscriptionStatuses: clean(req.arbSubscriptionStatuses),
+      mobileRegistrationRoles: clean(req.mobileRegistrationRoles)
+    };
   }
 }

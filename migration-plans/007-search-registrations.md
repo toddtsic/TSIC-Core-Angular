@@ -45,14 +45,28 @@ This interface deserves Syncfusion's full grid capability. The data volume (hund
 │  Registration Search                                               [⟳]     │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌─ Filter Bar ────────────────────────────────────────────────────────────┐│
-│  │ Name: [          ]  Email: [          ]  Role: [▼ All    ]              ││
-│  │ Team: [▼ All     ]  Agegroup: [▼ All  ]  Division: [▼ All ]            ││
-│  │ Club: [▼ All     ]  Status: [▼ Active ]  Owes$: [▼ Any   ]            ││
-│  │ Reg Date: [From     ] → [To       ]                                     ││
-│  │                                                                          ││
-│  │ [🔍 Search]  [Clear]                   [📧 Email Selected] [📥 Export] ││
-│  └──────────────────────────────────────────────────────────────────────────┘│
+│  ┌─ Filter Panel (glassmorphic card) ────────────────────────────────────┐  │
+│  │                                                                        │  │
+│  │  ── Compact Bar (always visible) ──                                    │  │
+│  │  Name: [          ]  Email: [          ]                               │  │
+│  │  Role: [☑ multiselect ▼]  Status: [☑ Active ▼]  Pay: [☑ multi ▼]    │  │
+│  │        Player (347)          Active (892)          PAID (650)          │  │
+│  │        Coach (45)            Inactive (53)         UNDER (195)        │  │
+│  │        Staff (12)                                  OVER (3)           │  │
+│  │                                                                        │  │
+│  │  [Search]  [Clear]  [▼ More Filters]       [Email Selected] [Export]  │  │
+│  │                                                                        │  │
+│  │  ── More Filters (expandable, slide-down animation) ──                 │  │
+│  │  Text: Phone [      ]  School [      ]  From [    ]  To [    ]        │  │
+│  │  Org:  Team [☑▼]  Agegroup [☑▼]  Division [☑▼]  Club [☑▼]           │  │
+│  │  Demo: Gender [☑▼]  Position [☑▼]  GradYr [☑▼]  Grade [☑▼]  Age[☑▼]│  │
+│  │  Bill: ARB Subscription [☑▼]  Mobile Registrations [☑▼]              │  │
+│  │                                                                        │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌─ Filter Chips Strip ──────────────────────────────────────────────────┐  │
+│  │ Role: Player ✕ │ Status: Active ✕ │ Pay: UNDER PAID ✕ │ [Clear All] │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
 │  Found: 347 registrations                          Page 1 of 18  ◀ ▶       │
 │  ┌──────────────────────────────────────────────────────────────────────────┐│
@@ -195,7 +209,7 @@ Batch Email Modal (triggered from filter bar → "Email Selected"):
 
 | Requirement | Syncfusion Capability |
 |---|---|
-| **Server-side paging** | Built-in `DataManager` with server-side operations |
+| **Client-side paging** | Built-in grid paging with all results loaded (capped at 5,000) |
 | **Multi-column sorting** | Click headers, multi-sort via Ctrl+click |
 | **Column filtering** | Filter bar below headers OR filter menu per column |
 | **Column visibility** | Built-in column chooser (hamburger menu) |
@@ -217,7 +231,7 @@ No navigation, no back button, no re-entering filters.
 
 ## 4. User Value
 
-- **10x faster workflows**: Server-side paging handles 10,000+ registrations without browser lag
+- **10x faster workflows**: Client-side paging with server-side filtering handles large datasets (up to 5,000 results) with instant page/sort responsiveness
 - **Zero context loss**: Slide-over panel keeps search results visible while editing/viewing details
 - **Inline refunds**: Process partial or full credit card refunds without leaving the app
 - **Batch email with preview**: Compose template, preview rendered output for first N recipients, then send
@@ -242,7 +256,9 @@ No navigation, no back button, no re-entering filters.
 
 - **Mobile Quick Lookup Mode** — below 768px, the entire desktop UI (filter panel, Syncfusion grid, slide-over panel) is replaced with a purpose-built mobile experience: a single search input, card-based results (name, team, role, owes badge), and tap-to-expand detail cards. Designed for the one thing an admin does on their phone: "which team is this kid on?" / "does this person owe money?" No refunds, no batch email, no Excel export — those are desk work. This pattern establishes the standard for mobile-first admin views: don't degrade the desktop experience to chase mobile parity; build a separate, intentionally limited mobile mode instead.
 
-- **Server-Side Paged Syncfusion Grid** — first use of Syncfusion's `DataManager` with custom server-side adapter. The adapter sends sort/filter/page parameters to the API and receives `{ result: T[], count: number }`. This pattern establishes the standard for all future data-heavy grids.
+- **Client-Side Paged Syncfusion Grid with Server-Side Filtering** — backend returns all matching results (capped at 5,000) in a single response; Syncfusion grid handles paging and sorting locally for instant responsiveness. Aggregates (TotalFees/TotalPaid/TotalOwed) computed server-side across the full result set. This pattern works well for datasets under 5,000 rows — for larger datasets, a server-side `DataManager` adapter pattern should be considered.
+
+- **Multi-Select Filter Panel with Count Badges** — Syncfusion `ejs-multiselect` with `mode="CheckBox"` and custom `itemTemplate` for registration count badges. Compact bar shows most-used filters always visible, expandable section reveals additional categories. Filter chips strip shows active selections with one-click removal. Parallel `Task.WhenAll` GroupBy queries compute counts for all 14 filter categories efficiently. This pattern replaces the legacy accordion-checkbox approach and can be reused for any admin search interface needing faceted filtering.
 
 - **Inline Refund Workflow** — modal triggered from accounting tab, pre-populated with transaction details, supports partial/full refund amount, processes via `ADN_Refund()`, creates negative accounting record, updates registration financials.
 
@@ -341,104 +357,115 @@ No navigation, no back button, no re-entering filters.
 
 ### Phase 1: Backend — Search DTOs
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
-**File to create**:
+**File**:
 - `TSIC.Contracts/Dtos/RegistrationSearch/RegistrationSearchDtos.cs`
 
-**DTOs**:
+**DTOs** (as implemented):
 ```csharp
-// ── Search request (sent from grid) ──
+// ── Search request — ALL filters are multi-select arrays (legacy parity) ──
 public record RegistrationSearchRequest
 {
     // Text filters
-    public string? Name { get; init; }              // Searches FirstName + LastName (contains)
-    public string? Email { get; init; }             // Contains match
+    public string? Name { get; init; }
+    public string? Email { get; init; }
+    public string? Phone { get; init; }
+    public string? SchoolName { get; init; }
 
-    // Dropdown filters
-    public string? RoleId { get; init; }            // Exact match on AspNetRoles.Id
-    public Guid? TeamId { get; init; }              // Exact match
-    public Guid? AgegroupId { get; init; }          // Exact match
-    public Guid? DivisionId { get; init; }          // Exact match
-    public string? ClubName { get; init; }          // Contains match on Registrations.ClubName
+    // Multi-select filters
+    public List<string>? RoleIds { get; init; }
+    public List<Guid>? TeamIds { get; init; }
+    public List<Guid>? AgegroupIds { get; init; }
+    public List<Guid>? DivisionIds { get; init; }
+    public List<string>? ClubNames { get; init; }
+    public List<string>? Genders { get; init; }
+    public List<string>? Positions { get; init; }
+    public List<string>? GradYears { get; init; }
+    public List<string>? Grades { get; init; }
+    public List<int>? AgeRangeIds { get; init; }
 
-    // Status filters
-    public bool? Active { get; init; }              // null=all, true=active, false=inactive
-    public string? OwesFilter { get; init; }        // "any", "owes" (OwedTotal>0), "paid" (OwedTotal<=0)
+    // Status filters (multi-select)
+    public List<string>? ActiveStatuses { get; init; }       // "True"/"False"
+    public List<string>? PayStatuses { get; init; }          // "PAID IN FULL"/"UNDER PAID"/"OVER PAID"
+    public List<string>? ArbSubscriptionStatuses { get; init; }  // "PAYING BY SUBSCRIPTION"/"NOT PAYING BY SUBSCRIPTION"
+    public List<string>? MobileRegistrationRoles { get; init; }  // Role names of mobile-registered
 
     // Date range
     public DateTime? RegDateFrom { get; init; }
     public DateTime? RegDateTo { get; init; }
-
-    // Paging & sorting
-    public int Skip { get; init; }                  // Offset (0-based)
-    public int Take { get; init; } = 20;            // Page size (default 20)
-    public string? SortField { get; init; }         // Column to sort by
-    public string? SortDirection { get; init; }     // "asc" or "desc"
+    // NOTE: No Skip/Take/SortField/SortDirection — grid handles paging/sorting client-side
 }
 
 // ── Search result row ──
 public record RegistrationSearchResultDto
 {
     public required Guid RegistrationId { get; init; }
-    public required int RegistrationAi { get; init; }     // Display ID (#)
-
-    // Person (from AspNetUsers join)
+    public required int RegistrationAi { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
     public required string Email { get; init; }
     public string? Phone { get; init; }
-
-    // Registration context
+    public DateTime? Dob { get; init; }
     public required string RoleName { get; init; }
     public required bool Active { get; init; }
+    public string? Position { get; init; }
     public string? TeamName { get; init; }
     public string? AgegroupName { get; init; }
     public string? DivisionName { get; init; }
     public string? ClubName { get; init; }
-
-    // Financials
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
-
-    // Dates
     public required DateTime RegistrationTs { get; init; }
     public DateTime? Modified { get; init; }
 }
 
-// ── Paged response wrapper ──
+// ── Response wrapper with aggregates ──
 public record RegistrationSearchResponse
 {
     public required List<RegistrationSearchResultDto> Result { get; init; }
-    public required int Count { get; init; }        // Total matching records (for pager)
-
-    // Aggregates across ALL matching records (not just current page)
+    public required int Count { get; init; }
     public required decimal TotalFees { get; init; }
     public required decimal TotalPaid { get; init; }
     public required decimal TotalOwed { get; init; }
 }
 
-// ── Filter dropdown options (loaded once) ──
+// ── Filter options with counts for all 14 categories ──
 public record RegistrationFilterOptionsDto
 {
+    // Organization
     public required List<FilterOption> Roles { get; init; }
     public required List<FilterOption> Teams { get; init; }
     public required List<FilterOption> Agegroups { get; init; }
     public required List<FilterOption> Divisions { get; init; }
-    public required List<string> Clubs { get; init; }    // Distinct club names
+    public required List<FilterOption> Clubs { get; init; }
+    // Status
+    public required List<FilterOption> ActiveStatuses { get; init; }
+    public required List<FilterOption> PayStatuses { get; init; }
+    // Demographics
+    public required List<FilterOption> Genders { get; init; }
+    public required List<FilterOption> Positions { get; init; }
+    public required List<FilterOption> GradYears { get; init; }
+    public required List<FilterOption> Grades { get; init; }
+    public required List<FilterOption> AgeRanges { get; init; }
+    // Billing & Mobile
+    public required List<FilterOption> ArbSubscriptionStatuses { get; init; }
+    public required List<FilterOption> MobileRegistrations { get; init; }
 }
 
 public record FilterOption
 {
-    public required string Value { get; init; }     // ID
-    public required string Text { get; init; }      // Display name
+    public required string Value { get; init; }
+    public required string Text { get; init; }
+    public int Count { get; init; }              // Registration count for this option
+    public bool DefaultChecked { get; init; }    // Pre-selected in UI (Active=true)
 }
 ```
 
 ### Phase 2: Backend — Accounting & Refund DTOs
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `TSIC.Contracts/Dtos/RegistrationSearch/AccountingDtos.cs`
@@ -505,7 +532,7 @@ public record PaymentMethodOptionDto
 
 ### Phase 3: Backend — Registration Detail DTOs
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `TSIC.Contracts/Dtos/RegistrationSearch/RegistrationDetailDtos.cs`
@@ -599,48 +626,53 @@ public record RenderedEmailPreview
 
 ### Phase 4: Backend — Repository Extensions
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
-**Files to modify**:
-- `TSIC.Contracts/Repositories/IRegistrationRepository.cs` (add methods)
-- `TSIC.Infrastructure/Repositories/RegistrationRepository.cs` (implement)
-- `TSIC.Contracts/Repositories/IRegistrationAccountingRepository.cs` (add methods)
-- `TSIC.Infrastructure/Repositories/RegistrationAccountingRepository.cs` (implement)
+**Files modified**:
+- `TSIC.Contracts/Repositories/IRegistrationRepository.cs` (added methods)
+- `TSIC.Infrastructure/Repositories/RegistrationRepository.cs` (implemented)
+- `TSIC.Contracts/Repositories/IRegistrationAccountingRepository.cs` (added methods)
+- `TSIC.Infrastructure/Repositories/RegistrationAccountingRepository.cs` (implemented)
 
-**New IRegistrationRepository methods**:
+**IRegistrationRepository methods** (as implemented):
+
 ```
-SearchAsync(Guid jobId, RegistrationSearchRequest request) → RegistrationSearchResponse
-    -- Builds IQueryable<Registrations> with:
-    --   .Where(r => r.JobId == jobId)
-    --   .Where(r => r.BActive == request.Active) if Active is not null
-    --   .Where(name contains) if Name is not null — split on space for first/last
-    --   .Where(email contains) if Email is not null
-    --   .Where(r => r.RoleId == request.RoleId) if RoleId is not null
-    --   .Where(r => r.AssignedTeamId == request.TeamId) if TeamId is not null
-    --   .Where(r => r.AssignedAgegroupId == request.AgegroupId) if AgegroupId is not null
-    --   .Where(r => r.AssignedDivId == request.DivisionId) if DivisionId is not null
-    --   .Where(r => r.ClubName.Contains(request.ClubName)) if ClubName is not null
-    --   .Where(r => r.OwedTotal > 0) if OwesFilter == "owes"
-    --   .Where(r => r.OwedTotal <= 0) if OwesFilter == "paid"
-    --   .Where(r => r.RegistrationTs >= request.RegDateFrom) if RegDateFrom is not null
-    --   .Where(r => r.RegistrationTs <= request.RegDateTo) if RegDateTo is not null
-    --
-    -- Joins: Registrations → AspNetUsers (via UserId) for name/email
-    --         Registrations → Teams (via AssignedTeamId) for team name
-    --         Registrations → AspNetRoles (via RoleId) for role name
-    --         Registrations → Agegroups (via AssignedAgegroupId) for agegroup name
-    --         Registrations → Divisions (via AssignedDivId) for division name
-    --
-    -- Computes Count + Aggregates (TotalFees, TotalPaid, TotalOwed) BEFORE paging
-    -- Applies OrderBy/ThenBy based on SortField + SortDirection
-    -- Applies Skip/Take for paging
-    -- Returns RegistrationSearchResponse with Result + Count + Aggregates
-    -- AsNoTracking
+SearchAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct) → RegistrationSearchResponse
+    -- Base query: .Where(r => r.JobId == jobId && r.UserId != null).AsNoTracking()
+    -- ALL filters use multi-value .Contains() for multi-select support:
+    --   ActiveStatuses: converts "True"/"False" strings to booleans, uses boolValues.Contains(r.BActive.Value)
+    --   PayStatuses: OR logic — "PAID IN FULL" → OwedTotal == 0, "UNDER PAID" → OwedTotal > 0, "OVER PAID" → OwedTotal < 0
+    --   RoleIds: request.RoleIds.Contains(r.RoleId)
+    --   TeamIds: request.TeamIds.Contains(r.AssignedTeamId.Value)
+    --   AgegroupIds: request.AgegroupIds.Contains(r.AssignedAgegroupId.Value)
+    --   DivisionIds: request.DivisionIds.Contains(r.AssignedDivId.Value)
+    --   ClubNames: request.ClubNames.Contains(r.ClubName)
+    --   Genders: request.Genders.Contains(r.User.Gender)
+    --   Positions: request.Positions.Contains(r.Position)
+    --   GradYears: request.GradYears.Contains(r.GradYear)
+    --   Grades: request.Grades.Contains(r.SchoolGrade)
+    --   AgeRangeIds: cross-join with JobAgeRanges, DOB between RangeLeft/RangeRight
+    --   ArbSubscriptionStatuses: "PAYING" → active/suspended AdnSubscriptionStatus, "NOT PAYING" → null/other
+    --   MobileRegistrationRoles: r.ModifiedMobile != null && roles.Contains(r.RoleId)
+    --   Name: split on space → first/last contains (or single term matches either)
+    --   Email: contains match on User.Email
+    --   Phone: contains match on User.Cellphone
+    --   SchoolName: contains match on r.SchoolName
+    --   RegDateFrom/RegDateTo: bracket on RegistrationTs
+    -- Joins: Registrations → AspNetUsers, Teams, AspNetRoles, Agegroups, Divisions
+    -- Returns ALL matching results (no Skip/Take — client-side paging, capped at 5000)
+    -- Computes aggregates (TotalFees, TotalPaid, TotalOwed) across full result set
 
-GetFilterOptionsAsync(Guid jobId) → RegistrationFilterOptionsDto
-    -- Returns distinct roles, teams, agegroups, divisions, club names for this job
-    -- Each with counts for contextual relevance
-    -- AsNoTracking
+GetFilterOptionsAsync(Guid jobId, CancellationToken ct) → RegistrationFilterOptionsDto
+    -- Parallel execution via Task.WhenAll for all 14 filter categories
+    -- Dynamic GroupBy categories (10): Roles, Teams, Agegroups, Divisions, Clubs,
+    --   Positions, Genders, GradYears, Grades, MobileRegistrations
+    -- Fixed-value count categories (3): ActiveStatuses (GroupBy BActive),
+    --   PayStatuses (3 separate CountAsync: OwedTotal ==0/>0/<0),
+    --   ArbSubscriptionStatuses (2 separate CountAsync: active+suspended / other)
+    -- Computed category (1): AgeRanges (cross-join with JobAgeRanges, DOB in range)
+    -- ActiveStatuses "Active" option gets DefaultChecked = true
+    -- All counts scoped to jobId + UserId != null
 
 GetRegistrationDetailAsync(Guid registrationId, Guid jobId) → RegistrationDetailDto
     -- Full registration with user data, profile values, accounting records
@@ -661,7 +693,7 @@ UpdateRegistrationProfileAsync(Guid jobId, string userId, UpdateRegistrationProf
     -- SaveChangesAsync
 ```
 
-**New IRegistrationAccountingRepository methods**:
+**IRegistrationAccountingRepository methods**:
 ```
 GetByRegistrationIdAsync(Guid registrationId) → List<AccountingRecordDto>
     -- Returns all accounting records for a registration
@@ -681,7 +713,7 @@ GetPaymentMethodOptionsAsync() → List<PaymentMethodOptionDto>
 
 ### Phase 5: Backend — Registration Search Service
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `TSIC.Contracts/Services/IRegistrationSearchService.cs`
@@ -762,7 +794,7 @@ PreviewEmailAsync(Guid jobId, EmailPreviewRequest req) → EmailPreviewResponse
 
 ### Phase 6: Backend — Controller
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `TSIC.API/Controllers/RegistrationSearchController.cs`
@@ -807,7 +839,7 @@ PreviewEmailAsync(Guid jobId, EmailPreviewRequest req) → EmailPreviewResponse
 
 ### Phase 7: Backend — DI Registration
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to modify**:
 - `TSIC.API/Program.cs`
@@ -819,7 +851,7 @@ builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService
 
 ### Phase 8: Frontend — Service
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to create**:
 - `src/app/views/admin/registration-search/services/registration-search.service.ts`
@@ -837,27 +869,46 @@ builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService
 
 ### Phase 9: Frontend — Registration Search Component (Main Grid)
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
-**Files to create**:
+**Files created**:
 - `src/app/views/admin/registration-search/registration-search.component.ts`
 - `src/app/views/admin/registration-search/registration-search.component.html`
 - `src/app/views/admin/registration-search/registration-search.component.scss`
 
-**Component imports**:
+**Component imports** (as implemented):
 ```typescript
-import { GridAllModule } from '@syncfusion/ej2-angular-grids';
-// Services: SortService, FilterService, PageService, ToolbarService,
-//           ExcelExportService, AggregateService, ResizeService
+import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
+import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
+// schemas: [CUSTOM_ELEMENTS_SCHEMA]
+// providers: [CheckBoxSelectionService]
 ```
 
-**Component state** (signals):
+**Component state** (signals, as implemented):
 ```typescript
-// Filter state
+// Filter options & search
 filterOptions = signal<RegistrationFilterOptionsDto | null>(null);
-searchRequest = signal<RegistrationSearchRequest>(defaultSearchRequest());
+searchRequest = signal<RegistrationSearchRequest>({
+  name: '', email: '', phone: '', schoolName: '',
+  roleIds: [], teamIds: [], agegroupIds: [], divisionIds: [],
+  clubNames: [], genders: [], positions: [], gradYears: [],
+  grades: [], ageRangeIds: [],
+  activeStatuses: ['True'],  // Default: Active pre-checked
+  payStatuses: [], arbSubscriptionStatuses: [],
+  mobileRegistrationRoles: [],
+  regDateFrom: undefined, regDateTo: undefined
+});
 searchResults = signal<RegistrationSearchResponse | null>(null);
 isSearching = signal(false);
+
+// Expandable "More Filters"
+moreFiltersExpanded = signal(false);
+
+// Syncfusion MultiSelect fields config
+msFields = { value: 'value', text: 'text' };
+
+// Filter chips — computed from active filter selections
+activeFilterChips = computed<FilterChip[]>(() => { ... });
 
 // Grid state
 selectedRegistrations = signal<Set<string>>(new Set());
@@ -865,50 +916,80 @@ selectedRegistrations = signal<Set<string>>(new Set());
 // Slide-over panel
 selectedDetail = signal<RegistrationDetailDto | null>(null);
 isPanelOpen = signal(false);
-activeTab = signal<'details' | 'accounting' | 'email'>('details');
 
-// Batch email
+// Modals
 showBatchEmailModal = signal(false);
-
-// Refund
 showRefundModal = signal(false);
 refundTarget = signal<AccountingRecordDto | null>(null);
+
+// Mobile detection
+isMobile = signal(false);
 ```
 
 **Syncfusion Grid configuration**:
-- `allowPaging: true`, `pageSettings: { pageSize: 20 }`
-- `allowSorting: true`, `allowMultiSorting: true`
-- `allowFiltering: false` (use custom filter panel above grid, not grid's built-in filter bar)
+- `allowPaging: true`, `pageSettings: { pageSize: 20 }` (client-side paging)
+- `allowSorting: true` (client-side sorting)
 - `allowExcelExport: true`
-- Toolbar: `['ExcelExport']`
-- Columns: `#` (RegistrationAi), `Last`, `First`, `Email`, `Team`, `Role`, `Active`, `Fees`, `Paid`, `Owed`, `Reg Date`
+- Columns: Row #, Last, First, Email, Phone, Team, Role, Active, Position, Fees, Paid, Owed, Reg Date
 - Checkbox selection column
-- Aggregate row: Sum of FeeTotal, PaidTotal, OwedTotal (from server response, not client-side)
-- `queryCellInfo` event: Color-code OwedTotal (green if $0, red if > $0)
-- Row click → open slide-over panel with registration detail
+- Aggregate footer row: Sum of FeeTotal, PaidTotal, OwedTotal (from server response)
+- `queryCellInfo` event: Color-code OwedTotal (green if $0, red if > $0), Row # calculation
+- Detail link on last name → opens slide-over panel
 - CSS class: `tight-table` for compact density
 
-**Filter panel** (Bootstrap form above grid):
-- Two rows of filter inputs (responsive grid)
-- Name text input, Email text input
-- Role dropdown (from filterOptions), Team dropdown, Agegroup dropdown, Division dropdown
-- Club text/dropdown, Active status dropdown, Owes filter dropdown
-- Date range pickers (From/To)
-- Search button (triggers API call), Clear button (resets all filters)
-- "Email Selected" button (enabled when selections exist), "Export" button (Excel export)
+**Filter panel — Compact Bar + Expandable "More Filters"** (legacy parity):
+
+*Compact Bar (always visible):*
+| Filter | Type | Notes |
+|---|---|---|
+| Name | text input | |
+| Email | text input | |
+| Role | `ejs-multiselect` mode=CheckBox | Count badges via itemTemplate |
+| Status | `ejs-multiselect` mode=CheckBox | Active pre-selected via default |
+| Pay Status | `ejs-multiselect` mode=CheckBox | Count badges |
+
+*Action Row:*
+- Search button, Clear button, "More Filters" toggle (animated arrow), Email Selected, Export
+
+*Expandable "More Filters" (toggled via button):*
+- **Text Filters**: Phone, School Name, Date From, Date To
+- **Organization**: Team, Agegroup, Division, Club (all `ejs-multiselect` with counts, Team/Club have `enableFiltering`)
+- **Demographics**: Gender, Position, Grad Year, Grade, Age Range (5-column grid, all `ejs-multiselect` with counts)
+- **Billing & Mobile**: ARB Subscription, Mobile Registrations (both `ejs-multiselect` with counts)
+
+*Filter Chips Strip (between filter panel and grid):*
+- Shows active filter selections as removable colored chips: `Role: Player x | Status: Active x | Clear All`
+- Visible when filters are active AND search results are loaded
+- Chip removal triggers immediate re-search
+
+**Count Badge Template** (Syncfusion MultiSelect itemTemplate):
+```html
+<ng-template #countBadgeTemplate let-data>
+  <span class="filter-item">
+    <span class="filter-item-text">{{ data.text }}</span>
+    <span class="filter-item-count">{{ data.count }}</span>
+  </span>
+</ng-template>
+```
+
+**Key update helpers**:
+- `updateMultiSelect(field, values)` — generic multi-select onChange handler
+- `removeFilterChip(chip)` — removes specific filter value and re-searches
+- `sanitizeRequest()` — converts empty arrays to undefined before API call
 
 **Key behaviors**:
-- On component init: load filter options, execute default search (all active registrations)
+- On component init: load filter options (no auto-search — admin clicks "Search" button)
 - Filter changes do NOT auto-search — admin clicks "Search" button (intentional; prevents excessive API calls during filter setup)
-- Grid sorting triggers server-side re-query (not client-side sort)
-- Page change triggers server-side re-query
-- Row click loads registration detail into slide-over panel
+- Grid sorting and paging are client-side (all results returned from server, capped at 5,000)
+- Last name is a clickable detail link → opens slide-over panel with registration detail
 - Checkbox selection tracks IDs for batch operations
 - Excel export uses current search results
+- "More Filters" toggle expands/collapses additional filter categories with slide-down animation
+- Filter chip removal triggers immediate re-search
 
 ### Phase 10: Frontend — Slide-Over Detail Panel Component
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `src/app/views/admin/registration-search/components/registration-detail-panel.component.ts`
@@ -982,7 +1063,7 @@ refundTarget = signal<AccountingRecordDto | null>(null);
 
 ### Phase 11: Frontend — Refund Modal Component
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `src/app/views/admin/registration-search/components/refund-modal.component.ts`
@@ -1003,7 +1084,7 @@ refundTarget = signal<AccountingRecordDto | null>(null);
 
 ### Phase 12: Frontend — Batch Email Modal Component
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `src/app/views/admin/registration-search/components/batch-email-modal.component.ts`
@@ -1025,7 +1106,7 @@ refundTarget = signal<AccountingRecordDto | null>(null);
 
 ### Phase 13: Frontend — Mobile Quick Lookup Component
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Files to create**:
 - `src/app/views/admin/registration-search/components/mobile-quick-lookup.component.ts`
@@ -1174,7 +1255,7 @@ readonly pageSize = 20;
 
 ### Phase 14: Frontend — Routing
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **File to modify**:
 - `src/app/app.routes.ts`
@@ -1200,7 +1281,7 @@ readonly pageSize = 20;
 
 ### Phase 15: Post-Build — API Model Regeneration
 
-**Status**: [ ] Pending
+**Status**: [x] Complete
 
 **Action**: Run `.\scripts\2-Regenerate-API-Models.ps1`
 - Generates TypeScript types from DTOs
@@ -1218,13 +1299,13 @@ readonly pageSize = 20;
 3. **Multi-criteria**: Name + Role + Team filters combine with AND logic
 4. **Owes filter**: "Owes" shows only OwedTotal > 0; "Paid Up" shows OwedTotal <= 0
 5. **Date range**: RegDateFrom/To correctly bracket RegistrationTs
-6. **Server-side paging**: Page 1 shows items 1-20, page 2 shows 21-40; total count stays consistent
-7. **Server-side sorting**: Click "Last Name" header → results re-queried sorted server-side
-8. **Aggregates**: Footer row shows TotalFees/TotalPaid/TotalOwed across ALL matches (not just current page)
+6. **Client-side paging**: Page 1 shows items 1-20, page 2 shows 21-40; all data loaded from single API response (capped at 5,000)
+7. **Client-side sorting**: Click "Last Name" header → grid sorts locally without API call
+8. **Aggregates**: Footer row shows TotalFees/TotalPaid/TotalOwed across ALL matches (computed server-side, not just current page)
 9. **Excel export**: Exports current search results to .xlsx with all visible columns
 10. **Checkbox selection**: Select individual rows, select-all on current page, persist across pages
 11. **Empty state**: "No registrations found" when no results match filters
-12. **Large dataset**: 5,000+ registrations → server-side paging keeps UI responsive
+12. **Large dataset**: Results capped at 5,000 rows → client-side paging keeps UI responsive; verify cap message shown if truncated
 
 **Slide-Over Detail Panel:**
 13. **Open/close**: Click row → panel slides in; click X or Escape → panel slides out
@@ -1324,7 +1405,7 @@ readonly pageSize = 20;
 
 2. **Custom filter panel above grid (not Syncfusion's built-in filter bar)** — admins need to set multiple criteria before searching, not filter column-by-column. A dedicated filter panel with dropdowns, text inputs, and date pickers is more intuitive than Syncfusion's per-column filter bar. The grid's built-in sorting is still used for column header clicks.
 
-3. **Server-side paging and sorting** — the legacy system loaded all registrations client-side, causing browser lag for large jobs. Server-side operations ensure consistent performance regardless of dataset size. The Syncfusion DataManager pattern supports this with `skip`/`take`/`sortField`/`sortDirection` parameters.
+3. **Client-side paging and sorting (revised from server-side)** — originally planned as server-side paging, but switched to client-side after implementation. The backend returns ALL matching results (capped at 5,000 rows) in a single response, and Syncfusion's built-in grid paging/sorting handles pagination and column sorting locally. This avoids repeated round-trips for every page change or sort click, keeps aggregate calculations simple (computed once server-side across the full result set), and leverages Syncfusion's instant client-side sort/page performance. The 5,000-row cap prevents memory issues for extremely large jobs while covering 99%+ of real-world usage.
 
 4. **Aggregates computed server-side across ALL matches** — the footer row shows total Fees/Paid/Owed across the entire filtered result set, not just the current page. This is critical for financial oversight. Computing on the server via SQL aggregate functions (SUM) is orders of magnitude faster than client-side aggregation of all pages.
 
@@ -1346,6 +1427,8 @@ readonly pageSize = 20;
 
 13. **Desktop/tablet-first with dedicated mobile quick lookup** — this is fundamentally a power-user desktop interface. Processing refunds, editing 40-field forms, composing batch emails, and scanning 10-column financial grids is desk work. Rather than degrading the desktop experience to chase responsive parity (horizontal-scrolling grids, full-width panels that lose context, stacked filter inputs requiring endless scrolling), we build two intentionally different experiences: (a) the full desktop UI at 768px+ with zero mobile compromises, and (b) a purpose-built mobile quick lookup at < 768px optimized for the one thing an admin does on their phone — "which team is this kid on?" / "does this person owe money?" The mobile mode uses the same API endpoints with simplified parameters, so there's no backend duplication. This pattern — separate mobile mode instead of responsive degradation — should be the standard for data-heavy admin tools going forward.
 
+14. **Multi-select filters with count badges (legacy parity)** — the legacy system used checkbox lists with purple count badges showing how many registrations matched each filter option (e.g., "Player (347)", "Active (892)"). The modern implementation uses Syncfusion `ejs-multiselect` with `mode="CheckBox"` and custom `itemTemplate` for count badge pills. All 14 filter categories support multi-select with registration counts computed via parallel `Task.WhenAll` GroupBy queries in the repository. The compact bar shows the 5 most-used filters (Name, Email, Role, Status, Pay Status) always visible, with 13 additional filters in an expandable "More Filters" section. Active filter selections appear as removable chips between the filter panel and grid, giving admins at-a-glance visibility of their current filter criteria. This matches the legacy system's accordion-category checkbox approach while providing a more modern, compact layout.
+
 ---
 
 ## 12. Amendments Log
@@ -1353,7 +1436,9 @@ readonly pageSize = 20;
 | # | Change | Reason |
 |---|--------|--------|
 | 1 | Added dedicated Mobile Quick Lookup mode (Phase 13) | This interface is fundamentally a desktop power-user tool. Rather than degrading the desktop experience with responsive compromises (horizontal-scrolling grids, full-width panels that lose the context-preservation benefit, 8+ stacked filter inputs), we build a separate purpose-built mobile experience: single search input, card-based results with owes badges, tap-to-expand detail with Call/Email actions. No refunds, no batch email, no profile editing on mobile — those are desk work. Desktop UI hidden below 768px; mobile UI hidden above 768px. Slide-over panel removed from mobile entirely. New files: `mobile-quick-lookup.component.{ts,html,scss}` (~330 LOC). New UI standard established: "Mobile Quick Lookup Mode" pattern for data-heavy admin tools. Added design decision #13. Updated test cases 36-47. |
+| 2 | Switched from server-side to client-side paging | Originally planned server-side paging via Syncfusion `DataManager` with `skip`/`take`/`sortField`/`sortDirection` parameters. After implementation, switched to client-side paging: backend returns ALL matching results (capped at 5,000), Syncfusion grid handles paging and sorting locally. Eliminates repeated API round-trips for every page change or sort click. Aggregates (TotalFees/TotalPaid/TotalOwed) computed once server-side across full result set. Removed `Skip`, `Take`, `SortField`, `SortDirection` from `RegistrationSearchRequest`. Updated design decision #3. |
+| 3 | Multi-select filters with count badges — full legacy parity refactor | Replaced all single-select `<select>` dropdowns with Syncfusion `ejs-multiselect` (mode=CheckBox) with count badges. All 14 filter categories now support multi-select. Backend: `GetFilterOptionsAsync` rewritten with parallel `Task.WhenAll` GroupBy count queries; `SearchAsync` updated from single-value equality to multi-value `.Contains()` predicates. Frontend: compact bar (5 most-used filters always visible) + expandable "More Filters" (13 additional filters in categorized sections) + filter chips strip showing active selections with remove capability. Added `FilterOption.Count` and `FilterOption.DefaultChecked` properties. Active Status defaults to "Active" pre-checked. COVID waiver filter intentionally excluded. Added design decision #14. |
 
 ---
 
-**Status**: Planning complete. Ready for implementation.
+**Status**: Implementation in progress. Phases 1–15 complete. Phase 16 (Testing & Polish) pending.

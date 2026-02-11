@@ -772,9 +772,30 @@ public class RegistrationRepository : IRegistrationRepository
             .AsNoTracking()
             .Where(r => r.JobId == jobId);
 
-        // Active filter
-        if (request.Active.HasValue)
-            query = query.Where(r => r.BActive == request.Active.Value);
+        // ── Multi-select status filters ──
+
+        // Active status filter (multi-select: "True" / "False")
+        if (request.ActiveStatuses is { Count: > 0 })
+        {
+            var boolValues = request.ActiveStatuses
+                .Select(s => string.Equals(s, "True", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            query = query.Where(r => r.BActive != null && boolValues.Contains(r.BActive.Value));
+        }
+
+        // Pay status filter (multi-select: "PAID IN FULL" / "UNDER PAID" / "OVER PAID")
+        if (request.PayStatuses is { Count: > 0 })
+        {
+            var hasPaid = request.PayStatuses.Contains("PAID IN FULL");
+            var hasUnder = request.PayStatuses.Contains("UNDER PAID");
+            var hasOver = request.PayStatuses.Contains("OVER PAID");
+            query = query.Where(r =>
+                (hasPaid && r.OwedTotal == 0) ||
+                (hasUnder && r.OwedTotal > 0) ||
+                (hasOver && r.OwedTotal < 0));
+        }
+
+        // ── Text filters ──
 
         // Name filter (searches first + last, supports "John Smith" split)
         if (!string.IsNullOrWhiteSpace(request.Name))
@@ -801,33 +822,88 @@ public class RegistrationRepository : IRegistrationRepository
         if (!string.IsNullOrWhiteSpace(request.Email))
             query = query.Where(r => r.User != null && r.User.Email != null && r.User.Email.Contains(request.Email));
 
-        // Role filter
-        if (!string.IsNullOrWhiteSpace(request.RoleId))
-            query = query.Where(r => r.RoleId == request.RoleId);
+        // Phone filter
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+            query = query.Where(r => r.User != null && r.User.Cellphone != null && r.User.Cellphone.Contains(request.Phone));
 
-        // Team filter
-        if (request.TeamId.HasValue)
-            query = query.Where(r => r.AssignedTeamId == request.TeamId.Value);
+        // School name filter
+        if (!string.IsNullOrWhiteSpace(request.SchoolName))
+            query = query.Where(r => r.SchoolName != null && r.SchoolName.Contains(request.SchoolName));
 
-        // Agegroup filter
-        if (request.AgegroupId.HasValue)
-            query = query.Where(r => r.AssignedAgegroupId == request.AgegroupId.Value);
+        // ── Multi-select entity filters ──
 
-        // Division filter
-        if (request.DivisionId.HasValue)
-            query = query.Where(r => r.AssignedDivId == request.DivisionId.Value);
+        // Roles (multi-select)
+        if (request.RoleIds is { Count: > 0 })
+            query = query.Where(r => r.RoleId != null && request.RoleIds.Contains(r.RoleId));
 
-        // Club name filter
-        if (!string.IsNullOrWhiteSpace(request.ClubName))
-            query = query.Where(r => r.ClubName != null && r.ClubName.Contains(request.ClubName));
+        // Teams (multi-select)
+        if (request.TeamIds is { Count: > 0 })
+            query = query.Where(r => r.AssignedTeamId != null && request.TeamIds.Contains(r.AssignedTeamId.Value));
 
-        // Owes filter
-        if (request.OwesFilter == "owes")
-            query = query.Where(r => r.OwedTotal > 0);
-        else if (request.OwesFilter == "paid")
-            query = query.Where(r => r.OwedTotal <= 0);
+        // Agegroups (multi-select)
+        if (request.AgegroupIds is { Count: > 0 })
+            query = query.Where(r => r.AssignedAgegroupId != null && request.AgegroupIds.Contains(r.AssignedAgegroupId.Value));
 
-        // Date range
+        // Divisions (multi-select)
+        if (request.DivisionIds is { Count: > 0 })
+            query = query.Where(r => r.AssignedDivId != null && request.DivisionIds.Contains(r.AssignedDivId.Value));
+
+        // Club names (multi-select)
+        if (request.ClubNames is { Count: > 0 })
+            query = query.Where(r => r.ClubName != null && request.ClubNames.Contains(r.ClubName));
+
+        // ── Multi-select demographic filters ──
+
+        // Genders (multi-select, from User)
+        if (request.Genders is { Count: > 0 })
+            query = query.Where(r => r.User != null && r.User.Gender != null && request.Genders.Contains(r.User.Gender));
+
+        // Positions (multi-select)
+        if (request.Positions is { Count: > 0 })
+            query = query.Where(r => r.Position != null && request.Positions.Contains(r.Position));
+
+        // Grad years (multi-select)
+        if (request.GradYears is { Count: > 0 })
+            query = query.Where(r => r.GradYear != null && request.GradYears.Contains(r.GradYear));
+
+        // Grades (multi-select)
+        if (request.Grades is { Count: > 0 })
+            query = query.Where(r => r.SchoolGrade != null && request.Grades.Contains(r.SchoolGrade));
+
+        // Age ranges (multi-select, cross-join with JobAgeRanges)
+        if (request.AgeRangeIds is { Count: > 0 })
+        {
+            query = query.Where(r => r.User != null && r.User.Dob != null
+                && _context.JobAgeRanges.Any(jar =>
+                    jar.JobId == jobId
+                    && request.AgeRangeIds.Contains(jar.AgeRangeId)
+                    && r.User.Dob >= jar.RangeLeft
+                    && r.User.Dob <= jar.RangeRight));
+        }
+
+        // ── Multi-select billing & mobile filters ──
+
+        // ARB subscription statuses (multi-select)
+        if (request.ArbSubscriptionStatuses is { Count: > 0 })
+        {
+            var allowedSubStatuses = new List<string> { "active", "suspended" };
+            var hasPaying = request.ArbSubscriptionStatuses.Contains("PAYING BY SUBSCRIPTION");
+            var hasNotPaying = request.ArbSubscriptionStatuses.Contains("NOT PAYING BY SUBSCRIPTION");
+            if (hasPaying && !hasNotPaying)
+                query = query.Where(r => r.FeeTotal > 0 && r.AdnSubscriptionStatus != null
+                    && allowedSubStatuses.Contains(r.AdnSubscriptionStatus));
+            else if (hasNotPaying && !hasPaying)
+                query = query.Where(r => r.AdnSubscriptionStatus == null
+                    || !allowedSubStatuses.Contains(r.AdnSubscriptionStatus));
+            // If both selected, no filter needed (all records match)
+        }
+
+        // Mobile registrations (multi-select by role name)
+        if (request.MobileRegistrationRoles is { Count: > 0 })
+            query = query.Where(r => r.ModifiedMobile != null && r.Role != null
+                && r.Role.Name != null && request.MobileRegistrationRoles.Contains(r.Role.Name));
+
+        // ── Date range ──
         if (request.RegDateFrom.HasValue)
             query = query.Where(r => r.RegistrationTs >= request.RegDateFrom.Value);
         if (request.RegDateTo.HasValue)
@@ -871,40 +947,10 @@ public class RegistrationRepository : IRegistrationRepository
             Modified = r.Modified
         });
 
-        // Apply sorting
-        projected = (request.SortField?.ToLowerInvariant()) switch
-        {
-            "firstname" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.FirstName) : projected.OrderBy(r => r.FirstName),
-            "lastname" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.LastName) : projected.OrderBy(r => r.LastName),
-            "email" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.Email) : projected.OrderBy(r => r.Email),
-            "rolename" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.RoleName) : projected.OrderBy(r => r.RoleName),
-            "dob" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.Dob) : projected.OrderBy(r => r.Dob),
-            "position" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.Position) : projected.OrderBy(r => r.Position),
-            "teamname" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.TeamName) : projected.OrderBy(r => r.TeamName),
-            "feetotal" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.FeeTotal) : projected.OrderBy(r => r.FeeTotal),
-            "paidtotal" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.PaidTotal) : projected.OrderBy(r => r.PaidTotal),
-            "owedtotal" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.OwedTotal) : projected.OrderBy(r => r.OwedTotal),
-            "registrationts" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.RegistrationTs) : projected.OrderBy(r => r.RegistrationTs),
-            "registrationai" => request.SortDirection == "desc"
-                ? projected.OrderByDescending(r => r.RegistrationAi) : projected.OrderBy(r => r.RegistrationAi),
-            _ => projected.OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
-        };
-
-        // Apply paging
+        // Default sort + cap at 5000 rows (sorting done client-side)
         var results = await projected
-            .Skip(request.Skip)
-            .Take(Math.Min(request.Take, 100))
+            .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
+            .Take(5000)
             .ToListAsync(ct);
 
         return new RegistrationSearchResponse
@@ -919,45 +965,145 @@ public class RegistrationRepository : IRegistrationRepository
 
     public async Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default)
     {
-        var roles = await _context.Registrations
+        // Base query: all registrations for this job with a user
+        var baseQuery = _context.Registrations
             .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.RoleId != null && r.Role != null)
-            .Select(r => new { r.RoleId, r.Role!.Name })
-            .Distinct()
-            .OrderBy(r => r.Name)
-            .Select(r => new FilterOption { Value = r.RoleId!, Text = r.Name ?? "" })
+            .Where(r => r.JobId == jobId && r.UserId != null);
+
+        // ── Dynamic GroupBy categories (sequential — DbContext is not thread-safe) ──
+
+        var roles = await baseQuery
+            .Where(r => r.RoleId != null && r.Role != null)
+            .GroupBy(r => new { r.RoleId, r.Role!.Name })
+            .OrderBy(g => g.Key.Name)
+            .Select(g => new FilterOption { Value = g.Key.RoleId!, Text = g.Key.Name ?? "", Count = g.Count() })
             .ToListAsync(ct);
 
-        var teams = await _context.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.AssignedTeamId != null && r.AssignedTeam != null)
-            .Select(r => new { r.AssignedTeamId, r.AssignedTeam!.TeamName })
-            .Distinct()
-            .OrderBy(r => r.TeamName)
-            .Select(r => new FilterOption { Value = r.AssignedTeamId!.Value.ToString(), Text = r.TeamName ?? "" })
+        var teams = await baseQuery
+            .Where(r => r.AssignedTeamId != null && r.AssignedTeam != null)
+            .GroupBy(r => new { r.AssignedTeamId, r.AssignedTeam!.TeamName })
+            .OrderBy(g => g.Key.TeamName)
+            .Select(g => new FilterOption { Value = g.Key.AssignedTeamId!.Value.ToString(), Text = g.Key.TeamName ?? "", Count = g.Count() })
             .ToListAsync(ct);
 
-        var agegroups = await _context.Agegroups
-            .AsNoTracking()
-            .Where(ag => _context.Registrations.Any(r => r.JobId == jobId && r.AssignedAgegroupId == ag.AgegroupId))
-            .OrderBy(ag => ag.AgegroupName)
-            .Select(ag => new FilterOption { Value = ag.AgegroupId.ToString(), Text = ag.AgegroupName ?? "" })
+        var agegroups = await baseQuery
+            .Where(r => r.AssignedAgegroupId != null)
+            .Join(_context.Agegroups, r => r.AssignedAgegroupId, ag => ag.AgegroupId, (r, ag) => ag)
+            .GroupBy(ag => new { ag.AgegroupId, ag.AgegroupName })
+            .OrderBy(g => g.Key.AgegroupName)
+            .Select(g => new FilterOption { Value = g.Key.AgegroupId.ToString(), Text = g.Key.AgegroupName ?? "", Count = g.Count() })
             .ToListAsync(ct);
 
-        var divisions = await _context.Divisions
-            .AsNoTracking()
-            .Where(d => _context.Registrations.Any(r => r.JobId == jobId && r.AssignedDivId == d.DivId))
-            .OrderBy(d => d.DivName)
-            .Select(d => new FilterOption { Value = d.DivId.ToString(), Text = d.DivName ?? "" })
+        var divisions = await baseQuery
+            .Where(r => r.AssignedDivId != null)
+            .Join(_context.Divisions, r => r.AssignedDivId, d => d.DivId, (r, d) => d)
+            .GroupBy(d => new { d.DivId, d.DivName })
+            .OrderBy(g => g.Key.DivName)
+            .Select(g => new FilterOption { Value = g.Key.DivId.ToString(), Text = g.Key.DivName ?? "", Count = g.Count() })
             .ToListAsync(ct);
 
-        var clubs = await _context.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.ClubName != null && r.ClubName != "")
-            .Select(r => r.ClubName!)
-            .Distinct()
-            .OrderBy(c => c)
+        var clubs = await baseQuery
+            .Where(r => r.ClubName != null && r.ClubName != "")
+            .GroupBy(r => r.ClubName!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
+
+        var positions = await baseQuery
+            .Where(r => r.BActive == true && r.Position != null)
+            .GroupBy(r => r.Position!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var genders = await baseQuery
+            .Where(r => r.BActive == true && r.User != null && r.User.Gender != null)
+            .GroupBy(r => r.User!.Gender!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count(), DefaultChecked = true })
+            .ToListAsync(ct);
+
+        var gradYears = await baseQuery
+            .Where(r => r.BActive == true && r.GradYear != null && r.GradYear != "")
+            .GroupBy(r => r.GradYear!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var grades = await baseQuery
+            .Where(r => r.BActive == true && r.SchoolGrade != null && r.SchoolGrade != "")
+            .GroupBy(r => r.SchoolGrade!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var mobileRegs = await baseQuery
+            .Where(r => r.BActive == true && r.ModifiedMobile != null && r.Role != null)
+            .GroupBy(r => r.Role!.Name!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // ── Active status (group by BActive) ──
+        var activeStatuses = await baseQuery
+            .GroupBy(r => r.BActive)
+            .OrderByDescending(g => g.Key)
+            .Select(g => new FilterOption
+            {
+                Value = g.Key.ToString()!,
+                Text = (g.Key ?? false) ? "Active" : "Inactive",
+                Count = g.Count(),
+                DefaultChecked = g.Key == true
+            })
+            .ToListAsync(ct);
+
+        // ── Pay status (fixed-value counts) ──
+        var activeBase = baseQuery.Where(r => r.BActive == true);
+        var paidCount = await activeBase.CountAsync(r => r.OwedTotal == 0, ct);
+        var underpaidCount = await activeBase.CountAsync(r => r.OwedTotal > 0, ct);
+        var overpaidCount = await activeBase.CountAsync(r => r.OwedTotal < 0, ct);
+
+        // ── ARB subscription status (fixed-value counts) ──
+        var allowedSubStatuses = new List<string> { "active", "suspended" };
+        var withSubCount = await activeBase
+            .CountAsync(r => r.FeeTotal > 0 && r.AdnSubscriptionStatus != null
+                && allowedSubStatuses.Contains(r.AdnSubscriptionStatus), ct);
+        var withoutSubCount = await activeBase
+            .CountAsync(r => r.AdnSubscriptionStatus == null
+                || !allowedSubStatuses.Contains(r.AdnSubscriptionStatus), ct);
+
+        // ── Age ranges (cross-join with JobAgeRanges, match DOB in range) ──
+        var ageRanges = await (
+            from r in baseQuery
+            from jar in _context.JobAgeRanges
+            where r.BActive == true
+                && jar.JobId == jobId
+                && r.User != null && r.User.Dob != null
+                && r.User.Dob >= jar.RangeLeft && r.User.Dob <= jar.RangeRight
+            group jar by new { jar.AgeRangeId, jar.RangeName } into g
+            orderby g.Key.RangeName
+            select new FilterOption
+            {
+                Value = g.Key.AgeRangeId.ToString(),
+                Text = g.Key.RangeName ?? "",
+                Count = g.Count()
+            }
+        ).ToListAsync(ct);
+
+        // Build pay status list from computed counts
+        var payStatuses = new List<FilterOption>
+        {
+            new() { Value = "PAID IN FULL", Text = "PAID IN FULL", Count = paidCount },
+            new() { Value = "UNDER PAID", Text = "UNDER PAID", Count = underpaidCount },
+            new() { Value = "OVER PAID", Text = "OVER PAID", Count = overpaidCount }
+        };
+
+        // Build ARB subscription list from computed counts
+        var arbStatuses = new List<FilterOption>
+        {
+            new() { Value = "PAYING BY SUBSCRIPTION", Text = "PAYING BY SUBSCRIPTION", Count = withSubCount },
+            new() { Value = "NOT PAYING BY SUBSCRIPTION", Text = "NOT PAYING BY SUBSCRIPTION", Count = withoutSubCount }
+        };
 
         return new RegistrationFilterOptionsDto
         {
@@ -965,7 +1111,16 @@ public class RegistrationRepository : IRegistrationRepository
             Teams = teams,
             Agegroups = agegroups,
             Divisions = divisions,
-            Clubs = clubs
+            Clubs = clubs,
+            ActiveStatuses = activeStatuses,
+            PayStatuses = payStatuses,
+            Genders = genders,
+            Positions = positions,
+            GradYears = gradYears,
+            Grades = grades,
+            AgeRanges = ageRanges,
+            ArbSubscriptionStatuses = arbStatuses,
+            MobileRegistrations = mobileRegs
         };
     }
 

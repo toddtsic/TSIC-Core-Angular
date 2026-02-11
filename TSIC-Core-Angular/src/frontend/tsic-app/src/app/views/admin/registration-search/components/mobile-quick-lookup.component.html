@@ -15,7 +15,7 @@
     <div class="results-header"><p>{{ totalCount() }} result(s) found</p></div>
   }
 
-  @if (isSearching() && currentPage() === 1) {
+  @if (isSearching()) {
     <div class="loading-state"><div class="spinner-large"></div><p>Searching...</p></div>
   }
 
