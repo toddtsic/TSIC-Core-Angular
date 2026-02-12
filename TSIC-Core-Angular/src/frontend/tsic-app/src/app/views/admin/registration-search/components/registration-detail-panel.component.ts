@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, effect, HostListener, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, effect, computed, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -19,10 +20,36 @@ interface FieldMetadata {
 /** Roles that use the player profile metadata form + family contact section */
 const PLAYER_ROLES = new Set(['player', 'goalie', 'goalkeeper', 'athlete']);
 
-/** Fields that always appear in the player profile section (extend this list as needed) */
+/** Fields that appear as editable inputs in the contact zone for players */
 const ALWAYS_INCLUDE_FIELDS: FieldMetadata[] = [
-  { key: 'UniformNo', label: 'Uniform Number', type: 'text' }
+  { key: 'UniformNo', label: 'Uniform #', type: 'text' }
 ];
+
+/** Keys of always-include fields (lowercase) for filtering from read-only display */
+const ALWAYS_INCLUDE_KEYS = new Set(ALWAYS_INCLUDE_FIELDS.map(f => f.key.toLowerCase()));
+
+/** Non-player profile field display labels */
+const NON_PLAYER_FIELD_LABELS: Record<string, string> = {
+  'ClubName': 'Club Name',
+  'SpecialRequests': 'Special Requests',
+  'SportYearsExp': 'Years of Experience',
+  'SportAssnId': 'Sport Association #',
+  'SportAssnIdexpDate': 'Assn # Expiration'
+};
+
+/** Formats a 10-digit phone string as xxx-xxx-xxxx. Mirrors backend StringExtensions.FormatPhone. */
+function formatPhone(value: string | null | undefined): string | null {
+  if (!value) return value ?? null;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return value;
+}
+
+/** Strips a phone string to digits only for storage. */
+function stripPhoneToDigits(value: string | null | undefined): string | null {
+  if (!value) return value ?? null;
+  return value.replace(/\D/g, '') || null;
+}
 
 /** Waiver field detection — mirrors backend ProfileMetadataService.IsWaiverField */
 function isWaiverField(key: string, label: string, inputType: string): boolean {
@@ -57,25 +84,33 @@ export class RegistrationDetailPanelComponent {
   private searchService = inject(RegistrationSearchService);
   private toast = inject(ToastService);
 
+  /** Expose for template binding */
+  readonly ALWAYS_INCLUDE_FIELDS = ALWAYS_INCLUDE_FIELDS;
+
   // Tab state
   activeTab = signal<TabType>('details');
 
-  // Profile fields (metadata-driven for players, fixed for non-players)
+  // Profile values (for read-only display + always-include editable fields)
   profileValues = signal<Record<string, any>>({});
   metadataFields = signal<FieldMetadata[]>([]);
-  isSaving = signal<boolean>(false);
 
-  // Family contact (player roles only)
+  // Contact zone editable state
+  isSavingContact = signal<boolean>(false);
+
+  // Family contact (player roles only — editable: email + cellphone; read-only: names)
   familyContact = signal<FamilyContactDto>({});
-  isSavingFamily = signal<boolean>(false);
   hasFamilyLink = signal<boolean>(false);
 
-  // User demographics (all roles)
+  // User demographics (editable: email, cellphone)
   demographics = signal<UserDemographicsDto>({});
-  isSavingDemographics = signal<boolean>(false);
 
   // Role detection
   isPlayerRole = signal<boolean>(false);
+
+  // Read-only metadata fields (excludes always-include keys like UniformNo)
+  readOnlyMetadataFields = computed(() => {
+    return this.metadataFields().filter(f => !ALWAYS_INCLUDE_KEYS.has(f.key.toLowerCase()));
+  });
 
   // Email
   emailSubject = signal<string>('');
@@ -96,28 +131,32 @@ export class RegistrationDetailPanelComponent {
     effect(() => {
       const d = this.detail();
       if (d) {
-        // Role detection: only check role name — metadata is per-job, not per-role
         const role = d.roleName?.toLowerCase().trim() ?? '';
         this.isPlayerRole.set(PLAYER_ROLES.has(role));
 
-        // Profile values
         this.profileValues.set({ ...d.profileValues });
         this.parseMetadata(d.profileMetadataJson);
 
-        // Family contact
         this.hasFamilyLink.set(!!d.familyContact);
-        this.familyContact.set(d.familyContact ? { ...d.familyContact } : {});
+        if (d.familyContact) {
+          this.familyContact.set({
+            ...d.familyContact,
+            momCellphone: formatPhone(d.familyContact.momCellphone),
+            dadCellphone: formatPhone(d.familyContact.dadCellphone)
+          });
+        } else {
+          this.familyContact.set({});
+        }
 
-        // Demographics — normalize dateOfBirth to yyyy-MM-dd for input[type=date]
         if (d.userDemographics) {
           const demo = { ...d.userDemographics };
           if (demo.dateOfBirth) demo.dateOfBirth = demo.dateOfBirth.substring(0, 10);
+          demo.cellphone = formatPhone(demo.cellphone);
           this.demographics.set(demo);
         } else {
           this.demographics.set({});
         }
 
-        // Reset email
         this.emailSubject.set('');
         this.emailBody.set('');
       }
@@ -133,6 +172,59 @@ export class RegistrationDetailPanelComponent {
 
   setActiveTab(tab: TabType): void { this.activeTab.set(tab); }
 
+  // ── Template helpers ──
+
+  hasValue(val: any): boolean {
+    return val !== null && val !== undefined && val !== '';
+  }
+
+  formatAddress(): string | null {
+    const d = this.demographics();
+    const parts = [d.streetAddress, d.city, d.state, d.postalCode].filter(p => p);
+    return parts.length > 0 ? parts.join(', ') : null;
+  }
+
+  formatCheckboxValue(val: any): string {
+    if (val === true || val === 'true' || val === 'True' || val === '1') return 'Yes';
+    if (val === false || val === 'false' || val === 'False' || val === '0') return 'No';
+    return String(val);
+  }
+
+  familyName(prefix: 'mom' | 'dad'): string | null {
+    const fc = this.familyContact();
+    const first = prefix === 'mom' ? fc.momFirstName : fc.dadFirstName;
+    const last = prefix === 'mom' ? fc.momLastName : fc.dadLastName;
+    const parts = [first, last].filter(p => p);
+    return parts.length > 0 ? parts.join(' ') : null;
+  }
+
+  nonPlayerFields(): { label: string; value: string }[] {
+    const pv = this.profileValues();
+    const result: { label: string; value: string }[] = [];
+    for (const [key, label] of Object.entries(NON_PLAYER_FIELD_LABELS)) {
+      const val = pv[key];
+      if (this.hasValue(val)) {
+        result.push({ label, value: String(val) });
+      }
+    }
+    return result;
+  }
+
+  // ── Contact zone field helpers ──
+
+  updateDemographicsField(field: keyof UserDemographicsDto, value: string | null): void {
+    this.demographics.set({ ...this.demographics(), [field]: value || null });
+  }
+
+  updateFamilyField(field: keyof FamilyContactDto, value: string | null): void {
+    this.familyContact.set({ ...this.familyContact(), [field]: value || null });
+  }
+
+  updateProfileValue(key: string, value: string | null): void {
+    const current = this.profileValues();
+    this.profileValues.set({ ...current, [key]: value || null });
+  }
+
   // ── Metadata Parsing ──
 
   parseMetadata(metadataJson: string | null | undefined): void {
@@ -145,22 +237,18 @@ export class RegistrationDetailPanelComponent {
       const raw = JSON.parse(metadataJson);
       const fields: FieldMetadata[] = [];
 
-      // Handle {fields: [...]} wrapper format (ProfileMetadata class)
       const items = Array.isArray(raw) ? raw : (raw.fields && Array.isArray(raw.fields) ? raw.fields : null);
 
       if (items) {
         for (const f of items) {
-          // Skip hidden/computed fields
           if (f.visibility === 'hidden' || f.computed) continue;
 
           const key = f.dbColumn || f.key || f.name || '';
           const label = f.displayName || f.label || f.key || key;
           const inputType = (f.inputType || f.type || 'TEXT').toUpperCase();
 
-          // Skip waiver fields (always signed, not useful to display)
           if (isWaiverField(key, label, inputType)) continue;
 
-          // Extract options
           let options: string[] | undefined;
           if (f.options && Array.isArray(f.options)) {
             options = f.options.map((o: any) => typeof o === 'string' ? o : (o.value || o.label || ''));
@@ -168,7 +256,6 @@ export class RegistrationDetailPanelComponent {
             options = f.choices;
           }
 
-          // If metadata says SELECT but provides no options, fall back to text input
           let mappedType = this.mapFieldType(inputType);
           if (mappedType === 'select' && (!options || options.length === 0)) mappedType = 'text';
 
@@ -182,7 +269,6 @@ export class RegistrationDetailPanelComponent {
           });
         }
       } else if (typeof raw === 'object') {
-        // Legacy object format: { fieldName: { label, type, options } }
         for (const [key, value] of Object.entries(raw) as [string, any][]) {
           const label = value.label || key;
           const inputType = value.type || 'text';
@@ -202,10 +288,9 @@ export class RegistrationDetailPanelComponent {
         }
       }
 
-      // Sort by metadata order so related fields (e.g. USLax# + expiry) stay together
       fields.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
 
-      // Merge always-include fields that aren't already present from metadata
+      // Ensure always-include fields exist (for the editable contact zone)
       const existingKeys = new Set(fields.map(f => f.key.toLowerCase()));
       for (const alwaysField of ALWAYS_INCLUDE_FIELDS) {
         if (!existingKeys.has(alwaysField.key.toLowerCase())) {
@@ -233,82 +318,54 @@ export class RegistrationDetailPanelComponent {
     return typeMap[t] || 'text';
   }
 
-  // ── Save Profile (Registration entity columns) ──
+  // ── Save Contact Info (unified save for all editable fields) ──
 
-  saveProfile(): void {
+  saveContactInfo(): void {
     const d = this.detail();
     if (!d) return;
-    this.isSaving.set(true);
-    this.searchService.updateProfile(d.registrationId, {
+
+    this.isSavingContact.set(true);
+    const calls: Record<string, any> = {};
+
+    // Always save demographics (email + cellphone) — strip phone to digits for storage
+    const demoToSave = { ...this.demographics(), cellphone: stripPhoneToDigits(this.demographics().cellphone) };
+    calls['demographics'] = this.searchService.updateDemographics(d.registrationId, {
       registrationId: d.registrationId,
-      profileValues: this.profileValues()
-    }).subscribe({
+      demographics: demoToSave
+    });
+
+    // Save family contact if player with family link — strip phones to digits for storage
+    if (this.isPlayerRole() && this.hasFamilyLink()) {
+      const familyToSave = {
+        ...this.familyContact(),
+        momCellphone: stripPhoneToDigits(this.familyContact().momCellphone),
+        dadCellphone: stripPhoneToDigits(this.familyContact().dadCellphone)
+      };
+      calls['family'] = this.searchService.updateFamilyContact(d.registrationId, {
+        registrationId: d.registrationId,
+        familyContact: familyToSave
+      });
+    }
+
+    // Save profile if player (always-include fields like UniformNo)
+    if (this.isPlayerRole()) {
+      calls['profile'] = this.searchService.updateProfile(d.registrationId, {
+        registrationId: d.registrationId,
+        profileValues: this.profileValues()
+      });
+    }
+
+    forkJoin(calls).subscribe({
       next: () => {
-        this.isSaving.set(false);
-        this.toast.show('Profile updated successfully', 'success', 3000);
+        this.isSavingContact.set(false);
+        this.toast.show('Contact info saved', 'success', 3000);
         this.saved.emit();
       },
       error: (err) => {
-        this.isSaving.set(false);
-        this.toast.show('Failed to update profile: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.isSavingContact.set(false);
+        this.toast.show('Failed to save: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
       }
     });
-  }
-
-  // ── Save Family Contact ──
-
-  saveFamilyContact(): void {
-    const d = this.detail();
-    if (!d) return;
-    this.isSavingFamily.set(true);
-    this.searchService.updateFamilyContact(d.registrationId, {
-      registrationId: d.registrationId,
-      familyContact: this.familyContact()
-    }).subscribe({
-      next: () => {
-        this.isSavingFamily.set(false);
-        this.toast.show('Family contact updated successfully', 'success', 3000);
-        this.saved.emit();
-      },
-      error: (err) => {
-        this.isSavingFamily.set(false);
-        this.toast.show('Failed to update family contact: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
-      }
-    });
-  }
-
-  // ── Save Demographics ──
-
-  saveDemographics(): void {
-    const d = this.detail();
-    if (!d) return;
-    this.isSavingDemographics.set(true);
-    this.searchService.updateDemographics(d.registrationId, {
-      registrationId: d.registrationId,
-      demographics: this.demographics()
-    }).subscribe({
-      next: () => {
-        this.isSavingDemographics.set(false);
-        this.toast.show('Demographics updated successfully', 'success', 3000);
-        this.saved.emit();
-      },
-      error: (err) => {
-        this.isSavingDemographics.set(false);
-        this.toast.show('Failed to update demographics: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
-      }
-    });
-  }
-
-  // ── Demographics helpers ──
-
-  updateDemographicsField(field: keyof UserDemographicsDto, value: string | null): void {
-    this.demographics.set({ ...this.demographics(), [field]: value || null });
-  }
-
-  // ── Family contact helpers ──
-
-  updateFamilyField(field: keyof FamilyContactDto, value: string | null): void {
-    this.familyContact.set({ ...this.familyContact(), [field]: value || null });
   }
 
   // ── Accounting ──

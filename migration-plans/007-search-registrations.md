@@ -92,56 +92,44 @@ This interface deserves Syncfusion's full grid capability. The data volume (hund
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-When a row is clicked → Slide-over detail panel (right side, 480px):
+When a row is clicked → Slide-over detail panel (right side, 560px):
 
 ┌──────────────────────────────────────────────────────────┐
 │  John Smith                                        [✕]   │
-│  Player • Storm U14 • Active                             │
+│  Player • Storm U14 • Active  [Change Job] [Delete]      │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  [Details]  [Accounting]  [Email]                        │
 │  ─────────────────────────────────────────                │
 │                                                          │
 │  ── Details Tab ──                                       │
-│  (Dynamic form fields from PlayerProfileMetadataJson)    │
 │                                                          │
-│  First Name:      [John          ]                       │
-│  Last Name:       [Smith         ]                       │
-│  Email:           [j@email.com   ]                       │
-│  Grad Year:       [2028          ]                       │
-│  Position:        [▼ Attack      ]                       │
-│  Jersey Size:     [▼ L           ]                       │
-│  Height:          [5'10"         ]                       │
-│  ...                                                     │
-│  (fields vary by job's PlayerProfileMetadataJson)        │
+│  ┌─ Contact Info (editable) ─────────────────────────┐   │
+│  │  Email: [j@email.com  ]  Cellphone: [555-1234  ]  │   │
+│  │  Uniform #: [42       ]                            │   │
+│  │  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │   │
+│  │  Mom                        Dad                    │   │
+│  │  Email: [mom@email  ]       Email: [dad@email  ]   │   │
+│  │  Cell:  [555-5678   ]       Cell:  [555-9012   ]   │   │
+│  │                                           [Save]   │   │
+│  └────────────────────────────────────────────────────┘   │
 │                                                          │
-│  [Save Changes]                                          │
+│  REGISTRATION                                            │
+│  Reg #      1234         Registered  Feb 1, 2026         │
 │                                                          │
-│  ── Accounting Tab ──                                    │
-│  ┌───────────────────────────────────────────┐           │
-│  │ # │ Date     │ Method    │ Due$  │ Paid$ │           │
-│  │ 1 │ 2/1/26   │ CC ••4242 │$500   │$250   │           │
-│  │ 2 │ 2/15/26  │ CC ••4242 │$0     │$250   │           │
-│  │   │          │ Totals:   │$500   │$500   │           │
-│  └───────────────────────────────────────────┘           │
+│  DEMOGRAPHICS                                            │
+│  Date of Birth  03/15/2012    Gender  Male               │
+│  Address  123 Main St, Anytown, CA 90210                 │
 │                                                          │
-│  Fees: $500  Paid: $500  Owed: $0                        │
+│  FAMILY                                                  │
+│  Mom  Jane Smith          Dad  Bob Smith                 │
 │                                                          │
-│  ┌─ Actions ───────────────────────────────┐             │
-│  │ [+ Add Payment Record]                  │             │
-│  │ [↩ Credit/Refund CC Payment]            │             │
-│  └─────────────────────────────────────────┘             │
+│  PLAYER PROFILE  (only populated fields shown)           │
+│  Grad Year  2028          Position  Attack               │
+│  Jersey Size  L           Height  5'10"                  │
 │                                                          │
-│  ── Email Tab ──                                         │
-│  Subject: [                          ]                   │
-│  Body:                                                   │
-│  ┌───────────────────────────────────────┐               │
-│  │ Dear !PERSON,                        │               │
-│  │                                       │               │
-│  │ Your balance of !AMTOWED is due...   │               │
-│  └───────────────────────────────────────┘               │
-│  Available tokens: !PERSON !EMAIL !AMTOWED...            │
-│  [Preview] [Send]                                        │
+│  ── Accounting Tab ──  (unchanged)                       │
+│  ── Email Tab ──  (unchanged)                            │
 │                                                          │
 └──────────────────────────────────────────────────────────┘
 
@@ -262,7 +250,7 @@ No navigation, no back button, no re-entering filters.
 
 - **Inline Refund Workflow** — modal triggered from accounting tab, pre-populated with transaction details, supports partial/full refund amount, processes via `ADN_Refund()`, creates negative accounting record, updates registration financials.
 
-- **Dynamic Metadata-Driven Form** — registration detail form assembled at runtime from `PlayerProfileMetadataJson`. Each field renders based on `inputType` (TEXT, SELECT, DATE, CHECKBOX, etc.), respects `visibility` (public/adminOnly/hidden), and applies `validation` rules. This pattern is reusable for any future metadata-driven form.
+- **Dynamic Metadata-Driven Read-Only Display** — registration detail panel parses `PlayerProfileMetadataJson` at runtime to determine field labels and types, but renders populated fields as compact read-only label:value pairs instead of editable form inputs. Only fields with actual values are displayed — empty fields are hidden entirely. Checkbox fields are rendered as "Yes"/"No". This pattern — metadata-driven display that adapts to the job's profile type without code changes — is reusable for any future metadata-driven info view.
 
 - **Batch Email Composer with Token Reference** — modal with template editor, clickable token insertion, preview rendering (substitutes tokens for first N recipients to show admin what the email will look like), and batch send with progress/result feedback.
 
@@ -1197,13 +1185,9 @@ isMobile = signal(false);
 **Outputs**: `closed: EventEmitter<void>`, `saved: EventEmitter<void>`, `refundRequested: EventEmitter<AccountingRecordDto>`
 
 **Tabs**:
-1. **Details** — Dynamic form from `ProfileMetadataJson`
-   - Parse metadata, render each field by inputType
-   - TEXT → `<input type="text">`, SELECT → `<select>` with options, DATE → `<input type="date">`, CHECKBOX → `<input type="checkbox">`, etc.
-   - Pre-populate from `ProfileValues` dictionary
-   - Respect `visibility` (hide `hidden` fields, mark `adminOnly` fields)
-   - Apply `validation` rules (required, pattern, min/max)
-   - "Save Changes" button → calls `updateProfile()`
+1. **Details** — Read-first layout with contact edit zone
+   - **Contact Edit Zone** (editable, top of tab): Email, Cellphone (all roles); Uniform # and family contact email/cellphone (player roles). Single "Save" button fires applicable endpoints in parallel via `forkJoin` (updateDemographics + updateFamilyContact + updateProfile).
+   - **Read-Only Info** (below contact zone): Registration info, Demographics (DOB, gender, address), Family names, Player Profile metadata fields (or Non-Player fields). Uses compact label:value pairs in 2-column grid. **Only fields with values are rendered** — empty/null fields hidden. Metadata still parsed from `ProfileMetadataJson` for field labels/types, but displayed as plain text instead of form inputs. Waiver fields and always-include fields (UniformNo) excluded from read-only display (waivers skipped entirely, UniformNo in editable zone).
 
 2. **Accounting** — Payment history table + actions
    - Bootstrap table of `AccountingRecords`
@@ -1542,10 +1526,11 @@ readonly pageSize = 20;
 
 **Slide-Over Detail Panel:**
 13. **Open/close**: Click row → panel slides in; click X or Escape → panel slides out
-14. **Dynamic form**: Form fields match job's PlayerProfileMetadataJson; different jobs show different fields
-15. **Form save**: Edit profile fields → Save → values persisted; re-open panel → values updated
-16. **Validation**: Required fields show validation errors; pattern/min/max enforced
-17. **Field types**: TEXT renders input, SELECT renders dropdown with options, DATE renders date picker, CHECKBOX renders toggle
+14. **Contact edit zone**: Email, Cellphone always editable; player roles also show Uniform# and family email/cellphone inputs
+15. **Contact save**: Edit contact fields → Save → all applicable endpoints fire in parallel (demographics, family, profile); toast confirms; grid refreshes
+16. **Read-only display**: Demographics (DOB, gender, address), family names, and player profile metadata fields shown as label:value pairs — not editable form inputs
+17. **Empty field hiding**: Fields with null/empty values are not rendered; panel is compact for registrations with sparse profiles
+17b. **Non-player display**: Non-player roles show populated registration info fields (ClubName, SpecialRequests, etc.) as read-only; no metadata-driven section
 
 **Accounting:**
 18. **Payment history**: All RegistrationAccounting records shown chronologically
@@ -1665,7 +1650,7 @@ readonly pageSize = 20;
 
 5. **Slide-over panel instead of separate page** — preserving search context is the #1 UX improvement. The admin can click through multiple registrations without losing filters, scroll position, or mental context. The 480px panel width leaves the grid visible underneath. On mobile, the panel goes full-width (expected, since the grid would be unusable at that viewport anyway).
 
-6. **Dynamic form from PlayerProfileMetadataJson** — instead of hard-coding 40+ form fields, the detail panel assembles the form at runtime from the job's metadata. This means every job automatically gets the right fields — no code changes needed when a job uses a different profile type (PP10, CAC05, etc.). The form renderer handles all input types, validation rules, and visibility settings defined in the metadata.
+6. **Read-first detail panel with contact edit zone** — the detail panel is a lookup tool, not an edit form. Admins almost never update registration details — the panel is opened to check info (team, contact, payment status). The redesigned Details tab has a compact **Contact Edit Zone** at the top (email, cellphone, uniform#, family contacts) with a single Save button, and **read-only label:value pairs** for everything else (demographics, profile metadata, registration info). Only fields with values are rendered — empty fields hidden. Metadata from `PlayerProfileMetadataJson` is still parsed for field labels but displayed as plain text instead of form inputs. This dramatically reduces visual noise and makes the primary lookup task faster while keeping the rarely-used edit capability prominent for the fields that actually get updated.
 
 7. **Refund via existing ADN_Refund gateway method** — the `ADN_Refund()` method exists and is tested but has never been called from application code. This migration plan activates it. The refund creates a negative accounting record (matching the existing accounting pattern) and updates registration financials. The original transaction's `AdnTransactionId`, `AdnCc4`, and `AdnCcexpDate` are already stored in `RegistrationAccounting` — all data needed for the refund is available.
 
@@ -1707,7 +1692,8 @@ readonly pageSize = 20;
 | 12 | Dynamic parent/guardian labels from Jobs entity | Replaced hardcoded "Mother / Guardian 1" and "Father / Guardian 2" family contact headings with dynamic labels from `Jobs.MomLabel` and `Jobs.DadLabel`. Backend: added `MomLabel` (default "Mom") and `DadLabel` (default "Dad") to `RegistrationDetailDto`; populated from `reg.Job.MomLabel`/`reg.Job.DadLabel` in `RegistrationRepository.GetRegistrationDetailAsync()` with fallback when blank. Frontend: headings use `{{ reg.momLabel || 'Mom' }}` / `{{ reg.dadLabel || 'Dad' }}`. API models regenerated. |
 | 13 | Change Job feature | Added ability to move a registration from one job to another under the same customer. Backend: `JobOptionDto`, `ChangeJobRequest`, `ChangeJobResponse` DTOs; `IJobRepository.GetOtherJobsForCustomerAsync()` for dropdown options; `IRegistrationRepository.FindMatchingRegistrationTeamAsync()` for automatic team name matching in target job; `ChangeJobAsync()` service method with job-ownership validation; `GET change-job-options` and `POST {id}/change-job` controller endpoints. Frontend: "Change Job" button in detail panel header; modal with job dropdown fetched on open; loading spinner; success toast with new job name; emits `saved` to refresh grid. SCSS: reusable `.change-job-modal` styles with `position: absolute` (not `fixed`) to work within the transformed detail panel. API models regenerated (JobOptionDto, ChangeJobRequest, ChangeJobResponse). |
 | 14 | Delete Registration feature | Added role-specific registration deletion with strict pre-conditions. Backend: `DeleteRegistrationResponse` DTO; `IRegistrationRepository.HasAccountingRecordsAsync()`, `HasStoreCartBatchRecordsAsync()`, `GetRegistrationRoleNameAsync()` for pre-condition checks and role lookup; `DeleteRegistrationAsync()` service method with role-based authorization (Player/Staff → Director+, Unassigned Adult → Superuser only), pre-condition enforcement (no accounting records, no store records, no insurance), device cleanup via `IDeviceRepository`, and entity deletion; `DELETE {id}` controller endpoint extracting `callerRole` from JWT `ClaimTypes.Role`. Frontend: "Delete" danger-outline button in detail panel header; confirmation modal with registrant name and warning; loading spinner; success toast; emits `closed` + `saved` to close panel and refresh grid. Server returns human-readable error messages for all rejection cases (role insufficient, accounting records exist, etc.). Added security documentation for role-based delete authorization table. |
+| 15 | Detail panel read-first redesign | Redesigned the Details tab from an all-editable form layout (3 sections × 3 save buttons) to a read-first info panel with a compact contact edit zone. Rationale: admins almost never update registration details — the panel is primarily a lookup tool. **Contact Edit Zone** (top, editable): Email + Cellphone (all roles), Uniform # (players, from ALWAYS_INCLUDE_FIELDS), family email + cellphone (players with family link). Single "Save" button fires applicable endpoints in parallel via `forkJoin` (updateDemographics, updateFamilyContact, updateProfile). **Read-Only Info** (below, label:value pairs in 2-column grid): Registration info, Demographics (DOB, gender, address formatted as single line), Family names (read-only — names rarely change), Player Profile metadata fields (excluding waivers and always-include fields), Non-Player fields (ClubName, etc.). Only fields with values rendered — empty/null fields hidden entirely. TypeScript: replaced `isSaving`/`isSavingFamily`/`isSavingDemographics` with single `isSavingContact`; added `readOnlyMetadataFields` computed signal, `hasValue()`, `formatAddress()`, `formatCheckboxValue()`, `familyName()`, `nonPlayerFields()` helpers. SCSS: added `.contact-zone`, `.contact-form`, `.family-contact-row/col`, `.info-section`, `.info-section-title` styles; removed `.demographics-form`, `.non-player-form`, `.family-form`, `.detail-section` styles. Updated ASCII diagram, Phase 10 description, Design Decision #6, UI Standard (Dynamic Metadata-Driven Form → Read-Only Display), test cases 13–17. |
 
 ---
 
-**Status**: Implementation in progress. Phases 1–15 complete (including 8b). Change Job (amendment #13) and Delete Registration (amendment #14) features fully implemented end-to-end. Phase 16 (Testing & Polish) pending.
+**Status**: Implementation in progress. Phases 1–15 complete (including 8b). Change Job (amendment #13), Delete Registration (amendment #14), and Detail Panel Read-First Redesign (amendment #15) fully implemented end-to-end. Phase 16 (Testing & Polish) pending.
