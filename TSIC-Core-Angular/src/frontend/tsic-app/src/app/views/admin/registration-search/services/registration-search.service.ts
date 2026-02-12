@@ -19,7 +19,11 @@ import type {
 	BatchEmailResponse,
 	EmailPreviewRequest,
 	EmailPreviewResponse,
-	LadtTreeRootDto
+	LadtTreeRootDto,
+	JobOptionDto,
+	ChangeJobRequest,
+	ChangeJobResponse,
+	DeleteRegistrationResponse
 } from '@core/api';
 
 // Re-export for consumers
@@ -46,7 +50,11 @@ export type {
 	RenderedEmailPreview,
 	FilterOption,
 	LadtTreeRootDto,
-	LadtTreeNodeDto
+	LadtTreeNodeDto,
+	JobOptionDto,
+	ChangeJobRequest,
+	ChangeJobResponse,
+	DeleteRegistrationResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -100,5 +108,17 @@ export class RegistrationSearchService {
 
 	getLadtTree(): Observable<LadtTreeRootDto> {
 		return this.http.get<LadtTreeRootDto>(`${environment.apiUrl}/ladt/tree`);
+	}
+
+	getChangeJobOptions(): Observable<JobOptionDto[]> {
+		return this.http.get<JobOptionDto[]>(`${this.apiUrl}/change-job-options`);
+	}
+
+	changeJob(registrationId: string, request: ChangeJobRequest): Observable<ChangeJobResponse> {
+		return this.http.post<ChangeJobResponse>(`${this.apiUrl}/${registrationId}/change-job`, request);
+	}
+
+	deleteRegistration(registrationId: string): Observable<DeleteRegistrationResponse> {
+		return this.http.delete<DeleteRegistrationResponse>(`${this.apiUrl}/${registrationId}`);
 	}
 }

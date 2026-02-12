@@ -35,6 +35,10 @@ public record RegistrationDetailDto
     // Metadata schema (from Job.PlayerProfileMetadataJson — for form rendering)
     public string? ProfileMetadataJson { get; init; }
 
+    // Parent/guardian labels (from Jobs entity, defaults "Mom"/"Dad")
+    public string MomLabel { get; init; } = "Mom";
+    public string DadLabel { get; init; } = "Dad";
+
     // Family contact info (from Families entity, null if no family link)
     public FamilyContactDto? FamilyContact { get; init; }
 
@@ -150,4 +154,40 @@ public record RenderedEmailPreview
     public required string RecipientEmail { get; init; }
     public required string RenderedSubject { get; init; }
     public required string RenderedBody { get; init; }
+}
+
+/// <summary>
+/// Request to change a registration's job.
+/// </summary>
+public record ChangeJobRequest
+{
+    public required Guid NewJobId { get; init; }
+}
+
+/// <summary>
+/// Response from a change-job operation.
+/// </summary>
+public record ChangeJobResponse
+{
+    public required bool Success { get; init; }
+    public string? Message { get; init; }
+    public string? NewJobName { get; init; }
+}
+
+/// <summary>
+/// Lightweight job info for the "Change Job" dropdown.
+/// </summary>
+public record JobOptionDto
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+}
+
+/// <summary>
+/// Response from a delete-registration operation.
+/// </summary>
+public record DeleteRegistrationResponse
+{
+    public required bool Success { get; init; }
+    public string? Message { get; init; }
 }

@@ -218,4 +218,46 @@ public class RegistrationSearchController : ControllerBase
         var result = await _searchService.PreviewEmailAsync(jobId.Value, request, ct);
         return Ok(result);
     }
+
+    [HttpGet("change-job-options")]
+    public async Task<ActionResult<List<JobOptionDto>>> GetChangeJobOptions(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var options = await _searchService.GetChangeJobOptionsAsync(jobId.Value, ct);
+        return Ok(options);
+    }
+
+    [HttpPost("{registrationId:guid}/change-job")]
+    public async Task<ActionResult<ChangeJobResponse>> ChangeJob(
+        Guid registrationId, [FromBody] ChangeJobRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _searchService.ChangeRegistrationJobAsync(jobId!.Value, userId!, registrationId, request, ct);
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [HttpDelete("{registrationId:guid}")]
+    public async Task<ActionResult<DeleteRegistrationResponse>> DeleteRegistration(
+        Guid registrationId, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var callerRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        var result = await _searchService.DeleteRegistrationAsync(
+            jobId!.Value, userId!, callerRole, registrationId, ct);
+
+        if (!result.Success)
+            return Conflict(result);
+
+        return Ok(result);
+    }
 }

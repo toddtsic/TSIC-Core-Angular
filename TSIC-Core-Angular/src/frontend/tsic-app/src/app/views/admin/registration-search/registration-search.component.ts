@@ -251,6 +251,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   executeSearch(): void {
+    this.moreFiltersExpanded.set(false);
     this.isSearching.set(true);
     const req = this.sanitizeRequest(this.searchRequest());
     this.lastSearchedRequest.set(JSON.stringify(req));

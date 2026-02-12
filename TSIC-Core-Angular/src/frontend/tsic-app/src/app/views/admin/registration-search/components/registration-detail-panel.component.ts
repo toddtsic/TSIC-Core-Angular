@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, effect, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 
@@ -81,6 +81,17 @@ export class RegistrationDetailPanelComponent {
   // Email
   emailSubject = signal<string>('');
   emailBody = signal<string>('');
+
+  // Change Job modal
+  showChangeJobModal = signal<boolean>(false);
+  changeJobOptions = signal<JobOptionDto[]>([]);
+  selectedNewJobId = signal<string>('');
+  isChangingJob = signal<boolean>(false);
+  isLoadingJobOptions = signal<boolean>(false);
+
+  // Delete Registration
+  showDeleteConfirm = signal<boolean>(false);
+  isDeleting = signal<boolean>(false);
 
   constructor() {
     effect(() => {
@@ -320,6 +331,76 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.toast.show('Failed to send email: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+      }
+    });
+  }
+
+  // ── Change Job ──
+
+  openChangeJobModal(): void {
+    this.isLoadingJobOptions.set(true);
+    this.selectedNewJobId.set('');
+    this.searchService.getChangeJobOptions().subscribe({
+      next: (options) => {
+        this.changeJobOptions.set(options);
+        this.isLoadingJobOptions.set(false);
+        this.showChangeJobModal.set(true);
+      },
+      error: (err) => {
+        this.isLoadingJobOptions.set(false);
+        this.toast.show('Failed to load job options: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+      }
+    });
+  }
+
+  cancelChangeJob(): void {
+    this.showChangeJobModal.set(false);
+    this.selectedNewJobId.set('');
+  }
+
+  submitChangeJob(): void {
+    const d = this.detail();
+    const newJobId = this.selectedNewJobId();
+    if (!d || !newJobId) return;
+
+    this.isChangingJob.set(true);
+    this.searchService.changeJob(d.registrationId, { newJobId }).subscribe({
+      next: (result) => {
+        this.isChangingJob.set(false);
+        this.showChangeJobModal.set(false);
+        this.selectedNewJobId.set('');
+        this.toast.show(result.message || 'Job changed successfully', 'success', 4000);
+        this.saved.emit();
+      },
+      error: (err) => {
+        this.isChangingJob.set(false);
+        this.toast.show('Failed to change job: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+      }
+    });
+  }
+
+  // ── Delete Registration ──
+
+  confirmDelete(): void { this.showDeleteConfirm.set(true); }
+
+  cancelDelete(): void { this.showDeleteConfirm.set(false); }
+
+  executeDelete(): void {
+    const d = this.detail();
+    if (!d) return;
+
+    this.isDeleting.set(true);
+    this.searchService.deleteRegistration(d.registrationId).subscribe({
+      next: (result) => {
+        this.isDeleting.set(false);
+        this.showDeleteConfirm.set(false);
+        this.toast.show(result.message || 'Registration deleted successfully', 'success', 4000);
+        this.closed.emit();
+        this.saved.emit();
+      },
+      error: (err) => {
+        this.isDeleting.set(false);
+        this.toast.show(err?.error?.message || 'Failed to delete registration', 'danger', 5000);
       }
     });
   }

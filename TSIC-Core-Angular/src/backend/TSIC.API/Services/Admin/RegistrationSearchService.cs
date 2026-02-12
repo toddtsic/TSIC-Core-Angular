@@ -5,6 +5,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Admin;
@@ -18,6 +19,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IJobRepository _jobRepo;
+    private readonly IDeviceRepository _deviceRepo;
     private readonly IAdnApiService _adnApi;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
@@ -30,6 +32,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IRegistrationRepository registrationRepo,
         IRegistrationAccountingRepository accountingRepo,
         IJobRepository jobRepo,
+        IDeviceRepository deviceRepo,
         IAdnApiService adnApi,
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
@@ -38,6 +41,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _registrationRepo = registrationRepo;
         _accountingRepo = accountingRepo;
         _jobRepo = jobRepo;
+        _deviceRepo = deviceRepo;
         _adnApi = adnApi;
         _textSubstitution = textSubstitution;
         _emailService = emailService;
@@ -337,5 +341,115 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         }
 
         return new EmailPreviewResponse { Previews = previews };
+    }
+
+    public async Task<List<JobOptionDto>> GetChangeJobOptionsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _jobRepo.GetOtherJobsForCustomerAsync(jobId, ct);
+    }
+
+    public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
+        Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default)
+    {
+        // Load the registration (tracked for update)
+        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);
+        if (reg == null)
+            return new ChangeJobResponse { Success = false, Message = "Registration not found." };
+
+        // Validate registration belongs to current job
+        if (reg.JobId != jobId)
+            return new ChangeJobResponse { Success = false, Message = "Registration does not belong to this job." };
+
+        // Validate it's a Player role
+        if (reg.RoleId != Domain.Constants.RoleConstants.Player)
+            return new ChangeJobResponse { Success = false, Message = "Only Player registrations can be moved between jobs." };
+
+        // Validate new job is different
+        if (reg.JobId == request.NewJobId)
+            return new ChangeJobResponse { Success = false, Message = "Registration is already in this job." };
+
+        // Find matching registration team in target job
+        var newTeamId = await _registrationRepo.FindMatchingRegistrationTeamAsync(registrationId, request.NewJobId, ct);
+
+        // Update the registration
+        reg.JobId = request.NewJobId;
+        reg.AssignedTeamId = newTeamId;
+        reg.Modified = DateTime.UtcNow;
+        reg.LebUserId = userId;
+
+        await _registrationRepo.SaveChangesAsync(ct);
+
+        // Get new job name for response
+        var newJobName = await _jobRepo.GetJobNameAsync(request.NewJobId, ct);
+
+        _logger.LogInformation(
+            "Registration {RegId} moved from job {OldJobId} to {NewJobId} by {UserId}",
+            registrationId, jobId, request.NewJobId, userId);
+
+        return new ChangeJobResponse
+        {
+            Success = true,
+            Message = $"Registration moved to {newJobName ?? "new job"} successfully.",
+            NewJobName = newJobName
+        };
+    }
+
+    public async Task<DeleteRegistrationResponse> DeleteRegistrationAsync(
+        Guid jobId, string userId, string callerRole, Guid registrationId, CancellationToken ct = default)
+    {
+        // Load the registration (tracked for deletion)
+        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);
+        if (reg == null)
+            return new DeleteRegistrationResponse { Success = false, Message = "Registration not found." };
+
+        // Validate registration belongs to current job
+        if (reg.JobId != jobId)
+            return new DeleteRegistrationResponse { Success = false, Message = "Registration does not belong to this job." };
+
+        // Role-based authorization: check the registration's role
+        var regRoleName = await _registrationRepo.GetRegistrationRoleNameAsync(registrationId, ct);
+
+        if (string.Equals(regRoleName, RoleConstants.Names.UnassignedAdultName, StringComparison.OrdinalIgnoreCase))
+        {
+            // Unassigned Adult → only Superuser can delete
+            if (!string.Equals(callerRole, RoleConstants.Names.SuperuserName, StringComparison.OrdinalIgnoreCase))
+                return new DeleteRegistrationResponse { Success = false, Message = "Only Superuser can delete Unassigned Adult registrations." };
+        }
+        else if (!string.Equals(regRoleName, RoleConstants.Names.PlayerName, StringComparison.OrdinalIgnoreCase)
+              && !string.Equals(regRoleName, RoleConstants.Names.StaffName, StringComparison.OrdinalIgnoreCase))
+        {
+            // Only Player, Staff, and Unassigned Adult roles are deletable
+            return new DeleteRegistrationResponse { Success = false, Message = $"Registrations with role '{regRoleName}' cannot be deleted." };
+        }
+
+        // Pre-condition checks
+        var hasAccounting = await _registrationRepo.HasAccountingRecordsAsync(registrationId, ct);
+        if (hasAccounting)
+            return new DeleteRegistrationResponse { Success = false, Message = "Cannot delete: registration has accounting records." };
+
+        var hasStoreRecords = await _registrationRepo.HasStoreCartBatchRecordsAsync(registrationId, ct);
+        if (hasStoreRecords)
+            return new DeleteRegistrationResponse { Success = false, Message = "Cannot delete: registration has store purchase records." };
+
+        if (!string.IsNullOrEmpty(reg.RegsaverPolicyId))
+            return new DeleteRegistrationResponse { Success = false, Message = "Cannot delete: registration has an active insurance policy." };
+
+        // Device cleanup before deletion
+        var deviceRegIds = await _deviceRepo.GetDeviceRegistrationIdsByRegistrationAsync(registrationId, ct);
+        if (deviceRegIds.Count > 0)
+        {
+            _deviceRepo.RemoveDeviceRegistrationIds(deviceRegIds);
+            await _deviceRepo.SaveChangesAsync(ct);
+        }
+
+        // Delete the registration
+        _registrationRepo.Remove(reg);
+        await _registrationRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Registration {RegId} (role={Role}) deleted from job {JobId} by {UserId}",
+            registrationId, regRoleName, jobId, userId);
+
+        return new DeleteRegistrationResponse { Success = true, Message = "Registration deleted successfully." };
     }
 }

@@ -25,4 +25,16 @@ public interface IScheduleRepository
     Task<int> SynchronizeScheduleDivisionForTeamAsync(
         Guid teamId, Guid jobId, Guid newAgegroupId, string newAgegroupName,
         Guid newDivId, string newDivName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update denormalized AgegroupName on all Schedule records where AgegroupId matches.
+    /// Called when an agegroup is renamed in the LADT editor.
+    /// </summary>
+    Task SynchronizeScheduleAgegroupNameAsync(Guid agegroupId, Guid jobId, string newName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update denormalized DivName (and Div2Name) on all Schedule records where
+    /// DivId (or Div2Id) matches. Called when a division is renamed in the LADT editor.
+    /// </summary>
+    Task SynchronizeScheduleDivisionNameAsync(Guid divId, Guid jobId, string newName, CancellationToken ct = default);
 }

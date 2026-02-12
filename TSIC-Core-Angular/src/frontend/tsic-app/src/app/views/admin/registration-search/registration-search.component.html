@@ -70,17 +70,19 @@
           </div>
 
           <div class="form-group">
-            <label>Grad Year</label>
+            <label>Club</label>
             <ejs-multiselect
-              [dataSource]="filterOptions()?.gradYears ?? []"
+              [dataSource]="filterOptions()?.clubs ?? []"
               [fields]="msFields"
-              [value]="searchRequest().gradYears"
-              (change)="updateMultiSelect('gradYears', $event.value)"
+              [value]="searchRequest().clubNames"
+              (change)="updateMultiSelect('clubNames', $event.value)"
               [mode]="'CheckBox'"
+              [showSelectAll]="true"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
               [changeOnBlur]="false"
-              placeholder="All"
+              [enableFiltering]="true"
+              placeholder="All Clubs"
               [itemTemplate]="countBadgeTemplate"
               cssClass="filter-ms"
               [popupWidth]="'auto'">
@@ -211,19 +213,17 @@
                   (ngModelChange)="updateSchoolName($event)" />
               </div>
               <div class="form-group">
-                <label>Club</label>
+                <label>Grad Year</label>
                 <ejs-multiselect
-                  [dataSource]="filterOptions()?.clubs ?? []"
+                  [dataSource]="filterOptions()?.gradYears ?? []"
                   [fields]="msFields"
-                  [value]="searchRequest().clubNames"
-                  (change)="updateMultiSelect('clubNames', $event.value)"
+                  [value]="searchRequest().gradYears"
+                  (change)="updateMultiSelect('gradYears', $event.value)"
                   [mode]="'CheckBox'"
-                  [showSelectAll]="true"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
                   [changeOnBlur]="false"
-                  [enableFiltering]="true"
-                  placeholder="All Clubs"
+                  placeholder="All"
                   [itemTemplate]="countBadgeTemplate"
                   cssClass="filter-ms">
                 </ejs-multiselect>

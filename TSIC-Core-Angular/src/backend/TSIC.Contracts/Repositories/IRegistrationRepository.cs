@@ -344,6 +344,28 @@ public interface IRegistrationRepository
     /// </summary>
     Task UpdateUserDemographicsAsync(Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default);
 
+    /// <summary>
+    /// Check whether a registration has any RegistrationAccounting records.
+    /// </summary>
+    Task<bool> HasAccountingRecordsAsync(Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check whether a registration has any StoreCartBatchSkus linked via DirectToRegId.
+    /// </summary>
+    Task<bool> HasStoreCartBatchRecordsAsync(Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the role name for a registration (from AspNetRoles via RoleId).
+    /// </summary>
+    Task<string?> GetRegistrationRoleNameAsync(Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Find a matching "Registration" agegroup team in the target job for a player registration.
+    /// Matches on season, year, agegroup name ("Registration"), division name, and GradYear in team name.
+    /// Returns the matching team ID or null if no match found.
+    /// </summary>
+    Task<Guid?> FindMatchingRegistrationTeamAsync(Guid registrationId, Guid newJobId, CancellationToken ct = default);
+
     // ── Roster Swapper methods ──
 
     /// <summary>

@@ -28,6 +28,8 @@ export type { BatchUpdateStatusRequest } from './models/BatchUpdateStatusRequest
 export type { BulkAddDiscountCodeRequest } from './models/BulkAddDiscountCodeRequest';
 export type { BulletinDto } from './models/BulletinDto';
 export type { CcInfoDto } from './models/CcInfoDto';
+export type { ChangeJobRequest } from './models/ChangeJobRequest';
+export type { ChangeJobResponse } from './models/ChangeJobResponse';
 export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
 export type { ChildDto } from './models/ChildDto';
 export type { CloneProfileRequest } from './models/CloneProfileRequest';
@@ -46,6 +48,7 @@ export type { CreateMenuItemRequest } from './models/CreateMenuItemRequest';
 export type { CreateStubRequest } from './models/CreateStubRequest';
 export type { CreateTeamRequest } from './models/CreateTeamRequest';
 export type { CreditCardInfo } from './models/CreditCardInfo';
+export type { DeleteRegistrationResponse } from './models/DeleteRegistrationResponse';
 export type { DeleteTeamResultDto } from './models/DeleteTeamResultDto';
 export type { DiscountCodeDto } from './models/DiscountCodeDto';
 export type { DivisionDetailDto } from './models/DivisionDetailDto';
@@ -71,6 +74,7 @@ export type { InitializeRegistrationRequest } from './models/InitializeRegistrat
 export type { InsurancePurchaseRequestDto } from './models/InsurancePurchaseRequestDto';
 export type { InsurancePurchaseResponseDto } from './models/InsurancePurchaseResponseDto';
 export type { JobMetadataResponse } from './models/JobMetadataResponse';
+export type { JobOptionDto } from './models/JobOptionDto';
 export type { JobRegFieldDto } from './models/JobRegFieldDto';
 export type { JobRegFormDto } from './models/JobRegFormDto';
 export type { LadtTreeNodeDto } from './models/LadtTreeNodeDto';

@@ -160,6 +160,13 @@ public interface IJobRepository
     /// Get adult/team confirmation template for email.
     /// </summary>
     Task<AdultConfirmationEmailInfo?> GetAdultConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get other jobs owned by the same customer as the specified job.
+    /// Excludes the current job. Used for "Change Job" dropdown.
+    /// </summary>
+    Task<List<Dtos.RegistrationSearch.JobOptionDto>> GetOtherJobsForCustomerAsync(
+        Guid jobId, CancellationToken cancellationToken = default);
 }
 
 public record JobAuthInfo

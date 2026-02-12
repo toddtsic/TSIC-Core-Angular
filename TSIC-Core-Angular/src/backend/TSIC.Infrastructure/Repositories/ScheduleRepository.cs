@@ -92,4 +92,33 @@ public sealed class ScheduleRepository : IScheduleRepository
 
         return schedules.Count;
     }
+
+    public async Task SynchronizeScheduleAgegroupNameAsync(Guid agegroupId, Guid jobId, string newName, CancellationToken ct = default)
+    {
+        var schedules = await _context.Schedule
+            .Where(s => s.JobId == jobId && s.AgegroupId == agegroupId)
+            .ToListAsync(ct);
+
+        foreach (var s in schedules)
+            s.AgegroupName = newName;
+
+        if (schedules.Count > 0)
+            await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task SynchronizeScheduleDivisionNameAsync(Guid divId, Guid jobId, string newName, CancellationToken ct = default)
+    {
+        var schedules = await _context.Schedule
+            .Where(s => s.JobId == jobId && (s.DivId == divId || s.Div2Id == divId))
+            .ToListAsync(ct);
+
+        foreach (var s in schedules)
+        {
+            if (s.DivId == divId) s.DivName = newName;
+            if (s.Div2Id == divId) s.Div2Name = newName;
+        }
+
+        if (schedules.Count > 0)
+            await _context.SaveChangesAsync(ct);
+    }
 }

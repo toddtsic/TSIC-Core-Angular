@@ -362,6 +362,20 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<bool> HasAccountingRecordsAsync(Guid registrationId, CancellationToken ct = default)
+        => await _context.RegistrationAccounting.AsNoTracking()
+            .AnyAsync(a => a.RegistrationId == registrationId, ct);
+
+    public async Task<bool> HasStoreCartBatchRecordsAsync(Guid registrationId, CancellationToken ct = default)
+        => await _context.StoreCartBatchSkus.AsNoTracking()
+            .AnyAsync(s => s.DirectToRegId == registrationId, ct);
+
+    public async Task<string?> GetRegistrationRoleNameAsync(Guid registrationId, CancellationToken ct = default)
+        => await _context.Registrations.AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId)
+            .Select(r => r.Role != null ? r.Role.Name : null)
+            .FirstOrDefaultAsync(ct);
+
     public async Task<Dictionary<Guid, int>> GetActiveTeamRosterCountsAsync(
         Guid jobId,
         IReadOnlyCollection<Guid> teamIds,
@@ -1241,6 +1255,8 @@ public class RegistrationRepository : IRegistrationRepository
             OwedTotal = reg.OwedTotal,
             ProfileValues = profileValues,
             ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
+            MomLabel = !string.IsNullOrWhiteSpace(reg.Job?.MomLabel) ? reg.Job.MomLabel : "Mom",
+            DadLabel = !string.IsNullOrWhiteSpace(reg.Job?.DadLabel) ? reg.Job.DadLabel : "Dad",
             FamilyContact = reg.FamilyUser != null ? new FamilyContactDto
             {
                 MomFirstName = reg.FamilyUser.MomFirstName,
@@ -1502,6 +1518,59 @@ public class RegistrationRepository : IRegistrationRepository
                 && r.AssignedTeamId == teamId
                 && r.JobId == jobId
                 && r.RoleId == RoleConstants.Staff)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<Guid?> FindMatchingRegistrationTeamAsync(
+        Guid registrationId, Guid newJobId, CancellationToken ct = default)
+    {
+        // 1. Get current registration's assigned team characteristics
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId)
+            .Select(r => new { r.AssignedTeamId, r.GradYear })
+            .FirstOrDefaultAsync(ct);
+
+        if (reg?.AssignedTeamId == null)
+            return null;
+
+        var currentTeamKeys = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.TeamId == reg.AssignedTeamId)
+            .Select(t => new
+            {
+                AgegroupName = t.Agegroup.AgegroupName,
+                DivName = t.Div!.DivName,
+                t.Season,
+                t.Year
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (currentTeamKeys == null)
+            return null;
+
+        // 2. Get target job's primary league
+        var newLeagueId = await _context.JobLeagues
+            .AsNoTracking()
+            .Where(jl => jl.JobId == newJobId)
+            .Select(jl => jl.LeagueId)
+            .FirstOrDefaultAsync(ct);
+
+        if (newLeagueId == Guid.Empty)
+            return null;
+
+        // 3. Find matching team in the new job's league
+        var gradYear = reg.GradYear ?? "";
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t =>
+                t.LeagueId == newLeagueId
+                && t.Season == currentTeamKeys.Season
+                && t.Year == currentTeamKeys.Year
+                && t.Agegroup.AgegroupName == currentTeamKeys.AgegroupName
+                && t.Div!.DivName == currentTeamKeys.DivName
+                && t.TeamName!.Contains(gradYear))
+            .Select(t => (Guid?)t.TeamId)
             .FirstOrDefaultAsync(ct);
     }
 }

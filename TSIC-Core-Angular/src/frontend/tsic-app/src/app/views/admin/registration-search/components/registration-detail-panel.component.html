@@ -17,6 +17,17 @@
           <span class="badge" [class.badge-success]="reg.active" [class.badge-secondary]="!reg.active">
             {{ reg.active ? 'Active' : 'Inactive' }}
           </span>
+          @if (isPlayerRole()) {
+            <button type="button" class="btn btn-sm btn-outline-warning ms-2 change-job-btn"
+              (click)="openChangeJobModal()" [disabled]="isLoadingJobOptions()">
+              @if (isLoadingJobOptions()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              Change Job
+            </button>
+          }
+          <button type="button" class="btn btn-sm btn-outline-danger ms-2 delete-reg-btn"
+            (click)="confirmDelete()" [disabled]="isDeleting()">
+            Delete
+          </button>
         </div>
       </div>
       <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
@@ -37,24 +48,25 @@
           <div class="detail-section">
             <h4 class="section-title">Demographics</h4>
             <form class="demographics-form">
-              <div class="form-row-2">
-                <div class="form-group">
-                  <label for="demo-gender" class="form-label">Gender</label>
-                  <select id="demo-gender" class="form-select"
-                    [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
-                    name="gender">
-                    <option value="">-- Select --</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
+              <div class="demo-info-row">
                 <div class="form-group">
                   <label for="demo-dob" class="form-label">Date of Birth</label>
                   <input id="demo-dob" type="date" class="form-control"
                     [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
                     name="dateOfBirth">
                 </div>
+                @if (reg.email) {
+                  <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <div class="form-value">{{ reg.email }}</div>
+                  </div>
+                }
+                @if (reg.phone) {
+                  <div class="form-group">
+                    <label class="form-label">Cellphone</label>
+                    <div class="form-value">{{ reg.phone }}</div>
+                  </div>
+                }
               </div>
               <!-- Address fields: non-player only (player address lives on Family Contact) -->
               @if (!isPlayerRole()) {
@@ -101,7 +113,7 @@
               <form class="family-form">
                 <div class="family-grid">
                   <div class="family-column">
-                    <h5 class="family-heading">Mother / Guardian 1</h5>
+                    <h5 class="family-heading">{{ reg.momLabel || 'Mom' }}</h5>
                     <div class="form-row-2">
                       <div class="form-group">
                         <label for="mom-first" class="form-label">First Name</label>
@@ -131,7 +143,7 @@
                   </div>
 
                   <div class="family-column">
-                    <h5 class="family-heading">Father / Guardian 2</h5>
+                    <h5 class="family-heading">{{ reg.dadLabel || 'Dad' }}</h5>
                     <div class="form-row-2">
                       <div class="form-group">
                         <label for="dad-first" class="form-label">First Name</label>
@@ -404,5 +416,66 @@
         </div>
       }
     </div>
+
+    <!-- ═══════════════════════ CHANGE JOB MODAL ═══════════════════════ -->
+    @if (showChangeJobModal()) {
+      <div class="modal-backdrop" (click)="cancelChangeJob()"></div>
+      <div class="change-job-modal">
+        <div class="modal-header">
+          <h4 class="modal-title">Change Registrant's Job</h4>
+          <button type="button" class="btn-close" (click)="cancelChangeJob()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="new-job-select" class="form-label">To:</label>
+            <select id="new-job-select" class="form-select"
+              [ngModel]="selectedNewJobId()" (ngModelChange)="selectedNewJobId.set($event)"
+              name="newJobId">
+              <option value="">--select from list--</option>
+              @for (job of changeJobOptions(); track job.jobId) {
+                <option [value]="job.jobId">{{ job.jobName }}</option>
+              }
+            </select>
+          </div>
+          @if (changeJobOptions().length === 0) {
+            <div class="alert alert-info mt-2">No other jobs found for this customer.</div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cancelChangeJob()">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="submitChangeJob()"
+            [disabled]="!selectedNewJobId() || isChangingJob()">
+            @if (isChangingJob()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Submit
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ═══════════════════════ DELETE REGISTRATION MODAL ═══════════════════════ -->
+    @if (showDeleteConfirm()) {
+      <div class="modal-backdrop" (click)="cancelDelete()"></div>
+      <div class="delete-confirm-modal">
+        <div class="modal-header modal-header-danger">
+          <h4 class="modal-title">Delete Registration</h4>
+          <button type="button" class="btn-close" (click)="cancelDelete()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="delete-warning">
+            Are you sure you want to permanently delete this registration for
+            <strong>{{ reg.firstName }} {{ reg.lastName }}</strong> ({{ reg.roleName }})?
+          </p>
+          <p class="text-muted">This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+          <button type="button" class="btn btn-danger" (click)="executeDelete()"
+            [disabled]="isDeleting()">
+            @if (isDeleting()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            Delete Registration
+          </button>
+        </div>
+      </div>
+    }
   }
 </div>

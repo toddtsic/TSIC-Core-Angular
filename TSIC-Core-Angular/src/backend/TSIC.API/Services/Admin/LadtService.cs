@@ -328,6 +328,10 @@ public sealed class LadtService : ILadtService
         ag.Modified = DateTime.UtcNow;
 
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
+
+        // Sync denormalized agegroup name in Schedule records
+        await _scheduleRepo.SynchronizeScheduleAgegroupNameAsync(agegroupId, jobId, request.AgegroupName, cancellationToken);
+
         return MapAgegroup(ag);
     }
 
@@ -451,6 +455,10 @@ public sealed class LadtService : ILadtService
         div.Modified = DateTime.UtcNow;
 
         await _divisionRepo.SaveChangesAsync(cancellationToken);
+
+        // Sync denormalized division name in Schedule records (DivName + Div2Name)
+        await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(divId, jobId, request.DivName, cancellationToken);
+
         return MapDivision(div);
     }
 
@@ -634,6 +642,11 @@ public sealed class LadtService : ILadtService
         team.Modified = DateTime.UtcNow;
 
         await _teamRepo.SaveChangesAsync(cancellationToken);
+
+        // Sync denormalized team names in Schedule if team name changed
+        if (request.TeamName != null)
+            await _scheduleRepo.SynchronizeScheduleNamesForTeamAsync(teamId, jobId, cancellationToken);
+
         var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
         var clubName = await _teamRepo.GetClubNameForTeamAsync(teamId, cancellationToken);
         return MapTeam(team, playerCount, clubName);

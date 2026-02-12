@@ -268,6 +268,10 @@ No navigation, no back button, no re-entering filters.
 
 - **LADT Hierarchical Checkbox Tree Filter** — standalone component rendering League > Agegroup > Division > Team as an indented tree with tri-state checkboxes (check/uncheck cascade), expand/collapse, pill count badges (teams/players), and special node styling. Replaces flat multi-select dropdowns when the data has a parent-child hierarchy that provides essential context for selection. Tree data from existing `/api/ladt/tree` endpoint; checked IDs emitted to parent for classification by level. Reusable for any hierarchical filter scenario (e.g., location trees, category taxonomies).
 
+- **Change Job Modal** — in-panel modal (using `position: absolute` to work within the CSS-transformed slide-over) with a dropdown of other jobs under the same customer, loaded on-demand when the button is clicked. Includes automatic team name matching in the target job. This pattern — fetching options on modal open rather than pre-loading — prevents stale data and keeps the initial detail load lightweight. The `position: absolute` approach (instead of `position: fixed`) is required because the detail panel's `transform: translateX()` creates a new containing block that makes `position: fixed` relative to the panel rather than the viewport.
+
+- **Delete Registration with Server-Side Guard Rails** — frontend shows a simple confirmation modal, but the server enforces all business rules (role-based authorization, pre-condition checks). Error messages are returned as human-readable strings that the frontend displays directly in a toast. This pattern — thin frontend confirmation + thick server validation with descriptive error messages — is preferred over duplicating business logic in the frontend for destructive operations. The server returns 409/Conflict for pre-condition failures and 200/OK for success.
+
 - **Dirty-State "Update Results" Button** — search button that pulses yellow (`btn-warning` + `pulse-glow` animation) when filters have changed since last search. Detects changes by comparing `JSON.stringify(sanitizeRequest(current))` against last-searched snapshot. Requires `[changeOnBlur]="false"` on Syncfusion multi-selects for immediate activation. Baseline set after filter options load so changes are detected even before first search. Button text switches between "Search" and "Update Results" contextually.
 
 ### EMPLOYED (existing patterns reused)
@@ -302,6 +306,21 @@ No navigation, no back button, no re-entering filters.
 - **Batch email**: Server must verify all recipient registrations belong to the user's job
 - **Registration editing**: Server must verify the registration belongs to the user's job before persisting changes
 - **ADN credentials**: Fetched server-side from `Customer` entity by `jobId` — never exposed to frontend
+- **Change Job authorization**: AdminOnly policy (Director/SuperDirector/Superuser). Server verifies target job belongs to the same customer as the source job — cannot move registrations across customers
+- **Delete registration authorization**: Fine-grained role-based checks beyond AdminOnly policy:
+
+| Registration Role | Allowed Caller Roles |
+|---|---|
+| Player | Director, SuperDirector, Superuser |
+| Staff | Director, SuperDirector, Superuser |
+| Unassigned Adult | **Superuser only** |
+| Other roles | Deletion not allowed |
+
+- **Delete pre-conditions** (server-enforced, all must pass):
+  1. No `RegistrationAccounting` records for this registration
+  2. No `StoreCartBatchSkus` records linked via `DirectToRegId`
+  3. No `RegsaverPolicyId` on the Registration entity (no active insurance policy)
+- **Device cleanup before delete**: `DeviceRegistrationIds` linked to the registration are removed before deletion to prevent orphaned device records
 
 ---
 
@@ -630,6 +649,53 @@ public record RenderedEmailPreview
     public required string RenderedSubject { get; init; }
     public required string RenderedBody { get; init; }
 }
+
+// ── Family contact (for detail panel editing) ──
+public record FamilyContactDto { /* all nullable string props from Families entity */ }
+
+// ── User demographics (for detail panel editing) ──
+public record UserDemographicsDto { /* dateOfBirth, gender, address fields from AspNetUsers */ }
+
+// ── Update family contact request ──
+public record UpdateFamilyContactRequest
+{
+    public required Guid RegistrationId { get; init; }
+    public required FamilyContactDto FamilyContact { get; init; }
+}
+
+// ── Update demographics request ──
+public record UpdateUserDemographicsRequest
+{
+    public required Guid RegistrationId { get; init; }
+    public required UserDemographicsDto Demographics { get; init; }
+}
+
+// ── Change Job DTOs ──
+public record JobOptionDto
+{
+    public required string JobId { get; init; }
+    public required string JobName { get; init; }
+    public string? SeasonName { get; init; }
+}
+
+public record ChangeJobRequest
+{
+    public required string NewJobId { get; init; }
+}
+
+public record ChangeJobResponse
+{
+    public required bool Success { get; init; }
+    public string? Message { get; init; }
+    public string? NewJobName { get; init; }
+}
+
+// ── Delete Registration DTOs ──
+public record DeleteRegistrationResponse
+{
+    public required bool Success { get; init; }
+    public string? Message { get; init; }
+}
 ```
 
 ### Phase 4: Backend — Repository Extensions
@@ -702,6 +768,38 @@ UpdateRegistrationProfileAsync(Guid jobId, string userId, UpdateRegistrationProf
     --   Sets property value with appropriate type conversion
     -- Updates Modified timestamp + LebUserId
     -- SaveChangesAsync
+
+FindMatchingRegistrationTeamAsync(Guid registrationId, Guid newJobId, CancellationToken ct) → Guid?
+    -- For Change Job: finds a team in the target job with the same name as the source registration's team
+    -- Matches on TeamName equality (case-insensitive)
+    -- Returns matching TeamId or null if no match found
+    -- AsNoTracking
+
+HasAccountingRecordsAsync(Guid registrationId, CancellationToken ct) → bool
+    -- For Delete Registration pre-condition check
+    -- Returns true if any RegistrationAccounting records exist for this registration
+    -- AsNoTracking
+
+HasStoreCartBatchRecordsAsync(Guid registrationId, CancellationToken ct) → bool
+    -- For Delete Registration pre-condition check
+    -- Returns true if any StoreCartBatchSkus records have DirectToRegId matching this registration
+    -- AsNoTracking
+
+GetRegistrationRoleNameAsync(Guid registrationId, CancellationToken ct) → string?
+    -- For Delete Registration role-based authorization
+    -- Navigates Registration → Role (AspNetRoles) to get role name
+    -- Returns null if registration not found or role not set
+    -- AsNoTracking
+```
+
+**IJobRepository methods** (added for Change Job):
+```
+GetOtherJobsForCustomerAsync(Guid currentJobId, CancellationToken ct) → List<JobOptionDto>
+    -- Returns all other jobs belonging to the same customer as the current job
+    -- Excludes the current job from results
+    -- Orders by job name
+    -- Used for Change Job dropdown options
+    -- AsNoTracking
 ```
 
 **IRegistrationAccountingRepository methods**:
@@ -739,6 +837,7 @@ GetPaymentMethodOptionsAsync() → List<PaymentMethodOptionDto>
 - `ITextSubstitutionService`
 - `IProfileMetadataService` (for parsing PlayerProfileMetadataJson)
 - `IRegistrationRecordFeeCalculatorService` (for financial recalculation after refund)
+- `IDeviceRepository` (for device cleanup before registration deletion)
 
 **Methods**:
 
@@ -801,6 +900,37 @@ SendBatchEmailAsync(Guid jobId, string userId, BatchEmailRequest req) → BatchE
 PreviewEmailAsync(Guid jobId, EmailPreviewRequest req) → EmailPreviewResponse
     -- Same as batch email but only renders first N (req.RegistrationIds count)
     -- Does NOT send — returns rendered HTML for preview display
+
+GetChangeJobOptionsAsync(Guid jobId, CancellationToken ct) → List<JobOptionDto>
+    -- Delegates to IJobRepository.GetOtherJobsForCustomerAsync()
+    -- Returns all other jobs under the same customer for the Change Job dropdown
+
+ChangeJobAsync(Guid jobId, string userId, Guid registrationId, ChangeJobRequest req, CancellationToken ct) → ChangeJobResponse
+    -- Loads registration, validates belongs to current job
+    -- Validates target job exists and belongs to same customer
+    -- Attempts team matching: calls FindMatchingRegistrationTeamAsync() to find a team
+    --   in the target job with the same name as the source team
+    -- Updates reg.JobId to new job
+    -- If team match found: updates reg.AssignedTeamId; otherwise clears assignment
+    -- Logs the transfer (source job, target job, team match result)
+    -- Returns success response with new job name
+
+DeleteRegistrationAsync(Guid jobId, string userId, string callerRole, Guid registrationId, CancellationToken ct) → DeleteRegistrationResponse
+    -- Loads registration, validates belongs to current job
+    -- **Role-based authorization**:
+    --   "Unassigned Adult" role → only Superuser can delete
+    --   "Player" or "Staff" role → Director, SuperDirector, Superuser can delete
+    --   Other roles → deletion not allowed
+    -- **Pre-condition checks** (all must pass):
+    --   1. No RegistrationAccounting records (HasAccountingRecordsAsync)
+    --   2. No StoreCartBatchSkus records via DirectToRegId (HasStoreCartBatchRecordsAsync)
+    --   3. No RegsaverPolicyId on registration entity (no active insurance)
+    -- Returns 409/Conflict with human-readable reason if any check fails
+    -- **Device cleanup**: removes DeviceRegistrationIds linked to this registration
+    --   via IDeviceRepository.GetDeviceRegistrationIdsByRegistrationAsync() + RemoveDeviceRegistrationIds()
+    -- **Delete**: _registrationRepo.Remove(reg) + SaveChangesAsync
+    -- Logs deletion (regId, role, jobId, userId)
+    -- Returns success response
 ```
 
 ### Phase 6: Backend — Controller
@@ -846,7 +976,28 @@ PreviewEmailAsync(Guid jobId, EmailPreviewRequest req) → EmailPreviewResponse
   - Body: `EmailPreviewRequest`
   - Renders email template for preview (no send)
 
-**Authorization**: All endpoints `[Authorize(Policy = "AdminOnly")]`, derive `jobId` from JWT via `GetJobIdFromRegistrationAsync()`.
+- `PUT api/registration-search/{registrationId:guid}/family` → `void`
+  - Body: `UpdateFamilyContactRequest`
+  - Updates family/guardian contact information
+
+- `PUT api/registration-search/{registrationId:guid}/demographics` → `void`
+  - Body: `UpdateUserDemographicsRequest`
+  - Updates user demographic fields (DOB, address, etc.)
+
+- `GET api/registration-search/change-job-options` → `List<JobOptionDto>`
+  - Returns other jobs under the same customer for the Change Job dropdown
+
+- `POST api/registration-search/{registrationId:guid}/change-job` → `ChangeJobResponse`
+  - Body: `ChangeJobRequest`
+  - Moves registration to a different job under the same customer
+  - Attempts automatic team matching by name in the target job
+
+- `DELETE api/registration-search/{registrationId:guid}` → `DeleteRegistrationResponse`
+  - Permanently deletes a registration after role-based authorization and pre-condition checks
+  - Returns 409/Conflict if pre-conditions fail (accounting records, store records, insurance)
+  - Extracts `callerRole` from JWT `ClaimTypes.Role` for Unassigned Adult authorization
+
+**Authorization**: All endpoints `[Authorize(Policy = "AdminOnly")]`, derive `jobId` from JWT via `GetJobIdFromRegistrationAsync()`. Delete endpoint performs additional fine-grained role check: Unassigned Adult registrations require Superuser role.
 
 ### Phase 7: Backend — DI Registration
 
@@ -878,6 +1029,11 @@ builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService
 - `sendBatchEmail(request: BatchEmailRequest): Observable<BatchEmailResponse>`
 - `previewEmail(request: EmailPreviewRequest): Observable<EmailPreviewResponse>`
 - `getLadtTree(): Observable<LadtTreeRootDto>` (calls `/api/ladt/tree`)
+- `updateFamilyContact(registrationId: string, request: UpdateFamilyContactRequest): Observable<void>`
+- `updateDemographics(registrationId: string, request: UpdateUserDemographicsRequest): Observable<void>`
+- `getChangeJobOptions(): Observable<JobOptionDto[]>`
+- `changeJob(registrationId: string, request: ChangeJobRequest): Observable<ChangeJobResponse>`
+- `deleteRegistration(registrationId: string): Observable<DeleteRegistrationResponse>`
 
 ### Phase 8b: Frontend — LADT Tree Filter Component
 
@@ -1063,6 +1219,42 @@ isMobile = signal(false);
    - Token reference chips (clickable to insert)
    - Preview button → calls `previewEmail()` for this one registration
    - Send button → calls `sendBatchEmail()` with single registration ID
+
+**Header actions** (in panel header, beside registration name/role):
+- **Change Job** button → opens modal with dropdown of other jobs under the same customer. On submit, moves the registration to the selected job. Auto-matches team by name in the target job if possible.
+- **Delete** button (danger outline) → opens confirmation modal with registrant name and role. Server enforces role-based authorization (Unassigned Adult → Superuser only) and pre-condition checks (no accounting, no store records, no insurance). On success, closes panel and refreshes grid.
+
+**Change Job Modal**:
+```
+┌──────────────────────────────────────────────┐
+│  Change Job                                  │
+├──────────────────────────────────────────────┤
+│                                              │
+│  Select destination job:                     │
+│  [▼ 2026 Fall Season — U14 Boys           ] │
+│                                              │
+│  [Cancel]              [Change Job]          │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+**Delete Confirmation Modal**:
+```
+┌──────────────────────────────────────────────┐
+│  Delete Registration                         │
+├──────────────────────────────────────────────┤
+│                                              │
+│  Are you sure you want to permanently delete │
+│  this registration for John Smith (Player)?  │
+│                                              │
+│  This action cannot be undone.               │
+│                                              │
+│  [Cancel]              [Delete Registration] │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+Both modals use `position: absolute` within the detail panel (not `position: fixed`) because the panel's `transform: translateX()` creates a new stacking context that makes `position: fixed` relative to the panel rather than the viewport.
 
 **Slide-over styling**:
 ```scss
@@ -1389,11 +1581,28 @@ readonly pageSize = 20;
 42. **No desktop features on mobile**: No refund, no batch email, no Excel export, no profile editing on mobile
 43. **Resize behavior**: Resizing window above 768px switches to full desktop UI; below switches back to mobile
 
+**Change Job:**
+44. **Modal loads options**: "Change Job" button fetches other jobs under same customer; dropdown populated
+45. **Job transfer**: Selecting a job and confirming moves the registration; grid refreshes with updated data
+46. **Team matching**: If source team name exists in target job, registration's team auto-assigned; otherwise team cleared
+47. **Cross-customer blocked**: Cannot move registration to a job under a different customer
+
+**Delete Registration:**
+48. **Player/Staff deletion**: Director/SuperDirector/Superuser can delete Player or Staff registrations
+49. **Unassigned Adult restriction**: Only Superuser can delete Unassigned Adult registrations; Director gets error
+50. **Accounting records block**: Registration with RegistrationAccounting records → delete blocked with clear message
+51. **Store records block**: Registration with StoreCartBatchSkus (DirectToRegId) → delete blocked
+52. **Insurance block**: Registration with RegsaverPolicyId → delete blocked with "active insurance policy" message
+53. **Clean registration deletes**: Registration with no accounting, store, or insurance records → deletes successfully
+54. **Device cleanup**: DeviceRegistrationIds removed before registration entity deleted
+55. **Confirmation modal**: Shows registrant name and role; requires explicit confirmation click
+56. **Post-delete behavior**: Panel closes, grid refreshes, success toast shown
+
 **General:**
-44. **All 8 palettes**: CSS variable themed throughout (grid, panel, modals, mobile cards)
-45. **Authorization**: Non-admin users get 403 on all endpoints
-46. **Job scoping**: All queries scoped to JWT-derived jobId; cannot access other jobs' registrations
-47. **Error handling**: Network errors show toast with context-specific message
+57. **All 8 palettes**: CSS variable themed throughout (grid, panel, modals, mobile cards)
+58. **Authorization**: Non-admin users get 403 on all endpoints
+59. **Job scoping**: All queries scoped to JWT-derived jobId; cannot access other jobs' registrations
+60. **Error handling**: Network errors show toast with context-specific message
 
 ---
 
@@ -1405,14 +1614,16 @@ readonly pageSize = 20;
 |------|--------|------------|
 | `TSIC.Contracts/Dtos/RegistrationSearch/RegistrationSearchDtos.cs` | Create | ~80 |
 | `TSIC.Contracts/Dtos/RegistrationSearch/AccountingDtos.cs` | Create | ~70 |
-| `TSIC.Contracts/Dtos/RegistrationSearch/RegistrationDetailDtos.cs` | Create | ~90 |
-| `TSIC.Contracts/Repositories/IRegistrationRepository.cs` | Edit (add 3 methods) | +20 |
-| `TSIC.Infrastructure/Repositories/RegistrationRepository.cs` | Edit (implement) | +180 |
+| `TSIC.Contracts/Dtos/RegistrationSearch/RegistrationDetailDtos.cs` | Create | ~140 |
+| `TSIC.Contracts/Repositories/IRegistrationRepository.cs` | Edit (add 7 methods) | +40 |
+| `TSIC.Infrastructure/Repositories/RegistrationRepository.cs` | Edit (implement) | +220 |
+| `TSIC.Contracts/Repositories/IJobRepository.cs` | Edit (add 1 method) | +5 |
+| `TSIC.Infrastructure/Repositories/JobRepository.cs` | Edit (implement) | +15 |
 | `TSIC.Contracts/Repositories/IRegistrationAccountingRepository.cs` | Edit (add 3 methods) | +15 |
 | `TSIC.Infrastructure/Repositories/RegistrationAccountingRepository.cs` | Edit (implement) | +60 |
 | `TSIC.Contracts/Services/IRegistrationSearchService.cs` | Create | ~25 |
-| `TSIC.API/Services/Admin/RegistrationSearchService.cs` | Create | ~450 |
-| `TSIC.API/Controllers/RegistrationSearchController.cs` | Create | ~140 |
+| `TSIC.API/Services/Admin/RegistrationSearchService.cs` | Create | ~550 |
+| `TSIC.API/Controllers/RegistrationSearchController.cs` | Create | ~190 |
 | `TSIC.Contracts/Extensions/StringExtensions.cs` | Create | ~15 |
 | `TSIC.API/Program.cs` | Edit (1 DI line) | +1 |
 
@@ -1421,13 +1632,13 @@ readonly pageSize = 20;
 | File | Action | LOC (est.) |
 |------|--------|------------|
 | `views/admin/registration-search/components/ladt-tree-filter.component.ts` | Create | ~445 |
-| `views/admin/registration-search/services/registration-search.service.ts` | Create | ~90 |
+| `views/admin/registration-search/services/registration-search.service.ts` | Create | ~125 |
 | `views/admin/registration-search/registration-search.component.ts` | Create | ~300 |
 | `views/admin/registration-search/registration-search.component.html` | Create | ~280 |
 | `views/admin/registration-search/registration-search.component.scss` | Create | ~150 |
-| `views/admin/registration-search/components/registration-detail-panel.component.ts` | Create | ~250 |
-| `views/admin/registration-search/components/registration-detail-panel.component.html` | Create | ~300 |
-| `views/admin/registration-search/components/registration-detail-panel.component.scss` | Create | ~100 |
+| `views/admin/registration-search/components/registration-detail-panel.component.ts` | Create | ~410 |
+| `views/admin/registration-search/components/registration-detail-panel.component.html` | Create | ~420 |
+| `views/admin/registration-search/components/registration-detail-panel.component.scss` | Create | ~200 |
 | `views/admin/registration-search/components/refund-modal.component.ts` | Create | ~120 |
 | `views/admin/registration-search/components/refund-modal.component.html` | Create | ~80 |
 | `views/admin/registration-search/components/refund-modal.component.scss` | Create | ~40 |
@@ -1490,7 +1701,13 @@ readonly pageSize = 20;
 | 6 | Syncfusion dark/light theme fix | Removed `@import '@syncfusion/ej2-base/styles/material.css'` and `@import '@syncfusion/ej2-grids/styles/material.css'` from `registration-search.component.scss`. These Material theme imports were overriding the global Bootstrap5 theme (`bootstrap5-lite.css`) which supports dark mode via `e-dark-mode` class. Removing them fixed dark mode and reduced the lazy chunk from 1.65 MB to 311 KB. |
 | 7 | Dirty-state "Update Results" button fixes | (a) Added `[changeOnBlur]="false"` to all 14 Syncfusion multi-select dropdowns so the dirty-state button activates immediately when a checkbox is toggled in the dropdown, not when the dropdown closes. (b) Set `lastSearchedRequest` baseline after default filter options load, so filter changes are detected as dirty even before the first search. (c) Button text reads "Update Results" when dirty + results exist, "Search" otherwise. |
 | 8 | CellPhone column fix + phone formatting | Fixed blank CellPhone column: backend projection was mapping `r.User.PhoneNumber` (empty ASP.NET Identity field) instead of `r.User.Cellphone`. Applied in both search results and detail endpoint. Created reusable `StringExtensions.FormatPhone()` extension method that formats 10-digit numbers as `xxx-xxx-xxxx`. New file: `TSIC.Contracts/Extensions/StringExtensions.cs`. |
+| 9 | Syncfusion sorted header dark-mode readability | Clicking a grid column header to sort made the header text nearly invisible in dark mode (`rgb(33,37,41)` on dark background). Syncfusion applies `e-focus` and `e-mousepointer` classes on sortable/sorted header cells with hardcoded dark text color. Added comprehensive CSS overrides in `_syncfusion.scss` targeting `.e-headercell.e-ascending`, `.e-descending`, `.e-focus`, `.e-focused`, `.e-mousepointer` — forcing `color: var(--bs-body-color)` on `.e-headercelldiv`, `.e-headertext`, and sort icons (`e-icon-ascending`/`e-icon-descending`) to `var(--bs-primary)`. |
+| 10 | LADT tree loading spinner | Added `ladtTreeLoading` signal (starts `true`, set `false` on API response). Template wraps tree in `@if (ladtTreeLoading())` showing a Bootstrap spinner with "Loading tree..." text until the `/api/ladt/tree` response arrives. Prevents empty tree container flash on route load. New SCSS: `.tree-loading` flex layout. |
+| 11 | Demographics section rework | Removed gender field from the Demographics section (not useful for admin workflows). Kept DOB (editable). Added read-only email and cellphone display from `RegistrationDetailDto` (top-level `email`/`phone` properties from `AspNetUsers`). New 3-column `.demo-info-row` grid layout with `.form-value` class for read-only text display. |
+| 12 | Dynamic parent/guardian labels from Jobs entity | Replaced hardcoded "Mother / Guardian 1" and "Father / Guardian 2" family contact headings with dynamic labels from `Jobs.MomLabel` and `Jobs.DadLabel`. Backend: added `MomLabel` (default "Mom") and `DadLabel` (default "Dad") to `RegistrationDetailDto`; populated from `reg.Job.MomLabel`/`reg.Job.DadLabel` in `RegistrationRepository.GetRegistrationDetailAsync()` with fallback when blank. Frontend: headings use `{{ reg.momLabel || 'Mom' }}` / `{{ reg.dadLabel || 'Dad' }}`. API models regenerated. |
+| 13 | Change Job feature | Added ability to move a registration from one job to another under the same customer. Backend: `JobOptionDto`, `ChangeJobRequest`, `ChangeJobResponse` DTOs; `IJobRepository.GetOtherJobsForCustomerAsync()` for dropdown options; `IRegistrationRepository.FindMatchingRegistrationTeamAsync()` for automatic team name matching in target job; `ChangeJobAsync()` service method with job-ownership validation; `GET change-job-options` and `POST {id}/change-job` controller endpoints. Frontend: "Change Job" button in detail panel header; modal with job dropdown fetched on open; loading spinner; success toast with new job name; emits `saved` to refresh grid. SCSS: reusable `.change-job-modal` styles with `position: absolute` (not `fixed`) to work within the transformed detail panel. API models regenerated (JobOptionDto, ChangeJobRequest, ChangeJobResponse). |
+| 14 | Delete Registration feature | Added role-specific registration deletion with strict pre-conditions. Backend: `DeleteRegistrationResponse` DTO; `IRegistrationRepository.HasAccountingRecordsAsync()`, `HasStoreCartBatchRecordsAsync()`, `GetRegistrationRoleNameAsync()` for pre-condition checks and role lookup; `DeleteRegistrationAsync()` service method with role-based authorization (Player/Staff → Director+, Unassigned Adult → Superuser only), pre-condition enforcement (no accounting records, no store records, no insurance), device cleanup via `IDeviceRepository`, and entity deletion; `DELETE {id}` controller endpoint extracting `callerRole` from JWT `ClaimTypes.Role`. Frontend: "Delete" danger-outline button in detail panel header; confirmation modal with registrant name and warning; loading spinner; success toast; emits `closed` + `saved` to close panel and refresh grid. Server returns human-readable error messages for all rejection cases (role insufficient, accounting records exist, etc.). Added security documentation for role-based delete authorization table. |
 
 ---
 
-**Status**: Implementation in progress. Phases 1–15 complete (including 8b). Phase 16 (Testing & Polish) pending.
+**Status**: Implementation in progress. Phases 1–15 complete (including 8b). Change Job (amendment #13) and Delete Registration (amendment #14) features fully implemented end-to-end. Phase 16 (Testing & Polish) pending.

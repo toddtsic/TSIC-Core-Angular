@@ -145,14 +145,59 @@ public async Task CreateStubTeam_SetsSeasonAndYearFromJob()
 }
 ```
 
-#### 1.8 Sport Dropdown Lookup
+#### 1.8 Schedule Denormalization Sync (CRITICAL — Data Integrity)
+
+The `Schedule` entity has denormalized name fields (`AgegroupName`, `DivName`, `Div2Name`, `T1Name`, `T2Name`) that must stay in sync when LADT entities are renamed. If these drift, the public schedule displays stale/wrong names.
 
 | # | Test | Seed State | Action | Assert |
 |---|------|-----------|--------|--------|
-| 34 | Get sports returns all sports | 3 Sports in DB | `GET /api/ladt/sports` | Returns 3 items with SportId and SportName, alphabetically sorted |
-| 35 | Update league with valid SportId | League + valid Sport | `PUT /api/ladt/leagues/{id}` with SportId | League's SportId updated, response includes SportName |
+| 34 | Rename agegroup → schedules updated | Agegroup "U12" with 5 Schedule records (AgegroupId matches) | `PUT /api/ladt/agegroups/{id}` with `AgegroupName="Under 12"` | All 5 Schedule records have `AgegroupName="Under 12"` |
+| 35 | Rename agegroup — no schedules exist | Agegroup "U14" with zero Schedule records | `PUT /api/ladt/agegroups/{id}` with `AgegroupName="Under 14"` | No error, agegroup name updated, zero schedule rows touched |
+| 36 | Rename division → DivName updated | Division "Pool A" with 3 Schedule records (DivId matches) | `PUT /api/ladt/divisions/{id}` with `DivName="Pool Alpha"` | All 3 Schedule records have `DivName="Pool Alpha"` |
+| 37 | Rename division → Div2Name updated | Division "Pool B" used as secondary division (Div2Id matches on 2 records) | `PUT /api/ladt/divisions/{id}` with `DivName="Pool Beta"` | 2 Schedule records have `Div2Name="Pool Beta"`, `DivName` unchanged on those records |
+| 38 | Rename division — both DivId and Div2Id match | Schedule record where DivId AND Div2Id both point to same division | `PUT /api/ladt/divisions/{id}` with `DivName="Combined"` | Both `DivName` and `Div2Name` updated to `"Combined"` on that record |
+| 39 | Rename division — no schedules exist | Division with zero Schedule records | `PUT /api/ladt/divisions/{id}` with `DivName="New Name"` | No error, division name updated |
+| 40 | Rename team → T1Name/T2Name updated | Team "Hawks" appears as T1Id on 3 games and T2Id on 2 games | `PUT /api/ladt/teams/{id}` with `TeamName="Falcons"` | T1Name updated on 3 records, T2Name on 2 records (with correct club name prefix if applicable) |
+| 41 | Rename team — club name prefix preserved | Team with club rep (ClubName="Metro"), Job has BShowTeamNameOnlyInSchedules=false | `PUT /api/ladt/teams/{id}` with `TeamName="Elite"` | Schedule names show `"Metro:Elite"` (not just `"Elite"`) |
+| 42 | Rename team — show-team-name-only mode | Team with club rep, Job has BShowTeamNameOnlyInSchedules=true | `PUT /api/ladt/teams/{id}` with `TeamName="Thunder"` | Schedule names show `"Thunder"` (no club prefix) |
+| 43 | Rename team — no schedules exist | Team with zero Schedule records | `PUT /api/ladt/teams/{id}` with `TeamName="New Name"` | No error, team name updated |
+| 44 | Update team WITHOUT changing name | Team "Hawks" | `PUT /api/ladt/teams/{id}` without `TeamName` field (null) | Schedule names NOT touched (sync skipped — only fires when `TeamName != null`) |
+| 45 | Rename agegroup — only same-job schedules affected | Agegroup shared ID, but schedules exist under different JobId | `PUT /api/ladt/agegroups/{id}` | Only schedules with matching `JobId` updated |
 
-**Estimated effort**: ~35 tests, 3-4 days
+```csharp
+[Fact]
+public async Task RenameAgegroup_UpdatesScheduleAgegroupName()
+{
+    // Arrange: seed agegroup "U12" with 5 Schedule records where AgegroupId matches
+    // Act: PUT /api/ladt/agegroups/{id} with AgegroupName="Under 12"
+    // Assert: all 5 Schedule records have AgegroupName="Under 12"
+}
+
+[Fact]
+public async Task RenameDivision_UpdatesBothDivNameAndDiv2Name()
+{
+    // Arrange: seed division "Pool A" with 3 Schedule records (DivId) + 2 records (Div2Id)
+    // Act: PUT /api/ladt/divisions/{id} with DivName="Pool Alpha"
+    // Assert: 3 records have DivName="Pool Alpha", 2 records have Div2Name="Pool Alpha"
+}
+
+[Fact]
+public async Task RenameTeam_RecomposesWithClubNamePrefix()
+{
+    // Arrange: team with club rep (ClubName="Metro"), BShowTeamNameOnlyInSchedules=false
+    // Act: PUT /api/ladt/teams/{id} with TeamName="Elite"
+    // Assert: Schedule T1Name/T2Name = "Metro:Elite"
+}
+```
+
+#### 1.9 Sport Dropdown Lookup
+
+| # | Test | Seed State | Action | Assert |
+|---|------|-----------|--------|--------|
+| 46 | Get sports returns all sports | 3 Sports in DB | `GET /api/ladt/sports` | Returns 3 items with SportId and SportName, alphabetically sorted |
+| 47 | Update league with valid SportId | League + valid Sport | `PUT /api/ladt/leagues/{id}` with SportId | League's SportId updated, response includes SportName |
+
+**Estimated effort**: ~47 tests, 4-5 days
 
 ---
 
@@ -248,13 +293,14 @@ These are your "sleep well at night" tests. They verify that the full stack work
 ```
 Phase 1 (Week 1):  Backend integration tests 1.1–1.2     → 9 tests  (drop/delete guards)
 Phase 2 (Week 1):  Backend integration tests 1.3–1.6     → 13 tests (fees, clubs, batch, stubs)
-Phase 3 (Week 1):  Backend integration tests 1.7–1.8     → 13 tests (season/year immutability, sport lookup)
-Phase 4 (Week 2):  E2E smoke tests 3.1–3.7               → 7 tests  (critical user journeys incl. Sport/Color)
-Phase 5 (Week 2):  Frontend state tests 2.1–2.4           → 12 tests (signal orchestration)
-Phase 6 (Week 3):  E2E edge cases 3.8–3.10                → 3 tests  (performance, mobile, field absence)
+Phase 3 (Week 1):  Backend integration tests 1.7–1.8     → 25 tests (season/year immutability, schedule sync)
+Phase 4 (Week 1):  Backend integration tests 1.9          → 2 tests  (sport lookup)
+Phase 5 (Week 2):  E2E smoke tests 3.1–3.7               → 7 tests  (critical user journeys incl. Sport/Color)
+Phase 6 (Week 2):  Frontend state tests 2.1–2.4           → 12 tests (signal orchestration)
+Phase 7 (Week 3):  E2E edge cases 3.8–3.10                → 3 tests  (performance, mobile, field absence)
 ```
 
-**Total: ~57 tests across 3 layers**
+**Total: ~69 tests across 3 layers**
 
 ---
 
@@ -281,17 +327,18 @@ Phase 6 (Week 3):  E2E edge cases 3.8–3.10                → 3 tests  (perfor
 | `Tests/Integration/LadtBatchOperationTests.cs` | Backend | WAITLIST idempotency | 80 |
 | `Tests/Integration/LadtStubCreationTests.cs` | Backend | Hierarchy creation integrity | 80 |
 | `Tests/Integration/LadtSeasonYearTests.cs` | Backend | Season/Year immutability across all paths | 180 |
+| `Tests/Integration/LadtScheduleSyncTests.cs` | Backend | Schedule denormalization sync on LADT rename | 200 |
 | `Tests/Integration/LadtSportLookupTests.cs` | Backend | Sports endpoint + league sport update | 50 |
 | `ladt-editor.component.spec.ts` | Frontend | Signal state machine tests | 200 |
 | `e2e/ladt-editor.spec.ts` | E2E | Critical user journeys (incl. Sport/Color) | 320 |
 
-**Total estimated**: ~1,360 LOC of test code
+**Total estimated**: ~1,560 LOC of test code
 
 ---
 
 ## Success Metrics
 
-- ✅ All 35 backend tests pass against a fresh database
+- ✅ All 47 backend tests pass against a fresh database
 - ✅ All 12 frontend state tests pass with mocked services
 - ✅ All 10 E2E smoke tests pass end-to-end
 - ✅ Zero false positives (no tests that break on irrelevant changes)
@@ -321,3 +368,4 @@ Phase 6 (Week 3):  E2E edge cases 3.8–3.10                → 3 tests  (perfor
 | 2026-02-10 | Added Sport lookup tests (1.8, 2 tests) | New `GET /api/ladt/sports` endpoint for league Sport dropdown. Verify lookup returns sorted list and league update persists SportId. |
 | 2026-02-10 | Added E2E journeys for Sport dropdown and Color dropdown (3.6-3.7) | New UI widgets (Sport `<select>`, Color `<select>` with swatches, color dot in grid) need end-to-end validation. |
 | 2026-02-10 | Added E2E smoke test for immutable field absence (3.10) | Verify Season/Year fields are NOT rendered in agegroup/team detail forms — guards against accidental re-introduction. |
+| 2026-02-11 | Added Schedule Denormalization Sync tests (1.8, 12 tests) | New `SynchronizeScheduleAgegroupNameAsync` and `SynchronizeScheduleDivisionNameAsync` methods + wiring of existing team name sync into `UpdateTeamAsync`. Tests verify agegroup rename → `AgegroupName` updated, division rename → `DivName`/`Div2Name` updated, team rename → `T1Name`/`T2Name` recomposed with club name prefix, job-scoping, no-op when no schedules exist, and skip-when-name-unchanged guard. Renumbered Sport Lookup to section 1.9 (tests 46-47). |

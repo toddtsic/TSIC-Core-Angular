@@ -305,4 +305,28 @@ public class JobRepository : IJobRepository
             .Select(j => j.ProcessingFeePercent)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetOtherJobsForCustomerAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var customerId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (customerId == Guid.Empty)
+            return [];
+
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == customerId && j.JobId != jobId)
+            .OrderBy(j => j.JobName)
+            .Select(j => new Contracts.Dtos.RegistrationSearch.JobOptionDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? "(unnamed)"
+            })
+            .ToListAsync(cancellationToken);
+    }
 }

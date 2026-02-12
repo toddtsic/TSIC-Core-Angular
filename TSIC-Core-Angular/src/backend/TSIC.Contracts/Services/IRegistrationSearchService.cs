@@ -19,4 +19,7 @@ public interface IRegistrationSearchService
     Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default);
     Task<BatchEmailResponse> SendBatchEmailAsync(Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default);
     Task<EmailPreviewResponse> PreviewEmailAsync(Guid jobId, EmailPreviewRequest request, CancellationToken ct = default);
+    Task<List<JobOptionDto>> GetChangeJobOptionsAsync(Guid jobId, CancellationToken ct = default);
+    Task<ChangeJobResponse> ChangeRegistrationJobAsync(Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default);
+    Task<DeleteRegistrationResponse> DeleteRegistrationAsync(Guid jobId, string userId, string callerRole, Guid registrationId, CancellationToken ct = default);
 }

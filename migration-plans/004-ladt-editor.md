@@ -830,8 +830,8 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | `TSIC.Infrastructure/Repositories/DivisionRepository.cs` | Done | ~60 |
 | `TSIC.Contracts/Repositories/ITeamRepository.cs` | Done | ~30 |
 | `TSIC.Infrastructure/Repositories/TeamRepository.cs` | Done | ~120 |
-| `TSIC.Contracts/Repositories/IScheduleRepository.cs` | Done | ~10 |
-| `TSIC.Infrastructure/Repositories/ScheduleRepository.cs` | Done | ~67 |
+| `TSIC.Contracts/Repositories/IScheduleRepository.cs` | Done | ~40 |
+| `TSIC.Infrastructure/Repositories/ScheduleRepository.cs` | Done | ~124 |
 | `TSIC.Contracts/Services/ILadtService.cs` | Done | 59 |
 | `TSIC.API/Services/Admin/LadtService.cs` | Done | ~1,060 |
 | `TSIC.API/Controllers/LadtController.cs` | Done | ~445 |
@@ -957,6 +957,9 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - [x] Move Team to Club: "Change Club" in overflow menu (three-dots) behind warning modal gate
 - [x] Tree toolbar: gear icon dropdown for Actions (signal-toggled, not Bootstrap JS)
 - [x] Tree toolbar: "Add WAITLIST Age Groups" in Actions dropdown with `bi-collection` icon
+- [x] Schedule sync: renaming agegroup updates `Schedule.AgegroupName` for all games in that agegroup
+- [x] Schedule sync: renaming division updates `Schedule.DivName` AND `Schedule.Div2Name` where applicable
+- [x] Schedule sync: renaming team recomposes `T1Name`/`T2Name` with club name prefix logic
 
 ---
 
@@ -1038,6 +1041,7 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 | 28 | Detail panel streamlining — Team | Removed Color (managed at agegroup level), DobMin, DobMax, Season, Year from detail form and sibling grid. Removed entire Schedule Preferences section (Dow, Dow2). Remaining eligibility: Gender, Level of Play only. |
 | 29 | Season/Year immutability enforcement | `Season` and `Year` are Job-level properties that MUST be consistent across all LADT entities. **Updates**: Removed from `UpdateAgegroupRequest` and `UpdateTeamRequest` DTOs entirely — backend update methods no longer touch these fields. **Creates/Stubs**: Backend now fetches `Season`/`Year` from `_jobRepo.GetJobSeasonYearAsync(jobId)` instead of trusting the request. This prevents null-writes from frontend forms that no longer have these fields. New: `JobSeasonYear` record, `IJobRepository.GetJobSeasonYearAsync()`, `JobRepository.GetJobSeasonYearAsync()`. **Clones**: Copy from source team (already correct since source is in same Job). |
 | 30 | Team Status KPI badges (frontend-computed) | Replicates legacy LADT tree header's 3 status lines: **Active Waitlisted Teams** (red dot), **Active Non Waitlisted Teams** (green dot), **Active Scheduled Teams** (blue dot). **Design decision**: counts are computed on the **frontend** via a `teamStatusKpis` computed signal, NOT as backend aggregate fields. This makes counts reactive — they update instantly when the tree data changes (add/clone/drop) without requiring a separate API round-trip for counts. **Backend**: `LadtTreeRootDto` gained `ScheduledTeamIds: List<Guid>` (raw data, not computed count) from existing `ITeamRepository.GetScheduledTeamIdsAsync`. The 3 aggregate count fields (`ActiveWaitlistedTeams`, `ActiveNonWaitlistedTeams`, `ActiveScheduledTeams`) that were briefly added to the DTO were **reverted** in favor of frontend computation. **Frontend**: `scheduledTeamIds` signal (`Set<string>`) populated from root DTO. `teamStatusKpis` computed signal traverses `rawTree()` hierarchy, classifying active teams by agegroup name (WAITLIST\* → waitlisted, DROPPED TEAMS → excluded, else → nonWaitlisted) and checking against `scheduledTeamIds` set. HTML: 3 color-coded KPI lines in `tree-header` with dot + label + right-aligned count. SCSS: `.tree-kpis` column layout, `.kpi-badge` flex row, `.kpi-dot` colored circles using `--bs-danger`/`--bs-success`/`--bs-primary` CSS vars. |
+| 31 | Schedule denormalization sync on LADT name changes | The `Schedule` entity has denormalized name fields (`AgegroupName`, `DivName`, `Div2Name`, `T1Name`, `T2Name`) that must stay in sync when LADT entities are renamed. Three new sync hooks wired into `LadtService`: (1) **UpdateTeamAsync** → calls existing `SynchronizeScheduleNamesForTeamAsync` (recomposes `T1Name`/`T2Name` with club name prefix logic) when `request.TeamName != null`. (2) **UpdateAgegroupAsync** → calls new `SynchronizeScheduleAgegroupNameAsync(agegroupId, jobId, newName)` which bulk-updates `Schedule.AgegroupName` where `AgegroupId` matches. (3) **UpdateDivisionAsync** → calls new `SynchronizeScheduleDivisionNameAsync(divId, jobId, newName)` which bulk-updates `Schedule.DivName` where `DivId` matches AND `Schedule.Div2Name` where `Div2Id` matches (handles secondary division). New interface methods on `IScheduleRepository`; implementations in `ScheduleRepository` use `ToListAsync()` + in-memory update + `SaveChangesAsync()` pattern consistent with existing sync methods. All sync runs after the primary entity save succeeds — if the entity update fails, no schedule records are touched. |
 
 ---
 
@@ -1060,5 +1064,6 @@ builder.Services.AddScoped<ILadtService, LadtService>();
 - Enhanced Clone with Club Library: dialog prompts for team name + "Add to club library" checkbox; when checked, creates new ClubTeam + copies club rep association + syncs financials; supports "admin adds team for club rep" workflow
 - Move Team to Different Club: single or batch reassignment with financial recalculation for both clubs, schedule name sync via reusable `SynchronizeScheduleNamesForTeamAsync`, ClubTeamId migration; "Change Club" moved to overflow menu behind warning modal gate
 - UI polish: gear icon Actions dropdown (signal-toggled, not Bootstrap JS), overflow menu for dangerous operations, warning modal gates for irreversible actions
+- Schedule denormalization sync: renaming agegroup/division/team in LADT editor propagates name changes to denormalized fields in Schedule entity (`AgegroupName`, `DivName`, `Div2Name`, `T1Name`/`T2Name`)
 
 **Remaining work**: Manual testing across all 8 palettes, performance testing with large datasets (see verification checklist).
