@@ -73,6 +73,8 @@ public record FamilyContactDto
 /// </summary>
 public record UserDemographicsDto
 {
+    public string? Email { get; init; }
+    public string? Cellphone { get; init; }
     public string? Gender { get; init; }
     public DateTime? DateOfBirth { get; init; }
     public string? StreetAddress { get; init; }

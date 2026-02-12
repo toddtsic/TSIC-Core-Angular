@@ -13,6 +13,7 @@ interface FieldMetadata {
   type: 'text' | 'select' | 'date' | 'checkbox' | 'textarea' | 'number';
   options?: string[];
   required?: boolean;
+  order?: number;
 }
 
 /** Roles that use the player profile metadata form + family contact section */
@@ -20,9 +21,7 @@ const PLAYER_ROLES = new Set(['player', 'goalie', 'goalkeeper', 'athlete']);
 
 /** Fields that always appear in the player profile section (extend this list as needed) */
 const ALWAYS_INCLUDE_FIELDS: FieldMetadata[] = [
-  { key: 'UniformNo', label: 'Uniform Number', type: 'text' },
-  { key: 'SportAssnId', label: 'USA Lacrosse Number', type: 'text' },
-  { key: 'SportAssnIdexpDate', label: 'USA Lacrosse Expiration', type: 'date' }
+  { key: 'UniformNo', label: 'Uniform Number', type: 'text' }
 ];
 
 /** Waiver field detection — mirrors backend ProfileMetadataService.IsWaiverField */
@@ -169,12 +168,17 @@ export class RegistrationDetailPanelComponent {
             options = f.choices;
           }
 
+          // If metadata says SELECT but provides no options, fall back to text input
+          let mappedType = this.mapFieldType(inputType);
+          if (mappedType === 'select' && (!options || options.length === 0)) mappedType = 'text';
+
           fields.push({
             key,
             label,
-            type: this.mapFieldType(inputType),
+            type: mappedType,
             options,
-            required: f.validation?.required || f.required || false
+            required: f.validation?.required || f.required || false,
+            order: typeof f.order === 'number' ? f.order : 9999
           });
         }
       } else if (typeof raw === 'object') {
@@ -184,15 +188,22 @@ export class RegistrationDetailPanelComponent {
           const inputType = value.type || 'text';
           if (isWaiverField(key, label, inputType)) continue;
 
+          const legacyOptions = value.options || value.choices || undefined;
+          let legacyType = this.mapFieldType(inputType);
+          if (legacyType === 'select' && (!legacyOptions || legacyOptions.length === 0)) legacyType = 'text';
+
           fields.push({
             key,
             label,
-            type: this.mapFieldType(inputType),
-            options: value.options || value.choices || undefined,
+            type: legacyType,
+            options: legacyOptions,
             required: value.required || false
           });
         }
       }
+
+      // Sort by metadata order so related fields (e.g. USLax# + expiry) stay together
+      fields.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
 
       // Merge always-include fields that aren't already present from metadata
       const existingKeys = new Set(fields.map(f => f.key.toLowerCase()));

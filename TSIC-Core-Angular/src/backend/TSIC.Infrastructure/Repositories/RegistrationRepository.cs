@@ -1270,6 +1270,8 @@ public class RegistrationRepository : IRegistrationRepository
             } : null,
             UserDemographics = reg.User != null ? new UserDemographicsDto
             {
+                Email = reg.User.Email,
+                Cellphone = reg.User.Cellphone,
                 Gender = reg.User.Gender,
                 DateOfBirth = reg.User.Dob,
                 StreetAddress = reg.User.StreetAddress,
@@ -1390,6 +1392,8 @@ public class RegistrationRepository : IRegistrationRepository
             ?? throw new KeyNotFoundException("User record not found.");
 
         var demo = request.Demographics;
+        user.Email = demo.Email;
+        user.Cellphone = demo.Cellphone;
         user.Gender = demo.Gender;
         user.Dob = demo.DateOfBirth;
         user.StreetAddress = demo.StreetAddress;

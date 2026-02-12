@@ -55,18 +55,18 @@
                     [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
                     name="dateOfBirth">
                 </div>
-                @if (reg.email) {
-                  <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <div class="form-value">{{ reg.email }}</div>
-                  </div>
-                }
-                @if (reg.phone) {
-                  <div class="form-group">
-                    <label class="form-label">Cellphone</label>
-                    <div class="form-value">{{ reg.phone }}</div>
-                  </div>
-                }
+                <div class="form-group">
+                  <label for="demo-email" class="form-label">Email</label>
+                  <input id="demo-email" type="email" class="form-control"
+                    [ngModel]="demographics().email" (ngModelChange)="updateDemographicsField('email', $event)"
+                    name="email">
+                </div>
+                <div class="form-group">
+                  <label for="demo-cellphone" class="form-label">Cellphone</label>
+                  <input id="demo-cellphone" type="tel" class="form-control"
+                    [ngModel]="demographics().cellphone" (ngModelChange)="updateDemographicsField('cellphone', $event)"
+                    name="cellphone">
+                </div>
               </div>
               <!-- Address fields: non-player only (player address lives on Family Contact) -->
               @if (!isPlayerRole()) {

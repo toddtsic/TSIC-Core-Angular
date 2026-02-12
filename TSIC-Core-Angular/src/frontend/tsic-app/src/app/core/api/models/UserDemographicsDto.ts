@@ -3,6 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UserDemographicsDto = {
+    email?: string | null;
+    cellphone?: string | null;
     gender?: string | null;
     dateOfBirth?: string | null;
     streetAddress?: string | null;
