@@ -17,6 +17,11 @@ public interface IRegistrationSearchService
     Task<AccountingRecordDto> CreateAccountingRecordAsync(Guid jobId, string userId, CreateAccountingRecordRequest request, CancellationToken ct = default);
     Task<RefundResponse> ProcessRefundAsync(Guid jobId, string userId, RefundRequest request, CancellationToken ct = default);
     Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default);
+    Task<RegistrationCcChargeResponse> ChargeCcAsync(Guid jobId, string userId, RegistrationCcChargeRequest request, CancellationToken ct = default);
+    Task<RegistrationCheckOrCorrectionResponse> RecordCheckOrCorrectionAsync(Guid jobId, string userId, RegistrationCheckOrCorrectionRequest request, CancellationToken ct = default);
+    Task EditAccountingRecordAsync(Guid jobId, string userId, int aId, EditAccountingRecordRequest request, CancellationToken ct = default);
+    Task<SubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid jobId, Guid registrationId, CancellationToken ct = default);
+    Task CancelSubscriptionAsync(Guid jobId, string userId, Guid registrationId, CancellationToken ct = default);
     Task<BatchEmailResponse> SendBatchEmailAsync(Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default);
     Task<EmailPreviewResponse> PreviewEmailAsync(Guid jobId, EmailPreviewRequest request, CancellationToken ct = default);
     Task<List<JobOptionDto>> GetChangeJobOptionsAsync(Guid jobId, CancellationToken ct = default);

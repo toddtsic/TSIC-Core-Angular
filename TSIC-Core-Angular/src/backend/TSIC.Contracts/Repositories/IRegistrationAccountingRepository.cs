@@ -58,6 +58,13 @@ public interface IRegistrationAccountingRepository
     /// Get all payment method options for the create-accounting dropdown. AsNoTracking.
     /// </summary>
     Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all accounting records for a team, joined with payment method.
+    /// Sets CanRefund = true for CC payments with a transaction ID.
+    /// Ordered by Createdate desc. AsNoTracking.
+    /// </summary>
+    Task<List<AccountingRecordDto>> GetByTeamIdAsync(Guid teamId, CancellationToken ct = default);
 }
 
 public record PaymentSummary

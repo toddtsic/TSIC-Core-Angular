@@ -121,6 +121,37 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<List<AccountingRecordDto>> GetByTeamIdAsync(Guid teamId, CancellationToken ct = default)
+    {
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(a => a.TeamId == teamId)
+            .Join(_context.AccountingPaymentMethods,
+                a => a.PaymentMethodId,
+                pm => pm.PaymentMethodId,
+                (a, pm) => new { a, pm })
+            .OrderByDescending(x => x.a.Createdate)
+            .Select(x => new AccountingRecordDto
+            {
+                AId = x.a.AId,
+                Date = x.a.Createdate,
+                PaymentMethod = x.pm.PaymentMethod ?? x.a.Paymeth ?? "",
+                DueAmount = x.a.Dueamt,
+                PaidAmount = x.a.Payamt,
+                Comment = x.a.Comment,
+                CheckNo = x.a.CheckNo,
+                PromoCode = x.a.PromoCode,
+                Active = x.a.Active,
+                AdnTransactionId = x.a.AdnTransactionId,
+                AdnCc4 = x.a.AdnCc4,
+                AdnCcExpDate = x.a.AdnCcexpDate,
+                AdnInvoiceNo = x.a.AdnInvoiceNo,
+                CanRefund = x.a.AdnTransactionId != null && x.a.AdnTransactionId != ""
+                    && x.pm.PaymentMethod != null && x.pm.PaymentMethod.Contains("Credit Card")
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default)
     {
         return await _context.AccountingPaymentMethods

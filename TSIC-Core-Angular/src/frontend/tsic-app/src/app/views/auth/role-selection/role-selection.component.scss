@@ -2,18 +2,16 @@
 .dropdown-item-custom {
   display: flex;
   align-items: center;
-  gap: var(--space-2, 1.5rem);
+  gap: var(--space-3, 0.75rem);
   width: 100%;
-  padding: var(--space-2, 0.5rem);
-  border: 1px solid var(--border-color, #dee2e6);
-  border-radius: var(--border-radius, 0.375rem);
-  margin: var(--space-1, 0.25rem) 0;
+  padding: var(--space-2, 0.5rem) var(--space-1, 0.25rem);
 
   .job-logo {
-    height: 2.3em;
-    width: auto;
+    height: 2rem;
+    width: 2rem;
     object-fit: contain;
     flex-shrink: 0;
+    border-radius: var(--bs-border-radius-sm, 0.25rem);
   }
 
   .item-text {
@@ -21,5 +19,6 @@
     min-width: 0;
     white-space: normal;
     text-indent: 0;
+    font-size: 0.875rem;
   }
 }

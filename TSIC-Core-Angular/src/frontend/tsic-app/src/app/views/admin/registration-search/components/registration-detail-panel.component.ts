@@ -2,9 +2,10 @@ import { Component, ChangeDetectionStrategy, input, output, signal, effect, comp
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { AddPaymentModalComponent } from './add-payment-modal.component';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -68,7 +69,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AddPaymentModalComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -170,7 +171,12 @@ export class RegistrationDetailPanelComponent {
 
   close(): void { this.closed.emit(); }
 
-  setActiveTab(tab: TabType): void { this.activeTab.set(tab); }
+  setActiveTab(tab: TabType): void {
+    this.activeTab.set(tab);
+    if (tab === 'accounting' && this.detail()?.hasSubscription && !this.subscription()) {
+      this.loadSubscription();
+    }
+  }
 
   // ── Template helpers ──
 
@@ -370,11 +376,114 @@ export class RegistrationDetailPanelComponent {
 
   // ── Accounting ──
 
+  showPaymentModal = signal<boolean>(false);
+  editingAId = signal<number | null>(null);
+  editComment = signal<string>('');
+  editCheckNo = signal<string>('');
+  isSavingEdit = signal<boolean>(false);
+
   onRefundClick(record: AccountingRecordDto): void { this.refundRequested.emit(record); }
+
+  openPaymentModal(): void { this.showPaymentModal.set(true); }
+
+  onPaymentRecorded(): void {
+    this.showPaymentModal.set(false);
+    this.saved.emit();
+  }
+
+  startEditRecord(record: AccountingRecordDto): void {
+    this.editingAId.set(record.aId);
+    this.editComment.set(record.comment || '');
+    this.editCheckNo.set(record.checkNo || '');
+  }
+
+  cancelEditRecord(): void {
+    this.editingAId.set(null);
+  }
+
+  saveEditRecord(): void {
+    const aId = this.editingAId();
+    if (aId == null) return;
+
+    this.isSavingEdit.set(true);
+    this.searchService.editAccountingRecord(aId, {
+      comment: this.editComment() || null,
+      checkNo: this.editCheckNo() || null
+    }).subscribe({
+      next: () => {
+        this.isSavingEdit.set(false);
+        this.editingAId.set(null);
+        this.toast.show('Record updated', 'success', 3000);
+        this.saved.emit();
+      },
+      error: (err) => {
+        this.isSavingEdit.set(false);
+        this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+      }
+    });
+  }
+
+  /** Check/Correction/Cash records are editable (not CC records). */
+  isEditable(record: AccountingRecordDto): boolean {
+    const method = (record.paymentMethod || '').toLowerCase();
+    return method.includes('check') || method.includes('correction') || method.includes('cash');
+  }
 
   getFinancialSummary() {
     const d = this.detail();
     return { fees: d?.feeTotal || 0, paid: d?.paidTotal || 0, owed: d?.owedTotal || 0 };
+  }
+
+  // ── Subscription ──
+
+  subscription = signal<SubscriptionDetailDto | null>(null);
+  isLoadingSubscription = signal<boolean>(false);
+  isCancellingSubscription = signal<boolean>(false);
+  showCancelSubConfirm = signal<boolean>(false);
+
+  loadSubscription(): void {
+    const d = this.detail();
+    if (!d || !d.hasSubscription) return;
+
+    this.isLoadingSubscription.set(true);
+    this.searchService.getSubscription(d.registrationId).subscribe({
+      next: (sub) => {
+        this.subscription.set(sub);
+        this.isLoadingSubscription.set(false);
+      },
+      error: () => {
+        this.subscription.set(null);
+        this.isLoadingSubscription.set(false);
+      }
+    });
+  }
+
+  confirmCancelSubscription(): void {
+    this.showCancelSubConfirm.set(true);
+  }
+
+  dismissCancelSubscription(): void {
+    this.showCancelSubConfirm.set(false);
+  }
+
+  cancelSubscription(): void {
+    const d = this.detail();
+    if (!d) return;
+
+    this.showCancelSubConfirm.set(false);
+    this.isCancellingSubscription.set(true);
+    this.searchService.cancelSubscription(d.registrationId).subscribe({
+      next: () => {
+        this.isCancellingSubscription.set(false);
+        this.toast.show('Subscription cancelled', 'success', 3000);
+        this.loadSubscription();
+        this.saved.emit();
+      },
+      error: (err) => {
+        this.isCancellingSubscription.set(false);
+        this.toast.show('Failed to cancel: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+      }
+    });
   }
 
   // ── Email ──

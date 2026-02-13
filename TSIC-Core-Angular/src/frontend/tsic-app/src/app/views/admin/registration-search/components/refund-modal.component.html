@@ -59,11 +59,36 @@
           </div>
         </div>
 
+        @if (showConfirm()) {
+          <div class="confirm-refund">
+            <div class="alert alert-danger mb-0">
+              <strong>Confirm Refund</strong>
+              <p class="mb-1 mt-1">
+                You are about to refund <strong>{{ refundAmount() | currency }}</strong>
+                @if (accountingRecord()?.adnCc4) {
+                  to card ending in <strong>{{ accountingRecord()?.adnCc4 }}</strong>
+                }
+              </p>
+              <p class="mb-2">This will credit the cardholder's account via Authorize.Net. This action cannot be undone.</p>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-danger" (click)="confirmRefund()">
+                  Yes, Refund {{ refundAmount() | currency }}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissConfirm()">
+                  Go Back
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="isProcessing()">Cancel</button>
-          <button type="button" class="btn btn-danger" (click)="processRefund()" [disabled]="isProcessing()">
-            @if (isProcessing()) { <span class="spinner"></span> Processing... } @else { Process Refund }
-          </button>
+          @if (!showConfirm()) {
+            <button type="button" class="btn btn-danger" (click)="requestRefund()" [disabled]="isProcessing()">
+              @if (isProcessing()) { <span class="spinner"></span> Processing... } @else { Process Refund }
+            </button>
+          }
         </div>
       }
     </div>

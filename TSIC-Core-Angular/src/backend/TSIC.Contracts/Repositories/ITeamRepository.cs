@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -327,6 +328,37 @@ public interface ITeamRepository
     /// Get team with its parent agegroup for fee coalescing. AsNoTracking.
     /// </summary>
     Task<(Teams Team, Agegroups Agegroup)?> GetTeamWithFeeContextAsync(Guid teamId, CancellationToken ct = default);
+
+    // ── Team Search methods ──
+
+    /// <summary>
+    /// Search teams by multiple filter criteria. AsNoTracking.
+    /// Joins Teams → Agegroups → Divisions → ClubrepRegistration → AspNetUsers for all columns.
+    /// </summary>
+    Task<List<TeamSearchResultDto>> SearchTeamsAsync(Guid jobId, TeamSearchRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get filter options with counts for the team search filter panel.
+    /// Returns distinct clubs, LOPs, agegroups, active statuses, and pay statuses with counts.
+    /// </summary>
+    Task<TeamFilterOptionsDto> GetTeamSearchFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get team detail with club rep info for the detail panel. AsNoTracking.
+    /// Joins Teams → Agegroups → Divisions → ClubrepRegistration → AspNetUsers.
+    /// </summary>
+    Task<TeamDetailQueryResult?> GetTeamDetailAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all active club teams for a club rep in a job, ordered by OwedTotal DESC.
+    /// Returns tracked entities for cross-club payment mutation.
+    /// </summary>
+    Task<List<Teams>> GetActiveClubTeamsOrderedByOwedAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get club team summaries for a club rep (for club-wide scope selector in detail panel). AsNoTracking.
+    /// </summary>
+    Task<List<ClubTeamSummaryDto>> GetClubTeamSummariesAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo
@@ -343,4 +375,30 @@ public record HistoricalTeamInfo
     public required string TeamName { get; init; }
     public string? AgegroupName { get; init; }
     public required DateTime Createdate { get; init; }
+}
+
+/// <summary>
+/// Flat query result for team detail panel.
+/// Populated from Teams → Agegroups → Divisions → ClubrepRegistration → AspNetUsers join.
+/// </summary>
+public record TeamDetailQueryResult
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+    public string? ClubName { get; init; }
+    public required string AgegroupName { get; init; }
+    public string? DivName { get; init; }
+    public string? LevelOfPlay { get; init; }
+    public required bool Active { get; init; }
+    public required decimal FeeBase { get; init; }
+    public required decimal FeeProcessing { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal PaidTotal { get; init; }
+    public required decimal OwedTotal { get; init; }
+    public string? TeamComments { get; init; }
+    public Guid? ClubRepRegistrationId { get; init; }
+    public string? ClubRepName { get; init; }
+    public string? ClubRepEmail { get; init; }
+    public string? ClubRepCellphone { get; init; }
+    public Guid JobId { get; init; }
 }

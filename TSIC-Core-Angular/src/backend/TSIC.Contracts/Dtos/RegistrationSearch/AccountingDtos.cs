@@ -1,3 +1,5 @@
+using TSIC.Contracts.Dtos;
+
 namespace TSIC.Contracts.Dtos.RegistrationSearch;
 
 /// <summary>
@@ -65,4 +67,69 @@ public record PaymentMethodOptionDto
 {
     public required Guid PaymentMethodId { get; init; }
     public required string PaymentMethod { get; init; }
+}
+
+/// <summary>
+/// Request to charge a credit card from the admin panel.
+/// </summary>
+public record RegistrationCcChargeRequest
+{
+    public required Guid RegistrationId { get; init; }
+    public required CreditCardInfo CreditCard { get; init; }
+    public required decimal Amount { get; init; }
+}
+
+/// <summary>
+/// Response from an admin CC charge.
+/// </summary>
+public record RegistrationCcChargeResponse
+{
+    public required bool Success { get; init; }
+    public string? Error { get; init; }
+    public string? TransactionId { get; init; }
+    public decimal? ChargedAmount { get; init; }
+}
+
+/// <summary>
+/// Request to record a check payment or correction/scholarship.
+/// </summary>
+public record RegistrationCheckOrCorrectionRequest
+{
+    public required Guid RegistrationId { get; init; }
+    public required decimal Amount { get; init; }
+    public required string PaymentType { get; init; }  // "Check" or "Correction"
+    public string? CheckNo { get; init; }
+    public string? Comment { get; init; }
+}
+
+/// <summary>
+/// Response from recording a check or correction.
+/// </summary>
+public record RegistrationCheckOrCorrectionResponse
+{
+    public required bool Success { get; init; }
+    public string? Error { get; init; }
+}
+
+/// <summary>
+/// Request to edit an existing accounting record (comment and check# only).
+/// </summary>
+public record EditAccountingRecordRequest
+{
+    public string? Comment { get; init; }
+    public string? CheckNo { get; init; }
+}
+
+/// <summary>
+/// ARB subscription detail from Authorize.Net.
+/// </summary>
+public record SubscriptionDetailDto
+{
+    public required string SubscriptionId { get; init; }
+    public required string Status { get; init; }
+    public required decimal PerOccurrenceAmount { get; init; }
+    public required int TotalOccurrences { get; init; }
+    public required decimal TotalAmount { get; init; }
+    public required DateTime StartDate { get; init; }
+    public required string IntervalLabel { get; init; }
 }

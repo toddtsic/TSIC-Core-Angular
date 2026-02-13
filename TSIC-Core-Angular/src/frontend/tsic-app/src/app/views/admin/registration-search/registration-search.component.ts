@@ -411,8 +411,15 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.showRefundModal.set(false);
     this.refundTarget.set(null);
     this.toast.show('Refund processed successfully', 'success', 4000);
-    this.executeSearch();
+    this.refreshAfterChange();
+  }
 
+  onDetailSaved(): void {
+    this.refreshAfterChange();
+  }
+
+  private refreshAfterChange(): void {
+    this.executeSearch();
     const currentDetail = this.selectedDetail();
     if (currentDetail && this.isPanelOpen()) {
       this.openDetail(currentDetail.registrationId);

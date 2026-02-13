@@ -1,0 +1,248 @@
+@if (isOpen()) {
+  <div class="detail-backdrop" (click)="close()"></div>
+}
+
+<div class="detail-panel" [class.open]="isOpen()">
+  @if (detail(); as team) {
+    <div class="panel-header">
+      <div class="header-content">
+        <h3 class="panel-title">{{ team.teamName }}</h3>
+        <div class="header-meta">
+          <span class="meta-item">{{ team.clubName ?? 'No Club' }}</span>
+          <span class="meta-separator">&bull;</span>
+          <span class="meta-item">{{ team.agegroupName }}</span>
+          @if (team.divName) {
+            <span class="meta-separator">&bull;</span>
+            <span class="meta-item">{{ team.divName }}</span>
+          }
+          <span class="meta-separator">&bull;</span>
+          <span class="badge" [class.badge-success]="team.active" [class.badge-secondary]="!team.active">
+            {{ team.active ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+      </div>
+      <button type="button" class="btn-close" (click)="close()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="tab-bar">
+      <button type="button" class="tab-button" [class.active]="activeTab() === 'info'" (click)="setActiveTab('info')">Info</button>
+      <button type="button" class="tab-button" [class.active]="activeTab() === 'accounting'" (click)="setActiveTab('accounting')">Accounting</button>
+    </div>
+
+    <div class="panel-body">
+      <!-- ═══════════════════════ INFO TAB ═══════════════════════ -->
+      @if (activeTab() === 'info') {
+        <div class="tab-content">
+          <div class="info-section">
+            <h4 class="section-title">Team Details</h4>
+            <form class="edit-form" (ngSubmit)="saveTeamInfo()">
+              <div class="form-group">
+                <label for="teamName">Team Name</label>
+                <input type="text" id="teamName" class="form-control"
+                  [ngModel]="editTeamName()" (ngModelChange)="editTeamName.set($event)" name="teamName" />
+              </div>
+              <div class="form-group">
+                <label>Active</label>
+                <div class="form-check">
+                  <input type="checkbox" id="editActive" class="form-check-input"
+                    [ngModel]="editActive()" (ngModelChange)="editActive.set($event)" name="editActive" />
+                  <label for="editActive" class="form-check-label">Team is active</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="editLop">Level of Play</label>
+                <input type="text" id="editLop" class="form-control"
+                  [ngModel]="editLevelOfPlay()" (ngModelChange)="editLevelOfPlay.set($event)" name="editLop" />
+              </div>
+              <div class="form-group">
+                <label for="editComments">Comments</label>
+                <textarea id="editComments" class="form-control" rows="3"
+                  [ngModel]="editComments()" (ngModelChange)="editComments.set($event)" name="editComments">
+                </textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm" [disabled]="isSaving()">
+                @if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                Save Changes
+              </button>
+            </form>
+          </div>
+
+          <!-- Club Rep Contact (read-only) -->
+          @if (team.clubRepName) {
+            <div class="info-section">
+              <h4 class="section-title">Club Rep Contact</h4>
+              <div class="read-only-fields">
+                <div class="field-row">
+                  <span class="field-label">Name</span>
+                  <span class="field-value">{{ team.clubRepName }}</span>
+                </div>
+                @if (team.clubRepEmail) {
+                  <div class="field-row">
+                    <span class="field-label">Email</span>
+                    <span class="field-value">{{ team.clubRepEmail }}</span>
+                  </div>
+                }
+                @if (team.clubRepCellphone) {
+                  <div class="field-row">
+                    <span class="field-label">Phone</span>
+                    <span class="field-value">{{ team.clubRepCellphone }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
+      @if (activeTab() === 'accounting') {
+        <div class="tab-content">
+
+          <!-- Scope Selector -->
+          @if (clubTeamCount > 1) {
+            <div class="scope-selector">
+              <button type="button" class="scope-btn" [class.active]="scope() === 'team'" (click)="setScope('team')">
+                This Team: {{ team.teamName }}
+              </button>
+              <button type="button" class="scope-btn scope-btn-club" [class.active]="scope() === 'club'" (click)="setScope('club')">
+                All Club Teams: {{ team.clubName }} ({{ clubTeamCount }} teams, {{ clubOwedTotal | currency }} owed)
+              </button>
+            </div>
+          }
+
+          <!-- Club Team Summary (shown when scope = club) -->
+          @if (scope() === 'club' && team.clubTeamSummaries.length) {
+            <div class="club-summary-card">
+              <h5 class="section-title">Club Teams Breakdown</h5>
+              <table class="summary-table">
+                <thead>
+                  <tr>
+                    <th>Team</th>
+                    <th class="text-end">Fee</th>
+                    <th class="text-end">Paid</th>
+                    <th class="text-end">Owed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (ct of team.clubTeamSummaries; track ct.teamId) {
+                    <tr>
+                      <td>{{ ct.teamName }}</td>
+                      <td class="text-end">{{ ct.feeTotal | currency }}</td>
+                      <td class="text-end">{{ ct.paidTotal | currency }}</td>
+                      <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
+                        {{ ct.owedTotal | currency }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td><strong>Total</strong></td>
+                    <td class="text-end"><strong>{{ clubFeeTotal | currency }}</strong></td>
+                    <td class="text-end"><strong>{{ clubPaidTotal | currency }}</strong></td>
+                    <td class="text-end"><strong>{{ clubOwedTotal | currency }}</strong></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          }
+
+          <!-- Financial Summary -->
+          <div class="financial-summary">
+            <div class="summary-item">
+              <span class="summary-label">Fee Total</span>
+              <span class="summary-value">{{ scope() === 'team' ? (teamFeeTotal | currency) : (clubFeeTotal | currency) }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Paid</span>
+              <span class="summary-value summary-paid">{{ scope() === 'team' ? (teamPaidTotal | currency) : (clubPaidTotal | currency) }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-label">Owed</span>
+              <span class="summary-value" [class.summary-owed]="(scope() === 'team' ? teamOwedTotal : clubOwedTotal) > 0">
+                {{ scope() === 'team' ? (teamOwedTotal | currency) : (clubOwedTotal | currency) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Accounting Records -->
+          <div class="accounting-records">
+            <h5 class="section-title">Transaction History</h5>
+            @if (team.accountingRecords.length) {
+              <table class="records-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Method</th>
+                    <th class="text-end">Due</th>
+                    <th class="text-end">Paid</th>
+                    <th>Comment</th>
+                    <th>CC4</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (rec of team.accountingRecords; track rec.aId) {
+                    <tr>
+                      <td class="text-nowrap">{{ rec.date | date:'M/d/yy' }}</td>
+                      <td>{{ rec.paymentMethod }}</td>
+                      <td class="text-end">{{ rec.dueAmount | currency }}</td>
+                      <td class="text-end">{{ rec.paidAmount | currency }}</td>
+                      <td class="comment-cell">{{ rec.comment }}</td>
+                      <td>{{ rec.adnCc4 }}</td>
+                      <td>
+                        @if (rec.canRefund) {
+                          <button type="button" class="btn btn-sm btn-outline-danger" (click)="onRefundRequested(rec)">
+                            Refund
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <p class="no-records">No accounting records.</p>
+            }
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button type="button" class="btn btn-primary" (click)="openCcCharge()">
+              Charge CC for {{ scopeLabel }}
+            </button>
+            <button type="button" class="btn btn-success" (click)="openCheckPayment()">
+              Enter Check for {{ scopeLabel }}
+            </button>
+            <button type="button" class="btn btn-warning" (click)="openCorrection()">
+              Enter Correction for {{ scopeLabel }}
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- CC Charge Modal -->
+@if (showCcChargeModal()) {
+  <app-cc-charge-modal
+    [teamDetail]="detail()"
+    [scope]="scope()"
+    [isOpen]="showCcChargeModal()"
+    (closed)="showCcChargeModal.set(false)"
+    (charged)="onCcChargeComplete()"
+  ></app-cc-charge-modal>
+}
+
+<!-- Check/Correction Payment Modal -->
+@if (showCheckModal()) {
+  <app-check-payment-modal
+    [teamDetail]="detail()"
+    [scope]="scope()"
+    [paymentType]="checkModalType()"
+    [isOpen]="showCheckModal()"
+    (closed)="showCheckModal.set(false)"
+    (completed)="onCheckPaymentComplete()"
+  ></app-check-payment-modal>
+}

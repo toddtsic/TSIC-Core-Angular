@@ -1,0 +1,167 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="close()">
+    <div class="modal-card" [class.modal-card--wide]="paymentType() === 'cc'" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Add Payment Record</h3>
+        <button type="button" class="btn-close" (click)="close()" [disabled]="isProcessing()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Payment Type Selector -->
+        <div class="type-selector">
+          <button type="button" class="type-btn" [class.active]="paymentType() === 'cc'" (click)="selectType('cc')" [disabled]="isProcessing()">
+            Credit Card
+          </button>
+          <button type="button" class="type-btn" [class.active]="paymentType() === 'check'" (click)="selectType('check')" [disabled]="isProcessing()">
+            Check
+          </button>
+          <button type="button" class="type-btn" [class.active]="paymentType() === 'correction'" (click)="selectType('correction')" [disabled]="isProcessing()">
+            Correction
+          </button>
+        </div>
+
+        <!-- CC Fields -->
+        @if (paymentType() === 'cc') {
+          <div class="cc-form">
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label for="cc-number">Card Number</label>
+                <input type="text" id="cc-number" class="form-control" placeholder="1234 5678 9012 3456"
+                  [ngModel]="ccNumber()" (ngModelChange)="formatCcNumber($event)"
+                  [disabled]="isProcessing()" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cc-expiry">Expiry</label>
+                <input type="text" id="cc-expiry" class="form-control" placeholder="MM / YY"
+                  [ngModel]="ccExpiry()" (ngModelChange)="formatExpiry($event)"
+                  [disabled]="isProcessing()" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label for="cc-cvv">CVV</label>
+                <input type="text" id="cc-cvv" class="form-control" placeholder="123"
+                  [ngModel]="ccCvv()" (ngModelChange)="formatCvv($event)"
+                  [disabled]="isProcessing()" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cc-first">First Name</label>
+                <input type="text" id="cc-first" class="form-control"
+                  [ngModel]="ccFirstName()" (ngModelChange)="ccFirstName.set($event)"
+                  [disabled]="isProcessing()" />
+              </div>
+              <div class="form-group">
+                <label for="cc-last">Last Name</label>
+                <input type="text" id="cc-last" class="form-control"
+                  [ngModel]="ccLastName()" (ngModelChange)="ccLastName.set($event)"
+                  [disabled]="isProcessing()" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label for="cc-address">Address</label>
+                <input type="text" id="cc-address" class="form-control"
+                  [ngModel]="ccAddress()" (ngModelChange)="ccAddress.set($event)"
+                  [disabled]="isProcessing()" />
+              </div>
+              <div class="form-group">
+                <label for="cc-zip">ZIP</label>
+                <input type="text" id="cc-zip" class="form-control"
+                  [ngModel]="ccZip()" (ngModelChange)="ccZip.set($event)"
+                  [disabled]="isProcessing()" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cc-email">Email</label>
+                <input type="email" id="cc-email" class="form-control"
+                  [ngModel]="ccEmail()" (ngModelChange)="ccEmail.set($event)"
+                  [disabled]="isProcessing()" />
+              </div>
+              <div class="form-group">
+                <label for="cc-phone">Phone</label>
+                <input type="text" id="cc-phone" class="form-control"
+                  [ngModel]="ccPhone()" (ngModelChange)="formatPhone($event)"
+                  [disabled]="isProcessing()" />
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Check Fields -->
+        @if (paymentType() === 'check') {
+          <div class="form-group">
+            <label for="check-no">Check Number</label>
+            <input type="text" id="check-no" class="form-control"
+              [ngModel]="checkNo()" (ngModelChange)="checkNo.set($event)"
+              placeholder="Enter check number" [disabled]="isProcessing()" />
+          </div>
+        }
+
+        <!-- Common Fields -->
+        <div class="common-fields">
+          <div class="form-group">
+            <label for="payment-amount">Amount</label>
+            <div class="input-group">
+              <span class="input-prefix">$</span>
+              <input type="number" id="payment-amount" class="form-control"
+                [ngModel]="amount()" (ngModelChange)="amount.set($event)"
+                step="0.01" [disabled]="isProcessing()" />
+            </div>
+            @if (paymentType() !== 'correction') {
+              <small class="form-text">Owed: {{ owedTotal | currency }}</small>
+            } @else {
+              <small class="form-text">Use positive for credit, negative for debit</small>
+            }
+          </div>
+          <div class="form-group">
+            <label for="payment-comment">Comment</label>
+            <input type="text" id="payment-comment" class="form-control"
+              [ngModel]="comment()" (ngModelChange)="comment.set($event)"
+              placeholder="Optional comment" [disabled]="isProcessing()" />
+          </div>
+        </div>
+
+        <!-- CC Confirmation -->
+        @if (showConfirm()) {
+          <div class="alert alert-danger mt-3 mb-0">
+            <strong>Confirm Credit Card Charge</strong>
+            <p class="mb-1 mt-1">
+              You are about to charge <strong>{{ amount() | currency }}</strong> to card ending in <strong>{{ ccLast4() }}</strong>.
+            </p>
+            <p class="mb-2">This will process an immediate charge via Authorize.Net. This action cannot be undone.</p>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-danger" (click)="confirmSubmit()">
+                Yes, Charge {{ amount() | currency }}
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissConfirm()">
+                Go Back
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (paymentType() === 'cc' && !showConfirm()) {
+          <div class="info-warning">
+            <p>This will charge the credit card immediately via Authorize.Net.</p>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="isProcessing()">Cancel</button>
+        @if (!showConfirm()) {
+          <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">
+            @if (isProcessing()) {
+              <span class="spinner"></span> Processing...
+            } @else {
+              Submit Payment
+            }
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

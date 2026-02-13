@@ -1279,6 +1279,7 @@ public class RegistrationRepository : IRegistrationRepository
                 State = reg.User.State,
                 PostalCode = reg.User.PostalCode,
             } : null,
+            HasSubscription = !string.IsNullOrWhiteSpace(reg.AdnSubscriptionId),
             RegistrationDate = reg.RegistrationTs,
             ModifiedDate = reg.Modified,
             AccountingRecords = accountingRecords

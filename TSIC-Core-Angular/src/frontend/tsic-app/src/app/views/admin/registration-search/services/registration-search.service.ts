@@ -23,7 +23,13 @@ import type {
 	JobOptionDto,
 	ChangeJobRequest,
 	ChangeJobResponse,
-	DeleteRegistrationResponse
+	DeleteRegistrationResponse,
+	RegistrationCcChargeRequest,
+	RegistrationCcChargeResponse,
+	RegistrationCheckOrCorrectionRequest,
+	RegistrationCheckOrCorrectionResponse,
+	EditAccountingRecordRequest,
+	SubscriptionDetailDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -54,7 +60,14 @@ export type {
 	JobOptionDto,
 	ChangeJobRequest,
 	ChangeJobResponse,
-	DeleteRegistrationResponse
+	DeleteRegistrationResponse,
+	RegistrationCcChargeRequest,
+	RegistrationCcChargeResponse,
+	RegistrationCheckOrCorrectionRequest,
+	RegistrationCheckOrCorrectionResponse,
+	EditAccountingRecordRequest,
+	SubscriptionDetailDto,
+	CreditCardInfo
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -120,5 +133,25 @@ export class RegistrationSearchService {
 
 	deleteRegistration(registrationId: string): Observable<DeleteRegistrationResponse> {
 		return this.http.delete<DeleteRegistrationResponse>(`${this.apiUrl}/${registrationId}`);
+	}
+
+	chargeCc(registrationId: string, request: RegistrationCcChargeRequest): Observable<RegistrationCcChargeResponse> {
+		return this.http.post<RegistrationCcChargeResponse>(`${this.apiUrl}/${registrationId}/charge-cc`, request);
+	}
+
+	recordPayment(registrationId: string, request: RegistrationCheckOrCorrectionRequest): Observable<RegistrationCheckOrCorrectionResponse> {
+		return this.http.post<RegistrationCheckOrCorrectionResponse>(`${this.apiUrl}/${registrationId}/record-payment`, request);
+	}
+
+	editAccountingRecord(aId: number, request: EditAccountingRecordRequest): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/accounting/${aId}`, request);
+	}
+
+	getSubscription(registrationId: string): Observable<SubscriptionDetailDto> {
+		return this.http.get<SubscriptionDetailDto>(`${this.apiUrl}/${registrationId}/subscription`);
+	}
+
+	cancelSubscription(registrationId: string): Observable<void> {
+		return this.http.post<void>(`${this.apiUrl}/${registrationId}/cancel-subscription`, {});
 	}
 }

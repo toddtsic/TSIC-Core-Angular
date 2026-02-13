@@ -29,6 +29,7 @@ export type RegistrationDetailDto = {
     userDemographics?: (null | UserDemographicsDto);
     registrationDate?: string | null;
     modifiedDate?: string | null;
+    hasSubscription?: boolean;
     accountingRecords: Array<AccountingRecordDto>;
 };
 

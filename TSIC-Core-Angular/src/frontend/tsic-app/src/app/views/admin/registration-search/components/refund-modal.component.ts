@@ -26,6 +26,7 @@ export class RefundModalComponent {
   refundAmount = signal<number>(0);
   reason = signal<string>('');
   isProcessing = signal<boolean>(false);
+  showConfirm = signal<boolean>(false);
 
   constructor() {
     effect(() => {
@@ -36,7 +37,7 @@ export class RefundModalComponent {
 
   close(): void { this.closed.emit(); this.resetForm(); }
 
-  processRefund(): void {
+  requestRefund(): void {
     const record = this.accountingRecord();
     if (!record) return;
     const amount = this.refundAmount();
@@ -44,6 +45,16 @@ export class RefundModalComponent {
     if (amount <= 0) { this.toast.show('Refund amount must be greater than zero', 'danger', 4000); return; }
     if (amount > (record.paidAmount ?? 0)) { this.toast.show('Refund amount cannot exceed original payment amount', 'danger', 4000); return; }
     if (!reasonText.trim()) { this.toast.show('Refund reason is required', 'danger', 4000); return; }
+
+    this.showConfirm.set(true);
+  }
+
+  confirmRefund(): void {
+    this.showConfirm.set(false);
+    const record = this.accountingRecord();
+    if (!record) return;
+    const amount = this.refundAmount();
+    const reasonText = this.reason();
 
     this.isProcessing.set(true);
     this.searchService.processRefund({
@@ -64,5 +75,9 @@ export class RefundModalComponent {
     });
   }
 
-  private resetForm(): void { this.refundAmount.set(0); this.reason.set(''); this.isProcessing.set(false); }
+  dismissConfirm(): void {
+    this.showConfirm.set(false);
+  }
+
+  private resetForm(): void { this.refundAmount.set(0); this.reason.set(''); this.isProcessing.set(false); this.showConfirm.set(false); }
 }

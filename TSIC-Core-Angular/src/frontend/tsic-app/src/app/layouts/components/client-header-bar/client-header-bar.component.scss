@@ -173,55 +173,69 @@
     }
 }
 
-.btn-group {
-    .btn-sm {
-        padding: var(--space-2) var(--space-3);
-        font-size: var(--font-size-sm);
-        backdrop-filter: blur(8px);
+// Header action buttons — theme-aware, icon + label on desktop, icon-only on mobile
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
 
-        // Uniform neutral borders for all button variants
-        background: rgba(var(--brand-text-rgb), 0.04);
-        border: 1px solid rgba(var(--brand-text-rgb), 0.15) !important;
+.header-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--bs-body-color);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    line-height: 1.4;
 
+    .bi {
+        font-size: 1rem;
+        line-height: 1;
+    }
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border-color: rgba(var(--bs-primary-rgb), 0.2);
+        color: var(--bs-primary);
+    }
+
+    &:active {
+        background: rgba(var(--bs-primary-rgb), 0.15);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+
+    // Danger variant (logout)
+    &--danger {
         &:hover {
-            background: rgba(var(--brand-text-rgb), 0.08);
-            border-color: rgba(var(--brand-text-rgb), 0.25) !important;
+            background: rgba(var(--bs-danger-rgb), 0.1);
+            border-color: rgba(var(--bs-danger-rgb), 0.2);
+            color: var(--bs-danger);
         }
 
         &:active {
-            background: rgba(var(--brand-text-rgb), 0.12);
+            background: rgba(var(--bs-danger-rgb), 0.15);
         }
+    }
 
-        // Keep colored icons but override border colors
-        &.btn-outline-primary,
-        &.btn-outline-success,
-        &.btn-outline-danger,
-        &.btn-outline-secondary {
-            border-color: rgba(var(--brand-text-rgb), 0.15) !important;
-
-            &:hover {
-                border-color: rgba(var(--brand-text-rgb), 0.25) !important;
-            }
-        }
+    // Mobile: icon-only, slightly larger touch targets
+    @media (max-width: 767.98px) {
+        padding: var(--space-2);
+        border-radius: var(--radius-sm);
 
         .bi {
-            :host-context([data-bs-theme="dark"]) & {
-                opacity: 0.8;
-            }
-        }
-
-        :host-context([data-bs-theme="dark"]) & {
-            background: rgba(255, 255, 255, 0.04);
-            border-color: rgba(255, 255, 255, 0.15) !important;
-
-            &:hover {
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(255, 255, 255, 0.25) !important;
-            }
-
-            &:active {
-                background: rgba(255, 255, 255, 0.12);
-            }
+            font-size: 1.125rem;
         }
     }
 }

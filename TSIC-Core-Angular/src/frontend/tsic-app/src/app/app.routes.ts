@@ -160,6 +160,13 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/registration-search/registration-search.component').then(m => m.RegistrationSearchComponent)
+			},
+			// Team Search
+			{
+				path: 'admin/team-search',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
 			}
 		]
 	},

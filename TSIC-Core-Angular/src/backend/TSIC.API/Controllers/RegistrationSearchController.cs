@@ -189,6 +189,104 @@ public class RegistrationSearchController : ControllerBase
         return Ok(methods);
     }
 
+    [HttpPost("{registrationId:guid}/charge-cc")]
+    public async Task<ActionResult<RegistrationCcChargeResponse>> ChargeCc(
+        Guid registrationId, [FromBody] RegistrationCcChargeRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var sanitized = request with { RegistrationId = registrationId };
+
+        try
+        {
+            var result = await _searchService.ChargeCcAsync(jobId!.Value, userId!, sanitized, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{registrationId:guid}/record-payment")]
+    public async Task<ActionResult<RegistrationCheckOrCorrectionResponse>> RecordPayment(
+        Guid registrationId, [FromBody] RegistrationCheckOrCorrectionRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var sanitized = request with { RegistrationId = registrationId };
+
+        try
+        {
+            var result = await _searchService.RecordCheckOrCorrectionAsync(jobId!.Value, userId!, sanitized, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("accounting/{aId:int}")]
+    public async Task<ActionResult> EditAccountingRecord(
+        int aId, [FromBody] EditAccountingRecordRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            await _searchService.EditAccountingRecordAsync(jobId!.Value, userId!, aId, request, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{registrationId:guid}/subscription")]
+    public async Task<ActionResult<SubscriptionDetailDto>> GetSubscription(
+        Guid registrationId, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var detail = await _searchService.GetSubscriptionDetailAsync(jobId!.Value, registrationId, ct);
+        if (detail == null)
+            return NotFound();
+
+        return Ok(detail);
+    }
+
+    [HttpPost("{registrationId:guid}/cancel-subscription")]
+    public async Task<ActionResult> CancelSubscription(
+        Guid registrationId, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            await _searchService.CancelSubscriptionAsync(jobId!.Value, userId!, registrationId, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("batch-email")]
     public async Task<ActionResult<BatchEmailResponse>> SendBatchEmail(
         [FromBody] BatchEmailRequest request, CancellationToken ct)

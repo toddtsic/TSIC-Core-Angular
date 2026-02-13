@@ -49,6 +49,9 @@ public record RegistrationDetailDto
     public DateTime? RegistrationDate { get; init; }
     public DateTime? ModifiedDate { get; init; }
 
+    // ARB subscription (true when registration has an AdnSubscriptionId)
+    public bool HasSubscription { get; init; }
+
     // Accounting records
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
 }

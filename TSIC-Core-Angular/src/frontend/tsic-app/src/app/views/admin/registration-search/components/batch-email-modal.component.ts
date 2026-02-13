@@ -43,6 +43,7 @@ export class BatchEmailModalComponent {
   bodyTemplate = signal<string>('');
   isSending = signal<boolean>(false);
   sendResult = signal<BatchEmailResponse | null>(null);
+  showConfirm = signal<boolean>(false);
 
   readonly availableTokens = AVAILABLE_TOKENS;
 
@@ -61,6 +62,13 @@ export class BatchEmailModalComponent {
     const ids = this.registrationIds();
     if (ids.length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
 
+    this.showConfirm.set(true);
+  }
+
+  confirmSend(): void {
+    this.showConfirm.set(false);
+    const ids = this.registrationIds();
+
     this.isSending.set(true);
     this.searchService.sendBatchEmail({
       registrationIds: ids, subject: this.subject(), bodyTemplate: this.bodyTemplate()
@@ -77,7 +85,9 @@ export class BatchEmailModalComponent {
     });
   }
 
+  dismissConfirm(): void { this.showConfirm.set(false); }
+
   private resetForm(): void {
-    this.subject.set(''); this.bodyTemplate.set(''); this.isSending.set(false); this.sendResult.set(null);
+    this.subject.set(''); this.bodyTemplate.set(''); this.isSending.set(false); this.sendResult.set(null); this.showConfirm.set(false);
   }
 }

@@ -1539,14 +1539,40 @@ readonly pageSize = 20;
 21. **Add record**: Creates new accounting entry, updates registration PaidTotal/OwedTotal
 22. **Financial summary**: Fees/Paid/Owed shown and updated after any accounting change
 
-**Refunds:**
-23. **Refund modal**: Pre-populated with transaction details, max amount enforced
-24. **Full refund**: Refund amount = original amount → processes via ADN_Refund
-25. **Partial refund**: Refund amount < original → processes partial refund
-26. **Refund accounting**: Creates negative Payamt accounting record with "Credit Card Refund" method
-27. **Financial update**: Registration.PaidTotal decremented, OwedTotal recalculated
-28. **Error handling**: ADN gateway failure → error message shown, no accounting record created
-29. **Refund audit**: Refund record shows in accounting tab with refund transaction ID
+**Add Payment (CC Charge):**
+23. **CC modal opens**: Click "+ Add Payment Record" → modal opens with "Credit Card" tab selected
+24. **CC pre-fill**: First/Last name from registration, email/phone from family contact (or demographics fallback)
+25. **CC amount validation**: Amount must be > 0 and <= OwedTotal; submit disabled otherwise
+26. **CC required fields**: Card number, expiry, CVV, first name, last name required; submit disabled until filled
+27. **CC charge success**: Valid card → ADN_Charge succeeds → accounting record created with TransactionId, OwedTotal decremented, toast shown, modal closes, grid refreshes
+28. **CC charge failure**: Invalid card or gateway error → error toast with ADN message, no accounting record
+29. **CC charge exceeds owed**: Amount > OwedTotal → "MORE THAN IS OWED" error returned
+
+**Add Payment (Check / Correction):**
+30. **Check recording**: Select "Check" tab → enter amount + check# → Submit → accounting record with Check method, financial update
+31. **Check amount validation**: Amount must be > 0 for checks
+32. **Correction positive**: Correction with positive amount → reduces OwedTotal (credit/scholarship)
+33. **Correction negative**: Correction with negative amount → increases OwedTotal (penalty/adjustment)
+34. **Correction zero blocked**: Amount = 0 → "cannot be zero" error
+35. **Comment persistence**: Optional comment saved on accounting record for all payment types
+
+**Edit Accounting Record:**
+36. **Edit button visibility**: "Edit" button shown on Check/Correction/Cash rows only; NOT on CC payment rows
+37. **Inline edit mode**: Click "Edit" → row switches to inline inputs for Comment and Check#
+38. **Save edit**: Modify comment → Save → record updated, grid refreshes, toast confirms
+39. **Cancel edit**: Click "Cancel" → row reverts to read-only display without saving
+40. **Job ownership validation**: Cannot edit accounting record from a different job (backend 400)
+
+**Refunds & Voids:**
+41. **Refund settled transaction**: CC payment with `settledSuccessfully` status → ADN_Refund called → negative accounting record created with CcCreditMethodId
+42. **Void unsettled transaction**: CC payment with `capturedPendingSettlement` status → ADN_Void called → original record marked "VOIDED", Payamt zeroed, full amount reversed
+43. **Partial refund**: Refund amount < original → partial refund processed on settled transaction
+44. **Full refund**: Refund amount = original → full refund processed
+45. **Unsupported status**: Transaction with status other than settled/pending → error message "does not support refund/void"
+46. **Transaction lookup failure**: ADN_GetTransactionDetails fails → "Could not look up" error, no financial changes
+47. **Refund accounting**: Refund creates negative Payamt record; void marks original with "VOIDED" suffix
+48. **Financial update**: PaidTotal decremented by reversed amount, OwedTotal recalculated
+49. **Error handling**: ADN gateway failure → error toast, no accounting record created
 
 **Batch Email:**
 30. **Recipient count**: Shows correct count of selected registrations
@@ -1694,6 +1720,17 @@ readonly pageSize = 20;
 | 14 | Delete Registration feature | Added role-specific registration deletion with strict pre-conditions. Backend: `DeleteRegistrationResponse` DTO; `IRegistrationRepository.HasAccountingRecordsAsync()`, `HasStoreCartBatchRecordsAsync()`, `GetRegistrationRoleNameAsync()` for pre-condition checks and role lookup; `DeleteRegistrationAsync()` service method with role-based authorization (Player/Staff → Director+, Unassigned Adult → Superuser only), pre-condition enforcement (no accounting records, no store records, no insurance), device cleanup via `IDeviceRepository`, and entity deletion; `DELETE {id}` controller endpoint extracting `callerRole` from JWT `ClaimTypes.Role`. Frontend: "Delete" danger-outline button in detail panel header; confirmation modal with registrant name and warning; loading spinner; success toast; emits `closed` + `saved` to close panel and refresh grid. Server returns human-readable error messages for all rejection cases (role insufficient, accounting records exist, etc.). Added security documentation for role-based delete authorization table. |
 | 15 | Detail panel read-first redesign | Redesigned the Details tab from an all-editable form layout (3 sections × 3 save buttons) to a read-first info panel with a compact contact edit zone. Rationale: admins almost never update registration details — the panel is primarily a lookup tool. **Contact Edit Zone** (top, editable): Email + Cellphone (all roles), Uniform # (players, from ALWAYS_INCLUDE_FIELDS), family email + cellphone (players with family link). Single "Save" button fires applicable endpoints in parallel via `forkJoin` (updateDemographics, updateFamilyContact, updateProfile). **Read-Only Info** (below, label:value pairs in 2-column grid): Registration info, Demographics (DOB, gender, address formatted as single line), Family names (read-only — names rarely change), Player Profile metadata fields (excluding waivers and always-include fields), Non-Player fields (ClubName, etc.). Only fields with values rendered — empty/null fields hidden entirely. TypeScript: replaced `isSaving`/`isSavingFamily`/`isSavingDemographics` with single `isSavingContact`; added `readOnlyMetadataFields` computed signal, `hasValue()`, `formatAddress()`, `formatCheckboxValue()`, `familyName()`, `nonPlayerFields()` helpers. SCSS: added `.contact-zone`, `.contact-form`, `.family-contact-row/col`, `.info-section`, `.info-section-title` styles; removed `.demographics-form`, `.non-player-form`, `.family-form`, `.detail-section` styles. Updated ASCII diagram, Phase 10 description, Design Decision #6, UI Standard (Dynamic Metadata-Driven Form → Read-Only Display), test cases 13–17. |
 
+| 16 | Phase 2: Check & Correction payment backend | Added `RecordCheckOrCorrectionAsync` service method. Validates PaymentType ("Check"/"Correction"), resolves payment method GUID from static constants (`CheckMethodId`, `CorrectionMethodId`), creates `RegistrationAccounting` record, updates registration `PaidTotal`/`OwedTotal`. New DTOs: `RegistrationCheckOrCorrectionRequest`, `RegistrationCheckOrCorrectionResponse`. New endpoint: `POST /{registrationId}/record-payment`. |
+| 17 | Phase 2: CC Charge backend | Added `ChargeCcAsync` service method. Validates amount <= OwedTotal, builds invoice number using `GetRegistrationWithInvoiceDataAsync` (max 20 chars with fallbacks), creates incomplete RA record, calls `_adnApi.ADN_Charge()`, updates on success or marks inactive on failure. New DTOs: `RegistrationCcChargeRequest` (uses existing `CreditCardInfo`), `RegistrationCcChargeResponse`. New endpoint: `POST /{registrationId}/charge-cc`. |
+| 18 | Phase 2: Edit Accounting Record backend | Added `EditAccountingRecordAsync` service method. Loads RA by AId, validates job ownership, updates only `Comment` and `CheckNo` fields. New DTO: `EditAccountingRecordRequest`. New endpoint: `PUT /accounting/{aId}`. |
+| 19 | Phase 2: Subscription View & Cancel backend | Added `GetSubscriptionDetailAsync` (loads `AdnSubscriptionId`, calls ADN `GetSubscriptionDetails`, maps to DTO) and `CancelSubscriptionAsync` (calls `ADN_CancelSubscription`, sets `AdnSubscriptionStatus = "canceled"`). New DTO: `SubscriptionDetailDto`. New endpoints: `GET /{registrationId}/subscription`, `POST /{registrationId}/cancel-subscription`. All admin roles can cancel (no Superuser restriction). |
+| 20 | Phase 2: Enhance Refund with Void logic | Modified `ProcessRefundAsync` to check transaction status before refunding. Uses `ADN_GetTransactionDetails` to determine: `capturedPendingSettlement` → calls `ADN_Void` (full reversal, marks original record as "VOIDED"), `settledSuccessfully` → calls `ADN_Refund` (partial/full, creates negative RA record with `CcCreditMethodId`), other status → returns error. Matches `TeamSearchService.ProcessRefundAsync` pattern. |
+| 21 | Phase 2: Add Payment Modal frontend | New `AddPaymentModalComponent` with 3-mode type selector (Credit Card / Check / Correction). CC mode: card number, expiry, CVV, name, address, ZIP, email, phone fields with formatting validators; pre-fills from registration's name and family contact/demographics. Check mode: check number field. Common: amount (pre-filled from OwedTotal), comment. CC calls `chargeCc()`, Check/Correction calls `recordPayment()`. Button activated in detail panel (removed "Coming soon"). Parent refreshes via `(saved)` → `onDetailSaved()`. New files: `add-payment-modal.component.{ts,html,scss}`. |
+| 22 | Phase 2: Edit Accounting Record inline | Added inline edit capability to accounting records table. Edit/Save/Cancel buttons on Check/Correction/Cash rows. `isEditable()` method checks payment method string. `startEditRecord()` populates `editComment`/`editCheckNo` signals; `saveEditRecord()` calls `editAccountingRecord()` service method. SCSS: `.editing-row`, `.inline-edit`, `.action-cell`, `.edit-actions` styles. |
+| 23 | Phase 2: ARB Subscription Panel frontend | Added subscription section to Accounting tab (visible when `hasSubscription` is true). Backend: added `HasSubscription` boolean to `RegistrationDetailDto`, populated from `!string.IsNullOrWhiteSpace(reg.AdnSubscriptionId)` in repository. Frontend: loads subscription details lazily when Accounting tab activated; displays status badge, amount/interval, schedule, start date, total; Cancel button (with confirmation spinner) calls `cancelSubscription()`. SCSS: `.subscription-section`, `.subscription-details` with `.detail-row` layout. |
+| 24 | Subscription ADN credential fix + logging | Fixed "No subscription details available" for players with ARB subscriptions. Root cause: dev environment uses ADN sandbox credentials, but subscription IDs in the database are from production ADN. Added `bProdOnly: true` to both `GetJobAdnCredentials_FromJobId()` and `GetADNEnvironment()` calls in `GetSubscriptionDetailAsync` and `CancelSubscriptionAsync`. Also enhanced error logging: explicit warnings for null ADN response, non-Ok result code (with ADN error text), and null subscription object — replacing the silent catch-all that returned null with no diagnostic info. |
+| 25 | Confirmation guards on all destructive actions | Audited all 8 actions in registration search for confirmation guards. Found 3 critical gaps (CC Charge, Refund, Batch Email) — all irreversible operations that lacked a confirm step. **CC Charge** (`add-payment-modal`): `submit()` now shows inline confirmation alert for CC payments (displays amount + card last 4); Check/Correction submits directly (low risk, reversible). **Refund** (`refund-modal`): renamed `processRefund()` → `requestRefund()` (validates then shows confirm) + `confirmRefund()` (executes); confirmation shows refund amount + card last 4. **Batch Email** (`batch-email-modal`): `sendEmail()` now validates then shows warning-level confirm with recipient count; `confirmSend()` executes. **Cancel Subscription** (detail panel): added `showCancelSubConfirm` signal with inline danger alert showing subscription amount/interval and "Yes, Cancel Subscription" / "No, Keep Active" buttons. All guards follow the same pattern: `showConfirm` signal → trigger method shows confirm → confirm method executes → dismiss method hides. Submit/Send buttons hidden while confirm is visible. |
+
 ---
 
-**Status**: Implementation in progress. Phases 1–15 complete (including 8b). Change Job (amendment #13), Delete Registration (amendment #14), and Detail Panel Read-First Redesign (amendment #15) fully implemented end-to-end. Phase 16 (Testing & Polish) pending.
+**Status**: Implementation in progress. Phases 1–25 complete (including 8b). Phase 2 Accounting Management (amendments #16–#25) fully implemented end-to-end. Phase 26 (Testing & Polish) pending.

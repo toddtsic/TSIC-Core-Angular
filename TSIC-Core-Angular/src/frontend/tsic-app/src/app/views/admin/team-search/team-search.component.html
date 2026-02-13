@@ -1,0 +1,239 @@
+<!-- Reusable multiselect item template for count badges -->
+<ng-template #countBadgeTemplate let-data>
+  <span class="filter-item">
+    <span class="filter-item-text">{{ data.text }}</span>
+    <span class="filter-item-count">{{ data.count }}</span>
+  </span>
+</ng-template>
+
+<div class="team-search-container">
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-bar-compact">
+      <div class="filter-row">
+        <div class="form-group">
+          <label>Club</label>
+          <ejs-multiselect
+            [dataSource]="filterOptions()?.clubs ?? []"
+            [fields]="msFields"
+            [value]="searchRequest().clubNames"
+            (change)="updateMultiSelect('clubNames', $event.value)"
+            [mode]="'CheckBox'"
+            [showSelectAll]="true"
+            [showDropDownIcon]="true"
+            [closePopupOnSelect]="false"
+            [changeOnBlur]="false"
+            [enableFiltering]="true"
+            placeholder="All Clubs"
+            [itemTemplate]="countBadgeTemplate"
+            cssClass="filter-ms"
+            [popupWidth]="'auto'">
+          </ejs-multiselect>
+        </div>
+
+        <div class="form-group">
+          <label>Level of Play</label>
+          <ejs-multiselect
+            [dataSource]="filterOptions()?.levelOfPlays ?? []"
+            [fields]="msFields"
+            [value]="searchRequest().levelOfPlays"
+            (change)="updateMultiSelect('levelOfPlays', $event.value)"
+            [mode]="'CheckBox'"
+            [showDropDownIcon]="true"
+            [closePopupOnSelect]="false"
+            [changeOnBlur]="false"
+            placeholder="All"
+            [itemTemplate]="countBadgeTemplate"
+            cssClass="filter-ms"
+            [popupWidth]="'auto'">
+          </ejs-multiselect>
+        </div>
+
+        <div class="form-group">
+          <label>Active Status</label>
+          <ejs-multiselect
+            [dataSource]="filterOptions()?.activeStatuses ?? []"
+            [fields]="msFields"
+            [value]="searchRequest().activeStatuses"
+            (change)="updateMultiSelect('activeStatuses', $event.value)"
+            [mode]="'CheckBox'"
+            [showDropDownIcon]="true"
+            [closePopupOnSelect]="false"
+            [changeOnBlur]="false"
+            placeholder="All Statuses"
+            [itemTemplate]="countBadgeTemplate"
+            cssClass="filter-ms"
+            [popupWidth]="'auto'">
+          </ejs-multiselect>
+        </div>
+
+        <div class="form-group">
+          <label>Pay Status</label>
+          <ejs-multiselect
+            [dataSource]="filterOptions()?.payStatuses ?? []"
+            [fields]="msFields"
+            [value]="searchRequest().payStatuses"
+            (change)="updateMultiSelect('payStatuses', $event.value)"
+            [mode]="'CheckBox'"
+            [showDropDownIcon]="true"
+            [closePopupOnSelect]="false"
+            [changeOnBlur]="false"
+            placeholder="All"
+            [itemTemplate]="countBadgeTemplate"
+            cssClass="filter-ms"
+            [popupWidth]="'auto'">
+          </ejs-multiselect>
+        </div>
+      </div>
+
+      <!-- LADT Tree -->
+      <div class="filter-row-ladt">
+        <div class="form-group form-group-tree">
+          <label>League / Agegroup / Division / Team</label>
+          <div class="tree-scroll-container">
+            @if (ladtTreeLoading()) {
+              <div class="tree-loading">
+                <span class="spinner-border spinner-border-sm"></span>
+                <span>Loading tree&hellip;</span>
+              </div>
+            } @else {
+              <app-ladt-tree-filter
+                [treeData]="ladtTree()"
+                [checkedIds]="ladtCheckedIds()"
+                (checkedIdsChange)="onLadtCheckedChange($event)">
+              </app-ladt-tree-filter>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="action-row">
+        <div class="action-buttons">
+          <button type="button"
+            class="btn"
+            [class.btn-primary]="!filtersAreDirty()"
+            [class.btn-warning]="filtersAreDirty()"
+            [class.search-dirty]="filtersAreDirty()"
+            (click)="executeSearch()"
+            [disabled]="isSearching()">
+            @if (isSearching()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            @if (filtersAreDirty() && searchResults()) { Update Results } @else { Search }
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear</button>
+        </div>
+        <div class="action-buttons-right">
+          <button type="button" class="btn btn-success" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">Export</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Chips Strip -->
+  @if (activeFilterChips().length > 0 && searchResults()) {
+    <div class="filter-chips-strip">
+      @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
+        <span class="filter-chip">
+          <span class="chip-category">{{ chip.category }}:</span>
+          <span class="chip-label">{{ chip.label }}</span>
+          <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </span>
+      }
+      <button type="button" class="chip-clear-all" (click)="clearAllChips()">Clear All</button>
+    </div>
+  }
+
+  <!-- Results Grid -->
+  <div class="results-container">
+    @if (searchResults()) {
+      <div class="results-summary">
+        <span class="result-count">
+          {{ searchResults()!.count }} team(s) found
+        </span>
+      </div>
+
+      <ejs-grid
+        #grid
+        [dataSource]="searchResults()!.result"
+        [allowPaging]="true"
+        [allowSorting]="true"
+        [allowExcelExport]="true"
+        [frozenColumns]="4"
+        [pageSettings]="pageSettings"
+        [sortSettings]="sortSettings"
+        (queryCellInfo)="queryCellInfo($event)"
+        class="tight-table"
+      >
+        <e-columns>
+          <!-- Frozen columns -->
+          <e-column headerText="Row" width="55" textAlign="Center" [allowSorting]="false"></e-column>
+          <e-column field="active" headerText="Active" width="70" textAlign="Center">
+            <ng-template #template let-data>
+              @if (data.active) {
+                <span class="badge bg-success">Yes</span>
+              } @else {
+                <span class="badge bg-secondary">No</span>
+              }
+            </ng-template>
+          </e-column>
+          <e-column field="clubName" headerText="Club" width="150">
+            <ng-template #template let-data>
+              {{ data.clubName ?? '—' }}
+            </ng-template>
+          </e-column>
+          <e-column field="teamName" headerText="Team" width="180">
+            <ng-template #template let-data>
+              <a href="javascript:void(0)" (click)="openDetail(data.teamId)" class="detail-link">
+                {{ data.teamName }}
+              </a>
+            </ng-template>
+          </e-column>
+
+          <!-- Scrollable columns -->
+          <e-column field="agegroupName" headerText="Agegroup" width="130"></e-column>
+          <e-column field="divName" headerText="Div/Pool" width="120"></e-column>
+          <e-column field="levelOfPlay" headerText="LOP" width="90"></e-column>
+          <e-column field="paidTotal" headerText="$Paid" width="100" textAlign="Right" format="C2"></e-column>
+          <e-column field="owedTotal" headerText="$Owed" width="100" textAlign="Right" format="C2"></e-column>
+          <e-column field="regDate" headerText="RegDate" width="100" type="date" format="M/d/yyyy"></e-column>
+          <e-column field="clubRepName" headerText="Club Rep" width="140"></e-column>
+          <e-column field="clubRepEmail" headerText="Email" width="180"></e-column>
+          <e-column field="clubRepCellphone" headerText="Phone" width="120"></e-column>
+          <e-column field="teamComments" headerText="Comments" width="200"></e-column>
+        </e-columns>
+
+        <e-aggregates>
+          <e-aggregate>
+            <e-columns>
+              <e-column field="paidTotal" type="Custom">
+                <ng-template #footerTemplate>
+                  <div class="aggregate-value">{{ searchResults()!.totalPaid | currency }}</div>
+                </ng-template>
+              </e-column>
+              <e-column field="owedTotal" type="Custom">
+                <ng-template #footerTemplate>
+                  <div class="aggregate-value">{{ searchResults()!.totalOwed | currency }}</div>
+                </ng-template>
+              </e-column>
+            </e-columns>
+          </e-aggregate>
+        </e-aggregates>
+      </ejs-grid>
+    }
+  </div>
+</div>
+
+<!-- Detail Panel -->
+@if (isPanelOpen()) {
+  <app-team-detail-panel
+    [detail]="selectedDetail()"
+    [isOpen]="isPanelOpen()"
+    (closed)="closePanel()"
+    (changed)="onDetailChanged()"
+  ></app-team-detail-panel>
+}

@@ -25,8 +25,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IEmailService _emailService;
     private readonly ILogger<RegistrationSearchService> _logger;
 
-    // Known CC payment method GUID
+    // Known payment method GUIDs
     private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+    private static readonly Guid CcCreditMethodId = Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D");
+    private static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
+    private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
     public RegistrationSearchService(
         IRegistrationRepository registrationRepo,
@@ -162,64 +165,109 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
             var env = _adnApi.GetADNEnvironment();
 
-            var adnResult = _adnApi.ADN_Refund(new AdnRefundRequest
-            {
-                Env = env,
-                LoginId = creds.AdnLoginId ?? "",
-                TransactionKey = creds.AdnTransactionKey ?? "",
-                CardNumberLast4 = original.AdnCc4 ?? "0000",
-                Expiry = original.AdnCcexpDate ?? "XXXX",
-                TransactionId = original.AdnTransactionId,
-                Amount = request.RefundAmount,
-                InvoiceNumber = original.AdnInvoiceNo ?? ""
-            });
+            // Check original transaction status to determine void vs refund
+            var txDetails = _adnApi.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, original.AdnTransactionId);
 
-            if (adnResult?.messages?.resultCode != messageTypeEnum.Ok)
+            if (txDetails?.messages?.resultCode != messageTypeEnum.Ok)
+                return new RefundResponse { Success = false, Message = "Could not look up original transaction details." };
+
+            var txStatus = txDetails.transaction?.transactionStatus;
+            string refundTransId;
+            decimal reversedAmount;
+
+            if (txStatus == "capturedPendingSettlement")
             {
-                var errorMsg = adnResult?.messages?.message?.FirstOrDefault()?.text ?? "Unknown error from Authorize.Net.";
-                _logger.LogWarning("ADN refund failed for AId={AId}: {Error}", request.AccountingRecordId, errorMsg);
-                return new RefundResponse { Success = false, Message = errorMsg };
+                // VOID the transaction (full amount — ADN voids are always full)
+                var voidResult = _adnApi.ADN_Void(new AdnVoidRequest
+                {
+                    Env = env,
+                    LoginId = creds.AdnLoginId ?? "",
+                    TransactionKey = creds.AdnTransactionKey ?? "",
+                    TransactionId = original.AdnTransactionId
+                });
+
+                if (voidResult?.messages?.resultCode != messageTypeEnum.Ok || voidResult.transactionResponse?.messages == null)
+                {
+                    var err = voidResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Void failed.";
+                    return new RefundResponse { Success = false, Message = $"CC Void failed: {err}" };
+                }
+
+                refundTransId = voidResult.transactionResponse.transId ?? "";
+                reversedAmount = original.Payamt ?? 0; // void reverses full original amount
+
+                // Mark original record as voided
+                original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.UtcNow}";
+                original.Payamt = 0;
             }
-
-            var refundTransId = adnResult.transactionResponse?.transId ?? "";
-
-            // Create negative accounting record
-            var refundEntry = new RegistrationAccounting
+            else if (txStatus == "settledSuccessfully")
             {
-                RegistrationId = original.RegistrationId,
-                PaymentMethodId = CcPaymentMethodId,
-                Paymeth = "Credit Card Refund",
-                Payamt = -request.RefundAmount,
-                Dueamt = 0,
-                Comment = request.Reason ?? "Refund processed",
-                AdnTransactionId = refundTransId,
-                AdnCc4 = original.AdnCc4,
-                AdnCcexpDate = original.AdnCcexpDate,
-                Active = true,
-                Createdate = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
-                LebUserId = userId
-            };
-            _accountingRepo.Add(refundEntry);
+                // REFUND the transaction (partial or full)
+                var adnResult = _adnApi.ADN_Refund(new AdnRefundRequest
+                {
+                    Env = env,
+                    LoginId = creds.AdnLoginId ?? "",
+                    TransactionKey = creds.AdnTransactionKey ?? "",
+                    CardNumberLast4 = original.AdnCc4 ?? "0000",
+                    Expiry = original.AdnCcexpDate ?? "XXXX",
+                    TransactionId = original.AdnTransactionId,
+                    Amount = request.RefundAmount,
+                    InvoiceNumber = original.AdnInvoiceNo ?? ""
+                });
+
+                if (adnResult?.messages?.resultCode != messageTypeEnum.Ok || adnResult.transactionResponse?.messages == null)
+                {
+                    var err = adnResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Refund failed.";
+                    return new RefundResponse { Success = false, Message = $"CC Refund failed: {err}" };
+                }
+
+                refundTransId = adnResult.transactionResponse.transId ?? "";
+                reversedAmount = request.RefundAmount;
+
+                // Create negative accounting record for the refund
+                _accountingRepo.Add(new RegistrationAccounting
+                {
+                    RegistrationId = original.RegistrationId,
+                    PaymentMethodId = CcCreditMethodId,
+                    Paymeth = "Credit Card Refund",
+                    Payamt = -request.RefundAmount,
+                    Dueamt = 0,
+                    Comment = request.Reason ?? "Refund processed",
+                    AdnTransactionId = refundTransId,
+                    AdnCc4 = original.AdnCc4,
+                    AdnCcexpDate = original.AdnCcexpDate,
+                    AdnInvoiceNo = original.AdnInvoiceNo,
+                    Active = true,
+                    Createdate = DateTime.UtcNow,
+                    Modified = DateTime.UtcNow,
+                    LebUserId = userId
+                });
+            }
+            else
+            {
+                return new RefundResponse { Success = false, Message = $"Transaction status '{txStatus}' does not support refund/void." };
+            }
 
             // Update registration financials
             var reg = original.Registration;
-            reg.PaidTotal -= request.RefundAmount;
+            reg.PaidTotal -= reversedAmount;
             reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
             reg.Modified = DateTime.UtcNow;
             reg.LebUserId = userId;
 
             await _accountingRepo.SaveChangesAsync(ct);
 
-            _logger.LogInformation("Refund processed: AId={AId}, Amount={Amount}, RefundTransId={TransId}",
-                request.AccountingRecordId, request.RefundAmount, refundTransId);
+            var action = txStatus == "capturedPendingSettlement" ? "voided" : "refunded";
+            _logger.LogInformation("Refund/{Action} processed: AId={AId}, Amount={Amount}, TransId={TransId}",
+                action, request.AccountingRecordId, reversedAmount, refundTransId);
 
             return new RefundResponse
             {
                 Success = true,
-                Message = "Refund processed successfully.",
+                Message = txStatus == "capturedPendingSettlement"
+                    ? $"Transaction voided successfully (${reversedAmount:F2})."
+                    : "Refund processed successfully.",
                 TransactionId = refundTransId,
-                RefundedAmount = request.RefundAmount
+                RefundedAmount = reversedAmount
             };
         }
         catch (Exception ex)
@@ -232,6 +280,295 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default)
     {
         return await _accountingRepo.GetPaymentMethodOptionsAsync(ct);
+    }
+
+    public async Task<RegistrationCheckOrCorrectionResponse> RecordCheckOrCorrectionAsync(
+        Guid jobId, string userId, RegistrationCheckOrCorrectionRequest request, CancellationToken ct = default)
+    {
+        // Validate registration belongs to job
+        var regJobId = await _registrationRepo.GetRegistrationJobIdAsync(request.RegistrationId, ct);
+        if (regJobId == null || regJobId.Value != jobId)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "Registration not found or does not belong to this job." };
+
+        var isCheck = string.Equals(request.PaymentType, "Check", StringComparison.OrdinalIgnoreCase);
+        var isCorrection = string.Equals(request.PaymentType, "Correction", StringComparison.OrdinalIgnoreCase);
+
+        if (!isCheck && !isCorrection)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "PaymentType must be 'Check' or 'Correction'." };
+
+        if (isCheck && request.Amount <= 0)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A check payment must be > $0.00." };
+        if (isCorrection && request.Amount == 0)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount cannot be $0.00." };
+
+        var paymentMethodId = isCheck ? CheckMethodId : CorrectionMethodId;
+
+        var entity = new RegistrationAccounting
+        {
+            RegistrationId = request.RegistrationId,
+            PaymentMethodId = paymentMethodId,
+            Dueamt = 0,
+            Payamt = request.Amount,
+            CheckNo = request.CheckNo,
+            Comment = request.Comment,
+            Active = true,
+            Createdate = DateTime.UtcNow,
+            Modified = DateTime.UtcNow,
+            LebUserId = userId
+        };
+
+        _accountingRepo.Add(entity);
+
+        // Update registration financial totals
+        var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct)
+            ?? throw new InvalidOperationException("Registration not found.");
+
+        reg.PaidTotal += request.Amount;
+        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+        reg.Modified = DateTime.UtcNow;
+        reg.LebUserId = userId;
+
+        await _accountingRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation("{Type} recorded: RegId={RegId}, Amount={Amount}",
+            request.PaymentType, request.RegistrationId, request.Amount);
+
+        return new RegistrationCheckOrCorrectionResponse { Success = true };
+    }
+
+    public async Task<RegistrationCcChargeResponse> ChargeCcAsync(
+        Guid jobId, string userId, RegistrationCcChargeRequest request, CancellationToken ct = default)
+    {
+        // Validate registration belongs to job
+        var regJobId = await _registrationRepo.GetRegistrationJobIdAsync(request.RegistrationId, ct);
+        if (regJobId == null || regJobId.Value != jobId)
+            return new RegistrationCcChargeResponse { Success = false, Error = "Registration not found or does not belong to this job." };
+
+        if (request.Amount <= 0)
+            return new RegistrationCcChargeResponse { Success = false, Error = "Charge amount must be > $0.00." };
+
+        var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
+        if (reg == null)
+            return new RegistrationCcChargeResponse { Success = false, Error = "Registration not found." };
+
+        if (request.Amount > reg.OwedTotal)
+            return new RegistrationCcChargeResponse { Success = false, Error = "You attempted to charge the card MORE THAN IS OWED." };
+
+        try
+        {
+            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+            var env = _adnApi.GetADNEnvironment();
+
+            // Build invoice number (max 20 chars for ADN)
+            var invoiceData = await _registrationRepo.GetRegistrationWithInvoiceDataAsync(request.RegistrationId, jobId, ct);
+            var customerAi = invoiceData?.CustomerAi ?? 0;
+            var jobAi = invoiceData?.JobAi ?? 0;
+            var invoiceNumber = $"{customerAi}_{jobAi}_{reg.RegistrationAi}";
+            if (invoiceNumber.Length > 20) invoiceNumber = $"{jobAi}_{reg.RegistrationAi}";
+            if (invoiceNumber.Length > 20) invoiceNumber = $"{reg.RegistrationAi}";
+            if (invoiceNumber.Length > 20) invoiceNumber = $"INV{DateTime.UtcNow.Ticks}"[..20];
+
+            // Create incomplete RA record first
+            var raRecord = new RegistrationAccounting
+            {
+                RegistrationId = request.RegistrationId,
+                PaymentMethodId = CcPaymentMethodId,
+                Dueamt = request.Amount,
+                Payamt = 0,
+                Active = true,
+                Createdate = DateTime.UtcNow,
+                Modified = DateTime.UtcNow,
+                LebUserId = userId
+            };
+            _accountingRepo.Add(raRecord);
+            await _accountingRepo.SaveChangesAsync(ct);
+
+            var cc = request.CreditCard;
+            var chargeResult = _adnApi.ADN_Charge(new AdnChargeRequest
+            {
+                Env = env,
+                LoginId = creds.AdnLoginId ?? "",
+                TransactionKey = creds.AdnTransactionKey ?? "",
+                CardNumber = cc.Number ?? "",
+                CardCode = cc.Code ?? "",
+                Expiry = cc.Expiry ?? "",
+                FirstName = cc.FirstName ?? "",
+                LastName = cc.LastName ?? "",
+                Address = cc.Address ?? "",
+                Zip = cc.Zip ?? "",
+                Email = cc.Email ?? "",
+                Phone = cc.Phone ?? "",
+                Amount = request.Amount,
+                InvoiceNumber = invoiceNumber,
+                Description = $"Admin charge for registration #{reg.RegistrationAi}"
+            });
+
+            var success = chargeResult?.messages?.resultCode == messageTypeEnum.Ok
+                          && chargeResult.transactionResponse?.messages != null;
+
+            if (success)
+            {
+                var transId = chargeResult!.transactionResponse!.transId ?? "";
+                var last4 = (cc.Number ?? "").Length >= 4 ? (cc.Number ?? "")[^4..] : cc.Number ?? "";
+
+                raRecord.AdnInvoiceNo = invoiceNumber;
+                raRecord.AdnTransactionId = transId;
+                raRecord.Payamt = request.Amount;
+                raRecord.AdnCc4 = last4;
+                raRecord.AdnCcexpDate = cc.Expiry;
+                raRecord.Paymeth = $"paid by cc: {request.Amount:C} on {DateTime.UtcNow:G} txID: {transId}";
+                raRecord.Modified = DateTime.UtcNow;
+
+                reg.PaidTotal += request.Amount;
+                reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+                reg.Modified = DateTime.UtcNow;
+                reg.LebUserId = userId;
+
+                await _accountingRepo.SaveChangesAsync(ct);
+
+                _logger.LogInformation("CC charge successful: RegId={RegId}, Amount={Amount}, TransId={TransId}",
+                    request.RegistrationId, request.Amount, transId);
+
+                return new RegistrationCcChargeResponse
+                {
+                    Success = true,
+                    TransactionId = transId,
+                    ChargedAmount = request.Amount
+                };
+            }
+            else
+            {
+                var err = chargeResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Charge failed.";
+                raRecord.Active = false;
+                raRecord.Comment = $"FAILED: {err}";
+                raRecord.Modified = DateTime.UtcNow;
+                await _accountingRepo.SaveChangesAsync(ct);
+
+                _logger.LogWarning("CC charge failed: RegId={RegId}, Error={Error}", request.RegistrationId, err);
+                return new RegistrationCcChargeResponse { Success = false, Error = err };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CC charge exception for RegId={RegId}", request.RegistrationId);
+            return new RegistrationCcChargeResponse { Success = false, Error = $"Charge failed: {ex.Message}" };
+        }
+    }
+
+    public async Task EditAccountingRecordAsync(
+        Guid jobId, string userId, int aId, EditAccountingRecordRequest request, CancellationToken ct = default)
+    {
+        var record = await _accountingRepo.GetByAIdAsync(aId, ct)
+            ?? throw new KeyNotFoundException($"Accounting record {aId} not found.");
+
+        // Validate record belongs to a registration in this job
+        if (record.Registration == null || record.Registration.JobId != jobId)
+            throw new InvalidOperationException("Accounting record does not belong to this job.");
+
+        record.Comment = request.Comment;
+        record.CheckNo = request.CheckNo;
+        record.Modified = DateTime.UtcNow;
+        record.LebUserId = userId;
+
+        await _accountingRepo.SaveChangesAsync(ct);
+    }
+
+    public async Task<SubscriptionDetailDto?> GetSubscriptionDetailAsync(
+        Guid jobId, Guid registrationId, CancellationToken ct = default)
+    {
+        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);
+        if (reg == null || reg.JobId != jobId)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(reg.AdnSubscriptionId))
+            return null;
+
+        try
+        {
+            // Subscription IDs are always from production ADN — use bProdOnly to bypass sandbox
+            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
+            var env = _adnApi.GetADNEnvironment(bProdOnly: true);
+
+            _logger.LogInformation(
+                "Fetching subscription from ADN: RegId={RegId}, SubscriptionId={SubId}, Env={Env}",
+                registrationId, reg.AdnSubscriptionId, env);
+
+            var details = _adnApi.GetSubscriptionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, reg.AdnSubscriptionId);
+
+            if (details == null)
+            {
+                _logger.LogWarning("ADN GetSubscriptionDetails returned null for SubId={SubId}", reg.AdnSubscriptionId);
+                return null;
+            }
+
+            if (details.messages?.resultCode != messageTypeEnum.Ok)
+            {
+                var errorMsg = details.messages?.message?.FirstOrDefault()?.text ?? "Unknown ADN error";
+                _logger.LogWarning(
+                    "ADN GetSubscriptionDetails failed: SubId={SubId}, ResultCode={Code}, Error={Error}",
+                    reg.AdnSubscriptionId, details.messages?.resultCode, errorMsg);
+                return null;
+            }
+
+            if (details.subscription == null)
+            {
+                _logger.LogWarning("ADN returned Ok but subscription object is null for SubId={SubId}", reg.AdnSubscriptionId);
+                return null;
+            }
+
+            var sub = details.subscription;
+            var intervalLength = sub.paymentSchedule?.interval?.length ?? 1;
+            var intervalLabel = intervalLength == 1 ? "every month" : $"every {intervalLength} months";
+
+            return new SubscriptionDetailDto
+            {
+                SubscriptionId = reg.AdnSubscriptionId,
+                Status = sub.status.ToString(),
+                PerOccurrenceAmount = sub.amount,
+                TotalOccurrences = sub.paymentSchedule?.totalOccurrences ?? 0,
+                TotalAmount = sub.amount * (sub.paymentSchedule?.totalOccurrences ?? 0),
+                StartDate = sub.paymentSchedule?.startDate ?? DateTime.MinValue,
+                IntervalLabel = intervalLabel
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load subscription for reg {RegId}, SubId={SubId}", registrationId, reg.AdnSubscriptionId);
+            return null;
+        }
+    }
+
+    public async Task CancelSubscriptionAsync(
+        Guid jobId, string userId, Guid registrationId, CancellationToken ct = default)
+    {
+        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct)
+            ?? throw new KeyNotFoundException("Registration not found.");
+
+        if (reg.JobId != jobId)
+            throw new InvalidOperationException("Registration does not belong to this job.");
+
+        if (string.IsNullOrWhiteSpace(reg.AdnSubscriptionId))
+            throw new InvalidOperationException("Registration has no ARB subscription.");
+
+        // Subscription IDs are always from production ADN — use bProdOnly to bypass sandbox
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
+        var env = _adnApi.GetADNEnvironment(bProdOnly: true);
+
+        var result = _adnApi.ADN_CancelSubscription(env, creds.AdnLoginId!, creds.AdnTransactionKey!, reg.AdnSubscriptionId);
+
+        if (result?.messages?.resultCode != messageTypeEnum.Ok)
+        {
+            var err = result?.messages?.message?.FirstOrDefault()?.text ?? "Cancel failed.";
+            throw new InvalidOperationException($"Failed to cancel subscription: {err}");
+        }
+
+        reg.AdnSubscriptionStatus = "canceled";
+        reg.Modified = DateTime.UtcNow;
+        reg.LebUserId = userId;
+
+        await _accountingRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Subscription canceled: RegId={RegId}, SubId={SubId}", registrationId, reg.AdnSubscriptionId);
     }
 
     public async Task<BatchEmailResponse> SendBatchEmailAsync(

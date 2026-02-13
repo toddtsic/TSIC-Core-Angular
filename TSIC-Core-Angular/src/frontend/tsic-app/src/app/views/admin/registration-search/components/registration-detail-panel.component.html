@@ -250,22 +250,49 @@
                 </thead>
                 <tbody>
                   @for (record of reg.accountingRecords; track record.aId; let idx = $index) {
-                    <tr>
-                      <td>{{ idx + 1 }}</td>
-                      <td>{{ record.date | date:'short' }}</td>
-                      <td>
-                        {{ record.paymentMethod }}
-                        @if (record.adnCc4) { <span class="text-muted"> (****{{ record.adnCc4 }})</span> }
-                      </td>
-                      <td>{{ record.dueAmount | currency }}</td>
-                      <td>{{ record.paidAmount | currency }}</td>
-                      <td><small class="text-muted">{{ record.comment || '—' }}</small></td>
-                      <td>
-                        @if (record.canRefund) {
-                          <button type="button" class="btn btn-sm btn-outline-danger" (click)="onRefundClick(record)">Refund</button>
-                        }
-                      </td>
-                    </tr>
+                    @if (editingAId() === record.aId) {
+                      <!-- Inline edit row -->
+                      <tr class="editing-row">
+                        <td>{{ idx + 1 }}</td>
+                        <td>{{ record.date | date:'short' }}</td>
+                        <td>{{ record.paymentMethod }}</td>
+                        <td>{{ record.dueAmount | currency }}</td>
+                        <td>{{ record.paidAmount | currency }}</td>
+                        <td>
+                          <input type="text" class="form-control form-control-sm inline-edit"
+                            [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
+                            placeholder="Comment" [disabled]="isSavingEdit()" />
+                          <input type="text" class="form-control form-control-sm inline-edit mt-1"
+                            [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
+                            placeholder="Check #" [disabled]="isSavingEdit()" />
+                        </td>
+                        <td class="edit-actions">
+                          <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()" [disabled]="isSavingEdit()">Save</button>
+                          <button type="button" class="btn btn-sm btn-secondary ms-1" (click)="cancelEditRecord()" [disabled]="isSavingEdit()">Cancel</button>
+                        </td>
+                      </tr>
+                    } @else {
+                      <!-- Normal display row -->
+                      <tr>
+                        <td>{{ idx + 1 }}</td>
+                        <td>{{ record.date | date:'short' }}</td>
+                        <td>
+                          {{ record.paymentMethod }}
+                          @if (record.adnCc4) { <span class="text-muted"> (****{{ record.adnCc4 }})</span> }
+                        </td>
+                        <td>{{ record.dueAmount | currency }}</td>
+                        <td>{{ record.paidAmount | currency }}</td>
+                        <td><small class="text-muted">{{ record.comment || '—' }}</small></td>
+                        <td class="action-cell">
+                          @if (record.canRefund) {
+                            <button type="button" class="btn btn-sm btn-outline-danger" (click)="onRefundClick(record)">Refund</button>
+                          }
+                          @if (isEditable(record)) {
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="startEditRecord(record)">Edit</button>
+                          }
+                        </td>
+                      </tr>
+                    }
                   }
                 </tbody>
               </table>
@@ -275,11 +302,78 @@
           }
 
           <div class="form-actions">
-            <button type="button" class="btn btn-outline-primary" disabled>+ Add Payment Record</button>
-            <small class="text-muted ms-2">(Coming soon)</small>
+            <button type="button" class="btn btn-outline-primary" (click)="openPaymentModal()">+ Add Payment Record</button>
           </div>
+
+          <!-- ARB Subscription Section -->
+          @if (reg.hasSubscription) {
+            <div class="subscription-section">
+              <h4>ARB Subscription</h4>
+              @if (isLoadingSubscription()) {
+                <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading subscription details...</div>
+              } @else if (subscription(); as sub) {
+                <div class="subscription-details">
+                  <div class="detail-row">
+                    <span class="label">Status:</span>
+                    <span class="value">
+                      <span class="badge" [class.bg-success]="sub.status === 'active'" [class.bg-secondary]="sub.status !== 'active'">{{ sub.status }}</span>
+                    </span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="label">Amount:</span>
+                    <span class="value">{{ sub.perOccurrenceAmount | currency }} / {{ sub.intervalLabel }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="label">Schedule:</span>
+                    <span class="value">{{ sub.totalOccurrences }} occurrences</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="label">Start:</span>
+                    <span class="value">{{ sub.startDate | date:'mediumDate' }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="label">Total:</span>
+                    <span class="value">{{ sub.totalAmount | currency }}</span>
+                  </div>
+                </div>
+                @if (sub.status === 'active') {
+                  <button type="button" class="btn btn-sm btn-outline-danger mt-2" (click)="confirmCancelSubscription()" [disabled]="isCancellingSubscription()">
+                    @if (isCancellingSubscription()) { <span class="spinner-border spinner-border-sm me-1"></span> } Cancel Subscription
+                  </button>
+                }
+
+                <!-- Cancel Subscription Confirmation -->
+                @if (showCancelSubConfirm()) {
+                  <div class="cancel-sub-confirm mt-3">
+                    <div class="alert alert-danger d-flex flex-column gap-2 mb-0">
+                      <strong>Are you sure you want to cancel this subscription?</strong>
+                      <span>This will permanently cancel the recurring billing ({{ sub.perOccurrenceAmount | currency }} {{ sub.intervalLabel }}) with Authorize.Net. This action cannot be undone.</span>
+                      <div class="d-flex gap-2 mt-1">
+                        <button type="button" class="btn btn-sm btn-danger" (click)="cancelSubscription()">
+                          Yes, Cancel Subscription
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissCancelSubscription()">
+                          No, Keep Active
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                }
+              } @else {
+                <div class="text-muted">No subscription details available.</div>
+              }
+            </div>
+          }
         </div>
       }
+
+      <!-- Add Payment Modal -->
+      <app-add-payment-modal
+        [detail]="detail()"
+        [isOpen]="showPaymentModal()"
+        (closed)="showPaymentModal.set(false)"
+        (paymentRecorded)="onPaymentRecorded()"
+      ></app-add-payment-modal>
 
       <!-- ═══════════════════════ EMAIL TAB ═══════════════════════ -->
       @if (activeTab() === 'email') {

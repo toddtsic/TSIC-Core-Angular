@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Dtos.TeamSearch;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -710,6 +713,216 @@ public class TeamRepository : ITeamRepository
 
         if (team == null) return null;
         return (team, team.Agegroup);
+    }
+
+    // ── Team Search methods ──
+
+    public async Task<List<TeamSearchResultDto>> SearchTeamsAsync(Guid jobId, TeamSearchRequest request, CancellationToken ct = default)
+    {
+        var query = _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId)
+            .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
+            .GroupJoin(_context.Divisions, x => x.t.DivId, d => d.DivId, (x, divs) => new { x.t, x.ag, divs })
+            .SelectMany(x => x.divs.DefaultIfEmpty(), (x, d) => new { x.t, x.ag, d })
+            .GroupJoin(_context.Registrations, x => x.t.ClubrepRegistrationid, r => r.RegistrationId, (x, regs) => new { x.t, x.ag, x.d, regs })
+            .SelectMany(x => x.regs.DefaultIfEmpty(), (x, r) => new { x.t, x.ag, x.d, r })
+            .GroupJoin(_context.AspNetUsers, x => x.r != null ? x.r.UserId : null, u => u.Id, (x, users) => new { x.t, x.ag, x.d, x.r, users })
+            .SelectMany(x => x.users.DefaultIfEmpty(), (x, u) => new { x.t, x.ag, x.d, x.r, u });
+
+        // Apply filters
+        if (request.ActiveStatuses?.Count > 0)
+        {
+            var boolValues = request.ActiveStatuses.Select(s => bool.TryParse(s, out var b) && b).ToList();
+            if (boolValues.Count == 1)
+                query = query.Where(x => (x.t.Active ?? false) == boolValues[0]);
+        }
+
+        if (request.ClubNames?.Count > 0)
+            query = query.Where(x => x.r != null && request.ClubNames.Contains(x.r.ClubName!));
+
+        if (request.LevelOfPlays?.Count > 0)
+            query = query.Where(x => x.t.LevelOfPlay != null && request.LevelOfPlays.Contains(x.t.LevelOfPlay));
+
+        if (request.PayStatuses?.Count > 0)
+        {
+            query = query.Where(x =>
+                (request.PayStatuses.Contains("PAID IN FULL") && x.t.OwedTotal == 0)
+                || (request.PayStatuses.Contains("UNDER PAID") && x.t.OwedTotal > 0)
+                || (request.PayStatuses.Contains("OVER PAID") && x.t.OwedTotal < 0));
+        }
+
+        if (request.AgegroupIds?.Count > 0)
+            query = query.Where(x => request.AgegroupIds.Contains(x.t.AgegroupId));
+
+        // LADT tree filter — OR across league, agegroup, division, team IDs
+        if (request.LeagueIds?.Count > 0 || request.DivisionIds?.Count > 0 || request.TeamIds?.Count > 0)
+        {
+            var leagueIds = request.LeagueIds ?? new List<Guid>();
+            var divisionIds = request.DivisionIds ?? new List<Guid>();
+            var teamIds = request.TeamIds ?? new List<Guid>();
+            var agegroupIds = request.AgegroupIds ?? new List<Guid>();
+
+            query = query.Where(x =>
+                leagueIds.Contains(x.t.LeagueId)
+                || agegroupIds.Contains(x.t.AgegroupId)
+                || (x.t.DivId != null && divisionIds.Contains(x.t.DivId.Value))
+                || teamIds.Contains(x.t.TeamId));
+        }
+
+        return await query
+            .OrderBy(x => x.r != null ? x.r.ClubName : "")
+            .ThenBy(x => x.ag.AgegroupName)
+            .ThenBy(x => x.d != null ? x.d.DivName : "")
+            .ThenBy(x => x.t.TeamName)
+            .Select(x => new TeamSearchResultDto
+            {
+                TeamId = x.t.TeamId,
+                Active = x.t.Active ?? false,
+                ClubName = x.r != null ? x.r.ClubName : null,
+                TeamName = x.t.TeamName ?? "",
+                AgegroupName = x.ag.AgegroupName ?? "",
+                DivName = x.d != null ? x.d.DivName : null,
+                LevelOfPlay = x.t.LevelOfPlay,
+                PaidTotal = x.t.PaidTotal ?? 0,
+                OwedTotal = x.t.OwedTotal ?? 0,
+                RegDate = x.t.Createdate,
+                ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
+                ClubRepEmail = x.u != null ? x.u.Email : null,
+                ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
+                TeamComments = x.t.TeamComments
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<TeamFilterOptionsDto> GetTeamSearchFilterOptionsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var baseQuery = _context.Teams.AsNoTracking().Where(t => t.JobId == jobId);
+
+        // Clubs with counts
+        var clubs = await baseQuery
+            .Where(t => t.ClubrepRegistrationid != null)
+            .Join(_context.Registrations, t => t.ClubrepRegistrationid, r => r.RegistrationId, (t, r) => r.ClubName)
+            .Where(cn => cn != null)
+            .GroupBy(cn => cn!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Level of Play with counts
+        var lops = await baseQuery
+            .Where(t => t.LevelOfPlay != null && t.LevelOfPlay != "")
+            .GroupBy(t => t.LevelOfPlay!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Age groups with counts
+        var ageGroups = await baseQuery
+            .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => ag)
+            .GroupBy(ag => new { ag.AgegroupId, ag.AgegroupName })
+            .OrderBy(g => g.Key.AgegroupName)
+            .Select(g => new FilterOption { Value = g.Key.AgegroupId.ToString(), Text = g.Key.AgegroupName ?? "", Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Active statuses with counts
+        var activeStatuses = await baseQuery
+            .GroupBy(t => t.Active ?? false)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption
+            {
+                Value = g.Key.ToString(),
+                Text = g.Key ? "Active" : "Inactive",
+                Count = g.Count(),
+                DefaultChecked = g.Key // Active pre-checked
+            })
+            .ToListAsync(ct);
+
+        // Pay statuses with counts
+        var payStatuses = await baseQuery
+            .Where(t => t.Active == true)
+            .Select(t => t.OwedTotal == 0 ? "PAID IN FULL" : t.OwedTotal > 0 ? "UNDER PAID" : "OVER PAID")
+            .GroupBy(s => s)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        return new TeamFilterOptionsDto
+        {
+            Clubs = clubs,
+            LevelOfPlays = lops,
+            AgeGroups = ageGroups,
+            ActiveStatuses = activeStatuses,
+            PayStatuses = payStatuses
+        };
+    }
+
+    public async Task<TeamDetailQueryResult?> GetTeamDetailAsync(Guid teamId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.TeamId == teamId)
+            .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
+            .GroupJoin(_context.Divisions, x => x.t.DivId, d => d.DivId, (x, divs) => new { x.t, x.ag, divs })
+            .SelectMany(x => x.divs.DefaultIfEmpty(), (x, d) => new { x.t, x.ag, d })
+            .GroupJoin(_context.Registrations, x => x.t.ClubrepRegistrationid, r => r.RegistrationId, (x, regs) => new { x.t, x.ag, x.d, regs })
+            .SelectMany(x => x.regs.DefaultIfEmpty(), (x, r) => new { x.t, x.ag, x.d, r })
+            .GroupJoin(_context.AspNetUsers, x => x.r != null ? x.r.UserId : null, u => u.Id, (x, users) => new { x.t, x.ag, x.d, x.r, users })
+            .SelectMany(x => x.users.DefaultIfEmpty(), (x, u) => new { x.t, x.ag, x.d, x.r, u })
+            .Select(x => new TeamDetailQueryResult
+            {
+                TeamId = x.t.TeamId,
+                TeamName = x.t.TeamName ?? "",
+                ClubName = x.r != null ? x.r.ClubName : null,
+                AgegroupName = x.ag.AgegroupName ?? "",
+                DivName = x.d != null ? x.d.DivName : null,
+                LevelOfPlay = x.t.LevelOfPlay,
+                Active = x.t.Active ?? false,
+                FeeBase = x.t.FeeBase ?? 0,
+                FeeProcessing = x.t.FeeProcessing ?? 0,
+                FeeTotal = x.t.FeeTotal ?? 0,
+                PaidTotal = x.t.PaidTotal ?? 0,
+                OwedTotal = x.t.OwedTotal ?? 0,
+                TeamComments = x.t.TeamComments,
+                ClubRepRegistrationId = x.t.ClubrepRegistrationid,
+                ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
+                ClubRepEmail = x.u != null ? x.u.Email : null,
+                ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
+                JobId = x.t.JobId
+            })
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<List<Teams>> GetActiveClubTeamsOrderedByOwedAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .Include(t => t.Agegroup)
+            .Include(t => t.Job)
+            .Where(t => t.JobId == jobId
+                && t.ClubrepRegistrationid == clubRepRegistrationId
+                && t.Active == true)
+            .OrderByDescending(t => t.OwedTotal)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<ClubTeamSummaryDto>> GetClubTeamSummariesAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId)
+            .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
+            .OrderBy(x => x.ag.AgegroupName)
+            .ThenBy(x => x.t.TeamName)
+            .Select(x => new ClubTeamSummaryDto
+            {
+                TeamId = x.t.TeamId,
+                TeamName = x.t.TeamName ?? "",
+                AgegroupName = x.ag.AgegroupName ?? "",
+                FeeTotal = x.t.FeeTotal ?? 0,
+                PaidTotal = x.t.PaidTotal ?? 0,
+                OwedTotal = x.t.OwedTotal ?? 0,
+                Active = x.t.Active ?? false
+            })
+            .ToListAsync(ct);
     }
 }
 

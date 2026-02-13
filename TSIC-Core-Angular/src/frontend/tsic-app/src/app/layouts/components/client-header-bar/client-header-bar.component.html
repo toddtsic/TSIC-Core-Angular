@@ -55,61 +55,69 @@
             }
 
             <!-- Mobile Buttons -->
-            <div class="btn-group d-md-none">
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="goHome()" title="Home">
-                    <i class="bi bi-house-fill"></i>
+            <div class="header-actions d-md-none">
+                <button type="button" class="header-action-btn" (click)="goHome()" aria-label="Home" title="Home">
+                    <i class="bi bi-house-door-fill"></i>
                 </button>
                 @if (user()?.regId) {
-                <button type="button" class="btn btn-sm btn-outline-secondary" [routerLink]="['role-selection']"
-                    (click)="onSwitchRole($event)" title="Switch Role">
-                    <i class="bi bi-person-fill-add"></i>
+                <button type="button" class="header-action-btn" [routerLink]="['role-selection']"
+                    (click)="onSwitchRole($event)" aria-label="Switch Role" title="Switch Role">
+                    <i class="bi bi-people-fill"></i>
                 </button>
                 }
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggleTheme()"
-                    title="Toggle Theme">
+                <button type="button" class="header-action-btn" (click)="toggleTheme()"
+                    [attr.aria-label]="themeService.theme() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
+                    [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
                     @if (themeService.theme() === 'light') {
                     <i class="bi bi-moon-stars-fill"></i>
                     } @else {
-                    <i class="bi bi-sun-fill"></i>
+                    <i class="bi bi-brightness-high-fill"></i>
                     }
                 </button>
                 @if (user()) {
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="logout()" title="Logout">
+                <button type="button" class="header-action-btn header-action-btn--danger" (click)="logout()"
+                    aria-label="Logout" title="Logout">
                     <i class="bi bi-box-arrow-right"></i>
                 </button>
                 } @else {
-                <button type="button" class="btn btn-sm btn-outline-success" (click)="login()" title="Login">
+                <button type="button" class="header-action-btn" (click)="login()"
+                    aria-label="Login" title="Login">
                     <i class="bi bi-box-arrow-in-right"></i>
                 </button>
                 }
             </div>
 
-            <!-- Desktop Buttons -->
-            <div class="btn-group d-none d-md-flex">
-                <button type="button" class="btn btn-sm btn-outline-primary" (click)="goHome()" title="Home">
-                    <i class="bi bi-house-fill"></i>
+            <!-- Desktop Buttons (icon + label) -->
+            <div class="header-actions d-none d-md-flex">
+                <button type="button" class="header-action-btn" (click)="goHome()">
+                    <i class="bi bi-house-door-fill"></i>
+                    <span>Home</span>
                 </button>
                 @if (user()?.regId) {
-                <button type="button" class="btn btn-sm btn-outline-success" [routerLink]="['role-selection']"
-                    (click)="onSwitchRole($event)" title="Switch Role">
-                    <i class="bi bi-person-fill-add"></i>
+                <button type="button" class="header-action-btn" [routerLink]="['role-selection']"
+                    (click)="onSwitchRole($event)">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Switch Role</span>
                 </button>
                 }
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggleTheme()"
-                    title="Toggle Theme">
+                <button type="button" class="header-action-btn" (click)="toggleTheme()">
                     @if (themeService.theme() === 'light') {
                     <i class="bi bi-moon-stars-fill"></i>
+                    <span>Dark</span>
                     } @else {
-                    <i class="bi bi-sun-fill"></i>
+                    <i class="bi bi-brightness-high-fill"></i>
+                    <span>Light</span>
                     }
                 </button>
                 @if (user()) {
-                <button type="button" class="btn btn-sm btn-outline-danger" (click)="logout()" title="Logout">
+                <button type="button" class="header-action-btn header-action-btn--danger" (click)="logout()">
                     <i class="bi bi-box-arrow-right"></i>
+                    <span>Logout</span>
                 </button>
                 } @else {
-                <button type="button" class="btn btn-sm btn-outline-success" (click)="login()" title="Login">
+                <button type="button" class="header-action-btn" (click)="login()">
                     <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Login</span>
                 </button>
                 }
             </div>

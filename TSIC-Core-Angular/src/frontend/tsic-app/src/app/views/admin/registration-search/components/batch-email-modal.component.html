@@ -49,11 +49,31 @@
         }
       </div>
 
+      @if (showConfirm()) {
+        <div class="confirm-send">
+          <div class="alert alert-warning mb-0 mx-3">
+            <strong>Confirm Batch Email</strong>
+            <p class="mb-1 mt-1">
+              You are about to send an email to <strong>{{ recipientCount() }}</strong> recipient(s).
+            </p>
+            <p class="mb-2">Please verify the subject and body are correct. This action cannot be undone.</p>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-warning" (click)="confirmSend()">
+                Yes, Send to {{ recipientCount() }} Recipient(s)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissConfirm()">
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" (click)="close()" [disabled]="isSending()">
           @if (sendResult()) { Close } @else { Cancel }
         </button>
-        @if (!sendResult()) {
+        @if (!sendResult() && !showConfirm()) {
           <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="isSending()">
             @if (isSending()) { <span class="spinner"></span> Sending... } @else { Send to {{ recipientCount() }} recipient(s) }
           </button>
