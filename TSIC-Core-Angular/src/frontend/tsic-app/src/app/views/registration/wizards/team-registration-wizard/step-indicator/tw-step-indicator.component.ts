@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
 
 export interface WizardStep {
@@ -11,7 +11,8 @@ export interface WizardStep {
     standalone: true,
     imports: [],
     templateUrl: './tw-step-indicator.component.html',
-    styleUrls: ['./tw-step-indicator.component.scss']
+    styleUrls: ['./tw-step-indicator.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TwStepIndicatorComponent {
     @Input() steps: WizardStep[] = [];

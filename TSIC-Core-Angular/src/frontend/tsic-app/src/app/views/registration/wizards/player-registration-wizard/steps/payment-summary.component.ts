@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { CommonModule } from '@angular/common';
 import { PaymentService } from '../services/payment.service';
@@ -87,7 +87,8 @@ import { PaymentService } from '../services/payment.service';
       </table>
       </div>
     </section>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaymentSummaryComponent {
   public readonly svc = inject(PaymentService);

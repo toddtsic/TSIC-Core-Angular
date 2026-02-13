@@ -1,4 +1,4 @@
-import { Component, inject, Input, Output, EventEmitter } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InsuranceStateService } from '../services/insurance-state.service';
 
@@ -50,7 +50,8 @@ import { InsuranceStateService } from '../services/insurance-state.service';
         </div>
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ViConfirmModalComponent {
   readonly insuranceState = inject(InsuranceStateService);

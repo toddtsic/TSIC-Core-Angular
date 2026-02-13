@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +10,8 @@ import { ToastService } from '@shared-ui/toast.service';
     standalone: true,
     imports: [FormsModule],
     templateUrl: './terms-of-service.component.html',
-    styleUrls: ['./terms-of-service.component.scss']
+    styleUrls: ['./terms-of-service.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TermsOfServiceComponent {
     private readonly authService = inject(AuthService);

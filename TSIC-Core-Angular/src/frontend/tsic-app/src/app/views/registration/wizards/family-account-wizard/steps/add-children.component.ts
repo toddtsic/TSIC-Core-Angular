@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { FormFieldDataService, SelectOption } from '@infrastructure/services/form-field-data.service';
@@ -99,7 +99,8 @@ import { FamilyAccountWizardService } from '../family-account-wizard.service';
         </div>
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FamAccountStepChildrenComponent {
   @Output() next = new EventEmitter<void>();

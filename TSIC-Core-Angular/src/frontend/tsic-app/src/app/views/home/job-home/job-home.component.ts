@@ -1,4 +1,4 @@
-import { Component, effect, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, OnInit, signal } from '@angular/core';
 
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
@@ -15,7 +15,8 @@ import { AuthService } from '@infrastructure/services/auth.service';
   standalone: true,
   imports: [RouterLink],
   templateUrl: './job-home.component.html',
-  styleUrl: './job-home.component.scss'
+  styleUrl: './job-home.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobHomeComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, signal, effect, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
@@ -60,7 +60,8 @@ import type { JobMetadataResponse } from '@core/api';
         }
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ConstraintSelectionComponent {
   @Output() next = new EventEmitter<void>();

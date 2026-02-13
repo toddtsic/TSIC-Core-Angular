@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, effect } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
@@ -10,7 +10,8 @@ import { ClubTeamManagementDto, UpdateClubTeamRequest } from '@core/api';
     standalone: true,
     imports: [FormsModule],
     templateUrl: './team-edit-modal.component.html',
-    styleUrls: ['./team-edit-modal.component.scss']
+    styleUrls: ['./team-edit-modal.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamEditModalComponent {
     private readonly fieldData = inject(FormFieldDataService);

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, signal, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -194,7 +194,8 @@ import type { BulkAddDiscountCodeRequest } from '@core/api';
                 </div>
             </div>
         </tsic-dialog>
-    `
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BulkCodeModalComponent implements OnInit {
     @Output() close = new EventEmitter<void>();

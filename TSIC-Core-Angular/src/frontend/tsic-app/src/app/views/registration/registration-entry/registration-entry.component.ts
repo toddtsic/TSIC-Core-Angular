@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 
 import { FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -51,7 +51,8 @@ import { LoginComponent } from '../../auth/login/login.component';
       </div>
     </div>
   </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegistrationEntryComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);

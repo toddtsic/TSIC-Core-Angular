@@ -450,7 +450,7 @@
 .section-label {
     color: var(--text-primary);
     font-weight: 600;
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 0.9;

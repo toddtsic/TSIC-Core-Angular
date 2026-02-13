@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, inject, signal, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
@@ -15,7 +15,8 @@ import type { ClubSearchResult } from '@core/api';
     standalone: true,
     imports: [CommonModule, ReactiveFormsModule],
     templateUrl: './add-club-form.component.html',
-    styleUrls: ['./add-club-form.component.scss']
+    styleUrls: ['./add-club-form.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AddClubFormComponent implements OnInit, OnDestroy {
     // Services

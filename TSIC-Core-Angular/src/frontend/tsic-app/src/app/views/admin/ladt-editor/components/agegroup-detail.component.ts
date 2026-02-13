@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnChanges, HostListener, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, HostListener, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -269,7 +269,8 @@ const HTML_COLORS = [
       background: var(--bs-primary-bg-subtle);
       font-weight: 600;
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AgegroupDetailComponent implements OnChanges {
   @Input({ required: true }) agegroupId!: string;

@@ -85,7 +85,7 @@
 
   .btn {
     padding: var(--space-2) var(--space-4);
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     white-space: nowrap;
   }
 }
@@ -128,7 +128,7 @@
 }
 
 .section-label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -151,7 +151,7 @@
 
   .form-control,
   .form-select {
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius);
@@ -193,7 +193,7 @@
   border-radius: 9px;
   background: var(--bs-primary);
   color: var(--bs-white, #fff);
-  font-size: 0.625rem;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -215,7 +215,7 @@
 
       .e-chips {
         max-height: 26px;
-        font-size: 0.75rem;
+        font-size: var(--font-size-xs);
       }
 
       .e-delim-values {
@@ -288,7 +288,7 @@
   background: var(--bs-primary);
   color: var(--bs-white, #fff);
   border-radius: var(--bs-border-radius);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   line-height: 1.2;
 }
@@ -329,7 +329,7 @@
   background: transparent;
   border: 1px solid var(--bs-border-color);
   border-radius: var(--bs-border-radius);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--bs-secondary-color);
   cursor: pointer;
@@ -377,14 +377,14 @@
         background: var(--bs-secondary-bg);
         color: var(--bs-body-color);
         font-weight: 600;
-        font-size: 0.875rem;
+        font-size: var(--font-size-sm);
         padding: var(--space-2) var(--space-3);
         border-bottom: 2px solid var(--bs-border-color);
       }
 
       .e-rowcell {
         padding: var(--space-2) var(--space-3);
-        font-size: 0.875rem;
+        font-size: var(--font-size-sm);
         color: var(--bs-body-color);
         border-bottom: 1px solid var(--bs-border-color-translucent);
       }
@@ -462,7 +462,7 @@
 
 // ── Badge Styling ──
 .badge {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   padding: var(--space-1) var(--space-2);
   font-weight: 600;
 }

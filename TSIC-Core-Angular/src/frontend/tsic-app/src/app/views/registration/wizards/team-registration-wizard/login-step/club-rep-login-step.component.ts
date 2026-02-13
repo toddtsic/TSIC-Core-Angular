@@ -1,4 +1,5 @@
 import {
+    ChangeDetectionStrategy,
     Component,
     EventEmitter,
     Output,
@@ -50,6 +51,7 @@ export interface LoginStepResult {
         InfoTooltipComponent,
         AutofocusDirective,
     ],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
     @Input() jobPath: string | null = null;

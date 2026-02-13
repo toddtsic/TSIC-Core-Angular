@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -12,7 +12,8 @@ import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directi
   imports: [DropDownListModule, WizardThemeDirective],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
-  styleUrls: ['./role-selection.component.scss']
+  styleUrls: ['./role-selection.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly authService = inject(AuthService);

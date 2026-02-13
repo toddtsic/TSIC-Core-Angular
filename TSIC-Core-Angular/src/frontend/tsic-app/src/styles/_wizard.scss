@@ -236,7 +236,7 @@
 
         #{$selector} form .form-control,
         #{$selector} form .form-select {
-            font-size: 0.875rem;
+            font-size: var(--font-size-sm);
             padding: 0.25rem 0.5rem;
         }
 
@@ -255,7 +255,7 @@
         #{$selector} form .form-text {
             margin-top: 0.0625rem;
             margin-bottom: 0;
-            font-size: 0.75rem;
+            font-size: var(--font-size-xs);
             line-height: 1.2;
         }
     }

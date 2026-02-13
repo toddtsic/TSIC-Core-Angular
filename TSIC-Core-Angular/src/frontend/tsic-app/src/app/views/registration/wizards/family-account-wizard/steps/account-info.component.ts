@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, effect } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, Validators, ValidationErrors, AbstractControl, FormGroup } from '@angular/forms';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
@@ -128,7 +128,8 @@ import { JobService } from '@infrastructure/services/job.service';
         </form>
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FamAccountStepAccountComponent {
   @Output() next = new EventEmitter<void>();

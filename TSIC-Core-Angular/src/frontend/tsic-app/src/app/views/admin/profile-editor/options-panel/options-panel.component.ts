@@ -1,4 +1,4 @@
-import { Component, Input, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, computed, inject, signal } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -11,7 +11,8 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
     selector: 'app-options-panel',
     standalone: true,
     imports: [FormsModule, DragDropModule, TsicDialogComponent],
-    templateUrl: './options-panel.component.html'
+    templateUrl: './options-panel.component.html',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OptionsPanelComponent {
     private readonly migrationService = inject(ProfileMigrationService);

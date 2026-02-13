@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, computed, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, computed, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { SuggestedTeamNameDto, AgeGroupDto, ClubTeamDto } from '@core/api';
@@ -15,7 +15,8 @@ export interface RegistrationData {
     standalone: true,
     imports: [CommonModule, FormsModule],
     templateUrl: './team-registration-modal.component.html',
-    styleUrls: ['./team-registration-modal.component.scss']
+    styleUrls: ['./team-registration-modal.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamRegistrationModalComponent {
     @Input() isOpen = false;

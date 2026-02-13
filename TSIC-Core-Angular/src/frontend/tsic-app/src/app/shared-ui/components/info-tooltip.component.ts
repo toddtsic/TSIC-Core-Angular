@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
 
 /**
@@ -39,7 +39,8 @@ import { Component, Input } from '@angular/core';
     .info-tooltip-btn i {
       font-size: 1.1em;
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InfoTooltipComponent {
   @Input() message: string = '';

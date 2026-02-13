@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -10,7 +10,8 @@ import { CommonModule } from '@angular/common';
   @if (!hideBack) { <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">{{ backLabel }}</button> }
       <button type="button" class="btn btn-primary" [disabled]="nextDisabled" (click)="next.emit()">{{ nextLabel }}</button>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BottomNavComponent {
     @Input() nextLabel = 'Continue';

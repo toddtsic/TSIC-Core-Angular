@@ -167,7 +167,7 @@ thead .frozen {
 .swap-btn {
     padding: 0 var(--space-1);
     line-height: 1.4;
-    font-size: 0.75rem;
+    font-size: var(--font-size-xs);
     border-radius: var(--bs-border-radius-sm);
 
     .spinner-border-sm {
@@ -188,7 +188,7 @@ thead .frozen {
     }
 
     .bi {
-        font-size: 0.625rem;
+        font-size: var(--font-size-2xs);
         opacity: 0.5;
         margin-left: 2px;
     }

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { LastLocationService } from '../../../infrastructure/services/last-location.service';
 
@@ -9,7 +9,8 @@ import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directi
   standalone: true,
   imports: [WizardThemeDirective],
   templateUrl: './tsic-landing.component.html',
-  styleUrl: './tsic-landing.component.scss'
+  styleUrl: './tsic-landing.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TsicLandingComponent implements OnInit {
   private readonly router = inject(Router);

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
@@ -11,7 +11,8 @@ import type { MenuAdminDto, MenuItemAdminDto } from '@core/api';
     standalone: true,
     imports: [CommonModule, FormsModule],
     templateUrl: './menu-admin.component.html',
-    styleUrl: './menu-admin.component.scss'
+    styleUrl: './menu-admin.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MenuAdminComponent implements OnInit {
     private readonly menuAdminService = inject(MenuAdminService);

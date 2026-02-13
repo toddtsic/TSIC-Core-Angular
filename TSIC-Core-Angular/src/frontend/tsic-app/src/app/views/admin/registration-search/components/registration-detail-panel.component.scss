@@ -790,17 +790,16 @@
   }
 }
 
-// Responsive
+// Responsive — full-width on mobile
 @media (max-width: 767.98px) {
-  .detail-panel,
-  .detail-backdrop {
-    display: none;
-  }
-}
-
-@media (max-width: 575.98px) {
   .detail-panel {
-    width: 100%;
+    width: 100vw;
+  }
+
+  .contact-row,
+  .family-contact-row,
+  .info-grid {
+    grid-template-columns: 1fr;
   }
 
   .financial-summary {

@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewChecked, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, AfterViewChecked, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkTreeModule } from '@angular/cdk/tree';
 import { Observable } from 'rxjs';
@@ -47,7 +47,8 @@ export interface LadtFlatNode {
     ConfirmDialogComponent
   ],
   templateUrl: './ladt-editor.component.html',
-  styleUrl: './ladt-editor.component.scss'
+  styleUrl: './ladt-editor.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LadtEditorComponent implements OnInit, AfterViewChecked {
   private readonly ladtService = inject(LadtService);

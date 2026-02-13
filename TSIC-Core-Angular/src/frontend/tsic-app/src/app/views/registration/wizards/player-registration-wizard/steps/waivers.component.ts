@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
@@ -83,7 +83,8 @@ import { WaiverStateService } from '../services/waiver-state.service';
 
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WaiversComponent implements OnInit, AfterViewInit {
   @Output() next = new EventEmitter<void>();

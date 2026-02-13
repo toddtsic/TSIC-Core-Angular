@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
@@ -178,7 +178,8 @@ import type { MenuItemAdminDto, CreateMenuItemRequest, UpdateMenuItemRequest } f
       max-height: 70vh;
       overflow-y: auto;
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MenuItemFormModalComponent implements OnInit {
     private readonly fb = inject(FormBuilder);

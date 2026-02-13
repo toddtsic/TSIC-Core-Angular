@@ -1,4 +1,4 @@
-import { Component, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { MenuItemDto } from '@core/api';
@@ -8,7 +8,8 @@ import type { MenuItemDto } from '@core/api';
     standalone: true,
     imports: [CommonModule, RouterLink, RouterLinkActive],
     templateUrl: './menus.component.html',
-    styleUrl: './menus.component.scss'
+    styleUrl: './menus.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MenusComponent {
     menus = input<MenuItemDto[]>([]);

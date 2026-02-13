@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, computed, inject, OnInit, signal } from '@angular/core';
 
 import { RegistrationWizardService } from '../registration-wizard.service';
 
@@ -34,7 +34,8 @@ import { RegistrationWizardService } from '../registration-wizard.service';
         }
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ConfirmationComponent implements OnInit {
   @Output() completed = new EventEmitter<void>();

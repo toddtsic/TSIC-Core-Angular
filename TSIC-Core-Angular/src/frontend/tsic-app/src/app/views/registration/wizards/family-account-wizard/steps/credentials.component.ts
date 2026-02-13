@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
@@ -57,7 +57,8 @@ import { AuthService } from '@infrastructure/services/auth.service';
         </form>
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FamAccountStepCredentialsComponent {
   @Output() next = new EventEmitter<void>();

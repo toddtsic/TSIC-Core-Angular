@@ -1,4 +1,5 @@
 import {
+    ChangeDetectionStrategy,
     Component,
     inject,
     OnInit,
@@ -66,6 +67,7 @@ enum WizardStep {
         ClubRepLoginStepComponent,
         ReviewStepComponent,
     ],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     // Expose enum to template

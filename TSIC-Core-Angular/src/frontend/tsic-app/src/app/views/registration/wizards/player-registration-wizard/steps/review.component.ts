@@ -1,5 +1,5 @@
 import { TeamService } from '../team.service';
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
 
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { JobService } from '@infrastructure/services/job.service';
@@ -8,7 +8,8 @@ import { JobService } from '@infrastructure/services/job.service';
   selector: 'app-rw-review',
   standalone: true,
   imports: [],
-  templateUrl: './review.component.html'
+  templateUrl: './review.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReviewComponent {
   @Output() next = new EventEmitter<void>();

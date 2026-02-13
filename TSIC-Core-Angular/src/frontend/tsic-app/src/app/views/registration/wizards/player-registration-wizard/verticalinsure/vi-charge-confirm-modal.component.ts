@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -75,7 +75,8 @@ import { CommonModule } from '@angular/common';
         </div>
       </div>
     </div>
-    `
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ViChargeConfirmModalComponent {
   @Input() quotedPlayers: string[] = [];

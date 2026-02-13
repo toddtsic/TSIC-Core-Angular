@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
 
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
@@ -123,7 +123,8 @@ import { JobService } from '@infrastructure/services/job.service';
         }
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FamAccountStepReviewComponent implements OnInit {
   @Output() completed = new EventEmitter<'home' | 'register'>();

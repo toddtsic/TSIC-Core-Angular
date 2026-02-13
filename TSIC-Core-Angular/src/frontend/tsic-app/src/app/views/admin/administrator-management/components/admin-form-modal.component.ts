@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AdministratorService } from '../services/administrator.service';
@@ -120,7 +120,8 @@ export interface AdminFormResult {
         .btn-close-sm {
             font-size: 0.6rem;
         }
-    `]
+    `],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminFormModalComponent implements OnInit, OnDestroy {
     @Input() mode: ModalMode = 'add';

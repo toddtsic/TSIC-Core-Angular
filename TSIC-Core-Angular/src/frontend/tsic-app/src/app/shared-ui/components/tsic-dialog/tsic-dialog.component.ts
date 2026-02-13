@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ElementRef, ViewChild, AfterViewInit, OnChanges, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, ElementRef, ViewChild, AfterViewInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FocusTrapDirective } from '../../directives/focus-trap.directive';
 
@@ -82,6 +82,7 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
                 @keyframes tsicDialogContentIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
                 `
     ],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TsicDialogComponent implements AfterViewInit, OnChanges {
     /** Controls the native <dialog> open state. Often left as true when wrapped in an @if block. */

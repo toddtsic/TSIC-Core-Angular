@@ -64,6 +64,14 @@
    --brand-border: #e7e5e4;
    /* Subtle borders */
 
+   /* Elevated surfaces (slide-in panels, overlays) */
+   --surface-elevated-bg: rgba(255, 255, 255, 0.95);
+   --surface-elevated-blur: blur(20px) saturate(180%);
+
+   /* Glass utility colors (semi-transparent white for gradients) */
+   --glass-white-10: rgba(255, 255, 255, 0.10);
+   --glass-white-5: rgba(255, 255, 255, 0.05);
+
    /* ============================================
        Typography Scale
        ============================================ */
@@ -71,6 +79,8 @@
    --font-family-mono: "Fira Code", "Consolas", "Monaco", monospace;
 
    /* Font sizes - use semantic names in components */
+   --font-size-2xs: 0.625rem;
+   /* 10px */
    --font-size-xs: 0.75rem;
    /* 12px */
    --font-size-sm: 0.875rem;
@@ -203,9 +213,11 @@
    --bg-elevated: var(--brand-surface);
    --text-primary: var(--brand-text);
    --text-secondary: var(--brand-text-muted);
+   --text-muted: var(--brand-text-muted);
    --border-color: var(--brand-border);
    --input-bg: var(--brand-surface);
    --input-border: var(--brand-border);
+   --focus-ring: rgba(var(--bs-primary-rgb), 0.25);
 
    /* ============================================
        Bootstrap CSS Variable Mapping

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DiscountCodeService } from './services/discount-code.service';
 import { ToastService } from '../../../shared-ui/toast.service';
@@ -12,7 +12,8 @@ import type { DiscountCodeDto, BatchUpdateStatusRequest } from '../../../core/ap
   standalone: true,
   imports: [CommonModule, CodeFormModalComponent, BulkCodeModalComponent, ConfirmDialogComponent],
   templateUrl: './discount-codes.component.html',
-  styleUrl: './discount-codes.component.scss'
+  styleUrl: './discount-codes.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DiscountCodesComponent implements OnInit {
   private readonly discountCodeService = inject(DiscountCodeService);

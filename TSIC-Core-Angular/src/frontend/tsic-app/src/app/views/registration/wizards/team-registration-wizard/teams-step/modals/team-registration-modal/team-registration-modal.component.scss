@@ -82,7 +82,7 @@
     }
 
     .modal-footer .btn {
-        font-size: 0.75rem;
+        font-size: var(--font-size-xs);
         padding: 0.25rem 0.5rem;
         white-space: nowrap;
     }

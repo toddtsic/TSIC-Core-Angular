@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentService } from '../services/payment.service';
@@ -60,7 +60,8 @@ import { RegistrationWizardService } from '../registration-wizard.service';
         </div>
       }
     </section>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaymentOptionSelectorComponent {
   code = '';

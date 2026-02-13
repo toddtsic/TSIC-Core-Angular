@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
@@ -281,7 +281,8 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
     .req-mini ul { margin: 0; padding-left: 1rem; }
     .req-mini li { margin: 0; }
     `
-  ]
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayerFormsComponent {
   /** Returns selected players (from familyPlayers flags) with teamIds property for pill rendering. */

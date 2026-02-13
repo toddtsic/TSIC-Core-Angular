@@ -1,4 +1,4 @@
-import { Component, inject, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TeamPaymentService } from '../services/team-payment.service';
 import {
@@ -299,6 +299,7 @@ import {
       }
     `,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamPaymentSummaryTableComponent {
   readonly svc = inject(TeamPaymentService);

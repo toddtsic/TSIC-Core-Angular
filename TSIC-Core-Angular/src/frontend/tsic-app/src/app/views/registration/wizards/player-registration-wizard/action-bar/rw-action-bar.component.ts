@@ -1,4 +1,4 @@
-import { Component, input, output, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, computed } from '@angular/core';
 
 /**
  * Player Registration Action Bar - Modern Angular 21 signals-based component.
@@ -25,7 +25,8 @@ import { Component, input, output, computed } from '@angular/core';
     styleUrls: ['./rw-action-bar.component.scss'],
     host: {
         '[style.display]': 'hasContent() ? "block" : "none"'
-    }
+    },
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RwActionBarComponent {
     // Signal inputs (Angular 21 modern pattern)

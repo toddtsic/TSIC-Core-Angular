@@ -1,4 +1,4 @@
-import { Component, Input, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ProfileMetadata, ProfileMetadataField } from '@infrastructure/view-models/profile-migration.models';
@@ -9,7 +9,8 @@ import { FormFieldDataService } from '@infrastructure/services/form-field-data.s
     standalone: true,
     imports: [CommonModule, ReactiveFormsModule],
     templateUrl: './profile-form-preview.component.html',
-    styleUrls: ['./profile-form-preview.component.scss']
+    styleUrls: ['./profile-form-preview.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfileFormPreviewComponent {
     private readonly fb = inject(FormBuilder);

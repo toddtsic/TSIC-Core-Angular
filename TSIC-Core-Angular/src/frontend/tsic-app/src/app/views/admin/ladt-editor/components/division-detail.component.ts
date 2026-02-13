@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -77,7 +77,8 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
   styles: [`
     :host { display: block; }
     .detail-header { margin-bottom: var(--space-4); }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DivisionDetailComponent implements OnChanges {
   @Input({ required: true }) divisionId!: string;

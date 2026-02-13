@@ -1,4 +1,5 @@
 import {
+    ChangeDetectionStrategy,
     Component,
     OnInit,
     computed,
@@ -77,6 +78,7 @@ interface FinancialSummary {
     ],
     templateUrl: './teams-step.component.html',
     styleUrls: ['./teams-step.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamsStepComponent implements OnInit {
     // Injected services

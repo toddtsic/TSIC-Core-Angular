@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -95,7 +95,8 @@ import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto } from '../..
       border-bottom: 1px solid var(--bs-border-color);
       padding-bottom: var(--space-1);
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LeagueDetailComponent implements OnChanges {
   @Input({ required: true }) leagueId!: string;

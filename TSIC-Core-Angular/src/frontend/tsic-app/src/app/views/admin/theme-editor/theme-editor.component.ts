@@ -1,4 +1,4 @@
-import { Component, OnInit, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal } from '@angular/core';
 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -102,7 +102,8 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
       </div>
     </div>
   </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ThemeEditorComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);

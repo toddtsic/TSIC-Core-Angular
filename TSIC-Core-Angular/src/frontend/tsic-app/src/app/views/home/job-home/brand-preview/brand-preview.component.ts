@@ -1,4 +1,4 @@
-import { Component, signal, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LocalStorageService } from '@infrastructure/services/local-storage.service';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
@@ -24,7 +24,8 @@ interface ColorPalette {
     standalone: true,
     imports: [CommonModule],
     templateUrl: './brand-preview.component.html',
-    styleUrls: ['./brand-preview.component.scss']
+    styleUrls: ['./brand-preview.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BrandPreviewComponent implements OnInit {
     private readonly localStorageService = inject(LocalStorageService);

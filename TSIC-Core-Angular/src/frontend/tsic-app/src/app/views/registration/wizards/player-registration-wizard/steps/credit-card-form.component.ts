@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
 
@@ -110,7 +110,8 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
           </div>
         </form>
       </section>
-    `
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreditCardFormComponent implements OnInit, OnChanges {
   @Input() viOnly: boolean = false;

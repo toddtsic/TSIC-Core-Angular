@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, OnInit, HostListener } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal, computed, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -18,7 +18,8 @@ type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DA
     standalone: true,
     imports: [CommonModule, FormsModule, RouterLink, DragDropModule, TsicDialogComponent, OptionsPanelComponent],
     templateUrl: './profile-editor.component.html',
-    styleUrl: './profile-editor.component.scss'
+    styleUrl: './profile-editor.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfileEditorComponent implements OnInit {
     private readonly migrationService = inject(ProfileMigrationService);

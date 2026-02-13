@@ -1,4 +1,4 @@
-import { Component, HostListener, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -18,7 +18,8 @@ import { CommonModule } from '@angular/common';
       </button>
     }
   `,
-    styleUrls: ['./scroll-to-top.component.scss']
+    styleUrls: ['./scroll-to-top.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScrollToTopComponent {
     showScrollTop = signal(false);

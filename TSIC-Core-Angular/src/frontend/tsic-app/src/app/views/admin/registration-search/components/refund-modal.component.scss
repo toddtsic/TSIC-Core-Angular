@@ -157,7 +157,7 @@
   .form-text {
     display: block;
     margin-top: var(--space-1);
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     color: var(--bs-secondary-color);
   }
 }
@@ -180,7 +180,7 @@
 
   p {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     line-height: 1.5;
   }
 }

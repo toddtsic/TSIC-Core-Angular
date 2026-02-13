@@ -1,5 +1,5 @@
 import { FormsModule } from '@angular/forms';
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
@@ -13,7 +13,8 @@ import { ProfileFormPreviewComponent } from '@shared-ui/components/profile-form-
     standalone: true,
     imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent],
     templateUrl: './profile-migration.component.html',
-    styleUrls: ['./profile-migration.component.scss']
+    styleUrls: ['./profile-migration.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfileMigrationComponent implements OnInit {
     // Reference to satisfy strict template analyzer for standalone component usage.

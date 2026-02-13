@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryComponent } from './payment-summary.component';
@@ -170,7 +170,8 @@ import type { LineItem } from '../services/payment.service';
           }
         </div>
       </div>
-    `
+    `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaymentComponent implements AfterViewInit {
   @ViewChild('viOffer') viOffer?: ElementRef<HTMLDivElement>;

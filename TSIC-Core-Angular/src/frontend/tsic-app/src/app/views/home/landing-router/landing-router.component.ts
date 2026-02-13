@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
@@ -19,7 +19,8 @@ import { JobLandingComponent } from '../job-landing/job-landing.component';
 			<app-job-landing />
 		}
 	`,
-    imports: [TsicLandingComponent, JobLandingComponent]
+    imports: [TsicLandingComponent, JobLandingComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LandingRouterComponent {
     private readonly route = inject(ActivatedRoute);

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { ThemeService } from '@infrastructure/services/theme.service';
@@ -26,7 +26,8 @@ import { ThemeService } from '@infrastructure/services/theme.service';
     standalone: true,
     imports: [CommonModule, RouterOutlet],
     templateUrl: './tsic-layout.component.html',
-    styleUrls: ['./tsic-layout.component.scss']
+    styleUrls: ['./tsic-layout.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TsicLayoutComponent {
     readonly themeService = inject(ThemeService);

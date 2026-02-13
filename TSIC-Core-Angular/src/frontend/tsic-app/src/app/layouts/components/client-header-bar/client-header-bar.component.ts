@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -11,7 +11,8 @@ import { MenuStateService } from '../../services/menu-state.service';
     selector: 'app-client-header-bar',
     standalone: true,
     templateUrl: './client-header-bar.component.html',
-    styleUrls: ['./client-header-bar.component.scss']
+    styleUrls: ['./client-header-bar.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClientHeaderBarComponent {
     private readonly auth = inject(AuthService);

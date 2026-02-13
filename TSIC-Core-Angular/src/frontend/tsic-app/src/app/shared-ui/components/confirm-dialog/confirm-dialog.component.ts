@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
 
 @Component({
@@ -30,7 +30,8 @@ import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
                 </div>
             </div>
         </tsic-dialog>
-    `
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ConfirmDialogComponent {
     @Input() title = 'Confirm';

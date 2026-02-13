@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, computed, inject, CUSTOM_ELEMENTS_SCHEMA, ViewChildren, QueryList, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, computed, inject, CUSTOM_ELEMENTS_SCHEMA, ViewChildren, QueryList, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
@@ -214,7 +214,8 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
         
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamSelectionComponent {
   // Configurable threshold: only apply tentative capacity guard when base remaining <= this value

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, inject, signal, OnInit, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal, OnInit, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -158,7 +158,8 @@ export type ModalMode = 'add' | 'edit';
             position: absolute;
             z-index: 1000;
         }
-    `]
+    `],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CodeFormModalComponent implements OnInit {
     @Input() mode: ModalMode = 'add';

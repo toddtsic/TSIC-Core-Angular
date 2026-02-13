@@ -68,7 +68,7 @@
 
     .sidebar-header {
         font-weight: 600;
-        font-size: 0.875rem;
+        font-size: var(--font-size-sm);
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--bs-secondary);
@@ -129,7 +129,7 @@
 
     &.child-item {
         margin-left: 2rem;
-        font-size: 0.875rem;
+        font-size: var(--font-size-sm);
     }
 
     &.inactive {
@@ -175,7 +175,7 @@
     }
 
     .badge {
-        font-size: 0.75rem;
+        font-size: var(--font-size-xs);
         margin-left: 0.5rem;
     }
 }

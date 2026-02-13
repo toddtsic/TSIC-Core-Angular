@@ -3,20 +3,22 @@
     padding: var(--space-4);
 }
 
-.roster-swapper-container {
+.manage-fields-container {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
     height: calc(100vh - 200px);
 }
 
-.swapper-header {
+.fields-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
-.swapper-panels {
+// ── Dual-panel grid (matching Roster Swapper) ──
+
+.field-panels {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
@@ -24,7 +26,7 @@
     min-height: 0;
 }
 
-.swapper-panel {
+.field-panel {
     display: flex;
     flex-direction: column;
     border: 1px solid var(--bs-border-color);
@@ -61,9 +63,9 @@
     position: relative;
 }
 
-// ── Roster table ──
+// ── Fields table ──
 
-.roster-table {
+.fields-table {
     white-space: nowrap;
     font-size: 0.8125rem;
 
@@ -84,15 +86,17 @@
         background: var(--bs-body-bg);
         z-index: 1;
     }
+
+    tbody tr {
+        cursor: pointer;
+    }
 }
 
 // ── Frozen columns (sticky left) ──
 
 $check-width: 32px;
-$rownum-width: 32px;
 $swap-width: 40px;
-$name-width: 160px;
-$active-width: 52px;
+$name-width: 180px;
 
 .frozen {
     position: sticky;
@@ -110,48 +114,27 @@ $active-width: 52px;
     }
 }
 
-// Frozen header cells: sticky top + sticky left
 thead .frozen {
     z-index: 3;
 }
 
-// frozen-0: Checkbox
 .frozen-0 {
     left: 0;
 }
 
-// frozen-1: Row number
 .frozen-1 {
     left: $check-width;
 }
 
-// frozen-2: Swap button
 .frozen-2 {
-    left: $check-width + $rownum-width;
-}
-
-// frozen-3: Name
-.frozen-3 {
-    left: $check-width + $rownum-width + $swap-width;
-}
-
-// frozen-4: Active (last frozen, with border)
-.frozen-4 {
-    left: $check-width + $rownum-width + $swap-width + $name-width;
+    left: $check-width + $swap-width;
     border-right: 2px solid var(--bs-border-color);
 }
 
-.col-active {
-    width: $active-width;
-    min-width: $active-width;
+.col-check {
+    width: $check-width;
+    min-width: $check-width;
     text-align: center;
-}
-
-.col-rownum {
-    width: $rownum-width;
-    min-width: $rownum-width;
-    text-align: center;
-    font-size: 0.6875rem;
 }
 
 .col-swap {
@@ -162,20 +145,15 @@ thead .frozen {
 
 .col-name {
     min-width: $name-width;
-    max-width: 220px;
+    max-width: 240px;
     font-weight: 500;
 }
 
-.col-check {
-    width: 32px;
-    min-width: 32px;
-    text-align: center;
-}
+// ── Row selected highlight ──
 
-.col-requests {
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.row-selected {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
 }
 
 // ── Swap button ──
@@ -214,32 +192,48 @@ thead .frozen {
     }
 }
 
-// ── Capacity bar ──
+// ── Detail editor ──
 
-.capacity-bar {
-    height: 6px;
-    border-radius: 3px;
-    background: var(--bs-secondary-bg);
+.field-detail {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    flex-shrink: 0;
 }
 
-.capacity-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.3s ease;
+.detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+
+.detail-body {
+    padding: var(--space-3);
+}
+
+.detail-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--bs-border-color);
 }
 
 // ── Mobile: stack panels vertically ──
 
 @media (max-width: 767.98px) {
-    .swapper-panels {
+    .field-panels {
         grid-template-columns: 1fr;
     }
 
-    .swapper-panel {
+    .field-panel {
         max-height: 50vh;
     }
 
-    .roster-swapper-container {
+    .manage-fields-container {
         height: auto;
     }
 }

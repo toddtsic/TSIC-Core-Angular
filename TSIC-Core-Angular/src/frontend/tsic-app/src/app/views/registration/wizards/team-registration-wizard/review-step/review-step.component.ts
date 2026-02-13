@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   inject,
   Input,
@@ -17,6 +18,7 @@ import { TeamRegistrationService } from '../services/team-registration.service';
   styleUrls: ['./review-step.component.scss'],
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReviewStepComponent implements OnInit {
   @Input() registrationId!: string;

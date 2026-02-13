@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { StepIndicatorComponent, type StepDefinition } from '@shared-ui/components/step-indicator/step-indicator.component';
@@ -31,7 +31,8 @@ export type StepId = 'family-check' | 'players' | 'eligibility' | 'teams' | 'for
     imports: [RouterModule, WizardThemeDirective, WizardActionBarComponent, StepIndicatorComponent, FamilyCheckStepComponent, PlayerSelectionComponent, TeamSelectionComponent, ReviewComponent, EligibilitySelectionComponent, PlayerFormsComponent, WaiversComponent, PaymentComponent, ConfirmationComponent],
     templateUrl: './player-registration-wizard.component.html',
     styleUrls: ['./player-registration-wizard.component.scss'],
-    host: {}
+    host: {},
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayerRegistrationWizardComponent implements OnInit {
     private readonly router = inject(Router);

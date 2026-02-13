@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import type { MenuItemDto } from '@core/api';
@@ -10,7 +10,8 @@ import { MenuStateService } from '../../services/menu-state.service';
     standalone: true,
     imports: [RouterLink, RouterLinkActive],
     templateUrl: './client-menu.component.html',
-    styleUrl: './client-menu.component.scss'
+    styleUrl: './client-menu.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClientMenuComponent {
     private readonly jobService = inject(JobService);

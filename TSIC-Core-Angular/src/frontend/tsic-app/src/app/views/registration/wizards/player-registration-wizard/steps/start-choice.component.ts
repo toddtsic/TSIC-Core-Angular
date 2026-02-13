@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 // StartChoice component retired. Selector retained temporarily as a no-op so any stale
 // compiled bundles referencing it don't break. All direct template references have been removed.
@@ -6,6 +6,7 @@ import { Component } from '@angular/core';
 @Component({
   selector: 'app-rw-start-choice',
   standalone: true,
-  template: ''
+  template: '',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StartChoiceComponent { }

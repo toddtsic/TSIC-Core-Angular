@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { FormsModule } from '@angular/forms';
@@ -73,7 +73,8 @@ import { environment } from '@environments/environment';
         }
       </div>
     </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayerSelectionComponent implements OnInit {
   @Output() next = new EventEmitter<void>();

@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   inject,
   signal,
@@ -303,6 +304,7 @@ declare global {
       }
     `,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamPaymentStepComponent
   implements OnInit, AfterViewInit, OnDestroy {

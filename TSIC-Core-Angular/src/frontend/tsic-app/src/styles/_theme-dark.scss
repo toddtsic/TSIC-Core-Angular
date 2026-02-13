@@ -27,12 +27,12 @@
     --neutral-900-rgb: 250, 250, 249;
 
     /* Brand Colors - Dark Mode Adjustments */
-    --brand-primary: #94a3b8;
-    /* Slate-400 - neutral, let darkness be the accent */
-    --brand-primary-dark: #64748b;
-    /* Slate-500 */
-    --brand-primary-light: #cbd5e1;
-    /* Slate-300 */
+    --brand-primary: #cbd5e1;
+    /* Slate-300 - WCAG AA compliant (~4.8:1 on dark bg) */
+    --brand-primary-dark: #94a3b8;
+    /* Slate-400 - hover/active */
+    --brand-primary-light: #e2e8f0;
+    /* Slate-200 - subtle accents */
     --brand-success: #059669;
     /* Emerald-600 - deeper green, distinct from teal */
     --brand-success-dark: #047857;
@@ -60,15 +60,15 @@
     --bs-body-bg: var(--brand-bg);
     --bs-body-color: var(--brand-text);
     --bs-primary: var(--brand-primary);
-    --bs-primary-rgb: 148, 163, 184;
-    /* Slate-400 RGB */
+    --bs-primary-rgb: 203, 213, 225;
+    /* Slate-300 RGB */
     --bs-secondary: var(--neutral-400);
     --bs-success: var(--brand-success);
     --bs-danger: var(--brand-danger);
     --bs-warning: var(--brand-warn);
     --bs-info: var(--brand-primary);
     /* Info uses neutral slate */
-    --bs-info-rgb: 148, 163, 184;
+    --bs-info-rgb: 203, 213, 225;
     --bs-info-bg-subtle: rgba(68, 64, 60, 0.25);
     /* Content area - lighter */
     --bs-info-border-subtle: rgba(87, 83, 78, 0.6);
@@ -86,6 +86,14 @@
     --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+
+    /* Elevated surfaces - dark mode */
+    --surface-elevated-bg: rgba(68, 64, 60, 0.95);
+    --surface-elevated-blur: blur(20px) saturate(180%);
+
+    /* Glass utility colors - dark mode (inverted to subtle white-on-dark) */
+    --glass-white-10: rgba(255, 255, 255, 0.06);
+    --glass-white-5: rgba(255, 255, 255, 0.03);
 
     /* Component Overrides */
     .card {
@@ -152,10 +160,9 @@
 
     /* Alert overrides - neutral subdued approach */
     .alert-primary {
-        background-color: rgba(148, 163, 184, 0.12) !important;
-        border-color: rgba(148, 163, 184, 0.25) !important;
-        color: #cbd5e1 !important;
-        /* Slate-300 */
+        background-color: rgba(var(--bs-primary-rgb), 0.12) !important;
+        border-color: rgba(var(--bs-primary-rgb), 0.25) !important;
+        color: var(--brand-primary-light) !important;
     }
 
     .alert-warning {

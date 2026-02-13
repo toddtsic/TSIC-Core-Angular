@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -14,6 +14,7 @@ import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
   standalone: true,
   imports: [ReactiveFormsModule, TextBoxModule, ButtonModule, RouterModule],
   styleUrls: ['./login.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('usernameInput', { static: false }) usernameInput!: ElementRef<HTMLInputElement>;

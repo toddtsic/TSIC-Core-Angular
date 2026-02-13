@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
@@ -112,7 +112,8 @@ import { AuthService } from '@infrastructure/services/auth.service';
         </fieldset>
     </div>
   </div>
-  `
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   private readonly state = inject(RegistrationWizardService);

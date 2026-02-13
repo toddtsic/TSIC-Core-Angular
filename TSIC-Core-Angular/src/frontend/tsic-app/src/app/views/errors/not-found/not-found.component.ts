@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 
@@ -32,7 +32,8 @@ import { AuthService } from '@infrastructure/services/auth.service';
     .display-1 {
       color: var(--bs-danger);
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NotFoundComponent {
   private readonly authService = inject(AuthService);

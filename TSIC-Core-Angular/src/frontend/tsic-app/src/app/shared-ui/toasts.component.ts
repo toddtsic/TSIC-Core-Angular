@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
 import { ToastService } from './toast.service';
 
@@ -22,7 +22,8 @@ import { ToastService } from './toast.service';
         `:host{pointer-events:none}`,
         `.tsic-toasts{pointer-events:none}`,
         `.toast{pointer-events:auto}`
-    ]
+    ],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ToastsComponent {
     private readonly toastService = inject(ToastService);

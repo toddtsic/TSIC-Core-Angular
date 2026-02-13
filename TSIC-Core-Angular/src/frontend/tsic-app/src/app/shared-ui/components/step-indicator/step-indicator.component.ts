@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
  * Shared step indicator component for multi-step wizards.
@@ -24,7 +24,8 @@ export interface StepDefinition {
     standalone: true,
     imports: [],
     templateUrl: './step-indicator.component.html',
-    styleUrls: ['./step-indicator.component.scss']
+    styleUrls: ['./step-indicator.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StepIndicatorComponent {
     /**
