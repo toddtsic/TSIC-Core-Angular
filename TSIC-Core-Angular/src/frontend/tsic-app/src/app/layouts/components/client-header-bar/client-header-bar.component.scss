@@ -300,6 +300,42 @@
     }
 }
 
+// Desktop theme toggle — standalone icon button beside user dropdown
+.theme-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-primary-rgb), 0.06);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+    color: var(--bs-body-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    .bi {
+        font-size: var(--font-size-base);
+        line-height: 1;
+    }
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        border-color: rgba(var(--bs-primary-rgb), 0.3);
+        color: var(--bs-primary);
+    }
+
+    &:active {
+        background: rgba(var(--bs-primary-rgb), 0.18);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+}
+
 // Desktop user-menu dropdown
 .user-menu-wrapper {
     position: relative;
