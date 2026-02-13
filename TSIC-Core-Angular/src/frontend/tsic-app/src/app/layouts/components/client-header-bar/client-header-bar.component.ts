@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -36,7 +36,10 @@ export class ClientHeaderBarComponent {
     // Single computed `user` derived from AuthService; derive UI values from it.
     user = computed(() => this.auth.currentUser());
 
-    // Derived values are read from `user()` directly in the template
+    // Desktop dropdown state
+    userMenuOpen = signal(false);
+    menuTop = signal(0);
+    menuRight = signal(0);
 
     private buildAssetUrl(path?: string): string {
         if (!path) return '';
@@ -64,6 +67,28 @@ export class ClientHeaderBarComponent {
     // Mobile menu toggle
     toggleOffcanvas() {
         this.menuState.toggleOffcanvas();
+    }
+
+    toggleUserMenu(event: Event) {
+        event.stopPropagation();
+        const wasOpen = this.userMenuOpen();
+        this.userMenuOpen.set(!wasOpen);
+
+        if (!wasOpen) {
+            const btn = event.currentTarget as HTMLElement;
+            const rect = btn.getBoundingClientRect();
+            this.menuTop.set(rect.bottom + 8);
+            this.menuRight.set(window.innerWidth - rect.right);
+        }
+    }
+
+    closeUserMenu() {
+        this.userMenuOpen.set(false);
+    }
+
+    switchRole() {
+        this.closeUserMenu();
+        this.router.navigate(['role-selection']);
     }
 
     goHome() {
