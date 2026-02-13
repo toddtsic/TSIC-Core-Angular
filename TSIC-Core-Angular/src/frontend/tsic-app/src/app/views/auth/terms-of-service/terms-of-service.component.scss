@@ -1,4 +1,9 @@
 .tos-content {
+    max-height: 500px;
+    overflow-y: auto;
+    border-bottom: 2px solid var(--bs-border-color);
+    padding: var(--space-8);
+
     h4 {
         color: var(--bs-primary);
         margin-bottom: var(--space-4);

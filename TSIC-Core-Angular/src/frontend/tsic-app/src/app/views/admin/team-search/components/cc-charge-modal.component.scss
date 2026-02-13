@@ -32,7 +32,7 @@
 
 .modal-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--bs-body-color);
 }
@@ -40,7 +40,7 @@
 .btn-close-modal {
   background: transparent;
   border: none;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
   cursor: pointer;
   color: var(--bs-body-color);
   opacity: 0.5;
@@ -56,7 +56,7 @@
   border-bottom: 1px solid var(--bs-border-color);
 
   h5 {
-    font-size: 0.8125rem;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-muted);
     margin: 0 0 var(--space-2);
@@ -68,7 +68,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--space-1) 0;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--bs-body-color);
 
   .amount {
@@ -108,7 +108,7 @@
   flex: 1;
 
   label {
-    font-size: 0.8125rem;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     color: var(--bs-body-color);
   }

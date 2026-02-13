@@ -121,7 +121,7 @@ Keep the two-data-model approach (dates and fields are conceptually separate) bu
 ## 4. Security
 
 - **Authorization:** `[Authorize(Policy = "AdminOnly")]`
-- **Scoping:** `leagueId`, `season`, `year` from JWT claims
+- **Scoping:** JWT `regId` → `jobId` → `leagueId` + `season` + `year` (via `ResolveLeagueSeasonAsync` pattern)
 - **Agegroup filtering:** Only active agegroups shown (excludes "Dropped", "WAITLIST")
 
 ---
@@ -464,7 +464,16 @@ Key signals:
 }
 ```
 
-### Phase 8: Testing
+### Phase 8: Frontend — Agegroup Filtering
+
+The agegroup navigator filters out non-schedulable entries on the frontend:
+- **Excluded:** "Dropped Teams" agegroup (exact match, case-insensitive)
+- **Excluded:** Any agegroup starting with "WAITLIST" (e.g., WAITLIST, WAITLISTxxx)
+- **Sorted:** Remaining agegroups sorted alphabetically by name
+
+This is identical to the filtering in Pairings (009-2, Phase 9) and applies to all scheduling pages that use the shared agegroup navigator.
+
+### Phase 9: Testing
 
 - Verify date cloning: +1 day, +1 week, +1 round all produce correct values
 - Verify DOW cycling: Mon→Tue→Wed→Thu→Fri→Sat→Sun→Mon

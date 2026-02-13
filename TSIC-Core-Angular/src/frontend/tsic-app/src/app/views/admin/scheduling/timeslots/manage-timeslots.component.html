@@ -1,0 +1,562 @@
+<div class="manage-timeslots-container">
+
+    <!-- ── Header ── -->
+    <div class="timeslots-header">
+        <h5 class="mb-0">Manage Timeslots</h5>
+    </div>
+
+    <!-- ── Main layout: Navigator + Content ── -->
+    <div class="timeslots-layout">
+
+        <!-- ── Agegroup Navigator (left) ── -->
+        <div class="nav-panel">
+            <div class="panel-header">
+                <span class="fw-semibold">Age Groups</span>
+            </div>
+            <div class="panel-body">
+                @if (isNavLoading()) {
+                    <div class="text-center p-3">
+                        <div class="spinner-border spinner-border-sm text-secondary"></div>
+                    </div>
+                } @else {
+                    <div class="nav-list">
+                        @for (ag of agegroups(); track ag.agegroupId) {
+                            <div class="nav-item"
+                                 [class.active]="selectedAgegroup()?.agegroupId === ag.agegroupId"
+                                 (click)="selectAgegroup(ag)">
+                                @if (ag.color) {
+                                    <span class="color-dot" [style.background]="ag.color"></span>
+                                }
+                                <span class="ag-name">{{ ag.agegroupName }}</span>
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                                    {{ ag.divisions.length }}
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- ── Content Panel (right) ── -->
+        <div class="content-panel">
+            @if (!selectedAgegroup()) {
+                <div class="empty-state">
+                    <i class="bi bi-calendar3 text-secondary icon-lg"></i>
+                    <p class="text-secondary mt-2 mb-0">Select an age group to configure timeslots</p>
+                </div>
+            } @else {
+                <!-- ── Clone Toolbar ── -->
+                <div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <span class="fw-semibold">{{ selectedAgegroup()!.agegroupName }}</span>
+                        <span class="badge bg-primary-subtle text-primary-emphasis ms-2">
+                            {{ dates().length }} dates
+                        </span>
+                        <span class="badge bg-info-subtle text-info-emphasis ms-1">
+                            {{ fields().length }} fields
+                        </span>
+                    </div>
+                    <div class="d-flex gap-1 align-items-center flex-wrap">
+                        <span class="small text-secondary me-1">Clone to:</span>
+                        <select class="form-select form-select-sm clone-target-select"
+                                [ngModel]="cloneTargetAgId()"
+                                (ngModelChange)="cloneTargetAgId.set($event)">
+                            <option value="">Select target...</option>
+                            @for (ag of cloneableAgegroups(); track ag.agegroupId) {
+                                <option [value]="ag.agegroupId">{{ ag.agegroupName }}</option>
+                            }
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary"
+                                (click)="cloneDatesToAgegroup()"
+                                [disabled]="!cloneTargetAgId() || isCloningDates()">
+                            @if (isCloningDates()) {
+                                <span class="spinner-border spinner-border-sm"></span>
+                            }
+                            Dates
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary"
+                                (click)="cloneFieldsToAgegroup()"
+                                [disabled]="!cloneTargetAgId() || isCloningFields()">
+                            @if (isCloningFields()) {
+                                <span class="spinner-border spinner-border-sm"></span>
+                            }
+                            Fields
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ── Tab Bar ── -->
+                <div class="tab-bar">
+                    <button class="tab-btn" [class.active]="activeTab() === 'dates'"
+                            (click)="setTab('dates')">
+                        <i class="bi bi-calendar-event me-1"></i> Dates
+                    </button>
+                    <button class="tab-btn" [class.active]="activeTab() === 'fields'"
+                            (click)="setTab('fields')">
+                        <i class="bi bi-geo-alt me-1"></i> Fields
+                    </button>
+                    <button class="tab-btn" [class.active]="activeTab() === 'capacity'"
+                            (click)="setTab('capacity')">
+                        <i class="bi bi-bar-chart me-1"></i> Capacity
+                    </button>
+                </div>
+
+                <!-- ── Loading ── -->
+                @if (isLoading()) {
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                } @else {
+
+                    <!-- ════════════════════════════════════════════════════ -->
+                    <!-- ── DATES TAB ──                                     -->
+                    <!-- ════════════════════════════════════════════════════ -->
+                    @if (activeTab() === 'dates') {
+                        <div class="tab-content">
+                            <!-- Add Date form -->
+                            <div class="add-form">
+                                <input type="date" class="form-control form-control-sm"
+                                       [ngModel]="newDateValue()"
+                                       (ngModelChange)="newDateValue.set($event)">
+                                <label class="form-label mb-0 small text-nowrap">Rnd:</label>
+                                <input type="number" class="form-control form-control-sm rnd-input"
+                                       [ngModel]="newDateRnd()"
+                                       (ngModelChange)="newDateRnd.set($event)"
+                                       min="1" max="99">
+                                <button class="btn btn-sm btn-primary"
+                                        (click)="addDate()"
+                                        [disabled]="isAddingDate() || !newDateValue()">
+                                    @if (isAddingDate()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-plus-circle"></i>
+                                    }
+                                    Add
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger ms-auto"
+                                        (click)="confirmDeleteAllDates()"
+                                        [disabled]="isDeletingAllDates() || dates().length === 0">
+                                    @if (isDeletingAllDates()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-trash"></i>
+                                    }
+                                    Delete All
+                                </button>
+                            </div>
+
+                            <!-- Delete All Dates Confirmation -->
+                            @if (showDeleteDatesConfirm()) {
+                                <div class="alert alert-danger m-2 d-flex align-items-center justify-content-between">
+                                    <span>
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                        Delete <strong>all {{ dates().length }}</strong> dates for this agegroup?
+                                    </span>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-danger" (click)="deleteAllDates()">Yes, Delete</button>
+                                        <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteAllDates()">Cancel</button>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Dates Table -->
+                            @if (dates().length > 0) {
+                                <div class="table-scroll-wrapper">
+                                    <table class="table table-sm table-hover timeslot-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="col-date">Date</th>
+                                                <th class="col-rnd">Rnd</th>
+                                                <th class="col-dow">Day</th>
+                                                <th class="col-div">Division</th>
+                                                <th class="col-actions">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (d of dates(); track d.ai) {
+                                                <tr (dblclick)="startEditDate(d.ai)">
+                                                    @if (editingDateAi() === d.ai) {
+                                                        <!-- Edit mode -->
+                                                        <td class="col-date">
+                                                            <input type="date" class="form-control form-control-sm"
+                                                                   [value]="toDateInput(d.gDate)"
+                                                                   (input)="d.gDate = $any($event.target).value">
+                                                        </td>
+                                                        <td class="col-rnd">
+                                                            <input type="number" class="form-control form-control-sm rnd-input"
+                                                                   [(ngModel)]="d.rnd" min="1" max="99">
+                                                        </td>
+                                                        <td class="col-dow">—</td>
+                                                        <td class="col-div">{{ d.divName ?? 'All' }}</td>
+                                                        <td class="col-actions">
+                                                            <button class="btn btn-sm btn-link text-success p-0 me-1"
+                                                                    (click)="saveEditDate(d); $event.stopPropagation()"
+                                                                    title="Save">
+                                                                <i class="bi bi-check-lg"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-link text-secondary p-0"
+                                                                    (click)="cancelEditDate(); $event.stopPropagation()"
+                                                                    title="Cancel">
+                                                                <i class="bi bi-x-lg"></i>
+                                                            </button>
+                                                        </td>
+                                                    } @else {
+                                                        <!-- Display mode -->
+                                                        <td class="col-date">{{ formatDate(d.gDate) }}</td>
+                                                        <td class="col-rnd">{{ d.rnd }}</td>
+                                                        <td class="col-dow">{{ dayOfWeek(d.gDate) }}</td>
+                                                        <td class="col-div">
+                                                            @if (d.divName) {
+                                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                                    {{ d.divName }}
+                                                                </span>
+                                                            } @else {
+                                                                <span class="text-secondary">All</span>
+                                                            }
+                                                        </td>
+                                                        <td class="col-actions">
+                                                            <button class="btn btn-sm btn-link p-0 me-1"
+                                                                    (click)="cloneDateDay(d.ai); $event.stopPropagation()"
+                                                                    title="Clone +1 Day">
+                                                                <span class="clone-badge">+D</span>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-link p-0 me-1"
+                                                                    (click)="cloneDateWeek(d.ai); $event.stopPropagation()"
+                                                                    title="Clone +1 Week">
+                                                                <span class="clone-badge">+W</span>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-link p-0 me-1"
+                                                                    (click)="cloneDateRound(d.ai); $event.stopPropagation()"
+                                                                    title="Clone Same Date, Rnd+1">
+                                                                <span class="clone-badge">+R</span>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-link text-danger p-0"
+                                                                    (click)="deleteDate(d.ai); $event.stopPropagation()"
+                                                                    title="Delete">
+                                                                <i class="bi bi-x-lg"></i>
+                                                            </button>
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            } @else {
+                                <div class="empty-state-sm">
+                                    <p class="text-secondary mb-0">No dates configured. Add a date or clone from another agegroup.</p>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- ════════════════════════════════════════════════════ -->
+                    <!-- ── FIELDS TAB ──                                    -->
+                    <!-- ════════════════════════════════════════════════════ -->
+                    @if (activeTab() === 'fields') {
+                        <div class="tab-content">
+                            <!-- Add Field Timeslot form -->
+                            <div class="add-form">
+                                <select class="form-select form-select-sm dow-select"
+                                        [ngModel]="newFieldDow()"
+                                        (ngModelChange)="newFieldDow.set($event)">
+                                    @for (day of daysOfWeek; track day) {
+                                        <option [value]="day">{{ day }}</option>
+                                    }
+                                </select>
+                                <input type="time" class="form-control form-control-sm time-input"
+                                       [ngModel]="newFieldStartTime()"
+                                       (ngModelChange)="newFieldStartTime.set($event)">
+                                <label class="form-label mb-0 small text-nowrap">Int:</label>
+                                <input type="number" class="form-control form-control-sm num-input"
+                                       [ngModel]="newFieldInterval()"
+                                       (ngModelChange)="newFieldInterval.set($event)"
+                                       min="1" max="999">
+                                <label class="form-label mb-0 small text-nowrap">Max:</label>
+                                <input type="number" class="form-control form-control-sm num-input"
+                                       [ngModel]="newFieldMaxGames()"
+                                       (ngModelChange)="newFieldMaxGames.set($event)"
+                                       min="1" max="99">
+                                <button class="btn btn-sm btn-primary"
+                                        (click)="addFieldTimeslot()"
+                                        [disabled]="isAddingField()">
+                                    @if (isAddingField()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-plus-circle"></i>
+                                    }
+                                    Add All
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger ms-auto"
+                                        (click)="confirmDeleteAllFields()"
+                                        [disabled]="isDeletingAllFields() || fields().length === 0">
+                                    @if (isDeletingAllFields()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-trash"></i>
+                                    }
+                                    Delete All
+                                </button>
+                            </div>
+
+                            <!-- Delete All Fields Confirmation -->
+                            @if (showDeleteFieldsConfirm()) {
+                                <div class="alert alert-danger m-2 d-flex align-items-center justify-content-between">
+                                    <span>
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                        Delete <strong>all {{ fields().length }}</strong> field timeslots for this agegroup?
+                                    </span>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-danger" (click)="deleteAllFields()">Yes, Delete</button>
+                                        <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteAllFields()">Cancel</button>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Clone Controls -->
+                            @if (uniqueFields().length > 0 || divisions().length > 0) {
+                                <div class="clone-controls">
+                                    <!-- Clone by Field -->
+                                    @if (uniqueFields().length >= 2) {
+                                        <div class="clone-row">
+                                            <span class="clone-label">By Field:</span>
+                                            <select class="form-select form-select-sm"
+                                                    [ngModel]="cloneSourceFieldId()"
+                                                    (ngModelChange)="cloneSourceFieldId.set($event)">
+                                                <option value="">Source...</option>
+                                                @for (f of uniqueFields(); track f.id) {
+                                                    <option [value]="f.id">{{ f.name }}</option>
+                                                }
+                                            </select>
+                                            <i class="bi bi-arrow-right text-secondary"></i>
+                                            <select class="form-select form-select-sm"
+                                                    [ngModel]="cloneTargetFieldId()"
+                                                    (ngModelChange)="cloneTargetFieldId.set($event)">
+                                                <option value="">Target...</option>
+                                                @for (f of uniqueFields(); track f.id) {
+                                                    <option [value]="f.id">{{ f.name }}</option>
+                                                }
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    (click)="cloneByField()"
+                                                    [disabled]="!cloneSourceFieldId() || !cloneTargetFieldId() || isCloningByField()">
+                                                @if (isCloningByField()) {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                } @else { Go }
+                                            </button>
+                                        </div>
+                                    }
+                                    <!-- Clone by Division -->
+                                    @if (divisions().length >= 2) {
+                                        <div class="clone-row">
+                                            <span class="clone-label">By Div:</span>
+                                            <select class="form-select form-select-sm"
+                                                    [ngModel]="cloneSourceDivId()"
+                                                    (ngModelChange)="cloneSourceDivId.set($event)">
+                                                <option value="">Source...</option>
+                                                @for (d of divisions(); track d.divId) {
+                                                    <option [value]="d.divId">{{ d.divName }}</option>
+                                                }
+                                            </select>
+                                            <i class="bi bi-arrow-right text-secondary"></i>
+                                            <select class="form-select form-select-sm"
+                                                    [ngModel]="cloneTargetDivId()"
+                                                    (ngModelChange)="cloneTargetDivId.set($event)">
+                                                <option value="">Target...</option>
+                                                @for (d of divisions(); track d.divId) {
+                                                    <option [value]="d.divId">{{ d.divName }}</option>
+                                                }
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    (click)="cloneByDivision()"
+                                                    [disabled]="!cloneSourceDivId() || !cloneTargetDivId() || isCloningByDiv()">
+                                                @if (isCloningByDiv()) {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                } @else { Go }
+                                            </button>
+                                        </div>
+                                    }
+                                    <!-- Clone by DOW -->
+                                    <div class="clone-row">
+                                        <span class="clone-label">By DOW:</span>
+                                        <select class="form-select form-select-sm"
+                                                [ngModel]="cloneSourceDow()"
+                                                (ngModelChange)="cloneSourceDow.set($event)">
+                                            <option value="">Source...</option>
+                                            @for (day of daysOfWeek; track day) {
+                                                <option [value]="day">{{ day }}</option>
+                                            }
+                                        </select>
+                                        <i class="bi bi-arrow-right text-secondary"></i>
+                                        <select class="form-select form-select-sm"
+                                                [ngModel]="cloneTargetDow()"
+                                                (ngModelChange)="cloneTargetDow.set($event)">
+                                            <option value="">Target...</option>
+                                            @for (day of daysOfWeek; track day) {
+                                                <option [value]="day">{{ day }}</option>
+                                            }
+                                        </select>
+                                        <input type="time" class="form-control form-control-sm time-input"
+                                               [ngModel]="cloneDowStartTime()"
+                                               (ngModelChange)="cloneDowStartTime.set($event)"
+                                               placeholder="Start time (optional)">
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                (click)="cloneByDow()"
+                                                [disabled]="!cloneSourceDow() || !cloneTargetDow() || isCloningByDow()">
+                                            @if (isCloningByDow()) {
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            } @else { Go }
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Fields Table -->
+                            @if (fields().length > 0) {
+                                <div class="table-scroll-wrapper">
+                                    <table class="table table-sm table-hover timeslot-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="col-field">Field</th>
+                                                <th class="col-dow">DOW</th>
+                                                <th class="col-time">Start</th>
+                                                <th class="col-num">Interval</th>
+                                                <th class="col-num">Max</th>
+                                                <th class="col-div">Division</th>
+                                                <th class="col-actions">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (f of fields(); track f.ai) {
+                                                <tr (dblclick)="startEditField(f.ai)">
+                                                    @if (editingFieldAi() === f.ai) {
+                                                        <!-- Edit mode -->
+                                                        <td class="col-field">{{ f.fieldName }}</td>
+                                                        <td class="col-dow">
+                                                            <select class="form-select form-select-sm"
+                                                                    [(ngModel)]="f.dow">
+                                                                @for (day of daysOfWeek; track day) {
+                                                                    <option [value]="day">{{ day }}</option>
+                                                                }
+                                                            </select>
+                                                        </td>
+                                                        <td class="col-time">
+                                                            <input type="time" class="form-control form-control-sm"
+                                                                   [(ngModel)]="f.startTime">
+                                                        </td>
+                                                        <td class="col-num">
+                                                            <input type="number" class="form-control form-control-sm num-input"
+                                                                   [(ngModel)]="f.gamestartInterval" min="1">
+                                                        </td>
+                                                        <td class="col-num">
+                                                            <input type="number" class="form-control form-control-sm num-input"
+                                                                   [(ngModel)]="f.maxGamesPerField" min="1">
+                                                        </td>
+                                                        <td class="col-div">{{ f.divName ?? 'All' }}</td>
+                                                        <td class="col-actions">
+                                                            <button class="btn btn-sm btn-link text-success p-0 me-1"
+                                                                    (click)="saveEditField(f); $event.stopPropagation()"
+                                                                    title="Save">
+                                                                <i class="bi bi-check-lg"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-link text-secondary p-0"
+                                                                    (click)="cancelEditField(); $event.stopPropagation()"
+                                                                    title="Cancel">
+                                                                <i class="bi bi-x-lg"></i>
+                                                            </button>
+                                                        </td>
+                                                    } @else {
+                                                        <!-- Display mode -->
+                                                        <td class="col-field">{{ f.fieldName }}</td>
+                                                        <td class="col-dow">{{ dowShort(f.dow) }}</td>
+                                                        <td class="col-time">{{ f.startTime }}</td>
+                                                        <td class="col-num">{{ f.gamestartInterval }}m</td>
+                                                        <td class="col-num">{{ f.maxGamesPerField }}</td>
+                                                        <td class="col-div">
+                                                            @if (f.divName) {
+                                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                                    {{ f.divName }}
+                                                                </span>
+                                                            } @else {
+                                                                <span class="text-secondary">All</span>
+                                                            }
+                                                        </td>
+                                                        <td class="col-actions">
+                                                            <button class="btn btn-sm btn-link p-0 me-1"
+                                                                    (click)="cloneFieldDow(f.ai); $event.stopPropagation()"
+                                                                    title="Clone to next DOW">
+                                                                <span class="clone-badge">+D</span>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-link text-danger p-0"
+                                                                    (click)="deleteFieldTimeslot(f.ai); $event.stopPropagation()"
+                                                                    title="Delete">
+                                                                <i class="bi bi-x-lg"></i>
+                                                            </button>
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            } @else {
+                                <div class="empty-state-sm">
+                                    <p class="text-secondary mb-0">No field timeslots configured. Click <strong>Add All</strong> to create for all fields &times; divisions.</p>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- ════════════════════════════════════════════════════ -->
+                    <!-- ── CAPACITY TAB ──                                  -->
+                    <!-- ════════════════════════════════════════════════════ -->
+                    @if (activeTab() === 'capacity') {
+                        <div class="tab-content">
+                            @if (capacityPreview().length > 0) {
+                                <div class="table-scroll-wrapper">
+                                    <table class="table table-sm timeslot-table mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Day</th>
+                                                <th class="text-center">Fields</th>
+                                                <th class="text-center">Game Slots</th>
+                                                <th class="text-center">Games Needed</th>
+                                                <th class="text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (c of capacityPreview(); track c.dow) {
+                                                <tr>
+                                                    <td class="fw-medium">{{ c.dow }}</td>
+                                                    <td class="text-center">{{ c.fieldCount }}</td>
+                                                    <td class="text-center">{{ c.totalGameSlots }}</td>
+                                                    <td class="text-center">{{ c.gamesNeeded }}</td>
+                                                    <td class="text-center">
+                                                        @if (c.isSufficient) {
+                                                            <span class="badge bg-success-subtle text-success-emphasis">
+                                                                <i class="bi bi-check-circle me-1"></i> OK
+                                                            </span>
+                                                        } @else {
+                                                            <span class="badge bg-danger-subtle text-danger-emphasis">
+                                                                <i class="bi bi-exclamation-triangle me-1"></i> Short
+                                                            </span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            } @else {
+                                <div class="empty-state-sm">
+                                    <p class="text-secondary mb-0">Configure field timeslots to see capacity preview.</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </div>
+</div>

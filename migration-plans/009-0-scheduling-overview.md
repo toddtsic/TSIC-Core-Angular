@@ -137,7 +137,7 @@ Phases 1 and 2 can be built in parallel. Phase 3 can start once the `IFieldRepos
 
 ## Security Model
 
-All scheduling tools are **Admin-only** (`[Authorize(Policy = "AdminOnly")]`). The `jobId`, `leagueId`, `season`, and `year` are always derived from the authenticated user's JWT claims — never passed as route parameters.
+All scheduling tools are **Admin-only** (`[Authorize(Policy = "AdminOnly")]`). The JWT contains `regId`; from that, `jobId` is resolved via `GetJobIdFromRegistrationAsync`, then `leagueId` via `IJobLeagueRepository.GetPrimaryLeagueForJobAsync`, and `season`/`year` via `IJobRepository.GetJobSeasonAsync` — never passed as route parameters.
 
 **Exception:** View Schedule (009-5) has a public-access mode controlled by `Job.BScheduleAllowPublicAccess`. When enabled, unauthenticated users can view schedules and standings (but not edit scores or access contacts).
 

@@ -131,14 +131,14 @@ body.e-dark-mode .action-bar {
             background-color: var(--bs-secondary-bg);
             border-color: var(--bs-border-color);
             transform: translateY(-1px);
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            box-shadow: var(--shadow-sm);
         }
 
         &:not(:disabled):active,
         &:not(:disabled):focus {
             background-color: var(--bs-secondary-bg);
             border-color: var(--bs-border-color);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) inset;
+            box-shadow: var(--shadow-xs) inset;
         }
     }
 

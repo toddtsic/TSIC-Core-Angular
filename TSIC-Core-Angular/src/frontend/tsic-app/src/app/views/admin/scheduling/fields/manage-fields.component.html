@@ -1,0 +1,319 @@
+<div class="manage-fields-container">
+
+  <!-- Header -->
+  <div class="fields-header">
+    <h5 class="mb-0">Manage Fields</h5>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-outline-secondary" (click)="loadData()"
+              title="Refresh">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+      <button class="btn btn-sm btn-primary" (click)="startCreate()">
+        <i class="bi bi-plus-lg me-1"></i>New Field
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  } @else {
+
+    <div class="field-panels">
+
+      <!-- ─── AVAILABLE FIELDS PANEL ─── -->
+      <div class="field-panel">
+        <div class="panel-header">
+          <label class="form-label fw-semibold text-uppercase small mb-1">Available Fields</label>
+          <small class="text-body-secondary d-block mb-1">Not assigned to this season</small>
+
+          @if (availableFields().length > 0) {
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Filter fields..."
+                   [ngModel]="availableFilter()"
+                   (ngModelChange)="availableFilter.set($event)" />
+            <small class="text-body-secondary">{{ sortedFilteredAvailable().length }} field(s)</small>
+          }
+        </div>
+
+        <div class="panel-body">
+          @if (sortedFilteredAvailable().length > 0) {
+            <div class="table-scroll-wrapper">
+              <table class="table table-sm table-hover mb-0 fields-table">
+                <thead>
+                  <tr>
+                    <th class="col-check frozen frozen-0">
+                      <input type="checkbox" class="form-check-input"
+                             [checked]="availableSelected().size > 0 && availableSelected().size === sortedFilteredAvailable().length"
+                             (change)="availableSelected().size === sortedFilteredAvailable().length ? deselectAllAvailable() : selectAllAvailable()" />
+                    </th>
+                    <th class="col-swap frozen frozen-1"></th>
+                    <th class="col-name frozen frozen-2 sortable" (click)="onSortAvailable('fName')">
+                      Field Name <i class="bi" [ngClass]="sortIconAvailable('fName')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSortAvailable('city')">
+                      City <i class="bi" [ngClass]="sortIconAvailable('city')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSortAvailable('state')">
+                      State <i class="bi" [ngClass]="sortIconAvailable('state')"></i>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (field of sortedFilteredAvailable(); track field.fieldId) {
+                    <tr [class.table-active]="availableSelected().has(field.fieldId)"
+                        [class.row-selected]="selectedField()?.fieldId === field.fieldId"
+                        (click)="selectFieldForEdit(field)">
+                      <td class="col-check frozen frozen-0" (click)="$event.stopPropagation()">
+                        <input type="checkbox" class="form-check-input"
+                               [checked]="availableSelected().has(field.fieldId)"
+                               (change)="toggleAvailableSelect(field.fieldId)" />
+                      </td>
+                      <td class="col-swap frozen frozen-1" (click)="$event.stopPropagation()">
+                        <button class="btn btn-sm btn-outline-primary swap-btn"
+                                [disabled]="swappingId() === field.fieldId"
+                                (click)="assignField(field)"
+                                title="Assign to season">
+                          @if (swappingId() === field.fieldId) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-arrow-right"></i>
+                          }
+                        </button>
+                      </td>
+                      <td class="col-name frozen frozen-2 text-nowrap">{{ field.fName }}</td>
+                      <td class="text-nowrap">{{ field.city }}</td>
+                      <td class="text-nowrap">{{ field.state }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else if (availableFields().length === 0) {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+              No available fields
+            </div>
+          } @else {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-search fs-3 d-block mb-1"></i>
+              No matches
+            </div>
+          }
+        </div>
+
+        <div class="panel-footer">
+          <button class="btn btn-primary btn-sm"
+                  [disabled]="availableSelected().size === 0 || isBatchAssigning()"
+                  (click)="assignSelected()">
+            @if (isBatchAssigning()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            Assign Selected <i class="bi bi-arrow-right"></i> ({{ availableSelected().size }})
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── ASSIGNED FIELDS PANEL ─── -->
+      <div class="field-panel">
+        <div class="panel-header">
+          <label class="form-label fw-semibold text-uppercase small mb-1">League-Season Fields</label>
+          <small class="text-body-secondary d-block mb-1">Active for scheduling</small>
+
+          @if (assignedFields().length > 0) {
+            <input type="text" class="form-control form-control-sm"
+                   placeholder="Filter fields..."
+                   [ngModel]="assignedFilter()"
+                   (ngModelChange)="assignedFilter.set($event)" />
+            <small class="text-body-secondary">{{ sortedFilteredAssigned().length }} field(s)</small>
+          }
+        </div>
+
+        <div class="panel-body">
+          @if (sortedFilteredAssigned().length > 0) {
+            <div class="table-scroll-wrapper">
+              <table class="table table-sm table-hover mb-0 fields-table">
+                <thead>
+                  <tr>
+                    <th class="col-check frozen frozen-0">
+                      <input type="checkbox" class="form-check-input"
+                             [checked]="assignedSelected().size > 0 && assignedSelected().size === sortedFilteredAssigned().length"
+                             (change)="assignedSelected().size === sortedFilteredAssigned().length ? deselectAllAssigned() : selectAllAssigned()" />
+                    </th>
+                    <th class="col-swap frozen frozen-1"></th>
+                    <th class="col-name frozen frozen-2 sortable" (click)="onSortAssigned('fName')">
+                      Field Name <i class="bi" [ngClass]="sortIconAssigned('fName')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSortAssigned('city')">
+                      City <i class="bi" [ngClass]="sortIconAssigned('city')"></i>
+                    </th>
+                    <th class="sortable" (click)="onSortAssigned('state')">
+                      State <i class="bi" [ngClass]="sortIconAssigned('state')"></i>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (field of sortedFilteredAssigned(); track field.fieldId) {
+                    <tr [class.table-active]="assignedSelected().has(field.fieldId)"
+                        [class.row-selected]="selectedField()?.fieldId === field.fieldId"
+                        (click)="selectAssignedFieldForEdit(field)">
+                      <td class="col-check frozen frozen-0" (click)="$event.stopPropagation()">
+                        <input type="checkbox" class="form-check-input"
+                               [checked]="assignedSelected().has(field.fieldId)"
+                               (change)="toggleAssignedSelect(field.fieldId)" />
+                      </td>
+                      <td class="col-swap frozen frozen-1" (click)="$event.stopPropagation()">
+                        <button class="btn btn-sm btn-outline-danger swap-btn"
+                                [disabled]="swappingId() === field.fieldId"
+                                (click)="removeField(field)"
+                                title="Remove from season">
+                          @if (swappingId() === field.fieldId) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                          } @else {
+                            <i class="bi bi-arrow-left"></i>
+                          }
+                        </button>
+                      </td>
+                      <td class="col-name frozen frozen-2 text-nowrap">{{ field.fName }}</td>
+                      <td class="text-nowrap">{{ field.city }}</td>
+                      <td class="text-nowrap">{{ field.state }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else if (assignedFields().length === 0) {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+              No fields assigned
+            </div>
+          } @else {
+            <div class="text-center text-body-secondary py-4">
+              <i class="bi bi-search fs-3 d-block mb-1"></i>
+              No matches
+            </div>
+          }
+        </div>
+
+        <div class="panel-footer">
+          <button class="btn btn-outline-danger btn-sm"
+                  [disabled]="assignedSelected().size === 0 || isBatchRemoving()"
+                  (click)="removeSelected()">
+            @if (isBatchRemoving()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-arrow-left"></i> Remove Selected ({{ assignedSelected().size }})
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ─── DETAIL EDITOR ─── -->
+    @if (selectedField() || isCreating()) {
+      <div class="field-detail">
+        <div class="detail-header">
+          <h6 class="mb-0">
+            @if (isCreating()) {
+              New Field
+            } @else {
+              Edit Field
+            }
+          </h6>
+          <button class="btn btn-sm btn-outline-secondary" (click)="cancelEdit()"
+                  title="Close">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="detail-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Name *</label>
+              <input type="text" class="form-control form-control-sm"
+                     [ngModel]="editName()"
+                     (ngModelChange)="editName.set($event)"
+                     placeholder="Field name" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Address</label>
+              <input type="text" class="form-control form-control-sm"
+                     [ngModel]="editAddress()"
+                     (ngModelChange)="editAddress.set($event)"
+                     placeholder="Street address" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">City</label>
+              <input type="text" class="form-control form-control-sm"
+                     [ngModel]="editCity()"
+                     (ngModelChange)="editCity.set($event)" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small fw-semibold">State</label>
+              <input type="text" class="form-control form-control-sm"
+                     [ngModel]="editState()"
+                     (ngModelChange)="editState.set($event)"
+                     maxlength="2" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small fw-semibold">ZIP</label>
+              <input type="text" class="form-control form-control-sm"
+                     [ngModel]="editZip()"
+                     (ngModelChange)="editZip.set($event)"
+                     maxlength="10" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small fw-semibold">Latitude</label>
+              <input type="number" class="form-control form-control-sm"
+                     [ngModel]="editLatitude()"
+                     (ngModelChange)="editLatitude.set($event)"
+                     step="0.0001" />
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small fw-semibold">Longitude</label>
+              <input type="number" class="form-control form-control-sm"
+                     [ngModel]="editLongitude()"
+                     (ngModelChange)="editLongitude.set($event)"
+                     step="0.0001" />
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Directions</label>
+              <textarea class="form-control form-control-sm" rows="2"
+                        [ngModel]="editDirections()"
+                        (ngModelChange)="editDirections.set($event)"
+                        placeholder="Driving directions..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="detail-footer">
+          @if (!isCreating()) {
+            <button class="btn btn-sm btn-outline-danger me-auto"
+                    [disabled]="isDeleting()"
+                    (click)="deleteField()">
+              @if (isDeleting()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Delete
+            </button>
+          }
+          <button class="btn btn-sm btn-outline-secondary" (click)="cancelEdit()">Cancel</button>
+          <button class="btn btn-sm btn-primary"
+                  [disabled]="isSaving() || !editName().trim()"
+                  (click)="saveField()">
+            @if (isSaving()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            @if (isCreating()) {
+              Create
+            } @else {
+              Save
+            }
+          </button>
+        </div>
+      </div>
+    }
+
+  }
+</div>

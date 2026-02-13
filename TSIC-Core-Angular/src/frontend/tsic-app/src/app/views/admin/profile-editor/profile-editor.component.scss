@@ -59,7 +59,7 @@ code {
     cursor: grab;
     user-select: none;
     opacity: 0.6;
-    font-size: 1.2rem;
+    font-size: var(--font-size-xl);
 }
 
 .drag-grip:hover {

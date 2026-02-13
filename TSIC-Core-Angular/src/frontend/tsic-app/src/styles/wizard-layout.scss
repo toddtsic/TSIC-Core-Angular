@@ -77,7 +77,7 @@
 
     &::-webkit-scrollbar-thumb {
         background: var(--bs-secondary);
-        border-radius: 4px;
+        border-radius: var(--radius-sm);
 
         &:hover {
             background: var(--bs-secondary-color);

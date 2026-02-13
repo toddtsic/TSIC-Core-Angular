@@ -218,6 +218,12 @@
    --input-bg: var(--brand-surface);
    --input-border: var(--brand-border);
    --focus-ring: rgba(var(--bs-primary-rgb), 0.25);
+   --brand-primary-hover: var(--brand-primary-dark);
+   --success-bg: rgba(34, 197, 94, 0.1);
+   --success-text: var(--brand-success);
+   --info-bg: rgba(14, 165, 233, 0.1);
+   --info-text: var(--brand-primary);
+   --info-border: var(--brand-primary);
 
    /* ============================================
        Bootstrap CSS Variable Mapping
@@ -229,14 +235,30 @@
    --bs-card-border-color: var(--brand-border);
    --bs-primary: var(--brand-primary);
    --bs-primary-rgb: 14, 165, 233;
+   --bs-primary-hover-bg: var(--brand-primary-dark);
+   --bs-primary-hover-border-color: var(--brand-primary-dark);
    --bs-secondary: var(--neutral-600);
    --bs-secondary-color: var(--brand-text);
    --bs-secondary-color-rgb: var(--brand-text-rgb);
    --bs-secondary-rgb: var(--brand-text-rgb);
+   --bs-secondary-border-color: var(--neutral-500);
+   --bs-secondary-hover-bg: var(--neutral-500);
+   --bs-secondary-hover-border-color: var(--neutral-500);
    --bs-success: var(--brand-success);
+   --bs-success-rgb: 34, 197, 94;
    --bs-info: var(--brand-primary-light);
+   --bs-info-rgb: 14, 165, 233;
    --bs-warning: var(--brand-warn);
+   --bs-warning-rgb: 245, 158, 11;
    --bs-danger: var(--brand-danger);
+   --bs-danger-rgb: 239, 68, 68;
+   --bs-white: var(--neutral-0);
+   --bs-light: var(--neutral-100);
+   --bs-surface: var(--brand-surface);
+   --bs-gray-400: var(--neutral-400);
+   --bs-gray-500: var(--neutral-500);
+   --bs-gray-600: var(--neutral-600);
+   --bs-heading-color: var(--brand-text);
    --bs-border-radius: var(--radius-sm);
    --bs-btn-border-radius: var(--radius-sm);
 }

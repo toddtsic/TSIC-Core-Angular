@@ -107,7 +107,7 @@ Split into two panels: left panel for division context (navigator + pairings + t
 
 - **Authorization:** `[Authorize(Policy = "AdminOnly")]`
 - **Exception:** `FieldDirectionsData` is `[AllowAnonymous]` (public map directions)
-- **Scoping:** `jobId`, `leagueId`, `season`, `year` from JWT claims
+- **Scoping:** JWT `regId` → `jobId` → `leagueId` + `season` + `year` (via `ResolveLeagueSeasonAsync` pattern)
 - **Email notifications:** Move/swap game sends to coach emails associated with affected teams
 
 ---
@@ -408,7 +408,7 @@ Key signals:
 - `autoScheduleProgress` — signal<AutoScheduleProgressDto | null>
 
 Child components:
-- `division-navigator.component.ts` — shared with 009-2, 009-3
+- `division-navigator.component.ts` — shared with 009-2, 009-3; filters out "Dropped Teams" (exact, case-insensitive) and agegroups starting with "WAITLIST"; sorted alphabetically
 - `schedule-grid.component.ts` — dynamic Syncfusion Grid with clickable cells
 - `who-plays-who-matrix.component.ts` — shared with 009-2
 

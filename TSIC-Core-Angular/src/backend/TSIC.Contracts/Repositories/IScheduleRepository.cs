@@ -37,4 +37,13 @@ public interface IScheduleRepository
     /// DivId (or Div2Id) matches. Called when a division is renamed in the LADT editor.
     /// </summary>
     Task SynchronizeScheduleDivisionNameAsync(Guid divId, Guid jobId, string newName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Re-resolve T1Id/T1Name and T2Id/T2Name for every round-robin schedule record
+    /// in a division based on current DivRank assignments. Called after a DivRank swap
+    /// or team rename to keep denormalized fields in sync.
+    /// Builds a rank → (teamId, displayName) map from active teams, then updates
+    /// every game where DivId matches and T1Type/T2Type == "T".
+    /// </summary>
+    Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default);
 }

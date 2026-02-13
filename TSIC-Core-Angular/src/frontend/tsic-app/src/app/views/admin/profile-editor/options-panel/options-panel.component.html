@@ -77,13 +77,13 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-sm align-middle">
+                            <table class="table table-sm align-middle options-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:5%"></th>
-                                        <th style="width:45%">Label</th>
-                                        <th style="width:45%">Value</th>
-                                        <th style="width:5%"></th>
+                                        <th class="col-drag"></th>
+                                        <th class="col-label">Label</th>
+                                        <th class="col-value">Value</th>
+                                        <th class="col-actions"></th>
                                     </tr>
                                 </thead>
                                 <tbody cdkDropList (cdkDropListDropped)="onEditOptionDrop($event)"
@@ -143,13 +143,13 @@
                     <div class="col-12">
                         <div class="form-label fw-semibold">Options</div>
                         <div class="table-responsive">
-                            <table class="table table-sm align-middle">
+                            <table class="table table-sm align-middle options-table">
                                 <thead>
                                     <tr>
-                                        <th style="width:5%"></th>
-                                        <th style="width:45%">Label</th>
-                                        <th style="width:45%">Value</th>
-                                        <th style="width:5%"></th>
+                                        <th class="col-drag"></th>
+                                        <th class="col-label">Label</th>
+                                        <th class="col-value">Value</th>
+                                        <th class="col-actions"></th>
                                     </tr>
                                 </thead>
                                 <tbody cdkDropList (cdkDropListDropped)="onCreateOptionDrop($event)"

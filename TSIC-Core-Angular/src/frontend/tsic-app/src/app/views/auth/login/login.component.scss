@@ -1,1 +1,104 @@
-﻿// No component-specific styles needed - all styles are global utility classes
+@use '../../../shared-ui/styles/wizard-themes' as wt;
+
+:host {
+    display: block;
+}
+
+.login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-10) var(--space-4);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    border: none;
+    box-shadow: var(--shadow-xl);
+    overflow: hidden;
+}
+
+.login-header {
+    padding: var(--space-8) var(--space-6);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.login-title {
+    margin: 0;
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--neutral-0);
+}
+
+.login-subtitle {
+    margin: var(--space-2) 0 0;
+    font-size: var(--font-size-sm);
+    color: var(--neutral-0);
+    opacity: 0.75;
+}
+
+.login-body {
+    padding: var(--space-6);
+    background-color: var(--brand-surface);
+    color: var(--brand-text);
+}
+
+.login-field {
+    margin-bottom: var(--space-5);
+
+    .form-label {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+    }
+
+    .form-control {
+        border: 1px solid var(--brand-border);
+        border-radius: var(--radius-sm);
+        background-color: var(--brand-surface);
+        color: var(--brand-text);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+        &:focus {
+            border-color: var(--bs-primary);
+            box-shadow: var(--shadow-focus);
+        }
+    }
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: var(--space-3);
+    transform: translateY(-50%);
+    padding: 0;
+    border: none;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-lg);
+    line-height: 1;
+
+    &:hover {
+        color: var(--brand-text);
+    }
+
+    &:focus {
+        box-shadow: none;
+    }
+}
+
+.login-error {
+    border: none;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-xs);
+    margin-bottom: var(--space-5);
+}
+
+.login-submit {
+    margin-top: var(--space-2);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+.login-escape {
+    margin-top: var(--space-4);
+}

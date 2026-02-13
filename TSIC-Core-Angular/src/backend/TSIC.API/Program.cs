@@ -30,6 +30,7 @@ using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.Registration;
 using TSIC.Application.Services.DiscountCode;
 using TSIC.API.Services.Admin;
+using TSIC.API.Services.Scheduling;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
@@ -81,6 +82,9 @@ builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
 builder.Services.AddScoped<IDivisionRepository, DivisionRepository>();
 builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IFieldRepository, FieldRepository>();
+builder.Services.AddScoped<IPairingsRepository, PairingsRepository>();
+builder.Services.AddScoped<ITimeslotRepository, TimeslotRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
@@ -139,6 +143,10 @@ builder.Services.AddScoped<IRosterSwapperService, RosterSwapperService>();
 builder.Services.AddScoped<IPoolAssignmentService, PoolAssignmentService>();
 builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService>();
 builder.Services.AddScoped<ITeamSearchService, TeamSearchService>();
+// Scheduling
+builder.Services.AddScoped<IFieldManagementService, FieldManagementService>();
+builder.Services.AddScoped<IPairingsService, PairingsService>();
+builder.Services.AddScoped<ITimeslotService, TimeslotService>();
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));

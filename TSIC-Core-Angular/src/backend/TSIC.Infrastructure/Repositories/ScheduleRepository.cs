@@ -121,4 +121,96 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (schedules.Count > 0)
             await _context.SaveChangesAsync(ct);
     }
+
+    public async Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default)
+    {
+        // 1. Get active teams in the division with their DivRank and club-rep link
+        var teams = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.DivId == divId && t.Active == true)
+            .Select(t => new { t.TeamId, t.DivRank, t.TeamName, t.ClubrepRegistrationid })
+            .ToListAsync(ct);
+
+        // 2. Get club names for teams that have a club rep
+        var clubRepIds = teams
+            .Where(t => t.ClubrepRegistrationid.HasValue)
+            .Select(t => t.ClubrepRegistrationid!.Value)
+            .Distinct()
+            .ToList();
+
+        var clubNames = clubRepIds.Count > 0
+            ? await _context.Registrations
+                .AsNoTracking()
+                .Where(r => clubRepIds.Contains(r.RegistrationId))
+                .ToDictionaryAsync(r => r.RegistrationId, r => r.ClubName, ct)
+            : new Dictionary<Guid, string?>();
+
+        // 3. Get the job's BShowTeamNameOnlyInSchedules flag
+        var showTeamNameOnly = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BShowTeamNameOnlyInSchedules)
+            .FirstOrDefaultAsync(ct);
+
+        // 4. Build rank → (teamId, displayName) map
+        var rankMap = new Dictionary<int, (Guid teamId, string displayName)>();
+        foreach (var t in teams)
+        {
+            string? clubName = t.ClubrepRegistrationid.HasValue
+                && clubNames.TryGetValue(t.ClubrepRegistrationid.Value, out var cn)
+                ? cn : null;
+
+            var displayName = (!string.IsNullOrEmpty(clubName) && !showTeamNameOnly)
+                ? $"{clubName}:{t.TeamName}"
+                : t.TeamName ?? "";
+
+            rankMap[t.DivRank] = (t.TeamId, displayName);
+        }
+
+        // 5. Load all round-robin schedule records for this division
+        var schedules = await _context.Schedule
+            .Where(s => s.JobId == jobId
+                && (s.DivId == divId || s.Div2Id == divId))
+            .ToListAsync(ct);
+
+        // 6. Re-resolve T1Id/T1Name and T2Id/T2Name from T1No/T2No
+        foreach (var s in schedules)
+        {
+            if (s.T1Type == "T" && s.T1No.HasValue && s.DivId == divId)
+            {
+                if (rankMap.TryGetValue(s.T1No.Value, out var t1))
+                {
+                    s.T1Id = t1.teamId;
+                    s.T1Name = t1.displayName;
+                }
+                else
+                {
+                    s.T1Id = null;
+                    s.T1Name = "";
+                }
+            }
+
+            if (s.T2Type == "T" && s.T2No.HasValue)
+            {
+                // T2 uses Div2Id for cross-division games, DivId for same-division
+                var t2DivId = s.Div2Id ?? s.DivId;
+                if (t2DivId == divId)
+                {
+                    if (rankMap.TryGetValue(s.T2No.Value, out var t2))
+                    {
+                        s.T2Id = t2.teamId;
+                        s.T2Name = t2.displayName;
+                    }
+                    else
+                    {
+                        s.T2Id = null;
+                        s.T2Name = "";
+                    }
+                }
+            }
+        }
+
+        if (schedules.Count > 0)
+            await _context.SaveChangesAsync(ct);
+    }
 }

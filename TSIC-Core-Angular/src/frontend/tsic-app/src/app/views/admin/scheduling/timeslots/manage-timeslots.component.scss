@@ -1,0 +1,357 @@
+:host {
+    display: block;
+    padding: var(--space-4);
+}
+
+.manage-timeslots-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    height: calc(100vh - 200px);
+}
+
+.timeslots-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+// ── Main layout: sidebar + content ──
+
+.timeslots-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: var(--space-3);
+    flex: 1;
+    min-height: 0;
+}
+
+// ── Navigator panel ──
+
+.nav-panel {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+
+.panel-header {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+// ── Navigator list ──
+
+.nav-list {
+    padding: var(--space-1) 0;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    font-size: 0.8125rem;
+    border-radius: var(--bs-border-radius-sm);
+    margin: 0 var(--space-1);
+
+    &:hover {
+        background: var(--bs-tertiary-bg);
+    }
+
+    &.active {
+        background: var(--bs-primary);
+        color: var(--bs-white);
+
+        .badge {
+            background: rgba(255, 255, 255, 0.2) !important;
+            color: var(--bs-white) !important;
+        }
+    }
+
+    .badge {
+        font-size: 0.625rem;
+        margin-left: auto;
+    }
+}
+
+.color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ag-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// ── Content panel ──
+
+.content-panel {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    overflow: hidden;
+    min-height: 0;
+}
+
+.icon-lg {
+    font-size: var(--font-size-3xl);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: var(--space-8);
+}
+
+.empty-state-sm {
+    padding: var(--space-6);
+    text-align: center;
+}
+
+// ── Tab bar ──
+
+.tab-bar {
+    display: flex;
+    border-bottom: 2px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+
+.tab-btn {
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    background: transparent;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--bs-secondary-color);
+    cursor: pointer;
+    position: relative;
+
+    &:hover {
+        color: var(--bs-body-color);
+    }
+
+    &.active {
+        color: var(--bs-primary);
+
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--bs-primary);
+        }
+    }
+}
+
+// ── Tab content ──
+
+.tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+// ── Add forms ──
+
+.add-form {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    flex-wrap: wrap;
+}
+
+.rnd-input {
+    width: 60px;
+}
+
+.num-input {
+    width: 70px;
+}
+
+.time-input {
+    width: 110px;
+}
+
+.dow-select {
+    width: 120px;
+}
+
+.clone-target-select {
+    width: 140px;
+}
+
+// ── Clone controls ──
+
+.clone-controls {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.clone-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.clone-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    min-width: 56px;
+    text-align: right;
+}
+
+// ── Table styles ──
+
+.table-scroll-wrapper {
+    flex: 1;
+    overflow: auto;
+}
+
+.timeslot-table {
+    white-space: nowrap;
+    font-size: 0.8125rem;
+
+    th, td {
+        padding: var(--space-1) var(--space-2);
+        vertical-align: middle;
+    }
+
+    th {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        border-bottom-width: 2px;
+        position: sticky;
+        top: 0;
+        background: var(--bs-body-bg);
+        z-index: 1;
+    }
+
+    tbody tr {
+        cursor: pointer;
+
+        &:hover {
+            background: var(--bs-tertiary-bg);
+        }
+    }
+}
+
+.col-date {
+    min-width: 120px;
+}
+
+.col-rnd {
+    width: 48px;
+    min-width: 48px;
+    text-align: center;
+}
+
+.col-dow {
+    width: 56px;
+    min-width: 56px;
+}
+
+.col-div {
+    min-width: 80px;
+}
+
+.col-field {
+    min-width: 140px;
+    font-weight: 500;
+}
+
+.col-time {
+    width: 70px;
+    min-width: 70px;
+}
+
+.col-num {
+    width: 60px;
+    min-width: 60px;
+    text-align: center;
+}
+
+.col-actions {
+    width: 100px;
+    min-width: 100px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+// ── Clone badges ──
+
+.clone-badge {
+    display: inline-block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 1px var(--space-1);
+    border-radius: var(--bs-border-radius-sm);
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    letter-spacing: 0.03em;
+}
+
+// ── Mobile: stack panels vertically ──
+
+@media (max-width: 767.98px) {
+    .timeslots-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .nav-panel {
+        max-height: 200px;
+    }
+
+    .manage-timeslots-container {
+        height: auto;
+    }
+
+    .add-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .clone-row {
+        flex-direction: column;
+        align-items: stretch;
+
+        .clone-label {
+            text-align: left;
+        }
+    }
+}

@@ -1,22 +1,25 @@
-import { ChangeDetectionStrategy, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
-
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { LoginRequest } from '@infrastructure/view-models/auth.models';
 import { AutofillMonitor } from '@angular/cdk/text-field';
-import { TextBoxModule } from '@syncfusion/ej2-angular-inputs';
-import { ButtonModule } from '@syncfusion/ej2-angular-buttons';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
   standalone: true,
-  imports: [ReactiveFormsModule, TextBoxModule, ButtonModule, RouterModule],
+  imports: [ReactiveFormsModule, RouterModule],
   styleUrls: ['./login.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly fb = inject(FormBuilder);
+  private readonly autofill = inject(AutofillMonitor);
+
   @ViewChild('usernameInput', { static: false }) usernameInput!: ElementRef<HTMLInputElement>;
   @ViewChild('passwordInput', { static: false }) passwordInput!: ElementRef<HTMLInputElement>;
 
@@ -40,14 +43,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @HostBinding('class.wizard-theme-player') get isPlayerTheme() { return this.theme === 'player'; }
   @HostBinding('class.wizard-theme-family') get isFamilyTheme() { return this.theme === 'family'; }
 
-
-  constructor(
-    private readonly authService: AuthService,
-    private readonly router: Router,
-    private readonly route: ActivatedRoute,
-    private readonly fb: FormBuilder,
-    private readonly autofill: AutofillMonitor
-  ) {
+  constructor() {
     // Pre-fill username from JWT token if available
     const savedUsername = this.authService.currentUser()?.username || '';
     this.form = this.fb.group({
@@ -180,8 +176,6 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.passwordInput) this.autofill.stopMonitoring(this.passwordInput);
   }
 
-
-
   private _computeReturnUrl(jobPathFromToken: string | undefined | null): string {
     // Prefer explicit input returnUrl
     const inputReturnUrlRaw = (this.returnUrl ?? '').trim();
@@ -223,5 +217,4 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   private _intent: string | null = null;
   private _intentJobPath: string | null = null; // retained for future use (may be removed later)
   private _returnUrlFromQuery: string | null = null;
-
 }

@@ -1,4 +1,15 @@
-﻿/* Accordion styles extracted to global styles/_accordion.scss */
+/* Accordion styles extracted to global styles/_accordion.scss */
+
+.wizard-modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+}
+
+.wizard-modal-content {
+    background-color: var(--bs-card-bg);
+    border-color: var(--bs-border-color) !important;
+    border-width: 2px !important;
+}
 
 /* Login button respects dark mode primary */
 .btn-login {

@@ -116,6 +116,28 @@ export class ClientMenuComponent {
      * 2. routerLink (Angular route)
      * 3. controller/action (legacy MVC - map to Angular route as {jobPath}/{controller}/{action})
      */
+    /**
+     * Legacy controller/action → Angular route translations.
+     * Maps DB-driven MVC routes to their Angular equivalents.
+     */
+    private readonly legacyRouteMap = new Map<string, string>([
+        // DB stores old Scheduling controller actions; map to new Angular routes
+        ['scheduling/manageleagueseasonfields', 'fields/index'],
+        ['scheduling/manageleagueseasonpairings', 'pairings/index'],
+        ['scheduling/manageleagueseasontimeslots', 'timeslots/index'],
+    ]);
+
+    /**
+     * Resolve a legacy controller/action to an Angular route path.
+     * Returns the translated path if a mapping exists, otherwise the raw controller/action path.
+     */
+    private resolveLegacyPath(item: MenuItemDto): string | null {
+        if (!item.controller) return null;
+        const action = (item.action || 'index').toLowerCase();
+        const raw = `${item.controller.toLowerCase()}/${action}`;
+        return this.legacyRouteMap.get(raw) ?? raw;
+    }
+
     getLink(item: MenuItemDto): string | null {
         if (item.navigateUrl) {
             return item.navigateUrl;
@@ -127,11 +149,8 @@ export class ClientMenuComponent {
             return item.routerLink;
         }
 
-        if (item.controller && item.action) {
-            return `/${jobPath}/${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
-        }
-
-        return null;
+        const path = this.resolveLegacyPath(item);
+        return path ? `/${jobPath}/${path}` : null;
     }
 
     /**
@@ -143,10 +162,8 @@ export class ClientMenuComponent {
         if (item.navigateUrl || item.routerLink) {
             return true;
         }
-        if (item.controller && item.action) {
-            const path = `${item.controller.toLowerCase()}/${item.action.toLowerCase()}`;
-            // Check exact match first, then wildcard prefix match
-            // (e.g., 'reporting/get_netusers' matches wildcard prefix 'reporting')
+        const path = this.resolveLegacyPath(item);
+        if (path) {
             if (this.knownRoutes.has(path)) return true;
             return this.wildcardPrefixes.some(prefix => path.startsWith(prefix + '/'));
         }

@@ -17,7 +17,7 @@
     // Enhanced dark mode borders and depth
     :host-context([data-bs-theme="dark"]) & {
         border: 1px solid var(--neutral-400) !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: var(--shadow-md) !important;
     }
 
     &:hover {
@@ -27,7 +27,7 @@
 
     // Enhanced hover effect for dark mode
     :host-context([data-bs-theme="dark"]) &:hover {
-        box-shadow: 0 4px 16px rgba(255, 255, 255, 0.35) !important;
+        box-shadow: var(--shadow-lg) !important;
         border-color: var(--neutral-300) !important;
     }
 }
@@ -102,19 +102,19 @@
 
 /* Focus state - maintain accessibility */
 .accordion-item-info .accordion-button-info:focus {
-    box-shadow: 0 0 0 3px rgba(120, 120, 130, 0.3);
+    box-shadow: var(--shadow-focus);
     outline: none;
 }
 
 /* Accordion body - glassmorphic surface */
 .accordion-item-info .accordion-body {
-    background: rgba(0, 0, 0, 0.2) !important;
+    background: rgba(var(--bs-dark-rgb), 0.2) !important;
     color: var(--brand-text);
     padding: var(--space-4);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: 1px solid rgba(var(--bs-light-rgb), 0.2);
 }
 
 [data-bs-theme="dark"] .accordion-item-info .accordion-body {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(var(--bs-light-rgb), 0.15) !important;
+    border-top: 1px solid rgba(var(--bs-light-rgb), 0.25);
 }

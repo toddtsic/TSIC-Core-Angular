@@ -9,7 +9,19 @@
       "Bash(git add:*)",
       "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nfeat: port ReportingController with ~97 endpoints and Angular report launcher\n\nServer-side Crystal Reports proxy, SP-based Excel exports \\(EPPlus\\), iCal schedule\nexport, and export history tracking — all following clean architecture with JWT-derived\ncontext. Single Angular route \\(reporting/:action\\) handles all report menu items with\nwildcard prefix matching to remove Coming Soon badges.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
-      "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nfeat: implement LADT editor with signal-driven tree expansion and hierarchy badges\n\nBackend: LadtController, LadtService, League/Division repositories,\nLADT admin methods on AgeGroup/Team repositories. Frontend: full LADT\nhierarchy editor with league/agegroup/division/team detail panels,\nsignal-based expand/collapse \\(bypasses broken CDK FlatTreeControl\\),\nblue team + green player badges at all levels, and add-child stubs.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nfeat: implement LADT editor with signal-driven tree expansion and hierarchy badges\n\nBackend: LadtController, LadtService, League/Division repositories,\nLADT admin methods on AgeGroup/Team repositories. Frontend: full LADT\nhierarchy editor with league/agegroup/division/team detail panels,\nsignal-based expand/collapse \\(bypasses broken CDK FlatTreeControl\\),\nblue team + green player badges at all levels, and add-child stubs.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit --no-verify -m \"$\\(cat <<''EOF''\nfeat: add club name display, row numbers, and sortable columns to LADT editor\n\nSurface club name \\(via ClubRepRegistrationId → Registration.ClubName\\) in\ntree view and sibling grid so admins can distinguish identically-named\nteams across clubs. Tree shows club name as primary label with team name\nsecondary; grid adds frozen Club column alongside row numbers. All grid\ncolumns are now sortable by header click with ascending/descending toggle.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git status:*)",
+      "Bash(git commit:*)",
+      "Bash(findstr:*)",
+      "Bash(del \"c:\\\\Users\\\\Administrator\\\\source\\\\TSIC-Core-Angular\\\\TSIC-Core-Angular\\\\src\\\\frontend\\\\tsic-app\\\\src\\\\app\\\\core\\\\api\\\\models\\\\DropTeamResultDto.ts\")",
+      "Bash(git log:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Administrator\\source\\TSIC-Core-Angular"
     ]
   }
 }

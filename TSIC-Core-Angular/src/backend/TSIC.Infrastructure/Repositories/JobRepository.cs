@@ -329,4 +329,22 @@ public class JobRepository : IJobRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var customerId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (customerId == Guid.Empty)
+            return [];
+
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == customerId)
+            .Select(j => j.JobId)
+            .ToListAsync(cancellationToken);
+    }
 }

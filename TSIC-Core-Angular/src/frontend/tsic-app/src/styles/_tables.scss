@@ -8,32 +8,32 @@
     border-collapse: collapse;
     width: 100%;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
 }
 
 .tsic-caption {
     caption-side: top;
     text-align: left;
     font-weight: 600;
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
 }
 
 .tsic-grid-header {
     border: 1px solid var(--border-color);
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
     background: var(--bs-secondary-bg);
     text-align: left;
 }
 
 .tsic-grid-cell {
     border: 1px solid var(--border-color);
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
     text-align: left;
 }
 
 .tsic-grid-footer-header {
     border: 1px solid var(--border-color);
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
     font-weight: 600;
     background: var(--bg-elevated);
     text-align: left;
@@ -41,7 +41,7 @@
 
 .tsic-grid-footer-cell {
     border: 1px solid var(--border-color);
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
     background: var(--bg-elevated);
     text-align: left;
 }

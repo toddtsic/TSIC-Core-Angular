@@ -47,6 +47,24 @@
 }
 
 /* Native dialog styling to align with Bootstrap modal look */
+.icon-xl {
+    font-size: var(--font-size-5xl);
+}
+
+.profile-filter-container {
+    min-width: 220px;
+}
+
+.profile-filter-select {
+    width: auto;
+    float: right;
+}
+
+.json-preview-scroll {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
 .tsic-dialog {
     border: none;
     border-radius: var(--radius-md);

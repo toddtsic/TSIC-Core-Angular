@@ -92,12 +92,12 @@ interface TreeFlatNode {
 
     .badge-teams {
       background: var(--bs-info);
-      color: var(--bs-white, #fff);
+      color: var(--bs-white);
     }
 
     .badge-players {
       background: var(--bs-primary);
-      color: var(--bs-white, #fff);
+      color: var(--bs-white);
     }
 
     .tree-node {

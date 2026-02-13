@@ -12,6 +12,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
     standalone: true,
     imports: [FormsModule, DragDropModule, TsicDialogComponent],
     templateUrl: './options-panel.component.html',
+    styleUrl: './options-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OptionsPanelComponent {

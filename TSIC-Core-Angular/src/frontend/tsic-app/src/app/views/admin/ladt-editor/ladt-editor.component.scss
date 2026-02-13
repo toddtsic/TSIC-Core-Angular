@@ -27,7 +27,7 @@
   border-bottom: 1px solid var(--bs-border-color);
 
   h6 {
-    font-size: 0.85rem;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -46,7 +46,7 @@
 .tree-kpis {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   margin-top: var(--space-2);
 }
 
@@ -54,9 +54,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   color: var(--bs-secondary-color);
-  padding: 2px 0;
+  padding: var(--space-1) 0;
 }
 
 .kpi-dot {
@@ -77,6 +77,10 @@
   margin-left: auto;
   min-width: 1.5em;
   text-align: right;
+}
+
+.dropdown-anchor {
+  position: relative;
 }
 
 .tree-toolbar {
@@ -159,7 +163,7 @@
   }
 
   .bi {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
   }
 }
 
@@ -177,15 +181,15 @@
   background: none;
   color: var(--bs-body-color);
   cursor: pointer;
-  padding: 2px 4px;
+  padding: var(--space-1);
   text-align: left;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   min-width: 0;
 }
 
 .tree-icon {
   flex-shrink: 0;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
 
   &.level-0 { color: var(--bs-primary); }
   &.level-1 { color: var(--bs-success); }
@@ -223,7 +227,7 @@
 }
 
 .tree-label-secondary {
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   color: var(--bs-secondary-color);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -310,7 +314,7 @@
 }
 
 .breadcrumb-label {
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -361,11 +365,11 @@
   min-width: 0;
   height: 24px;
   padding: var(--space-half, 2px) var(--space-1);
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
   color: var(--bs-body-color);
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-primary);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   outline: none;
 
   &:focus {

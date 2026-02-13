@@ -167,6 +167,12 @@ public interface IJobRepository
     /// </summary>
     Task<List<Dtos.RegistrationSearch.JobOptionDto>> GetOtherJobsForCustomerAsync(
         Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all job IDs belonging to the same customer as the specified job.
+    /// Used for Director field scoping — Directors see fields historically used by any of their customer's jobs.
+    /// </summary>
+    Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
 }
 
 public record JobAuthInfo

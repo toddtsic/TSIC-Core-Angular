@@ -167,6 +167,55 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
+			},
+			// Legacy-compatible route for Team Search
+			{
+				path: 'searchteams/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
+			},
+			// Scheduling — Manage Fields
+			{
+				path: 'admin/scheduling/fields',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
+			},
+			// Legacy-compatible route for Manage Fields
+			{
+				path: 'fields/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
+			},
+			// Scheduling — Manage Pairings
+			{
+				path: 'admin/scheduling/pairings',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
+			},
+			// Legacy-compatible route for Manage Pairings
+			{
+				path: 'pairings/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
+			},
+			// Scheduling — Manage Timeslots
+			{
+				path: 'admin/scheduling/timeslots',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
+			},
+			// Legacy-compatible route for Manage Timeslots
+			{
+				path: 'timeslots/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
 			}
 		]
 	},

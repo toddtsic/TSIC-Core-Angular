@@ -3,7 +3,7 @@
     <!-- Main Header Row -->
     <div class="d-flex align-items-center justify-content-between py-2 gap-2">
         <!-- Left: Hamburger + Logos (shrinks to let right side fit) -->
-        <div class="d-flex align-items-center gap-2 flex-fill" style="min-width:0">
+        <div class="d-flex align-items-center gap-2 flex-fill header-left-group">
             <!-- Hamburger -->
             <button type="button" class="btn btn-outline-secondary btn-sm hamburger-btn icon-button d-lg-none"
                 (click)="toggleOffcanvas()" aria-label="Toggle navigation">
@@ -115,7 +115,7 @@
                     }
 
                     <button type="button" class="user-menu-item" role="menuitem"
-                        (click)="toggleTheme()">
+                        (click)="toggleTheme(); closeUserMenu()">
                         @if (themeService.theme() === 'light') {
                         <i class="bi bi-moon-stars-fill"></i>
                         <span>Dark Mode</span>

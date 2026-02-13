@@ -30,7 +30,7 @@
 
 .table {
     th {
-        font-size: 0.8rem;
+        font-size: var(--font-size-sm);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.03em;
@@ -55,7 +55,7 @@
     flex: 1;
     height: 4px;
     background: var(--bs-secondary-bg);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
     max-width: 40px;
 }

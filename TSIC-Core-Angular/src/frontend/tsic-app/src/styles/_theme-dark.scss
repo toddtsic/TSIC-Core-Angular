@@ -75,6 +75,16 @@
     /* Header - darker for strong contrast */
     --bs-info-text-emphasis: var(--brand-text);
     --bs-border-color: var(--brand-border);
+    --bs-danger-rgb: 244, 63, 94;
+    /* Rose-500 RGB */
+    --bs-success-rgb: 5, 150, 105;
+    /* Emerald-600 RGB */
+    --bs-warning-rgb: 245, 158, 11;
+    /* Amber-500 RGB */
+
+    /* Semantic tokens - dark mode overrides */
+    --success-bg: rgba(5, 150, 105, 0.1);
+    --info-bg: rgba(203, 213, 225, 0.1);
 
     /* Input Variables for Dark Mode - CRITICAL: needs visible borders */
     --input-bg: #292524;

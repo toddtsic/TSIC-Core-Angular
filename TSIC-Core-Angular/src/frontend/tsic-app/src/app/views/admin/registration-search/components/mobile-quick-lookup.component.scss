@@ -29,7 +29,7 @@
     border: 1px solid var(--bs-border-color);
     border-radius: var(--radius-md);
     color: var(--bs-body-color);
-    font-size: 1rem;
+    font-size: var(--font-size-base);
 
     &:focus {
       outline: none;
@@ -55,6 +55,7 @@
     &:focus {
       outline: none;
       border-color: var(--bs-primary);
+      box-shadow: var(--shadow-focus);
     }
   }
 }
@@ -127,7 +128,7 @@
     gap: var(--space-2);
 
     strong {
-      font-size: 1rem;
+      font-size: var(--font-size-base);
       color: var(--bs-heading-color);
     }
   }
@@ -244,7 +245,7 @@
 
     &:hover {
       background: var(--bs-primary);
-      color: white;
+      color: var(--neutral-0);
     }
   }
 }
@@ -279,7 +280,7 @@
   .btn-load-more {
     padding: var(--space-2) var(--space-4);
     background: var(--bs-primary);
-    color: white;
+    color: var(--neutral-0);
     border: none;
     border-radius: var(--radius-sm);
     font-weight: 600;

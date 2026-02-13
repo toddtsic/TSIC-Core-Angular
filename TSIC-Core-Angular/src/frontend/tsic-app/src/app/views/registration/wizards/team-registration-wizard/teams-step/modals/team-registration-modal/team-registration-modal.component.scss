@@ -9,7 +9,7 @@
     background: linear-gradient(90deg, var(--bs-warning-bg-subtle) 0%, transparent 100%);
     border-left: 3px solid var(--bs-warning-border-subtle);
     padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
+    border-radius: var(--radius-sm);
     color: var(--bs-emphasis-color);
     font-style: italic;
 }
@@ -43,6 +43,7 @@
 .combobox-input:focus {
     border-bottom: 0 !important;
     outline: none !important;
+    box-shadow: var(--shadow-focus);
 }
 
 .combobox-dropdown {
@@ -53,6 +54,7 @@
 
 .combobox-dropdown:focus {
     outline: none !important;
+    box-shadow: var(--shadow-focus);
 }
 
 /* Mobile optimizations */
@@ -64,16 +66,16 @@
     }
 
     .form-label {
-        font-size: 0.9rem;
+        font-size: var(--font-size-base);
     }
 
     .form-select,
     .form-control {
-        font-size: 0.9rem;
+        font-size: var(--font-size-base);
     }
 
     .btn {
-        font-size: 0.9rem;
+        font-size: var(--font-size-base);
     }
 
     .modal-footer {

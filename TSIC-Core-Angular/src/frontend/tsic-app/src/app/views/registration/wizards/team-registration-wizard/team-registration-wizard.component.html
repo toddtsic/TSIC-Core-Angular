@@ -90,7 +90,7 @@
             } @else if (isLoadingMetadata()) {
             <!-- Loading state - block interaction -->
             <div class="text-center py-5">
-              <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem" role="status">
+              <div class="spinner-border text-primary mb-3 spinner-lg" role="status">
                 <span class="visually-hidden">Loading...</span>
               </div>
               <p class="text-muted">Preparing registration wizard...</p>
@@ -126,14 +126,9 @@
 
 <!-- Club Selection Modal -->
 @if (showClubSelectionModal()) {
-<div class="modal d-block" tabindex="-1" role="dialog"
-  style="background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px)">
+<div class="modal d-block wizard-modal-backdrop" tabindex="-1" role="dialog">
   <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content border shadow-lg" style="
-          background-color: var(--bs-card-bg);
-          border-color: var(--bs-border-color) !important;
-          border-width: 2px !important;
-        ">
+    <div class="modal-content border shadow-lg wizard-modal-content">
       <div class="modal-header bg-primary text-white border-0 py-2 py-md-3">
         <div class="d-flex align-items-start w-100">
           <i class="bi bi-building me-2 mt-1 shrink-0 fs-6 fs-md-5"></i>

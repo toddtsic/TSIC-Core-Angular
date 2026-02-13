@@ -65,7 +65,7 @@
 
 .pool-table {
     white-space: nowrap;
-    font-size: 0.8125rem;
+    font-size: var(--font-size-sm);
 
     th, td {
         padding: var(--space-1) var(--space-2);
@@ -73,7 +73,7 @@
     }
 
     th {
-        font-size: 0.6875rem;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.03em;
@@ -134,7 +134,7 @@ thead .frozen {
     width: $rownum-width;
     min-width: $rownum-width;
     text-align: center;
-    font-size: 0.6875rem;
+    font-size: var(--font-size-xs);
 }
 
 .col-swap {
@@ -202,13 +202,13 @@ thead .frozen {
 
 .capacity-bar {
     height: 6px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     background: var(--bs-secondary-bg);
 }
 
 .capacity-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     transition: width 0.3s ease;
 }
 
@@ -218,12 +218,12 @@ thead .frozen {
     width: 64px;
     text-align: center;
     padding: var(--space-1);
-    font-size: 0.8125rem;
+    font-size: var(--font-size-sm);
 }
 
 .editable-rank {
     cursor: pointer;
-    padding: 2px var(--space-1);
+    padding: var(--space-1) var(--space-1);
     border-radius: var(--bs-border-radius-sm);
     border: 1px dashed transparent;
     transition: border-color 0.15s ease;

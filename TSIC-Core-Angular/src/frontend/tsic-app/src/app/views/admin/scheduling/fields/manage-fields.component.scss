@@ -67,7 +67,7 @@
 
 .fields-table {
     white-space: nowrap;
-    font-size: 0.8125rem;
+    font-size: var(--font-size-sm);
 
     th, td {
         padding: var(--space-1) var(--space-2);
@@ -75,7 +75,7 @@
     }
 
     th {
-        font-size: 0.6875rem;
+        font-size: var(--font-size-xs);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.03em;

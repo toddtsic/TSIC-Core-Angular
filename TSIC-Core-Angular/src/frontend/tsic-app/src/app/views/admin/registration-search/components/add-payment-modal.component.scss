@@ -35,7 +35,7 @@
 
   h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: var(--font-size-xl);
     font-weight: 600;
     color: var(--bs-heading-color);
   }
@@ -43,7 +43,7 @@
   .btn-close {
     background: transparent;
     border: none;
-    font-size: 1.5rem;
+    font-size: var(--font-size-2xl);
     line-height: 1;
     color: var(--bs-body-color);
     opacity: 0.5;
@@ -88,7 +88,7 @@
 
     &.active {
       background: var(--bs-primary);
-      color: white;
+      color: var(--neutral-0);
       box-shadow: var(--shadow-sm);
     }
 
@@ -145,7 +145,7 @@ label {
   display: block;
   margin-bottom: var(--space-1);
   font-weight: 500;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--bs-body-color);
 }
 
@@ -174,7 +174,7 @@ label {
   border: 1px solid var(--bs-border-color);
   border-radius: var(--radius-sm);
   color: var(--bs-body-color);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
 
   &:focus {
     outline: none;
@@ -191,7 +191,7 @@ label {
 .form-text {
   display: block;
   margin-top: var(--space-1);
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--bs-secondary-color);
 }
 
@@ -245,7 +245,7 @@ label {
 
   .btn-primary {
     background: var(--bs-primary);
-    color: white;
+    color: var(--neutral-0);
 
     &:hover:not(:disabled) {
       filter: brightness(1.1);

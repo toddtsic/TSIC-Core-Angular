@@ -12,6 +12,7 @@ Pairings are **abstract templates** — they reference team *positions* (1, 2, 3
 This is algorithmically the most interesting module in the scheduling suite. The pairing engine, bracket cascade, and game-reference system are finely tuned and must be preserved exactly.
 
 **Legacy URL:** `/Pairings/Index` (Controller=Pairings, Action=Index)
+**Menu DB entry:** Controller=Scheduling, Action=ManageLeagueSeasonPairings (translated via `legacyRouteMap` in client-menu component)
 
 **Legacy Controller:** `reference/TSIC-Unify-2024/TSIC-Unify/Controllers/Scheduling/PairingsController.cs`
 **Legacy View:** `reference/TSIC-Unify-2024/TSIC-Unify/Views/Pairings/Index.cshtml`
@@ -109,7 +110,7 @@ A three-section layout: division navigator on the left, editable pairing grid in
 ## 4. Security
 
 - **Authorization:** `[Authorize(Policy = "AdminOnly")]`
-- **Scoping:** `leagueId`, `season` from JWT — pairings are per-league-season, not per-job
+- **Scoping:** JWT `regId` → `jobId` → `leagueId` + `season` (via `ResolveLeagueSeasonAsync`) — pairings are per-league-season, not per-job
 - **Team count isolation:** Pairings are keyed by `TCnt` (team count) within a league-season; divisions with the same team count share pairing templates
 
 ---
@@ -410,7 +411,14 @@ Key child components:
 }
 ```
 
-### Phase 9: Testing
+### Phase 9: Frontend — Agegroup Filtering
+
+The agegroup navigator filters out non-schedulable entries on the frontend:
+- **Excluded:** "Dropped Teams" agegroup (exact match, case-insensitive)
+- **Excluded:** Any agegroup starting with "WAITLIST" (e.g., WAITLIST, WAITLISTxxx)
+- **Sorted:** Remaining agegroups sorted alphabetically by name
+
+### Phase 10: Testing
 
 - Verify round-robin generation matches `Masterpairingtable` templates exactly
 - Verify bracket cascade: click "Q→F" generates QF (4 games) + SF (2 games) + F (1 game)

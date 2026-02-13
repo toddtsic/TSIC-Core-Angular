@@ -458,7 +458,7 @@
 
 /* Card Utilities */
 .card-rounded {
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     overflow: visible;
 }
 
@@ -514,7 +514,7 @@
     &.bg-info,
     &.bg-light,
     &.bg-dark {
-        color: white;
+        color: var(--neutral-0);
     }
 
     &.bg-warning,

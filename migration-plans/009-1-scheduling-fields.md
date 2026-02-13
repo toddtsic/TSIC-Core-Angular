@@ -119,7 +119,7 @@ Follow the identical dual-panel pattern established by the existing swapper comp
 ## 4. Security
 
 - **Authorization:** `[Authorize(Policy = "AdminOnly")]` on all endpoints
-- **Scoping:** `jobId`, `leagueId`, `season` derived from JWT claims — never route params
+- **Scoping:** JWT `regId` → `jobId` (via `GetJobIdFromRegistrationAsync`) → `leagueId` (via `GetPrimaryLeagueForJobAsync`) → `season` (via `GetJobSeasonAsync`) — never route params
 - **Director field visibility:** Directors see only fields that have been **historically used by any of their jobs** — i.e., fields that appear in `FieldsLeagueSeason` or `Schedule` for any job belonging to the Director's organization. This is NOT based on `LebUserId` on the Fields record. SuperUsers see all fields.
 - **System fields:** Fields with names starting with `*` are filtered from the available/assigned panels (backend enforced)
 

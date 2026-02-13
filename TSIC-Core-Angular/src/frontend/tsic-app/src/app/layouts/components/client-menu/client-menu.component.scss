@@ -54,7 +54,7 @@
                     cursor: not-allowed;
 
                     .badge {
-                        font-size: 0.65rem;
+                        font-size: var(--font-size-2xs);
                         padding: 0.15em 0.4em;
                     }
                 }
