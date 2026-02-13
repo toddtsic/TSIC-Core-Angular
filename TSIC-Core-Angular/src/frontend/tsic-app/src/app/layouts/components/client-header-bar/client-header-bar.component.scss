@@ -1,13 +1,11 @@
 // Client Header Bar - Modern glassmorphic design using global utilities
+// No bottom border — menu bar below provides the chrome boundary
 :host {
     display: block;
     width: 100%;
     min-height: 60px; // Component-specific: fixed header height
-    border-bottom: 1px solid var(--brand-border);
 
     @media (max-width: 767.98px) {
-        border: none;
-        border-bottom: 1px solid var(--brand-border);
         min-height: 70px; // Component-specific: slightly taller for mobile touch targets
     }
 }

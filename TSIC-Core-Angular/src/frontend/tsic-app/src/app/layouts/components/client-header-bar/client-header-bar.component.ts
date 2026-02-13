@@ -1,15 +1,15 @@
 import { Component, computed, inject, signal } from '@angular/core';
 
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ThemeService } from '@infrastructure/services/theme.service';
+import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({
     selector: 'app-client-header-bar',
     standalone: true,
-    imports: [RouterLink],
     templateUrl: './client-header-bar.component.html',
     styleUrls: ['./client-header-bar.component.scss']
 })
@@ -26,7 +26,7 @@ export class ClientHeaderBarComponent {
     jobLogoPath = computed(() => {
         const job = this.jobService.currentJob();
         if (job?.jobLogoPath) {
-            return this.buildAssetUrl(job.jobLogoPath);
+            return buildAssetUrl(job.jobLogoPath);
         }
         return '';
     });
@@ -40,29 +40,6 @@ export class ClientHeaderBarComponent {
     userMenuOpen = signal(false);
     menuTop = signal(0);
     menuRight = signal(0);
-
-    private buildAssetUrl(path?: string): string {
-        if (!path) return '';
-        const STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
-        const p = String(path).trim();
-        if (!p || p === 'undefined' || p === 'null') return '';
-
-        if (/^https?:\/\//i.test(p)) {
-            return p.replace(/([^:])\/\/+/, '$1/');
-        }
-
-        const noLead = p.replace(/^\/+/, '');
-        if (/^BannerFiles\//i.test(noLead)) {
-            const rest = noLead.replace(/^BannerFiles\//i, '');
-            return `${STATIC_BASE_URL}/${rest}`;
-        }
-
-        if (!/[.]/.test(noLead) && /^[a-z0-9-]{2,20}$/i.test(noLead)) {
-            return '';
-        }
-
-        return `${STATIC_BASE_URL}/${noLead}`;
-    }
 
     // Mobile menu toggle
     toggleOffcanvas() {
@@ -88,7 +65,8 @@ export class ClientHeaderBarComponent {
 
     switchRole() {
         this.closeUserMenu();
-        this.router.navigate(['role-selection']);
+        const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
+        this.router.navigate([`/${jobPath}/role-selection`]);
     }
 
     goHome() {
@@ -105,10 +83,6 @@ export class ClientHeaderBarComponent {
         const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
         const redirectTo = `/${jobPath}`;
         this.auth.logout({ redirectTo });
-    }
-
-    onSwitchRole(event: Event) {
-        // Prevent default link behavior if needed
     }
 
     toggleTheme() {

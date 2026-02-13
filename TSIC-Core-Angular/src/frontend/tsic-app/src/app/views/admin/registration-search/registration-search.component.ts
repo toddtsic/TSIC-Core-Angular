@@ -122,7 +122,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   private resizeHandler = () => this.checkMobileView();
 
   // Grid configuration
-  pageSettings: PageSettingsModel = { pageSize: 20 };
+  pageSettings: PageSettingsModel = { pageSize: 20, pageSizes: [20, 50, 100, 'All'] };
   sortSettings: SortSettingsModel = { columns: [{ field: 'lastName', direction: 'Ascending' }] };
 
   // Syncfusion MultiSelect fields

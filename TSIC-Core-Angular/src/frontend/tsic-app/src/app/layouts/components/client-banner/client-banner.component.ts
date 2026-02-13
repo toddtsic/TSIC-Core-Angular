@@ -1,11 +1,13 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, computed, signal } from '@angular/core';
 import { JobService } from '@infrastructure/services/job.service';
+import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 
 @Component({
     selector: 'app-client-banner',
     standalone: true,
     templateUrl: './client-banner.component.html',
-    styleUrl: './client-banner.component.scss'
+    styleUrl: './client-banner.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClientBannerComponent {
     private readonly jobService = inject(JobService);
@@ -30,7 +32,7 @@ export class ClientBannerComponent {
     bannerImageUrl = computed(() => {
         const bannerPath = this.jobBannerPath();
         if (!bannerPath) return null;
-        let url = this.buildAssetUrl(bannerPath);
+        let url = buildAssetUrl(bannerPath);
         // Fallback: if PDF, try JPG version instead
         if (url && url.toLowerCase().endsWith('.pdf')) {
             url = url.slice(0, -4) + '.jpg';
@@ -42,31 +44,8 @@ export class ClientBannerComponent {
     bannerBackgroundUrl = computed(() => {
         const backgroundPath = this.jobBannerBackgroundPath();
         if (!backgroundPath) return null;
-        return this.buildAssetUrl(backgroundPath);
+        return buildAssetUrl(backgroundPath);
     });
-
-    private buildAssetUrl(path?: string): string {
-        if (!path) return '';
-        const STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
-        const p = String(path).trim();
-        if (!p || p === 'undefined' || p === 'null') return '';
-
-        if (/^https?:\/\//i.test(p)) {
-            return p.replace(/([^:])\/\/+/, '$1/');
-        }
-
-        const noLead = p.replace(/^\/+/, '');
-        if (/^BannerFiles\//i.test(noLead)) {
-            const rest = noLead.replace(/^BannerFiles\//i, '');
-            return `${STATIC_BASE_URL}/${rest}`;
-        }
-
-        if (!/[.]/.test(noLead) && /^[a-z0-9-]{2,20}$/i.test(noLead)) {
-            return '';
-        }
-
-        return `${STATIC_BASE_URL}/${noLead}`;
-    }
 
     // Simple validation for overlay image
     hasValidOverlayImage = computed(() => {
@@ -75,7 +54,7 @@ export class ClientBannerComponent {
         const isValid = this.overlayImageValid();
 
         if (!url || url === '' || url === 'undefined' || url === 'null') return false;
-        if (!isValid) return false; // Hide if image is too small
+        if (!isValid) return false;
 
         // Overlay should only appear WITH background
         return !!hasBackground && !!url;
@@ -84,7 +63,6 @@ export class ClientBannerComponent {
     // Check image dimensions after load - hide if too small (likely placeholder)
     onOverlayImageLoad(event: Event) {
         const img = event.target as HTMLImageElement;
-        // Hide images smaller than 150x150 (likely placeholders)
         if (img.naturalWidth < 150 || img.naturalHeight < 150) {
             this.overlayImageValid.set(false);
         } else {
@@ -105,7 +83,7 @@ export class ClientBannerComponent {
         textarea.innerHTML = text;
         let decoded = textarea.value;
 
-        // Clean up trailing <br> and &nbsp; 
+        // Clean up trailing <br> and &nbsp;
         while (/<br\s*\/?>\s*$/i.test(decoded) || /&nbsp;\s*$/i.test(decoded)) {
             decoded = decoded.replace(/<br\s*\/?>\s*$/i, '').replace(/&nbsp;\s*$/i, '');
         }

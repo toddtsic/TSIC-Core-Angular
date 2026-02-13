@@ -1,5 +1,5 @@
 <div class="client-banner">
-    @if (job(); as currentJob) {
+    @if (job()) {
     @if (bannerBackgroundUrl()) {
     <!-- Background image with optional banner overlay -->
     <div class="banner-background-only" [style.background-image]="'url(' + bannerBackgroundUrl() + ')'">

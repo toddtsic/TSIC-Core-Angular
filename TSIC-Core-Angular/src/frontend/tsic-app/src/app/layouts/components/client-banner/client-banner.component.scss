@@ -1,26 +1,11 @@
 .client-banner {
     position: relative;
-    z-index: 100;
+    z-index: 1;
     min-height: 200px; // Component-specific: large banner minimum
     max-height: 400px; // Component-specific: banner maximum
     height: auto;
     padding: 0 var(--space-8);
     margin-top: var(--space-4);
-
-    &::after {
-        content: '';
-        position: absolute;
-        bottom: calc(-1 * var(--space-5));
-        left: 0;
-        right: 0;
-        height: calc(var(--space-10) * 2);
-        background: linear-gradient(to bottom,
-                rgba(var(--neutral-0-rgb), 0.8) 0%,
-                rgba(var(--neutral-0-rgb), 0.4) 50%,
-                transparent 100%);
-        pointer-events: none;
-        z-index: -1;
-    }
 
     @media (max-width: 768px) {
         padding: 0 var(--space-4);
@@ -47,17 +32,6 @@
             var(--shadow-lg),
             inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.3),
             inset 0 -1px 0 rgba(0, 0, 0, 0.1);
-
-        transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-
-        &:hover {
-            transform: translateY(calc(-1 * var(--space-1))) scale(1.02);
-            box-shadow:
-                var(--shadow-xl),
-                inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.4),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(25px); // Component-specific: enhanced glassmorphic on hover
-        }
 
         // Subtle neutral gradient overlay
         &::before {
@@ -114,32 +88,11 @@
                 border-radius: var(--radius-lg);
                 border: 1px solid rgba(var(--neutral-0-rgb), 0.3);
                 background: rgba(var(--neutral-0-rgb), 0.1);
-                backdrop-filter: blur(10px);
-                box-shadow:
-                    var(--shadow-lg),
-                    inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.4);
+                box-shadow: var(--shadow-lg);
                 cursor: default;
-                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
                 padding: var(--space-2);
-
                 min-width: var(--space-12);
                 min-height: var(--space-12);
-
-                &:hover {
-                    transform: translateY(calc(-1 * var(--space-1))) scale(1.05);
-                    box-shadow:
-                        var(--shadow-xl),
-                        inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.5);
-                    backdrop-filter: blur(15px);
-                }
-
-                // Hide empty/broken images
-                &[src=""],
-                &[src="undefined"],
-                &[src="null"],
-                &[alt*="error"] {
-                    display: none !important;
-                }
             }
         }
 
@@ -150,7 +103,7 @@
             transform: translateY(-50%);
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: var(--space-2);
             z-index: 2;
             max-width: 70%;
 
@@ -160,7 +113,7 @@
             }
 
             .banner-title {
-                padding: 4px 8px;
+                padding: var(--space-1) var(--space-2);
                 margin: 0;
                 font-size: var(--font-size-3xl);
                 font-weight: var(--font-weight-bold);
@@ -180,15 +133,10 @@
                 box-shadow:
                     var(--shadow-lg),
                     inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.2);
-                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-
-                &:hover {
-                    transform: translateY(-2px) scale(1.02);
-                }
 
                 @media (max-width: 768px) {
                     font-size: var(--font-size-lg);
-                    padding: 4px 6px;
+                    padding: var(--space-1);
                     text-shadow:
                         0 3px 6px rgba(0, 0, 0, 0.9),
                         0 1px 3px rgba(0, 0, 0, 1);
@@ -197,7 +145,7 @@
             }
 
             .banner-subtitle {
-                padding: 4px 8px;
+                padding: var(--space-1) var(--space-2);
                 margin: 0;
                 font-size: var(--font-size-lg);
                 font-weight: var(--font-weight-medium);
@@ -205,7 +153,6 @@
                 line-height: 1.2;
                 color: var(--neutral-0);
                 text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
-                backdrop-filter: blur(8px);
                 background: linear-gradient(135deg,
                         rgba(var(--neutral-0-rgb), 0.2) 0%,
                         rgba(var(--neutral-0-rgb), 0.15) 100%);
@@ -213,15 +160,10 @@
                 border: 1px solid rgba(var(--neutral-0-rgb), 0.15);
                 box-shadow: var(--shadow-sm),
                     inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
-                transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-
-                &:hover {
-                    transform: translateY(-2px) scale(1.02);
-                }
 
                 @media (max-width: 768px) {
                     font-size: var(--font-size-xs);
-                    padding: 4px 6px;
+                    padding: var(--space-1);
                     text-shadow:
                         0 2px 4px rgba(0, 0, 0, 0.9),
                         0 1px 2px rgba(0, 0, 0, 1);
@@ -245,7 +187,9 @@
         }
     }
 
-    .banner-text {
+    // Text-only and fallback share the same base layout
+    .banner-text,
+    .banner-fallback {
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -256,9 +200,15 @@
         text-align: center;
 
         .banner-title {
-            margin: 0 0 var(--space-2) 0;
+            margin: 0;
             font-size: var(--font-size-4xl);
             font-weight: var(--font-weight-bold);
+        }
+    }
+
+    .banner-text {
+        .banner-title {
+            margin-bottom: var(--space-2);
             color: var(--bs-primary);
         }
 
@@ -271,18 +221,7 @@
     }
 
     .banner-fallback {
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: var(--space-8) var(--space-4);
-        background: var(--bs-light);
-        text-align: center;
-
         .banner-title {
-            margin: 0;
-            font-size: var(--font-size-4xl);
-            font-weight: var(--font-weight-bold);
             color: var(--bs-secondary);
         }
     }

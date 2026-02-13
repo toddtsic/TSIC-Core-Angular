@@ -5,15 +5,13 @@
     min-height: 100vh;
 }
 
+// Combined header + menu chrome — single sticky block
 .tsic-header {
     position: sticky;
     top: 0;
     z-index: 1000;
     background-color: var(--brand-bg);
-    margin-bottom: 0;
-    padding-bottom: 0;
     width: 100%;
-    min-height: 60px;
 }
 
 // Main content area - properly constrained for SPA

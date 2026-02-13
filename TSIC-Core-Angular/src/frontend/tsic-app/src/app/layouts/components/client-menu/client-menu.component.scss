@@ -1,14 +1,8 @@
-// Modern menu with contemporary design
+// Modern menu — lives inside .tsic-header sticky block, no separate sticky needed
 .navbar {
-    border-bottom: none;
-    position: sticky;
-    top: 59px;
-    z-index: 500;
     background: var(--brand-surface);
     backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--brand-border);
-    margin-top: -1px;
-    margin-bottom: 0;
     width: 100%;
     padding: 0;
     min-height: var(--space-12);
