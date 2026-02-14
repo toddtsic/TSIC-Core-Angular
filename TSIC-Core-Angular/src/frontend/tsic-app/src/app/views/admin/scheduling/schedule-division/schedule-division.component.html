@@ -13,8 +13,13 @@
 
             <!-- ── Division Navigator ── -->
             <div class="nav-panel">
-                <div class="panel-header">
+                <div class="panel-header d-flex align-items-center justify-content-between">
                     <span class="fw-semibold">Agegroup/Divisions</span>
+                    @if (expandedAgegroups().size > 0) {
+                        <button class="collapse-all-btn" (click)="collapseAll()" title="Collapse all">
+                            <i class="bi bi-chevron-bar-contract"></i>
+                        </button>
+                    }
                 </div>
                 <div class="panel-body">
                     @if (isNavLoading()) {
@@ -36,7 +41,7 @@
                                         <span class="nav-ag-name">{{ ag.agegroupName }}</span>
                                         <span class="badge rounded-pill ms-auto ag-badge"
                                               [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
-                                              [style.color]="ag.color ? '#fff' : 'var(--bs-secondary-color)'">
+                                              [style.color]="contrastText(ag.color)">
                                             {{ agTeamCount(ag) }}
                                         </span>
                                     </div>
@@ -153,36 +158,27 @@
                 </div>
             } @else {
                 <!-- Grid Header -->
-                <div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div>
-                        <span class="fw-semibold">{{ selectedDivision()!.divName }}</span>
-                        <span class="badge bg-primary-subtle text-primary-emphasis ms-2">
-                            {{ teamCount() }} teams
+                <div class="grid-header">
+                    <span class="fw-semibold">{{ selectedDivision()!.divName }}</span>
+                    <span class="badge bg-primary-subtle text-primary-emphasis">
+                        {{ teamCount() }} teams
+                    </span>
+                    @if (selectedGame()) {
+                        <span class="badge bg-info-subtle text-info-emphasis">
+                            <i class="bi bi-arrows-move me-1"></i>Click destination to move
                         </span>
-                        @if (selectedGame()) {
-                            <span class="badge bg-info-subtle text-info-emphasis ms-2">
-                                <i class="bi bi-arrows-move me-1"></i>Click destination to move
-                            </span>
-                        }
-                        @if (conflictedGameIds().size > 0) {
-                            <span class="badge bg-warning-subtle text-warning-emphasis ms-2">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ conflictedGameIds().size }} conflict{{ conflictedGameIds().size > 1 ? 's' : '' }}
-                            </span>
-                        }
-                    </div>
-                    <div class="d-flex gap-1">
-                        <!-- Auto-schedule -->
-                        <button class="btn btn-sm btn-primary"
-                                (click)="confirmAutoSchedule()"
-                                [disabled]="isAutoScheduling() || availablePairings().length === 0"
-                                title="Auto-schedule all available pairings">
-                            @if (isAutoScheduling()) {
-                                <span class="spinner-border spinner-border-sm"></span>
-                            } @else {
-                                <i class="bi bi-lightning-fill"></i>
-                            }
-                            Auto-Schedule
-                        </button>
+                    }
+                    @if (breakingConflictCount() > 0) {
+                        <span class="badge bg-danger-subtle text-danger-emphasis" title="Slot collisions or same-team double-bookings">
+                            <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ breakingConflictCount() }} breaking
+                        </span>
+                    }
+                    @if (backToBackGameIds().size > 0) {
+                        <span class="badge bg-warning-subtle text-warning-emphasis" title="Teams playing consecutive timeslots">
+                            <i class="bi bi-clock-history me-1"></i>{{ backToBackGameIds().size }} back-to-back
+                        </span>
+                    }
+                    <div class="ms-auto d-flex gap-1">
                         <!-- Delete all division games -->
                         <button class="btn btn-sm btn-outline-danger"
                                 (click)="confirmDeleteDivGames()"
@@ -198,46 +194,9 @@
                     </div>
                 </div>
 
-                <!-- Auto-schedule confirmation -->
-                @if (showAutoScheduleConfirm()) {
-                    <div class="alert alert-warning m-2 d-flex align-items-center justify-content-between">
-                        <span>
-                            <i class="bi bi-lightning-fill me-1"></i>
-                            Auto-schedule <strong>{{ selectedDivision()!.divName }}</strong>?
-                            This will <strong>delete existing games</strong> and schedule {{ availablePairings().length + scheduledPairings().length }} pairings.
-                        </span>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-primary" (click)="autoScheduleDiv()">Yes, Schedule</button>
-                            <button class="btn btn-sm btn-outline-secondary" (click)="cancelAutoSchedule()">Cancel</button>
-                        </div>
-                    </div>
-                }
-
-                <!-- Auto-schedule result -->
-                @if (autoScheduleResult(); as result) {
-                    <div class="alert m-2 d-flex align-items-center justify-content-between"
-                         [class.alert-success]="result.failedCount === 0"
-                         [class.alert-warning]="result.failedCount > 0">
-                        <span>
-                            @if (result.failedCount === 0) {
-                                <i class="bi bi-check-circle-fill me-1"></i>
-                            } @else {
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                            }
-                            Scheduled {{ result.scheduledCount }} of {{ result.totalPairings }} games
-                            @if (result.failedCount > 0) {
-                                ({{ result.failedCount }} could not be placed — no available timeslots)
-                            }
-                        </span>
-                        <button class="btn btn-sm btn-outline-secondary" (click)="dismissAutoScheduleResult()">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                }
-
                 <!-- Delete confirmation -->
                 @if (showDeleteDivConfirm()) {
-                    <div class="alert alert-danger m-2 d-flex align-items-center justify-content-between">
+                    <div class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
                         <span>
                             <i class="bi bi-exclamation-triangle me-1"></i>
                             Delete <strong>all</strong> scheduled games for <strong>{{ selectedDivision()!.divName }}</strong>?
@@ -283,16 +242,22 @@
                                                 [class.cell-game]="!!cell"
                                                 [class.cell-selected-game]="cell && isGameSelected(cell)"
                                                 [class.cell-move-target]="selectedGame() && (!cell || !isGameSelected(cell!))"
-                                                [class.cell-conflict]="cell && isConflicted(cell)"
+                                                [class.cell-breaking]="cell && isBreaking(cell)"
+                                                [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
+                                                [class.cell-other-div]="cell && isOtherDivision(cell)"
                                                 (click)="onGridCellClick(row, ci)">
                                                 @if (cell) {
-                                                    <div class="game-card"
-                                                         [class.game-card-conflict]="isConflicted(cell)"
-                                                         [style.border-left-color]="cell.color || 'var(--bs-primary)'">
+                                                    <div class="game-card" [class.game-card-current]="!isOtherDivision(cell)" [class.game-card-other]="isOtherDivision(cell)" [class.game-card-breaking]="isBreaking(cell)" [class.game-card-back-to-back]="!isBreaking(cell) && isBackToBack(cell)" [style.border-left-color]="cell.color || 'var(--bs-primary)'" [style.background]="isOtherDivision(cell) ? null : agBg(cell.color)">
                                                         <div class="game-label">{{ cell.agDivLabel }}</div>
                                                         <div class="game-teams">{{ cell.t1Label }} vs {{ cell.t2Label }}</div>
-                                                        @if (isConflicted(cell)) {
-                                                            <i class="bi bi-exclamation-triangle-fill conflict-icon" title="Team double-booked on this date"></i>
+                                                        @if (isSlotCollision(cell)) {
+                                                            <i class="bi bi-layers-fill conflict-icon conflict-breaking" title="Multiple games in this slot"></i>
+                                                        }
+                                                        @if (isTimeClash(cell)) {
+                                                            <i class="bi bi-people-fill conflict-icon conflict-breaking" title="Team double-booked at this time"></i>
+                                                        }
+                                                        @if (!isBreaking(cell) && isBackToBack(cell)) {
+                                                            <i class="bi bi-clock-history conflict-icon conflict-b2b" title="Team playing back-to-back slots"></i>
                                                         }
                                                         <button class="game-delete-btn"
                                                                 (click)="deleteGame(cell, row, ci); $event.stopPropagation()"

@@ -1,0 +1,480 @@
+<div class="rescheduler-container">
+
+    <!-- ── Header ── -->
+    <div class="rescheduler-header">
+        <h5 class="mb-0">Rescheduler</h5>
+        <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-warning" (click)="openWeatherModal()">
+                <i class="bi bi-cloud-rain me-1"></i>Weather Adjust
+            </button>
+            <button class="btn btn-sm btn-outline-primary" (click)="openEmailModal()">
+                <i class="bi bi-envelope me-1"></i>Email Participants
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Main layout: Filters (left) | Grid (right) ── -->
+    <div class="rescheduler-layout">
+
+        <!-- ══════════ LEFT PANEL: Filters ══════════ -->
+        <div class="left-panel">
+            <div class="filter-panel">
+                <div class="panel-header d-flex align-items-center justify-content-between">
+                    <span class="fw-semibold">Filters</span>
+                    @if (hasActiveFilters()) {
+                        <button class="btn btn-sm btn-link p-0" (click)="clearFilters()">Clear</button>
+                    }
+                </div>
+
+                <div class="panel-body">
+                    @if (isFiltersLoading()) {
+                        <div class="text-center p-3">
+                            <div class="spinner-border spinner-border-sm text-secondary"></div>
+                        </div>
+                    } @else {
+
+                        <!-- CADT Tree -->
+                        <div class="filter-section">
+                            <div class="filter-section-label">Clubs / Agegroups / Divisions / Teams</div>
+                            <div class="cadt-tree">
+                                @for (club of clubs(); track club.clubName) {
+                                    <div class="cadt-node">
+                                        <div class="cadt-header"
+                                             (click)="toggleClub(club.clubName)">
+                                            <i class="bi" [class.bi-chevron-right]="!isClubExpanded(club.clubName)"
+                                               [class.bi-chevron-down]="isClubExpanded(club.clubName)"></i>
+                                            <input type="checkbox" class="form-check-input cadt-check"
+                                                   [checked]="isClubSelected(club.clubName)"
+                                                   (click)="toggleClubFilter(club.clubName); $event.stopPropagation()">
+                                            <span class="cadt-label">{{ club.clubName }}</span>
+                                        </div>
+
+                                        @if (isClubExpanded(club.clubName)) {
+                                            @for (ag of club.agegroups; track ag.agegroupId) {
+                                                <div class="cadt-node cadt-indent-1">
+                                                    <div class="cadt-header"
+                                                         (click)="toggleAgegroup(ag.agegroupId)">
+                                                        <i class="bi" [class.bi-chevron-right]="!isAgExpanded(ag.agegroupId)"
+                                                           [class.bi-chevron-down]="isAgExpanded(ag.agegroupId)"></i>
+                                                        <input type="checkbox" class="form-check-input cadt-check"
+                                                               [checked]="isAgSelected(ag.agegroupId)"
+                                                               (click)="toggleAgegroupFilter(ag.agegroupId); $event.stopPropagation()">
+                                                        @if (ag.color) {
+                                                            <span class="color-dot" [style.background]="ag.color"></span>
+                                                        }
+                                                        <span class="cadt-label">{{ ag.agegroupName }}</span>
+                                                    </div>
+
+                                                    @if (isAgExpanded(ag.agegroupId)) {
+                                                        @for (div of ag.divisions; track div.divId) {
+                                                            <div class="cadt-node cadt-indent-2">
+                                                                <div class="cadt-header"
+                                                                     (click)="toggleDivision(div.divId)">
+                                                                    <i class="bi" [class.bi-chevron-right]="!isDivExpanded(div.divId)"
+                                                                       [class.bi-chevron-down]="isDivExpanded(div.divId)"></i>
+                                                                    <input type="checkbox" class="form-check-input cadt-check"
+                                                                           [checked]="isDivSelected(div.divId)"
+                                                                           (click)="toggleDivisionFilter(div.divId); $event.stopPropagation()">
+                                                                    <span class="cadt-label">{{ div.divName }}</span>
+                                                                </div>
+
+                                                                @if (isDivExpanded(div.divId)) {
+                                                                    @for (team of div.teams; track team.teamId) {
+                                                                        <div class="cadt-node cadt-indent-3">
+                                                                            <div class="cadt-header cadt-leaf">
+                                                                                <input type="checkbox" class="form-check-input cadt-check"
+                                                                                       [checked]="isTeamSelected(team.teamId)"
+                                                                                       (click)="toggleTeamFilter(team.teamId)">
+                                                                                <span class="cadt-label">{{ team.teamName }}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    }
+                                                                }
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Game Days -->
+                        @if (gameDays().length > 0) {
+                            <div class="filter-section">
+                                <div class="filter-section-label">Game Days</div>
+                                <div class="filter-chips">
+                                    @for (day of gameDays(); track day) {
+                                        <button class="chip"
+                                                [class.chip-selected]="isGameDaySelected(day)"
+                                                (click)="toggleGameDayFilter(day)">
+                                            {{ formatGameDay(day) }}
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Fields -->
+                        @if (fields().length > 0) {
+                            <div class="filter-section">
+                                <div class="filter-section-label">Fields</div>
+                                <div class="filter-list">
+                                    @for (field of fields(); track field.fieldId) {
+                                        <label class="filter-item">
+                                            <input type="checkbox" class="form-check-input"
+                                                   [checked]="isFieldSelected(field.fieldId)"
+                                                   (change)="toggleFieldFilter(field.fieldId)">
+                                            <span>{{ field.fName }}</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <!-- Apply filters -->
+                <div class="panel-footer">
+                    <button class="btn btn-sm btn-primary w-100" (click)="loadGrid()">
+                        <i class="bi bi-funnel me-1"></i>Load Grid
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════ RIGHT PANEL: Schedule Grid ══════════ -->
+        <div class="grid-panel">
+            @if (!gridResponse()) {
+                <div class="empty-state">
+                    <i class="bi bi-calendar3 text-secondary icon-lg"></i>
+                    <p class="text-secondary mt-2 mb-0">Apply filters and click "Load Grid" to view the schedule</p>
+                </div>
+            } @else {
+                <!-- Grid Header -->
+                <div class="grid-header">
+                    <span class="fw-semibold">Cross-Division Schedule</span>
+                    @if (selectedGame()) {
+                        <span class="badge bg-info-subtle text-info-emphasis">
+                            <i class="bi bi-arrows-move me-1"></i>Click destination to move/swap
+                        </span>
+                    }
+                    @if (breakingConflictCount() > 0) {
+                        <span class="badge bg-danger-subtle text-danger-emphasis">
+                            <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ breakingConflictCount() }} breaking
+                        </span>
+                    }
+                    @if (backToBackGameIds().size > 0) {
+                        <span class="badge bg-warning-subtle text-warning-emphasis">
+                            <i class="bi bi-clock-history me-1"></i>{{ backToBackGameIds().size }} back-to-back
+                        </span>
+                    }
+                    <div class="ms-auto d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-secondary" (click)="toggleAddTimeslot()">
+                            <i class="bi bi-plus-circle me-1"></i>Add Row
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add Timeslot inline -->
+                @if (showAddTimeslot()) {
+                    <div class="add-timeslot-bar">
+                        <label class="form-label mb-0">Date</label>
+                        <input type="date" class="form-control form-control-sm"
+                               [ngModel]="newTimeslotDate()"
+                               (ngModelChange)="newTimeslotDate.set($event)">
+                        <label class="form-label mb-0">Time</label>
+                        <input type="time" class="form-control form-control-sm"
+                               [ngModel]="newTimeslotTime()"
+                               (ngModelChange)="newTimeslotTime.set($event)">
+                        <button class="btn btn-sm btn-primary" (click)="addTimeslotAndReload()">
+                            <i class="bi bi-plus"></i> Inject Row
+                        </button>
+                    </div>
+                }
+
+                <!-- Grid Content -->
+                @if (isGridLoading()) {
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                } @else if (gridColumns().length === 0) {
+                    <div class="empty-state">
+                        <i class="bi bi-exclamation-circle text-secondary icon-lg"></i>
+                        <p class="text-secondary mt-2 mb-0">No games match the selected filters</p>
+                    </div>
+                } @else {
+                    <div class="grid-scroll">
+                        <table class="schedule-grid">
+                            <thead>
+                                <tr>
+                                    <th class="col-time sticky-col">Time</th>
+                                    @for (col of gridColumns(); track col.fieldId) {
+                                        <th class="col-field">{{ col.fName }}</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (row of gridRows(); track row.gDate) {
+                                    <tr>
+                                        <td class="col-time sticky-col">
+                                            <div class="time-label">{{ formatDate(row.gDate) }}</div>
+                                            <div class="time-sub">{{ formatTimeOnly(row.gDate) }}</div>
+                                        </td>
+                                        @for (cell of row.cells; track $index; let ci = $index) {
+                                            <td class="col-field"
+                                                [class.cell-game]="!!cell"
+                                                [class.cell-selected-game]="cell && isGameSelected(cell)"
+                                                [class.cell-move-target]="selectedGame() && (!cell || !isGameSelected(cell!))"
+                                                [class.cell-breaking]="cell && isBreaking(cell)"
+                                                [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
+                                                (click)="onGridCellClick(row, ci)">
+                                                @if (cell) {
+                                                    <div class="game-card"
+                                                         [class.game-card-breaking]="isBreaking(cell)"
+                                                         [class.game-card-back-to-back]="!isBreaking(cell) && isBackToBack(cell)"
+                                                         [style.border-left-color]="cell.color || 'var(--bs-primary)'">
+                                                        <div class="game-label">{{ cell.agDivLabel }}</div>
+                                                        <div class="game-teams">{{ cell.t1Label }} vs {{ cell.t2Label }}</div>
+                                                        @if (isSlotCollision(cell)) {
+                                                            <i class="bi bi-layers-fill conflict-icon conflict-breaking" title="Multiple games in this slot"></i>
+                                                        }
+                                                        @if (isTimeClash(cell)) {
+                                                            <i class="bi bi-people-fill conflict-icon conflict-breaking" title="Team double-booked"></i>
+                                                        }
+                                                        @if (!isBreaking(cell) && isBackToBack(cell)) {
+                                                            <i class="bi bi-clock-history conflict-icon conflict-b2b" title="Back-to-back"></i>
+                                                        }
+                                                    </div>
+                                                } @else if (selectedGame()) {
+                                                    <div class="open-slot-hint">
+                                                        <i class="bi bi-arrows-move"></i>
+                                                    </div>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Weather Adjustment Modal -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showWeatherModal()) {
+    <div class="modal-backdrop" (click)="closeWeatherModal()"></div>
+    <div class="modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-cloud-rain me-1"></i>Weather / Time Adjustment
+                </h6>
+                <button class="btn-close" (click)="closeWeatherModal()"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary mb-3">
+                    Compress or expand game start times for a specific date and set of fields.
+                </p>
+
+                <!-- Before -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Current (Before)</label>
+                    <div class="d-flex gap-2">
+                        <div class="flex-fill">
+                            <label class="form-label">First Game Time</label>
+                            <input type="datetime-local" class="form-control form-control-sm"
+                                   [ngModel]="weatherPreFirstGame()"
+                                   (ngModelChange)="weatherPreFirstGame.set($event)">
+                        </div>
+                        <div style="width:100px">
+                            <label class="form-label">Interval (min)</label>
+                            <input type="number" class="form-control form-control-sm"
+                                   [ngModel]="weatherPreGSI()"
+                                   (ngModelChange)="weatherPreGSI.set($event)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- After -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Desired (After)</label>
+                    <div class="d-flex gap-2">
+                        <div class="flex-fill">
+                            <label class="form-label">New First Game Time</label>
+                            <input type="datetime-local" class="form-control form-control-sm"
+                                   [ngModel]="weatherPostFirstGame()"
+                                   (ngModelChange)="weatherPostFirstGame.set($event)">
+                        </div>
+                        <div style="width:100px">
+                            <label class="form-label">Interval (min)</label>
+                            <input type="number" class="form-control form-control-sm"
+                                   [ngModel]="weatherPostGSI()"
+                                   (ngModelChange)="weatherPostGSI.set($event)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fields -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Fields</label>
+                    <div class="filter-list">
+                        @for (field of fields(); track field.fieldId) {
+                            <label class="filter-item">
+                                <input type="checkbox" class="form-check-input"
+                                       [checked]="isWeatherFieldSelected(field.fieldId)"
+                                       (change)="toggleWeatherField(field.fieldId)">
+                                <span>{{ field.fName }}</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <button class="btn btn-sm btn-outline-secondary" (click)="previewWeatherAffected()"
+                            [disabled]="isWeatherLoading()">
+                        Preview
+                    </button>
+                    @if (weatherAffectedCount() !== null) {
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                            {{ weatherAffectedCount() }} games affected
+                        </span>
+                    }
+                </div>
+
+                <!-- Result -->
+                @if (weatherResult()) {
+                    <div class="alert mb-0 py-2"
+                         [class.alert-success]="weatherResult()!.success"
+                         [class.alert-danger]="!weatherResult()!.success">
+                        {{ weatherResult()!.message }}
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" (click)="closeWeatherModal()">Close</button>
+                <button class="btn btn-sm btn-warning" (click)="executeWeatherAdjust()"
+                        [disabled]="isWeatherLoading() || !weatherPreFirstGame() || !weatherPostFirstGame()">
+                    @if (isWeatherLoading()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Apply Adjustment
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Email Modal -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showEmailModal()) {
+    <div class="modal-backdrop" (click)="closeEmailModal()"></div>
+    <div class="modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-envelope me-1"></i>Email Game Participants
+                </h6>
+                <button class="btn-close" (click)="closeEmailModal()"></button>
+            </div>
+            <div class="modal-body">
+                @if (emailSent()) {
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Email sent to <strong>{{ emailSentCount() }}</strong> recipients.
+                        @if (emailFailedCount() > 0) {
+                            <span class="text-danger ms-2">{{ emailFailedCount() }} failed.</span>
+                        }
+                    </div>
+                } @else {
+                    <!-- Date Range -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Game Date Range</label>
+                        <div class="d-flex gap-2">
+                            <div class="flex-fill">
+                                <label class="form-label">From</label>
+                                <input type="datetime-local" class="form-control form-control-sm"
+                                       [ngModel]="emailFirstGame()"
+                                       (ngModelChange)="emailFirstGame.set($event)">
+                            </div>
+                            <div class="flex-fill">
+                                <label class="form-label">To</label>
+                                <input type="datetime-local" class="form-control form-control-sm"
+                                       [ngModel]="emailLastGame()"
+                                       (ngModelChange)="emailLastGame.set($event)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fields -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Fields</label>
+                        <div class="filter-list">
+                            @for (field of fields(); track field.fieldId) {
+                                <label class="filter-item">
+                                    <input type="checkbox" class="form-check-input"
+                                           [checked]="isEmailFieldSelected(field.fieldId)"
+                                           (change)="toggleEmailField(field.fieldId)">
+                                    <span>{{ field.fName }}</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Preview count -->
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <button class="btn btn-sm btn-outline-secondary" (click)="previewRecipientCount()"
+                                [disabled]="isEmailLoading()">
+                            Preview Recipients
+                        </button>
+                        @if (emailRecipientCount() !== null) {
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                ~{{ emailRecipientCount() }} recipients
+                            </span>
+                        }
+                    </div>
+
+                    <!-- Subject -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Subject</label>
+                        <input type="text" class="form-control form-control-sm"
+                               [ngModel]="emailSubject()"
+                               (ngModelChange)="emailSubject.set($event)"
+                               placeholder="Schedule change notification">
+                    </div>
+
+                    <!-- Body (RTE) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Message Body</label>
+                        <ejs-richtexteditor
+                            [toolbarSettings]="rteTools"
+                            [height]="200"
+                            (change)="onRteChange($event)">
+                        </ejs-richtexteditor>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" (click)="closeEmailModal()">Close</button>
+                @if (!emailSent()) {
+                    <button class="btn btn-sm btn-primary" (click)="sendEmail()"
+                            [disabled]="isEmailLoading() || !emailSubject() || !emailBody()">
+                        @if (isEmailLoading()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Send Email
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}

@@ -106,12 +106,18 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         var allGameDates = allTimeslots.ToList();
         var games = await _scheduleRepo.GetGamesForGridAsync(jobId, fieldIds, allGameDates, ct);
 
-        // Index by (GDate, FieldId) for O(1) cell lookup
+        // Index by (GDate, FieldId) for O(1) cell lookup; detect slot collisions
         var gameIndex = new Dictionary<(DateTime, Guid), Schedule>();
+        var slotCollisionKeys = new HashSet<(DateTime, Guid)>();
         foreach (var game in games)
         {
             if (game.GDate.HasValue && game.FieldId.HasValue)
-                gameIndex[(game.GDate.Value, game.FieldId.Value)] = game;
+            {
+                var key = (game.GDate.Value, game.FieldId.Value);
+                if (gameIndex.ContainsKey(key))
+                    slotCollisionKeys.Add(key);
+                gameIndex[key] = game;
+            }
         }
 
         // 5. Build agegroup color map for games (multiple agegroups may share fields)
@@ -132,9 +138,15 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         foreach (var timeslot in allTimeslots)
         {
             var cells = columns
-                .Select(col => gameIndex.TryGetValue((timeslot, col.FieldId), out var game)
-                    ? MapGameToDto(game, game.AgegroupId.HasValue && agColorMap.TryGetValue(game.AgegroupId.Value, out var color) ? color : null)
-                    : null)
+                .Select(col =>
+                {
+                    if (!gameIndex.TryGetValue((timeslot, col.FieldId), out var game))
+                        return (ScheduleGameDto?)null;
+
+                    var agColor = game.AgegroupId.HasValue && agColorMap.TryGetValue(game.AgegroupId.Value, out var c) ? c : null;
+                    var isCollision = slotCollisionKeys.Contains((timeslot, col.FieldId));
+                    return MapGameToDto(game, agColor, isCollision);
+                })
                 .ToList();
 
             rows.Add(new ScheduleGridRow { GDate = timeslot, Cells = cells });
@@ -455,7 +467,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         return (leagueId, seasonYear.Season ?? "", seasonYear.Year ?? "");
     }
 
-    private static ScheduleGameDto MapGameToDto(Schedule game, string? agegroupColor = null) => new()
+    private static ScheduleGameDto MapGameToDto(Schedule game, string? agegroupColor = null, bool isSlotCollision = false) => new()
     {
         Gid = game.Gid,
         GDate = game.GDate ?? DateTime.MinValue,
@@ -472,7 +484,8 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         T2No = game.T2No,
         T1Id = game.T1Id,
         T2Id = game.T2Id,
-        DivId = game.DivId
+        DivId = game.DivId,
+        IsSlotCollision = isSlotCollision
     };
 
     private static string FormatTeamLabel(int? teamNo, string? teamName, string? teamType)

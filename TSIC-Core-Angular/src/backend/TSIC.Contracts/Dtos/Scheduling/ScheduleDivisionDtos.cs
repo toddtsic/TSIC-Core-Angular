@@ -30,6 +30,8 @@ public record ScheduleGameDto
     public Guid? T2Id { get; init; }
     /// <summary>Division ID this game belongs to.</summary>
     public Guid? DivId { get; init; }
+    /// <summary>True when multiple games occupy the same (time, field) slot.</summary>
+    public bool IsSlotCollision { get; init; }
 }
 
 /// <summary>

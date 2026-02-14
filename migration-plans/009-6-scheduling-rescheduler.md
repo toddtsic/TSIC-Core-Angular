@@ -227,34 +227,91 @@ If B exists (occupied): Swap A ↔ B
 
 ## 6. Implementation Steps
 
+### ⚠️ CRITICAL PATTERNS (verified from codebase)
+
+**Auth — NO leagueId claim exists.** Use standard `ResolveContext()`:
+```csharp
+private async Task<(Guid? jobId, string? userId, ActionResult? error)> ResolveContext()
+{
+    var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+    if (jobId == null)
+        return (null, null, BadRequest(new { message = "Registration context required" }));
+
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrEmpty(userId))
+        return (null, null, Unauthorized());
+
+    return (jobId, userId, null);
+}
+```
+
+**Filters — match `ScheduleFilterRequest` pattern** (same as View Schedule / Reg Search):
+- `List<T>?` for multi-select (null = no filter, OR-union logic)
+- `POST` body for filter criteria, `GET` for filter options
+- Reuse `ScheduleFilterOptionsDto` (CADT tree + GameDays + Fields) from ViewScheduleDtos.cs
+
+**Grid — reuse existing DTOs from ScheduleDivisionDtos.cs:**
+- `ScheduleGridResponse` (Columns + Rows)
+- `ScheduleGridRow` (GDate + Cells)
+- `ScheduleGameDto` (game cell — already has AgDivLabel, Color, T1Id/T2Id for conflict detection)
+- `ScheduleFieldColumn` (FieldId + FName)
+
+**Move/Swap — identical technique to Schedule Division** (ScheduleDivisionService.MoveGameAsync):
+- Reuse `MoveGameRequest` (Gid, TargetGDate, TargetFieldId)
+- Same backend logic: GetGameById → GetGameAtSlot → move or swap → RescheduleCount++ → SaveChanges
+- Frontend click-to-select, click-to-place pattern identical to schedule-division.component.ts
+
+**Stored procedure — follow ReportingRepository pattern:**
+- Repository creates `DbCommand` via `_context.Database.GetDbConnection()`
+- `CommandType = CommandType.StoredProcedure`
+- `SqlParameter` with explicit `SqlDbType`
+- Output parameter for `@resultCode`
+
+**Email — use existing `IEmailService.SendAsync()`** (Amazon SES):
+- Build `EmailMessageDto` { ToAddresses, Subject, HtmlBody }
+- Log to `EmailLogs` entity after send
+- Registered as Singleton in Program.cs
+
+---
+
 ### Phase 1: Backend — DTOs
 
 **File:** `TSIC.Contracts/Dtos/Scheduling/ReschedulerDtos.cs`
 
+Only Rescheduler-specific DTOs — grid/game/filter DTOs are reused from existing files.
+
 ```csharp
-public record ReschedulerGridResponse
+namespace TSIC.Contracts.Dtos.Scheduling;
+
+// ── Grid request (extends ScheduleFilterRequest with additional timeslot) ──
+
+/// <summary>
+/// POST body for the rescheduler grid — same filter structure as View Schedule
+/// plus optional additional timeslot injection.
+/// </summary>
+public record ReschedulerGridRequest
 {
-    public required List<string> ColNames { get; init; }
-    public required List<Guid?> ColFieldIds { get; init; }
-    public required List<ReschedulerGridRow> Rows { get; init; }
+    // Same filter pattern as ScheduleFilterRequest (List<T>? = null means no filter)
+    public List<string>? ClubNames { get; init; }
+    public List<Guid>? AgegroupIds { get; init; }
+    public List<Guid>? DivisionIds { get; init; }
+    public List<Guid>? TeamIds { get; init; }
+    public List<DateTime>? GameDays { get; init; }
+    public List<Guid>? FieldIds { get; init; }
+
+    /// <summary>
+    /// Optional datetime to inject as an additional row in the grid.
+    /// Allows admin to create a new timeslot that doesn't exist in the timeslot configuration.
+    /// </summary>
+    public DateTime? AdditionalTimeslot { get; init; }
 }
 
-public record ReschedulerGridRow
-{
-    public required DateTime GDate { get; init; }
-    public required List<ReschedulerCellDto?> Cells { get; init; }
-}
+// ── Weather adjustment ──
 
-public record ReschedulerCellDto
-{
-    public required int Gid { get; init; }
-    public required string AgDivLabel { get; init; }
-    public required int Rnd { get; init; }
-    public required string T1Label { get; init; }
-    public required string T2Label { get; init; }
-    public string? Color { get; init; }
-}
-
+/// <summary>
+/// Adjusts game times in batch via stored procedure [utility].[ScheduleAlterGSIPerGameDate].
+/// "Before" = current schedule, "After" = desired schedule.
+/// </summary>
 public record AdjustWeatherRequest
 {
     public required DateTime PreFirstGame { get; init; }
@@ -271,6 +328,16 @@ public record AdjustWeatherResponse
     public required string Message { get; init; }
 }
 
+/// <summary>
+/// Preview: how many games would be affected by a weather adjustment.
+/// </summary>
+public record AffectedGameCountResponse
+{
+    public required int Count { get; init; }
+}
+
+// ── Email participants ──
+
 public record EmailParticipantsRequest
 {
     public required DateTime FirstGame { get; init; }
@@ -283,22 +350,123 @@ public record EmailParticipantsRequest
 public record EmailParticipantsResponse
 {
     public required int RecipientCount { get; init; }
+    public required int FailedCount { get; init; }
     public required DateTime SentAt { get; init; }
 }
 
-// MoveGameRequest is shared with 009-4 (ScheduleDivisionDtos.cs)
-// ScheduleUserPreferences is shared with 009-5 (ViewScheduleDtos.cs)
+/// <summary>
+/// Preview: estimated recipient count before actually sending.
+/// </summary>
+public record EmailRecipientCountResponse
+{
+    public required int EstimatedCount { get; init; }
+}
+
+// ── Shared DTOs (NOT defined here — reuse from existing files) ──
+// MoveGameRequest            → ScheduleDivisionDtos.cs
+// ScheduleGridResponse       → ScheduleDivisionDtos.cs (Columns + Rows)
+// ScheduleGridRow            → ScheduleDivisionDtos.cs (GDate + Cells)
+// ScheduleGameDto            → ScheduleDivisionDtos.cs (game cell with Color, T1Id/T2Id)
+// ScheduleFieldColumn        → ScheduleDivisionDtos.cs (FieldId + FName)
+// ScheduleFilterOptionsDto   → ViewScheduleDtos.cs (CADT tree + GameDays + Fields)
 ```
 
 ### Phase 2: Backend — Repository
 
-**Extend `IScheduleRepository`** (or create `IReschedulerRepository` if preferred for separation):
+**Extend `IScheduleRepository`** with rescheduler-specific query methods:
 
+```csharp
+// New methods on IScheduleRepository:
+
+/// <summary>
+/// Cross-division grid — returns ALL games matching filters (not scoped to one division).
+/// Reuses ScheduleGridResponse (same Columns/Rows/Cells shape as Schedule Division).
+/// If additionalTimeslot is provided, injects an extra row at that datetime.
+/// </summary>
+Task<ScheduleGridResponse> GetReschedulerGridAsync(
+    Guid jobId,
+    ReschedulerGridRequest request,
+    CancellationToken ct = default);
+
+/// <summary>
+/// Count games in a date/field range — used for weather adjustment preview.
+/// </summary>
+Task<int> GetAffectedGameCountAsync(
+    Guid jobId,
+    DateTime preFirstGame,
+    List<Guid> fieldIds,
+    CancellationToken ct = default);
+
+/// <summary>
+/// Collect and deduplicate email addresses for games in date/field range.
+/// Sources: player, mom, dad, club rep, league reschedule addon.
+/// Filters: removes nulls, empty, "not@given.com", invalid emails.
+/// </summary>
+Task<List<string>> GetEmailRecipientsAsync(
+    Guid jobId,
+    DateTime firstGame,
+    DateTime lastGame,
+    List<Guid> fieldIds,
+    CancellationToken ct = default);
+
+/// <summary>
+/// Execute stored procedure [utility].[ScheduleAlterGSIPerGameDate].
+/// Returns the int result code (1=success, 2-8=error).
+/// </summary>
+Task<int> ExecuteWeatherAdjustmentAsync(
+    Guid jobId,
+    AdjustWeatherRequest request,
+    CancellationToken ct = default);
 ```
-New Methods:
-- GetReschedulerGridAsync(Guid jobId, ScheduleUserPreferences prefs, DateTime? additionalTimeslot) → ReschedulerGridResponse
-- GetAffectedGameCountAsync(DateTime preFirstGame, List<Guid> fieldIds) → int
-- GetEmailRecipientsAsync(DateTime firstGame, DateTime lastGame, List<Guid> fieldIds) → List<string>
+
+**Grid assembly logic** (ScheduleRepository implementation):
+1. Query `Schedule` table with OR-union filters (same pattern as `GetFilteredGamesAsync` in 009-5)
+2. Apply each non-null filter: ClubNames (via T1/T2 club join), AgegroupIds, DivisionIds, TeamIds (T1Id/T2Id), GameDays, FieldIds
+3. Build distinct field columns from matched games (+ any fields from FieldIds filter)
+4. Build distinct timeslot rows from matched game GDates
+5. If `AdditionalTimeslot` provided and not already in rows, inject it (sorted)
+6. For each row×column cell: find matching game or null (open slot)
+7. Map to `ScheduleGameDto` — same projection as Schedule Division but cross-division (join Agegroup for Color)
+
+**Stored procedure execution** (follows ReportingRepository pattern):
+```csharp
+public async Task<int> ExecuteWeatherAdjustmentAsync(
+    Guid jobId, AdjustWeatherRequest request, CancellationToken ct = default)
+{
+    var connection = _context.Database.GetDbConnection();
+    var cmd = connection.CreateCommand();
+
+    cmd.CommandText = "[utility].[ScheduleAlterGSIPerGameDate]";
+    cmd.CommandType = CommandType.StoredProcedure;
+
+    cmd.Parameters.Add(new SqlParameter("@jobId", SqlDbType.UniqueIdentifier) { Value = jobId });
+    cmd.Parameters.Add(new SqlParameter("@preFirstGame", SqlDbType.DateTime) { Value = request.PreFirstGame });
+    cmd.Parameters.Add(new SqlParameter("@preGSI", SqlDbType.Int) { Value = request.PreGSI });
+    cmd.Parameters.Add(new SqlParameter("@postFirstGame", SqlDbType.DateTime) { Value = request.PostFirstGame });
+    cmd.Parameters.Add(new SqlParameter("@postGSI", SqlDbType.Int) { Value = request.PostGSI });
+    cmd.Parameters.Add(new SqlParameter("@strFieldIds", SqlDbType.Text)
+    {
+        Value = string.Join(";", request.FieldIds)
+    });
+    cmd.Parameters.Add(new SqlParameter("@resultCode", SqlDbType.Int)
+    {
+        Direction = ParameterDirection.Output, Value = 0
+    });
+
+    if (connection.State != ConnectionState.Open)
+        await connection.OpenAsync(ct);
+
+    try
+    {
+        await cmd.ExecuteNonQueryAsync(ct);
+        return Convert.ToInt32(cmd.Parameters["@resultCode"].Value);
+    }
+    finally
+    {
+        if (connection.State == ConnectionState.Open)
+            await connection.CloseAsync();
+    }
+}
 ```
 
 ### Phase 3: Backend — Service
@@ -306,31 +474,90 @@ New Methods:
 **Interface:** `TSIC.Contracts/Services/IReschedulerService.cs`
 **Implementation:** `TSIC.API/Services/Scheduling/ReschedulerService.cs`
 
-```
-Methods:
-- GetReschedulerGridAsync(ScheduleUserPreferences prefs, DateTime? additionalTimeslot) → ReschedulerGridResponse
-- MoveGameAsync(MoveGameRequest request) → void
-- AdjustForWeatherAsync(AdjustWeatherRequest request) → AdjustWeatherResponse
-- GetAffectedGameCountAsync(DateTime preFirstGame, List<Guid> fieldIds) → int
-- EmailParticipantsAsync(EmailParticipantsRequest request) → EmailParticipantsResponse
+```csharp
+public interface IReschedulerService
+{
+    // ── Grid ──
+    Task<ScheduleFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
+    Task<ScheduleGridResponse> GetReschedulerGridAsync(Guid jobId, ReschedulerGridRequest request, CancellationToken ct = default);
+
+    // ── Move/Swap (identical to ScheduleDivisionService.MoveGameAsync) ──
+    Task MoveGameAsync(string userId, MoveGameRequest request, CancellationToken ct = default);
+
+    // ── Weather adjustment ──
+    Task<AffectedGameCountResponse> GetAffectedGameCountAsync(Guid jobId, DateTime preFirstGame, List<Guid> fieldIds, CancellationToken ct = default);
+    Task<AdjustWeatherResponse> AdjustForWeatherAsync(Guid jobId, AdjustWeatherRequest request, CancellationToken ct = default);
+
+    // ── Email ──
+    Task<EmailRecipientCountResponse> GetEmailRecipientCountAsync(Guid jobId, DateTime firstGame, DateTime lastGame, List<Guid> fieldIds, CancellationToken ct = default);
+    Task<EmailParticipantsResponse> EmailParticipantsAsync(Guid jobId, string userId, EmailParticipantsRequest request, CancellationToken ct = default);
+}
 ```
 
-The `AdjustForWeatherAsync` method calls the stored procedure and maps the int return code to a human-readable message using the table in Section 5.
+Constructor injects: `IScheduleRepository`, `IFieldRepository`, `IEmailService`, `ILogger<ReschedulerService>`
+
+**MoveGameAsync** — duplicates ScheduleDivisionService logic exactly:
+```
+GetGameByIdAsync → GetGameAtSlotAsync → move or swap → RescheduleCount++ → SaveChanges
+```
+
+**AdjustForWeatherAsync** — calls `_scheduleRepo.ExecuteWeatherAdjustmentAsync()`, maps result code:
+```csharp
+var code = await _scheduleRepo.ExecuteWeatherAdjustmentAsync(jobId, request, ct);
+return new AdjustWeatherResponse
+{
+    Success = code == 1,
+    ResultCode = code,
+    Message = code switch
+    {
+        1 => "Schedule adjusted successfully.",
+        2 => "Cannot apply — adjustment would create overlapping games on one or more fields.",
+        3 => "The 'before' interval doesn't match the actual game spacing. Verify the current first game time and interval.",
+        4 => "The 'after' interval is invalid. Please enter a positive number of minutes.",
+        5 => "All affected games must be within the same calendar year.",
+        6 => "No games found for the selected date/time range and fields.",
+        7 => "No changes — the before and after values are identical.",
+        8 => "Some games in the range are not aligned to the specified interval. Manual adjustment required for off-interval games.",
+        _ => $"Unexpected result code: {code}"
+    }
+};
+```
+
+**EmailParticipantsAsync** — collects recipients, sends via IEmailService, logs to EmailLogs:
+```
+1. GetEmailRecipientsAsync → deduplicated list
+2. For each recipient: build EmailMessageDto, call IEmailService.SendAsync()
+3. Log batch to EmailLogs entity (Count, JobId, SendFrom, SendTo, Subject, Msg, SenderUserId, SendTs)
+4. Return RecipientCount + FailedCount + SentAt
+```
 
 ### Phase 4: Backend — Controller
 
 **File:** `TSIC.API/Controllers/ReschedulerController.cs`
 
-```
+```csharp
 [Authorize(Policy = "AdminOnly")]
 [ApiController]
 [Route("api/[controller]")]
+public class ReschedulerController : ControllerBase
+{
+    // Constructor: IReschedulerService, IJobLookupService
 
-POST   /api/rescheduler/grid                    → GetReschedulerGridAsync(prefs)
-POST   /api/rescheduler/move-game               → MoveGameAsync(request)
-POST   /api/rescheduler/adjust-weather           → AdjustForWeatherAsync(request)
-GET    /api/rescheduler/affected-count?...       → GetAffectedGameCountAsync(...)
-POST   /api/rescheduler/email-participants       → EmailParticipantsAsync(request)
+    // ResolveContext() — standard pattern (jobId from regId claim, userId from NameIdentifier)
+
+    GET    /api/rescheduler/filter-options        → GetFilterOptionsAsync(jobId)
+    POST   /api/rescheduler/grid                  → GetReschedulerGridAsync(jobId, ReschedulerGridRequest)
+    POST   /api/rescheduler/move-game             → MoveGameAsync(userId, MoveGameRequest)
+    POST   /api/rescheduler/adjust-weather        → AdjustForWeatherAsync(jobId, AdjustWeatherRequest)
+    GET    /api/rescheduler/affected-count         → GetAffectedGameCountAsync(jobId, [FromQuery] DateTime preFirstGame, [FromQuery] List<Guid> fieldIds)
+    POST   /api/rescheduler/email-participants    → EmailParticipantsAsync(jobId, userId, EmailParticipantsRequest)
+    GET    /api/rescheduler/recipient-count        → GetEmailRecipientCountAsync(jobId, [FromQuery] DateTime firstGame, [FromQuery] DateTime lastGame, [FromQuery] List<Guid> fieldIds)
+}
+```
+
+**DI Registration** (Program.cs):
+```csharp
+builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 ```
 
 ### Phase 5: Frontend — Generate API Models
@@ -339,26 +566,72 @@ POST   /api/rescheduler/email-participants       → EmailParticipantsAsync(requ
 .\scripts\2-Regenerate-API-Models.ps1
 ```
 
-### Phase 6: Frontend — Components
+### Phase 6: Frontend — npm install Syncfusion RTE
+
+```bash
+npm install @syncfusion/ej2-angular-richtexteditor@31.2.4
+```
+
+Match existing Syncfusion version `31.2.x` in package.json. Requires adding RTE-specific styles to `_syncfusion.scss`.
+
+### Phase 7: Frontend — Components
 
 **Location:** `src/app/views/admin/scheduling/rescheduler/`
 
 ```
-rescheduler.component.ts              — Main container
-├── schedule-filters.component.ts      — Shared with View Schedule (009-5)
-├── rescheduler-grid.component.ts      — Dynamic date×field grid with move/swap
-├── weather-modal.component.ts         — Weather adjustment form with preview
-└── email-modal.component.ts           — Syncfusion Rich Text Editor email composition
+rescheduler.component.ts/.html/.scss    — Main container + grid + "add row" input
+├── services/rescheduler.service.ts     — HTTP service
+├── weather-modal.component.ts          — Weather adjustment form with affected-count preview
+└── email-modal.component.ts            — Syncfusion Rich Text Editor email composition
 ```
 
-Key signals:
-- `filters` — signal<ScheduleUserPreferences>
-- `gridData` — signal<ReschedulerGridResponse | null>
-- `selectedGame` — signal<ReschedulerCellDto | null> (for move mode)
-- `isMoveMode` — signal<boolean>
-- `isLoading` — signal<boolean>
+**Reused from View Schedule (009-5):**
+- `cadt-tree-filter.component.ts` — CADT hierarchical checkbox tree (Club→Agegroup→Division→Team)
+- `ScheduleFilterOptionsDto` — filter options loaded via GET on init
 
-### Phase 7: Frontend — Route
+**Main component signals** (follows schedule-division pattern exactly):
+```typescript
+// Filter state
+readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
+readonly activeFilters = signal<ReschedulerGridRequest>({});
+readonly isLoading = signal(false);
+
+// Grid state — reuses same DTOs as schedule-division
+readonly gridResponse = signal<ScheduleGridResponse | null>(null);
+readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
+readonly gridRows = computed(() => this.gridResponse()?.rows ?? []);
+
+// Move mode — identical pattern to schedule-division.component.ts
+readonly selectedGame = signal<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number } | null>(null);
+
+// Additional timeslot — "add a row" input
+readonly additionalTimeslot = signal<DateTime | null>(null);
+
+// Modals
+readonly showWeatherModal = signal(false);
+readonly showEmailModal = signal(false);
+```
+
+**Grid interaction — identical to schedule-division:**
+```typescript
+onGridCellClick(row, colIndex):
+  if (selectedGame()) → moveOrSwapGame(row, colIndex)
+  else if (cell) → selectGameForMove(cell, row, colIndex)
+
+moveOrSwapGame(targetRow, targetColIndex):
+  svc.moveGame({ gid, targetGDate, targetFieldId }).subscribe → reload grid
+
+selectGameForMove(game, row, colIndex):
+  toggle selectedGame signal (same as schedule-division)
+```
+
+**"Add a Row" — additional timeslot:**
+- Datetime input field above or below the grid
+- User enters a date/time → sets `additionalTimeslot` signal
+- On "Load Schedule" / "Refresh", the `ReschedulerGridRequest.AdditionalTimeslot` is sent to the backend
+- Backend injects that row into the grid response (empty cells) — allows user to move games into it
+
+### Phase 8: Frontend — Route
 
 ```typescript
 {
@@ -370,17 +643,20 @@ Key signals:
 }
 ```
 
-### Phase 8: Testing
+### Phase 9: Testing
 
-- Verify game move to empty slot updates GDate, FieldId, FName
-- Verify game swap between two occupied slots swaps all fields correctly
-- Verify weather adjustment: 8:00 AM / 60min → 10:00 AM / 50min updates all games correctly
-- Verify all 8 weather adjustment return codes produce correct human-readable messages
-- Verify affected game count preview before weather adjustment
-- Verify email recipient collection: players + parents + club reps + league addon
-- Verify email validation filters invalid addresses and deduplicates
-- Verify email audit trail in EmailLogs with sender, timestamp, batch ID
-- Verify additional timeslot injection adds new row to grid
+- Verify ResolveContext uses `GetJobIdFromRegistrationAsync` (NOT leagueId claim)
+- Verify filter options load CADT tree + GameDays + Fields (same shape as View Schedule)
+- Verify grid request uses `List<T>?` filter pattern (null = no filter)
+- Verify grid response reuses `ScheduleGridResponse`/`ScheduleGameDto` DTOs
+- Verify cross-division grid shows all divisions with agegroup color coding
+- Verify game move to empty slot: identical to ScheduleDivisionService.MoveGameAsync
+- Verify game swap between two occupied slots: identical swap logic
 - Verify RescheduleCount increments on moved games
-- Verify cross-division grid shows agegroup colors correctly
-- Verify filter component is shared instance with View Schedule
+- Verify "add a row" — additional timeslot injects new empty row into grid
+- Verify weather adjustment: affected-count preview before execute
+- Verify all 8 weather SP return codes produce correct human-readable messages
+- Verify email recipient collection: players + parents + club reps + league addon
+- Verify email deduplication and validation filters
+- Verify email audit trail in EmailLogs
+- Verify Syncfusion RTE renders in email modal with glassmorphic styling

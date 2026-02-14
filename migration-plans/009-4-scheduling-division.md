@@ -460,8 +460,8 @@ Child components:
   - `FindNextAvailableTimeslot` — Walks dates × fields × game intervals, skipping occupied slots (pre-loaded from DB + tracked in-memory for newly placed games)
   - Supports round-specific date filtering (legacy `Rnd` matching on `TimeslotsLeagueSeasonDates`)
   - Falls back to agegroup-level dates/fields when division-specific ones don't exist
-  - `GetScheduleGridAsync` — Now populates agegroup color for game cards (loads color map from agegroup entities)
-  - `MapGameToDto` — Returns T1Id/T2Id/DivId for frontend conflict detection, and agegroup color for visual coding
+  - `GetScheduleGridAsync` — Populates agegroup color for game cards; detects slot collisions (2+ games at same time/field); **fixed DOW matching bug** (was truncating to 3-char abbreviation, but DB stores full day names like "Saturday")
+  - `MapGameToDto` — Returns T1Id/T2Id/DivId for frontend conflict detection, agegroup color for visual coding, and `IsSlotCollision` flag
 - **Repository** — Schedule repository methods for grid queries, game CRUD, move/swap
   - `GetOccupiedSlotsAsync` — Returns `HashSet<(FieldId, GDate)>` for conflict-free auto-scheduling across divisions
 - **Field Directions** — `[AllowAnonymous] GET /api/schedule-division/field-directions/{fieldId}` returns field address/city/state/zip
@@ -469,7 +469,7 @@ Child components:
 #### Frontend — Schedule Division Component
 - **Division Navigator** — Left sidebar with agegroup/division tree
   - Filters out "Dropped Teams", "WAITLIST*" agegroups, and "Unassigned" divisions
-  - Agegroup badges show total team count with agegroup color
+  - Agegroup badges show total team count with agegroup color; **luminance-based contrast** (`contrastText()`) ensures readable text on both light and dark badge backgrounds (also applied to manage-pairings navigator)
   - Collapsible agegroup sections
 - **Pairings Panel** — Lists available and scheduled pairings for selected division
 - **Teams Panel** — Division teams with rank editing (lazy-loaded on demand)
@@ -478,9 +478,14 @@ Child components:
   - Move game: click scheduled game → click destination (move or swap)
   - Delete single game from grid
   - Delete all division games (with confirmation)
-  - **Auto-schedule button** — Confirmation dialog warns about deleting existing games, shows pairing count; result banner displays scheduled/failed counts with dismiss
+  - **Auto-schedule** — Backend engine implemented (hidden from UI for now; will re-enable with progress indicator)
   - **Agegroup color coding** — Game card left border color matches agegroup color for multi-division visual identification
-  - **Conflict detection** — Same-team double-booking detection: computed signal scans all grid cells, identifies teams appearing in multiple games on the same date, highlights conflicted game cards with warning border/icon, shows conflict count badge in grid header
+  - **Other-division dimming** — Games from other divisions on shared fields rendered at 35% opacity; delete button hidden; current division's games fully opaque
+  - **Conflict detection** — Three-tier system with distinct visual indicators:
+    - **Breaking: Slot collision** (`bi-layers-fill`, red) — Backend detects 2+ games at same (time, field); `IsSlotCollision` flag on `ScheduleGameDto`
+    - **Breaking: Team time clash** (`bi-people-fill`, red) — Frontend computed signal finds same team in 2+ games on the same grid row (same time, different fields); checks across ALL divisions
+    - **Non-breaking: Back-to-back** (`bi-clock-history`, amber) — Frontend computed signal finds same team in consecutive timeslot rows on the same calendar day
+    - Header badges: separate counts for breaking (danger) and back-to-back (warning)
 - **Service** — `ScheduleDivisionService` (Angular): HTTP methods for all endpoints (uses auto-generated API models from `@core/api`)
 - **Route** — Registered at `admin/scheduling/schedule-division`
 - **API Models** — Auto-generated TypeScript types via `2-Regenerate-API-Models.ps1` (must regenerate after backend DTO changes)

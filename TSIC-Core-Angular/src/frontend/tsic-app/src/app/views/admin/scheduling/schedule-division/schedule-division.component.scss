@@ -64,10 +64,40 @@
 }
 
 .panel-header {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     border-bottom: 1px solid var(--bs-border-color);
     background: var(--bs-tertiary-bg);
     flex-shrink: 0;
+}
+
+.collapse-all-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    border-radius: var(--bs-border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+
+    &:hover {
+        background: var(--bs-secondary-bg);
+        color: var(--bs-body-color);
+    }
+}
+
+.grid-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
 }
 
 .panel-body {
@@ -302,7 +332,8 @@
     }
 
     th {
-        font-size: var(--font-size-xs);
+        padding: 4px var(--space-1);
+        font-size: var(--font-size-2xs);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.03em;
@@ -313,6 +344,16 @@
         z-index: 2;
         white-space: nowrap;
         text-align: center;
+    }
+
+    // Alternating row stripe for light-mode depth
+    tbody tr:nth-child(even) > td {
+        background: var(--bs-secondary-bg);
+    }
+
+    // Ensure sticky time column picks up the stripe
+    tbody tr:nth-child(even) > td.sticky-col {
+        background: var(--bs-secondary-bg);
     }
 }
 
@@ -325,8 +366,11 @@
 .col-field {
     min-width: 140px;
     width: 140px;
-    height: 64px;
     position: relative;
+}
+
+td.col-field {
+    height: 64px;
 }
 
 .sticky-col {
@@ -351,6 +395,11 @@ th.sticky-col {
 }
 
 // ── Grid cell states ──
+
+// Default empty cell — subtle tint so it's not flat white in light mode
+.col-field:not(.cell-game):not(.cell-open):not(.cell-breaking):not(.cell-back-to-back) {
+    background: var(--bs-tertiary-bg);
+}
 
 .cell-open {
     cursor: pointer;
@@ -432,22 +481,58 @@ th.sticky-col {
     }
 }
 
-// ── Conflict indicator (same-team double-booking) ──
+// ── Current-division games (light surface, elevated) ──
 
-.cell-conflict {
-    background: rgba(var(--bs-warning-rgb), 0.08);
+.game-card-current {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-.game-card-conflict {
+// ── Other-division games (blend into row background) ──
+
+.cell-other-div {
+    cursor: default;
+}
+
+.game-card-other {
+    .game-delete-btn {
+        display: none !important;
+    }
+}
+
+// ── Conflict indicators ──
+
+// Breaking (slot collision, team time clash) — danger red
+.cell-breaking {
+    background: rgba(var(--bs-danger-rgb), 0.08);
+}
+
+.game-card-breaking {
+    border-left-color: var(--bs-danger) !important;
+}
+
+// Non-breaking (back-to-back) — warning amber
+.cell-back-to-back {
+    background: rgba(var(--bs-warning-rgb), 0.06);
+}
+
+.game-card-back-to-back {
     border-left-color: var(--bs-warning) !important;
 }
 
+// Shared icon positioning
 .conflict-icon {
     position: absolute;
     bottom: 2px;
     right: 2px;
-    color: var(--bs-warning);
     font-size: var(--font-size-2xs);
+}
+
+.conflict-breaking {
+    color: var(--bs-danger);
+}
+
+.conflict-b2b {
+    color: var(--bs-warning);
 }
 
 // ── Open slot hint ──

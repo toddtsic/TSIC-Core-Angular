@@ -33,7 +33,7 @@
                                     <span class="nav-ag-name">{{ ag.agegroupName }}</span>
                                     <span class="badge rounded-pill ms-auto ag-badge"
                                           [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
-                                          [style.color]="ag.color ? '#fff' : 'var(--bs-secondary-color)'">
+                                          [style.color]="contrastText(ag.color)">
                                         {{ agTeamCount(ag) }}
                                     </span>
                                 </div>

@@ -245,6 +245,20 @@ export const routes: Routes = [
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
+			// Scheduling — Rescheduler (cross-division move/swap, weather adjust, email)
+			{
+				path: 'admin/scheduling/rescheduler',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
+			},
+			// Legacy-compatible route for Rescheduler
+			{
+				path: 'scheduling/rescheduler',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
+			},
 			// Public schedule view (anonymous access)
 			{
 				path: 'schedule',

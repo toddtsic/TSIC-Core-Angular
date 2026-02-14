@@ -19,5 +19,6 @@ export type ScheduleGameDto = {
     t1Id?: string | null;
     t2Id?: string | null;
     divId?: string | null;
+    isSlotCollision?: boolean;
 };
 

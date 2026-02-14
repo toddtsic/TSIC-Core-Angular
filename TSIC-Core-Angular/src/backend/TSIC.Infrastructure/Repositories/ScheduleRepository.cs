@@ -622,6 +622,264 @@ public sealed class ScheduleRepository : IScheduleRepository
         );
     }
 
+    // ── Rescheduler (009-6) ──
+
+    public async Task<ScheduleGridResponse> GetReschedulerGridAsync(
+        Guid jobId, ReschedulerGridRequest request, CancellationToken ct = default)
+    {
+        // 1. Query games matching filters
+        var query = _context.Schedule
+            .AsNoTracking()
+            .Include(s => s.Agegroup)
+            .Where(s => s.JobId == jobId && s.GDate.HasValue && s.FieldId.HasValue);
+
+        // Apply CADT filter using a ScheduleFilterRequest (same pattern as View Schedule)
+        var cadtFilter = new ScheduleFilterRequest
+        {
+            ClubNames = request.ClubNames,
+            AgegroupIds = request.AgegroupIds,
+            DivisionIds = request.DivisionIds,
+            TeamIds = request.TeamIds
+        };
+        query = ApplyCadtFilter(query, cadtFilter);
+
+        // Apply GameDays filter
+        if (request.GameDays is { Count: > 0 })
+        {
+            var days = request.GameDays.Select(d => d.Date).ToList();
+            query = query.Where(s => s.GDate.HasValue && days.Contains(s.GDate.Value.Date));
+        }
+
+        // Apply FieldIds filter
+        if (request.FieldIds is { Count: > 0 })
+            query = query.Where(s => s.FieldId.HasValue && request.FieldIds.Contains(s.FieldId.Value));
+
+        var games = await query.OrderBy(s => s.GDate).ToListAsync(ct);
+
+        // 2. Build distinct field columns from matched games (+ any FieldIds from the filter)
+        var fieldIdSet = games
+            .Where(g => g.FieldId.HasValue)
+            .Select(g => g.FieldId!.Value)
+            .ToHashSet();
+
+        if (request.FieldIds is { Count: > 0 })
+        {
+            foreach (var fid in request.FieldIds)
+                fieldIdSet.Add(fid);
+        }
+
+        var columns = fieldIdSet.Count > 0
+            ? await _context.Fields
+                .AsNoTracking()
+                .Where(f => fieldIdSet.Contains(f.FieldId))
+                .OrderBy(f => f.FName)
+                .Select(f => new ScheduleFieldColumn { FieldId = f.FieldId, FName = f.FName ?? "" })
+                .ToListAsync(ct)
+            : new List<ScheduleFieldColumn>();
+
+        // 3. Build distinct timeslot rows from game GDates
+        var timeslots = new SortedSet<DateTime>(
+            games
+                .Where(g => g.GDate.HasValue)
+                .Select(g => g.GDate!.Value)
+                .Distinct());
+
+        // Inject additional timeslot if provided
+        if (request.AdditionalTimeslot.HasValue)
+            timeslots.Add(request.AdditionalTimeslot.Value);
+
+        // 4. Index games by (GDate, FieldId) for O(1) cell lookup
+        var gameIndex = new Dictionary<(DateTime, Guid), Domain.Entities.Schedule>();
+        foreach (var game in games)
+        {
+            if (game.GDate.HasValue && game.FieldId.HasValue)
+                gameIndex[(game.GDate.Value, game.FieldId.Value)] = game;
+        }
+
+        // 5. Assemble grid rows
+        var rows = new List<ScheduleGridRow>();
+        foreach (var timeslot in timeslots)
+        {
+            var cells = columns
+                .Select(col => gameIndex.TryGetValue((timeslot, col.FieldId), out var game)
+                    ? MapGameToDto(game)
+                    : null)
+                .ToList();
+
+            rows.Add(new ScheduleGridRow { GDate = timeslot, Cells = cells });
+        }
+
+        return new ScheduleGridResponse { Columns = columns, Rows = rows };
+    }
+
+    public async Task<int> GetAffectedGameCountAsync(
+        Guid jobId, DateTime preFirstGame, List<Guid> fieldIds, CancellationToken ct = default)
+    {
+        var day = preFirstGame.Date;
+        var query = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue && s.GDate.Value.Date == day);
+
+        if (fieldIds.Count > 0)
+            query = query.Where(s => s.FieldId.HasValue && fieldIds.Contains(s.FieldId.Value));
+
+        return await query.CountAsync(ct);
+    }
+
+    public async Task<List<string>> GetEmailRecipientsAsync(
+        Guid jobId, DateTime firstGame, DateTime lastGame, List<Guid> fieldIds, CancellationToken ct = default)
+    {
+        // 1. Find games in date/field range
+        var gameQuery = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue
+                && s.GDate.Value >= firstGame && s.GDate.Value <= lastGame);
+
+        if (fieldIds.Count > 0)
+            gameQuery = gameQuery.Where(s => s.FieldId.HasValue && fieldIds.Contains(s.FieldId.Value));
+
+        // 2. Get distinct team IDs from matched games
+        var teamIds = await gameQuery
+            .Where(s => s.T1Id != null && s.T2Id != null)
+            .SelectMany(s => new[] { s.T1Id, s.T2Id })
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (teamIds.Count == 0) return new List<string>();
+
+        // 3. Get player + parent emails from registrations
+        var rosterEmails = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.AssignedTeamId.HasValue && teamIds.Contains(r.AssignedTeamId.Value))
+            .Select(r => new
+            {
+                PlayerEmail = r.User != null ? r.User.Email : null,
+                MomEmail = r.FamilyUser != null ? r.FamilyUser.MomEmail : null,
+                DadEmail = r.FamilyUser != null ? r.FamilyUser.DadEmail : null
+            })
+            .ToListAsync(ct);
+
+        var allEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in rosterEmails)
+        {
+            if (!string.IsNullOrWhiteSpace(e.PlayerEmail)) allEmails.Add(e.PlayerEmail);
+            if (!string.IsNullOrWhiteSpace(e.MomEmail)) allEmails.Add(e.MomEmail);
+            if (!string.IsNullOrWhiteSpace(e.DadEmail)) allEmails.Add(e.DadEmail);
+        }
+
+        // 4. Get club rep emails
+        var clubRepEmails = await _context.Teams
+            .AsNoTracking()
+            .Where(t => teamIds.Contains(t.TeamId)
+                && t.ClubrepRegistration != null
+                && t.ClubrepRegistration.User != null
+                && !string.IsNullOrEmpty(t.ClubrepRegistration.User.Email))
+            .Select(t => t.ClubrepRegistration!.User!.Email!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        foreach (var email in clubRepEmails)
+            allEmails.Add(email);
+
+        // 5. Get league-wide reschedule addon emails
+        var leagueId = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId)
+            .Select(s => s.LeagueId)
+            .FirstOrDefaultAsync(ct);
+
+        if (leagueId != default)
+        {
+            var addonStr = await _context.Leagues
+                .AsNoTracking()
+                .Where(l => l.LeagueId == leagueId)
+                .Select(l => l.RescheduleEmailsToAddon)
+                .FirstOrDefaultAsync(ct);
+
+            if (!string.IsNullOrEmpty(addonStr))
+            {
+                foreach (var email in addonStr.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    allEmails.Add(email);
+            }
+        }
+
+        // 6. Filter invalid emails
+        var validator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+        return allEmails
+            .Where(e => !string.Equals(e, "not@given.com", StringComparison.OrdinalIgnoreCase)
+                && validator.IsValid(e))
+            .ToList();
+    }
+
+    public async Task<int> ExecuteWeatherAdjustmentAsync(
+        Guid jobId, AdjustWeatherRequest request, CancellationToken ct = default)
+    {
+        var connection = _context.Database.GetDbConnection();
+        var cmd = connection.CreateCommand();
+
+        cmd.CommandText = "[utility].[ScheduleAlterGSIPerGameDate]";
+        cmd.CommandType = System.Data.CommandType.StoredProcedure;
+
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@jobId", System.Data.SqlDbType.UniqueIdentifier) { Value = jobId });
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@preFirstGame", System.Data.SqlDbType.DateTime) { Value = request.PreFirstGame });
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@preGSI", System.Data.SqlDbType.Int) { Value = request.PreGSI });
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@postFirstGame", System.Data.SqlDbType.DateTime) { Value = request.PostFirstGame });
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@postGSI", System.Data.SqlDbType.Int) { Value = request.PostGSI });
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@strFieldIds", System.Data.SqlDbType.Text)
+        {
+            Value = string.Join(";", request.FieldIds)
+        });
+        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@resultCode", System.Data.SqlDbType.Int)
+        {
+            Direction = System.Data.ParameterDirection.Output, Value = 0
+        });
+
+        if (connection.State != System.Data.ConnectionState.Open)
+            await connection.OpenAsync(ct);
+
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(ct);
+            return Convert.ToInt32(cmd.Parameters["@resultCode"].Value);
+        }
+        finally
+        {
+            if (connection.State == System.Data.ConnectionState.Open)
+                await connection.CloseAsync();
+        }
+    }
+
+    // ── Private helpers ──
+
+    private static ScheduleGameDto MapGameToDto(Domain.Entities.Schedule game) => new()
+    {
+        Gid = game.Gid,
+        GDate = game.GDate ?? DateTime.MinValue,
+        FieldId = game.FieldId ?? Guid.Empty,
+        FName = game.FName ?? "",
+        Rnd = game.Rnd ?? 0,
+        AgDivLabel = $"{game.AgegroupName}:{game.DivName}",
+        T1Label = FormatTeamLabel(game.T1No, game.T1Name, game.T1Type),
+        T2Label = FormatTeamLabel(game.T2No.HasValue ? (int)game.T2No.Value : null, game.T2Name, game.T2Type),
+        Color = game.Agegroup?.Color,
+        T1Type = game.T1Type ?? "T",
+        T2Type = game.T2Type ?? "T",
+        T1No = game.T1No,
+        T2No = game.T2No,
+        T1Id = game.T1Id,
+        T2Id = game.T2Id,
+        DivId = game.DivId
+    };
+
+    private static string FormatTeamLabel(int? teamNo, string? teamName, string? teamType)
+    {
+        if (!string.IsNullOrEmpty(teamName))
+            return teamName;
+        return $"{teamType ?? "T"}{teamNo ?? 0}";
+    }
+
     /// <summary>
     /// Apply CADT filter (Club/Agegroup/Division/Team) with OR-union logic.
     /// </summary>

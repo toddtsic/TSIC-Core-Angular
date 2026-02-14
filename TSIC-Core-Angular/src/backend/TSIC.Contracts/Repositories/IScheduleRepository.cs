@@ -139,4 +139,35 @@ public interface IScheduleRepository
     /// Get schedule-related flags for a job: BScheduleAllowPublicAccess, BHideContacts, SportName.
     /// </summary>
     Task<(bool allowPublicAccess, bool hideContacts, string sportName)> GetScheduleFlagsAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── Rescheduler (009-6) ──
+
+    /// <summary>
+    /// Cross-division grid — returns ALL games matching filters (not scoped to one division).
+    /// Reuses ScheduleGridResponse (same Columns/Rows/Cells shape as Schedule Division).
+    /// If additionalTimeslot is provided, injects an extra empty row at that datetime.
+    /// </summary>
+    Task<Dtos.Scheduling.ScheduleGridResponse> GetReschedulerGridAsync(
+        Guid jobId, Dtos.Scheduling.ReschedulerGridRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Count games in a date/field range — used for weather adjustment preview.
+    /// </summary>
+    Task<int> GetAffectedGameCountAsync(
+        Guid jobId, DateTime preFirstGame, List<Guid> fieldIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Collect and deduplicate email addresses for games in a date/field range.
+    /// Sources: player, mom, dad, club rep, league reschedule addon.
+    /// Filters: removes nulls, empty, "not@given.com", invalid emails.
+    /// </summary>
+    Task<List<string>> GetEmailRecipientsAsync(
+        Guid jobId, DateTime firstGame, DateTime lastGame, List<Guid> fieldIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Execute stored procedure [utility].[ScheduleAlterGSIPerGameDate].
+    /// Returns the int result code (1=success, 2-8=error).
+    /// </summary>
+    Task<int> ExecuteWeatherAdjustmentAsync(
+        Guid jobId, Dtos.Scheduling.AdjustWeatherRequest request, CancellationToken ct = default);
 }

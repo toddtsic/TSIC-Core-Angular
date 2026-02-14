@@ -72,35 +72,73 @@ export class ScheduleDivisionComponent implements OnInit {
         this.pairings().filter(p => !p.bAvailable)
     );
 
-    /** Set of Gids that have a same-team-same-date conflict in the grid. */
-    readonly conflictedGameIds = computed(() => {
+    // ── Conflict detection (3 types) ──
+
+    /** BREAKING: Same team in 2+ games at the exact same time (same grid row, any division). */
+    readonly timeClashGameIds = computed(() => {
         const rows = this.gridRows();
-        // Build map: dateKey → list of { teamId, gid }
-        const dateTeams = new Map<string, { teamId: string; gid: number }[]>();
+        const clashed = new Set<number>();
 
         for (const row of rows) {
-            const dateKey = new Date(row.gDate).toDateString();
+            const teamGames = new Map<string, number[]>();
             for (const cell of row.cells) {
                 if (!cell) continue;
-                if (!dateTeams.has(dateKey)) dateTeams.set(dateKey, []);
-                const entries = dateTeams.get(dateKey)!;
-                if (cell.t1Id) entries.push({ teamId: cell.t1Id, gid: cell.gid });
-                if (cell.t2Id) entries.push({ teamId: cell.t2Id, gid: cell.gid });
+                for (const tid of [cell.t1Id, cell.t2Id]) {
+                    if (!tid) continue;
+                    if (!teamGames.has(tid)) teamGames.set(tid, []);
+                    teamGames.get(tid)!.push(cell.gid);
+                }
+            }
+            for (const gids of teamGames.values()) {
+                if (gids.length > 1) gids.forEach(g => clashed.add(g));
             }
         }
+        return clashed;
+    });
 
-        const conflicted = new Set<number>();
-        for (const entries of dateTeams.values()) {
-            const seen = new Map<string, number[]>();
-            for (const { teamId, gid } of entries) {
-                if (!seen.has(teamId)) seen.set(teamId, []);
-                seen.get(teamId)!.push(gid);
+    /** NON-BREAKING: Same team in consecutive timeslot rows on the same day (any division). */
+    readonly backToBackGameIds = computed(() => {
+        const rows = this.gridRows();
+        const b2b = new Set<number>();
+
+        for (let i = 0; i < rows.length - 1; i++) {
+            const curDay = new Date(rows[i].gDate).toDateString();
+            const nextDay = new Date(rows[i + 1].gDate).toDateString();
+            if (curDay !== nextDay) continue;
+
+            const curTeams = new Map<string, number[]>();
+            for (const cell of rows[i].cells) {
+                if (!cell) continue;
+                for (const tid of [cell.t1Id, cell.t2Id]) {
+                    if (!tid) continue;
+                    if (!curTeams.has(tid)) curTeams.set(tid, []);
+                    curTeams.get(tid)!.push(cell.gid);
+                }
             }
-            for (const gids of seen.values()) {
-                if (gids.length > 1) gids.forEach(g => conflicted.add(g));
+
+            for (const cell of rows[i + 1].cells) {
+                if (!cell) continue;
+                for (const tid of [cell.t1Id, cell.t2Id]) {
+                    if (!tid) continue;
+                    if (curTeams.has(tid)) {
+                        curTeams.get(tid)!.forEach(g => b2b.add(g));
+                        b2b.add(cell.gid);
+                    }
+                }
             }
         }
-        return conflicted;
+        return b2b;
+    });
+
+    /** Combined breaking conflict count (time clash + slot collision). */
+    readonly breakingConflictCount = computed(() => {
+        let count = this.timeClashGameIds().size;
+        for (const row of this.gridRows()) {
+            for (const cell of row.cells) {
+                if (cell && (cell as any).isSlotCollision) count++;
+            }
+        }
+        return count;
     });
 
     ngOnInit(): void {
@@ -142,6 +180,10 @@ export class ScheduleDivisionComponent implements OnInit {
 
     isExpanded(agId: string): boolean {
         return this.expandedAgegroups().has(agId);
+    }
+
+    collapseAll(): void {
+        this.expandedAgegroups.set(new Set());
     }
 
     selectDivision(div: DivisionSummaryDto, agegroupId: string): void {
@@ -364,8 +406,28 @@ export class ScheduleDivisionComponent implements OnInit {
         return this.selectedGame()?.game.gid === game.gid;
     }
 
-    isConflicted(game: ScheduleGameDto): boolean {
-        return this.conflictedGameIds().has(game.gid);
+    /** Breaking: slot collision (2+ games in same cell) — from backend flag. */
+    isSlotCollision(game: ScheduleGameDto): boolean {
+        return (game as any).isSlotCollision === true;
+    }
+
+    /** Breaking: same team at same time on different fields. */
+    isTimeClash(game: ScheduleGameDto): boolean {
+        return this.timeClashGameIds().has(game.gid);
+    }
+
+    /** Non-breaking: same team in consecutive timeslot rows. */
+    isBackToBack(game: ScheduleGameDto): boolean {
+        return this.backToBackGameIds().has(game.gid);
+    }
+
+    /** Any breaking conflict (slot collision or time clash). */
+    isBreaking(game: ScheduleGameDto): boolean {
+        return this.isSlotCollision(game) || this.isTimeClash(game);
+    }
+
+    isOtherDivision(game: ScheduleGameDto): boolean {
+        return game.divId !== this.selectedDivision()?.divId;
     }
 
     moveOrSwapGame(targetRow: ScheduleGridRow, targetColIndex: number): void {
@@ -413,6 +475,25 @@ export class ScheduleDivisionComponent implements OnInit {
 
     agTeamCount(ag: AgegroupWithDivisionsDto): number {
         return ag.divisions.reduce((sum, d) => sum + d.teamCount, 0);
+    }
+
+    /** Returns a low-opacity rgba background tint from a hex agegroup color. */
+    agBg(hex: string | null | undefined): string {
+        if (!hex || hex.length < 7 || hex[0] !== '#')
+            return 'rgba(var(--bs-warning-rgb), 0.15)';
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, 0.12)`;
+    }
+
+    /** Returns '#fff' or '#000' for WCAG-compliant contrast against a hex background. */
+    contrastText(hex: string | null | undefined): string {
+        if (!hex || hex.length < 7 || hex[0] !== '#') return 'var(--bs-secondary-color)';
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#000' : '#fff';
     }
 
     formatTime(gDate: string | Date): string {
