@@ -216,6 +216,40 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
+			},
+			// Scheduling — Schedule by Division
+			{
+				path: 'admin/scheduling/schedule-division',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
+			},
+			// Legacy-compatible route for Schedule by Division
+			{
+				path: 'scheduling/scheduledivision',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
+			},
+			// Scheduling — View Schedule (admin/coach view)
+			{
+				path: 'admin/scheduling/view-schedule',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
+			},
+			// Legacy-compatible route for View Schedule
+			{
+				path: 'scheduling/schedules',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
+			},
+			// Public schedule view (anonymous access)
+			{
+				path: 'schedule',
+				data: { publicMode: true },
+				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			}
 		]
 	},

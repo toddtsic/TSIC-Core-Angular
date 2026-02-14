@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RefreshTokenRequest = {
-    refreshToken: string;
-    regId?: string | null;
+export type MoveGameRequest = {
+    gid: number;
+    targetGDate: string;
+    targetFieldId: string;
 };
 

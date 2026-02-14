@@ -95,7 +95,8 @@ export class MenusComponent {
      * 3. controller/action (legacy MVC - map to Angular route)
      */
     getLink(item: MenuItemDto): string | null {
-        if (item.navigateUrl) {
+        // navigateUrl is for external links — skip if it's just a legacy query string
+        if (item.navigateUrl && !item.navigateUrl.startsWith('?')) {
             return item.navigateUrl;
         }
         if (item.routerLink) {
@@ -112,7 +113,7 @@ export class MenusComponent {
      * Check if the link is external (navigateUrl present)
      */
     isExternalLink(item: MenuItemDto): boolean {
-        return !!item.navigateUrl;
+        return !!item.navigateUrl && !item.navigateUrl.startsWith('?');
     }
 
     /**

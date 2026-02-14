@@ -1,0 +1,319 @@
+<div class="schedule-div-container">
+
+    <!-- ── Header ── -->
+    <div class="schedule-header">
+        <h5 class="mb-0">Schedule by Division</h5>
+    </div>
+
+    <!-- ── Main layout: Navigator+Pairings (left) | Schedule Grid (right) ── -->
+    <div class="schedule-layout">
+
+        <!-- ══════════ LEFT PANEL: Navigator + Pairings ══════════ -->
+        <div class="left-panel">
+
+            <!-- ── Division Navigator ── -->
+            <div class="nav-panel">
+                <div class="panel-header">
+                    <span class="fw-semibold">Agegroup/Divisions</span>
+                </div>
+                <div class="panel-body">
+                    @if (isNavLoading()) {
+                        <div class="text-center p-3">
+                            <div class="spinner-border spinner-border-sm text-secondary"></div>
+                        </div>
+                    } @else {
+                        <div class="nav-tree">
+                            @for (ag of agegroups(); track ag.agegroupId) {
+                                <div class="nav-agegroup">
+                                    <div class="nav-agegroup-header"
+                                         (click)="toggleAgegroup(ag.agegroupId)"
+                                         [class.expanded]="isExpanded(ag.agegroupId)">
+                                        <i class="bi" [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
+                                           [class.bi-chevron-down]="isExpanded(ag.agegroupId)"></i>
+                                        @if (ag.color) {
+                                            <span class="color-dot" [style.background]="ag.color"></span>
+                                        }
+                                        <span class="nav-ag-name">{{ ag.agegroupName }}</span>
+                                        <span class="badge rounded-pill ms-auto ag-badge"
+                                              [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
+                                              [style.color]="ag.color ? '#fff' : 'var(--bs-secondary-color)'">
+                                            {{ agTeamCount(ag) }}
+                                        </span>
+                                    </div>
+
+                                    @if (isExpanded(ag.agegroupId)) {
+                                        <div class="nav-divisions">
+                                            @for (div of ag.divisions; track div.divId) {
+                                                <div class="nav-division"
+                                                     [class.active]="selectedDivision()?.divId === div.divId"
+                                                     (click)="selectDivision(div, ag.agegroupId)">
+                                                    <span class="div-name">{{ div.divName }}</span>
+                                                    <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                                                        {{ div.teamCount }}
+                                                    </span>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- ── Pairings Panel (below navigator) ── -->
+            @if (selectedDivision()) {
+                <div class="pairings-panel">
+                    <div class="panel-header d-flex align-items-center justify-content-between">
+                        <span class="fw-semibold">Pairings</span>
+                        @if (selectedPairing()) {
+                            <span class="badge bg-success-subtle text-success-emphasis">
+                                <i class="bi bi-cursor-fill me-1"></i>Click open slot to place
+                            </span>
+                        }
+                    </div>
+
+                    @if (isPairingsLoading()) {
+                        <div class="text-center p-3">
+                            <div class="spinner-border spinner-border-sm text-secondary"></div>
+                        </div>
+                    } @else {
+                        <div class="panel-body pairings-body">
+                            @if (availablePairings().length > 0) {
+                                <div class="pairings-section-label">
+                                    <i class="bi bi-circle me-1"></i>Available ({{ availablePairings().length }})
+                                </div>
+                                @for (p of availablePairings(); track p.ai) {
+                                    <div class="pairing-row"
+                                         [class.pairing-selected]="isPairingSelected(p)"
+                                         (click)="selectPairingForPlacement(p)">
+                                        <span class="pairing-gno">G{{ p.gameNumber }}</span>
+                                        <span class="pairing-teams">{{ p.t1 }} vs {{ p.t2 }}</span>
+                                        <span class="pairing-rnd">R{{ p.rnd }}</span>
+                                        <button class="pairing-pick-btn" title="Select for placement"
+                                                (click)="selectPairingForPlacement(p); $event.stopPropagation()">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                    </div>
+                                }
+                            }
+
+                            @if (scheduledPairings().length > 0) {
+                                <div class="pairings-section-label">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Scheduled ({{ scheduledPairings().length }})
+                                </div>
+                                @for (p of scheduledPairings(); track p.ai) {
+                                    <div class="pairing-row pairing-scheduled">
+                                        <span class="pairing-gno">G{{ p.gameNumber }}</span>
+                                        <span class="pairing-teams">{{ p.t1 }} vs {{ p.t2 }}</span>
+                                        <span class="pairing-rnd">R{{ p.rnd }}</span>
+                                    </div>
+                                }
+                            }
+
+                            @if (pairings().length === 0) {
+                                <div class="empty-state-sm">
+                                    <p class="text-secondary mb-0">No pairings for this division</p>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- Teams toggle -->
+                    @if (divisionTeams().length > 0) {
+                        <div class="section-label-toggle" (click)="toggleTeams()">
+                            <i class="bi me-1"
+                               [class.bi-chevron-down]="showTeams()"
+                               [class.bi-chevron-right]="!showTeams()"></i>
+                            Teams ({{ divisionTeams().length }})
+                        </div>
+                        @if (showTeams()) {
+                            <div class="teams-list">
+                                @for (team of divisionTeams(); track team.teamId) {
+                                    <div class="team-row">
+                                        <span class="team-rank">{{ team.divRank }}</span>
+                                        <span class="team-name">{{ team.teamName }}</span>
+                                        <span class="team-club text-secondary">{{ team.clubName }}</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- ══════════ RIGHT PANEL: Schedule Grid ══════════ -->
+        <div class="grid-panel">
+            @if (!selectedDivision()) {
+                <div class="empty-state">
+                    <i class="bi bi-calendar3 text-secondary icon-lg"></i>
+                    <p class="text-secondary mt-2 mb-0">Select a division to view the schedule grid</p>
+                </div>
+            } @else {
+                <!-- Grid Header -->
+                <div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <span class="fw-semibold">{{ selectedDivision()!.divName }}</span>
+                        <span class="badge bg-primary-subtle text-primary-emphasis ms-2">
+                            {{ teamCount() }} teams
+                        </span>
+                        @if (selectedGame()) {
+                            <span class="badge bg-info-subtle text-info-emphasis ms-2">
+                                <i class="bi bi-arrows-move me-1"></i>Click destination to move
+                            </span>
+                        }
+                        @if (conflictedGameIds().size > 0) {
+                            <span class="badge bg-warning-subtle text-warning-emphasis ms-2">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ conflictedGameIds().size }} conflict{{ conflictedGameIds().size > 1 ? 's' : '' }}
+                            </span>
+                        }
+                    </div>
+                    <div class="d-flex gap-1">
+                        <!-- Auto-schedule -->
+                        <button class="btn btn-sm btn-primary"
+                                (click)="confirmAutoSchedule()"
+                                [disabled]="isAutoScheduling() || availablePairings().length === 0"
+                                title="Auto-schedule all available pairings">
+                            @if (isAutoScheduling()) {
+                                <span class="spinner-border spinner-border-sm"></span>
+                            } @else {
+                                <i class="bi bi-lightning-fill"></i>
+                            }
+                            Auto-Schedule
+                        </button>
+                        <!-- Delete all division games -->
+                        <button class="btn btn-sm btn-outline-danger"
+                                (click)="confirmDeleteDivGames()"
+                                [disabled]="isDeletingDivGames()"
+                                title="Delete all games for this division">
+                            @if (isDeletingDivGames()) {
+                                <span class="spinner-border spinner-border-sm"></span>
+                            } @else {
+                                <i class="bi bi-trash"></i>
+                            }
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Auto-schedule confirmation -->
+                @if (showAutoScheduleConfirm()) {
+                    <div class="alert alert-warning m-2 d-flex align-items-center justify-content-between">
+                        <span>
+                            <i class="bi bi-lightning-fill me-1"></i>
+                            Auto-schedule <strong>{{ selectedDivision()!.divName }}</strong>?
+                            This will <strong>delete existing games</strong> and schedule {{ availablePairings().length + scheduledPairings().length }} pairings.
+                        </span>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-primary" (click)="autoScheduleDiv()">Yes, Schedule</button>
+                            <button class="btn btn-sm btn-outline-secondary" (click)="cancelAutoSchedule()">Cancel</button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Auto-schedule result -->
+                @if (autoScheduleResult(); as result) {
+                    <div class="alert m-2 d-flex align-items-center justify-content-between"
+                         [class.alert-success]="result.failedCount === 0"
+                         [class.alert-warning]="result.failedCount > 0">
+                        <span>
+                            @if (result.failedCount === 0) {
+                                <i class="bi bi-check-circle-fill me-1"></i>
+                            } @else {
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                            }
+                            Scheduled {{ result.scheduledCount }} of {{ result.totalPairings }} games
+                            @if (result.failedCount > 0) {
+                                ({{ result.failedCount }} could not be placed — no available timeslots)
+                            }
+                        </span>
+                        <button class="btn btn-sm btn-outline-secondary" (click)="dismissAutoScheduleResult()">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                }
+
+                <!-- Delete confirmation -->
+                @if (showDeleteDivConfirm()) {
+                    <div class="alert alert-danger m-2 d-flex align-items-center justify-content-between">
+                        <span>
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Delete <strong>all</strong> scheduled games for <strong>{{ selectedDivision()!.divName }}</strong>?
+                        </span>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-danger" (click)="deleteDivGames()">Yes, Delete All</button>
+                            <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteDivGames()">Cancel</button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Grid Content -->
+                @if (isGridLoading()) {
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                } @else if (gridColumns().length === 0) {
+                    <div class="empty-state">
+                        <i class="bi bi-exclamation-circle text-secondary icon-lg"></i>
+                        <p class="text-secondary mt-2 mb-0">No fields or timeslots configured for this division</p>
+                    </div>
+                } @else {
+                    <div class="grid-scroll">
+                        <table class="schedule-grid">
+                            <thead>
+                                <tr>
+                                    <th class="col-time sticky-col">Time</th>
+                                    @for (col of gridColumns(); track col.fieldId) {
+                                        <th class="col-field">{{ col.fName }}</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (row of gridRows(); track row.gDate) {
+                                    <tr>
+                                        <td class="col-time sticky-col">
+                                            <div class="time-label">{{ formatDate(row.gDate) }}</div>
+                                            <div class="time-sub">{{ formatTimeOnly(row.gDate) }}</div>
+                                        </td>
+                                        @for (cell of row.cells; track $index; let ci = $index) {
+                                            <td class="col-field"
+                                                [class.cell-open]="!cell && selectedPairing()"
+                                                [class.cell-game]="!!cell"
+                                                [class.cell-selected-game]="cell && isGameSelected(cell)"
+                                                [class.cell-move-target]="selectedGame() && (!cell || !isGameSelected(cell!))"
+                                                [class.cell-conflict]="cell && isConflicted(cell)"
+                                                (click)="onGridCellClick(row, ci)">
+                                                @if (cell) {
+                                                    <div class="game-card"
+                                                         [class.game-card-conflict]="isConflicted(cell)"
+                                                         [style.border-left-color]="cell.color || 'var(--bs-primary)'">
+                                                        <div class="game-label">{{ cell.agDivLabel }}</div>
+                                                        <div class="game-teams">{{ cell.t1Label }} vs {{ cell.t2Label }}</div>
+                                                        @if (isConflicted(cell)) {
+                                                            <i class="bi bi-exclamation-triangle-fill conflict-icon" title="Team double-booked on this date"></i>
+                                                        }
+                                                        <button class="game-delete-btn"
+                                                                (click)="deleteGame(cell, row, ci); $event.stopPropagation()"
+                                                                title="Remove game">
+                                                            <i class="bi bi-x"></i>
+                                                        </button>
+                                                    </div>
+                                                } @else if (selectedPairing()) {
+                                                    <div class="open-slot-hint">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </div>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>

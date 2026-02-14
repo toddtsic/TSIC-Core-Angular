@@ -313,7 +313,9 @@ export class AuthService {
 
     // Mark refresh as in progress and store the observable
     // Use shareReplay to ensure all subscribers get the same result
-    this.refreshInProgress = this.http.post<AuthTokenResponse>(`${this.apiUrl}/refresh`, { refreshToken })
+    // Send current regId so the backend preserves the same job/role context
+    const regId = this.currentUser()?.regId;
+    this.refreshInProgress = this.http.post<AuthTokenResponse>(`${this.apiUrl}/refresh`, { refreshToken, regId })
       .pipe(
         tap(response => {
           this.setToken(response.accessToken!);

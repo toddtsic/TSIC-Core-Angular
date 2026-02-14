@@ -125,6 +125,9 @@ export class ClientMenuComponent {
         ['scheduling/manageleagueseasonfields', 'fields/index'],
         ['scheduling/manageleagueseasonpairings', 'pairings/index'],
         ['scheduling/manageleagueseasontimeslots', 'timeslots/index'],
+        // DB action names differ from legacy controller names
+        ['scheduling/scheduledivbyagfields', 'scheduling/scheduledivision'],
+        ['scheduling/getschedule', 'scheduling/schedules'],
     ]);
 
     /**
@@ -133,13 +136,15 @@ export class ClientMenuComponent {
      */
     private resolveLegacyPath(item: MenuItemDto): string | null {
         if (!item.controller) return null;
-        const action = (item.action || 'index').toLowerCase();
+        // Strip query params from action — DB sometimes embeds config params (e.g. GetSchedule?use_ag_options=true&...)
+        const action = (item.action || 'index').toLowerCase().split('?')[0];
         const raw = `${item.controller.toLowerCase()}/${action}`;
         return this.legacyRouteMap.get(raw) ?? raw;
     }
 
     getLink(item: MenuItemDto): string | null {
-        if (item.navigateUrl) {
+        // navigateUrl is for external links — skip if it's just a legacy query string
+        if (item.navigateUrl && !item.navigateUrl.startsWith('?')) {
             return item.navigateUrl;
         }
 
@@ -159,7 +164,7 @@ export class ClientMenuComponent {
      * Items with controller/action are checked against the router config.
      */
     isRouteImplemented(item: MenuItemDto): boolean {
-        if (item.navigateUrl || item.routerLink) {
+        if ((item.navigateUrl && !item.navigateUrl.startsWith('?')) || item.routerLink) {
             return true;
         }
         const path = this.resolveLegacyPath(item);
@@ -175,7 +180,7 @@ export class ClientMenuComponent {
      * Check if the link is external (navigateUrl present)
      */
     isExternalLink(item: MenuItemDto): boolean {
-        return !!item.navigateUrl;
+        return !!item.navigateUrl && !item.navigateUrl.startsWith('?');
     }
 
     /**

@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RefreshTokenRequest = {
-    refreshToken: string;
-    regId?: string | null;
+export type ScheduleFieldColumn = {
+    fieldId: string;
+    fName: string;
 };
 

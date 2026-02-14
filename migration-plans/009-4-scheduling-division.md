@@ -107,7 +107,7 @@ Split into two panels: left panel for division context (navigator + pairings + t
 
 - **Authorization:** `[Authorize(Policy = "AdminOnly")]`
 - **Exception:** `FieldDirectionsData` is `[AllowAnonymous]` (public map directions)
-- **Scoping:** JWT `regId` → `jobId` → `leagueId` + `season` + `year` (via `ResolveLeagueSeasonAsync` pattern)
+- **Scoping:** JWT contains only `regId`; resolved via `regId → jobId` (GetJobIdFromRegistrationAsync) → `leagueId` (GetPrimaryLeagueForJobAsync) + `season`/`year` (GetJobSeasonAsync) — never passed as route parameters
 - **Email notifications:** Move/swap game sends to coach emails associated with affected teams
 
 ---
@@ -121,7 +121,7 @@ This is the primary scheduling engine. It must be ported faithfully.
 ```
 Input:
   - DivId (division to schedule)
-  - From JWT: JobId, LeagueId, Season, Year
+  - Resolved from JWT regId: JobId → LeagueId, Season, Year (via ResolveLeagueSeasonAsync)
 
 Algorithm:
   1. DELETE all existing games for this division
@@ -395,6 +395,8 @@ GET    /api/schedule-division/field-directions/{fieldId} → GetFieldDirectionsA
 
 ### Phase 6: Frontend — Components
 
+All components: standalone, `ChangeDetectionStrategy.OnPush`, `inject()` for DI, `@if`/`@for` control flow.
+
 **Main:** `src/app/views/admin/scheduling/schedule-division/schedule-division.component.ts`
 
 Key signals:
@@ -443,3 +445,57 @@ Child components:
 - **Division delete cascade:** Delete all games → verify BracketSeeds and DeviceGids also cleaned up
 - **Who Plays Who matrix:** After scheduling, matrix should be symmetric and match actual game count
 - **Email notification:** Move game → verify email sent to affected team contacts (when configured)
+
+---
+
+## 9. Implementation Progress
+
+### ✅ Completed
+
+#### Backend
+- **DTOs** — `ScheduleDivisionDtos.cs`: ScheduleGameDto (with T1Id/T2Id/DivId for conflict detection), ScheduleGridRow, ScheduleGridResponse, ScheduleFieldColumn, PlaceGameRequest, MoveGameRequest, DeleteDivGamesRequest, DivisionTeamDto, AutoScheduleResponse, FieldDirectionsDto
+- **Controller** — `ScheduleDivisionController.cs`: All endpoints wired (agegroups, pairings, teams, grid, place, move, delete game, delete div games, auto-schedule, field-directions)
+- **Service** — `ScheduleDivisionService.cs`: Orchestration layer between controller and repository
+  - `AutoScheduleDivAsync` — Core auto-schedule engine: deletes existing games, iterates RR pairings by round/game, finds next available timeslot per the legacy `GetNextAvailableTimeslot` algorithm, creates Schedule records, then bulk-resolves team names
+  - `FindNextAvailableTimeslot` — Walks dates × fields × game intervals, skipping occupied slots (pre-loaded from DB + tracked in-memory for newly placed games)
+  - Supports round-specific date filtering (legacy `Rnd` matching on `TimeslotsLeagueSeasonDates`)
+  - Falls back to agegroup-level dates/fields when division-specific ones don't exist
+  - `GetScheduleGridAsync` — Now populates agegroup color for game cards (loads color map from agegroup entities)
+  - `MapGameToDto` — Returns T1Id/T2Id/DivId for frontend conflict detection, and agegroup color for visual coding
+- **Repository** — Schedule repository methods for grid queries, game CRUD, move/swap
+  - `GetOccupiedSlotsAsync` — Returns `HashSet<(FieldId, GDate)>` for conflict-free auto-scheduling across divisions
+- **Field Directions** — `[AllowAnonymous] GET /api/schedule-division/field-directions/{fieldId}` returns field address/city/state/zip
+
+#### Frontend — Schedule Division Component
+- **Division Navigator** — Left sidebar with agegroup/division tree
+  - Filters out "Dropped Teams", "WAITLIST*" agegroups, and "Unassigned" divisions
+  - Agegroup badges show total team count with agegroup color
+  - Collapsible agegroup sections
+- **Pairings Panel** — Lists available and scheduled pairings for selected division
+- **Teams Panel** — Division teams with rank editing (lazy-loaded on demand)
+- **Schedule Grid** — Dynamic date×field grid
+  - Place game: click pairing → click empty slot
+  - Move game: click scheduled game → click destination (move or swap)
+  - Delete single game from grid
+  - Delete all division games (with confirmation)
+  - **Auto-schedule button** — Confirmation dialog warns about deleting existing games, shows pairing count; result banner displays scheduled/failed counts with dismiss
+  - **Agegroup color coding** — Game card left border color matches agegroup color for multi-division visual identification
+  - **Conflict detection** — Same-team double-booking detection: computed signal scans all grid cells, identifies teams appearing in multiple games on the same date, highlights conflicted game cards with warning border/icon, shows conflict count badge in grid header
+- **Service** — `ScheduleDivisionService` (Angular): HTTP methods for all endpoints (uses auto-generated API models from `@core/api`)
+- **Route** — Registered at `admin/scheduling/schedule-division`
+- **API Models** — Auto-generated TypeScript types via `2-Regenerate-API-Models.ps1` (must regenerate after backend DTO changes)
+
+#### Frontend — Manage Pairings Component (009-2, enhanced during this phase)
+- **Tab-based grid panel** — Three tabs: Pairings | Teams | Who Plays Who
+  - Lazy data loading per tab (teams load on first click, WPW matrix on first click)
+  - Tighter table density (xs font, 2px padding, narrower columns)
+- **Navigator improvements** — Same agegroup filtering/badges as schedule-division
+- **Round-robin/bracket separation** — Pairings split into RR and bracket sections
+- **Inline editing** — Edit pairing fields directly in the table
+- **Who Plays Who matrix** — N×N grid with zero-game highlighting
+
+### 🔲 Not Yet Started
+- **Bracket advancement** — `ScheduleRecord_RecalcValues` pipeline (AutoadvanceBracketWinner, PopulateBracketSeeds) — UpdateGameIds is already implemented via `SynchronizeScheduleTeamAssignmentsForDivisionAsync`
+- **Custom game insertion** — Add games outside the pairing system
+- **Email notifications** — Move/swap game coach notifications
+- **Progress indicator** — Auto-schedule progress bar (currently runs synchronously)

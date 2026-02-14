@@ -88,11 +88,11 @@ export const authGuard: CanActivateFn = (route, state) => {
             return true;
         }
 
+        // Grab refresh token BEFORE clearing local state (logoutLocal removes it from localStorage)
+        const refreshToken = authService.getRefreshToken();
+
         // Not anonymous-allowed route, clear local state
         authService.logoutLocal();
-
-        // Try refresh or redirect to login
-        const refreshToken = authService.getRefreshToken();
         if (refreshToken) {
             return authService.refreshAccessToken().pipe(
                 map(() => {

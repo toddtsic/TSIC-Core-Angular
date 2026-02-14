@@ -2,8 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RefreshTokenRequest = {
-    refreshToken: string;
-    regId?: string | null;
+export type DeleteDivGamesRequest = {
+    divId: string;
 };
 

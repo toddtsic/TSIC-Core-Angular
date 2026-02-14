@@ -2,8 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type RefreshTokenRequest = {
-    refreshToken: string;
-    regId?: string | null;
+export type FieldDirectionsDto = {
+    address: string;
+    city: string;
+    state: string;
+    zip: string;
 };
 

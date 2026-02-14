@@ -28,6 +28,8 @@ const BRACKET_OPTIONS = [
     { key: 'F', label: 'F (Finals only)' }
 ];
 
+type TabId = 'pairings' | 'teams' | 'wpw';
+
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
@@ -44,6 +46,9 @@ export class ManagePairingsComponent implements OnInit {
     readonly expandedAgegroups = signal<Set<string>>(new Set());
     readonly selectedDivision = signal<DivisionSummaryDto | null>(null);
 
+    // ── Tab state ──
+    readonly activeTab = signal<TabId>('pairings');
+
     // ── Pairings state ──
     readonly divisionResponse = signal<DivisionPairingsResponse | null>(null);
     readonly pairings = signal<PairingDto[]>([]);
@@ -52,7 +57,6 @@ export class ManagePairingsComponent implements OnInit {
 
     // ── Who Plays Who ──
     readonly whoPlaysWhoMatrix = signal<number[][] | null>(null);
-    readonly showWhoPlaysWho = signal(false);
 
     // ── Add Block controls ──
     readonly blockRounds = signal(1);
@@ -77,7 +81,6 @@ export class ManagePairingsComponent implements OnInit {
 
     // ── Division Teams ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
-    readonly showDivisionTeams = signal(true);
     readonly editingTeamId = signal<string | null>(null);
     readonly isSavingTeam = signal(false);
 
@@ -117,6 +120,13 @@ export class ManagePairingsComponent implements OnInit {
                         const name = (ag.agegroupName ?? '').toUpperCase();
                         return name !== 'DROPPED TEAMS' && !name.startsWith('WAITLIST');
                     })
+                    .map(ag => ({
+                        ...ag,
+                        divisions: ag.divisions.filter(d =>
+                            (d.divName ?? '').toUpperCase() !== 'UNASSIGNED'
+                        )
+                    }))
+                    .filter(ag => ag.divisions.length > 0)
                     .sort((a, b) => (a.agegroupName ?? '').localeCompare(b.agegroupName ?? ''));
                 this.agegroups.set(filtered);
                 this.isNavLoading.set(false);
@@ -140,10 +150,10 @@ export class ManagePairingsComponent implements OnInit {
         this.selectedDivision.set(div);
         this.editingAi.set(null);
         this.editingTeamId.set(null);
-        this.showWhoPlaysWho.set(false);
+        this.activeTab.set('pairings');
         this.whoPlaysWhoMatrix.set(null);
+        this.divisionTeams.set([]);
         this.loadDivisionPairings(div.divId);
-        this.loadDivisionTeams(div.divId);
     }
 
     loadDivisionPairings(divId: string): void {
@@ -163,6 +173,26 @@ export class ManagePairingsComponent implements OnInit {
             next: (teams) => this.divisionTeams.set(teams),
             error: () => this.divisionTeams.set([])
         });
+    }
+
+    // ── Tabs ──
+
+    setActiveTab(tab: TabId): void {
+        this.activeTab.set(tab);
+
+        if (tab === 'teams' && this.divisionTeams().length === 0) {
+            const div = this.selectedDivision();
+            if (div) this.loadDivisionTeams(div.divId);
+        }
+
+        if (tab === 'wpw' && !this.whoPlaysWhoMatrix()) {
+            const tc = this.teamCount();
+            if (tc > 0) {
+                this.svc.getWhoPlaysWho(tc).subscribe({
+                    next: (resp) => this.whoPlaysWhoMatrix.set(resp.matrix)
+                });
+            }
+        }
     }
 
     // ── Add Block (Round-Robin) ──
@@ -300,10 +330,6 @@ export class ManagePairingsComponent implements OnInit {
 
     // ── Division Teams ──
 
-    toggleDivisionTeams(): void {
-        this.showDivisionTeams.update(v => !v);
-    }
-
     startTeamEdit(teamId: string): void {
         this.editingTeamId.set(teamId);
     }
@@ -331,25 +357,6 @@ export class ManagePairingsComponent implements OnInit {
         });
     }
 
-    // ── Who Plays Who ──
-
-    toggleWhoPlaysWho(): void {
-        if (this.showWhoPlaysWho()) {
-            this.showWhoPlaysWho.set(false);
-            return;
-        }
-
-        const tc = this.teamCount();
-        if (tc === 0) return;
-
-        this.svc.getWhoPlaysWho(tc).subscribe({
-            next: (resp) => {
-                this.whoPlaysWhoMatrix.set(resp.matrix);
-                this.showWhoPlaysWho.set(true);
-            }
-        });
-    }
-
     // ── Helpers ──
 
     typeLabel(code: string): string {
@@ -366,12 +373,11 @@ export class ManagePairingsComponent implements OnInit {
         return `${calc} of G${gnoRef}`;
     }
 
-    roundClass(rnd: number): string {
-        return rnd % 2 === 0 ? 'round-even' : 'round-odd';
+    agTeamCount(ag: AgegroupWithDivisionsDto): number {
+        return ag.divisions.reduce((sum, d) => sum + d.teamCount, 0);
     }
 
-    matrixCellClass(value: number): string {
-        if (value === 0) return 'matrix-zero';
-        return '';
+    roundClass(rnd: number): string {
+        return rnd % 2 === 0 ? 'round-even' : 'round-odd';
     }
 }

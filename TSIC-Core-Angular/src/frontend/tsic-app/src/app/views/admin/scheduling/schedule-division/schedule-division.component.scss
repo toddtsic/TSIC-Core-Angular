@@ -1,0 +1,529 @@
+:host {
+    display: block;
+    padding: var(--space-4);
+}
+
+.schedule-div-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    height: calc(100vh - 200px);
+}
+
+.schedule-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+// ── Main layout: left panel + grid ──
+
+.schedule-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: var(--space-3);
+    flex: 1;
+    min-height: 0;
+}
+
+// ── Left panel (navigator + pairings stacked) ──
+
+.left-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    min-height: 0;
+    overflow: hidden;
+}
+
+// ── Shared panel styles ──
+
+.nav-panel,
+.pairings-panel,
+.grid-panel {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+
+.nav-panel {
+    flex-shrink: 0;
+    max-height: 40%;
+}
+
+.pairings-panel {
+    flex: 1;
+    min-height: 0;
+}
+
+.grid-panel {
+    min-height: 0;
+}
+
+.panel-header {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+}
+
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+// ── Navigator tree ──
+
+.nav-tree {
+    padding: var(--space-1) 0;
+}
+
+.nav-agegroup-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    user-select: none;
+
+    &:hover {
+        background: var(--bs-tertiary-bg);
+    }
+
+    .bi {
+        font-size: var(--font-size-2xs);
+        width: 1rem;
+        text-align: center;
+    }
+
+    .badge {
+        font-size: var(--font-size-2xs);
+    }
+}
+
+.color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.nav-divisions {
+    padding-left: var(--space-4);
+}
+
+.nav-division {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-1) var(--space-2);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    border-radius: var(--bs-border-radius-sm);
+
+    &:hover {
+        background: var(--bs-tertiary-bg);
+    }
+
+    &.active {
+        background: var(--bs-primary);
+        color: var(--bs-white);
+
+        .badge {
+            background: rgba(255, 255, 255, 0.2) !important;
+            color: var(--bs-white) !important;
+        }
+    }
+
+    .badge {
+        font-size: var(--font-size-2xs);
+    }
+}
+
+// ── Pairings list ──
+
+.pairings-body {
+    padding: 0;
+}
+
+.pairings-section-label {
+    font-size: var(--font-size-2xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.pairing-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+
+    &:hover {
+        background: var(--bs-tertiary-bg);
+    }
+
+    &.pairing-selected {
+        background: rgba(var(--bs-success-rgb), 0.12);
+        border-left: 3px solid var(--bs-success);
+    }
+
+    &.pairing-scheduled {
+        opacity: 0.5;
+        cursor: default;
+    }
+}
+
+.pairing-gno {
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    min-width: 32px;
+    color: var(--bs-secondary-color);
+}
+
+.pairing-teams {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pairing-rnd {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-secondary-color);
+    min-width: 24px;
+    text-align: right;
+}
+
+.pairing-pick-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--bs-primary);
+    border-radius: var(--bs-border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    flex-shrink: 0;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+    }
+}
+
+// ── Teams list ──
+
+.section-label-toggle {
+    font-size: var(--font-size-2xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color);
+    padding: var(--space-1) var(--space-2);
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+
+    &:hover {
+        background: var(--bs-secondary-bg);
+    }
+}
+
+.teams-list {
+    overflow-y: auto;
+    max-height: 160px;
+}
+
+.team-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.team-rank {
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
+.team-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.team-club {
+    font-size: var(--font-size-2xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+}
+
+// ── Schedule Grid ──
+
+.grid-scroll {
+    flex: 1;
+    overflow: auto;
+}
+
+.schedule-grid {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--font-size-sm);
+
+    th, td {
+        padding: var(--space-1);
+        vertical-align: top;
+        border-bottom: 1px solid var(--bs-border-color);
+        border-right: 1px solid var(--bs-border-color);
+    }
+
+    th {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        background: var(--bs-tertiary-bg);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        white-space: nowrap;
+        text-align: center;
+    }
+}
+
+.col-time {
+    min-width: 100px;
+    width: 100px;
+    white-space: nowrap;
+}
+
+.col-field {
+    min-width: 140px;
+    width: 140px;
+    height: 64px;
+    position: relative;
+}
+
+.sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bs-body-bg);
+}
+
+th.sticky-col {
+    z-index: 3;
+}
+
+.time-label {
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+}
+
+.time-sub {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-secondary-color);
+}
+
+// ── Grid cell states ──
+
+.cell-open {
+    cursor: pointer;
+    background: rgba(var(--bs-success-rgb), 0.04);
+
+    &:hover {
+        background: rgba(var(--bs-success-rgb), 0.1);
+    }
+}
+
+.cell-game {
+    cursor: pointer;
+}
+
+.cell-selected-game {
+    outline: 2px solid var(--bs-info);
+    outline-offset: -2px;
+    background: rgba(var(--bs-info-rgb), 0.08);
+}
+
+.cell-move-target {
+    cursor: crosshair;
+
+    &:hover {
+        background: rgba(var(--bs-info-rgb), 0.08);
+    }
+}
+
+// ── Game card (inside grid cell) ──
+
+.game-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: var(--space-1);
+    border-left: 3px solid var(--bs-primary);
+    border-radius: var(--bs-border-radius-sm);
+    background: var(--bs-body-bg);
+    position: relative;
+    height: 100%;
+}
+
+.game-label {
+    font-size: var(--font-size-2xs);
+    font-weight: 700;
+    color: var(--bs-primary-text-emphasis);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.game-teams {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.game-delete-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: var(--bs-danger);
+    color: var(--bs-white);
+    border-radius: var(--bs-border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-2xs);
+    line-height: 1;
+
+    .game-card:hover & {
+        display: inline-flex;
+    }
+}
+
+// ── Conflict indicator (same-team double-booking) ──
+
+.cell-conflict {
+    background: rgba(var(--bs-warning-rgb), 0.08);
+}
+
+.game-card-conflict {
+    border-left-color: var(--bs-warning) !important;
+}
+
+.conflict-icon {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    color: var(--bs-warning);
+    font-size: var(--font-size-2xs);
+}
+
+// ── Open slot hint ──
+
+.open-slot-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--bs-success);
+    opacity: 0.4;
+    font-size: var(--font-size-lg);
+
+    .cell-open:hover & {
+        opacity: 0.8;
+    }
+}
+
+// ── Empty states ──
+
+.icon-lg {
+    font-size: var(--font-size-3xl);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: var(--space-8);
+}
+
+.empty-state-sm {
+    padding: var(--space-4);
+    text-align: center;
+}
+
+// ── Mobile: stack panels vertically ──
+
+@media (max-width: 991.98px) {
+    .schedule-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .left-panel {
+        max-height: 300px;
+        flex-direction: row;
+        gap: var(--space-2);
+    }
+
+    .nav-panel {
+        flex: 1;
+        max-height: none;
+    }
+
+    .pairings-panel {
+        flex: 1;
+    }
+
+    .schedule-div-container {
+        height: auto;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .left-panel {
+        flex-direction: column;
+        max-height: none;
+    }
+
+    .nav-panel {
+        max-height: 200px;
+    }
+
+    .pairings-panel {
+        max-height: 250px;
+    }
+}

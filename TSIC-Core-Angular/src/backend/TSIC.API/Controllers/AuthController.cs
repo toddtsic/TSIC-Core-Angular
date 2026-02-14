@@ -253,23 +253,30 @@ namespace TSIC.API.Controllers
 
             // Try to get user's registrations to regenerate enriched token
             var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
-            var mostRecentReg = registrations
-                .SelectMany(r => r.RoleRegistrations)
-                .OrderByDescending(reg => reg.RegId) // Most recent registration
+            var allRegs = registrations.SelectMany(r => r.RoleRegistrations).ToList();
+
+            // If caller provided a RegId, preserve that session context.
+            // Otherwise fall back to most recent registration (legacy behavior).
+            RegistrationDto? targetReg = null;
+            if (!string.IsNullOrEmpty(request.RegId))
+            {
+                targetReg = allRegs.Find(r => r.RegId == request.RegId);
+            }
+            targetReg ??= allRegs
+                .OrderByDescending(reg => reg.RegId)
                 .ToList()
-                .Find(_ => true); // equivalent to FirstOrDefault but satisfies S6602 with List.Find
+                .Find(_ => true);
 
             string newAccessToken;
-            if (mostRecentReg != null && !string.IsNullOrEmpty(mostRecentReg.JobPath))
+            if (targetReg != null && !string.IsNullOrEmpty(targetReg.JobPath))
             {
-                // User has a registration - regenerate enriched token with role/regId/jobPath
-                // Get the correct role name from the parent registration (same logic as select-registration)
+                // Regenerate enriched token preserving the original job/role context
                 var registrationRole = registrations
                     .ToList()
-                    .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == mostRecentReg.RegId));
+                    .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == targetReg.RegId));
                 var roleName = registrationRole?.RoleName ?? "User";
 
-                newAccessToken = _tokenService.GenerateEnrichedJwtToken(user, mostRecentReg.RegId, mostRecentReg.JobPath, mostRecentReg.JobLogo, roleName);
+                newAccessToken = _tokenService.GenerateEnrichedJwtToken(user, targetReg.RegId, targetReg.JobPath, targetReg.JobLogo, roleName);
             }
             else
             {

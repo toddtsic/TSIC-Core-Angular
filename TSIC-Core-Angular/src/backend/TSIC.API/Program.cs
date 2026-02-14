@@ -147,6 +147,8 @@ builder.Services.AddScoped<ITeamSearchService, TeamSearchService>();
 builder.Services.AddScoped<IFieldManagementService, FieldManagementService>();
 builder.Services.AddScoped<IPairingsService, PairingsService>();
 builder.Services.AddScoped<ITimeslotService, TimeslotService>();
+builder.Services.AddScoped<IScheduleDivisionService, ScheduleDivisionService>();
+builder.Services.AddScoped<IViewScheduleService, ViewScheduleService>();
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));

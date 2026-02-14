@@ -46,4 +46,97 @@ public interface IScheduleRepository
     /// every game where DivId matches and T1Type/T2Type == "T".
     /// </summary>
     Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default);
+
+    // ── Schedule Division (009-4) ──
+
+    /// <summary>
+    /// Get all scheduled games visible on the grid for a given set of fields and dates.
+    /// Returns games across all divisions that fall on the specified dates and fields.
+    /// </summary>
+    Task<List<Schedule>> GetGamesForGridAsync(
+        Guid jobId, List<Guid> fieldIds, List<DateTime> gameDates, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all occupied (FieldId, GDate) pairs for a set of fields.
+    /// Used by auto-schedule to avoid double-booking slots across divisions.
+    /// </summary>
+    Task<HashSet<(Guid fieldId, DateTime gDate)>> GetOccupiedSlotsAsync(
+        Guid jobId, List<Guid> fieldIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get a single schedule record by Gid (tracked for mutation).
+    /// </summary>
+    Task<Schedule?> GetGameByIdAsync(int gid, CancellationToken ct = default);
+
+    /// <summary>
+    /// Find the schedule record at a specific date/field intersection (tracked for mutation).
+    /// </summary>
+    Task<Schedule?> GetGameAtSlotAsync(DateTime gDate, Guid fieldId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Add a new schedule record.
+    /// </summary>
+    void AddGame(Schedule game);
+
+    /// <summary>
+    /// Delete a single game and its cascade dependents (DeviceGids, BracketSeeds).
+    /// </summary>
+    Task DeleteGameAsync(int gid, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete all games for a division (DivId or Div2Id match) with cascade cleanup.
+    /// </summary>
+    Task DeleteDivisionGamesAsync(Guid divId, Guid leagueId, string season, string year, CancellationToken ct = default);
+
+    /// <summary>Persist pending changes.</summary>
+    Task<int> SaveChangesAsync(CancellationToken ct = default);
+
+    // ── View Schedule (009-5) ──
+
+    /// <summary>
+    /// Get all games for a job, filtered by the user's preferences.
+    /// Includes Field navigation for lat/lng and Agegroup for color.
+    /// Ordered by GDate ascending.
+    /// </summary>
+    Task<List<Schedule>> GetFilteredGamesAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the CADT filter tree (Club → Agegroup → Division → Team) for a job.
+    /// Only includes teams that appear in at least one scheduled game.
+    /// </summary>
+    Task<Dtos.Scheduling.ScheduleFilterOptionsDto> GetScheduleFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all games for a specific team (both as T1 and T2), for the team results drill-down.
+    /// Includes Field navigation for location name.
+    /// </summary>
+    Task<List<Schedule>> GetTeamGamesAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get bracket games for a job, optionally filtered by agegroup/division.
+    /// Returns games where T1Type or T2Type is a bracket type (Q, S, F, X, Y, Z).
+    /// </summary>
+    Task<List<Schedule>> GetBracketGamesAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get staff contacts for teams in the filtered schedule.
+    /// Returns registrations with Staff role assigned to teams that appear in games.
+    /// </summary>
+    Task<List<Dtos.Scheduling.ContactDto>> GetContactsAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get field display details (address, directions, coordinates).
+    /// </summary>
+    Task<Dtos.Scheduling.FieldDisplayDto?> GetFieldDisplayAsync(Guid fieldId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the sport name for a job (via Jobs → Sports navigation).
+    /// Used to determine standings sort order (soccer vs lacrosse).
+    /// </summary>
+    Task<string> GetSportNameAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get schedule-related flags for a job: BScheduleAllowPublicAccess, BHideContacts, SportName.
+    /// </summary>
+    Task<(bool allowPublicAccess, bool hideContacts, string sportName)> GetScheduleFlagsAsync(Guid jobId, CancellationToken ct = default);
 }
