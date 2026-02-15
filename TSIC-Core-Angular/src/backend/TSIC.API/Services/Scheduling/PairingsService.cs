@@ -99,8 +99,8 @@ public sealed class PairingsService : IPairingsService
         var teamCount = await _pairingsRepo.GetDivisionTeamCountAsync(divId, jobId, ct);
         var pairings = await _pairingsRepo.GetPairingsAsync(leagueId, season, teamCount, ct);
 
-        // Determine which pairings are already scheduled
-        var scheduledKeys = await _pairingsRepo.GetScheduledPairingKeysAsync(leagueId, season, teamCount, ct);
+        // Determine which pairings are already scheduled for THIS division
+        var scheduledKeys = await _pairingsRepo.GetScheduledPairingKeysAsync(leagueId, season, divId, ct);
 
         return new DivisionPairingsResponse
         {

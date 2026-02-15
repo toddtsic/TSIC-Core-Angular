@@ -1,5 +1,6 @@
 import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ToastService } from '@shared-ui/toast.service';
 import {
     ScheduleDivisionService,
     type AutoScheduleResponse,
@@ -24,6 +25,7 @@ import {
 })
 export class ScheduleDivisionComponent implements OnInit {
     private readonly svc = inject(ScheduleDivisionService);
+    private readonly toast = inject(ToastService);
 
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
@@ -258,6 +260,14 @@ export class ScheduleDivisionComponent implements OnInit {
         const column = this.gridColumns()[colIndex];
         if (!column) return;
 
+        // Pre-check: would placing this pairing create a time clash?
+        const teamIds = this.resolvePairingTeamIds(pairing);
+        const clash = this.findTimeClashInRow(row, teamIds);
+        if (clash) {
+            this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
+            return;
+        }
+
         this.isPlacing.set(true);
         this.svc.placeGame({
             pairingAi: pairing.ai,
@@ -434,6 +444,18 @@ export class ScheduleDivisionComponent implements OnInit {
         const targetColumn = this.gridColumns()[targetColIndex];
         if (!targetColumn) return;
 
+        // Pre-check: would moving this game create a time clash?
+        const teamIds = [source.game.t1Id, source.game.t2Id].filter((id): id is string => !!id);
+        const targetCell = targetRow.cells[targetColIndex];
+        if (!targetCell) {
+            // Move to empty cell — check for clash in target row (exclude self)
+            const clash = this.findTimeClashInRow(targetRow, teamIds, source.game.gid);
+            if (clash) {
+                this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
+                return;
+            }
+        }
+
         this.svc.moveGame({
             gid: source.game.gid,
             targetGDate: targetRow.gDate,
@@ -465,6 +487,38 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.moveOrSwapGame(row, colIndex);
             }
         }
+    }
+
+    // ── Time-clash prevention helpers ──
+
+    /** Resolve a pairing's team ranks to actual team IDs (T-type only; bracket teams are TBD). */
+    private resolvePairingTeamIds(pairing: PairingDto): string[] {
+        const ids: string[] = [];
+        const teams = this.divisionTeams();
+        if (pairing.t1Type === 'T') {
+            const t = teams.find(tm => tm.divRank === pairing.t1);
+            if (t) ids.push(t.teamId);
+        }
+        if (pairing.t2Type === 'T') {
+            const t = teams.find(tm => tm.divRank === pairing.t2);
+            if (t) ids.push(t.teamId);
+        }
+        return ids;
+    }
+
+    /** Check if any team in `teamIds` already has a game in this row. Returns team name if clash found, null otherwise. */
+    private findTimeClashInRow(row: ScheduleGridRow, teamIds: string[], excludeGid?: number): string | null {
+        for (const cell of row.cells) {
+            if (!cell) continue;
+            if (excludeGid != null && cell.gid === excludeGid) continue;
+            for (const tid of teamIds) {
+                if (cell.t1Id === tid || cell.t2Id === tid) {
+                    const team = this.divisionTeams().find(t => t.teamId === tid);
+                    return team?.teamName ?? 'A team';
+                }
+            }
+        }
+        return null;
     }
 
     // ── Helpers ──

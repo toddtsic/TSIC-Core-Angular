@@ -46,11 +46,11 @@ public interface IPairingsRepository
     // ── Read: Availability ──
 
     /// <summary>
-    /// Check if any scheduled game references this pairing (by matching LeagueId, Season, TCnt, Rnd, T1, T2).
-    /// Used to determine BAvailable status.
+    /// Get the set of (Rnd, T1, T2) keys that already have a scheduled game
+    /// for the specific division. Used to determine BAvailable status.
     /// </summary>
     Task<HashSet<(int Rnd, int T1, int T2)>> GetScheduledPairingKeysAsync(
-        Guid leagueId, string season, int teamCount, CancellationToken ct = default);
+        Guid leagueId, string season, Guid divId, CancellationToken ct = default);
 
     // ── Read: Agegroup/Division tree ──
 

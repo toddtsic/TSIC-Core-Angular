@@ -73,28 +73,15 @@ public class PairingsRepository : IPairingsRepository
     // ── Read: Availability ──
 
     public async Task<HashSet<(int Rnd, int T1, int T2)>> GetScheduledPairingKeysAsync(
-        Guid leagueId, string season, int teamCount, CancellationToken ct = default)
+        Guid leagueId, string season, Guid divId, CancellationToken ct = default)
     {
         // A pairing is "scheduled" when a Schedule row exists with matching
-        // LeagueId, Season, Rnd, and team numbers (T1No/T2No).
-        // We look at divisions that have the specified team count.
-        var divIdsForTCnt = await _context.Teams
-            .AsNoTracking()
-            .Where(t => t.LeagueId == leagueId && t.Active == true)
-            .GroupBy(t => t.DivId)
-            .Where(g => g.Count() == teamCount)
-            .Select(g => g.Key)
-            .ToListAsync(ct);
-
-        if (divIdsForTCnt.Count == 0)
-            return [];
-
+        // LeagueId, Season, DivId, Rnd, and team numbers (T1No/T2No).
         var scheduled = await _context.Schedule
             .AsNoTracking()
             .Where(s => s.LeagueId == leagueId
                 && s.Season == season
-                && s.DivId != null
-                && divIdsForTCnt.Contains(s.DivId.Value)
+                && s.DivId == divId
                 && s.Rnd != null
                 && s.T1No != null
                 && s.T2No != null)
