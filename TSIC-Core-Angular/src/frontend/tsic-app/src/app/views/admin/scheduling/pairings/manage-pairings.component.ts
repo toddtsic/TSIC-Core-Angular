@@ -9,7 +9,7 @@ import {
     type DivisionPairingsResponse,
     type DivisionTeamDto
 } from './services/pairings.service';
-import { contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
+import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 
 /** Team-type code legend for tooltips. */
 const TYPE_LABELS: Record<string, string> = {
@@ -34,7 +34,7 @@ type TabId = 'pairings' | 'teams' | 'wpw';
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, DivisionNavigatorComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -44,7 +44,6 @@ export class ManagePairingsComponent implements OnInit {
 
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
-    readonly expandedAgegroups = signal<Set<string>>(new Set());
     readonly selectedDivision = signal<DivisionSummaryDto | null>(null);
 
     // ── Tab state ──
@@ -136,25 +135,14 @@ export class ManagePairingsComponent implements OnInit {
         });
     }
 
-    toggleAgegroup(agId: string): void {
-        const current = new Set(this.expandedAgegroups());
-        if (current.has(agId)) current.delete(agId);
-        else current.add(agId);
-        this.expandedAgegroups.set(current);
-    }
-
-    isExpanded(agId: string): boolean {
-        return this.expandedAgegroups().has(agId);
-    }
-
-    selectDivision(div: DivisionSummaryDto): void {
-        this.selectedDivision.set(div);
+    onDivisionSelected(event: { division: DivisionSummaryDto; agegroupId: string }): void {
+        this.selectedDivision.set(event.division);
         this.editingAi.set(null);
         this.editingTeamId.set(null);
         this.activeTab.set('pairings');
         this.whoPlaysWhoMatrix.set(null);
         this.divisionTeams.set([]);
-        this.loadDivisionPairings(div.divId);
+        this.loadDivisionPairings(event.division.divId);
     }
 
     loadDivisionPairings(divId: string): void {
@@ -373,9 +361,6 @@ export class ManagePairingsComponent implements OnInit {
         const calc = calcType === 'W' ? 'Winner' : calcType === 'L' ? 'Loser' : calcType ?? '';
         return `${calc} of G${gnoRef}`;
     }
-
-    readonly agTeamCount = agTeamCount;
-    readonly contrastText = contrastText;
 
     roundClass(rnd: number): string {
         return rnd % 2 === 0 ? 'round-even' : 'round-odd';

@@ -1,0 +1,49 @@
+@if (isLoading()) {
+    <div class="text-center p-3">
+        <div class="spinner-border spinner-border-sm text-secondary"></div>
+    </div>
+} @else {
+    @if (showCollapseAll() && expandedAgegroups().size > 0) {
+        <div class="nav-actions">
+            <button class="collapse-all-btn" (click)="collapseAll()" title="Collapse all">
+                <i class="bi bi-chevron-bar-contract"></i>
+            </button>
+        </div>
+    }
+    <div class="nav-tree">
+        @for (ag of agegroups(); track ag.agegroupId) {
+            <div class="nav-agegroup">
+                <div class="nav-agegroup-header"
+                     (click)="toggleAgegroup(ag.agegroupId)"
+                     [class.expanded]="isExpanded(ag.agegroupId)">
+                    <i class="bi" [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
+                       [class.bi-chevron-down]="isExpanded(ag.agegroupId)"></i>
+                    @if (ag.color) {
+                        <span class="color-dot" [style.background]="ag.color"></span>
+                    }
+                    <span class="nav-ag-name">{{ ag.agegroupName }}</span>
+                    <span class="badge rounded-pill ms-auto ag-badge"
+                          [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
+                          [style.color]="contrastText(ag.color)">
+                        {{ agTeamCount(ag) }}
+                    </span>
+                </div>
+
+                @if (isExpanded(ag.agegroupId)) {
+                    <div class="nav-divisions">
+                        @for (div of ag.divisions; track div.divId) {
+                            <div class="nav-division"
+                                 [class.active]="selectedDivId() === div.divId"
+                                 (click)="selectDivision(div, ag.agegroupId)">
+                                <span class="div-name">{{ div.divName }}</span>
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                                    {{ div.teamCount }}
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}

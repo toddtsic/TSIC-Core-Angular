@@ -13,58 +13,15 @@
 
             <!-- ── Division Navigator ── -->
             <div class="nav-panel">
-                <div class="panel-header d-flex align-items-center justify-content-between">
+                <div class="panel-header">
                     <span class="fw-semibold">Agegroup/Divisions</span>
-                    @if (expandedAgegroups().size > 0) {
-                        <button class="collapse-all-btn" (click)="collapseAll()" title="Collapse all">
-                            <i class="bi bi-chevron-bar-contract"></i>
-                        </button>
-                    }
                 </div>
-                <div class="panel-body">
-                    @if (isNavLoading()) {
-                        <div class="text-center p-3">
-                            <div class="spinner-border spinner-border-sm text-secondary"></div>
-                        </div>
-                    } @else {
-                        <div class="nav-tree">
-                            @for (ag of agegroups(); track ag.agegroupId) {
-                                <div class="nav-agegroup">
-                                    <div class="nav-agegroup-header"
-                                         (click)="toggleAgegroup(ag.agegroupId)"
-                                         [class.expanded]="isExpanded(ag.agegroupId)">
-                                        <i class="bi" [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
-                                           [class.bi-chevron-down]="isExpanded(ag.agegroupId)"></i>
-                                        @if (ag.color) {
-                                            <span class="color-dot" [style.background]="ag.color"></span>
-                                        }
-                                        <span class="nav-ag-name">{{ ag.agegroupName }}</span>
-                                        <span class="badge rounded-pill ms-auto ag-badge"
-                                              [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
-                                              [style.color]="contrastText(ag.color)">
-                                            {{ agTeamCount(ag) }}
-                                        </span>
-                                    </div>
-
-                                    @if (isExpanded(ag.agegroupId)) {
-                                        <div class="nav-divisions">
-                                            @for (div of ag.divisions; track div.divId) {
-                                                <div class="nav-division"
-                                                     [class.active]="selectedDivision()?.divId === div.divId"
-                                                     (click)="selectDivision(div, ag.agegroupId)">
-                                                    <span class="div-name">{{ div.divName }}</span>
-                                                    <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
-                                                        {{ div.teamCount }}
-                                                    </span>
-                                                </div>
-                                            }
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
+                <app-division-navigator
+                    [agegroups]="agegroups()"
+                    [selectedDivId]="selectedDivision()?.divId ?? null"
+                    [isLoading]="isNavLoading()"
+                    [showCollapseAll]="true"
+                    (divisionSelected)="onDivisionSelected($event)" />
             </div>
 
             <!-- ── Pairings Panel (below navigator) ── -->
@@ -260,56 +217,22 @@
                                                 [class.cell-other-div]="cell && isOtherDivision(cell)"
                                                 (click)="onGridCellClick(row, ci)">
                                                 @if (cell) {
-                                                    <div class="game-card"
-                                                         [class.game-card-current]="!isOtherDivision(cell)"
-                                                         [class.game-card-other]="isOtherDivision(cell)"
-                                                         [class.game-card-breaking]="isBreaking(cell)"
-                                                         [class.game-card-back-to-back]="!isBreaking(cell) && isBackToBack(cell)"
-                                                         [style.border-left-color]="cell.color || 'var(--bs-primary)'"
-                                                         [style.background]="isOtherDivision(cell) ? null : agBg(cell.color)">
-                                                        <div class="game-row1">
-                                                            <span class="game-matchup">{{ teamDes(cell.t1Type, cell.t1No) }}v{{ teamDes(cell.t2Type, cell.t2No) }}</span>
-                                                            <span class="game-label">{{ cell.agDivLabel }}</span>
-                                                            <span class="game-gid">G{{ cell.gid }}</span>
-                                                        </div>
-                                                        <div class="game-team"><span class="game-team-des">({{ teamDes(cell.t1Type, cell.t1No) }})</span> {{ cell.t1Label }}</div>
-                                                        <div class="game-team"><span class="game-team-des">({{ teamDes(cell.t2Type, cell.t2No) }})</span> {{ cell.t2Label }}</div>
-                                                        <!-- Conflict icons -->
-                                                        <div class="game-icons">
-                                                            @if (isSlotCollision(cell)) {
-                                                                <i class="bi bi-layers-fill conflict-icon conflict-breaking" title="Multiple games in this slot"></i>
-                                                            }
-                                                            @if (isTimeClash(cell)) {
-                                                                <i class="bi bi-people-fill conflict-icon conflict-breaking" title="Team double-booked at this time"></i>
-                                                            }
-                                                            @if (!isBreaking(cell) && isBackToBack(cell)) {
-                                                                <i class="bi bi-clock-history conflict-icon conflict-b2b" title="Team playing back-to-back slots"></i>
-                                                            }
-                                                        </div>
-                                                        <!-- Action buttons -->
-                                                        <div class="game-actions">
-                                                            @if (!isOtherDivision(cell)) {
-                                                                <button class="game-action-btn game-move-btn"
-                                                                        (click)="selectGameForMove(cell, row, ci); $event.stopPropagation()"
-                                                                        title="Move this game">
-                                                                    <i class="bi bi-arrows-move"></i>
-                                                                </button>
-                                                            }
-                                                            @if (!isOtherDivision(cell)) {
-                                                                <button class="game-action-btn game-delete-btn"
-                                                                        (click)="deleteGame(cell, row, ci); $event.stopPropagation()"
-                                                                        title="Remove game">
-                                                                    <i class="bi bi-x"></i>
-                                                                </button>
-                                                            }
-                                                        </div>
-                                                        <!-- Move mode: swap indicator on other-div games -->
-                                                        @if (selectedGame() && !isGameSelected(cell)) {
-                                                            <div class="swap-hint">
-                                                                <i class="bi bi-arrow-down-up"></i>
-                                                            </div>
-                                                        }
-                                                    </div>
+                                                    <app-game-card
+                                                        [game]="cell"
+                                                        [showMatchupCodes]="true"
+                                                        [showGameId]="true"
+                                                        [showTeamDesignators]="true"
+                                                        [showActions]="true"
+                                                        [isSelected]="isGameSelected(cell)"
+                                                        [isOtherDivision]="isOtherDivision(cell)"
+                                                        [showSwapHint]="!!selectedGame() && !isGameSelected(cell)"
+                                                        [conflictIcons]="{
+                                                            slotCollision: isSlotCollision(cell),
+                                                            timeClash: isTimeClash(cell),
+                                                            backToBack: isBackToBack(cell)
+                                                        }"
+                                                        (moveClicked)="selectGameForMove(cell, row, ci)"
+                                                        (deleteClicked)="deleteGame(cell, row, ci)" />
                                                 } @else if (selectedPairing()) {
                                                     <div class="open-slot-hint">
                                                         <i class="bi bi-plus-circle"></i>

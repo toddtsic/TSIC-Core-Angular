@@ -17,8 +17,10 @@ import {
     type ScheduleGameDto
 } from './services/schedule-division.service';
 import {
-    contrastText, agBg, formatDate, formatTimeOnly, formatTime, teamDes, agTeamCount
+    formatDate, formatTimeOnly, formatTime, teamDes
 } from '../shared/utils/scheduling-helpers';
+import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
+import { GameCardComponent } from '../shared/components/game-card/game-card.component';
 import {
     computeTimeClashGameIds, computeBackToBackGameIds, computeBreakingConflictCount,
     isSlotCollision as isSlotCollisionFn, isTimeClash as isTimeClashFn,
@@ -28,7 +30,7 @@ import {
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, GameCardComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -42,7 +44,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
-    readonly expandedAgegroups = signal<Set<string>>(new Set());
     readonly selectedDivision = signal<DivisionSummaryDto | null>(null);
     readonly selectedAgegroupId = signal<string | null>(null);
     readonly isNavLoading = signal(false);
@@ -180,28 +181,13 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    toggleAgegroup(agId: string): void {
-        const current = new Set(this.expandedAgegroups());
-        if (current.has(agId)) current.delete(agId);
-        else current.add(agId);
-        this.expandedAgegroups.set(current);
-    }
-
-    isExpanded(agId: string): boolean {
-        return this.expandedAgegroups().has(agId);
-    }
-
-    collapseAll(): void {
-        this.expandedAgegroups.set(new Set());
-    }
-
-    selectDivision(div: DivisionSummaryDto, agegroupId: string): void {
-        this.selectedDivision.set(div);
-        this.selectedAgegroupId.set(agegroupId);
+    onDivisionSelected(event: { division: DivisionSummaryDto; agegroupId: string }): void {
+        this.selectedDivision.set(event.division);
+        this.selectedAgegroupId.set(event.agegroupId);
         this.selectedPairing.set(null);
         this.selectedGame.set(null);
         this.showDeleteDivConfirm.set(false);
-        this.loadDivisionData(div.divId, agegroupId);
+        this.loadDivisionData(event.division.divId, event.agegroupId);
     }
 
     private loadDivisionData(divId: string, agegroupId: string): void {
@@ -856,9 +842,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Helpers (delegated to shared utils) ──
 
-    readonly agTeamCount = agTeamCount;
-    readonly agBg = agBg;
-    readonly contrastText = contrastText;
     readonly formatTime = formatTime;
     readonly formatDate = formatDate;
     readonly formatTimeOnly = formatTimeOnly;

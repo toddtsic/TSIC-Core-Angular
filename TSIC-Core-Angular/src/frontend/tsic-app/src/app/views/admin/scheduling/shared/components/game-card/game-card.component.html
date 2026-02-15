@@ -1,0 +1,66 @@
+<div class="game-card"
+     [class.game-card-current]="!isOtherDivision()"
+     [class.game-card-other]="isOtherDivision()"
+     [class.game-card-breaking]="conflictIcons().slotCollision || conflictIcons().timeClash"
+     [class.game-card-back-to-back]="!(conflictIcons().slotCollision || conflictIcons().timeClash) && conflictIcons().backToBack"
+     [style.border-left-color]="game().color || 'var(--bs-primary)'"
+     [style.background]="isOtherDivision() ? null : agBg(game().color)">
+
+    <!-- Row 1: matchup codes + label + game ID (schedule-division mode) -->
+    @if (showMatchupCodes()) {
+        <div class="game-row1">
+            <span class="game-matchup">{{ teamDes(game().t1Type, game().t1No) }}v{{ teamDes(game().t2Type, game().t2No) }}</span>
+            <span class="game-label">{{ game().agDivLabel }}</span>
+            @if (showGameId()) {
+                <span class="game-gid">G{{ game().gid }}</span>
+            }
+        </div>
+    } @else {
+        <!-- Compact mode (rescheduler): label only -->
+        <div class="game-label">{{ game().agDivLabel }}</div>
+    }
+
+    <!-- Team rows -->
+    @if (showTeamDesignators()) {
+        <div class="game-team"><span class="game-team-des">({{ teamDes(game().t1Type, game().t1No) }})</span> {{ game().t1Label }}</div>
+        <div class="game-team"><span class="game-team-des">({{ teamDes(game().t2Type, game().t2No) }})</span> {{ game().t2Label }}</div>
+    } @else {
+        <div class="game-teams">{{ game().t1Label }} vs {{ game().t2Label }}</div>
+    }
+
+    <!-- Conflict icons -->
+    <div class="game-icons">
+        @if (conflictIcons().slotCollision) {
+            <i class="bi bi-layers-fill conflict-icon conflict-breaking" title="Multiple games in this slot"></i>
+        }
+        @if (conflictIcons().timeClash) {
+            <i class="bi bi-people-fill conflict-icon conflict-breaking" title="Team double-booked at this time"></i>
+        }
+        @if (!(conflictIcons().slotCollision || conflictIcons().timeClash) && conflictIcons().backToBack) {
+            <i class="bi bi-clock-history conflict-icon conflict-b2b" title="Team playing back-to-back slots"></i>
+        }
+    </div>
+
+    <!-- Action buttons (hover) -->
+    @if (showActions() && !isOtherDivision()) {
+        <div class="game-actions">
+            <button class="game-action-btn game-move-btn"
+                    (click)="moveClicked.emit(); $event.stopPropagation()"
+                    title="Move this game">
+                <i class="bi bi-arrows-move"></i>
+            </button>
+            <button class="game-action-btn game-delete-btn"
+                    (click)="deleteClicked.emit(); $event.stopPropagation()"
+                    title="Remove game">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    }
+
+    <!-- Move mode: swap indicator on other games -->
+    @if (showSwapHint()) {
+        <div class="swap-hint">
+            <i class="bi bi-arrow-down-up"></i>
+        </div>
+    }
+</div>

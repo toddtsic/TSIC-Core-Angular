@@ -325,8 +325,12 @@ export class AuthService {
           this.initializeFromToken();
         }),
         catchError((error: HttpErrorResponse) => {
-          // If refresh fails, logout user
-          this.logout();
+          // Only logout on auth rejection (401/403) — the refresh token is genuinely invalid.
+          // Network errors (status 0) or server errors (5xx) are transient;
+          // don't destroy the session — the proactive timer or next request will retry.
+          if (error.status === 401 || error.status === 403) {
+            this.logout();
+          }
           return throwError(() => error);
         }),
         // Share the result with all subscribers and clear the in-progress flag when complete

@@ -70,25 +70,6 @@
     flex-shrink: 0;
 }
 
-.collapse-all-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: none;
-    background: transparent;
-    color: var(--bs-secondary-color);
-    border-radius: var(--bs-border-radius-sm);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-
-    &:hover {
-        background: var(--bs-secondary-bg);
-        color: var(--bs-body-color);
-    }
-}
-
 .grid-header {
     display: flex;
     align-items: center;
@@ -103,76 +84,6 @@
 .panel-body {
     flex: 1;
     overflow-y: auto;
-}
-
-// ── Navigator tree ──
-
-.nav-tree {
-    padding: var(--space-1) 0;
-}
-
-.nav-agegroup-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-    user-select: none;
-
-    &:hover {
-        background: var(--bs-tertiary-bg);
-    }
-
-    .bi {
-        font-size: var(--font-size-2xs);
-        width: 1rem;
-        text-align: center;
-    }
-
-    .badge {
-        font-size: var(--font-size-2xs);
-    }
-}
-
-.color-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.nav-divisions {
-    padding-left: var(--space-4);
-}
-
-.nav-division {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-1) var(--space-2);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-    border-radius: var(--bs-border-radius-sm);
-
-    &:hover {
-        background: var(--bs-tertiary-bg);
-    }
-
-    &.active {
-        background: var(--bs-primary);
-        color: var(--bs-white);
-
-        .badge {
-            background: rgba(255, 255, 255, 0.2) !important;
-            color: var(--bs-white) !important;
-        }
-    }
-
-    .badge {
-        font-size: var(--font-size-2xs);
-    }
 }
 
 // ── Pairings list (single flat list) ──
@@ -425,183 +336,18 @@ th.sticky-col {
     }
 }
 
-// ── Game card (inside grid cell) ──
-
-.game-card {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: var(--space-1);
-    padding-right: 40px;
-    border-left: 3px solid var(--bs-primary);
-    border-radius: var(--bs-border-radius-sm);
-    background: var(--bs-body-bg);
-    position: relative;
-    height: 100%;
-}
-
-.game-row1 {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-1);
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.game-matchup {
-    font-size: var(--font-size-2xs);
-    font-weight: 700;
-    color: var(--bs-body-color);
-    flex-shrink: 0;
-}
-
-.game-label {
-    font-size: var(--font-size-2xs);
-    color: var(--bs-secondary-color);
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.game-gid {
-    font-size: var(--font-size-2xs);
-    font-weight: 700;
-    color: var(--bs-secondary-color);
-    flex-shrink: 0;
-}
-
-.game-team {
-    font-size: var(--font-size-2xs);
-    color: var(--bs-body-color);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.game-team-des {
-    font-weight: 700;
-}
-
-// ── Game action buttons (top-right, visible on hover) ──
-
-.game-actions {
-    position: absolute;
-    top: 1px;
-    right: 1px;
-    display: none;
-    gap: 2px;
-
-    .game-card:hover & {
-        display: flex;
-    }
-}
-
-.game-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border: none;
-    border-radius: var(--bs-border-radius-sm);
-    cursor: pointer;
-    font-size: var(--font-size-2xs);
-    line-height: 1;
-}
-
-.game-move-btn {
-    background: var(--bs-info);
-    color: var(--bs-white);
-
-    &:hover {
-        background: var(--bs-info-text-emphasis);
-    }
-}
-
-.game-delete-btn {
-    background: var(--bs-danger);
-    color: var(--bs-white);
-
-    &:hover {
-        background: var(--bs-danger-text-emphasis);
-    }
-}
-
-// ── Current-division games (light surface, elevated) ──
-
-.game-card-current {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-// ── Other-division games (strongly dimmed) ──
+// ── Cell-level conflict backgrounds ──
 
 .cell-other-div {
     cursor: default;
 }
 
-.game-card-other {
-    opacity: 0.3;
-    filter: grayscale(50%);
-
-    .game-actions {
-        display: none !important;
-    }
-}
-
-// ── Conflict indicators ──
-
-// Breaking (slot collision, team time clash) — danger red
 .cell-breaking {
     background: rgba(var(--bs-danger-rgb), 0.08);
 }
 
-// Non-breaking (back-to-back) — warning amber
 .cell-back-to-back {
     background: rgba(var(--bs-warning-rgb), 0.06);
-}
-
-// Conflict/status icons container (bottom-right)
-.game-icons {
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    display: flex;
-    gap: 2px;
-}
-
-.conflict-icon {
-    font-size: var(--font-size-2xs);
-}
-
-.conflict-breaking {
-    color: var(--bs-danger);
-}
-
-.conflict-b2b {
-    color: var(--bs-warning);
-}
-
-// ── Swap hint overlay (shown on occupied cells during move mode) ──
-
-.swap-hint {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(var(--bs-info-rgb), 0.85);
-    color: var(--bs-white);
-    font-size: var(--font-size-sm);
-    z-index: 1;
-    pointer-events: none;
-
-    .cell-move-target:hover & {
-        display: flex;
-    }
 }
 
 // ── Open slot hint ──

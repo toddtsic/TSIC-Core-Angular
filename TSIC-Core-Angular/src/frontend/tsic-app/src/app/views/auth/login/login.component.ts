@@ -86,6 +86,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
+    // Focus the username input on load
+    setTimeout(() => this.usernameInput?.nativeElement.focus(), 0);
+
     // One-time sync in case the browser autofilled without firing input events
     setTimeout(() => this.syncAutofillOnce(), 250);
 

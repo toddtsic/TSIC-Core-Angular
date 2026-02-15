@@ -24,11 +24,12 @@ import {
     computeTimeClashGameIds, computeBackToBackGameIds, computeBreakingConflictCount,
     isSlotCollision as isSlotCollisionFn
 } from '../shared/utils/conflict-detection';
+import { GameCardComponent } from '../shared/components/game-card/game-card.component';
 
 @Component({
     selector: 'app-rescheduler',
     standalone: true,
-    imports: [CommonModule, FormsModule, RichTextEditorModule],
+    imports: [CommonModule, FormsModule, RichTextEditorModule, GameCardComponent],
     templateUrl: './rescheduler.component.html',
     styleUrl: './rescheduler.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

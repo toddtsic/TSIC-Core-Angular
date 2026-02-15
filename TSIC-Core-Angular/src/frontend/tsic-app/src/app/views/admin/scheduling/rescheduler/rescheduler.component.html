@@ -232,22 +232,13 @@
                                                 [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
                                                 (click)="onGridCellClick(row, ci)">
                                                 @if (cell) {
-                                                    <div class="game-card"
-                                                         [class.game-card-breaking]="isBreaking(cell)"
-                                                         [class.game-card-back-to-back]="!isBreaking(cell) && isBackToBack(cell)"
-                                                         [style.border-left-color]="cell.color || 'var(--bs-primary)'">
-                                                        <div class="game-label">{{ cell.agDivLabel }}</div>
-                                                        <div class="game-teams">{{ cell.t1Label }} vs {{ cell.t2Label }}</div>
-                                                        @if (isSlotCollision(cell)) {
-                                                            <i class="bi bi-layers-fill conflict-icon conflict-breaking" title="Multiple games in this slot"></i>
-                                                        }
-                                                        @if (isTimeClash(cell)) {
-                                                            <i class="bi bi-people-fill conflict-icon conflict-breaking" title="Team double-booked"></i>
-                                                        }
-                                                        @if (!isBreaking(cell) && isBackToBack(cell)) {
-                                                            <i class="bi bi-clock-history conflict-icon conflict-b2b" title="Back-to-back"></i>
-                                                        }
-                                                    </div>
+                                                    <app-game-card
+                                                        [game]="cell"
+                                                        [conflictIcons]="{
+                                                            slotCollision: isSlotCollision(cell),
+                                                            timeClash: isTimeClash(cell),
+                                                            backToBack: isBackToBack(cell)
+                                                        }" />
                                                 } @else if (selectedGame()) {
                                                     <div class="open-slot-hint">
                                                         <i class="bi bi-arrows-move"></i>

@@ -1,0 +1,189 @@
+:host {
+    display: block;
+    height: 100%;
+}
+
+// ── Game card base ──
+
+.game-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: var(--space-1);
+    padding-right: 40px;
+    border-left: 3px solid var(--bs-primary);
+    border-radius: var(--bs-border-radius-sm);
+    background: var(--bs-body-bg);
+    position: relative;
+    height: 100%;
+}
+
+// ── Row 1: matchup + label + game ID ──
+
+.game-row1 {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.game-matchup {
+    font-size: var(--font-size-2xs);
+    font-weight: 700;
+    color: var(--bs-body-color);
+    flex-shrink: 0;
+}
+
+.game-label {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-secondary-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.game-gid {
+    font-size: var(--font-size-2xs);
+    font-weight: 700;
+    color: var(--bs-secondary-color);
+    flex-shrink: 0;
+}
+
+// ── Team rows (detailed mode with designators) ──
+
+.game-team {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.game-team-des {
+    font-weight: 700;
+}
+
+// ── Team rows (compact mode without designators) ──
+
+.game-teams {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// ── Action buttons (top-right, visible on card hover) ──
+
+.game-actions {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    display: none;
+    gap: 2px;
+
+    .game-card:hover & {
+        display: flex;
+    }
+}
+
+.game-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: var(--bs-border-radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-2xs);
+    line-height: 1;
+}
+
+.game-move-btn {
+    background: var(--bs-info);
+    color: var(--bs-white);
+
+    &:hover {
+        background: var(--bs-info-text-emphasis);
+    }
+}
+
+.game-delete-btn {
+    background: var(--bs-danger);
+    color: var(--bs-white);
+
+    &:hover {
+        background: var(--bs-danger-text-emphasis);
+    }
+}
+
+// ── Current-division games ──
+
+.game-card-current {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+// ── Other-division games (strongly dimmed) ──
+
+.game-card-other {
+    opacity: 0.3;
+    filter: grayscale(50%);
+
+    .game-actions {
+        display: none !important;
+    }
+}
+
+// ── Conflict state overrides ──
+
+.game-card-breaking {
+    border-left-color: var(--bs-danger) !important;
+}
+
+.game-card-back-to-back {
+    border-left-color: var(--bs-warning) !important;
+}
+
+// ── Conflict icons (bottom-right) ──
+
+.game-icons {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    display: flex;
+    gap: 2px;
+}
+
+.conflict-icon {
+    font-size: var(--font-size-2xs);
+}
+
+.conflict-breaking {
+    color: var(--bs-danger);
+}
+
+.conflict-b2b {
+    color: var(--bs-warning);
+}
+
+// ── Swap hint overlay ──
+
+.swap-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(var(--bs-info-rgb), 0.85);
+    color: var(--bs-white);
+    font-size: var(--font-size-sm);
+    z-index: 1;
+    pointer-events: none;
+}
