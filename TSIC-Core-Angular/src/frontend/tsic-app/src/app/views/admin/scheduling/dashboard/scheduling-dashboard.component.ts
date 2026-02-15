@@ -23,13 +23,25 @@ export class SchedulingDashboardComponent implements OnInit {
 
         return [
             {
+                title: 'LADT Setup',
+                icon: 'bi-diagram-3',
+                route: '/ladt/admin',
+                isExternal: true,
+                metric: `${s.totalAgegroups} agegroups \u00b7 ${s.totalDivisions} divisions`,
+                detail: s.totalDivisions > 0
+                    ? (s.divisionsAreThemed ? 'themed' : 'not themed')
+                    : null,
+                severity: s.totalDivisions > 0 ? 'success' as const : 'empty' as const
+            },
+            {
                 title: 'Pool Assignment',
                 icon: 'bi-people',
                 route: '/admin/pool-assignment',
                 isExternal: true,
-                metric: `${s.teamsAssigned} assigned`,
-                detail: s.teamsUnassigned > 0 ? `${s.teamsUnassigned} unassigned` : null,
-                severity: s.teamsUnassigned > 0 ? 'warn' : 'success'
+                metric: `${s.agegroupsPoolComplete}/${s.totalAgegroups} agegroups`,
+                detail: 'complete',
+                severity: s.agegroupsPoolComplete >= s.totalAgegroups ? 'success' as const
+                    : s.agegroupsPoolComplete > 0 ? 'partial' as const : 'warn' as const
             },
             {
                 title: 'Fields',
@@ -38,37 +50,38 @@ export class SchedulingDashboardComponent implements OnInit {
                 isExternal: false,
                 metric: `${s.fieldCount} fields`,
                 detail: null,
-                severity: s.fieldCount > 0 ? 'success' : 'empty'
+                severity: s.fieldCount > 0 ? 'success' as const : 'empty' as const
             },
             {
                 title: 'Pairings',
                 icon: 'bi-arrow-left-right',
                 route: 'pairings',
                 isExternal: false,
-                metric: `${s.divisionsWithPairings}/${s.totalDivisions} divisions`,
+                metric: `${s.poolSizesWithPairings}/${s.totalDistinctPoolSizes} pool sizes`,
                 detail: 'with pairings',
-                severity: s.divisionsWithPairings >= s.totalDivisions ? 'success'
-                    : s.divisionsWithPairings > 0 ? 'partial' : 'empty'
+                severity: s.totalDistinctPoolSizes === 0 ? 'empty' as const
+                    : s.poolSizesWithPairings >= s.totalDistinctPoolSizes ? 'success' as const
+                    : s.poolSizesWithPairings > 0 ? 'partial' as const : 'empty' as const
             },
             {
                 title: 'Timeslots',
                 icon: 'bi-clock',
                 route: 'timeslots',
                 isExternal: false,
-                metric: `${s.agegroupsWithTimeslots}/${s.totalAgegroups} agegroups`,
-                detail: 'configured',
-                severity: s.agegroupsWithTimeslots >= s.totalAgegroups ? 'success'
-                    : s.agegroupsWithTimeslots > 0 ? 'partial' : 'empty'
+                metric: `${s.agegroupsReady}/${s.totalAgegroups} agegroups`,
+                detail: 'ready to schedule',
+                severity: s.agegroupsReady >= s.totalAgegroups ? 'success' as const
+                    : s.agegroupsReady > 0 ? 'partial' as const : 'empty' as const
             },
             {
                 title: 'Schedule',
                 icon: 'bi-calendar-check',
                 route: 'schedule-division',
                 isExternal: false,
-                metric: `${s.scheduledGameCount} games`,
-                detail: `${s.divisionsScheduled}/${s.totalDivisions} divisions scheduled`,
-                severity: s.divisionsScheduled >= s.totalDivisions ? 'success'
-                    : s.divisionsScheduled > 0 ? 'partial' : 'empty'
+                metric: `${s.agegroupsScheduled}/${s.totalAgegroups} agegroups`,
+                detail: 'scheduled',
+                severity: s.agegroupsScheduled >= s.totalAgegroups ? 'success' as const
+                    : s.agegroupsScheduled > 0 ? 'partial' as const : 'empty' as const
             }
         ];
     });

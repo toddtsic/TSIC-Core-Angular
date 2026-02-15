@@ -52,6 +52,22 @@ public interface IPairingsRepository
     Task<HashSet<(int Rnd, int T1, int T2)>> GetScheduledPairingKeysAsync(
         Guid leagueId, string season, Guid divId, CancellationToken ct = default);
 
+    // ── Read: Dashboard aggregates ──
+
+    /// <summary>
+    /// Get the set of distinct TCnt values that have at least one pairing row
+    /// for this league-season. Used by dashboard to count pool sizes with pairings.
+    /// </summary>
+    Task<HashSet<int>> GetDistinctPoolSizesWithPairingsAsync(
+        Guid leagueId, string season, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the count of round-robin pairings (T1Type="T" AND T2Type="T") grouped by TCnt.
+    /// Used by dashboard to determine expected game count per pool size.
+    /// </summary>
+    Task<Dictionary<int, int>> GetRoundRobinPairingCountsByPoolSizeAsync(
+        Guid leagueId, string season, CancellationToken ct = default);
+
     // ── Read: Agegroup/Division tree ──
 
     /// <summary>

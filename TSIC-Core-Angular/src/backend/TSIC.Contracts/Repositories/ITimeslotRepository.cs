@@ -35,6 +35,22 @@ public interface ITimeslotRepository
 
     Task DeleteAllFieldTimeslotsAsync(Guid agegroupId, string season, string year, CancellationToken ct = default);
 
+    // ── Dashboard aggregates ──
+
+    /// <summary>
+    /// Get the set of agegroup IDs that have at least one date row for this season/year.
+    /// Used by dashboard timeslot-readiness check.
+    /// </summary>
+    Task<HashSet<Guid>> GetAgegroupIdsWithDatesAsync(
+        string season, string year, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the set of agegroup IDs that have at least one field-timeslot row for this season/year.
+    /// Used by dashboard timeslot-readiness check.
+    /// </summary>
+    Task<HashSet<Guid>> GetAgegroupIdsWithFieldTimeslotsAsync(
+        string season, string year, CancellationToken ct = default);
+
     // ── Cloning support queries ──
 
     /// <summary>Get all field timeslots for a source agegroup (used by clone-fields, clone-by-field, etc.).</summary>

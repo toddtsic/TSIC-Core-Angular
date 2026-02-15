@@ -2,6 +2,7 @@ using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
+using TSIC.Infrastructure.Utilities;
 
 namespace TSIC.API.Services.Scheduling;
 
@@ -17,8 +18,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
     private readonly IFieldRepository _fieldRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IDivisionRepository _divisionRepo;
-    private readonly IJobRepository _jobRepo;
-    private readonly IJobLeagueRepository _jobLeagueRepo;
+    private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<ScheduleDivisionService> _logger;
 
     public ScheduleDivisionService(
@@ -28,8 +28,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         IFieldRepository fieldRepo,
         IAgeGroupRepository agegroupRepo,
         IDivisionRepository divisionRepo,
-        IJobRepository jobRepo,
-        IJobLeagueRepository jobLeagueRepo,
+        ISchedulingContextResolver contextResolver,
         ILogger<ScheduleDivisionService> logger)
     {
         _scheduleRepo = scheduleRepo;
@@ -38,15 +37,14 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         _fieldRepo = fieldRepo;
         _agegroupRepo = agegroupRepo;
         _divisionRepo = divisionRepo;
-        _jobRepo = jobRepo;
-        _jobLeagueRepo = jobLeagueRepo;
+        _contextResolver = contextResolver;
         _logger = logger;
     }
 
     public async Task<ScheduleGridResponse> GetScheduleGridAsync(
         Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveLeagueSeasonYearAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         // 1. Get timeslot dates — try division-specific first, fall back to agegroup-level
         var dates = await _timeslotRepo.GetDatesAsync(agegroupId, season, year, ct);
@@ -145,7 +143,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
 
                     var agColor = game.AgegroupId.HasValue && agColorMap.TryGetValue(game.AgegroupId.Value, out var c) ? c : null;
                     var isCollision = slotCollisionKeys.Contains((timeslot, col.FieldId));
-                    return MapGameToDto(game, agColor, isCollision);
+                    return ScheduleGameDtoMapper.Map(game, agColor, isCollision);
                 })
                 .ToList();
 
@@ -158,7 +156,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
     public async Task<ScheduleGameDto> PlaceGameAsync(
         Guid jobId, string userId, PlaceGameRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season, year) = await ResolveLeagueSeasonYearAsync(jobId, ct);
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var pairing = await _pairingsRepo.GetByIdAsync(request.PairingAi, ct)
             ?? throw new KeyNotFoundException($"Pairing {request.PairingAi} not found.");
@@ -211,55 +209,13 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             "PlaceGame: Gid={Gid} pairing {PairingAi} at {GDate} on field {FieldName}",
             game.Gid, request.PairingAi, request.GDate, field?.FName);
 
-        return MapGameToDto(savedGame, agegroup?.Color);
+        return ScheduleGameDtoMapper.Map(savedGame, agegroup?.Color);
     }
 
     public async Task MoveGameAsync(string userId, MoveGameRequest request, CancellationToken ct = default)
     {
-        var gameA = await _scheduleRepo.GetGameByIdAsync(request.Gid, ct)
-            ?? throw new KeyNotFoundException($"Game {request.Gid} not found.");
-
-        var gameB = await _scheduleRepo.GetGameAtSlotAsync(request.TargetGDate, request.TargetFieldId, ct);
-
-        if (gameB == null)
-        {
-            // Empty slot — simple move
-            var field = await _fieldRepo.GetFieldByIdAsync(request.TargetFieldId, ct);
-            gameA.GDate = request.TargetGDate;
-            gameA.FieldId = request.TargetFieldId;
-            gameA.FName = field?.FName ?? "";
-            gameA.RescheduleCount = (gameA.RescheduleCount ?? 0) + 1;
-            gameA.Modified = DateTime.UtcNow;
-            gameA.LebUserId = userId;
-
-            _logger.LogInformation("MoveGame: Gid={Gid} → {NewDate} field {FieldName}",
-                request.Gid, request.TargetGDate, field?.FName);
-        }
-        else
-        {
-            // Occupied slot — swap
-            var tempDate = gameA.GDate;
-            var tempFieldId = gameA.FieldId;
-            var tempFName = gameA.FName;
-
-            gameA.GDate = gameB.GDate;
-            gameA.FieldId = gameB.FieldId;
-            gameA.FName = gameB.FName;
-            gameA.RescheduleCount = (gameA.RescheduleCount ?? 0) + 1;
-            gameA.Modified = DateTime.UtcNow;
-            gameA.LebUserId = userId;
-
-            gameB.GDate = tempDate;
-            gameB.FieldId = tempFieldId;
-            gameB.FName = tempFName;
-            gameB.RescheduleCount = (gameB.RescheduleCount ?? 0) + 1;
-            gameB.Modified = DateTime.UtcNow;
-            gameB.LebUserId = userId;
-
-            _logger.LogInformation("SwapGames: Gid={GidA} ↔ Gid={GidB}", request.Gid, gameB.Gid);
-        }
-
-        await _scheduleRepo.SaveChangesAsync(ct);
+        await SchedulingGameMutationHelper.MoveOrSwapGameAsync(
+            request, userId, _scheduleRepo, _fieldRepo, _logger, ct);
     }
 
     public async Task DeleteGameAsync(int gid, CancellationToken ct = default)
@@ -271,7 +227,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
 
     public async Task DeleteDivisionGamesAsync(Guid jobId, DeleteDivGamesRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season, year) = await ResolveLeagueSeasonYearAsync(jobId, ct);
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
         await _scheduleRepo.DeleteDivisionGamesAsync(request.DivId, leagueId, season, year, ct);
         await _scheduleRepo.SaveChangesAsync(ct);
         _logger.LogInformation("DeleteDivGames: DivId={DivId} with cascade cleanup", request.DivId);
@@ -280,7 +236,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
     public async Task<AutoScheduleResponse> AutoScheduleDivAsync(
         Guid jobId, string userId, Guid divId, CancellationToken ct = default)
     {
-        var (leagueId, season, year) = await ResolveLeagueSeasonYearAsync(jobId, ct);
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         // 1. Delete existing games for this division
         await _scheduleRepo.DeleteDivisionGamesAsync(divId, leagueId, season, year, ct);
@@ -451,48 +407,5 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         }
 
         return null;
-    }
-
-    // ── Private helpers ──
-
-    private async Task<(Guid leagueId, string season, string year)> ResolveLeagueSeasonYearAsync(
-        Guid jobId, CancellationToken ct)
-    {
-        var leagueId = await _jobLeagueRepo.GetPrimaryLeagueForJobAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No primary league found for job {jobId}.");
-
-        var seasonYear = await _jobRepo.GetJobSeasonYearAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No season/year found for job {jobId}.");
-
-        return (leagueId, seasonYear.Season ?? "", seasonYear.Year ?? "");
-    }
-
-    private static ScheduleGameDto MapGameToDto(Schedule game, string? agegroupColor = null, bool isSlotCollision = false) => new()
-    {
-        Gid = game.Gid,
-        GDate = game.GDate ?? DateTime.MinValue,
-        FieldId = game.FieldId ?? Guid.Empty,
-        FName = game.FName ?? "",
-        Rnd = game.Rnd ?? 0,
-        AgDivLabel = $"{game.AgegroupName}:{game.DivName}",
-        T1Label = FormatTeamLabel(game.T1No, game.T1Name, game.T1Type),
-        T2Label = FormatTeamLabel(game.T2No.HasValue ? (int)game.T2No.Value : null, game.T2Name, game.T2Type),
-        Color = agegroupColor,
-        T1Type = game.T1Type ?? "T",
-        T2Type = game.T2Type ?? "T",
-        T1No = game.T1No,
-        T2No = game.T2No,
-        T1Id = game.T1Id,
-        T2Id = game.T2Id,
-        DivId = game.DivId,
-        IsSlotCollision = isSlotCollision
-    };
-
-    private static string FormatTeamLabel(int? teamNo, string? teamName, string? teamType)
-    {
-        if (!string.IsNullOrEmpty(teamName))
-            return teamName;
-
-        return $"{teamType ?? "T"}{teamNo ?? 0}";
     }
 }

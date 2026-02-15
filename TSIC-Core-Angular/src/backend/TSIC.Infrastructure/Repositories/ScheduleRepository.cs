@@ -702,7 +702,7 @@ public sealed class ScheduleRepository : IScheduleRepository
         {
             var cells = columns
                 .Select(col => gameIndex.TryGetValue((timeslot, col.FieldId), out var game)
-                    ? MapGameToDto(game)
+                    ? Utilities.ScheduleGameDtoMapper.Map(game)
                     : null)
                 .ToList();
 
@@ -872,34 +872,20 @@ public sealed class ScheduleRepository : IScheduleRepository
             : (0, 0);
     }
 
-    // ── Private helpers ──
-
-    private static ScheduleGameDto MapGameToDto(Domain.Entities.Schedule game) => new()
+    public async Task<Dictionary<Guid, int>> GetRoundRobinGameCountsByDivisionAsync(
+        Guid jobId, CancellationToken ct = default)
     {
-        Gid = game.Gid,
-        GDate = game.GDate ?? DateTime.MinValue,
-        FieldId = game.FieldId ?? Guid.Empty,
-        FName = game.FName ?? "",
-        Rnd = game.Rnd ?? 0,
-        AgDivLabel = $"{game.AgegroupName}:{game.DivName}",
-        T1Label = FormatTeamLabel(game.T1No, game.T1Name, game.T1Type),
-        T2Label = FormatTeamLabel(game.T2No.HasValue ? (int)game.T2No.Value : null, game.T2Name, game.T2Type),
-        Color = game.Agegroup?.Color,
-        T1Type = game.T1Type ?? "T",
-        T2Type = game.T2Type ?? "T",
-        T1No = game.T1No,
-        T2No = game.T2No,
-        T1Id = game.T1Id,
-        T2Id = game.T2Id,
-        DivId = game.DivId
-    };
-
-    private static string FormatTeamLabel(int? teamNo, string? teamName, string? teamType)
-    {
-        if (!string.IsNullOrEmpty(teamName))
-            return teamName;
-        return $"{teamType ?? "T"}{teamNo ?? 0}";
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                && s.DivId.HasValue
+                && s.T1Type == "T"
+                && s.T2Type == "T")
+            .GroupBy(s => s.DivId!.Value)
+            .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
     }
+
+    // ── Private helpers ──
 
     /// <summary>
     /// Apply CADT filter (Club/Agegroup/Division/Team) with OR-union logic.

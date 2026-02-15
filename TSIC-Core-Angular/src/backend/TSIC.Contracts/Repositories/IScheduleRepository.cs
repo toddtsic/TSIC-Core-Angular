@@ -148,6 +148,13 @@ public interface IScheduleRepository
     Task<(int GameCount, int DivisionsScheduled)> GetSchedulingDashboardStatsAsync(
         Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Get the count of round-robin (T1Type="T" AND T2Type="T") scheduled games
+    /// grouped by DivId. Used by dashboard to determine fully-scheduled divisions.
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetRoundRobinGameCountsByDivisionAsync(
+        Guid jobId, CancellationToken ct = default);
+
     // ── Rescheduler (009-6) ──
 
     /// <summary>

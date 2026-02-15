@@ -2,15 +2,24 @@ namespace TSIC.Contracts.Dtos.Scheduling;
 
 public record SchedulingDashboardStatusDto
 {
-    public required int FieldCount { get; init; }
-    public required int DivisionsWithPairings { get; init; }
-    public required int TotalPairingCount { get; init; }
-    public required int AgegroupsWithTimeslots { get; init; }
-    public required int TimeslotDateCount { get; init; }
-    public required int ScheduledGameCount { get; init; }
-    public required int DivisionsScheduled { get; init; }
-    public required int TotalDivisions { get; init; }
+    // Card 1 — LADT Setup
     public required int TotalAgegroups { get; init; }
-    public required int TeamsAssigned { get; init; }
-    public required int TeamsUnassigned { get; init; }
+    public required int TotalDivisions { get; init; }
+    public required bool DivisionsAreThemed { get; init; }
+
+    // Card 2 — Pool Assignment
+    public required int AgegroupsPoolComplete { get; init; }
+
+    // Card 3 — Fields
+    public required int FieldCount { get; init; }
+
+    // Card 4 — Pairings
+    public required int PoolSizesWithPairings { get; init; }
+    public required int TotalDistinctPoolSizes { get; init; }
+
+    // Card 5 — Timeslots
+    public required int AgegroupsReady { get; init; }
+
+    // Card 6 — Schedule
+    public required int AgegroupsScheduled { get; init; }
 }

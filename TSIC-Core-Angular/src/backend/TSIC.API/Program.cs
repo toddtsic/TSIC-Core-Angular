@@ -144,6 +144,7 @@ builder.Services.AddScoped<IPoolAssignmentService, PoolAssignmentService>();
 builder.Services.AddScoped<IRegistrationSearchService, RegistrationSearchService>();
 builder.Services.AddScoped<ITeamSearchService, TeamSearchService>();
 // Scheduling
+builder.Services.AddScoped<ISchedulingContextResolver, SchedulingContextResolver>();
 builder.Services.AddScoped<IFieldManagementService, FieldManagementService>();
 builder.Services.AddScoped<IPairingsService, PairingsService>();
 builder.Services.AddScoped<ITimeslotService, TimeslotService>();

@@ -136,8 +136,7 @@
 <!-- Weather Adjustment Modal -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 @if (showWeatherModal()) {
-    <div class="modal-backdrop" (click)="closeWeatherModal()"></div>
-    <div class="modal-dialog-centered">
+    <tsic-dialog (requestClose)="closeWeatherModal()">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title mb-0">
@@ -236,15 +235,14 @@
                 </button>
             </div>
         </div>
-    </div>
+    </tsic-dialog>
 }
 
 <!-- ══════════════════════════════════════════════════════════════ -->
 <!-- Email Modal -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 @if (showEmailModal()) {
-    <div class="modal-backdrop" (click)="closeEmailModal()"></div>
-    <div class="modal-dialog-centered modal-lg">
+    <tsic-dialog size="lg" (requestClose)="closeEmailModal()">
         <div class="modal-content">
             <div class="modal-header">
                 <h6 class="modal-title mb-0">
@@ -342,5 +340,5 @@
                 }
             </div>
         </div>
-    </div>
+    </tsic-dialog>
 }

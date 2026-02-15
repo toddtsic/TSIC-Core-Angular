@@ -70,6 +70,35 @@ public class PairingsRepository : IPairingsRepository
             .ToListAsync(ct);
     }
 
+    // ── Read: Dashboard aggregates ──
+
+    public async Task<HashSet<int>> GetDistinctPoolSizesWithPairingsAsync(
+        Guid leagueId, string season, CancellationToken ct = default)
+    {
+        var poolSizes = await _context.PairingsLeagueSeason
+            .AsNoTracking()
+            .Where(p => p.LeagueId == leagueId && p.Season == season && p.TCnt.HasValue)
+            .Select(p => p.TCnt!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return poolSizes.ToHashSet();
+    }
+
+    public async Task<Dictionary<int, int>> GetRoundRobinPairingCountsByPoolSizeAsync(
+        Guid leagueId, string season, CancellationToken ct = default)
+    {
+        return await _context.PairingsLeagueSeason
+            .AsNoTracking()
+            .Where(p => p.LeagueId == leagueId
+                && p.Season == season
+                && p.TCnt.HasValue
+                && p.T1Type == "T"
+                && p.T2Type == "T")
+            .GroupBy(p => p.TCnt!.Value)
+            .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
+    }
+
     // ── Read: Availability ──
 
     public async Task<HashSet<(int Rnd, int T1, int T2)>> GetScheduledPairingKeysAsync(

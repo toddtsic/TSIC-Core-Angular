@@ -3,16 +3,14 @@
 /* tslint:disable */
 /* eslint-disable */
 export type SchedulingDashboardStatusDto = {
-    fieldCount: number;
-    divisionsWithPairings: number;
-    totalPairingCount: number;
-    agegroupsWithTimeslots: number;
-    timeslotDateCount: number;
-    scheduledGameCount: number;
-    divisionsScheduled: number;
-    totalDivisions: number;
     totalAgegroups: number;
-    teamsAssigned: number;
-    teamsUnassigned: number;
+    totalDivisions: number;
+    divisionsAreThemed: boolean;
+    agegroupsPoolComplete: number;
+    fieldCount: number;
+    poolSizesWithPairings: number;
+    totalDistinctPoolSizes: number;
+    agegroupsReady: number;
+    agegroupsScheduled: number;
 };
 

@@ -12,8 +12,7 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class TimeslotService : ITimeslotService
 {
     private readonly ITimeslotRepository _tsRepo;
-    private readonly IJobRepository _jobRepo;
-    private readonly IJobLeagueRepository _jobLeagueRepo;
+    private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<TimeslotService> _logger;
 
     /// <summary>Day-of-week cycling for clone-field-dow: Mon→Tue→…→Sun→Mon.</summary>
@@ -22,13 +21,11 @@ public sealed class TimeslotService : ITimeslotService
 
     public TimeslotService(
         ITimeslotRepository tsRepo,
-        IJobRepository jobRepo,
-        IJobLeagueRepository jobLeagueRepo,
+        ISchedulingContextResolver contextResolver,
         ILogger<TimeslotService> logger)
     {
         _tsRepo = tsRepo;
-        _jobRepo = jobRepo;
-        _jobLeagueRepo = jobLeagueRepo;
+        _contextResolver = contextResolver;
         _logger = logger;
     }
 
@@ -37,7 +34,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task<TimeslotConfigurationResponse> GetConfigurationAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var dates = await _tsRepo.GetDatesAsync(agegroupId, season, year, ct);
         var fields = await _tsRepo.GetFieldTimeslotsAsync(agegroupId, season, year, ct);
@@ -52,7 +49,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task<List<CapacityPreviewDto>> GetCapacityPreviewAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default)
     {
-        var (leagueId, season, year) = await ResolveContextAsync(jobId, ct);
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
         var fields = await _tsRepo.GetFieldTimeslotsAsync(agegroupId, season, year, ct);
 
         // Get team count for this agegroup (approximate from division with most teams)
@@ -92,7 +89,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task<TimeslotDateDto> AddDateAsync(
         Guid jobId, string userId, AddTimeslotDateRequest request, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var date = new TimeslotsLeagueSeasonDates
         {
@@ -136,7 +133,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task DeleteAllDatesAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
         await _tsRepo.DeleteAllDatesAsync(agegroupId, season, year, ct);
         await _tsRepo.SaveChangesAsync(ct);
     }
@@ -187,7 +184,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task<List<TimeslotFieldDto>> AddFieldTimeslotAsync(
         Guid jobId, string userId, AddTimeslotFieldRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season, year) = await ResolveContextAsync(jobId, ct);
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         // Determine field IDs (single or all assigned)
         var fieldIds = request.FieldId.HasValue
@@ -264,7 +261,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task DeleteAllFieldTimeslotsAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
         await _tsRepo.DeleteAllFieldTimeslotsAsync(agegroupId, season, year, ct);
         await _tsRepo.SaveChangesAsync(ct);
     }
@@ -274,7 +271,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneDatesAsync(
         Guid jobId, string userId, CloneDatesRequest request, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         // Delete existing target dates first
         await _tsRepo.DeleteAllDatesAsync(request.TargetAgegroupId, season, year, ct);
@@ -306,7 +303,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneFieldsAsync(
         Guid jobId, string userId, CloneFieldsRequest request, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var sourceFields = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.SourceAgegroupId, season, year, ct: ct);
@@ -341,7 +338,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneByFieldAsync(
         Guid jobId, string userId, CloneByFieldRequest request, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var sourceTimeslots = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.AgegroupId, season, year, fieldId: request.SourceFieldId, ct: ct);
@@ -373,7 +370,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneByDivisionAsync(
         Guid jobId, string userId, CloneByDivisionRequest request, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var sourceTimeslots = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.AgegroupId, season, year, divId: request.SourceDivId, ct: ct);
@@ -405,7 +402,7 @@ public sealed class TimeslotService : ITimeslotService
     public async Task CloneByDowAsync(
         Guid jobId, string userId, CloneByDowRequest request, CancellationToken ct = default)
     {
-        var (_, season, year) = await ResolveContextAsync(jobId, ct);
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var sourceTimeslots = await _tsRepo.GetFieldTimeslotsByFilterAsync(
             request.AgegroupId, season, year, dow: request.SourceDow, ct: ct);
@@ -466,18 +463,6 @@ public sealed class TimeslotService : ITimeslotService
     }
 
     // ── Helpers ──
-
-    private async Task<(Guid leagueId, string season, string year)> ResolveContextAsync(
-        Guid jobId, CancellationToken ct)
-    {
-        var leagueId = await _jobLeagueRepo.GetPrimaryLeagueForJobAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No primary league found for job {jobId}.");
-
-        var sy = await _jobRepo.GetJobSeasonYearAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No season/year found for job {jobId}.");
-
-        return (leagueId, sy.Season ?? "", sy.Year ?? "");
-    }
 
     private static string GetNextDow(string dow)
     {

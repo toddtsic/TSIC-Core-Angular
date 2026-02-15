@@ -1,0 +1,66 @@
+// ═══════════════════════════════════════════════════════════════
+// Shared scheduling panel styles
+// Used by: schedule-division, rescheduler, and future scheduling tools
+// ═══════════════════════════════════════════════════════════════
+
+// ── Panel chrome ──
+
+.panel-header {
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+}
+
+.panel-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.panel-footer {
+    padding: var(--space-1) var(--space-2);
+    border-top: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+}
+
+// ── Empty states ──
+
+.icon-lg {
+    font-size: var(--font-size-3xl);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: var(--space-8);
+}
+
+.empty-state-sm {
+    padding: var(--space-4);
+    text-align: center;
+}
+
+// ── Filter list (checkbox + label rows) ──
+
+.filter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2);
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+
+    input {
+        margin: 0;
+    }
+}

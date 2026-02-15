@@ -14,11 +14,12 @@ import {
 import { formatGameDay } from '../shared/utils/scheduling-helpers';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { CadtTreeFilterComponent, type CadtSelectionEvent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 @Component({
     selector: 'app-rescheduler',
     standalone: true,
-    imports: [CommonModule, FormsModule, RichTextEditorModule, ScheduleGridComponent, CadtTreeFilterComponent],
+    imports: [CommonModule, FormsModule, RichTextEditorModule, ScheduleGridComponent, CadtTreeFilterComponent, TsicDialogComponent],
     templateUrl: './rescheduler.component.html',
     styleUrl: './rescheduler.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

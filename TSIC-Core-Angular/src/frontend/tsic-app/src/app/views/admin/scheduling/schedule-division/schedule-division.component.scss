@@ -1,3 +1,5 @@
+@use '../shared/styles/scheduling-panels';
+
 :host {
     display: block;
     padding: var(--space-4);
@@ -63,17 +65,7 @@
     min-height: 0;
 }
 
-.panel-header {
-    padding: var(--space-1) var(--space-2);
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-    flex-shrink: 0;
-}
-
-.panel-body {
-    flex: 1;
-    overflow-y: auto;
-}
+// .panel-header, .panel-body → _scheduling-panels.scss
 
 // ── Pairings list (single flat list) ──
 
@@ -208,25 +200,7 @@
     max-width: 80px;
 }
 
-// ── Empty states ──
-
-.icon-lg {
-    font-size: var(--font-size-3xl);
-}
-
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    padding: var(--space-8);
-}
-
-.empty-state-sm {
-    padding: var(--space-4);
-    text-align: center;
-}
+// .icon-lg, .empty-state, .empty-state-sm → _scheduling-panels.scss
 
 // ── Mobile: stack panels vertically ──
 

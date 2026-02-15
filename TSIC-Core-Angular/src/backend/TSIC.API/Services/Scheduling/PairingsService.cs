@@ -15,8 +15,7 @@ public sealed class PairingsService : IPairingsService
     private readonly IDivisionRepository _divisionRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IScheduleRepository _scheduleRepo;
-    private readonly IJobRepository _jobRepo;
-    private readonly IJobLeagueRepository _jobLeagueRepo;
+    private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<PairingsService> _logger;
 
     /// <summary>Bracket cascade order: Z → Y → X → Q → S → F.</summary>
@@ -34,16 +33,14 @@ public sealed class PairingsService : IPairingsService
         IDivisionRepository divisionRepo,
         ITeamRepository teamRepo,
         IScheduleRepository scheduleRepo,
-        IJobRepository jobRepo,
-        IJobLeagueRepository jobLeagueRepo,
+        ISchedulingContextResolver contextResolver,
         ILogger<PairingsService> logger)
     {
         _pairingsRepo = pairingsRepo;
         _divisionRepo = divisionRepo;
         _teamRepo = teamRepo;
         _scheduleRepo = scheduleRepo;
-        _jobRepo = jobRepo;
-        _jobLeagueRepo = jobLeagueRepo;
+        _contextResolver = contextResolver;
         _logger = logger;
     }
 
@@ -52,9 +49,7 @@ public sealed class PairingsService : IPairingsService
     public async Task<List<AgegroupWithDivisionsDto>> GetAgegroupsWithDivisionsAsync(
         Guid jobId, CancellationToken ct = default)
     {
-        var (leagueId, _) = await ResolveLeagueSeasonAsync(jobId, ct);
-        var season = await _jobRepo.GetJobSeasonAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No season found for job {jobId}.");
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var agegroups = await _pairingsRepo.GetAgegroupsWithDivisionsAsync(leagueId, season, ct);
 
@@ -92,7 +87,7 @@ public sealed class PairingsService : IPairingsService
     public async Task<DivisionPairingsResponse> GetDivisionPairingsAsync(
         Guid jobId, Guid divId, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var division = await _divisionRepo.GetByIdReadOnlyAsync(divId, ct)
             ?? throw new KeyNotFoundException($"Division {divId} not found.");
@@ -117,7 +112,7 @@ public sealed class PairingsService : IPairingsService
     public async Task<WhoPlaysWhoResponse> GetWhoPlaysWhoAsync(
         Guid jobId, int teamCount, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
         var pairings = await _pairingsRepo.GetPairingsAsync(leagueId, season, teamCount, ct);
 
         // Build N×N matrix (0-indexed: matrix[i][j] = games between team i+1 and team j+1)
@@ -144,7 +139,7 @@ public sealed class PairingsService : IPairingsService
     public async Task<List<PairingDto>> AddPairingBlockAsync(
         Guid jobId, string userId, AddPairingBlockRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
         var (maxGame, maxRound) = await _pairingsRepo.GetMaxGameAndRoundAsync(
             leagueId, season, request.TeamCount, ct);
 
@@ -185,7 +180,7 @@ public sealed class PairingsService : IPairingsService
     public async Task<List<PairingDto>> AddSingleEliminationAsync(
         Guid jobId, string userId, AddSingleEliminationRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
         var allNewRecords = new List<PairingsLeagueSeason>();
 
         await AddSingleEliminationLevel(
@@ -254,7 +249,7 @@ public sealed class PairingsService : IPairingsService
     public async Task<PairingDto> AddSinglePairingAsync(
         Guid jobId, string userId, AddSinglePairingRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
         var (maxGame, maxRound) = await _pairingsRepo.GetMaxGameAndRoundAsync(
             leagueId, season, request.TeamCount, ct);
 
@@ -322,7 +317,7 @@ public sealed class PairingsService : IPairingsService
     public async Task RemoveAllPairingsAsync(
         Guid jobId, RemoveAllPairingsRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
         await _pairingsRepo.DeleteAllAsync(leagueId, season, request.TeamCount, ct);
         await _pairingsRepo.SaveChangesAsync(ct);
 
@@ -400,20 +395,6 @@ public sealed class PairingsService : IPairingsService
 
         // Return refreshed team list
         return await GetDivisionTeamsAsync(jobId, divId, ct);
-    }
-
-    // ── Helpers ──
-
-    private async Task<(Guid leagueId, string season)> ResolveLeagueSeasonAsync(
-        Guid jobId, CancellationToken ct)
-    {
-        var leagueId = await _jobLeagueRepo.GetPrimaryLeagueForJobAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No primary league found for job {jobId}.");
-
-        var season = await _jobRepo.GetJobSeasonAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No season found for job {jobId}.");
-
-        return (leagueId, season);
     }
 
     private static PairingDto MapToDto(

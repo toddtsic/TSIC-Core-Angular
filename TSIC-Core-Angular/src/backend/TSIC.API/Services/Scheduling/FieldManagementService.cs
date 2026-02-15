@@ -13,25 +13,25 @@ public sealed class FieldManagementService : IFieldManagementService
 {
     private readonly IFieldRepository _fieldRepo;
     private readonly IJobRepository _jobRepo;
-    private readonly IJobLeagueRepository _jobLeagueRepo;
+    private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<FieldManagementService> _logger;
 
     public FieldManagementService(
         IFieldRepository fieldRepo,
         IJobRepository jobRepo,
-        IJobLeagueRepository jobLeagueRepo,
+        ISchedulingContextResolver contextResolver,
         ILogger<FieldManagementService> logger)
     {
         _fieldRepo = fieldRepo;
         _jobRepo = jobRepo;
-        _jobLeagueRepo = jobLeagueRepo;
+        _contextResolver = contextResolver;
         _logger = logger;
     }
 
     public async Task<FieldManagementResponse> GetFieldManagementDataAsync(
         Guid jobId, string userRole, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
 
         var isSuperUser = string.Equals(userRole, "SuperUser", StringComparison.OrdinalIgnoreCase);
 
@@ -150,7 +150,7 @@ public sealed class FieldManagementService : IFieldManagementService
     public async Task AssignFieldsAsync(
         Guid jobId, string userId, AssignFieldsRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
         await _fieldRepo.AssignFieldsToLeagueSeasonAsync(leagueId, season, request.FieldIds, userId, ct);
 
         _logger.LogInformation("Assigned {Count} fields to league {LeagueId} season {Season}",
@@ -160,25 +160,11 @@ public sealed class FieldManagementService : IFieldManagementService
     public async Task RemoveFieldsAsync(
         Guid jobId, RemoveFieldsRequest request, CancellationToken ct = default)
     {
-        var (leagueId, season) = await ResolveLeagueSeasonAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
         await _fieldRepo.RemoveFieldsFromLeagueSeasonAsync(leagueId, season, request.FieldIds, ct);
 
         _logger.LogInformation("Removed {Count} fields from league {LeagueId} season {Season}",
             request.FieldIds.Count, leagueId, season);
     }
 
-    /// <summary>
-    /// Resolves the primary leagueId and season for the current job context.
-    /// </summary>
-    private async Task<(Guid leagueId, string season)> ResolveLeagueSeasonAsync(
-        Guid jobId, CancellationToken ct)
-    {
-        var leagueId = await _jobLeagueRepo.GetPrimaryLeagueForJobAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No primary league found for job {jobId}.");
-
-        var season = await _jobRepo.GetJobSeasonAsync(jobId, ct)
-            ?? throw new InvalidOperationException($"No season found for job {jobId}.");
-
-        return (leagueId, season);
-    }
 }

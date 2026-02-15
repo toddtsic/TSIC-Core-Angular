@@ -1,7 +1,6 @@
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
-using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Scheduling;
 
@@ -49,54 +48,12 @@ public sealed class ReschedulerService : IReschedulerService
         return await _scheduleRepo.GetReschedulerGridAsync(jobId, request, ct);
     }
 
-    // ── Move/Swap (identical to ScheduleDivisionService.MoveGameAsync) ──
+    // ── Move/Swap ──
 
     public async Task MoveGameAsync(string userId, MoveGameRequest request, CancellationToken ct = default)
     {
-        var gameA = await _scheduleRepo.GetGameByIdAsync(request.Gid, ct)
-            ?? throw new KeyNotFoundException($"Game {request.Gid} not found.");
-
-        var gameB = await _scheduleRepo.GetGameAtSlotAsync(request.TargetGDate, request.TargetFieldId, ct);
-
-        if (gameB == null)
-        {
-            // Empty slot — simple move
-            var field = await _fieldRepo.GetFieldByIdAsync(request.TargetFieldId, ct);
-            gameA.GDate = request.TargetGDate;
-            gameA.FieldId = request.TargetFieldId;
-            gameA.FName = field?.FName ?? "";
-            gameA.RescheduleCount = (gameA.RescheduleCount ?? 0) + 1;
-            gameA.Modified = DateTime.UtcNow;
-            gameA.LebUserId = userId;
-
-            _logger.LogInformation("Rescheduler MoveGame: Gid={Gid} → {NewDate} field {FieldName}",
-                request.Gid, request.TargetGDate, field?.FName);
-        }
-        else
-        {
-            // Occupied slot — swap
-            var tempDate = gameA.GDate;
-            var tempFieldId = gameA.FieldId;
-            var tempFName = gameA.FName;
-
-            gameA.GDate = gameB.GDate;
-            gameA.FieldId = gameB.FieldId;
-            gameA.FName = gameB.FName;
-            gameA.RescheduleCount = (gameA.RescheduleCount ?? 0) + 1;
-            gameA.Modified = DateTime.UtcNow;
-            gameA.LebUserId = userId;
-
-            gameB.GDate = tempDate;
-            gameB.FieldId = tempFieldId;
-            gameB.FName = tempFName;
-            gameB.RescheduleCount = (gameB.RescheduleCount ?? 0) + 1;
-            gameB.Modified = DateTime.UtcNow;
-            gameB.LebUserId = userId;
-
-            _logger.LogInformation("Rescheduler SwapGames: Gid={GidA} ↔ Gid={GidB}", request.Gid, gameB.Gid);
-        }
-
-        await _scheduleRepo.SaveChangesAsync(ct);
+        await SchedulingGameMutationHelper.MoveOrSwapGameAsync(
+            request, userId, _scheduleRepo, _fieldRepo, _logger, ct);
     }
 
     // ── Weather Adjustment ──
@@ -185,7 +142,7 @@ public sealed class ReschedulerService : IReschedulerService
 
         var batchResult = await _emailService.SendBatchAsync(messages, ct);
 
-        // 5. Log to EmailLogs
+        // 5. Log results
         var sentAt = DateTime.UtcNow;
         var successfulAddresses = batchResult.AllAddresses
             .Except(batchResult.FailedAddresses)

@@ -98,6 +98,34 @@ public class TimeslotRepository : ITimeslotRepository
         _context.TimeslotsLeagueSeasonFields.RemoveRange(toDelete);
     }
 
+    // ── Dashboard aggregates ──
+
+    public async Task<HashSet<Guid>> GetAgegroupIdsWithDatesAsync(
+        string season, string year, CancellationToken ct = default)
+    {
+        var ids = await _context.TimeslotsLeagueSeasonDates
+            .AsNoTracking()
+            .Where(d => d.Season == season && d.Year == year)
+            .Select(d => d.AgegroupId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return ids.ToHashSet();
+    }
+
+    public async Task<HashSet<Guid>> GetAgegroupIdsWithFieldTimeslotsAsync(
+        string season, string year, CancellationToken ct = default)
+    {
+        var ids = await _context.TimeslotsLeagueSeasonFields
+            .AsNoTracking()
+            .Where(f => f.Season == season && f.Year == year)
+            .Select(f => f.AgegroupId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return ids.ToHashSet();
+    }
+
     // ── Cloning support queries ──
 
     public async Task<List<TimeslotsLeagueSeasonFields>> GetFieldTimeslotsByFilterAsync(
