@@ -175,21 +175,10 @@
     }
 }
 
-// ── Pairings list ──
+// ── Pairings list (single flat list) ──
 
 .pairings-body {
     padding: 0;
-}
-
-.pairings-section-label {
-    font-size: var(--font-size-2xs);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--bs-secondary-color);
-    padding: var(--space-1) var(--space-2);
-    background: var(--bs-tertiary-bg);
-    border-bottom: 1px solid var(--bs-border-color);
 }
 
 .pairing-row {
@@ -211,8 +200,8 @@
     }
 
     &.pairing-scheduled {
-        opacity: 0.5;
         cursor: default;
+        color: var(--bs-secondary-color);
     }
 }
 
@@ -254,6 +243,14 @@
     &:hover {
         background: rgba(var(--bs-primary-rgb), 0.1);
     }
+}
+
+.pairing-scheduled-icon {
+    color: var(--bs-success);
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
 }
 
 // ── Teams list ──
@@ -364,13 +361,13 @@
 }
 
 .col-field {
-    min-width: 140px;
-    width: 140px;
+    min-width: 120px;
+    white-space: nowrap;
     position: relative;
 }
 
 td.col-field {
-    height: 64px;
+    height: 52px;
 }
 
 .sticky-col {
@@ -411,7 +408,7 @@ th.sticky-col {
 }
 
 .cell-game {
-    cursor: pointer;
+    cursor: default;
 }
 
 .cell-selected-game {
@@ -421,7 +418,7 @@ th.sticky-col {
 }
 
 .cell-move-target {
-    cursor: crosshair;
+    cursor: pointer;
 
     &:hover {
         background: rgba(var(--bs-info-rgb), 0.08);
@@ -435,6 +432,7 @@ th.sticky-col {
     flex-direction: column;
     gap: 1px;
     padding: var(--space-1);
+    padding-right: 40px;
     border-left: 3px solid var(--bs-primary);
     border-radius: var(--bs-border-radius-sm);
     background: var(--bs-body-bg);
@@ -442,16 +440,36 @@ th.sticky-col {
     height: 100%;
 }
 
-.game-label {
+.game-row1 {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.game-matchup {
     font-size: var(--font-size-2xs);
     font-weight: 700;
-    color: var(--bs-primary-text-emphasis);
-    white-space: nowrap;
+    color: var(--bs-body-color);
+    flex-shrink: 0;
+}
+
+.game-label {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-secondary-color);
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.game-teams {
+.game-gid {
+    font-size: var(--font-size-2xs);
+    font-weight: 700;
+    color: var(--bs-secondary-color);
+    flex-shrink: 0;
+}
+
+.game-team {
     font-size: var(--font-size-2xs);
     color: var(--bs-body-color);
     white-space: nowrap;
@@ -459,25 +477,52 @@ th.sticky-col {
     text-overflow: ellipsis;
 }
 
-.game-delete-btn {
+.game-team-des {
+    font-weight: 700;
+}
+
+// ── Game action buttons (top-right, visible on hover) ──
+
+.game-actions {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: 1px;
+    right: 1px;
     display: none;
+    gap: 2px;
+
+    .game-card:hover & {
+        display: flex;
+    }
+}
+
+.game-action-btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 18px;
     height: 18px;
     border: none;
-    background: var(--bs-danger);
-    color: var(--bs-white);
     border-radius: var(--bs-border-radius-sm);
     cursor: pointer;
     font-size: var(--font-size-2xs);
     line-height: 1;
+}
 
-    .game-card:hover & {
-        display: inline-flex;
+.game-move-btn {
+    background: var(--bs-info);
+    color: var(--bs-white);
+
+    &:hover {
+        background: var(--bs-info-text-emphasis);
+    }
+}
+
+.game-delete-btn {
+    background: var(--bs-danger);
+    color: var(--bs-white);
+
+    &:hover {
+        background: var(--bs-danger-text-emphasis);
     }
 }
 
@@ -487,14 +532,17 @@ th.sticky-col {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-// ── Other-division games (blend into row background) ──
+// ── Other-division games (strongly dimmed) ──
 
 .cell-other-div {
     cursor: default;
 }
 
 .game-card-other {
-    .game-delete-btn {
+    opacity: 0.3;
+    filter: grayscale(50%);
+
+    .game-actions {
         display: none !important;
     }
 }
@@ -506,24 +554,21 @@ th.sticky-col {
     background: rgba(var(--bs-danger-rgb), 0.08);
 }
 
-.game-card-breaking {
-    border-left-color: var(--bs-danger) !important;
-}
-
 // Non-breaking (back-to-back) — warning amber
 .cell-back-to-back {
     background: rgba(var(--bs-warning-rgb), 0.06);
 }
 
-.game-card-back-to-back {
-    border-left-color: var(--bs-warning) !important;
-}
-
-// Shared icon positioning
-.conflict-icon {
+// Conflict/status icons container (bottom-right)
+.game-icons {
     position: absolute;
     bottom: 2px;
     right: 2px;
+    display: flex;
+    gap: 2px;
+}
+
+.conflict-icon {
     font-size: var(--font-size-2xs);
 }
 
@@ -533,6 +578,30 @@ th.sticky-col {
 
 .conflict-b2b {
     color: var(--bs-warning);
+}
+
+// ── Swap hint overlay (shown on occupied cells during move mode) ──
+
+.swap-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(var(--bs-info-rgb), 0.85);
+    color: var(--bs-white);
+    font-size: var(--font-size-sm);
+    z-index: 1;
+    pointer-events: none;
+
+    .cell-move-target:hover & {
+        display: flex;
+    }
 }
 
 // ── Open slot hint ──
@@ -549,6 +618,10 @@ th.sticky-col {
     .cell-open:hover & {
         opacity: 0.8;
     }
+}
+
+.move-slot-hint {
+    color: var(--bs-info);
 }
 
 // ── Empty states ──

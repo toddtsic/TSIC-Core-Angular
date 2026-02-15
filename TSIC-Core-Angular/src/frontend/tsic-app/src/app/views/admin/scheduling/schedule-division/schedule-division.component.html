@@ -85,36 +85,23 @@
                         </div>
                     } @else {
                         <div class="panel-body pairings-body">
-                            @if (availablePairings().length > 0) {
-                                <div class="pairings-section-label">
-                                    <i class="bi bi-circle me-1"></i>Available ({{ availablePairings().length }})
-                                </div>
-                                @for (p of availablePairings(); track p.ai) {
-                                    <div class="pairing-row"
-                                         [class.pairing-selected]="isPairingSelected(p)"
-                                         (click)="selectPairingForPlacement(p)">
-                                        <span class="pairing-gno">G{{ p.gameNumber }}</span>
-                                        <span class="pairing-teams">{{ p.t1 }} vs {{ p.t2 }}</span>
-                                        <span class="pairing-rnd">R{{ p.rnd }}</span>
+                            @for (p of pairings(); track p.ai) {
+                                <div class="pairing-row"
+                                     [class.pairing-selected]="isPairingSelected(p)"
+                                     [class.pairing-scheduled]="!p.bAvailable"
+                                     (click)="p.bAvailable ? selectPairingForPlacement(p) : null">
+                                    <span class="pairing-gno">G{{ p.gameNumber }}</span>
+                                    <span class="pairing-teams">{{ teamDes(p.t1Type, p.t1) }} vs {{ teamDes(p.t2Type, p.t2) }}</span>
+                                    <span class="pairing-rnd">R{{ p.rnd }}</span>
+                                    @if (p.bAvailable) {
                                         <button class="pairing-pick-btn" title="Select for placement"
                                                 (click)="selectPairingForPlacement(p); $event.stopPropagation()">
                                             <i class="bi bi-pencil-fill"></i>
                                         </button>
-                                    </div>
-                                }
-                            }
-
-                            @if (scheduledPairings().length > 0) {
-                                <div class="pairings-section-label">
-                                    <i class="bi bi-check-circle-fill me-1"></i>Scheduled ({{ scheduledPairings().length }})
+                                    } @else {
+                                        <i class="bi bi-check-circle-fill pairing-scheduled-icon"></i>
+                                    }
                                 </div>
-                                @for (p of scheduledPairings(); track p.ai) {
-                                    <div class="pairing-row pairing-scheduled">
-                                        <span class="pairing-gno">G{{ p.gameNumber }}</span>
-                                        <span class="pairing-teams">{{ p.t1 }} vs {{ p.t2 }}</span>
-                                        <span class="pairing-rnd">R{{ p.rnd }}</span>
-                                    </div>
-                                }
                             }
 
                             @if (pairings().length === 0) {
@@ -238,36 +225,72 @@
                                         </td>
                                         @for (cell of row.cells; track $index; let ci = $index) {
                                             <td class="col-field"
-                                                [class.cell-open]="!cell && selectedPairing()"
+                                                [class.cell-open]="!cell && (selectedPairing() || selectedGame())"
                                                 [class.cell-game]="!!cell"
                                                 [class.cell-selected-game]="cell && isGameSelected(cell)"
-                                                [class.cell-move-target]="selectedGame() && (!cell || !isGameSelected(cell!))"
+                                                [class.cell-move-target]="selectedGame() && cell && !isGameSelected(cell!)"
                                                 [class.cell-breaking]="cell && isBreaking(cell)"
                                                 [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
                                                 [class.cell-other-div]="cell && isOtherDivision(cell)"
                                                 (click)="onGridCellClick(row, ci)">
                                                 @if (cell) {
-                                                    <div class="game-card" [class.game-card-current]="!isOtherDivision(cell)" [class.game-card-other]="isOtherDivision(cell)" [class.game-card-breaking]="isBreaking(cell)" [class.game-card-back-to-back]="!isBreaking(cell) && isBackToBack(cell)" [style.border-left-color]="cell.color || 'var(--bs-primary)'" [style.background]="isOtherDivision(cell) ? null : agBg(cell.color)">
-                                                        <div class="game-label">{{ cell.agDivLabel }}</div>
-                                                        <div class="game-teams">{{ cell.t1Label }} vs {{ cell.t2Label }}</div>
-                                                        @if (isSlotCollision(cell)) {
-                                                            <i class="bi bi-layers-fill conflict-icon conflict-breaking" title="Multiple games in this slot"></i>
+                                                    <div class="game-card"
+                                                         [class.game-card-current]="!isOtherDivision(cell)"
+                                                         [class.game-card-other]="isOtherDivision(cell)"
+                                                         [class.game-card-breaking]="isBreaking(cell)"
+                                                         [class.game-card-back-to-back]="!isBreaking(cell) && isBackToBack(cell)"
+                                                         [style.border-left-color]="cell.color || 'var(--bs-primary)'"
+                                                         [style.background]="isOtherDivision(cell) ? null : agBg(cell.color)">
+                                                        <div class="game-row1">
+                                                            <span class="game-matchup">{{ teamDes(cell.t1Type, cell.t1No) }}v{{ teamDes(cell.t2Type, cell.t2No) }}</span>
+                                                            <span class="game-label">{{ cell.agDivLabel }}</span>
+                                                            <span class="game-gid">G{{ cell.gid }}</span>
+                                                        </div>
+                                                        <div class="game-team"><span class="game-team-des">({{ teamDes(cell.t1Type, cell.t1No) }})</span> {{ cell.t1Label }}</div>
+                                                        <div class="game-team"><span class="game-team-des">({{ teamDes(cell.t2Type, cell.t2No) }})</span> {{ cell.t2Label }}</div>
+                                                        <!-- Conflict icons -->
+                                                        <div class="game-icons">
+                                                            @if (isSlotCollision(cell)) {
+                                                                <i class="bi bi-layers-fill conflict-icon conflict-breaking" title="Multiple games in this slot"></i>
+                                                            }
+                                                            @if (isTimeClash(cell)) {
+                                                                <i class="bi bi-people-fill conflict-icon conflict-breaking" title="Team double-booked at this time"></i>
+                                                            }
+                                                            @if (!isBreaking(cell) && isBackToBack(cell)) {
+                                                                <i class="bi bi-clock-history conflict-icon conflict-b2b" title="Team playing back-to-back slots"></i>
+                                                            }
+                                                        </div>
+                                                        <!-- Action buttons -->
+                                                        <div class="game-actions">
+                                                            @if (!isOtherDivision(cell)) {
+                                                                <button class="game-action-btn game-move-btn"
+                                                                        (click)="selectGameForMove(cell, row, ci); $event.stopPropagation()"
+                                                                        title="Move this game">
+                                                                    <i class="bi bi-arrows-move"></i>
+                                                                </button>
+                                                            }
+                                                            @if (!isOtherDivision(cell)) {
+                                                                <button class="game-action-btn game-delete-btn"
+                                                                        (click)="deleteGame(cell, row, ci); $event.stopPropagation()"
+                                                                        title="Remove game">
+                                                                    <i class="bi bi-x"></i>
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                        <!-- Move mode: swap indicator on other-div games -->
+                                                        @if (selectedGame() && !isGameSelected(cell)) {
+                                                            <div class="swap-hint">
+                                                                <i class="bi bi-arrow-down-up"></i>
+                                                            </div>
                                                         }
-                                                        @if (isTimeClash(cell)) {
-                                                            <i class="bi bi-people-fill conflict-icon conflict-breaking" title="Team double-booked at this time"></i>
-                                                        }
-                                                        @if (!isBreaking(cell) && isBackToBack(cell)) {
-                                                            <i class="bi bi-clock-history conflict-icon conflict-b2b" title="Team playing back-to-back slots"></i>
-                                                        }
-                                                        <button class="game-delete-btn"
-                                                                (click)="deleteGame(cell, row, ci); $event.stopPropagation()"
-                                                                title="Remove game">
-                                                            <i class="bi bi-x"></i>
-                                                        </button>
                                                     </div>
                                                 } @else if (selectedPairing()) {
                                                     <div class="open-slot-hint">
                                                         <i class="bi bi-plus-circle"></i>
+                                                    </div>
+                                                } @else if (selectedGame()) {
+                                                    <div class="open-slot-hint move-slot-hint">
+                                                        <i class="bi bi-arrow-down"></i>
                                                     </div>
                                                 }
                                             </td>

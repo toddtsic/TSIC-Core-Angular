@@ -64,14 +64,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     readonly teamCount = computed(() => this.divisionResponse()?.teamCount ?? 0);
 
-    readonly availablePairings = computed(() =>
-        this.pairings().filter(p => p.bAvailable)
-    );
-
-    readonly scheduledPairings = computed(() =>
-        this.pairings().filter(p => !p.bAvailable)
-    );
-
     // ── Conflict detection (3 types) ──
 
     /** BREAKING: Same team in 2+ games at the exact same time (same grid row, any division). */
@@ -190,6 +182,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.selectedDivision.set(div);
         this.selectedAgegroupId.set(agegroupId);
         this.selectedPairing.set(null);
+        this.selectedGame.set(null);
         this.showDeleteDivConfirm.set(false);
         this.loadDivisionData(div.divId, agegroupId);
     }
@@ -244,6 +237,7 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Placement Workflow ──
 
     selectPairingForPlacement(pairing: PairingDto): void {
+        this.selectedGame.set(null);
         if (this.selectedPairing()?.ai === pairing.ai) {
             this.selectedPairing.set(null);
         } else {
@@ -300,6 +294,11 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Delete single game ──
 
     deleteGame(game: ScheduleGameDto, row: ScheduleGridRow, colIndex: number): void {
+        // Clear move selection if deleting the selected game
+        if (this.selectedGame()?.game.gid === game.gid) {
+            this.selectedGame.set(null);
+        }
+
         this.svc.deleteGame(game.gid).subscribe({
             next: () => {
                 // Clear the grid cell
@@ -392,9 +391,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly selectedGame = signal<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number } | null>(null);
 
     selectGameForMove(game: ScheduleGameDto, row: ScheduleGridRow, colIndex: number): void {
-        // If a pairing is selected for placement, ignore game clicks
-        if (this.selectedPairing()) return;
-
+        this.selectedPairing.set(null);
         if (this.selectedGame()?.game.gid === game.gid) {
             this.selectedGame.set(null);
         } else {
@@ -463,11 +460,10 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.placeGame(row, colIndex);
             }
         } else if (this.selectedGame()) {
-            // Move mode: clicking any cell moves/swaps
-            this.moveOrSwapGame(row, colIndex);
-        } else if (cell) {
-            // No active selection: clicking a game selects it for move
-            this.selectGameForMove(cell, row, colIndex);
+            // Move mode: clicking any cell (empty or occupied) moves/swaps
+            if (!cell || !this.isGameSelected(cell)) {
+                this.moveOrSwapGame(row, colIndex);
+            }
         }
     }
 
@@ -477,14 +473,14 @@ export class ScheduleDivisionComponent implements OnInit {
         return ag.divisions.reduce((sum, d) => sum + d.teamCount, 0);
     }
 
-    /** Returns a low-opacity rgba background tint from a hex agegroup color. */
+    /** Returns an opaque tinted background: 12% agegroup color over solid body-bg. */
     agBg(hex: string | null | undefined): string {
         if (!hex || hex.length < 7 || hex[0] !== '#')
-            return 'rgba(var(--bs-warning-rgb), 0.15)';
+            return 'var(--bs-body-bg)';
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, 0.12)`;
+        return `linear-gradient(rgba(${r}, ${g}, ${b}, 0.12), rgba(${r}, ${g}, ${b}, 0.12)), var(--bs-body-bg)`;
     }
 
     /** Returns '#fff' or '#000' for WCAG-compliant contrast against a hex background. */
@@ -522,5 +518,11 @@ export class ScheduleDivisionComponent implements OnInit {
             hour: 'numeric',
             minute: '2-digit'
         });
+    }
+
+    /** Format team designator: pool play → "2", bracket → "Y1", "S4", "F1", etc. */
+    teamDes(type: string, num: number | undefined | null): string {
+        if (num == null) return type;
+        return type === 'T' ? `${num}` : `${type}${num}`;
     }
 }
