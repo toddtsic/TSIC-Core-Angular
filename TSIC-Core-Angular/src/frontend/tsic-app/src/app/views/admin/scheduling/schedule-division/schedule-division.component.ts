@@ -1,6 +1,8 @@
-import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ToastService } from '@shared-ui/toast.service';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import {
     ScheduleDivisionService,
     type AutoScheduleResponse,
@@ -18,7 +20,7 @@ import {
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, FormsModule, TsicDialogComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -26,6 +28,9 @@ import {
 export class ScheduleDivisionComponent implements OnInit {
     private readonly svc = inject(ScheduleDivisionService);
     private readonly toast = inject(ToastService);
+
+    @ViewChild('gridScroll') gridScrollEl?: ElementRef<HTMLElement>;
+    @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
 
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
@@ -48,6 +53,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly isGridLoading = signal(false);
 
     // ── Placement workflow ──
+    readonly placementMode = signal<'mouse' | 'keyboard'>('mouse');
     readonly selectedPairing = signal<PairingDto | null>(null);
     readonly isPlacing = signal(false);
 
@@ -65,6 +71,8 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly gridRows = computed(() => this.gridResponse()?.rows ?? []);
 
     readonly teamCount = computed(() => this.divisionResponse()?.teamCount ?? 0);
+    readonly allPairingsScheduled = computed(() => this.pairings().length > 0 && this.pairings().every(p => !p.bAvailable));
+    readonly remainingPairingsCount = computed(() => this.pairings().filter(p => p.bAvailable).length);
 
     // ── Conflict detection (3 types) ──
 
@@ -133,6 +141,67 @@ export class ScheduleDivisionComponent implements OnInit {
             }
         }
         return count;
+    });
+
+    // ── Day boundary jumps ──
+
+    readonly gridDays = computed(() => {
+        const rows = this.gridRows();
+        const seen = new Map<string, number>();
+        rows.forEach((r, i) => {
+            const key = new Date(r.gDate).toDateString();
+            if (!seen.has(key)) seen.set(key, i);
+        });
+        return Array.from(seen.entries()).map(([day, rowIndex]) => ({
+            label: new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            rowIndex
+        }));
+    });
+
+    // ── Rapid-placement modal ──
+
+    readonly showRapidModal = signal(false);
+    readonly rapidPairing = signal<PairingDto | null>(null);
+    readonly rapidFieldFilter = signal('');
+    readonly rapidTimeFilter = signal('');
+    readonly rapidFieldIndex = signal(-1);
+    readonly rapidTimeIndex = signal(-1);
+    readonly rapidFieldOpen = signal(false);
+    readonly rapidTimeOpen = signal(false);
+    readonly rapidSelectedField = signal<ScheduleFieldColumn | null>(null);
+    readonly rapidSelectedTime = signal<{ gDate: string; label: string; rowIndex: number } | null>(null);
+
+    readonly rapidFieldsFiltered = computed(() => {
+        const filter = this.rapidFieldFilter().toLowerCase();
+        const fields = this.gridColumns();
+        if (!filter) return fields;
+        return fields.filter(f => f.fName.toLowerCase().includes(filter));
+    });
+
+    readonly rapidOpenSlots = computed(() => {
+        const rows = this.gridRows();
+        const fields = this.gridColumns();
+        const selectedFieldId = this.rapidSelectedField()?.fieldId;
+        if (!selectedFieldId) return [];
+
+        const colIdx = fields.findIndex(f => f.fieldId === selectedFieldId);
+        if (colIdx < 0) return [];
+
+        return rows
+            .map((r, i) => ({ row: r, rowIndex: i }))
+            .filter(({ row }) => !row.cells[colIdx])
+            .map(({ row, rowIndex }) => ({
+                gDate: row.gDate,
+                label: this.formatTime(row.gDate),
+                rowIndex
+            }));
+    });
+
+    readonly rapidTimesFiltered = computed(() => {
+        const filter = this.rapidTimeFilter().toLowerCase();
+        const slots = this.rapidOpenSlots();
+        if (!filter) return slots;
+        return slots.filter(s => s.label.toLowerCase().includes(filter));
     });
 
     ngOnInit(): void {
@@ -228,6 +297,7 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
+                this.scrollToFirstRelevant();
             },
             error: () => {
                 this.gridResponse.set(null);
@@ -238,12 +308,17 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Placement Workflow ──
 
+    togglePlacementMode(): void {
+        this.placementMode.update(m => m === 'mouse' ? 'keyboard' : 'mouse');
+    }
+
     selectPairingForPlacement(pairing: PairingDto): void {
         this.selectedGame.set(null);
         if (this.selectedPairing()?.ai === pairing.ai) {
             this.selectedPairing.set(null);
         } else {
             this.selectedPairing.set(pairing);
+            this.scrollToNextOpenSlot(0);
         }
     }
 
@@ -259,6 +334,13 @@ export class ScheduleDivisionComponent implements OnInit {
 
         const column = this.gridColumns()[colIndex];
         if (!column) return;
+
+        // Pre-check: bracket enforcement (single-bracket agegroups)
+        const bracketBlock = this.checkBracketPlacement(pairing);
+        if (bracketBlock) {
+            this.toast.show(bracketBlock, 'danger', 5000);
+            return;
+        }
 
         // Pre-check: would placing this pairing create a time clash?
         const teamIds = this.resolvePairingTeamIds(pairing);
@@ -294,8 +376,18 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.pairings.update(list =>
                     list.map(p => p.ai === pairing.ai ? { ...p, bAvailable: false } : p)
                 );
-                this.selectedPairing.set(null);
                 this.isPlacing.set(false);
+
+                // Auto-advance to next unscheduled pairing
+                const nextPairing = this.pairings().find(p => p.ai !== pairing.ai && p.bAvailable);
+                this.selectedPairing.set(nextPairing ?? null);
+
+                // Scroll to next open slot forward in time
+                if (nextPairing) {
+                    const rows = this.gridRows();
+                    const placedRowIdx = rows.findIndex(r => r.gDate === row.gDate);
+                    this.scrollToNextOpenSlot(placedRowIdx + 1);
+                }
             },
             error: () => this.isPlacing.set(false)
         });
@@ -519,6 +611,284 @@ export class ScheduleDivisionComponent implements OnInit {
             }
         }
         return null;
+    }
+
+    // ── Bracket enforcement ──
+
+    /**
+     * Checks whether placing a bracket pairing from the current division is allowed.
+     * When bChampionsByDivision is false/null (traditional single-bracket):
+     *   ALL championship games for the agegroup must come from the SAME pool.
+     *   If any bracket game already exists from a different division → block.
+     * When bChampionsByDivision is true (per-division brackets):
+     *   Each division independently owns its own bracket — no cross-division restriction.
+     * Returns an error message string if blocked, null if allowed.
+     */
+    private checkBracketPlacement(pairing: PairingDto): string | null {
+        const isBracket = pairing.t1Type !== 'T' || pairing.t2Type !== 'T';
+        if (!isBracket) return null;
+
+        const agId = this.selectedAgegroupId();
+        const ag = this.agegroups().find(a => a.agegroupId === agId);
+        if (!ag) return null;
+
+        // Per-division brackets: each division manages its own bracket independently
+        if (ag.bChampionsByDivision) return null;
+
+        // Traditional single-bracket: all championship games must come from one pool
+        const currentDivId = this.selectedDivision()?.divId;
+        for (const row of this.gridRows()) {
+            for (const cell of row.cells) {
+                if (!cell) continue;
+                if (cell.t1Type === 'T' && cell.t2Type === 'T') continue; // pool-play game
+                if (cell.divId !== currentDivId) {
+                    const ownerDiv = ag.divisions.find(d => d.divId === cell.divId);
+                    return `Championship games for this agegroup are already being scheduled from ${ownerDiv?.divName ?? 'another pool'}. All bracket games must come from the same pool.`;
+                }
+            }
+        }
+        return null;
+    }
+
+    // ── Scroll helpers ──
+
+    scrollGridTo(rowIndex: number): void {
+        const container = this.gridScrollEl?.nativeElement;
+        if (!container) return;
+        setTimeout(() => {
+            const rows = container.querySelectorAll('tbody tr');
+            const targetRow = rows[rowIndex] as HTMLElement | undefined;
+            if (targetRow) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 50);
+    }
+
+    private scrollToFirstRelevant(): void {
+        const rows = this.gridRows();
+        const divId = this.selectedDivision()?.divId;
+
+        // First row with a current-division game
+        let targetRow = rows.findIndex(r => r.cells.some(c => c && c.divId === divId));
+
+        // Fallback: first row with an open slot
+        if (targetRow < 0) {
+            targetRow = rows.findIndex(r => r.cells.some(c => !c));
+        }
+
+        this.scrollGridTo(Math.max(targetRow, 0));
+    }
+
+    private scrollToNextOpenSlot(startFromRow: number): void {
+        const rows = this.gridRows();
+        for (let i = startFromRow; i < rows.length; i++) {
+            if (rows[i].cells.some(c => !c)) {
+                this.scrollGridTo(i);
+                return;
+            }
+        }
+        // Wrap around to top if no open slots found after current position
+        for (let i = 0; i < startFromRow; i++) {
+            if (rows[i].cells.some(c => !c)) {
+                this.scrollGridTo(i);
+                return;
+            }
+        }
+    }
+
+    // ── Rapid-placement modal methods ──
+
+    openRapidModal(): void {
+        const first = this.pairings().find(p => p.bAvailable);
+        if (!first) {
+            this.toast.show('All pairings are already scheduled', 'info', 3000);
+            return;
+        }
+        this.rapidPairing.set(first);
+        this.resetRapidSelections();
+        this.showRapidModal.set(true);
+        // Focus field input after dialog renders
+        setTimeout(() => this.rapidFieldInputEl?.nativeElement.focus(), 100);
+    }
+
+    closeRapidModal(): void {
+        this.showRapidModal.set(false);
+        this.rapidPairing.set(null);
+    }
+
+    private resetRapidSelections(): void {
+        this.rapidFieldFilter.set('');
+        this.rapidTimeFilter.set('');
+        this.rapidSelectedField.set(null);
+        this.rapidSelectedTime.set(null);
+        this.rapidFieldIndex.set(-1);
+        this.rapidTimeIndex.set(-1);
+        this.rapidFieldOpen.set(false);
+        this.rapidTimeOpen.set(false);
+    }
+
+    onRapidFieldInput(event: Event): void {
+        const val = (event.target as HTMLInputElement).value;
+        this.rapidFieldFilter.set(val);
+        this.rapidSelectedField.set(null);
+        this.rapidSelectedTime.set(null);
+        this.rapidTimeFilter.set('');
+        this.rapidFieldIndex.set(0);
+        this.rapidFieldOpen.set(true);
+    }
+
+    selectRapidField(field: ScheduleFieldColumn): void {
+        this.rapidSelectedField.set(field);
+        this.rapidFieldFilter.set(field.fName);
+        this.rapidFieldOpen.set(false);
+        // Auto-default time to first open slot for this field
+        setTimeout(() => {
+            const slots = this.rapidOpenSlots();
+            if (slots.length > 0) {
+                this.rapidSelectedTime.set(slots[0]);
+                this.rapidTimeFilter.set(slots[0].label);
+            }
+        }, 0);
+    }
+
+    onRapidTimeInput(event: Event): void {
+        const val = (event.target as HTMLInputElement).value;
+        this.rapidTimeFilter.set(val);
+        this.rapidSelectedTime.set(null);
+        this.rapidTimeIndex.set(0);
+        this.rapidTimeOpen.set(true);
+    }
+
+    selectRapidTime(slot: { gDate: string; label: string; rowIndex: number }): void {
+        this.rapidSelectedTime.set(slot);
+        this.rapidTimeFilter.set(slot.label);
+        this.rapidTimeOpen.set(false);
+    }
+
+    onRapidFieldKeydown(event: KeyboardEvent): void {
+        const items = this.rapidFieldsFiltered();
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            this.rapidFieldOpen.set(true);
+            this.rapidFieldIndex.update(i => Math.min(i + 1, items.length - 1));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            this.rapidFieldIndex.update(i => Math.max(i - 1, 0));
+        } else if (event.key === 'Enter' && this.rapidFieldOpen()) {
+            event.preventDefault();
+            const idx = this.rapidFieldIndex();
+            if (idx >= 0 && idx < items.length) {
+                this.selectRapidField(items[idx]);
+            }
+        } else if (event.key === 'Tab' && this.rapidFieldOpen()) {
+            const idx = this.rapidFieldIndex();
+            if (idx >= 0 && idx < items.length) {
+                this.selectRapidField(items[idx]);
+            }
+        }
+    }
+
+    onRapidTimeKeydown(event: KeyboardEvent): void {
+        const items = this.rapidTimesFiltered();
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            this.rapidTimeOpen.set(true);
+            this.rapidTimeIndex.update(i => Math.min(i + 1, items.length - 1));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            this.rapidTimeIndex.update(i => Math.max(i - 1, 0));
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (this.rapidTimeOpen() && this.rapidTimeIndex() >= 0) {
+                const idx = this.rapidTimeIndex();
+                if (idx < items.length) {
+                    this.selectRapidTime(items[idx]);
+                }
+            } else {
+                this.rapidPlaceGame();
+            }
+        }
+    }
+
+    rapidFieldBlur(): void {
+        setTimeout(() => this.rapidFieldOpen.set(false), 150);
+    }
+
+    rapidTimeBlur(): void {
+        setTimeout(() => this.rapidTimeOpen.set(false), 150);
+    }
+
+    rapidPlaceGame(): void {
+        const pairing = this.rapidPairing();
+        const field = this.rapidSelectedField();
+        const time = this.rapidSelectedTime();
+        const div = this.selectedDivision();
+        const agId = this.selectedAgegroupId();
+        if (!pairing || !field || !time || !div || !agId) return;
+
+        // Bracket enforcement check
+        const bracketBlock = this.checkBracketPlacement(pairing);
+        if (bracketBlock) {
+            this.toast.show(bracketBlock, 'danger', 5000);
+            return;
+        }
+
+        // Time-clash check
+        const row = this.gridRows().find(r => r.gDate === time.gDate);
+        if (row) {
+            const teamIds = this.resolvePairingTeamIds(pairing);
+            const clash = this.findTimeClashInRow(row, teamIds);
+            if (clash) {
+                this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
+                return;
+            }
+        }
+
+        this.isPlacing.set(true);
+        this.svc.placeGame({
+            pairingAi: pairing.ai,
+            gDate: time.gDate,
+            fieldId: field.fieldId,
+            agegroupId: agId,
+            divId: div.divId
+        }).subscribe({
+            next: (game) => {
+                // Update grid cell in place
+                const colIdx = this.gridColumns().findIndex(c => c.fieldId === field.fieldId);
+                this.gridResponse.update(grid => {
+                    if (!grid) return grid;
+                    const updatedRows = grid.rows.map((r: ScheduleGridRow) => {
+                        if (r.gDate === time.gDate) {
+                            const updatedCells = [...r.cells];
+                            if (colIdx >= 0) updatedCells[colIdx] = game;
+                            return { ...r, cells: updatedCells };
+                        }
+                        return r;
+                    });
+                    return { ...grid, rows: updatedRows };
+                });
+                // Mark pairing as scheduled
+                this.pairings.update(list =>
+                    list.map(p => p.ai === pairing.ai ? { ...p, bAvailable: false } : p)
+                );
+                this.isPlacing.set(false);
+
+                // Auto-advance to next unscheduled pairing
+                const nextPairing = this.pairings().find(p => p.bAvailable);
+                if (nextPairing) {
+                    this.rapidPairing.set(nextPairing);
+                    this.resetRapidSelections();
+                    // Smart default: keep same field, advance time
+                    this.selectRapidField(field);
+                    // Re-focus field input for next round
+                    setTimeout(() => this.rapidFieldInputEl?.nativeElement.focus(), 100);
+                } else {
+                    this.toast.show('All pairings scheduled!', 'success', 3000);
+                    this.closeRapidModal();
+                }
+            },
+            error: () => this.isPlacing.set(false)
+        });
     }
 
     // ── Helpers ──

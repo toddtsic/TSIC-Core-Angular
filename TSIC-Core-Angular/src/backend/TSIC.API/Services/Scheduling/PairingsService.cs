@@ -79,6 +79,7 @@ public sealed class PairingsService : IPairingsService
                 AgegroupName = ag.AgegroupName ?? "",
                 SortAge = ag.SortAge,
                 Color = ag.Color,
+                BChampionsByDivision = ag.BChampionsByDivision,
                 Divisions = divisions
             });
         }

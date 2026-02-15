@@ -8,6 +8,7 @@ export type AgegroupWithDivisionsDto = {
     agegroupName: string;
     sortAge: number;
     color?: string | null;
+    bChampionsByDivision?: boolean | null;
     divisions: Array<DivisionSummaryDto>;
 };
 

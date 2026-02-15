@@ -72,11 +72,33 @@
                 <div class="pairings-panel">
                     <div class="panel-header d-flex align-items-center justify-content-between">
                         <span class="fw-semibold">Pairings</span>
-                        @if (selectedPairing()) {
-                            <span class="badge bg-success-subtle text-success-emphasis">
-                                <i class="bi bi-cursor-fill me-1"></i>Click open slot to place
-                            </span>
-                        }
+                        <div class="d-flex align-items-center gap-1">
+                            @if (selectedPairing()) {
+                                <span class="badge bg-success-subtle text-success-emphasis">
+                                    <i class="bi bi-cursor-fill me-1"></i>Click open slot to place
+                                </span>
+                            }
+                            <div class="placement-mode-pill" title="Placement mode">
+                                <button class="pill-seg"
+                                        [class.pill-seg-active]="placementMode() === 'mouse'"
+                                        (click)="placementMode.set('mouse')"
+                                        aria-label="Mouse placement">
+                                    <i class="bi bi-mouse-fill"></i>
+                                </button>
+                                <button class="pill-seg"
+                                        [class.pill-seg-active]="placementMode() === 'keyboard'"
+                                        (click)="placementMode.set('keyboard')"
+                                        aria-label="Keyboard placement">
+                                    <i class="bi bi-keyboard-fill"></i>
+                                </button>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary rapid-btn"
+                                    (click)="openRapidModal()"
+                                    title="Rapid placement mode"
+                                    [disabled]="allPairingsScheduled()">
+                                <i class="bi bi-toggles"></i>
+                            </button>
+                        </div>
                     </div>
 
                     @if (isPairingsLoading()) {
@@ -165,6 +187,15 @@
                             <i class="bi bi-clock-history me-1"></i>{{ backToBackGameIds().size }} back-to-back
                         </span>
                     }
+                    @if (gridDays().length > 1) {
+                        <div class="day-jumps">
+                            @for (day of gridDays(); track day.rowIndex) {
+                                <button class="day-jump-btn" (click)="scrollGridTo(day.rowIndex)">
+                                    {{ day.label }}
+                                </button>
+                            }
+                        </div>
+                    }
                     <div class="ms-auto d-flex gap-1">
                         <!-- Delete all division games -->
                         <button class="btn btn-sm btn-outline-danger"
@@ -176,7 +207,7 @@
                             } @else {
                                 <i class="bi bi-trash"></i>
                             }
-                            Clear All
+                            Clear Div
                         </button>
                     </div>
                 </div>
@@ -206,7 +237,7 @@
                         <p class="text-secondary mt-2 mb-0">No fields or timeslots configured for this division</p>
                     </div>
                 } @else {
-                    <div class="grid-scroll">
+                    <div class="grid-scroll" #gridScroll>
                         <table class="schedule-grid">
                             <thead>
                                 <tr>
@@ -305,3 +336,92 @@
         </div>
     </div>
 </div>
+
+<!-- ══════════ Rapid-Placement Modal ══════════ -->
+@if (showRapidModal()) {
+    <tsic-dialog [open]="true" size="sm" (requestClose)="closeRapidModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rapid Placement</h5>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis ms-2">
+                    {{ remainingPairingsCount() }} remaining
+                </span>
+                <button type="button" class="btn-close ms-auto" (click)="closeRapidModal()"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Current pairing (read-only) -->
+                @if (rapidPairing()) {
+                    <div class="rapid-pairing-label">
+                        <span class="fw-semibold">G{{ rapidPairing()!.gameNumber }}:</span>
+                        {{ teamDes(rapidPairing()!.t1Type, rapidPairing()!.t1) }}
+                        vs
+                        {{ teamDes(rapidPairing()!.t2Type, rapidPairing()!.t2) }}
+                        <span class="text-secondary ms-1">R{{ rapidPairing()!.rnd }}</span>
+                    </div>
+
+                    <!-- Field typeahead -->
+                    <div class="rapid-field mb-2">
+                        <label class="form-label form-label-sm mb-1">Field</label>
+                        <div class="rapid-typeahead">
+                            <input #rapidFieldInput type="text" class="form-control form-control-sm"
+                                   [value]="rapidFieldFilter()"
+                                   (input)="onRapidFieldInput($event)"
+                                   (keydown)="onRapidFieldKeydown($event)"
+                                   (focus)="rapidFieldOpen.set(true)"
+                                   (blur)="rapidFieldBlur()"
+                                   placeholder="Type to filter fields..." />
+                            @if (rapidFieldOpen() && rapidFieldsFiltered().length > 0) {
+                                <div class="rapid-dropdown">
+                                    @for (f of rapidFieldsFiltered(); track f.fieldId; let i = $index) {
+                                        <div class="rapid-dropdown-item"
+                                             [class.active]="i === rapidFieldIndex()"
+                                             (mousedown)="selectRapidField(f)">
+                                            {{ f.fName }}
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Time typeahead -->
+                    <div class="rapid-time mb-2">
+                        <label class="form-label form-label-sm mb-1">Time</label>
+                        <div class="rapid-typeahead">
+                            <input type="text" class="form-control form-control-sm"
+                                   [value]="rapidTimeFilter()"
+                                   (input)="onRapidTimeInput($event)"
+                                   (keydown)="onRapidTimeKeydown($event)"
+                                   (focus)="rapidTimeOpen.set(true)"
+                                   (blur)="rapidTimeBlur()"
+                                   [disabled]="!rapidSelectedField()"
+                                   placeholder="Type to filter times..." />
+                            @if (rapidTimeOpen() && rapidTimesFiltered().length > 0) {
+                                <div class="rapid-dropdown">
+                                    @for (s of rapidTimesFiltered(); track s.gDate; let i = $index) {
+                                        <div class="rapid-dropdown-item"
+                                             [class.active]="i === rapidTimeIndex()"
+                                             (mousedown)="selectRapidTime(s)">
+                                            {{ s.label }}
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeRapidModal()">Close</button>
+                <button class="btn btn-sm btn-primary"
+                        [disabled]="!rapidSelectedField() || !rapidSelectedTime() || isPlacing()"
+                        (click)="rapidPlaceGame()">
+                    @if (isPlacing()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    {{ remainingPairingsCount() > 1 ? 'Place & Next' : 'Place & Done' }}
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}

@@ -43,6 +43,7 @@ public record AgegroupWithDivisionsDto
     public required string AgegroupName { get; init; }
     public required byte SortAge { get; init; }
     public string? Color { get; init; }
+    public bool? BChampionsByDivision { get; init; }
     public required List<DivisionSummaryDto> Divisions { get; init; }
 }
 

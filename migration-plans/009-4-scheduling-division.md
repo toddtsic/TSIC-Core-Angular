@@ -486,6 +486,27 @@ Child components:
     - **Breaking: Team time clash** (`bi-people-fill`, red) — Frontend computed signal finds same team in 2+ games on the same grid row (same time, different fields); checks across ALL divisions
     - **Non-breaking: Back-to-back** (`bi-clock-history`, amber) — Frontend computed signal finds same team in consecutive timeslot rows on the same calendar day
     - Header badges: separate counts for breaking (danger) and back-to-back (warning)
+- **Smart-scroll behaviors** — Four auto-scroll features for navigating large grids (20+ fields, 500+ teams):
+    - **On division select** — Scrolls to first row with a current-division game, or first open slot, or grid top
+    - **Auto-advance after placement** — After placing a game, auto-selects next unscheduled pairing and scrolls to next open slot forward in time (wraps around)
+    - **On pairing select** — Clicking a pairing scrolls to first open slot from grid top
+    - **Day boundary jumps** — Computed `gridDays` signal; when grid spans >1 day, shows jump buttons in header (e.g. "Sat Feb 1", "Sun Feb 2")
+    - Uses `@ViewChild('gridScroll')` + `scrollIntoView({ behavior: 'smooth', block: 'center' })` with 50ms defer for DOM render timing
+- **Rapid-placement modal** — Keyboard-driven modal for fast bulk game placement:
+    - Launched via toggle button in pairings panel header; auto-selects first unscheduled pairing
+    - **Field typeahead** — Signal-driven filter + computed `rapidFieldsFiltered`; keyboard nav (Arrow/Enter/Tab); auto-focus on open
+    - **Time typeahead** — Computed `rapidOpenSlots` (only open cells for selected field); auto-defaults to first available slot on field selection
+    - **Place & auto-advance** — Places game, marks pairing scheduled, auto-advances to next unscheduled pairing, keeps same field selected, re-focuses field input
+    - **Dynamic button label** — "Place & Next" when more pairings remain, "Place & Done" on last pairing
+    - **Remaining count badge** — Header shows `remainingPairingsCount()` as badge
+    - Inherits all pre-placement checks (bracket enforcement, time-clash prevention)
+    - Uses `TsicDialogComponent` (sm size) for modal wrapper with focus trap and ESC-to-close
+- **Bracket enforcement** — Client-side championship bracket pool consistency:
+    - **Backend**: Added `BChampionsByDivision` (bool?) to `AgegroupWithDivisionsDto` and mapped from `Agegroups` entity in `PairingsService`
+    - **Frontend**: `checkBracketPlacement()` method called before every game placement (both mouse and rapid modal)
+    - **Traditional mode** (`bChampionsByDivision` = false/null): Scans grid for any bracket game (t1Type/t2Type != 'T') from a different division; blocks with danger toast naming the owning pool
+    - **Per-division mode** (`bChampionsByDivision` = true): Each division independently manages its own bracket; no cross-division restriction (inherently enforced by divId on placement + per-division bAvailable)
+    - No extra HTTP calls — pure grid scan since fields are shared across divisions at the agegroup level
 - **Service** — `ScheduleDivisionService` (Angular): HTTP methods for all endpoints (uses auto-generated API models from `@core/api`)
 - **Route** — Registered at `admin/scheduling/schedule-division`
 - **API Models** — Auto-generated TypeScript types via `2-Regenerate-API-Models.ps1` (must regenerate after backend DTO changes)
