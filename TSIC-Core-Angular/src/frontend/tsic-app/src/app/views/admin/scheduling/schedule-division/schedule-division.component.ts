@@ -16,6 +16,14 @@ import {
     type ScheduleFieldColumn,
     type ScheduleGameDto
 } from './services/schedule-division.service';
+import {
+    contrastText, agBg, formatDate, formatTimeOnly, formatTime, teamDes, agTeamCount
+} from '../shared/utils/scheduling-helpers';
+import {
+    computeTimeClashGameIds, computeBackToBackGameIds, computeBreakingConflictCount,
+    isSlotCollision as isSlotCollisionFn, isTimeClash as isTimeClashFn,
+    isBackToBack as isBackToBackFn, isBreaking as isBreakinFn
+} from '../shared/utils/conflict-detection';
 
 @Component({
     selector: 'app-schedule-division',
@@ -53,7 +61,8 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly isGridLoading = signal(false);
 
     // ── Placement workflow ──
-    readonly placementMode = signal<'mouse' | 'keyboard'>('mouse');
+    private static readonly PLACEMENT_MODE_KEY = 'tsic.scheduleDivision.placementMode';
+    readonly placementMode = signal<'mouse' | 'keyboard'>(this.loadPlacementMode());
     readonly selectedPairing = signal<PairingDto | null>(null);
     readonly isPlacing = signal(false);
 
@@ -74,74 +83,11 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly allPairingsScheduled = computed(() => this.pairings().length > 0 && this.pairings().every(p => !p.bAvailable));
     readonly remainingPairingsCount = computed(() => this.pairings().filter(p => p.bAvailable).length);
 
-    // ── Conflict detection (3 types) ──
+    // ── Conflict detection (3 types — delegated to shared utils) ──
 
-    /** BREAKING: Same team in 2+ games at the exact same time (same grid row, any division). */
-    readonly timeClashGameIds = computed(() => {
-        const rows = this.gridRows();
-        const clashed = new Set<number>();
-
-        for (const row of rows) {
-            const teamGames = new Map<string, number[]>();
-            for (const cell of row.cells) {
-                if (!cell) continue;
-                for (const tid of [cell.t1Id, cell.t2Id]) {
-                    if (!tid) continue;
-                    if (!teamGames.has(tid)) teamGames.set(tid, []);
-                    teamGames.get(tid)!.push(cell.gid);
-                }
-            }
-            for (const gids of teamGames.values()) {
-                if (gids.length > 1) gids.forEach(g => clashed.add(g));
-            }
-        }
-        return clashed;
-    });
-
-    /** NON-BREAKING: Same team in consecutive timeslot rows on the same day (any division). */
-    readonly backToBackGameIds = computed(() => {
-        const rows = this.gridRows();
-        const b2b = new Set<number>();
-
-        for (let i = 0; i < rows.length - 1; i++) {
-            const curDay = new Date(rows[i].gDate).toDateString();
-            const nextDay = new Date(rows[i + 1].gDate).toDateString();
-            if (curDay !== nextDay) continue;
-
-            const curTeams = new Map<string, number[]>();
-            for (const cell of rows[i].cells) {
-                if (!cell) continue;
-                for (const tid of [cell.t1Id, cell.t2Id]) {
-                    if (!tid) continue;
-                    if (!curTeams.has(tid)) curTeams.set(tid, []);
-                    curTeams.get(tid)!.push(cell.gid);
-                }
-            }
-
-            for (const cell of rows[i + 1].cells) {
-                if (!cell) continue;
-                for (const tid of [cell.t1Id, cell.t2Id]) {
-                    if (!tid) continue;
-                    if (curTeams.has(tid)) {
-                        curTeams.get(tid)!.forEach(g => b2b.add(g));
-                        b2b.add(cell.gid);
-                    }
-                }
-            }
-        }
-        return b2b;
-    });
-
-    /** Combined breaking conflict count (time clash + slot collision). */
-    readonly breakingConflictCount = computed(() => {
-        let count = this.timeClashGameIds().size;
-        for (const row of this.gridRows()) {
-            for (const cell of row.cells) {
-                if (cell && (cell as any).isSlotCollision) count++;
-            }
-        }
-        return count;
-    });
+    readonly timeClashGameIds = computed(() => computeTimeClashGameIds(this.gridRows()));
+    readonly backToBackGameIds = computed(() => computeBackToBackGameIds(this.gridRows()));
+    readonly breakingConflictCount = computed(() => computeBreakingConflictCount(this.gridRows(), this.timeClashGameIds()));
 
     // ── Day boundary jumps ──
 
@@ -308,8 +254,22 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Placement Workflow ──
 
-    togglePlacementMode(): void {
-        this.placementMode.update(m => m === 'mouse' ? 'keyboard' : 'mouse');
+    private loadPlacementMode(): 'mouse' | 'keyboard' {
+        const stored = localStorage.getItem(ScheduleDivisionComponent.PLACEMENT_MODE_KEY);
+        return stored === 'keyboard' ? 'keyboard' : 'mouse';
+    }
+
+    setPlacementMode(mode: 'mouse' | 'keyboard'): void {
+        this.placementMode.set(mode);
+        localStorage.setItem(ScheduleDivisionComponent.PLACEMENT_MODE_KEY, mode);
+    }
+
+    onPairingClick(pairing: PairingDto): void {
+        if (this.placementMode() === 'keyboard') {
+            this.openRapidModalFor(pairing);
+        } else {
+            this.selectPairingForPlacement(pairing);
+        }
     }
 
     selectPairingForPlacement(pairing: PairingDto): void {
@@ -507,22 +467,22 @@ export class ScheduleDivisionComponent implements OnInit {
 
     /** Breaking: slot collision (2+ games in same cell) — from backend flag. */
     isSlotCollision(game: ScheduleGameDto): boolean {
-        return (game as any).isSlotCollision === true;
+        return isSlotCollisionFn(game);
     }
 
     /** Breaking: same team at same time on different fields. */
     isTimeClash(game: ScheduleGameDto): boolean {
-        return this.timeClashGameIds().has(game.gid);
+        return isTimeClashFn(game, this.timeClashGameIds());
     }
 
     /** Non-breaking: same team in consecutive timeslot rows. */
     isBackToBack(game: ScheduleGameDto): boolean {
-        return this.backToBackGameIds().has(game.gid);
+        return isBackToBackFn(game, this.backToBackGameIds());
     }
 
     /** Any breaking conflict (slot collision or time clash). */
     isBreaking(game: ScheduleGameDto): boolean {
-        return this.isSlotCollision(game) || this.isTimeClash(game);
+        return isBreakinFn(game, this.timeClashGameIds());
     }
 
     isOtherDivision(game: ScheduleGameDto): boolean {
@@ -704,10 +664,13 @@ export class ScheduleDivisionComponent implements OnInit {
             this.toast.show('All pairings are already scheduled', 'info', 3000);
             return;
         }
-        this.rapidPairing.set(first);
+        this.openRapidModalFor(first);
+    }
+
+    openRapidModalFor(pairing: PairingDto): void {
+        this.rapidPairing.set(pairing);
         this.resetRapidSelections();
         this.showRapidModal.set(true);
-        // Focus field input after dialog renders
         setTimeout(() => this.rapidFieldInputEl?.nativeElement.focus(), 100);
     }
 
@@ -891,62 +854,13 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    // ── Helpers ──
+    // ── Helpers (delegated to shared utils) ──
 
-    agTeamCount(ag: AgegroupWithDivisionsDto): number {
-        return ag.divisions.reduce((sum, d) => sum + d.teamCount, 0);
-    }
-
-    /** Returns an opaque tinted background: 12% agegroup color over solid body-bg. */
-    agBg(hex: string | null | undefined): string {
-        if (!hex || hex.length < 7 || hex[0] !== '#')
-            return 'var(--bs-body-bg)';
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `linear-gradient(rgba(${r}, ${g}, ${b}, 0.12), rgba(${r}, ${g}, ${b}, 0.12)), var(--bs-body-bg)`;
-    }
-
-    /** Returns '#fff' or '#000' for WCAG-compliant contrast against a hex background. */
-    contrastText(hex: string | null | undefined): string {
-        if (!hex || hex.length < 7 || hex[0] !== '#') return 'var(--bs-secondary-color)';
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#000' : '#fff';
-    }
-
-    formatTime(gDate: string | Date): string {
-        const d = new Date(gDate);
-        return d.toLocaleString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit'
-        });
-    }
-
-    formatDate(gDate: string | Date): string {
-        const d = new Date(gDate);
-        return d.toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric'
-        });
-    }
-
-    formatTimeOnly(gDate: string | Date): string {
-        const d = new Date(gDate);
-        return d.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit'
-        });
-    }
-
-    /** Format team designator: pool play → "2", bracket → "Y1", "S4", "F1", etc. */
-    teamDes(type: string, num: number | undefined | null): string {
-        if (num == null) return type;
-        return type === 'T' ? `${num}` : `${type}${num}`;
-    }
+    readonly agTeamCount = agTeamCount;
+    readonly agBg = agBg;
+    readonly contrastText = contrastText;
+    readonly formatTime = formatTime;
+    readonly formatDate = formatDate;
+    readonly formatTimeOnly = formatTimeOnly;
+    readonly teamDes = teamDes;
 }

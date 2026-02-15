@@ -78,26 +78,21 @@
                                     <i class="bi bi-cursor-fill me-1"></i>Click open slot to place
                                 </span>
                             }
-                            <div class="placement-mode-pill" title="Placement mode">
-                                <button class="pill-seg"
-                                        [class.pill-seg-active]="placementMode() === 'mouse'"
-                                        (click)="placementMode.set('mouse')"
-                                        aria-label="Mouse placement">
-                                    <i class="bi bi-mouse-fill"></i>
-                                </button>
-                                <button class="pill-seg"
-                                        [class.pill-seg-active]="placementMode() === 'keyboard'"
-                                        (click)="placementMode.set('keyboard')"
-                                        aria-label="Keyboard placement">
-                                    <i class="bi bi-keyboard-fill"></i>
-                                </button>
+                            <div class="placement-mode-toggle">
+                                <span class="placement-mode-label">Schedule by:</span>
+                                <div class="placement-mode-pill">
+                                    <button class="pill-seg"
+                                            [class.pill-seg-active]="placementMode() === 'mouse'"
+                                            (click)="setPlacementMode('mouse')">
+                                        Mouse
+                                    </button>
+                                    <button class="pill-seg"
+                                            [class.pill-seg-active]="placementMode() === 'keyboard'"
+                                            (click)="setPlacementMode('keyboard')">
+                                        Keyboard
+                                    </button>
+                                </div>
                             </div>
-                            <button class="btn btn-sm btn-outline-primary rapid-btn"
-                                    (click)="openRapidModal()"
-                                    title="Rapid placement mode"
-                                    [disabled]="allPairingsScheduled()">
-                                <i class="bi bi-toggles"></i>
-                            </button>
                         </div>
                     </div>
 
@@ -111,13 +106,13 @@
                                 <div class="pairing-row"
                                      [class.pairing-selected]="isPairingSelected(p)"
                                      [class.pairing-scheduled]="!p.bAvailable"
-                                     (click)="p.bAvailable ? selectPairingForPlacement(p) : null">
+                                     (click)="p.bAvailable ? onPairingClick(p) : null">
                                     <span class="pairing-gno">G{{ p.gameNumber }}</span>
                                     <span class="pairing-teams">{{ teamDes(p.t1Type, p.t1) }} vs {{ teamDes(p.t2Type, p.t2) }}</span>
                                     <span class="pairing-rnd">R{{ p.rnd }}</span>
                                     @if (p.bAvailable) {
                                         <button class="pairing-pick-btn" title="Select for placement"
-                                                (click)="selectPairingForPlacement(p); $event.stopPropagation()">
+                                                (click)="onPairingClick(p); $event.stopPropagation()">
                                             <i class="bi bi-pencil-fill"></i>
                                         </button>
                                     } @else {

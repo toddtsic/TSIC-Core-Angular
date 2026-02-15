@@ -9,6 +9,7 @@ import {
     type DivisionPairingsResponse,
     type DivisionTeamDto
 } from './services/pairings.service';
+import { contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
 
 /** Team-type code legend for tooltips. */
 const TYPE_LABELS: Record<string, string> = {
@@ -373,17 +374,8 @@ export class ManagePairingsComponent implements OnInit {
         return `${calc} of G${gnoRef}`;
     }
 
-    agTeamCount(ag: AgegroupWithDivisionsDto): number {
-        return ag.divisions.reduce((sum, d) => sum + d.teamCount, 0);
-    }
-
-    contrastText(hex: string | null | undefined): string {
-        if (!hex || hex.length < 7 || hex[0] !== '#') return 'var(--bs-secondary-color)';
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#000' : '#fff';
-    }
+    readonly agTeamCount = agTeamCount;
+    readonly contrastText = contrastText;
 
     roundClass(rnd: number): string {
         return rnd % 2 === 0 ? 'round-even' : 'round-odd';

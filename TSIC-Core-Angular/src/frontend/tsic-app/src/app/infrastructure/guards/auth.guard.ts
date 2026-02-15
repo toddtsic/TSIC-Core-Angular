@@ -94,7 +94,7 @@ export const authGuard: CanActivateFn = (route, state) => {
         // Not anonymous-allowed route, clear local state
         authService.logoutLocal();
         if (refreshToken) {
-            return authService.refreshAccessToken().pipe(
+            return authService.refreshAccessToken(refreshToken).pipe(
                 map(() => {
                     const refreshedUser = authService.getCurrentUser();
                     // After refresh, check if Phase 2 is required

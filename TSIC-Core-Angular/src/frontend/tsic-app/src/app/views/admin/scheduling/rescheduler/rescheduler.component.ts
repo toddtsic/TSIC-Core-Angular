@@ -17,6 +17,13 @@ import {
     type CadtTeamNode,
     type FieldSummaryDto
 } from './services/rescheduler.service';
+import {
+    contrastText, formatDate, formatTimeOnly, formatGameDay
+} from '../shared/utils/scheduling-helpers';
+import {
+    computeTimeClashGameIds, computeBackToBackGameIds, computeBreakingConflictCount,
+    isSlotCollision as isSlotCollisionFn
+} from '../shared/utils/conflict-detection';
 
 @Component({
     selector: 'app-rescheduler',
@@ -89,67 +96,10 @@ export class ReschedulerComponent implements OnInit {
     readonly gameDays = computed(() => this.filterOptions()?.gameDays ?? []);
     readonly fields = computed(() => this.filterOptions()?.fields ?? []);
 
-    /** Conflict detection: same team in 2+ games at the same timeslot. */
-    readonly timeClashGameIds = computed(() => {
-        const rows = this.gridRows();
-        const clashed = new Set<number>();
-        for (const row of rows) {
-            const teamGames = new Map<string, number[]>();
-            for (const cell of row.cells) {
-                if (!cell) continue;
-                for (const tid of [cell.t1Id, cell.t2Id]) {
-                    if (!tid) continue;
-                    if (!teamGames.has(tid)) teamGames.set(tid, []);
-                    teamGames.get(tid)!.push(cell.gid);
-                }
-            }
-            for (const gids of teamGames.values()) {
-                if (gids.length > 1) gids.forEach(g => clashed.add(g));
-            }
-        }
-        return clashed;
-    });
-
-    /** Back-to-back: same team in consecutive timeslot rows on the same day. */
-    readonly backToBackGameIds = computed(() => {
-        const rows = this.gridRows();
-        const b2b = new Set<number>();
-        for (let i = 0; i < rows.length - 1; i++) {
-            const curDay = new Date(rows[i].gDate).toDateString();
-            const nextDay = new Date(rows[i + 1].gDate).toDateString();
-            if (curDay !== nextDay) continue;
-            const curTeams = new Map<string, number[]>();
-            for (const cell of rows[i].cells) {
-                if (!cell) continue;
-                for (const tid of [cell.t1Id, cell.t2Id]) {
-                    if (!tid) continue;
-                    if (!curTeams.has(tid)) curTeams.set(tid, []);
-                    curTeams.get(tid)!.push(cell.gid);
-                }
-            }
-            for (const cell of rows[i + 1].cells) {
-                if (!cell) continue;
-                for (const tid of [cell.t1Id, cell.t2Id]) {
-                    if (!tid) continue;
-                    if (curTeams.has(tid)) {
-                        curTeams.get(tid)!.forEach(g => b2b.add(g));
-                        b2b.add(cell.gid);
-                    }
-                }
-            }
-        }
-        return b2b;
-    });
-
-    readonly breakingConflictCount = computed(() => {
-        let count = this.timeClashGameIds().size;
-        for (const row of this.gridRows()) {
-            for (const cell of row.cells) {
-                if (cell?.isSlotCollision) count++;
-            }
-        }
-        return count;
-    });
+    // ── Conflict detection (delegated to shared utils) ──
+    readonly timeClashGameIds = computed(() => computeTimeClashGameIds(this.gridRows()));
+    readonly backToBackGameIds = computed(() => computeBackToBackGameIds(this.gridRows()));
+    readonly breakingConflictCount = computed(() => computeBreakingConflictCount(this.gridRows(), this.timeClashGameIds()));
 
     readonly hasActiveFilters = computed(() =>
         this.selectedClubNames().length > 0 ||
@@ -350,7 +300,7 @@ export class ReschedulerComponent implements OnInit {
     }
 
     isBreaking(game: ScheduleGameDto): boolean {
-        return (game.isSlotCollision === true) || this.timeClashGameIds().has(game.gid);
+        return isSlotCollisionFn(game) || this.timeClashGameIds().has(game.gid);
     }
 
     isBackToBack(game: ScheduleGameDto): boolean {
@@ -358,7 +308,7 @@ export class ReschedulerComponent implements OnInit {
     }
 
     isSlotCollision(game: ScheduleGameDto): boolean {
-        return game.isSlotCollision === true;
+        return isSlotCollisionFn(game);
     }
 
     isTimeClash(game: ScheduleGameDto): boolean {
@@ -499,33 +449,9 @@ export class ReschedulerComponent implements OnInit {
         });
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // Helpers
-    // ══════════════════════════════════════════════════════════════
-
-    formatDate(iso: string): string {
-        const d = new Date(iso);
-        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    }
-
-    formatTimeOnly(iso: string): string {
-        const d = new Date(iso);
-        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    }
-
-    formatGameDay(iso: string): string {
-        const d = new Date(iso);
-        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    }
-
-    contrastText(color: string | null | undefined): string {
-        if (!color) return 'var(--bs-body-color)';
-        const hex = color.replace('#', '');
-        if (hex.length < 6) return 'var(--bs-body-color)';
-        const r = parseInt(hex.substring(0, 2), 16);
-        const g = parseInt(hex.substring(2, 4), 16);
-        const b = parseInt(hex.substring(4, 6), 16);
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        return luminance > 0.5 ? '#000' : '#fff';
-    }
+    // ── Helpers (delegated to shared utils) ──
+    readonly formatDate = formatDate;
+    readonly formatTimeOnly = formatTimeOnly;
+    readonly formatGameDay = formatGameDay;
+    readonly contrastText = contrastText;
 }

@@ -299,13 +299,13 @@ export class AuthService {
    * Refresh the access token using the refresh token
    * Prevents multiple simultaneous refresh attempts with queuing
    */
-  refreshAccessToken(): Observable<AuthTokenResponse> {
+  refreshAccessToken(suppliedRefreshToken?: string): Observable<AuthTokenResponse> {
     // If refresh is already in progress, return the same observable to queue all requests
     if (this.refreshInProgress) {
       return this.refreshInProgress;
     }
 
-    const refreshToken = this.getRefreshToken();
+    const refreshToken = suppliedRefreshToken || this.getRefreshToken();
 
     if (!refreshToken) {
       return throwError(() => new Error('No refresh token available'));
