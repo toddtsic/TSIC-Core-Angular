@@ -63,23 +63,12 @@
     flex-shrink: 0;
 }
 
-.grid-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-    flex-shrink: 0;
-    font-size: var(--font-size-sm);
-}
-
 .panel-body {
     flex: 1;
     overflow-y: auto;
 }
 
-// ── CADT filter tree ──
+// ── Filter sections ──
 
 .filter-section {
     border-bottom: 1px solid var(--bs-border-color);
@@ -93,64 +82,6 @@
     letter-spacing: 0.05em;
     color: var(--bs-secondary-color);
     padding: var(--space-1) var(--space-2);
-}
-
-.cadt-tree {
-    padding: 0 var(--space-1);
-}
-
-.cadt-node {
-    // nesting controlled by indent classes
-}
-
-.cadt-indent-1 { padding-left: var(--space-3); }
-.cadt-indent-2 { padding-left: var(--space-5); }
-.cadt-indent-3 { padding-left: var(--space-7); }
-
-.cadt-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: 2px var(--space-1);
-    cursor: pointer;
-    font-size: var(--font-size-sm);
-    border-radius: var(--bs-border-radius-sm);
-    user-select: none;
-
-    &:hover {
-        background: var(--bs-tertiary-bg);
-    }
-
-    .bi {
-        font-size: var(--font-size-2xs);
-        width: 1rem;
-        text-align: center;
-        flex-shrink: 0;
-    }
-}
-
-.cadt-leaf {
-    cursor: default;
-    padding-left: calc(1rem + var(--space-1)); // align with nodes that have chevron
-}
-
-.cadt-check {
-    flex-shrink: 0;
-    margin: 0;
-    cursor: pointer;
-}
-
-.cadt-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.color-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
 }
 
 // ── Filter chips (game days) ──
@@ -221,135 +152,6 @@
 
     input {
         max-width: 160px;
-    }
-}
-
-// ── Schedule Grid ──
-
-.grid-scroll {
-    flex: 1;
-    overflow: auto;
-}
-
-.schedule-grid {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: var(--font-size-sm);
-
-    th, td {
-        padding: var(--space-1);
-        vertical-align: top;
-        border-bottom: 1px solid var(--bs-border-color);
-        border-right: 1px solid var(--bs-border-color);
-    }
-
-    th {
-        padding: 4px var(--space-1);
-        font-size: var(--font-size-2xs);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        color: var(--bs-secondary-color);
-        background: var(--bs-tertiary-bg);
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        white-space: nowrap;
-        text-align: center;
-    }
-
-    tbody tr:nth-child(even) > td {
-        background: var(--bs-secondary-bg);
-    }
-
-    tbody tr:nth-child(even) > td.sticky-col {
-        background: var(--bs-secondary-bg);
-    }
-}
-
-.col-time {
-    min-width: 100px;
-    width: 100px;
-    white-space: nowrap;
-}
-
-.col-field {
-    min-width: 140px;
-    width: 140px;
-    height: 64px;
-    position: relative;
-    cursor: default;
-}
-
-.sticky-col {
-    position: sticky;
-    left: 0;
-    z-index: 1;
-    background: var(--bs-body-bg);
-}
-
-th.sticky-col {
-    z-index: 3;
-}
-
-.time-label {
-    font-weight: 600;
-    font-size: var(--font-size-xs);
-}
-
-.time-sub {
-    font-size: var(--font-size-2xs);
-    color: var(--bs-secondary-color);
-}
-
-// ── Grid cell states ──
-
-.col-field:not(.cell-game):not(.cell-breaking):not(.cell-back-to-back) {
-    background: var(--bs-tertiary-bg);
-}
-
-.cell-game {
-    cursor: pointer;
-}
-
-.cell-selected-game {
-    outline: 2px solid var(--bs-info);
-    outline-offset: -2px;
-    background: rgba(var(--bs-info-rgb), 0.08);
-}
-
-.cell-move-target {
-    cursor: crosshair;
-
-    &:hover {
-        background: rgba(var(--bs-info-rgb), 0.08);
-    }
-}
-
-// ── Cell-level conflict backgrounds ──
-
-.cell-breaking {
-    background: rgba(var(--bs-danger-rgb), 0.08);
-}
-
-.cell-back-to-back {
-    background: rgba(var(--bs-warning-rgb), 0.06);
-}
-
-// ── Open slot hint ──
-
-.open-slot-hint {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--bs-info);
-    opacity: 0.3;
-    font-size: var(--font-size-lg);
-
-    .cell-move-target:hover & {
-        opacity: 0.7;
     }
 }
 

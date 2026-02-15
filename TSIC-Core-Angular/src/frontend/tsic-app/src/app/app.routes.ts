@@ -175,84 +175,79 @@ export const routes: Routes = [
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
 			},
-			// Scheduling — Manage Fields
-			{
-				path: 'admin/scheduling/fields',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
-			},
-			// Legacy-compatible route for Manage Fields
-			{
-				path: 'fields/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
-			},
-			// Scheduling — Manage Pairings
-			{
-				path: 'admin/scheduling/pairings',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
-			},
-			// Legacy-compatible route for Manage Pairings
-			{
-				path: 'pairings/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
-			},
-			// Scheduling — Manage Timeslots
-			{
-				path: 'admin/scheduling/timeslots',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
-			},
-			// Legacy-compatible route for Manage Timeslots
-			{
-				path: 'timeslots/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
-			},
-			// Scheduling — Schedule by Division
-			{
-				path: 'admin/scheduling/schedule-division',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
-			},
-			// Legacy-compatible route for Schedule by Division
-			{
-				path: 'scheduling/scheduledivision',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
-			},
-			// Scheduling — View Schedule (admin/coach view)
+			// Scheduling — Post-scheduling tools (standalone, no shell wrapper)
 			{
 				path: 'admin/scheduling/view-schedule',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
-			// Legacy-compatible route for View Schedule
-			{
-				path: 'scheduling/schedules',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
-			},
-			// Scheduling — Rescheduler (cross-division move/swap, weather adjust, email)
 			{
 				path: 'admin/scheduling/rescheduler',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
-			// Legacy-compatible route for Rescheduler
+			// Scheduling — Pipeline shell (dashboard + steps 1–4)
+			{
+				path: 'admin/scheduling',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/dashboard/scheduling-shell.component').then(m => m.SchedulingShellComponent),
+				children: [
+					{
+						path: '',
+						loadComponent: () => import('./views/admin/scheduling/dashboard/scheduling-dashboard.component').then(m => m.SchedulingDashboardComponent)
+					},
+					{
+						path: 'fields',
+						loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
+					},
+					{
+						path: 'pairings',
+						loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
+					},
+					{
+						path: 'timeslots',
+						loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
+					},
+					{
+						path: 'schedule-division',
+						loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
+					}
+				]
+			},
+			// Legacy-compatible routes (standalone, no shell)
+			{
+				path: 'fields/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
+			},
+			{
+				path: 'pairings/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
+			},
+			{
+				path: 'timeslots/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
+			},
+			{
+				path: 'scheduling/scheduledivision',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
+			},
+			{
+				path: 'scheduling/schedules',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
+			},
 			{
 				path: 'scheduling/rescheduler',
 				canActivate: [authGuard],

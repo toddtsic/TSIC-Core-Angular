@@ -17,7 +17,7 @@ import type {
     EditGameRequest
 } from '@core/api';
 import { ViewScheduleService } from './services/view-schedule.service';
-import { CadtTreeFilterComponent, CadtSelectionEvent } from './components/cadt-tree-filter.component';
+import { CadtTreeFilterComponent, type CadtSelectionEvent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { GamesTabComponent } from './components/games-tab.component';
 import { StandingsTabComponent } from './components/standings-tab.component';
 import { RecordsTabComponent } from './components/records-tab.component';

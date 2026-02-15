@@ -359,6 +359,12 @@ public interface ITeamRepository
     /// Get club team summaries for a club rep (for club-wide scope selector in detail panel). AsNoTracking.
     /// </summary>
     Task<List<ClubTeamSummaryDto>> GetClubTeamSummariesAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get active team counts grouped by DivId for a job.
+    /// Only includes teams with a non-null DivId.
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetTeamCountsByDivisionAsync(Guid jobId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

@@ -924,5 +924,14 @@ public class TeamRepository : ITeamRepository
             })
             .ToListAsync(ct);
     }
+
+    public async Task<Dictionary<Guid, int>> GetTeamCountsByDivisionAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.Active == true && t.DivId.HasValue)
+            .GroupBy(t => t.DivId!.Value)
+            .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
+    }
 }
 

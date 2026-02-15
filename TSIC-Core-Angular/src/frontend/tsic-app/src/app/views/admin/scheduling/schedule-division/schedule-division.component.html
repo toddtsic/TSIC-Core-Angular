@@ -118,138 +118,55 @@
                     <p class="text-secondary mt-2 mb-0">Select a division to view the schedule grid</p>
                 </div>
             } @else {
-                <!-- Grid Header -->
-                <div class="grid-header">
-                    <span class="fw-semibold">{{ selectedDivision()!.divName }}</span>
-                    <span class="badge bg-primary-subtle text-primary-emphasis">
+                <app-schedule-grid #scheduleGrid
+                    [gridResponse]="gridResponse()"
+                    [isLoading]="isGridLoading()"
+                    [emptyMessage]="'No fields or timeslots configured for this division'"
+                    [showMatchupCodes]="true"
+                    [showGameId]="true"
+                    [showTeamDesignators]="true"
+                    [showActionButtons]="true"
+                    [highlightDivId]="selectedDivision()?.divId ?? null"
+                    [selectedGameGid]="selectedGame()?.game?.gid ?? null"
+                    [showOpenSlotHints]="!!selectedPairing()"
+                    [showMoveSlotHints]="!!selectedGame()"
+                    (cellClicked)="onGridCellClick($event)"
+                    (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
+                    (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
+
+                    <!-- Projected into grid header title area -->
+                    <span gridTitle class="fw-semibold">{{ selectedDivision()!.divName }}</span>
+                    <span gridTitle class="badge bg-primary-subtle text-primary-emphasis">
                         {{ teamCount() }} teams
                     </span>
-                    @if (selectedGame()) {
-                        <span class="badge bg-info-subtle text-info-emphasis">
-                            <i class="bi bi-arrows-move me-1"></i>Click destination to move
-                        </span>
-                    }
-                    @if (breakingConflictCount() > 0) {
-                        <span class="badge bg-danger-subtle text-danger-emphasis" title="Slot collisions or same-team double-bookings">
-                            <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ breakingConflictCount() }} breaking
-                        </span>
-                    }
-                    @if (backToBackGameIds().size > 0) {
-                        <span class="badge bg-warning-subtle text-warning-emphasis" title="Teams playing consecutive timeslots">
-                            <i class="bi bi-clock-history me-1"></i>{{ backToBackGameIds().size }} back-to-back
-                        </span>
-                    }
-                    @if (gridDays().length > 1) {
-                        <div class="day-jumps">
-                            @for (day of gridDays(); track day.rowIndex) {
-                                <button class="day-jump-btn" (click)="scrollGridTo(day.rowIndex)">
-                                    {{ day.label }}
-                                </button>
-                            }
+
+                    <!-- Projected into grid header actions area -->
+                    <button gridActions class="btn btn-sm btn-outline-danger"
+                            (click)="confirmDeleteDivGames()"
+                            [disabled]="isDeletingDivGames()"
+                            title="Delete all games for this division">
+                        @if (isDeletingDivGames()) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        } @else {
+                            <i class="bi bi-trash"></i>
+                        }
+                        Clear Div
+                    </button>
+
+                    <!-- Projected below grid header -->
+                    @if (showDeleteDivConfirm()) {
+                        <div gridExtra class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
+                            <span>
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Delete <strong>all</strong> scheduled games for <strong>{{ selectedDivision()!.divName }}</strong>?
+                            </span>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-danger" (click)="deleteDivGames()">Yes, Delete All</button>
+                                <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteDivGames()">Cancel</button>
+                            </div>
                         </div>
                     }
-                    <div class="ms-auto d-flex gap-1">
-                        <!-- Delete all division games -->
-                        <button class="btn btn-sm btn-outline-danger"
-                                (click)="confirmDeleteDivGames()"
-                                [disabled]="isDeletingDivGames()"
-                                title="Delete all games for this division">
-                            @if (isDeletingDivGames()) {
-                                <span class="spinner-border spinner-border-sm"></span>
-                            } @else {
-                                <i class="bi bi-trash"></i>
-                            }
-                            Clear Div
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Delete confirmation -->
-                @if (showDeleteDivConfirm()) {
-                    <div class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
-                        <span>
-                            <i class="bi bi-exclamation-triangle me-1"></i>
-                            Delete <strong>all</strong> scheduled games for <strong>{{ selectedDivision()!.divName }}</strong>?
-                        </span>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-danger" (click)="deleteDivGames()">Yes, Delete All</button>
-                            <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteDivGames()">Cancel</button>
-                        </div>
-                    </div>
-                }
-
-                <!-- Grid Content -->
-                @if (isGridLoading()) {
-                    <div class="text-center p-4">
-                        <div class="spinner-border text-primary"></div>
-                    </div>
-                } @else if (gridColumns().length === 0) {
-                    <div class="empty-state">
-                        <i class="bi bi-exclamation-circle text-secondary icon-lg"></i>
-                        <p class="text-secondary mt-2 mb-0">No fields or timeslots configured for this division</p>
-                    </div>
-                } @else {
-                    <div class="grid-scroll" #gridScroll>
-                        <table class="schedule-grid">
-                            <thead>
-                                <tr>
-                                    <th class="col-time sticky-col">Time</th>
-                                    @for (col of gridColumns(); track col.fieldId) {
-                                        <th class="col-field">{{ col.fName }}</th>
-                                    }
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (row of gridRows(); track row.gDate) {
-                                    <tr>
-                                        <td class="col-time sticky-col">
-                                            <div class="time-label">{{ formatDate(row.gDate) }}</div>
-                                            <div class="time-sub">{{ formatTimeOnly(row.gDate) }}</div>
-                                        </td>
-                                        @for (cell of row.cells; track $index; let ci = $index) {
-                                            <td class="col-field"
-                                                [class.cell-open]="!cell && (selectedPairing() || selectedGame())"
-                                                [class.cell-game]="!!cell"
-                                                [class.cell-selected-game]="cell && isGameSelected(cell)"
-                                                [class.cell-move-target]="selectedGame() && cell && !isGameSelected(cell!)"
-                                                [class.cell-breaking]="cell && isBreaking(cell)"
-                                                [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
-                                                [class.cell-other-div]="cell && isOtherDivision(cell)"
-                                                (click)="onGridCellClick(row, ci)">
-                                                @if (cell) {
-                                                    <app-game-card
-                                                        [game]="cell"
-                                                        [showMatchupCodes]="true"
-                                                        [showGameId]="true"
-                                                        [showTeamDesignators]="true"
-                                                        [showActions]="true"
-                                                        [isSelected]="isGameSelected(cell)"
-                                                        [isOtherDivision]="isOtherDivision(cell)"
-                                                        [showSwapHint]="!!selectedGame() && !isGameSelected(cell)"
-                                                        [conflictIcons]="{
-                                                            slotCollision: isSlotCollision(cell),
-                                                            timeClash: isTimeClash(cell),
-                                                            backToBack: isBackToBack(cell)
-                                                        }"
-                                                        (moveClicked)="selectGameForMove(cell, row, ci)"
-                                                        (deleteClicked)="deleteGame(cell, row, ci)" />
-                                                } @else if (selectedPairing()) {
-                                                    <div class="open-slot-hint">
-                                                        <i class="bi bi-plus-circle"></i>
-                                                    </div>
-                                                } @else if (selectedGame()) {
-                                                    <div class="open-slot-hint move-slot-hint">
-                                                        <i class="bi bi-arrow-down"></i>
-                                                    </div>
-                                                }
-                                            </td>
-                                        }
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                </app-schedule-grid>
             }
         </div>
     </div>

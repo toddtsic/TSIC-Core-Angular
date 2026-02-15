@@ -7,13 +7,11 @@ import type {
     AutoScheduleResponse,
     DivisionPairingsResponse,
     DivisionTeamDto,
-    WhoPlaysWhoResponse,
     ScheduleGridResponse,
     ScheduleGameDto,
     PlaceGameRequest,
     MoveGameRequest,
-    DeleteDivGamesRequest,
-    PairingDto
+    DeleteDivGamesRequest
 } from '@core/api';
 
 // Re-export for consumers
@@ -23,7 +21,6 @@ export type {
     DivisionSummaryDto,
     DivisionPairingsResponse,
     DivisionTeamDto,
-    WhoPlaysWhoResponse,
     PairingDto,
     ScheduleGridResponse,
     ScheduleGridRow,
@@ -51,12 +48,6 @@ export class ScheduleDivisionService {
 
     getDivisionTeams(divId: string): Observable<DivisionTeamDto[]> {
         return this.http.get<DivisionTeamDto[]>(`${this.apiUrl}/${divId}/teams`);
-    }
-
-    getWhoPlaysWho(teamCount: number): Observable<WhoPlaysWhoResponse> {
-        return this.http.get<WhoPlaysWhoResponse>(`${this.apiUrl}/who-plays-who`, {
-            params: { teamCount: teamCount.toString() }
-        });
     }
 
     // ── Schedule Grid ──

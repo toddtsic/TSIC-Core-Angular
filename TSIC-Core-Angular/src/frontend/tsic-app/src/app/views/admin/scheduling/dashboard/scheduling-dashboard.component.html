@@ -1,0 +1,67 @@
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h5 class="mb-0">Scheduling Pipeline</h5>
+        <p class="text-muted mb-0">Configure fields, pairings, timeslots, and schedule games</p>
+    </div>
+
+    @if (isLoading()) {
+        <div class="dashboard-loading">
+            <div class="spinner-border spinner-border-sm text-secondary"></div>
+            <span class="text-secondary ms-2">Loading status...</span>
+        </div>
+    } @else if (hasError()) {
+        <div class="dashboard-error">
+            <i class="bi bi-exclamation-triangle text-warning"></i>
+            <span>Unable to load scheduling status</span>
+            <button class="btn btn-sm btn-outline-secondary ms-2" (click)="loadStatus()">Retry</button>
+        </div>
+    } @else {
+        <div class="card-grid">
+            @for (card of cards(); track card.title) {
+                <a [routerLink]="card.isExternal ? card.route : card.route"
+                   class="status-card"
+                   [class.status-success]="card.severity === 'success'"
+                   [class.status-partial]="card.severity === 'partial'"
+                   [class.status-warn]="card.severity === 'warn'"
+                   [class.status-empty]="card.severity === 'empty'">
+                    <div class="card-icon">
+                        <i class="bi" [class]="card.icon"></i>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-title">{{ card.title }}</div>
+                        <div class="card-metric">{{ card.metric }}</div>
+                        @if (card.detail) {
+                            <div class="card-detail">{{ card.detail }}</div>
+                        }
+                    </div>
+                    <div class="card-indicator">
+                        @if (card.severity === 'success') {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else if (card.severity === 'partial') {
+                            <i class="bi bi-circle-half"></i>
+                        } @else if (card.severity === 'warn') {
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                        } @else {
+                            <i class="bi bi-circle"></i>
+                        }
+                    </div>
+                </a>
+            }
+        </div>
+
+        <!-- Post-scheduling tools -->
+        <div class="tools-section">
+            <div class="tools-header">Post-Scheduling Tools</div>
+            <div class="tools-grid">
+                <a routerLink="/admin/scheduling/view-schedule" class="tool-link">
+                    <i class="bi bi-eye"></i>
+                    <span>View Schedule</span>
+                </a>
+                <a routerLink="/admin/scheduling/rescheduler" class="tool-link">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span>Rescheduler</span>
+                </a>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,207 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+}
+
+// ── Grid header bar ──
+
+.grid-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+    flex-wrap: wrap;
+}
+
+// ── Day jump buttons ──
+
+.day-jumps {
+    display: flex;
+    gap: 2px;
+}
+
+.day-jump-btn {
+    padding: 2px var(--space-1);
+    font-size: var(--font-size-2xs);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-sm);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+        background: var(--bs-primary);
+        color: var(--bs-white);
+        border-color: var(--bs-primary);
+    }
+}
+
+// ── Grid scroll container ──
+
+.grid-scroll {
+    flex: 1;
+    overflow: auto;
+}
+
+// ── Schedule grid table ──
+
+.schedule-grid {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--font-size-sm);
+
+    th, td {
+        padding: var(--space-1);
+        vertical-align: top;
+        border-bottom: 1px solid var(--bs-border-color);
+        border-right: 1px solid var(--bs-border-color);
+    }
+
+    th {
+        padding: 4px var(--space-1);
+        font-size: var(--font-size-2xs);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        background: var(--bs-tertiary-bg);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        white-space: nowrap;
+        text-align: center;
+    }
+
+    tbody tr:nth-child(even) > td {
+        background: var(--bs-secondary-bg);
+    }
+
+    tbody tr:nth-child(even) > td.sticky-col {
+        background: var(--bs-secondary-bg);
+    }
+}
+
+.col-time {
+    min-width: 100px;
+    width: 100px;
+    white-space: nowrap;
+}
+
+.col-field {
+    min-width: 120px;
+    white-space: nowrap;
+    position: relative;
+}
+
+td.col-field {
+    height: 52px;
+}
+
+.sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bs-body-bg);
+}
+
+th.sticky-col {
+    z-index: 3;
+}
+
+.time-label {
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+}
+
+.time-sub {
+    font-size: var(--font-size-2xs);
+    color: var(--bs-secondary-color);
+}
+
+// ── Grid cell states ──
+
+.col-field:not(.cell-game):not(.cell-open):not(.cell-breaking):not(.cell-back-to-back) {
+    background: var(--bs-tertiary-bg);
+}
+
+.cell-open {
+    cursor: pointer;
+    background: rgba(var(--bs-success-rgb), 0.04);
+
+    &:hover {
+        background: rgba(var(--bs-success-rgb), 0.1);
+    }
+}
+
+.cell-game {
+    cursor: default;
+}
+
+.cell-selected-game {
+    outline: 2px solid var(--bs-info);
+    outline-offset: -2px;
+    background: rgba(var(--bs-info-rgb), 0.08);
+}
+
+.cell-move-target {
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(var(--bs-info-rgb), 0.08);
+    }
+}
+
+.cell-other-div {
+    cursor: default;
+}
+
+.cell-breaking {
+    background: rgba(var(--bs-danger-rgb), 0.08);
+}
+
+.cell-back-to-back {
+    background: rgba(var(--bs-warning-rgb), 0.06);
+}
+
+// ── Open slot hints ──
+
+.open-slot-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--bs-success);
+    opacity: 0.4;
+    font-size: var(--font-size-lg);
+
+    .cell-open:hover & {
+        opacity: 0.8;
+    }
+}
+
+.move-slot-hint {
+    color: var(--bs-info);
+}
+
+// ── Empty states ──
+
+.icon-lg {
+    font-size: var(--font-size-3xl);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: var(--space-8);
+}

@@ -1,0 +1,29 @@
+<div class="scheduling-shell">
+    <nav class="step-nav">
+        <a routerLink="/admin/scheduling" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+           class="step-nav-brand">
+            <i class="bi bi-calendar3"></i>
+            <span>Scheduling</span>
+        </a>
+        <div class="step-nav-divider"></div>
+        <a routerLink="fields" routerLinkActive="active" class="step-link">
+            <span class="step-number">1</span>
+            <span class="step-label">Fields</span>
+        </a>
+        <a routerLink="pairings" routerLinkActive="active" class="step-link">
+            <span class="step-number">2</span>
+            <span class="step-label">Pairings</span>
+        </a>
+        <a routerLink="timeslots" routerLinkActive="active" class="step-link">
+            <span class="step-number">3</span>
+            <span class="step-label">Timeslots</span>
+        </a>
+        <a routerLink="schedule-division" routerLinkActive="active" class="step-link">
+            <span class="step-number">4</span>
+            <span class="step-label">Schedule</span>
+        </a>
+    </nav>
+    <div class="shell-content">
+        <router-outlet />
+    </div>
+</div>

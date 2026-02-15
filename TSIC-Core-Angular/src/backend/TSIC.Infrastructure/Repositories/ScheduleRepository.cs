@@ -851,6 +851,27 @@ public sealed class ScheduleRepository : IScheduleRepository
         }
     }
 
+    // ── Dashboard ──
+
+    public async Task<(int GameCount, int DivisionsScheduled)> GetSchedulingDashboardStatsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var stats = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                GameCount = g.Count(),
+                DivisionsScheduled = g.Where(s => s.DivId.HasValue).Select(s => s.DivId!.Value).Distinct().Count()
+            })
+            .FirstOrDefaultAsync(ct);
+
+        return stats != null
+            ? (stats.GameCount, stats.DivisionsScheduled)
+            : (0, 0);
+    }
+
     // ── Private helpers ──
 
     private static ScheduleGameDto MapGameToDto(Domain.Entities.Schedule game) => new()

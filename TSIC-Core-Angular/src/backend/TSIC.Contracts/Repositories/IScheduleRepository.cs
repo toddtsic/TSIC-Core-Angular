@@ -140,6 +140,14 @@ public interface IScheduleRepository
     /// </summary>
     Task<(bool allowPublicAccess, bool hideContacts, string sportName)> GetScheduleFlagsAsync(Guid jobId, CancellationToken ct = default);
 
+    // ── Dashboard ──
+
+    /// <summary>
+    /// Returns (totalGames, distinctDivisionIds) for the scheduling dashboard status cards.
+    /// </summary>
+    Task<(int GameCount, int DivisionsScheduled)> GetSchedulingDashboardStatsAsync(
+        Guid jobId, CancellationToken ct = default);
+
     // ── Rescheduler (009-6) ──
 
     /// <summary>

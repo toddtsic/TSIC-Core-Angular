@@ -22,17 +22,17 @@
       <!-- ─── SOURCE PANEL ─── -->
       <div class="pool-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Source Division</label>
+          <label class="form-label fw-semibold text-uppercase small mb-1">Source Agegroup:Division</label>
           <select class="form-select form-select-sm"
                   [ngModel]="sourceDivId()"
                   (ngModelChange)="onSourceDivChange($event)">
-            <option [ngValue]="null" disabled>Select a division...</option>
+            <option [ngValue]="null" disabled>Select an agegroup:division...</option>
             @for (group of groupedDivisionOptions(); track group.label) {
               <optgroup [label]="group.label">
                 @for (div of group.divisions; track div.divId) {
                   <option [value]="div.divId"
                           [disabled]="div.divId === targetDivId()">
-                    {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
+                    {{ div.agegroupName }}: {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
                     ({{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }})
                   </option>
                 }
@@ -174,17 +174,17 @@
       <!-- ─── TARGET PANEL ─── -->
       <div class="pool-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Target Division</label>
+          <label class="form-label fw-semibold text-uppercase small mb-1">Target Agegroup:Division</label>
           <select class="form-select form-select-sm"
                   [ngModel]="targetDivId()"
                   (ngModelChange)="onTargetDivChange($event)">
-            <option [ngValue]="null" disabled>Select a division...</option>
+            <option [ngValue]="null" disabled>Select an agegroup:division...</option>
             @for (group of groupedDivisionOptions(); track group.label) {
               <optgroup [label]="group.label">
                 @for (div of group.divisions; track div.divId) {
                   <option [value]="div.divId"
                           [disabled]="div.divId === sourceDivId()">
-                    {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
+                    {{ div.agegroupName }}: {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
                     ({{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }})
                   </option>
                 }

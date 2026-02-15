@@ -36,69 +36,10 @@
                         <!-- CADT Tree -->
                         <div class="filter-section">
                             <div class="filter-section-label">Clubs / Agegroups / Divisions / Teams</div>
-                            <div class="cadt-tree">
-                                @for (club of clubs(); track club.clubName) {
-                                    <div class="cadt-node">
-                                        <div class="cadt-header"
-                                             (click)="toggleClub(club.clubName)">
-                                            <i class="bi" [class.bi-chevron-right]="!isClubExpanded(club.clubName)"
-                                               [class.bi-chevron-down]="isClubExpanded(club.clubName)"></i>
-                                            <input type="checkbox" class="form-check-input cadt-check"
-                                                   [checked]="isClubSelected(club.clubName)"
-                                                   (click)="toggleClubFilter(club.clubName); $event.stopPropagation()">
-                                            <span class="cadt-label">{{ club.clubName }}</span>
-                                        </div>
-
-                                        @if (isClubExpanded(club.clubName)) {
-                                            @for (ag of club.agegroups; track ag.agegroupId) {
-                                                <div class="cadt-node cadt-indent-1">
-                                                    <div class="cadt-header"
-                                                         (click)="toggleAgegroup(ag.agegroupId)">
-                                                        <i class="bi" [class.bi-chevron-right]="!isAgExpanded(ag.agegroupId)"
-                                                           [class.bi-chevron-down]="isAgExpanded(ag.agegroupId)"></i>
-                                                        <input type="checkbox" class="form-check-input cadt-check"
-                                                               [checked]="isAgSelected(ag.agegroupId)"
-                                                               (click)="toggleAgegroupFilter(ag.agegroupId); $event.stopPropagation()">
-                                                        @if (ag.color) {
-                                                            <span class="color-dot" [style.background]="ag.color"></span>
-                                                        }
-                                                        <span class="cadt-label">{{ ag.agegroupName }}</span>
-                                                    </div>
-
-                                                    @if (isAgExpanded(ag.agegroupId)) {
-                                                        @for (div of ag.divisions; track div.divId) {
-                                                            <div class="cadt-node cadt-indent-2">
-                                                                <div class="cadt-header"
-                                                                     (click)="toggleDivision(div.divId)">
-                                                                    <i class="bi" [class.bi-chevron-right]="!isDivExpanded(div.divId)"
-                                                                       [class.bi-chevron-down]="isDivExpanded(div.divId)"></i>
-                                                                    <input type="checkbox" class="form-check-input cadt-check"
-                                                                           [checked]="isDivSelected(div.divId)"
-                                                                           (click)="toggleDivisionFilter(div.divId); $event.stopPropagation()">
-                                                                    <span class="cadt-label">{{ div.divName }}</span>
-                                                                </div>
-
-                                                                @if (isDivExpanded(div.divId)) {
-                                                                    @for (team of div.teams; track team.teamId) {
-                                                                        <div class="cadt-node cadt-indent-3">
-                                                                            <div class="cadt-header cadt-leaf">
-                                                                                <input type="checkbox" class="form-check-input cadt-check"
-                                                                                       [checked]="isTeamSelected(team.teamId)"
-                                                                                       (click)="toggleTeamFilter(team.teamId)">
-                                                                                <span class="cadt-label">{{ team.teamName }}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    }
-                                                                }
-                                                            </div>
-                                                        }
-                                                    }
-                                                </div>
-                                            }
-                                        }
-                                    </div>
-                                }
-                            </div>
+                            <app-cadt-tree-filter
+                                [treeData]="clubs()"
+                                [checkedIds]="cadtCheckedIds()"
+                                (checkedIdsChange)="onCadtSelectionChange($event)" />
                         </div>
 
                         <!-- Game Days -->
@@ -153,105 +94,39 @@
                     <p class="text-secondary mt-2 mb-0">Apply filters and click "Load Grid" to view the schedule</p>
                 </div>
             } @else {
-                <!-- Grid Header -->
-                <div class="grid-header">
-                    <span class="fw-semibold">Cross-Division Schedule</span>
-                    @if (selectedGame()) {
-                        <span class="badge bg-info-subtle text-info-emphasis">
-                            <i class="bi bi-arrows-move me-1"></i>Click destination to move/swap
-                        </span>
-                    }
-                    @if (breakingConflictCount() > 0) {
-                        <span class="badge bg-danger-subtle text-danger-emphasis">
-                            <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ breakingConflictCount() }} breaking
-                        </span>
-                    }
-                    @if (backToBackGameIds().size > 0) {
-                        <span class="badge bg-warning-subtle text-warning-emphasis">
-                            <i class="bi bi-clock-history me-1"></i>{{ backToBackGameIds().size }} back-to-back
-                        </span>
-                    }
-                    <div class="ms-auto d-flex gap-1">
-                        <button class="btn btn-sm btn-outline-secondary" (click)="toggleAddTimeslot()">
-                            <i class="bi bi-plus-circle me-1"></i>Add Row
-                        </button>
-                    </div>
-                </div>
+                <app-schedule-grid #scheduleGrid
+                    [gridResponse]="gridResponse()"
+                    [isLoading]="isGridLoading()"
+                    [emptyMessage]="'No games match the selected filters'"
+                    [selectedGameGid]="selectedGame()?.gid ?? null"
+                    [showMoveSlotHints]="!!selectedGame()"
+                    (cellClicked)="onGridCellClick($event)">
 
-                <!-- Add Timeslot inline -->
-                @if (showAddTimeslot()) {
-                    <div class="add-timeslot-bar">
-                        <label class="form-label mb-0">Date</label>
-                        <input type="date" class="form-control form-control-sm"
-                               [ngModel]="newTimeslotDate()"
-                               (ngModelChange)="newTimeslotDate.set($event)">
-                        <label class="form-label mb-0">Time</label>
-                        <input type="time" class="form-control form-control-sm"
-                               [ngModel]="newTimeslotTime()"
-                               (ngModelChange)="newTimeslotTime.set($event)">
-                        <button class="btn btn-sm btn-primary" (click)="addTimeslotAndReload()">
-                            <i class="bi bi-plus"></i> Inject Row
-                        </button>
-                    </div>
-                }
+                    <!-- Projected into grid header title area -->
+                    <span gridTitle class="fw-semibold">Cross-Division Schedule</span>
 
-                <!-- Grid Content -->
-                @if (isGridLoading()) {
-                    <div class="text-center p-4">
-                        <div class="spinner-border text-primary"></div>
-                    </div>
-                } @else if (gridColumns().length === 0) {
-                    <div class="empty-state">
-                        <i class="bi bi-exclamation-circle text-secondary icon-lg"></i>
-                        <p class="text-secondary mt-2 mb-0">No games match the selected filters</p>
-                    </div>
-                } @else {
-                    <div class="grid-scroll">
-                        <table class="schedule-grid">
-                            <thead>
-                                <tr>
-                                    <th class="col-time sticky-col">Time</th>
-                                    @for (col of gridColumns(); track col.fieldId) {
-                                        <th class="col-field">{{ col.fName }}</th>
-                                    }
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (row of gridRows(); track row.gDate) {
-                                    <tr>
-                                        <td class="col-time sticky-col">
-                                            <div class="time-label">{{ formatDate(row.gDate) }}</div>
-                                            <div class="time-sub">{{ formatTimeOnly(row.gDate) }}</div>
-                                        </td>
-                                        @for (cell of row.cells; track $index; let ci = $index) {
-                                            <td class="col-field"
-                                                [class.cell-game]="!!cell"
-                                                [class.cell-selected-game]="cell && isGameSelected(cell)"
-                                                [class.cell-move-target]="selectedGame() && (!cell || !isGameSelected(cell!))"
-                                                [class.cell-breaking]="cell && isBreaking(cell)"
-                                                [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
-                                                (click)="onGridCellClick(row, ci)">
-                                                @if (cell) {
-                                                    <app-game-card
-                                                        [game]="cell"
-                                                        [conflictIcons]="{
-                                                            slotCollision: isSlotCollision(cell),
-                                                            timeClash: isTimeClash(cell),
-                                                            backToBack: isBackToBack(cell)
-                                                        }" />
-                                                } @else if (selectedGame()) {
-                                                    <div class="open-slot-hint">
-                                                        <i class="bi bi-arrows-move"></i>
-                                                    </div>
-                                                }
-                                            </td>
-                                        }
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                    <!-- Projected into grid header actions area -->
+                    <button gridActions class="btn btn-sm btn-outline-secondary" (click)="toggleAddTimeslot()">
+                        <i class="bi bi-plus-circle me-1"></i>Add Row
+                    </button>
+
+                    <!-- Projected below grid header -->
+                    @if (showAddTimeslot()) {
+                        <div gridExtra class="add-timeslot-bar">
+                            <label class="form-label mb-0">Date</label>
+                            <input type="date" class="form-control form-control-sm"
+                                   [ngModel]="newTimeslotDate()"
+                                   (ngModelChange)="newTimeslotDate.set($event)">
+                            <label class="form-label mb-0">Time</label>
+                            <input type="time" class="form-control form-control-sm"
+                                   [ngModel]="newTimeslotTime()"
+                                   (ngModelChange)="newTimeslotTime.set($event)">
+                            <button class="btn btn-sm btn-primary" (click)="addTimeslotAndReload()">
+                                <i class="bi bi-plus"></i> Inject Row
+                            </button>
+                        </div>
+                    }
+                </app-schedule-grid>
             }
         </div>
     </div>

@@ -226,6 +226,7 @@ export type { ScheduleGameDto } from './models/ScheduleGameDto';
 export type { ScheduleGridResponse } from './models/ScheduleGridResponse';
 export type { ScheduleGridRow } from './models/ScheduleGridRow';
 export type { ScheduleICalExportRequest } from './models/ScheduleICalExportRequest';
+export type { SchedulingDashboardStatusDto } from './models/SchedulingDashboardStatusDto';
 export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
 export type { SetWizardContextRequest } from './models/SetWizardContextRequest';
 export type { SportOptionDto } from './models/SportOptionDto';

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
@@ -7,35 +7,26 @@ import {
     type ScheduleFilterOptionsDto,
     type ScheduleGridResponse,
     type ScheduleGridRow,
-    type ScheduleFieldColumn,
     type ScheduleGameDto,
     type ReschedulerGridRequest,
-    type AdjustWeatherResponse,
-    type CadtClubNode,
-    type CadtAgegroupNode,
-    type CadtDivisionNode,
-    type CadtTeamNode,
-    type FieldSummaryDto
+    type AdjustWeatherResponse
 } from './services/rescheduler.service';
-import {
-    contrastText, formatDate, formatTimeOnly, formatGameDay
-} from '../shared/utils/scheduling-helpers';
-import {
-    computeTimeClashGameIds, computeBackToBackGameIds, computeBreakingConflictCount,
-    isSlotCollision as isSlotCollisionFn
-} from '../shared/utils/conflict-detection';
-import { GameCardComponent } from '../shared/components/game-card/game-card.component';
+import { formatGameDay } from '../shared/utils/scheduling-helpers';
+import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
+import { CadtTreeFilterComponent, type CadtSelectionEvent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
 
 @Component({
     selector: 'app-rescheduler',
     standalone: true,
-    imports: [CommonModule, FormsModule, RichTextEditorModule, GameCardComponent],
+    imports: [CommonModule, FormsModule, RichTextEditorModule, ScheduleGridComponent, CadtTreeFilterComponent],
     templateUrl: './rescheduler.component.html',
     styleUrl: './rescheduler.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReschedulerComponent implements OnInit {
     private readonly svc = inject(ReschedulerService);
+
+    @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
 
     // ── Filter state ──
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
@@ -49,10 +40,15 @@ export class ReschedulerComponent implements OnInit {
     readonly selectedGameDays = signal<string[]>([]);
     readonly selectedFieldIds = signal<string[]>([]);
 
-    // CADT tree expand state
-    readonly expandedClubs = signal<Set<string>>(new Set());
-    readonly expandedAgegroups = signal<Set<string>>(new Set());
-    readonly expandedDivisions = signal<Set<string>>(new Set());
+    // CADT tree: bridge between selection signals and shared component
+    readonly cadtCheckedIds = computed(() => {
+        const ids = new Set<string>();
+        for (const n of this.selectedClubNames()) ids.add(`club:${n}`);
+        for (const n of this.selectedAgegroupIds()) ids.add(`ag:${n}`);
+        for (const n of this.selectedDivisionIds()) ids.add(`div:${n}`);
+        for (const n of this.selectedTeamIds()) ids.add(`team:${n}`);
+        return ids;
+    });
 
     // ── Grid state ──
     readonly gridResponse = signal<ScheduleGridResponse | null>(null);
@@ -92,15 +88,9 @@ export class ReschedulerComponent implements OnInit {
 
     // ── Computed helpers ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
-    readonly gridRows = computed(() => this.gridResponse()?.rows ?? []);
     readonly clubs = computed(() => this.filterOptions()?.clubs ?? []);
     readonly gameDays = computed(() => this.filterOptions()?.gameDays ?? []);
     readonly fields = computed(() => this.filterOptions()?.fields ?? []);
-
-    // ── Conflict detection (delegated to shared utils) ──
-    readonly timeClashGameIds = computed(() => computeTimeClashGameIds(this.gridRows()));
-    readonly backToBackGameIds = computed(() => computeBackToBackGameIds(this.gridRows()));
-    readonly breakingConflictCount = computed(() => computeBreakingConflictCount(this.gridRows(), this.timeClashGameIds()));
 
     readonly hasActiveFilters = computed(() =>
         this.selectedClubNames().length > 0 ||
@@ -138,59 +128,16 @@ export class ReschedulerComponent implements OnInit {
         });
     }
 
-    // ── CADT tree toggle ──
+    // ── CADT tree selection handler ──
 
-    toggleClub(name: string): void {
-        const s = new Set(this.expandedClubs());
-        s.has(name) ? s.delete(name) : s.add(name);
-        this.expandedClubs.set(s);
+    onCadtSelectionChange(event: CadtSelectionEvent): void {
+        this.selectedClubNames.set(event.clubNames);
+        this.selectedAgegroupIds.set(event.agegroupIds);
+        this.selectedDivisionIds.set(event.divisionIds);
+        this.selectedTeamIds.set(event.teamIds);
     }
 
-    toggleAgegroup(id: string): void {
-        const s = new Set(this.expandedAgegroups());
-        s.has(id) ? s.delete(id) : s.add(id);
-        this.expandedAgegroups.set(s);
-    }
-
-    toggleDivision(id: string): void {
-        const s = new Set(this.expandedDivisions());
-        s.has(id) ? s.delete(id) : s.add(id);
-        this.expandedDivisions.set(s);
-    }
-
-    isClubExpanded(name: string): boolean { return this.expandedClubs().has(name); }
-    isAgExpanded(id: string): boolean { return this.expandedAgegroups().has(id); }
-    isDivExpanded(id: string): boolean { return this.expandedDivisions().has(id); }
-
-    // ── Multi-select toggles ──
-
-    toggleClubFilter(name: string): void {
-        const curr = [...this.selectedClubNames()];
-        const idx = curr.indexOf(name);
-        idx >= 0 ? curr.splice(idx, 1) : curr.push(name);
-        this.selectedClubNames.set(curr);
-    }
-
-    toggleAgegroupFilter(id: string): void {
-        const curr = [...this.selectedAgegroupIds()];
-        const idx = curr.indexOf(id);
-        idx >= 0 ? curr.splice(idx, 1) : curr.push(id);
-        this.selectedAgegroupIds.set(curr);
-    }
-
-    toggleDivisionFilter(id: string): void {
-        const curr = [...this.selectedDivisionIds()];
-        const idx = curr.indexOf(id);
-        idx >= 0 ? curr.splice(idx, 1) : curr.push(id);
-        this.selectedDivisionIds.set(curr);
-    }
-
-    toggleTeamFilter(id: string): void {
-        const curr = [...this.selectedTeamIds()];
-        const idx = curr.indexOf(id);
-        idx >= 0 ? curr.splice(idx, 1) : curr.push(id);
-        this.selectedTeamIds.set(curr);
-    }
+    // ── Filter toggles ──
 
     toggleGameDayFilter(day: string): void {
         const curr = [...this.selectedGameDays()];
@@ -206,10 +153,6 @@ export class ReschedulerComponent implements OnInit {
         this.selectedFieldIds.set(curr);
     }
 
-    isClubSelected(name: string): boolean { return this.selectedClubNames().includes(name); }
-    isAgSelected(id: string): boolean { return this.selectedAgegroupIds().includes(id); }
-    isDivSelected(id: string): boolean { return this.selectedDivisionIds().includes(id); }
-    isTeamSelected(id: string): boolean { return this.selectedTeamIds().includes(id); }
     isGameDaySelected(day: string): boolean { return this.selectedGameDays().includes(day); }
     isFieldSelected(id: string): boolean { return this.selectedFieldIds().includes(id); }
 
@@ -264,24 +207,23 @@ export class ReschedulerComponent implements OnInit {
         }
     }
 
-    onGridCellClick(row: ScheduleGridRow, colIndex: number): void {
-        const cell = row.cells[colIndex];
+    onGridCellClick(event: { row: ScheduleGridRow; colIndex: number; game: ScheduleGameDto | null }): void {
         const moving = this.selectedGame();
 
         if (moving) {
             // Target cell clicked — execute move/swap
-            const col = this.gridColumns()[colIndex];
+            const col = this.gridColumns()[event.colIndex];
             if (!col) return;
 
             // Don't move to the same slot
-            if (cell?.gid === moving.gid) {
+            if (event.game?.gid === moving.gid) {
                 this.selectedGame.set(null);
                 return;
             }
 
             this.svc.moveGame({
                 gid: moving.gid,
-                targetGDate: row.gDate,
+                targetGDate: event.row.gDate,
                 targetFieldId: col.fieldId
             }).subscribe({
                 next: () => {
@@ -290,30 +232,10 @@ export class ReschedulerComponent implements OnInit {
                 },
                 error: () => this.selectedGame.set(null)
             });
-        } else if (cell) {
+        } else if (event.game) {
             // No game selected — pick this game for move
-            this.selectGameForMove(cell);
+            this.selectGameForMove(event.game);
         }
-    }
-
-    isGameSelected(game: ScheduleGameDto): boolean {
-        return this.selectedGame()?.gid === game.gid;
-    }
-
-    isBreaking(game: ScheduleGameDto): boolean {
-        return isSlotCollisionFn(game) || this.timeClashGameIds().has(game.gid);
-    }
-
-    isBackToBack(game: ScheduleGameDto): boolean {
-        return this.backToBackGameIds().has(game.gid);
-    }
-
-    isSlotCollision(game: ScheduleGameDto): boolean {
-        return isSlotCollisionFn(game);
-    }
-
-    isTimeClash(game: ScheduleGameDto): boolean {
-        return this.timeClashGameIds().has(game.gid);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -451,8 +373,5 @@ export class ReschedulerComponent implements OnInit {
     }
 
     // ── Helpers (delegated to shared utils) ──
-    readonly formatDate = formatDate;
-    readonly formatTimeOnly = formatTimeOnly;
     readonly formatGameDay = formatGameDay;
-    readonly contrastText = contrastText;
 }

@@ -16,21 +16,14 @@ import {
     type ScheduleFieldColumn,
     type ScheduleGameDto
 } from './services/schedule-division.service';
-import {
-    formatDate, formatTimeOnly, formatTime, teamDes
-} from '../shared/utils/scheduling-helpers';
+import { formatTime, teamDes } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
-import { GameCardComponent } from '../shared/components/game-card/game-card.component';
-import {
-    computeTimeClashGameIds, computeBackToBackGameIds, computeBreakingConflictCount,
-    isSlotCollision as isSlotCollisionFn, isTimeClash as isTimeClashFn,
-    isBackToBack as isBackToBackFn, isBreaking as isBreakinFn
-} from '../shared/utils/conflict-detection';
+import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, GameCardComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -39,7 +32,7 @@ export class ScheduleDivisionComponent implements OnInit {
     private readonly svc = inject(ScheduleDivisionService);
     private readonly toast = inject(ToastService);
 
-    @ViewChild('gridScroll') gridScrollEl?: ElementRef<HTMLElement>;
+    @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
 
     // ── Navigator state ──
@@ -83,27 +76,6 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly teamCount = computed(() => this.divisionResponse()?.teamCount ?? 0);
     readonly allPairingsScheduled = computed(() => this.pairings().length > 0 && this.pairings().every(p => !p.bAvailable));
     readonly remainingPairingsCount = computed(() => this.pairings().filter(p => p.bAvailable).length);
-
-    // ── Conflict detection (3 types — delegated to shared utils) ──
-
-    readonly timeClashGameIds = computed(() => computeTimeClashGameIds(this.gridRows()));
-    readonly backToBackGameIds = computed(() => computeBackToBackGameIds(this.gridRows()));
-    readonly breakingConflictCount = computed(() => computeBreakingConflictCount(this.gridRows(), this.timeClashGameIds()));
-
-    // ── Day boundary jumps ──
-
-    readonly gridDays = computed(() => {
-        const rows = this.gridRows();
-        const seen = new Map<string, number>();
-        rows.forEach((r, i) => {
-            const key = new Date(r.gDate).toDateString();
-            if (!seen.has(key)) seen.set(key, i);
-        });
-        return Array.from(seen.entries()).map(([day, rowIndex]) => ({
-            label: new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-            rowIndex
-        }));
-    });
 
     // ── Rapid-placement modal ──
 
@@ -229,7 +201,7 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
-                this.scrollToFirstRelevant();
+                this.scheduleGrid?.scrollToFirstRelevant(divId);
             },
             error: () => {
                 this.gridResponse.set(null);
@@ -264,7 +236,7 @@ export class ScheduleDivisionComponent implements OnInit {
             this.selectedPairing.set(null);
         } else {
             this.selectedPairing.set(pairing);
-            this.scrollToNextOpenSlot(0);
+            this.scheduleGrid?.scrollToNextOpenSlot(0);
         }
     }
 
@@ -332,7 +304,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 if (nextPairing) {
                     const rows = this.gridRows();
                     const placedRowIdx = rows.findIndex(r => r.gDate === row.gDate);
-                    this.scrollToNextOpenSlot(placedRowIdx + 1);
+                    this.scheduleGrid?.scrollToNextOpenSlot(placedRowIdx + 1);
                 }
             },
             error: () => this.isPlacing.set(false)
@@ -447,34 +419,6 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     }
 
-    isGameSelected(game: ScheduleGameDto): boolean {
-        return this.selectedGame()?.game.gid === game.gid;
-    }
-
-    /** Breaking: slot collision (2+ games in same cell) — from backend flag. */
-    isSlotCollision(game: ScheduleGameDto): boolean {
-        return isSlotCollisionFn(game);
-    }
-
-    /** Breaking: same team at same time on different fields. */
-    isTimeClash(game: ScheduleGameDto): boolean {
-        return isTimeClashFn(game, this.timeClashGameIds());
-    }
-
-    /** Non-breaking: same team in consecutive timeslot rows. */
-    isBackToBack(game: ScheduleGameDto): boolean {
-        return isBackToBackFn(game, this.backToBackGameIds());
-    }
-
-    /** Any breaking conflict (slot collision or time clash). */
-    isBreaking(game: ScheduleGameDto): boolean {
-        return isBreakinFn(game, this.timeClashGameIds());
-    }
-
-    isOtherDivision(game: ScheduleGameDto): boolean {
-        return game.divId !== this.selectedDivision()?.divId;
-    }
-
     moveOrSwapGame(targetRow: ScheduleGridRow, targetColIndex: number): void {
         const source = this.selectedGame();
         if (!source) return;
@@ -511,18 +455,16 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Grid cell click handler (dispatches based on state) ──
 
-    onGridCellClick(row: ScheduleGridRow, colIndex: number): void {
-        const cell = row.cells[colIndex];
-
+    onGridCellClick(event: { row: ScheduleGridRow; colIndex: number; game: ScheduleGameDto | null }): void {
         if (this.selectedPairing()) {
             // Placement mode: clicking an empty slot places the game
-            if (!cell) {
-                this.placeGame(row, colIndex);
+            if (!event.game) {
+                this.placeGame(event.row, event.colIndex);
             }
         } else if (this.selectedGame()) {
             // Move mode: clicking any cell (empty or occupied) moves/swaps
-            if (!cell || !this.isGameSelected(cell)) {
-                this.moveOrSwapGame(row, colIndex);
+            if (!event.game || event.game.gid !== this.selectedGame()!.game.gid) {
+                this.moveOrSwapGame(event.row, event.colIndex);
             }
         }
     }
@@ -594,52 +536,6 @@ export class ScheduleDivisionComponent implements OnInit {
             }
         }
         return null;
-    }
-
-    // ── Scroll helpers ──
-
-    scrollGridTo(rowIndex: number): void {
-        const container = this.gridScrollEl?.nativeElement;
-        if (!container) return;
-        setTimeout(() => {
-            const rows = container.querySelectorAll('tbody tr');
-            const targetRow = rows[rowIndex] as HTMLElement | undefined;
-            if (targetRow) {
-                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 50);
-    }
-
-    private scrollToFirstRelevant(): void {
-        const rows = this.gridRows();
-        const divId = this.selectedDivision()?.divId;
-
-        // First row with a current-division game
-        let targetRow = rows.findIndex(r => r.cells.some(c => c && c.divId === divId));
-
-        // Fallback: first row with an open slot
-        if (targetRow < 0) {
-            targetRow = rows.findIndex(r => r.cells.some(c => !c));
-        }
-
-        this.scrollGridTo(Math.max(targetRow, 0));
-    }
-
-    private scrollToNextOpenSlot(startFromRow: number): void {
-        const rows = this.gridRows();
-        for (let i = startFromRow; i < rows.length; i++) {
-            if (rows[i].cells.some(c => !c)) {
-                this.scrollGridTo(i);
-                return;
-            }
-        }
-        // Wrap around to top if no open slots found after current position
-        for (let i = 0; i < startFromRow; i++) {
-            if (rows[i].cells.some(c => !c)) {
-                this.scrollGridTo(i);
-                return;
-            }
-        }
     }
 
     // ── Rapid-placement modal methods ──
@@ -843,7 +739,5 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Helpers (delegated to shared utils) ──
 
     readonly formatTime = formatTime;
-    readonly formatDate = formatDate;
-    readonly formatTimeOnly = formatTimeOnly;
     readonly teamDes = teamDes;
 }

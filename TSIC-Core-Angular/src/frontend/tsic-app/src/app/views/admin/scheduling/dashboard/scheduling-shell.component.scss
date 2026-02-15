@@ -1,0 +1,134 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.scheduling-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+// ── Step Navigation Bar ──
+.step-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-4);
+    background: var(--surface-elevated-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--brand-border);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+    min-height: 44px;
+}
+
+.step-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    text-decoration: none;
+    color: var(--brand-text);
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        color: var(--bs-primary);
+    }
+
+    &.active {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+    }
+
+    i {
+        font-size: 1rem;
+    }
+}
+
+.step-nav-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--brand-border);
+    margin: 0 var(--space-1);
+}
+
+.step-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    text-decoration: none;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-md);
+    transition: all 0.15s ease;
+    white-space: nowrap;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.06);
+        color: var(--brand-text);
+    }
+
+    &.active {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        color: var(--bs-primary);
+
+        .step-number {
+            background: var(--bs-primary);
+            color: #fff;
+        }
+    }
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--brand-border);
+    color: var(--brand-text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.step-label {
+    font-weight: 500;
+}
+
+// ── Content area ──
+.shell-content {
+    flex: 1;
+    overflow: auto;
+}
+
+// ── Responsive ──
+@media (max-width: 576px) {
+    .step-nav {
+        padding: var(--space-1) var(--space-2);
+        gap: 0;
+        overflow-x: auto;
+    }
+
+    .step-nav-brand span {
+        display: none;
+    }
+
+    .step-label {
+        display: none;
+    }
+
+    .step-link {
+        padding: var(--space-1) var(--space-2);
+    }
+}

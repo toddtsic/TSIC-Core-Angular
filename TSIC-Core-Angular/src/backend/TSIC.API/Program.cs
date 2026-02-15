@@ -150,6 +150,7 @@ builder.Services.AddScoped<ITimeslotService, TimeslotService>();
 builder.Services.AddScoped<IScheduleDivisionService, ScheduleDivisionService>();
 builder.Services.AddScoped<IViewScheduleService, ViewScheduleService>();
 builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
+builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
