@@ -60,7 +60,6 @@ public class ClubRepRepository : IClubRepRepository
     {
         return await _context.ClubReps
             .Where(cr => cr.ClubRepUserId == clubRepUserId && cr.ClubId == clubId)
-            .Include(cr => cr.Club)
             .SingleOrDefaultAsync(cancellationToken);
     }
 

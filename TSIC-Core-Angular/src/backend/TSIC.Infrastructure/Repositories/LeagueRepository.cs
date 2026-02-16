@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -14,7 +15,7 @@ public class LeagueRepository : ILeagueRepository
         _context = context;
     }
 
-    public async Task<List<Leagues>> GetLeaguesByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default)
+    public async Task<List<LeagueDetailDto>> GetLeaguesByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         var leagueIds = await _context.JobLeagues
             .AsNoTracking()
@@ -24,9 +25,19 @@ public class LeagueRepository : ILeagueRepository
 
         return await _context.Leagues
             .AsNoTracking()
-            .Include(l => l.Sport)
             .Where(l => leagueIds.Contains(l.LeagueId))
             .OrderBy(l => l.LeagueName)
+            .Select(l => new LeagueDetailDto
+            {
+                LeagueId = l.LeagueId,
+                LeagueName = l.LeagueName ?? "",
+                SportId = l.SportId,
+                SportName = l.Sport != null ? l.Sport.SportName : null,
+                BHideContacts = l.BHideContacts,
+                BHideStandings = l.BHideStandings,
+                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
+                PlayerFeeOverride = l.PlayerFeeOverride
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -35,12 +46,23 @@ public class LeagueRepository : ILeagueRepository
         return await _context.Leagues.FindAsync(new object[] { leagueId }, cancellationToken);
     }
 
-    public async Task<Leagues?> GetByIdWithSportAsync(Guid leagueId, CancellationToken cancellationToken = default)
+    public async Task<LeagueDetailDto?> GetByIdWithSportAsync(Guid leagueId, CancellationToken cancellationToken = default)
     {
         return await _context.Leagues
             .AsNoTracking()
-            .Include(l => l.Sport)
-            .FirstOrDefaultAsync(l => l.LeagueId == leagueId, cancellationToken);
+            .Where(l => l.LeagueId == leagueId)
+            .Select(l => new LeagueDetailDto
+            {
+                LeagueId = l.LeagueId,
+                LeagueName = l.LeagueName ?? "",
+                SportId = l.SportId,
+                SportName = l.Sport != null ? l.Sport.SportName : null,
+                BHideContacts = l.BHideContacts,
+                BHideStandings = l.BHideStandings,
+                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
+                PlayerFeeOverride = l.PlayerFeeOverride
+            })
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<List<JobLeagues>> GetJobLeaguesAsync(Guid jobId, CancellationToken cancellationToken = default)

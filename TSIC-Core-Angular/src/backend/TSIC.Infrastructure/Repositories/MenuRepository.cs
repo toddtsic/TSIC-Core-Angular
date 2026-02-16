@@ -118,14 +118,22 @@ public class MenuRepository : IMenuRepository
 
     // ─── Admin methods ────────────────────────────────────────────────
 
-    public async Task<List<JobMenus>> GetAllMenusForJobAsync(
+    public async Task<List<MenuListProjection>> GetAllMenusForJobAsync(
         Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.JobMenus
             .AsNoTracking()
-            .Include(m => m.Role)
             .Where(m => m.JobId == jobId)
             .OrderBy(m => m.Role != null ? m.Role.Name : "zzz")
+            .Select(m => new MenuListProjection
+            {
+                MenuId = m.MenuId,
+                JobId = m.JobId,
+                RoleId = m.RoleId,
+                RoleName = m.Role != null ? m.Role.Name : null,
+                Active = m.Active,
+                MenuTypeId = m.MenuTypeId
+            })
             .ToListAsync(cancellationToken);
     }
 

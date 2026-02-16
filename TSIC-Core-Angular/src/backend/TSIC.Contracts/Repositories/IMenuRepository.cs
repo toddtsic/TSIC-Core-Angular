@@ -20,9 +20,9 @@ public interface IMenuRepository
     // ─── Admin methods ────────────────────────────────────────────────
 
     /// <summary>
-    /// Get all menus for a job, including inactive ones. Includes Role navigation for display.
+    /// Get all menus for a job with role names. Projects Role.Name into flat MenuListProjection.
     /// </summary>
-    Task<List<JobMenus>> GetAllMenusForJobAsync(Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<MenuListProjection>> GetAllMenusForJobAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>Get a menu by ID (tracked for updates).</summary>
     Task<JobMenus?> GetMenuByIdAsync(Guid menuId, CancellationToken cancellationToken = default);

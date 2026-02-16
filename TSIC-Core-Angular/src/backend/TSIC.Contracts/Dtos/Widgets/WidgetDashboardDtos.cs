@@ -43,3 +43,24 @@ public record WidgetItemDto
     public required string? Description { get; init; }
     public required bool IsOverridden { get; init; }
 }
+
+/// <summary>
+/// Projection for WidgetDefault and JobWidget repository queries.
+/// Flattens Widget + Category navigations into a single row.
+/// </summary>
+public record WidgetItemProjection
+{
+    public required int WidgetId { get; init; }
+    public required int CategoryId { get; init; }
+    public required int DisplayOrder { get; init; }
+    public string? Config { get; init; }
+    public required bool IsEnabled { get; init; }
+    public required string WidgetName { get; init; }
+    public required string WidgetType { get; init; }
+    public required string ComponentKey { get; init; }
+    public string? Description { get; init; }
+    public required string CategoryName { get; init; }
+    public string? CategoryIcon { get; init; }
+    public required int CategoryDefaultOrder { get; init; }
+    public required string Section { get; init; }
+}

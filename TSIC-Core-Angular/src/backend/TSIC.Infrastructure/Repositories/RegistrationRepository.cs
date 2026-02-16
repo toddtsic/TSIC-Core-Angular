@@ -395,8 +395,8 @@ public class RegistrationRepository : IRegistrationRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
+            .AsNoTracking()
             .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && playerIds.Contains(r.UserId))
-            .Include(r => r.AssignedTeam)
             .OrderByDescending(r => r.Modified)
             .ToListAsync(cancellationToken);
     }

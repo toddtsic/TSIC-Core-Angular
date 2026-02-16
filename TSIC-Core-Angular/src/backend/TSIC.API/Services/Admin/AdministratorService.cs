@@ -45,9 +45,7 @@ public sealed class AdministratorService : IAdministratorService
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        var registrations = await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
-
-        return registrations.Select(r => MapToDto(r)).ToList();
+        return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
     }
 
     public async Task<AdministratorDto> AddAdministratorAsync(
@@ -88,9 +86,9 @@ public sealed class AdministratorService : IAdministratorService
         _adminRepo.Add(registration);
         await _adminRepo.SaveChangesAsync(cancellationToken);
 
-        // Reload with navigation properties for the response
-        var saved = await _adminRepo.GetByIdAsync(registration.RegistrationId, cancellationToken);
-        return MapToDto(saved!);
+        // Return projected DTO (no full entity reload needed)
+        return await _adminRepo.GetAdminProjectionByIdAsync(registration.RegistrationId, cancellationToken)
+            ?? throw new InvalidOperationException("Failed to retrieve saved administrator.");
     }
 
     public async Task<AdministratorDto> UpdateAdministratorAsync(
@@ -115,7 +113,8 @@ public sealed class AdministratorService : IAdministratorService
 
         await _adminRepo.SaveChangesAsync(cancellationToken);
 
-        return MapToDto(registration);
+        return await _adminRepo.GetAdminProjectionByIdAsync(registrationId, cancellationToken)
+            ?? throw new InvalidOperationException("Failed to retrieve updated administrator.");
     }
 
     public async Task DeleteAdministratorAsync(

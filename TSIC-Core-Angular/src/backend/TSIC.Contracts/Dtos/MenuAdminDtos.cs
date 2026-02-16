@@ -1,6 +1,20 @@
 namespace TSIC.Contracts.Dtos;
 
 /// <summary>
+/// Projection for GetAllMenusForJobAsync — flattens Role.Name into RoleName.
+/// Avoids loading full AspNetRoles entity.
+/// </summary>
+public record MenuListProjection
+{
+    public required Guid MenuId { get; init; }
+    public required Guid JobId { get; init; }
+    public string? RoleId { get; init; }
+    public string? RoleName { get; init; }
+    public required bool Active { get; init; }
+    public required int MenuTypeId { get; init; }
+}
+
+/// <summary>
 /// Admin view of a role menu with nested items tree.
 /// Includes inactive items for full admin visibility.
 /// </summary>

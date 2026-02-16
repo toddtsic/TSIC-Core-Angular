@@ -49,7 +49,7 @@ public sealed class MenuAdminService : IMenuAdminService
                 MenuId = menu.MenuId,
                 JobId = menu.JobId,
                 RoleId = menu.RoleId,
-                RoleName = menu.Role?.Name,
+                RoleName = menu.RoleName,
                 Active = menu.Active,
                 MenuTypeId = menu.MenuTypeId,
                 Items = rootItems

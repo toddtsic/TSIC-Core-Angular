@@ -9,14 +9,19 @@ namespace TSIC.Contracts.Repositories;
 public interface IAdministratorRepository
 {
     /// <summary>
-    /// Get all administrator registrations for a job, with User and Role navigation properties.
+    /// Get all administrator registrations for a job as projected DTOs (AsNoTracking).
     /// </summary>
-    Task<List<Registrations>> GetByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<AdministratorDto>> GetByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a single administrator registration by ID (tracked for updates).
+    /// Get a single administrator registration by ID (tracked for mutation, no navigation includes).
     /// </summary>
     Task<Registrations?> GetByIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get a single admin as a projected DTO (AsNoTracking). Used for display after add/update.
+    /// </summary>
+    Task<AdministratorDto?> GetAdminProjectionByIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get all non-Superuser administrator registrations for batch status updates.

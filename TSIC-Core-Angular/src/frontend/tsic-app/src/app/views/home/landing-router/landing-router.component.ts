@@ -4,13 +4,15 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { TsicLandingComponent } from '../tsic-landing/tsic-landing.component';
-import { JobLandingComponent } from '../job-landing/job-landing.component';
+import { WidgetDashboardComponent } from '../widget-dashboard/widget-dashboard.component';
 
 /**
  * Wrapper component that conditionally loads the appropriate landing page
  * based on whether the jobPath is 'tsic' or an actual job slug.
  *
- * Authenticated users with a selected role are redirected to the widget dashboard.
+ * - TSIC path → TsicLandingComponent (marketing page)
+ * - Job path + authenticated with role → redirect to /dashboard
+ * - Job path + unauthenticated/no role → WidgetDashboardComponent in public mode
  */
 @Component({
     selector: 'app-landing-router',
@@ -19,10 +21,10 @@ import { JobLandingComponent } from '../job-landing/job-landing.component';
 		@if (isTsic()) {
 			<app-tsic-landing />
 		} @else {
-			<app-job-landing />
+			<app-widget-dashboard [mode]="'public'" [jobPath]="currentJobPath()" />
 		}
 	`,
-    imports: [TsicLandingComponent, JobLandingComponent],
+    imports: [TsicLandingComponent, WidgetDashboardComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LandingRouterComponent {
@@ -38,13 +40,16 @@ export class LandingRouterComponent {
         { initialValue: '' }
     );
 
+    // Expose jobPath for template binding
+    readonly currentJobPath = computed(() => this.jobPath());
+
     // Check if we're in TSIC context (empty string treated as tsic during initialization)
     isTsic = computed(() => {
         const path = this.jobPath();
         return path === 'tsic' || path === '';
     });
 
-    // Redirect authenticated users with a selected role to the widget dashboard
+    // Redirect authenticated users with a selected role to the widget dashboard route
     private readonly dashboardRedirect = effect(() => {
         const path = this.jobPath();
         if (!path || this.isTsic()) return;

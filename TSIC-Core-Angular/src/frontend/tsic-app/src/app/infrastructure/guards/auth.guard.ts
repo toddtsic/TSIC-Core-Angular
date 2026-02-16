@@ -56,11 +56,9 @@ export const authGuard: CanActivateFn = (route, state) => {
                 return router.createUrlTree([`/${jobPath}`]);
             }
 
-            // If authenticated but no job, go to role selection
-            if (!jobPath) {
-                const jobPathForRoleSelect = route.paramMap.get('jobPath') || 'tsic';
-                return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
-            }
+            // Authenticated but on 'tsic' or no job — go to role selection
+            const jobPathForRoleSelect = route.paramMap.get('jobPath') || 'tsic';
+            return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
         } else {
             // Not authenticated - check for force flags or explicit intents
             const force = route.queryParamMap.get('force');

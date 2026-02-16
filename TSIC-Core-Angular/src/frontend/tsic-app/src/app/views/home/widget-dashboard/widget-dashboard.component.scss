@@ -162,6 +162,30 @@
     flex-shrink: 0;
 }
 
+// ── Content Widgets (full-width, no grid) ──
+.section-content {
+    margin-bottom: var(--space-4);
+}
+
+.content-widgets {
+    display: flex;
+    flex-direction: column;
+}
+
+// ── Public mode ──
+.dashboard-public {
+    padding: 0;
+    max-width: 100%;
+
+    .section-content {
+        margin-bottom: 0;
+    }
+
+    .content-widgets {
+        gap: var(--space-4);
+    }
+}
+
 // ── Status card variant (health section) ──
 .wt-status-card {
     .widget-icon {

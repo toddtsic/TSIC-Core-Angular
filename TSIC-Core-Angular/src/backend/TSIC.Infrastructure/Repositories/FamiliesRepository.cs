@@ -29,7 +29,6 @@ public class FamiliesRepository : IFamiliesRepository
         if (!string.IsNullOrWhiteSpace(fam?.DadEmail)) recipients.Add(fam!.DadEmail!.Trim());
 
         var playerEmails = await _context.Registrations.AsNoTracking()
-            .Include(r => r.User)
             .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
             .Select(r => r.User!.Email)
             .ToListAsync(cancellationToken);

@@ -30,7 +30,7 @@ public class MenuAdminService : IMenuAdminService
                 MenuId = menu.MenuId,
                 JobId = menu.JobId,
                 RoleId = menu.RoleId,
-                RoleName = menu.Role?.Name ?? "Unknown",
+                RoleName = menu.RoleName ?? "Unknown",
                 Active = menu.Active,
                 MenuTypeId = menu.MenuTypeId,
                 Items = rootItems.Select(parent => MapToMenuItemDto(parent, items)).ToList()

@@ -51,7 +51,7 @@
         }
 
         <button type="submit" class="btn btn-lg w-100 fw-semibold btn-gradient login-submit"
-          [disabled]="auth.loginLoading() || form.invalid">
+          [disabled]="auth.loginLoading()">
           @if (!auth.loginLoading()) {
           <span>Sign In</span>
           } @else {

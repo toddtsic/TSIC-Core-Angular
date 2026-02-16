@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -8,9 +9,9 @@ namespace TSIC.Contracts.Repositories;
 public interface ILeagueRepository
 {
     /// <summary>
-    /// Get all leagues for a job via JobLeagues join, with Sport navigation.
+    /// Get all leagues for a job as projected DTOs (AsNoTracking). Flattens Sport.SportName.
     /// </summary>
-    Task<List<Leagues>> GetLeaguesByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<LeagueDetailDto>> GetLeaguesByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get a single league by ID (tracked for updates).
@@ -18,9 +19,9 @@ public interface ILeagueRepository
     Task<Leagues?> GetByIdAsync(Guid leagueId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a single league by ID with Sport navigation (read-only).
+    /// Get a single league by ID as projected DTO (AsNoTracking). Flattens Sport.SportName.
     /// </summary>
-    Task<Leagues?> GetByIdWithSportAsync(Guid leagueId, CancellationToken cancellationToken = default);
+    Task<LeagueDetailDto?> GetByIdWithSportAsync(Guid leagueId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get JobLeagues entries for a job.

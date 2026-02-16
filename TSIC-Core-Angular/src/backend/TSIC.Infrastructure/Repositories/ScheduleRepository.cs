@@ -537,11 +537,6 @@ public sealed class ScheduleRepository : IScheduleRepository
         // 2. Get staff registrations assigned to these teams, with team/agegroup/division navigations
         return await _context.Registrations
             .AsNoTracking()
-            .Include(r => r.AssignedTeam)
-                .ThenInclude(t => t!.Agegroup)
-            .Include(r => r.AssignedTeam)
-                .ThenInclude(t => t!.Div)
-            .Include(r => r.User)
             .Where(r => r.JobId == jobId
                 && r.BActive == true
                 && r.RoleId == RoleConstants.Staff

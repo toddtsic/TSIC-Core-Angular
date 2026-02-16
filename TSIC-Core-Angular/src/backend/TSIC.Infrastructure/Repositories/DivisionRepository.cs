@@ -65,7 +65,6 @@ public class DivisionRepository : IDivisionRepository
         // Get divisions with agegroup info for those leagues
         var divisions = await _context.Divisions
             .AsNoTracking()
-            .Include(d => d.Agegroup)
             .Where(d => leagueIds.Contains(d.Agegroup.LeagueId))
             .Select(d => new
             {

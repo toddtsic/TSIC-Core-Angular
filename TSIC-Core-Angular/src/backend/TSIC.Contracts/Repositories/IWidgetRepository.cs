@@ -1,4 +1,4 @@
-using TSIC.Domain.Entities;
+using TSIC.Contracts.Dtos.Widgets;
 
 namespace TSIC.Contracts.Repositories;
 
@@ -10,18 +10,18 @@ public interface IWidgetRepository
 {
     /// <summary>
     /// Get default widgets for a given job type and role.
-    /// Includes Widget and Category navigation properties.
+    /// Projects Widget + Category navigations into flat WidgetItemProjection.
     /// </summary>
-    Task<List<WidgetDefault>> GetDefaultsAsync(
+    Task<List<WidgetItemProjection>> GetDefaultsAsync(
         int jobTypeId,
         string roleId,
         CancellationToken ct = default);
 
     /// <summary>
     /// Get per-job widget overrides and additions for a given job and role.
-    /// Includes Widget and Category navigation properties.
+    /// Projects Widget + Category navigations into flat WidgetItemProjection.
     /// </summary>
-    Task<List<JobWidget>> GetJobWidgetsAsync(
+    Task<List<WidgetItemProjection>> GetJobWidgetsAsync(
         Guid jobId,
         string roleId,
         CancellationToken ct = default);

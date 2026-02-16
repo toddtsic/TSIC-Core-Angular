@@ -116,8 +116,6 @@ public class TeamRepository : ITeamRepository
 
         return await _context.Teams
             .AsNoTracking()
-            .Include(t => t.Agegroup)
-            .Include(t => t.Div)
             .Where(t => t.JobId == jobId)
             .Where(t => (t.Active ?? true))
             .Where(t => (t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
@@ -150,7 +148,6 @@ public class TeamRepository : ITeamRepository
     {
         return await _context.Teams
             .AsNoTracking()
-            .Include(t => t.Agegroup)
             .Where(t => t.TeamId == teamId)
             .Select(t => new TeamFeeData
             {
@@ -203,9 +200,6 @@ public class TeamRepository : ITeamRepository
             .Where(t => t.Active == true)
             .Where(t => (t.FeeTotal ?? 0) > 0)
             .Where(t => string.IsNullOrEmpty(t.ViPolicyId))
-            .Include(t => t.Agegroup)
-            .Include(t => t.Job)
-            .Include(t => t.ClubrepRegistration)
             .Select(t => new RegisteredTeamInfo
             {
                 TeamId = t.TeamId,
@@ -548,8 +542,6 @@ public class TeamRepository : ITeamRepository
 
         var rawTeams = await _context.Teams
             .AsNoTracking()
-            .Include(t => t.Agegroup)
-            .Include(t => t.Div)
             .Where(t => t.JobId == jobId && t.DivId == divId)
             .Select(t => new
             {

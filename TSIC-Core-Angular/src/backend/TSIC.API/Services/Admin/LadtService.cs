@@ -193,9 +193,8 @@ public sealed class LadtService : ILadtService
     public async Task<LeagueDetailDto> GetLeagueDetailAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default)
     {
         await ValidateLeagueOwnershipAsync(leagueId, jobId, cancellationToken);
-        var league = await _leagueRepo.GetByIdWithSportAsync(leagueId, cancellationToken)
+        return await _leagueRepo.GetByIdWithSportAsync(leagueId, cancellationToken)
             ?? throw new KeyNotFoundException($"League {leagueId} not found.");
-        return MapLeague(league);
     }
 
     public async Task<LeagueDetailDto> UpdateLeagueAsync(Guid leagueId, UpdateLeagueRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
@@ -215,8 +214,8 @@ public sealed class LadtService : ILadtService
 
         await _leagueRepo.SaveChangesAsync(cancellationToken);
 
-        var updated = await _leagueRepo.GetByIdWithSportAsync(leagueId, cancellationToken);
-        return MapLeague(updated!);
+        return await _leagueRepo.GetByIdWithSportAsync(leagueId, cancellationToken)
+            ?? throw new InvalidOperationException("Failed to retrieve updated league.");
     }
 
     // ═══════════════════════════════════════════
@@ -1212,8 +1211,7 @@ public sealed class LadtService : ILadtService
 
     public async Task<List<LeagueDetailDto>> GetLeagueSiblingsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
-        var leagues = await _leagueRepo.GetLeaguesByJobIdAsync(jobId, cancellationToken);
-        return leagues.Select(MapLeague).ToList();
+        return await _leagueRepo.GetLeaguesByJobIdAsync(jobId, cancellationToken);
     }
 
     public async Task<List<AgegroupDetailDto>> GetAgegroupsByLeagueAsync(Guid leagueId, Guid jobId, CancellationToken cancellationToken = default)

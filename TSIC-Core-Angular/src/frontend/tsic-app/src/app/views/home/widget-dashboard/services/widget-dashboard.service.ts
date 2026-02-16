@@ -12,4 +12,8 @@ export class WidgetDashboardService {
 	getDashboard(): Observable<WidgetDashboardResponse> {
 		return this.http.get<WidgetDashboardResponse>(this.apiUrl);
 	}
+
+	getPublicDashboard(jobPath: string): Observable<WidgetDashboardResponse> {
+		return this.http.get<WidgetDashboardResponse>(`${this.apiUrl}/public/${jobPath}`);
+	}
 }

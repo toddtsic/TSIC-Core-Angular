@@ -14,9 +14,10 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
     private readonly IWidgetRepository _widgetRepo;
     private readonly ILogger<WidgetDashboardService> _logger;
 
-    // Section ordering: health first, action middle, insight last
+    // Section ordering: content first, then health, action, insight
     private static readonly Dictionary<string, int> SectionOrder = new()
     {
+        ["content"] = -1,
         ["health"] = 0,
         ["action"] = 1,
         ["insight"] = 2
@@ -41,6 +42,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         ["STPAdmin"] = RoleConstants.StpAdmin,
         ["Recruiter"] = RoleConstants.Recruiter,
         ["Guest"] = RoleConstants.Guest,
+        ["Anonymous"] = RoleConstants.Anonymous,
     };
 
     public WidgetDashboardService(
@@ -90,15 +92,15 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
                 mergedWidgets.Add(new MergedWidget
                 {
                     WidgetId = def.WidgetId,
-                    Name = def.Widget.Name,
-                    WidgetType = def.Widget.WidgetType,
-                    ComponentKey = def.Widget.ComponentKey,
-                    Description = def.Widget.Description,
+                    Name = def.WidgetName,
+                    WidgetType = def.WidgetType,
+                    ComponentKey = def.ComponentKey,
+                    Description = def.Description,
                     CategoryId = ov.CategoryId,
-                    CategoryName = ov.Category.Name,
-                    CategoryIcon = ov.Category.Icon,
-                    CategoryDefaultOrder = ov.Category.DefaultOrder,
-                    Section = ov.Category.Section,
+                    CategoryName = ov.CategoryName,
+                    CategoryIcon = ov.CategoryIcon,
+                    CategoryDefaultOrder = ov.CategoryDefaultOrder,
+                    Section = ov.Section,
                     DisplayOrder = ov.DisplayOrder,
                     Config = ov.Config ?? def.Config,
                     IsOverridden = true
@@ -112,15 +114,15 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
                 mergedWidgets.Add(new MergedWidget
                 {
                     WidgetId = def.WidgetId,
-                    Name = def.Widget.Name,
-                    WidgetType = def.Widget.WidgetType,
-                    ComponentKey = def.Widget.ComponentKey,
-                    Description = def.Widget.Description,
+                    Name = def.WidgetName,
+                    WidgetType = def.WidgetType,
+                    ComponentKey = def.ComponentKey,
+                    Description = def.Description,
                     CategoryId = def.CategoryId,
-                    CategoryName = def.Category.Name,
-                    CategoryIcon = def.Category.Icon,
-                    CategoryDefaultOrder = def.Category.DefaultOrder,
-                    Section = def.Category.Section,
+                    CategoryName = def.CategoryName,
+                    CategoryIcon = def.CategoryIcon,
+                    CategoryDefaultOrder = def.CategoryDefaultOrder,
+                    Section = def.Section,
                     DisplayOrder = def.DisplayOrder,
                     Config = def.Config,
                     IsOverridden = false
@@ -137,15 +139,15 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
             mergedWidgets.Add(new MergedWidget
             {
                 WidgetId = addition.WidgetId,
-                Name = addition.Widget.Name,
-                WidgetType = addition.Widget.WidgetType,
-                ComponentKey = addition.Widget.ComponentKey,
-                Description = addition.Widget.Description,
+                Name = addition.WidgetName,
+                WidgetType = addition.WidgetType,
+                ComponentKey = addition.ComponentKey,
+                Description = addition.Description,
                 CategoryId = addition.CategoryId,
-                CategoryName = addition.Category.Name,
-                CategoryIcon = addition.Category.Icon,
-                CategoryDefaultOrder = addition.Category.DefaultOrder,
-                Section = addition.Category.Section,
+                CategoryName = addition.CategoryName,
+                CategoryIcon = addition.CategoryIcon,
+                CategoryDefaultOrder = addition.CategoryDefaultOrder,
+                Section = addition.Section,
                 DisplayOrder = addition.DisplayOrder,
                 Config = addition.Config,
                 IsOverridden = true

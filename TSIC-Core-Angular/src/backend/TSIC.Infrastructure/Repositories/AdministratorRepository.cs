@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
@@ -43,17 +44,25 @@ public class AdministratorRepository : IAdministratorRepository
         _context = context;
     }
 
-    public async Task<List<Registrations>> GetByJobIdAsync(
+    public async Task<List<AdministratorDto>> GetByJobIdAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
-            .Include(r => r.User)
-            .Include(r => r.Role)
+            .AsNoTracking()
             .Where(r => r.JobId == jobId && AdminRoleIds.Contains(r.RoleId!))
             .OrderBy(r => r.User!.LastName)
             .ThenBy(r => r.User!.FirstName)
-            .AsNoTracking()
+            .Select(r => new AdministratorDto
+            {
+                RegistrationId = r.RegistrationId,
+                AdministratorName = ((r.User!.LastName ?? "") + ", " + (r.User.FirstName ?? "")).Trim(' ', ','),
+                UserName = r.User.UserName ?? "",
+                RoleName = r.RoleId == RoleConstants.Superuser ? null : r.Role!.Name,
+                IsActive = r.BActive ?? false,
+                RegisteredDate = r.RegistrationTs,
+                IsSuperuser = r.RoleId == RoleConstants.Superuser
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -61,10 +70,26 @@ public class AdministratorRepository : IAdministratorRepository
         Guid registrationId,
         CancellationToken cancellationToken = default)
     {
+        return await _context.Registrations.FindAsync([registrationId], cancellationToken);
+    }
+
+    public async Task<AdministratorDto?> GetAdminProjectionByIdAsync(
+        Guid registrationId,
+        CancellationToken cancellationToken = default)
+    {
         return await _context.Registrations
-            .Include(r => r.User)
-            .Include(r => r.Role)
+            .AsNoTracking()
             .Where(r => r.RegistrationId == registrationId)
+            .Select(r => new AdministratorDto
+            {
+                RegistrationId = r.RegistrationId,
+                AdministratorName = ((r.User!.LastName ?? "") + ", " + (r.User.FirstName ?? "")).Trim(' ', ','),
+                UserName = r.User.UserName ?? "",
+                RoleName = r.RoleId == RoleConstants.Superuser ? null : r.Role!.Name,
+                IsActive = r.BActive ?? false,
+                RegisteredDate = r.RegistrationTs,
+                IsSuperuser = r.RoleId == RoleConstants.Superuser
+            })
             .FirstOrDefaultAsync(cancellationToken);
     }
 
