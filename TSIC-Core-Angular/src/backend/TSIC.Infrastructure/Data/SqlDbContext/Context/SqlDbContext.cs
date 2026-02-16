@@ -198,6 +198,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<JobTypes> JobTypes { get; set; }
 
+    public virtual DbSet<JobWidget> JobWidget { get; set; }
+
     public virtual DbSet<Jobinvoices> Jobinvoices { get; set; }
 
     public virtual DbSet<Jobs> Jobs { get; set; }
@@ -357,6 +359,12 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<VTxs> VTxs { get; set; }
 
     public virtual DbSet<VerticalInsurePayouts> VerticalInsurePayouts { get; set; }
+
+    public virtual DbSet<Widget> Widget { get; set; }
+
+    public virtual DbSet<WidgetCategory> WidgetCategory { get; set; }
+
+    public virtual DbSet<WidgetDefault> WidgetDefault { get; set; }
 
     public virtual DbSet<Yn2023schedule> Yn2023schedule { get; set; }
 
@@ -1683,7 +1691,7 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<ClubTeams>(entity =>
         {
-            entity.HasKey(e => e.ClubTeamId).HasName("PK__ClubTeam__831909DC4E195C75");
+            entity.HasKey(e => e.ClubTeamId).HasName("PK__ClubTeam__831909DCA3DF632A");
 
             entity.ToTable("ClubTeams", "Clubs");
 
@@ -4133,6 +4141,37 @@ public partial class SqlDbContext : DbContext
             entity.ToTable("JobTypes", "reference");
 
             entity.Property(e => e.JobTypeId).HasColumnName("JobTypeID");
+        });
+
+        modelBuilder.Entity<JobWidget>(entity =>
+        {
+            entity.HasKey(e => e.JobWidgetId).HasName("PK_widgets_JobWidget");
+
+            entity.ToTable("JobWidget", "widgets");
+
+            entity.HasIndex(e => new { e.JobId, e.WidgetId, e.RoleId }, "UQ_widgets_JobWidget_Job_Widget_Role").IsUnique();
+
+            entity.Property(e => e.IsEnabled).HasDefaultValue(true);
+
+            entity.HasOne(d => d.Category).WithMany(p => p.JobWidget)
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_JobWidget_CategoryId");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.JobWidget)
+                .HasForeignKey(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_JobWidget_JobId");
+
+            entity.HasOne(d => d.Role).WithMany(p => p.JobWidget)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_JobWidget_RoleId");
+
+            entity.HasOne(d => d.Widget).WithMany(p => p.JobWidget)
+                .HasForeignKey(d => d.WidgetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_JobWidget_WidgetId");
         });
 
         modelBuilder.Entity<Jobinvoices>(entity =>
@@ -7011,6 +7050,63 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("Policy Number");
             entity.Property(e => e.PurchaseDate).HasColumnType("datetime");
             entity.Property(e => e.PurchaseDateString).HasMaxLength(255);
+        });
+
+        modelBuilder.Entity<Widget>(entity =>
+        {
+            entity.HasKey(e => e.WidgetId).HasName("PK_widgets_Widget");
+
+            entity.ToTable("Widget", "widgets");
+
+            entity.Property(e => e.ComponentKey).HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.WidgetType).HasMaxLength(30);
+
+            entity.HasOne(d => d.Category).WithMany(p => p.Widget)
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_Widget_CategoryId");
+        });
+
+        modelBuilder.Entity<WidgetCategory>(entity =>
+        {
+            entity.HasKey(e => e.CategoryId).HasName("PK_widgets_WidgetCategory");
+
+            entity.ToTable("WidgetCategory", "widgets");
+
+            entity.Property(e => e.Icon).HasMaxLength(50);
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Section).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<WidgetDefault>(entity =>
+        {
+            entity.HasKey(e => e.WidgetDefaultId).HasName("PK_widgets_WidgetDefault");
+
+            entity.ToTable("WidgetDefault", "widgets");
+
+            entity.HasIndex(e => new { e.JobTypeId, e.RoleId, e.WidgetId }, "UQ_widgets_WidgetDefault_JobType_Role_Widget").IsUnique();
+
+            entity.HasOne(d => d.Category).WithMany(p => p.WidgetDefault)
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_WidgetDefault_CategoryId");
+
+            entity.HasOne(d => d.JobType).WithMany(p => p.WidgetDefault)
+                .HasForeignKey(d => d.JobTypeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_WidgetDefault_JobTypeId");
+
+            entity.HasOne(d => d.Role).WithMany(p => p.WidgetDefault)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_WidgetDefault_RoleId");
+
+            entity.HasOne(d => d.Widget).WithMany(p => p.WidgetDefault)
+                .HasForeignKey(d => d.WidgetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_WidgetDefault_WidgetId");
         });
 
         modelBuilder.Entity<Yn2023schedule>(entity =>

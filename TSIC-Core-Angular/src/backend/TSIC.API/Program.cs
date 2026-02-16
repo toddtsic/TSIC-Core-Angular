@@ -39,6 +39,7 @@ using TSIC.API.Services.Shared.Bulletins;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Reporting;
+using TSIC.API.Services.Widgets;
 using TSIC.API.Authorization;
 using Amazon.SimpleEmail;
 using Amazon.Runtime;
@@ -85,6 +86,7 @@ builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IFieldRepository, FieldRepository>();
 builder.Services.AddScoped<IPairingsRepository, PairingsRepository>();
 builder.Services.AddScoped<ITimeslotRepository, TimeslotRepository>();
+builder.Services.AddScoped<IWidgetRepository, WidgetRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
@@ -153,6 +155,8 @@ builder.Services.AddScoped<IViewScheduleService, ViewScheduleService>();
 builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
+// Widget Dashboard
+builder.Services.AddScoped<IWidgetDashboardService, WidgetDashboardService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

@@ -19,11 +19,15 @@ public partial class AspNetRoles
 
     public virtual ICollection<JobMessages> JobMessages { get; set; } = new List<JobMessages>();
 
+    public virtual ICollection<JobWidget> JobWidget { get; set; } = new List<JobWidget>();
+
     public virtual ICollection<Menus> Menus { get; set; } = new List<Menus>();
 
     public virtual ICollection<RegForms> RegForms { get; set; } = new List<RegForms>();
 
     public virtual ICollection<Registrations> Registrations { get; set; } = new List<Registrations>();
+
+    public virtual ICollection<WidgetDefault> WidgetDefault { get; set; } = new List<WidgetDefault>();
 
     public virtual ICollection<AspNetUsers> User { get; set; } = new List<AspNetUsers>();
 }

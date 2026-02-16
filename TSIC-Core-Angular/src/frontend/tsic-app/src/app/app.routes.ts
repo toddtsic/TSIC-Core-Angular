@@ -64,6 +64,13 @@ export const routes: Routes = [
 				path: 'home',
 				loadComponent: () => import('./views/home/job-home/job-home.component').then(m => m.JobHomeComponent)
 			},
+			// Widget dashboard (role+jobType-aware landing page)
+			{
+				path: 'dashboard',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/home/widget-dashboard/widget-dashboard.component').then(m => m.WidgetDashboardComponent)
+			},
 			// Brand preview (design system showcase)
 			{
 				path: 'brand-preview',

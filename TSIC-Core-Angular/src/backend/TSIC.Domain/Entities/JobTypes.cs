@@ -12,4 +12,6 @@ public partial class JobTypes
     public string? JobTypeName { get; set; }
 
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
+
+    public virtual ICollection<WidgetDefault> WidgetDefault { get; set; } = new List<WidgetDefault>();
 }

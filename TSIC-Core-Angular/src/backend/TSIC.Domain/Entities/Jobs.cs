@@ -265,6 +265,8 @@ public partial class Jobs
 
     public virtual JobTypes JobType { get; set; } = null!;
 
+    public virtual ICollection<JobWidget> JobWidget { get; set; } = new List<JobWidget>();
+
     public virtual ICollection<Jobinvoices> Jobinvoices { get; set; } = new List<Jobinvoices>();
 
     public virtual AspNetUsers? LebUser { get; set; }

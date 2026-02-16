@@ -302,3 +302,7 @@ export type { VITeamProductConfigDto } from './models/VITeamProductConfigDto';
 export type { VITeamProductDto } from './models/VITeamProductDto';
 export type { VIThemeDto } from './models/VIThemeDto';
 export type { WhoPlaysWhoResponse } from './models/WhoPlaysWhoResponse';
+export type { WidgetCategoryGroupDto } from './models/WidgetCategoryGroupDto';
+export type { WidgetDashboardResponse } from './models/WidgetDashboardResponse';
+export type { WidgetItemDto } from './models/WidgetItemDto';
+export type { WidgetSectionDto } from './models/WidgetSectionDto';

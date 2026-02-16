@@ -33,7 +33,8 @@ public class FieldRepository : IFieldRepository
         var query = _context.Fields
             .AsNoTracking()
             .Where(f => !assignedFieldIds.Contains(f.FieldId))
-            .Where(f => f.FName == null || !f.FName.StartsWith("*")); // Exclude system fields
+            .Where(f => f.FName == null || !f.FName.StartsWith("*")) // Exclude system fields
+            .Where(f => f.FName == null || !EF.Functions.Like(f.FName, "[0-9]%-%")); // Exclude numbered fields (e.g. "1-Field A")
 
         if (!isSuperUser)
         {

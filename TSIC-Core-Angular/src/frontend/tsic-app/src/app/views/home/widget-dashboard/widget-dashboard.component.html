@@ -1,0 +1,58 @@
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h5 class="mb-0">Dashboard</h5>
+        @if (roleName()) {
+            <span class="role-badge">{{ roleName() }}</span>
+        }
+    </div>
+
+    @if (isLoading()) {
+        <div class="dashboard-loading">
+            <div class="spinner-border spinner-border-sm text-secondary"></div>
+            <span class="text-secondary ms-2">Loading dashboard...</span>
+        </div>
+    } @else if (hasError()) {
+        <div class="dashboard-error">
+            <i class="bi bi-exclamation-triangle text-warning"></i>
+            <span>Unable to load dashboard</span>
+            <button class="btn btn-sm btn-outline-secondary ms-2" (click)="loadDashboard()">Retry</button>
+        </div>
+    } @else if (dashboard(); as db) {
+        @for (section of db.sections; track section.section) {
+            <div class="dashboard-section" [class]="'section-' + section.section">
+                <div class="section-label">{{ sectionLabel(section.section) }}</div>
+
+                @for (category of section.categories; track category.categoryId) {
+                    <div class="category-group">
+                        <div class="category-header">
+                            @if (category.icon) {
+                                <i class="bi" [class]="category.icon"></i>
+                            }
+                            <span>{{ category.categoryName }}</span>
+                        </div>
+
+                        <div class="widget-grid" [class]="'wgrid-' + section.section">
+                            @for (widget of category.widgets; track widget.widgetId) {
+                                <a class="widget-card" [class]="'wt-' + widget.widgetType"
+                                   href="#" (click)="onWidgetClick(widget, $event)">
+                                    <div class="widget-icon">
+                                        <i class="bi" [class]="getIcon(widget)"></i>
+                                    </div>
+                                    <div class="widget-body">
+                                        <div class="widget-name">{{ getLabel(widget) }}</div>
+                                        @if (widget.description) {
+                                            <div class="widget-desc">{{ widget.description }}</div>
+                                        }
+                                    </div>
+                                    <div class="widget-arrow">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
