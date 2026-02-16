@@ -396,7 +396,7 @@ BEGIN
             REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
 
         CONSTRAINT [CK_widgets_Widget_WidgetType]
-            CHECK ([WidgetType] IN ('content', 'status-card', 'quick-action', 'workflow-pipeline', 'link-group'))
+            CHECK ([WidgetType] IN ('content', 'chart', 'status-card', 'quick-action', 'workflow-pipeline', 'link-group'))
     );
 END
 GO
@@ -495,6 +495,7 @@ GO
 
 > **Purpose**: Populates widget categories, widgets, and defaults for:
 > - **Scheduling roles** (Director / SuperDirector / SuperUser) on League (JobTypeId=2) and Tournament (JobTypeId=3) job types
+> - **Chart widgets** (Player Trend, Team Trend, Age Group Distribution) for Director / SuperDirector / SuperUser
 > - **Anonymous public** role — content widgets (banner + bulletins) for ALL job types
 >
 > Role inheritance: Director ⊂ SuperDirector ⊂ SuperUser.
@@ -508,15 +509,15 @@ GO
     Widget Dashboard — Seed Data (All Roles)
     -----------------------------------------
     Scheduling roles (Director ⊂ SuperDirector ⊂ SuperUser):
-      Director (12 widgets)  ⊂  SuperDirector (+1 = 13)  ⊂  SuperUser (+4 = 17)
+      Director (15 widgets)  ⊂  SuperDirector (+1 = 16)  ⊂  SuperUser (+4 = 20)
 
     Anonymous public role:
       Content widgets (banner + bulletins) for ALL job types
 
     Populates:
-      1. widgets.WidgetCategory   — 9 categories across 4 sections
-      2. widgets.Widget           — 19 widgets (17 scheduling + 2 content)
-      3. widgets.WidgetDefault    — 84 scheduling rows + N anonymous rows (all job types)
+      1. widgets.WidgetCategory   — 10 categories across 4 sections
+      2. widgets.Widget           — 22 widgets (17 scheduling + 3 chart + 2 content)
+      3. widgets.WidgetDefault    — 102 scheduling rows + N anonymous rows (all job types)
 
     Prerequisites:
       - widgets schema and tables (run Section 11 creation script first)
@@ -530,13 +531,14 @@ GO
 SET NOCOUNT ON;
 
 -- ============================================================
--- 1. Widget Categories (8)
+-- 1. Widget Categories (10)
 -- ============================================================
 
 MERGE [widgets].[WidgetCategory] AS target
 USING (VALUES
     -- content section (renders before all others)
     ('Content',                 'content',  NULL,                   0),
+    ('Dashboard Charts',        'content',  NULL,                   1),
     -- health section
     ('Registration Overview',   'health',   'bi-people',            1),
     ('Financial Overview',      'health',   'bi-currency-dollar',   2),
@@ -554,10 +556,10 @@ WHEN NOT MATCHED THEN
     INSERT ([Name], [Section], [Icon], [DefaultOrder])
     VALUES (source.[Name], source.[Section], source.[Icon], source.[DefaultOrder]);
 
-PRINT 'WidgetCategory seed complete (9 categories).';
+PRINT 'WidgetCategory seed complete (10 categories).';
 
 -- ============================================================
--- 2. Widgets (19: 17 scheduling + 2 content)
+-- 2. Widgets (22: 17 scheduling + 3 chart + 2 content)
 -- ============================================================
 
 MERGE [widgets].[Widget] AS target
@@ -569,6 +571,11 @@ USING (
         -- Content widgets (Anonymous public)
         ('Client Banner',          'content',              'client-banner',            'Content',                  'Job banner with logo and images'),
         ('Bulletins',              'content',              'bulletins',                'Content',                  'Active job bulletins and announcements'),
+
+        -- Chart widgets (Director + SuperDirector + SuperUser)
+        ('Player Registration Trend', 'chart',            'player-trend-chart',       'Dashboard Charts',         'Daily player registration counts and cumulative revenue over time'),
+        ('Team Registration Trend',   'chart',            'team-trend-chart',         'Dashboard Charts',         'Daily team registration counts and cumulative revenue over time'),
+        ('Age Group Distribution',    'chart',            'agegroup-distribution',    'Dashboard Charts',         'Player and team counts broken down by age group'),
 
         -- Director baseline (9): health + action
         ('Registration Count',     'status-card',          'registration-status',      'Registration Overview',    'Club and team registration counts'),
@@ -602,7 +609,7 @@ WHEN NOT MATCHED THEN
     INSERT ([Name], [WidgetType], [ComponentKey], [CategoryId], [Description])
     VALUES (source.[Name], source.[WidgetType], source.[ComponentKey], source.[CategoryId], source.[Description]);
 
-PRINT 'Widget seed complete (19 widgets).';
+PRINT 'Widget seed complete (22 widgets).';
 
 -- ============================================================
 -- Role GUIDs
@@ -643,16 +650,17 @@ INSERT INTO @WidgetConfigs VALUES
     ('theme-editor',         '{"route":"admin/theme","label":"Theme Editor","icon":"bi-palette"}');
 
 -- ============================================================
--- 3. Director defaults (12 widgets × 2 job types = 24 rows)
+-- 3. Director defaults (15 widgets × 2 job types = 30 rows)
 -- ============================================================
--- Director gets: 9 baseline + LADT + Roster Swapper + Discount Codes
+-- Director gets: 9 baseline + LADT + Roster Swapper + Discount Codes + 3 charts
 
 DECLARE @DirectorWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
 INSERT INTO @DirectorWidgets VALUES
     ('registration-status', 1), ('financial-status', 2), ('scheduling-status', 3),
     ('scheduling-pipeline', 1), ('pool-assignment', 2), ('ladt-editor', 3),
     ('search-registrations', 1), ('view-by-club', 2), ('roster-swapper', 3), ('discount-codes', 4),
-    ('compose-email', 1), ('manage-bulletins', 2);
+    ('compose-email', 1), ('manage-bulletins', 2),
+    ('player-trend-chart', 1), ('team-trend-chart', 2), ('agegroup-distribution', 3);
 
 -- JobTypeId = 2 (League Scheduling)
 MERGE [widgets].[WidgetDefault] AS target
@@ -661,7 +669,7 @@ USING (
            w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @DirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -675,19 +683,19 @@ USING (
            w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @DirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
     INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
     VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
 
-PRINT 'Director defaults seeded (12 widgets x 2 job types).';
+PRINT 'Director defaults seeded (15 widgets x 2 job types).';
 
 -- ============================================================
--- 4. SuperDirector defaults (13 widgets × 2 job types = 26 rows)
+-- 4. SuperDirector defaults (16 widgets × 2 job types = 32 rows)
 -- ============================================================
--- SuperDirector = Director (12) + Cross-Job Financials
+-- SuperDirector = Director (15) + Cross-Job Financials
 
 DECLARE @SuperDirectorWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
 INSERT INTO @SuperDirectorWidgets
@@ -702,7 +710,7 @@ USING (
            w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperDirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -716,19 +724,19 @@ USING (
            w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperDirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
     INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
     VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
 
-PRINT 'SuperDirector defaults seeded (13 widgets x 2 job types).';
+PRINT 'SuperDirector defaults seeded (16 widgets x 2 job types).';
 
 -- ============================================================
--- 5. SuperUser defaults (17 widgets × 2 job types = 34 rows)
+-- 5. SuperUser defaults (20 widgets × 2 job types = 40 rows)
 -- ============================================================
--- SuperUser = SuperDirector (13) + Job Administrators + Profile Editor
+-- SuperUser = SuperDirector (16) + Job Administrators + Profile Editor
 --             + Profile Migration + Theme Editor
 
 DECLARE @SuperuserWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
@@ -745,7 +753,7 @@ USING (
            w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperuserWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -759,14 +767,14 @@ USING (
            w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperuserWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
     INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
     VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
 
-PRINT 'SuperUser defaults seeded (17 widgets x 2 job types).';
+PRINT 'SuperUser defaults seeded (20 widgets x 2 job types).';
 
 -- ============================================================
 -- 6. Anonymous defaults (2 content widgets × ALL job types)
@@ -844,11 +852,11 @@ SET NOCOUNT OFF;
     What it does:
       1. Creates [widgets] schema (if not exists)
       2. Creates 4 tables: WidgetCategory, Widget, WidgetDefault, JobWidget
-      3. Seeds 9 categories, 19 widgets
-      4. Seeds scheduling defaults: 84 rows (3 roles × 2 job types)
+      3. Seeds 10 categories, 22 widgets
+      4. Seeds scheduling defaults: 102 rows (3 roles × 2 job types)
       5. Seeds anonymous defaults: 2 content widgets × all job types
 
-    Scheduling roles: Director (12) ⊂ SuperDirector (13) ⊂ SuperUser (17)
+    Scheduling roles: Director (15) ⊂ SuperDirector (16) ⊂ SuperUser (20)
     Anonymous public: Client Banner + Bulletins (content section)
 */
 
@@ -901,7 +909,7 @@ BEGIN
             FOREIGN KEY ([CategoryId])
             REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
         CONSTRAINT [CK_widgets_Widget_WidgetType]
-            CHECK ([WidgetType] IN ('content', 'status-card', 'quick-action', 'workflow-pipeline', 'link-group'))
+            CHECK ([WidgetType] IN ('content', 'chart', 'status-card', 'quick-action', 'workflow-pipeline', 'link-group'))
     );
 END
 GO
@@ -981,10 +989,11 @@ GO
 
 SET NOCOUNT ON;
 
--- Categories (9)
+-- Categories (10)
 MERGE [widgets].[WidgetCategory] AS target
 USING (VALUES
     ('Content',                 'content',  NULL,                   0),
+    ('Dashboard Charts',        'content',  NULL,                   1),
     ('Registration Overview',   'health',   'bi-people',            1),
     ('Financial Overview',      'health',   'bi-currency-dollar',   2),
     ('Scheduling Overview',     'health',   'bi-calendar-check',    3),
@@ -999,13 +1008,16 @@ WHEN NOT MATCHED THEN
     INSERT ([Name], [Section], [Icon], [DefaultOrder])
     VALUES (source.[Name], source.[Section], source.[Icon], source.[DefaultOrder]);
 
--- Widgets (19: 17 scheduling + 2 content)
+-- Widgets (22: 17 scheduling + 3 chart + 2 content)
 MERGE [widgets].[Widget] AS target
 USING (
     SELECT s.[Name], s.[WidgetType], s.[ComponentKey], s.[Description], wc.[CategoryId]
     FROM (VALUES
         ('Client Banner',          'content',              'client-banner',            'Content',                  'Job banner with logo and images'),
         ('Bulletins',              'content',              'bulletins',                'Content',                  'Active job bulletins and announcements'),
+        ('Player Registration Trend', 'chart',            'player-trend-chart',       'Dashboard Charts',         'Daily player registration counts and cumulative revenue over time'),
+        ('Team Registration Trend',   'chart',            'team-trend-chart',         'Dashboard Charts',         'Daily team registration counts and cumulative revenue over time'),
+        ('Age Group Distribution',    'chart',            'agegroup-distribution',    'Dashboard Charts',         'Player and team counts broken down by age group'),
         ('Registration Count',     'status-card',          'registration-status',      'Registration Overview',    'Club and team registration counts'),
         ('Financial Status',       'status-card',          'financial-status',         'Financial Overview',       'Payment status and outstanding balances'),
         ('Scheduling Status',      'status-card',          'scheduling-status',        'Scheduling Overview',      'Schedule completion status'),
@@ -1057,20 +1069,21 @@ INSERT INTO @WidgetConfigs VALUES
     ('profile-migration',    '{"route":"admin/profile-migration","label":"Profile Migration","icon":"bi-arrow-repeat"}'),
     ('theme-editor',         '{"route":"admin/theme","label":"Theme Editor","icon":"bi-palette"}');
 
--- Director (12 widgets)
+-- Director (15 widgets)
 DECLARE @DirectorWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
 INSERT INTO @DirectorWidgets VALUES
     ('registration-status', 1), ('financial-status', 2), ('scheduling-status', 3),
     ('scheduling-pipeline', 1), ('pool-assignment', 2), ('ladt-editor', 3),
     ('search-registrations', 1), ('view-by-club', 2), ('roster-swapper', 3), ('discount-codes', 4),
-    ('compose-email', 1), ('manage-bulletins', 2);
+    ('compose-email', 1), ('manage-bulletins', 2),
+    ('player-trend-chart', 1), ('team-trend-chart', 2), ('agegroup-distribution', 3);
 
--- SuperDirector (13 widgets) = Director + cross-job financials
+-- SuperDirector (16 widgets) = Director + cross-job financials
 DECLARE @SuperDirectorWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
 INSERT INTO @SuperDirectorWidgets SELECT * FROM @DirectorWidgets;
 INSERT INTO @SuperDirectorWidgets VALUES ('cross-job-financials', 1);
 
--- SuperUser (17 widgets) = SuperDirector + 4 admin tools
+-- SuperUser (20 widgets) = SuperDirector + 4 admin tools
 DECLARE @SuperuserWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
 INSERT INTO @SuperuserWidgets SELECT * FROM @SuperDirectorWidgets;
 INSERT INTO @SuperuserWidgets VALUES
@@ -1084,7 +1097,7 @@ USING (
     SELECT 2, @DirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @DirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -1097,7 +1110,7 @@ USING (
     SELECT 3, @DirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @DirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -1110,7 +1123,7 @@ USING (
     SELECT 2, @SuperDirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperDirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -1123,7 +1136,7 @@ USING (
     SELECT 3, @SuperDirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperDirectorWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -1136,7 +1149,7 @@ USING (
     SELECT 2, @SuperuserRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperuserWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN
@@ -1149,7 +1162,7 @@ USING (
     SELECT 3, @SuperuserRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
     FROM @SuperuserWidgets dw
     INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    INNER JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
+    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
 ) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
 ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
 WHEN NOT MATCHED THEN

@@ -1,11 +1,13 @@
 import { Component, computed, inject, input, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { CurrencyPipe } from '@angular/common';
 import { WidgetDashboardService } from './services/widget-dashboard.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
 import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
+import { PlayerTrendWidgetComponent } from './player-trend-widget/player-trend-widget.component';
+import { TeamTrendWidgetComponent } from './team-trend-widget/team-trend-widget.component';
+import { AgegroupDistributionWidgetComponent } from './agegroup-distribution-widget/agegroup-distribution-widget.component';
 import type { DashboardMetricsDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {
@@ -19,7 +21,7 @@ interface WidgetConfig {
 @Component({
 	selector: 'app-widget-dashboard',
 	standalone: true,
-	imports: [ClientBannerComponent, BulletinsComponent, CurrencyPipe],
+	imports: [ClientBannerComponent, BulletinsComponent, PlayerTrendWidgetComponent, TeamTrendWidgetComponent, AgegroupDistributionWidgetComponent],
 	templateUrl: './widget-dashboard.component.html',
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush

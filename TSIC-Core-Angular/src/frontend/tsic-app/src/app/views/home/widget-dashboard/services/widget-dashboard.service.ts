@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
-import type { DashboardMetricsDto, WidgetDashboardResponse } from '@core/api';
+import type { AgegroupDistributionDto, DashboardMetricsDto, RegistrationTimeSeriesDto, WidgetDashboardResponse } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -19,5 +19,21 @@ export class WidgetDashboardService {
 
 	getMetrics(): Observable<DashboardMetricsDto> {
 		return this.http.get<DashboardMetricsDto>(`${this.apiUrl}/metrics`);
+	}
+
+	getRegistrationTrend(): Observable<RegistrationTimeSeriesDto> {
+		return this.http.get<RegistrationTimeSeriesDto>(`${this.apiUrl}/registration-trend`);
+	}
+
+	getPlayerTrend(): Observable<RegistrationTimeSeriesDto> {
+		return this.http.get<RegistrationTimeSeriesDto>(`${this.apiUrl}/player-trend`);
+	}
+
+	getTeamTrend(): Observable<RegistrationTimeSeriesDto> {
+		return this.http.get<RegistrationTimeSeriesDto>(`${this.apiUrl}/team-trend`);
+	}
+
+	getAgegroupDistribution(): Observable<AgegroupDistributionDto> {
+		return this.http.get<AgegroupDistributionDto>(`${this.apiUrl}/agegroup-distribution`);
 	}
 }

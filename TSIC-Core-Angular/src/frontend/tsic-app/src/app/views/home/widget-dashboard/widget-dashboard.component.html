@@ -1,23 +1,5 @@
 <div class="dashboard-container" [class.dashboard-public]="isPublic()">
 
-    <!-- ═══════ HERO BANNER (authenticated only) ═══════ -->
-    @if (!isPublic()) {
-        <div class="dashboard-hero" [class]="roleAccentClass()">
-            <div class="hero-content">
-                <h4 class="hero-greeting">Welcome back, {{ username() }}</h4>
-                <div class="hero-meta">
-                    @if (roleName()) {
-                        <span class="role-badge">{{ roleName() }}</span>
-                    }
-                    @if (jobName()) {
-                        <span class="hero-separator">&middot;</span>
-                        <span class="hero-job">{{ jobName() }}</span>
-                    }
-                </div>
-            </div>
-        </div>
-    }
-
     <!-- ═══════ LOADING / ERROR ═══════ -->
     @if (isLoading()) {
         <div class="dashboard-loading">
@@ -31,49 +13,6 @@
             <button class="btn btn-sm btn-outline-secondary ms-2" (click)="loadDashboard()">Retry</button>
         </div>
     } @else {
-
-        <!-- ═══════ METRICS STRIP (authenticated only, when data loaded) ═══════ -->
-        @if (!isPublic() && metrics(); as m) {
-            <div class="metrics-strip">
-                <div class="metric-card">
-                    <div class="metric-icon"><i class="bi bi-people-fill"></i></div>
-                    <div class="metric-body">
-                        <div class="metric-value">{{ m.registrations.totalActive }}</div>
-                        <div class="metric-label">Registrations</div>
-                        <div class="metric-sub">{{ m.registrations.teams }} teams &middot; {{ m.registrations.clubs }} clubs</div>
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-icon"><i class="bi bi-currency-dollar"></i></div>
-                    <div class="metric-body">
-                        <div class="metric-value">{{ m.financials.totalPaid | currency:'USD':'symbol':'1.0-0' }}</div>
-                        <div class="metric-label">Revenue</div>
-                        <div class="metric-sub">{{ m.financials.totalOwed | currency:'USD':'symbol':'1.0-0' }} outstanding</div>
-                    </div>
-                </div>
-
-                <div class="metric-card">
-                    <div class="metric-icon"><i class="bi bi-calendar-check-fill"></i></div>
-                    <div class="metric-body">
-                        <div class="metric-value">{{ schedulePercent() }}%</div>
-                        <div class="metric-label">Scheduled</div>
-                        <div class="metric-sub">{{ m.scheduling.agegroupsScheduled }}/{{ m.scheduling.totalAgegroups }} age groups</div>
-                    </div>
-                </div>
-
-                @if (isSuperuser()) {
-                    <div class="metric-card">
-                        <div class="metric-icon"><i class="bi bi-check-circle-fill"></i></div>
-                        <div class="metric-body">
-                            <div class="metric-value">{{ m.financials.paidInFull }}</div>
-                            <div class="metric-label">Paid in Full</div>
-                            <div class="metric-sub">{{ m.financials.underpaid }} underpaid</div>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
 
         <!-- ═══════ WIDGET SECTIONS ═══════ -->
         @if (dashboard(); as db) {
@@ -98,6 +37,15 @@
                                                 [loading]="bulletinsLoading()"
                                                 [error]="bulletinsError()"
                                                 [jobPath]="activeJobPath()" />
+                                        }
+                                        @case ('player-trend-chart') {
+                                            <app-player-trend-widget />
+                                        }
+                                        @case ('team-trend-chart') {
+                                            <app-team-trend-widget />
+                                        }
+                                        @case ('agegroup-distribution') {
+                                            <app-agegroup-distribution-widget />
                                         }
                                     }
                                 }

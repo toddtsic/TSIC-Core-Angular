@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Widgets;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -142,6 +143,245 @@ public class WidgetRepository : IWidgetRepository
                 FieldCount = 0,
                 TotalDivisions = 0,
             }
+        };
+    }
+
+    public async Task<RegistrationTimeSeriesDto> GetRegistrationTimeSeriesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Daily aggregates — group active registrations by date
+        var dailyRaw = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true)
+            .GroupBy(r => r.RegistrationTs.Date)
+            .Select(g => new
+            {
+                Date = g.Key,
+                Count = g.Count(),
+                Revenue = g.Sum(r => r.PaidTotal),
+            })
+            .OrderBy(x => x.Date)
+            .ToListAsync(ct);
+
+        // Summary aggregates — single pass
+        var summary = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true)
+            .GroupBy(r => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                TotalRevenue = g.Sum(r => r.PaidTotal),
+                TotalOutstanding = g.Sum(r => r.OwedTotal),
+                PaidInFull = g.Count(r => r.OwedTotal == 0),
+                Underpaid = g.Count(r => r.OwedTotal > 0),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        // Build cumulative totals in-memory (cheap — daily buckets are small)
+        var cumulativeCount = 0;
+        var cumulativeRevenue = 0m;
+        var dailyData = dailyRaw.Select(d =>
+        {
+            cumulativeCount += d.Count;
+            cumulativeRevenue += d.Revenue;
+            return new DailyRegistrationPointDto
+            {
+                Date = d.Date,
+                Count = d.Count,
+                CumulativeCount = cumulativeCount,
+                Revenue = d.Revenue,
+                CumulativeRevenue = cumulativeRevenue,
+            };
+        }).ToList();
+
+        return new RegistrationTimeSeriesDto
+        {
+            DailyData = dailyData,
+            Summary = new RegistrationTrendSummaryDto
+            {
+                TotalRegistrations = summary?.Total ?? 0,
+                TotalRevenue = summary?.TotalRevenue ?? 0,
+                TotalOutstanding = summary?.TotalOutstanding ?? 0,
+                PaidInFull = summary?.PaidInFull ?? 0,
+                Underpaid = summary?.Underpaid ?? 0,
+            }
+        };
+    }
+
+    public async Task<RegistrationTimeSeriesDto> GetPlayerTimeSeriesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Daily player registration aggregates — RoleId = Player, active only
+        var dailyRaw = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true && r.RoleId == RoleConstants.Player)
+            .GroupBy(r => r.RegistrationTs.Date)
+            .Select(g => new
+            {
+                Date = g.Key,
+                Count = g.Count(),
+                Revenue = g.Sum(r => r.PaidTotal),
+            })
+            .OrderBy(x => x.Date)
+            .ToListAsync(ct);
+
+        // Summary aggregates for players
+        var summary = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true && r.RoleId == RoleConstants.Player)
+            .GroupBy(r => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                TotalRevenue = g.Sum(r => r.PaidTotal),
+                TotalOutstanding = g.Sum(r => r.OwedTotal),
+                PaidInFull = g.Count(r => r.OwedTotal == 0),
+                Underpaid = g.Count(r => r.OwedTotal > 0),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var cumulativeCount = 0;
+        var cumulativeRevenue = 0m;
+        var dailyData = dailyRaw.Select(d =>
+        {
+            cumulativeCount += d.Count;
+            cumulativeRevenue += d.Revenue;
+            return new DailyRegistrationPointDto
+            {
+                Date = d.Date,
+                Count = d.Count,
+                CumulativeCount = cumulativeCount,
+                Revenue = d.Revenue,
+                CumulativeRevenue = cumulativeRevenue,
+            };
+        }).ToList();
+
+        return new RegistrationTimeSeriesDto
+        {
+            DailyData = dailyData,
+            Summary = new RegistrationTrendSummaryDto
+            {
+                TotalRegistrations = summary?.Total ?? 0,
+                TotalRevenue = summary?.TotalRevenue ?? 0,
+                TotalOutstanding = summary?.TotalOutstanding ?? 0,
+                PaidInFull = summary?.PaidInFull ?? 0,
+                Underpaid = summary?.Underpaid ?? 0,
+            }
+        };
+    }
+
+    public async Task<RegistrationTimeSeriesDto> GetTeamTimeSeriesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Daily team aggregates — teams with ClubRep payment, active only
+        // Uses Teams.Createdate for timing, Teams financial fields for revenue
+        var dailyRaw = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.Active == true && t.ClubrepRegistrationid != null)
+            .GroupBy(t => t.Createdate.Date)
+            .Select(g => new
+            {
+                Date = g.Key,
+                Count = g.Count(),
+                Revenue = g.Sum(t => t.PaidTotal ?? 0m),
+            })
+            .OrderBy(x => x.Date)
+            .ToListAsync(ct);
+
+        // Summary aggregates for teams
+        var summary = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.Active == true && t.ClubrepRegistrationid != null)
+            .GroupBy(t => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                TotalRevenue = g.Sum(t => t.PaidTotal ?? 0m),
+                TotalOutstanding = g.Sum(t => t.OwedTotal ?? 0m),
+                PaidInFull = g.Count(t => (t.OwedTotal ?? 0m) == 0m),
+                Underpaid = g.Count(t => (t.OwedTotal ?? 0m) > 0m),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var cumulativeCount = 0;
+        var cumulativeRevenue = 0m;
+        var dailyData = dailyRaw.Select(d =>
+        {
+            cumulativeCount += d.Count;
+            cumulativeRevenue += d.Revenue;
+            return new DailyRegistrationPointDto
+            {
+                Date = d.Date,
+                Count = d.Count,
+                CumulativeCount = cumulativeCount,
+                Revenue = d.Revenue,
+                CumulativeRevenue = cumulativeRevenue,
+            };
+        }).ToList();
+
+        return new RegistrationTimeSeriesDto
+        {
+            DailyData = dailyData,
+            Summary = new RegistrationTrendSummaryDto
+            {
+                TotalRegistrations = summary?.Total ?? 0,
+                TotalRevenue = summary?.TotalRevenue ?? 0m,
+                TotalOutstanding = summary?.TotalOutstanding ?? 0m,
+                PaidInFull = summary?.PaidInFull ?? 0,
+                Underpaid = summary?.Underpaid ?? 0,
+            }
+        };
+    }
+
+    public async Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Player counts per assigned age group
+        var playersByAg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true
+                     && r.RoleId == RoleConstants.Player
+                     && r.AssignedAgegroupId != null)
+            .GroupBy(r => r.AssignedAgegroupId!.Value)
+            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Team counts per age group
+        var teamsByAg = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.Active == true)
+            .GroupBy(t => t.AgegroupId)
+            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Agegroup name lookup for all referenced IDs
+        var allAgIds = playersByAg.Select(p => p.AgegroupId)
+            .Union(teamsByAg.Select(t => t.AgegroupId))
+            .Distinct()
+            .ToList();
+
+        var agNames = await _context.Agegroups
+            .AsNoTracking()
+            .Where(ag => allAgIds.Contains(ag.AgegroupId))
+            .Select(ag => new { ag.AgegroupId, ag.AgegroupName })
+            .ToDictionaryAsync(ag => ag.AgegroupId, ag => ag.AgegroupName ?? "Unknown", ct);
+
+        // Merge into distribution points
+        var playerLookup = playersByAg.ToDictionary(p => p.AgegroupId, p => p.Count);
+        var teamLookup = teamsByAg.ToDictionary(t => t.AgegroupId, t => t.Count);
+
+        var points = allAgIds
+            .Select(id => new AgegroupDistributionPointDto
+            {
+                AgegroupName = agNames.GetValueOrDefault(id, "Unknown"),
+                PlayerCount = playerLookup.GetValueOrDefault(id, 0),
+                TeamCount = teamLookup.GetValueOrDefault(id, 0),
+            })
+            .OrderBy(p => p.AgegroupName)
+            .ToList();
+
+        return new AgegroupDistributionDto
+        {
+            Agegroups = points,
+            TotalPlayers = playersByAg.Sum(p => p.Count),
+            TotalTeams = teamsByAg.Sum(t => t.Count),
         };
     }
 }

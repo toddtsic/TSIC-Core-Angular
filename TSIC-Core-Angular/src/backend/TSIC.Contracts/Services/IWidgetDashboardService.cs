@@ -24,4 +24,32 @@ public interface IWidgetDashboardService
     Task<DashboardMetricsDto> GetMetricsAsync(
         Guid jobId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Get daily registration time-series data for the dashboard trend chart.
+    /// </summary>
+    Task<RegistrationTimeSeriesDto> GetRegistrationTimeSeriesAsync(
+        Guid jobId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Get daily player registration time-series (Player role only).
+    /// </summary>
+    Task<RegistrationTimeSeriesDto> GetPlayerTimeSeriesAsync(
+        Guid jobId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Get daily team registration time-series (ClubRep-paid teams).
+    /// </summary>
+    Task<RegistrationTimeSeriesDto> GetTeamTimeSeriesAsync(
+        Guid jobId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Get player and team counts per age group.
+    /// </summary>
+    Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(
+        Guid jobId,
+        CancellationToken ct = default);
 }

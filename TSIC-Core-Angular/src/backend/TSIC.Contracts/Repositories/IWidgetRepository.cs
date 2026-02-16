@@ -36,4 +36,28 @@ public interface IWidgetRepository
     /// Returns a projection with counts and sums — no navigation property loading.
     /// </summary>
     Task<DashboardMetricsDto> GetDashboardMetricsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get daily registration counts and revenue grouped by RegistrationTs date.
+    /// Returns raw daily data; cumulative totals are computed server-side in the service layer.
+    /// </summary>
+    Task<RegistrationTimeSeriesDto> GetRegistrationTimeSeriesAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get daily player registration time-series (RoleId = Player, active only).
+    /// Revenue reflects player-paid registrations (FeeTotal > 0).
+    /// </summary>
+    Task<RegistrationTimeSeriesDto> GetPlayerTimeSeriesAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get daily team registration time-series (ClubRepRegistrationId valued, active only).
+    /// Revenue reflects team-level fees (Teams.PaidTotal).
+    /// </summary>
+    Task<RegistrationTimeSeriesDto> GetTeamTimeSeriesAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get player and team counts per age group for a job.
+    /// Players counted via AssignedAgegroupId; teams via Teams.AgegroupId.
+    /// </summary>
+    Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(Guid jobId, CancellationToken ct = default);
 }

@@ -1,0 +1,63 @@
+:host {
+	display: block;
+}
+
+.chart-card {
+	background: var(--surface-elevated-bg);
+	backdrop-filter: blur(12px) saturate(150%);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+	overflow: hidden;
+	transition: box-shadow 0.2s ease;
+
+	&:hover {
+		box-shadow: var(--shadow-md);
+	}
+}
+
+.chart-card-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	padding: var(--space-2) var(--space-4);
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	text-align: left;
+	transition: background 0.15s ease;
+
+	&:hover {
+		background: rgba(var(--bs-primary-rgb), 0.04);
+	}
+
+	> .bi:first-child {
+		color: var(--bs-primary);
+		font-size: 1rem;
+	}
+}
+
+.chart-card-title {
+	flex: 1;
+}
+
+.chevron {
+	font-size: 0.75rem;
+	color: var(--brand-text-muted);
+	transition: transform 0.2s ease;
+}
+
+.chart-card-body {
+	padding: 0 var(--space-3) var(--space-2);
+}
+
+// Collapsed state — tighter appearance
+.chart-card.collapsed {
+	.chart-card-header {
+		padding-bottom: var(--space-2);
+	}
+}

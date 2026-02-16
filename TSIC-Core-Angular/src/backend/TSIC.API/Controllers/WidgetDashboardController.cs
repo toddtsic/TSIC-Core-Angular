@@ -58,6 +58,63 @@ public class WidgetDashboardController : ControllerBase
     }
 
     /// <summary>
+    /// Get daily registration time-series data for the dashboard trend chart.
+    /// Returns daily counts, revenue, and cumulative totals.
+    /// </summary>
+    [HttpGet("registration-trend")]
+    public async Task<ActionResult<RegistrationTimeSeriesDto>> GetRegistrationTrend(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetRegistrationTimeSeriesAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get daily player registration time-series (Player role only).
+    /// </summary>
+    [HttpGet("player-trend")]
+    public async Task<ActionResult<RegistrationTimeSeriesDto>> GetPlayerTrend(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetPlayerTimeSeriesAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get daily team registration time-series (ClubRep-paid teams).
+    /// </summary>
+    [HttpGet("team-trend")]
+    public async Task<ActionResult<RegistrationTimeSeriesDto>> GetTeamTrend(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetTeamTimeSeriesAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get player and team counts per age group.
+    /// </summary>
+    [HttpGet("agegroup-distribution")]
+    public async Task<ActionResult<AgegroupDistributionDto>> GetAgegroupDistribution(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetAgegroupDistributionAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get the public widget dashboard for anonymous visitors.
     /// Returns widgets configured for the Anonymous role, grouped by section and category.
     /// </summary>

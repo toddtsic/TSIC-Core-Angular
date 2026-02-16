@@ -225,6 +225,30 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         return metrics;
     }
 
+    public async Task<RegistrationTimeSeriesDto> GetRegistrationTimeSeriesAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetRegistrationTimeSeriesAsync(jobId, ct);
+    }
+
+    public async Task<RegistrationTimeSeriesDto> GetPlayerTimeSeriesAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetPlayerTimeSeriesAsync(jobId, ct);
+    }
+
+    public async Task<RegistrationTimeSeriesDto> GetTeamTimeSeriesAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetTeamTimeSeriesAsync(jobId, ct);
+    }
+
+    public async Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetAgegroupDistributionAsync(jobId, ct);
+    }
+
     /// <summary>
     /// Internal struct for holding merged widget data before grouping.
     /// </summary>

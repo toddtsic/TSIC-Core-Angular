@@ -1,0 +1,91 @@
+:host {
+    display: block;
+}
+
+.trend-chart-container {
+    position: relative;
+    background: var(--surface-elevated-bg);
+    backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-3) var(--space-4) var(--space-1);
+    overflow: hidden;
+}
+
+// ═══════════════════════════════════════
+// SUMMARY BADGES (above chart)
+// ═══════════════════════════════════════
+
+.trend-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    padding: 0 var(--space-1) var(--space-2);
+}
+
+.summary-stat {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.stat-value {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--brand-text-muted);
+}
+
+// Color variants
+.summary-stat.primary .stat-value {
+    color: var(--bs-primary);
+}
+
+.summary-stat.accent .stat-value {
+    color: var(--brand-accent, #6f42c1);
+}
+
+.summary-stat.warn .stat-value {
+    color: var(--bs-warning, #ffc107);
+}
+
+// ═══════════════════════════════════════
+// CHART OVERRIDES
+// ═══════════════════════════════════════
+
+// Syncfusion chart container
+:host ::ng-deep {
+    .e-chart {
+        // Remove default Syncfusion background/border
+        background: transparent !important;
+        border: none !important;
+    }
+
+    // Legend text color
+    .e-chart-legend-text {
+        fill: var(--brand-text-muted) !important;
+    }
+}
+
+// ═══════════════════════════════════════
+// RESPONSIVE
+// ═══════════════════════════════════════
+
+@media (max-width: 576px) {
+    .trend-summary {
+        flex-wrap: wrap;
+        gap: var(--space-3);
+    }
+
+    .stat-value {
+        font-size: var(--font-size-lg);
+    }
+}

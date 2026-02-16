@@ -49,13 +49,24 @@ export class LandingRouterComponent {
         return path === 'tsic' || path === '';
     });
 
-    // Redirect authenticated users with a selected role to the widget dashboard route
-    private readonly dashboardRedirect = effect(() => {
+    // Redirect authenticated users based on their auth phase:
+    // - Phase 2 (has role): go straight to dashboard
+    // - Phase 1 (logged in, no role): force role selection
+    private readonly authRedirect = effect(() => {
         const path = this.jobPath();
-        if (!path || this.isTsic()) return;
+        if (!path) return;
 
+        const user = this.auth.currentUser();
+        if (!user) return; // Not logged in — show public landing/marketing page
+
+        // Phase 2: has role → redirect to dashboard
         if (this.auth.hasSelectedRole()) {
-            this.router.navigate(['/', path, 'dashboard'], { replaceUrl: true });
+            const jobPath = user.jobPath || path;
+            this.router.navigate(['/', jobPath, 'dashboard'], { replaceUrl: true });
+            return;
         }
+
+        // Phase 1: logged in but no role → force role selection
+        this.router.navigate(['/', path, 'role-selection'], { replaceUrl: true });
     });
 }

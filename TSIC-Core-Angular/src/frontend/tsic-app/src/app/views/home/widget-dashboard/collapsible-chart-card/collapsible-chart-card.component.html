@@ -1,0 +1,13 @@
+<div class="chart-card" [class.collapsed]="collapsed()">
+	<button class="chart-card-header" (click)="toggle()" type="button">
+		<i class="bi" [class]="icon()"></i>
+		<span class="chart-card-title">{{ title() }}</span>
+		<i class="bi chevron" [class.bi-chevron-down]="collapsed()" [class.bi-chevron-up]="!collapsed()"></i>
+	</button>
+
+	@if (!collapsed()) {
+		<div class="chart-card-body">
+			<ng-content />
+		</div>
+	}
+</div>
