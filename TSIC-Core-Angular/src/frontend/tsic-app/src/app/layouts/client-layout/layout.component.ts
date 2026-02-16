@@ -148,8 +148,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Watch for authentication state changes (login/logout)
-    // Reload menus with cache bypass to get role-specific or anonymous menus
+    // Watch for authentication state changes (login/logout/role-switch)
+    // Reload menus AND job metadata to keep everything in sync
     this.currentUser$
       .pipe(
         skip(1), // Skip initial emission to avoid duplicate load
@@ -158,6 +158,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         const jobPath = this.getActiveJobPath();
         if (jobPath && jobPath !== 'tsic') {
+          // Reload job metadata so currentJob stays in sync after role/job switch
+          this.jobService.loadJobMetadata(jobPath);
           // Bypass cache to force fresh menu fetch when auth state changes
           this.jobService.loadMenus(jobPath, true);
         }

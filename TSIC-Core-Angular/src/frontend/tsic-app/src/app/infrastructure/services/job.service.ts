@@ -122,7 +122,10 @@ export class JobService {
      * Updates menus signal on success, menusError on failure.
      * Available for anonymous users (returns menu with roleId NULL).
      * JWT token automatically included via HttpClient interceptor.
-     * 
+     *
+     * Cancels any in-flight menu request to prevent race conditions
+     * (e.g., a stale non-bypass response overwriting a fresh bypass response).
+     *
      * @param jobPath - The job path to load menus for
      * @param bypassCache - Whether to bypass HTTP cache (use when auth state changes)
      */

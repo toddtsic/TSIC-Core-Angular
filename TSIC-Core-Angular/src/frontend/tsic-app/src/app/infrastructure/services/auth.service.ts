@@ -179,10 +179,11 @@ export class AuthService {
       });
     }
 
-    // Clear local storage
+    // Clear local storage (including last_job_path to prevent stale cross-job redirects)
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.CLUB_REP_CLUB_COUNT_KEY);
+    localStorage.removeItem('last_job_path');
     this.currentUser.set(null);
     const redirect = options?.redirectTo || '/tsic/login';
     const q = options?.queryParams || undefined;
@@ -202,6 +203,7 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.CLUB_REP_CLUB_COUNT_KEY);
+    localStorage.removeItem('last_job_path');
     this.currentUser.set(null);
     // reset one-shot registration fetch so next authenticated flow can reload
     this._registrationsFetched = false;
@@ -298,8 +300,11 @@ export class AuthService {
   /**
    * Refresh the access token using the refresh token
    * Prevents multiple simultaneous refresh attempts with queuing
+   *
+   * @param suppliedRefreshToken - Optional refresh token (used by guard which captures it before logoutLocal)
+   * @param suppliedRegId - Optional regId to preserve job/role context (used by guard before logoutLocal clears currentUser)
    */
-  refreshAccessToken(suppliedRefreshToken?: string): Observable<AuthTokenResponse> {
+  refreshAccessToken(suppliedRefreshToken?: string, suppliedRegId?: string): Observable<AuthTokenResponse> {
     // If refresh is already in progress, return the same observable to queue all requests
     if (this.refreshInProgress) {
       return this.refreshInProgress;
@@ -314,7 +319,7 @@ export class AuthService {
     // Mark refresh as in progress and store the observable
     // Use shareReplay to ensure all subscribers get the same result
     // Send current regId so the backend preserves the same job/role context
-    const regId = this.currentUser()?.regId;
+    const regId = suppliedRegId ?? this.currentUser()?.regId;
     this.refreshInProgress = this.http.post<AuthTokenResponse>(`${this.apiUrl}/refresh`, { refreshToken, regId })
       .pipe(
         tap(response => {

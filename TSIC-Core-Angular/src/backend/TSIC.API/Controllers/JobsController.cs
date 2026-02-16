@@ -170,6 +170,8 @@ public class JobsController : ControllerBase
             }
 
             Response.Headers.Append("ETag", emptyEtag);
+            Response.Headers.Append("Cache-Control", "private, no-cache");
+            Response.Headers.Append("Vary", "Authorization");
             return Ok(emptyMenu);
         }
 
@@ -213,8 +215,12 @@ public class JobsController : ControllerBase
             return StatusCode(304); // Not Modified
         }
 
-        // Set ETag for 304 Not Modified support (no caching - always fresh data)
+        // Set ETag for 304 Not Modified support
+        // Vary by Authorization so the browser doesn't serve a cached anonymous
+        // response when an authenticated request is made (and vice-versa).
         Response.Headers.Append("ETag", etag);
+        Response.Headers.Append("Cache-Control", "private, no-cache");
+        Response.Headers.Append("Vary", "Authorization");
 
         return Ok(menu);
     }

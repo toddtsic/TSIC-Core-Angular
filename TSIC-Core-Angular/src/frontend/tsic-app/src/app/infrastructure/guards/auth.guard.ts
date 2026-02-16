@@ -88,13 +88,15 @@ export const authGuard: CanActivateFn = (route, state) => {
             return true;
         }
 
-        // Grab refresh token BEFORE clearing local state (logoutLocal removes it from localStorage)
+        // Grab refresh token and regId BEFORE clearing local state
+        // (logoutLocal removes tokens from localStorage and clears currentUser signal)
         const refreshToken = authService.getRefreshToken();
+        const regId = user?.regId;
 
         // Not anonymous-allowed route, clear local state
         authService.logoutLocal();
         if (refreshToken) {
-            return authService.refreshAccessToken(refreshToken).pipe(
+            return authService.refreshAccessToken(refreshToken, regId).pipe(
                 map(() => {
                     const refreshedUser = authService.getCurrentUser();
                     // After refresh, check if Phase 2 is required
