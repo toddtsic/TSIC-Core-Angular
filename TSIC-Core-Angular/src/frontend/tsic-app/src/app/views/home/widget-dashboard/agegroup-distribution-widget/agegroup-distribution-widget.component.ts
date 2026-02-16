@@ -1,6 +1,6 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
-import type { IAxisLabelRenderEventArgs } from '@syncfusion/ej2-charts';
+
 import { WidgetDashboardService } from '../services/widget-dashboard.service';
 import { CollapsibleChartCardComponent } from '../collapsible-chart-card/collapsible-chart-card.component';
 import type { AgegroupDistributionDto } from '@core/api';
@@ -45,20 +45,20 @@ export class AgegroupDistributionWidgetComponent implements OnInit {
 	});
 
 	readonly primaryXAxis = computed(() => ({
+		valueType: 'Category' as const,
+		majorGridLines: { width: 0 },
+		majorTickLines: { width: 0 },
+		lineStyle: { width: 0 },
+		labelStyle: { color: this.mutedColor(), size: '11px' },
+	}));
+
+	readonly primaryYAxis = computed(() => ({
 		title: '',
 		majorGridLines: { width: 0.5, color: this.borderColor(), dashArray: '3,3' },
 		majorTickLines: { width: 0 },
 		lineStyle: { width: 0 },
 		labelStyle: { color: this.mutedColor(), size: '11px' },
 		minimum: 0,
-	}));
-
-	readonly primaryYAxis = computed(() => ({
-		valueType: 'Category' as const,
-		majorGridLines: { width: 0 },
-		majorTickLines: { width: 0 },
-		lineStyle: { width: 0 },
-		labelStyle: { color: this.mutedColor(), size: '11px' },
 	}));
 
 	readonly tooltipSettings = {
