@@ -1,41 +1,28 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReactiveFormsModule } from '@angular/forms';
+import { TestBed } from '@angular/core/testing';
 import { TeamRegistrationWizardComponent } from './team-registration-wizard.component';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 
 describe('TeamRegistrationWizardComponent', () => {
-    let component: TeamRegistrationWizardComponent;
-    let fixture: ComponentFixture<TeamRegistrationWizardComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            declarations: [TeamRegistrationWizardComponent],
-            imports: [ReactiveFormsModule]
-        })
-            .compileComponents();
-    });
-
     beforeEach(() => {
-        fixture = TestBed.createComponent(TeamRegistrationWizardComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
+        TestBed.configureTestingModule({
+            imports: [TeamRegistrationWizardComponent],
+            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+        });
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
+    it('should start at step 1 (Login)', () => {
+        const fixture = TestBed.createComponent(TeamRegistrationWizardComponent);
+        const component = fixture.componentInstance;
+        expect(component.step()).toBe(1);
     });
 
-    it('should start at step 1', () => {
-        expect(component.step).toBe(1);
-    });
-
-    it('should advance to step 2', () => {
-        component.nextStep();
-        expect(component.step).toBe(2);
-    });
-
-    it('should go back to step 1', () => {
-        component.nextStep();
+    it('should go back one step with prevStep', () => {
+        const fixture = TestBed.createComponent(TeamRegistrationWizardComponent);
+        const component = fixture.componentInstance;
+        component.step.set(2);
         component.prevStep();
-        expect(component.step).toBe(1);
+        expect(component.step()).toBe(1);
     });
 });

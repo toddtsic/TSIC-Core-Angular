@@ -10,7 +10,7 @@ Current tests focus on core shell initialization, registration/payment workflow 
 | `app.component.spec.ts` | `AppComponent` | Component creation; title property value (`tsic-app`) | Angular TestBed only | No route/init lifecycle tests; no global layout assertions |
 | `insurance.service.spec.ts` | `InsuranceService` | Quoted player name formatting; premium total aggregation; successful purchase POST; failure handling with toast; discount of cents → dollars | `RegistrationWizardService` stub, `ToastService` stub, `HttpTestingController` | No retry/backoff tests; no error path for network failures beyond simple failure response |
 | `insurance-state.service.spec.ts` | `InsuranceStateService` | Proxying offer flag; opening modal; confirming purchase; declining; closing without consent | `RegistrationWizardService` stub | No concurrency tests; no validation of state transitions after external updates |
-| `idempotency.service.spec.ts` | `IdempotencyService` | Persist/load/clear idempotency key; resilience (does not throw on storage errors); key naming | `localStorage` spied | No expiration strategy; no multi-job multi-family collision tests |
+| `idempotency.service.spec.ts` | `IdempotencyService` | Persist/load/clear idempotency key; resilience (does not throw on storage errors); key naming | jsdom `localStorage` | No expiration strategy; no multi-job multi-family collision tests |
 | `payment.service.spec.ts` | `PaymentService` | Line item build; total & deposit calculations; discount application; ARB scenario computations; rounding; clamping total at zero | `RegistrationWizardService` stub, `PlayerStateService`, `TeamService` stub, `HttpTestingController` | No multi-team per player tests; no late-fee/processing-fee scenarios; no negative ARB validation (e.g. zero occurrences) |
 | `payment-state.service.spec.ts` | `PaymentStateService` | Reading initial option; setting payment option; setting/clearing last payment summary | `RegistrationWizardService` stub | No reactive change propagation tests; no invalid option rejection |
 | `vi-charge-confirm-modal.component.spec.ts` | `ViChargeConfirmModalComponent` | Title variations (insurance-only vs combined); rendering player list, premium, email; emits confirmed/cancelled events | Component TestBed only | No accessibility (focus trap) tests; no conditional disabling of buttons |
@@ -28,8 +28,8 @@ Current tests focus on core shell initialization, registration/payment workflow 
 # From repository root or frontend folder
 cd TSIC-Core-Angular/src/frontend/tsic-app
 npm test
-# CI/headless
-npm test -- --watch=false --browsers=ChromeHeadless
+# CI/headless (Vitest runs headless by default)
+npm test -- --no-watch
 ```
 
 ## Coverage Strategy (Proposed)
@@ -49,7 +49,7 @@ npm test -- --watch=false --browsers=ChromeHeadless
 ## Notes
 - Tests currently rely on lightweight stubs instead of full mocks; keep stubs minimal and focused.
 - Consider centralizing factory builders for common stub objects (players, teams, quotes) to reduce duplication.
-- Integrate code coverage tooling (e.g., `karma-coverage`) and publish reports in CI.
+- Integrate Vitest's built-in code coverage (`--coverage`) and publish reports in CI.
 
 ---
 Generated on: 2025-11-21

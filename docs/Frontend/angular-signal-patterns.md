@@ -546,8 +546,7 @@ describe('LoginComponent', () => {
   });
   
   it('should set error message on login failure', fakeAsync(() => {
-    const authService = jasmine.createSpyObj('AuthService', ['login']);
-    authService.login.and.returnValue(throwError(() => new Error('Login failed')));
+    const authService = { login: vi.fn().mockReturnValue(throwError(() => new Error('Login failed'))) };
     
     const component = new LoginComponent(authService);
     component.onSubmit();

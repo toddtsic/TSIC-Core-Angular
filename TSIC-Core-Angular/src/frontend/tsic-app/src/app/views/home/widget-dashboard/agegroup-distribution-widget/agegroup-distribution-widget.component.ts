@@ -1,9 +1,14 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, AfterViewInit } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
 import type { IAxisLabelRenderEventArgs } from '@syncfusion/ej2-charts';
 import { WidgetDashboardService } from '../services/widget-dashboard.service';
 import { CollapsibleChartCardComponent } from '../collapsible-chart-card/collapsible-chart-card.component';
 import type { AgegroupDistributionDto } from '@core/api';
+
+/** Read a CSS custom property from :root, with fallback. */
+function cssVar(v: string, fallback: string): string {
+	return getComputedStyle(document.documentElement).getPropertyValue(v)?.trim() || fallback;
+}
 
 @Component({
 	selector: 'app-agegroup-distribution-widget',
@@ -13,17 +18,17 @@ import type { AgegroupDistributionDto } from '@core/api';
 	styleUrl: './agegroup-distribution-widget.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AgegroupDistributionWidgetComponent implements OnInit, AfterViewInit {
+export class AgegroupDistributionWidgetComponent implements OnInit {
 	private readonly svc = inject(WidgetDashboardService);
 
 	readonly data = signal<AgegroupDistributionDto | null>(null);
 	readonly hasError = signal(false);
 
-	// Palette colors
-	primaryColor = signal('#0d6efd');
-	accentColor = signal('#6f42c1');
-	mutedColor = signal('#6c757d');
-	borderColor = signal('rgba(0,0,0,0.1)');
+	// Resolve palette colors eagerly so chart never receives post-init property changes
+	readonly primaryColor = signal(cssVar('--bs-primary', '#0d6efd'));
+	readonly accentColor = signal(cssVar('--brand-accent', '#6f42c1'));
+	readonly mutedColor = signal(cssVar('--brand-text-muted', '#6c757d'));
+	readonly borderColor = signal(cssVar('--brand-border', 'rgba(0,0,0,0.1)'));
 
 	readonly chartData = computed(() => this.data()?.agegroups ?? []);
 
@@ -80,17 +85,4 @@ export class AgegroupDistributionWidgetComponent implements OnInit, AfterViewIni
 		});
 	}
 
-	ngAfterViewInit(): void {
-		this.resolveColors();
-	}
-
-	private resolveColors(): void {
-		const cs = getComputedStyle(document.documentElement);
-		const read = (v: string, fallback: string) => cs.getPropertyValue(v)?.trim() || fallback;
-
-		this.primaryColor.set(read('--bs-primary', '#0d6efd'));
-		this.accentColor.set(read('--brand-accent', '#6f42c1'));
-		this.mutedColor.set(read('--brand-text-muted', '#6c757d'));
-		this.borderColor.set(read('--brand-border', 'rgba(0,0,0,0.1)'));
-	}
 }

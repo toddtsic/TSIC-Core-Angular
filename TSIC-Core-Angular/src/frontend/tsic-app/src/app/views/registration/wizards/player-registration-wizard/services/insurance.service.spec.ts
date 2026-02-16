@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { InsuranceService } from './insurance.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
@@ -8,12 +9,18 @@ import { environment } from '@environments/environment';
 
 class RegistrationWizardStub {
     jobId = () => 'JOB1';
+    jobPath = () => 'testjob';
     familyUser = () => ({ familyUserId: 'FAM1' });
+    familyPlayers = () => [];
     offerPlayerRegSaver = () => true;
+    regSaverDetails = () => null;
+    verticalInsureOffer = () => ({ loading: false, data: null, error: null });
     verticalInsureConfirmed = () => false;
     verticalInsureDeclined = () => false;
 }
 class ToastStub { show(_msg?: string, _type?: string, _timeout?: number) { /* noop test stub */ } }
+
+const testCard = { number: '4111111111111111', expiry: '1225', code: '123', firstName: 'Test', lastName: 'User', zip: '12345', email: 'test@test.com' };
 
 describe('InsuranceService', () => {
     let service: InsuranceService;
@@ -54,10 +61,10 @@ describe('InsuranceService', () => {
 
     it('purchaseInsurance posts and handles success', () => {
         (service as any).quotes.set([
-            { id: 'Q1', metadata: { TsicRegistrationId: 'R1' }, total: 100 },
-            { id: 'Q2', metadata: { TsicRegistrationId: 'R2' }, total: 200 }
+            { quote_id: 'Q1', metadata: { TsicRegistrationId: 'R1' }, total: 100 },
+            { quote_id: 'Q2', metadata: { TsicRegistrationId: 'R2' }, total: 200 }
         ]);
-        service.purchaseInsurance();
+        service.purchaseInsurance(testCard);
         const req = httpMock.expectOne(`${environment.apiUrl}/insurance/purchase`);
         expect(req.request.body.quoteIds.length).toBe(2);
         req.flush({ success: true });
@@ -65,11 +72,11 @@ describe('InsuranceService', () => {
 
     it('purchaseInsurance handles failure', () => {
         (service as any).quotes.set([
-            { id: 'Q1', metadata: { TsicRegistrationId: 'R1' }, total: 100 }
+            { quote_id: 'Q1', metadata: { TsicRegistrationId: 'R1' }, total: 100 }
         ]);
         const toast = TestBed.inject(ToastService) as any;
-        spyOn(toast, 'show');
-        service.purchaseInsurance();
+        vi.spyOn(toast, 'show');
+        service.purchaseInsurance(testCard);
         const req = httpMock.expectOne(`${environment.apiUrl}/insurance/purchase`);
         req.flush({ success: false, message: 'failed' });
         expect(toast.show).toHaveBeenCalled();

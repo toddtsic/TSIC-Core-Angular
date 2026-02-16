@@ -1,7 +1,12 @@
-import { Component, computed, input, signal, OnInit, AfterViewInit, ChangeDetectionStrategy, ElementRef, inject } from '@angular/core';
+import { Component, computed, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
 import type { ITooltipRenderEventArgs, IAxisLabelRenderEventArgs } from '@syncfusion/ej2-charts';
 import type { RegistrationTimeSeriesDto, DailyRegistrationPointDto } from '@core/api';
+
+/** Read a CSS custom property from :root, with fallback. */
+function cssVar(v: string, fallback: string): string {
+	return getComputedStyle(document.documentElement).getPropertyValue(v)?.trim() || fallback;
+}
 
 @Component({
 	selector: 'app-registration-trend-chart',
@@ -11,9 +16,7 @@ import type { RegistrationTimeSeriesDto, DailyRegistrationPointDto } from '@core
 	styleUrl: './registration-trend-chart.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class RegistrationTrendChartComponent implements AfterViewInit {
-	private readonly el = inject(ElementRef);
-
+export class RegistrationTrendChartComponent {
 	readonly data = input.required<RegistrationTimeSeriesDto>();
 	readonly loading = input(false);
 
@@ -23,13 +26,13 @@ export class RegistrationTrendChartComponent implements AfterViewInit {
 	/** Label for the daily bar series in the legend */
 	readonly barSeriesName = input('Daily Regs');
 
-	// Resolved palette colors (read from CSS vars at runtime)
-	primaryColor = signal('#0d6efd');
-	accentColor = signal('#6f42c1');
-	mutedColor = signal('#6c757d');
-	surfaceBg = signal('#ffffff');
-	textColor = signal('#212529');
-	borderColor = signal('rgba(0,0,0,0.1)');
+	// Resolve palette colors eagerly so chart never receives post-init property changes
+	readonly primaryColor = signal(cssVar('--bs-primary', '#0d6efd'));
+	readonly accentColor = signal(cssVar('--brand-accent', '#6f42c1'));
+	readonly mutedColor = signal(cssVar('--brand-text-muted', '#6c757d'));
+	readonly surfaceBg = signal(cssVar('--brand-bg', '#ffffff'));
+	readonly textColor = signal(cssVar('--brand-text', '#212529'));
+	readonly borderColor = signal(cssVar('--brand-border', 'rgba(0,0,0,0.1)'));
 
 	// Chart configuration
 	readonly chartData = computed(() => this.data().dailyData ?? []);
@@ -78,16 +81,6 @@ export class RegistrationTrendChartComponent implements AfterViewInit {
 		minimum: 0,
 	}));
 
-	readonly secondaryYAxis = computed(() => ({
-		title: '',
-		opposedPosition: true,
-		majorGridLines: { width: 0 },
-		majorTickLines: { width: 0 },
-		lineStyle: { width: 0 },
-		labelStyle: { color: this.accentColor(), size: '11px' },
-		minimum: 0,
-	}));
-
 	readonly tooltipSettings = {
 		enable: true,
 		shared: true,
@@ -109,24 +102,6 @@ export class RegistrationTrendChartComponent implements AfterViewInit {
 	};
 
 	readonly margin = { left: 8, right: 8, top: 4, bottom: 4 };
-
-	ngAfterViewInit(): void {
-		this.resolveColors();
-	}
-
-	/** Read CSS variable values from the DOM for chart theming */
-	private resolveColors(): void {
-		const root = document.documentElement;
-		const cs = getComputedStyle(root);
-		const read = (v: string, fallback: string) => cs.getPropertyValue(v)?.trim() || fallback;
-
-		this.primaryColor.set(read('--bs-primary', '#0d6efd'));
-		this.accentColor.set(read('--brand-accent', '#6f42c1'));
-		this.mutedColor.set(read('--brand-text-muted', '#6c757d'));
-		this.surfaceBg.set(read('--brand-bg', '#ffffff'));
-		this.textColor.set(read('--brand-text', '#212529'));
-		this.borderColor.set(read('--brand-border', 'rgba(0,0,0,0.1)'));
-	}
 
 	onTooltipRender(args: ITooltipRenderEventArgs): void {
 		// Format cumulative revenue in tooltip

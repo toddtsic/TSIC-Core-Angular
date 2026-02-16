@@ -436,7 +436,7 @@ Becomes:
 10. **Rollback:** Revert to previous metadata version (would require versioning)
 
 ### Testing Recommendations
-1. Unit tests for components (Jasmine/Karma)
+1. Unit tests for components (Vitest)
 2. Integration tests for service calls
 3. E2E tests for user workflows (Cypress/Playwright)
 4. Accessibility testing (ARIA labels, keyboard navigation)

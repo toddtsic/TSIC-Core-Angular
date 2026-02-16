@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { ViChargeConfirmModalComponent } from './vi-charge-confirm-modal.component';
 
 describe('ViChargeConfirmModalComponent', () => {
@@ -36,7 +37,7 @@ describe('ViChargeConfirmModalComponent', () => {
     });
 
     it('emits confirmed on OK click', () => {
-        const spy = jasmine.createSpy('confirmed');
+        const spy = vi.fn();
         component.confirmed.subscribe(spy);
         fixture.detectChanges();
         const btn = fixture.nativeElement.querySelector('.btn-primary');
@@ -45,7 +46,7 @@ describe('ViChargeConfirmModalComponent', () => {
     });
 
     it('emits cancelled on CANCEL or close button click', () => {
-        const spy = jasmine.createSpy('cancelled');
+        const spy = vi.fn();
         component.cancelled.subscribe(spy);
         fixture.detectChanges();
         // First cancel button

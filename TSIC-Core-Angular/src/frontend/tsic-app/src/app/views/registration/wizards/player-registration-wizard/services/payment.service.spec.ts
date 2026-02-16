@@ -10,7 +10,9 @@ import { environment } from '@environments/environment';
 // Minimal stubs for dependent services
 class RegistrationWizardStub {
     jobId = () => 'JOB1';
+    jobPath = () => 'testjob';
     familyUser = () => ({ familyUserId: 'FAM1' });
+    loadFamilyPlayersOnce = () => Promise.resolve();
     paymentOptionSig: any = 'Full';
     paymentOption = () => this.paymentOptionSig;
     // Simulate selected players
@@ -84,19 +86,19 @@ describe('PaymentService', () => {
         expect(service.depositTotal()).toBe(100); // 50 * 2
     });
 
-    it('applies discount and updates appliedDiscount', () => {
+    it('applies discount and updates discountMessage', () => {
         wizard.paymentOptionSig = 'Full';
         service.applyDiscount('SAVE10');
-        const req = httpMock.expectOne(`${environment.apiUrl}/registration/apply-discount`);
+        const req = httpMock.expectOne(`${environment.apiUrl}/player-registration/apply-discount`);
         expect(req.request.method).toBe('POST');
-        req.flush({ success: true, totalDiscount: 25 });
-        expect(service.appliedDiscount()).toBe(25);
-        expect(service.currentTotal()).toBe(275);
+        req.flush({ success: true, totalDiscount: 25, message: 'Discount applied' });
+        // Service relies on refreshed financials rather than local discount signal
+        expect(service.discountMessage()).toBe('Discount applied');
     });
 
     it('handles failed discount', () => {
         service.applyDiscount('BADCODE');
-        const req = httpMock.expectOne(`${environment.apiUrl}/registration/apply-discount`);
+        const req = httpMock.expectOne(`${environment.apiUrl}/player-registration/apply-discount`);
         req.flush({ success: false, message: 'Invalid' });
         expect(service.appliedDiscount()).toBe(0);
         expect(service.discountMessage()).toContain('Invalid');
@@ -107,7 +109,7 @@ describe('PaymentService', () => {
         wizard.adnArb = () => ({ enabled: true });
         wizard.adnArbBillingOccurences = () => 5;
         wizard.adnArbIntervalLength = () => 2;
-        expect(service.isArbScenario()).toBeTrue();
+        expect(service.isArbScenario()).toBe(true);
         expect(service.arbOccurrences()).toBe(5);
         expect(service.monthLabel()).toBe('months');
         // totalAmount remains 300 -> per occurrence 60

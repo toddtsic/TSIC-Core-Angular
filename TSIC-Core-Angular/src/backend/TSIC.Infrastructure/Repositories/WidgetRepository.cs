@@ -333,13 +333,17 @@ public class WidgetRepository : IWidgetRepository
 
     public async Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(Guid jobId, CancellationToken ct = default)
     {
-        // Player counts per assigned age group
+        // Player counts per age group (derived from assigned team)
         var playersByAg = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId && r.BActive == true
                      && r.RoleId == RoleConstants.Player
-                     && r.AssignedAgegroupId != null)
-            .GroupBy(r => r.AssignedAgegroupId!.Value)
+                     && r.AssignedTeamId != null)
+            .Join(_context.Teams.AsNoTracking(),
+                  r => r.AssignedTeamId,
+                  t => t.TeamId,
+                  (r, t) => t.AgegroupId)
+            .GroupBy(agId => agId)
             .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 

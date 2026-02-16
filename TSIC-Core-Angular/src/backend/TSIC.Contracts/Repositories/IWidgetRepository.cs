@@ -57,7 +57,7 @@ public interface IWidgetRepository
 
     /// <summary>
     /// Get player and team counts per age group for a job.
-    /// Players counted via AssignedAgegroupId; teams via Teams.AgegroupId.
+    /// Players counted via AssignedTeamId → Team.AgegroupId; teams via Teams.AgegroupId.
     /// </summary>
     Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(Guid jobId, CancellationToken ct = default);
 }

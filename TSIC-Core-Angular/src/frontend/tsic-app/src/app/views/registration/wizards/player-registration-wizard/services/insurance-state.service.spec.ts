@@ -40,30 +40,30 @@ describe('InsuranceStateService', () => {
     });
 
     it('proxies offer flag', () => {
-        expect(svc.offerPlayerRegSaver()).toBeTrue();
+        expect(svc.offerPlayerRegSaver()).toBe(true);
     });
 
     it('opens and confirms purchase', () => {
-        expect(svc.showVerticalInsureModal()).toBeFalse();
+        expect(svc.showVerticalInsureModal()).toBe(false);
         svc.openVerticalInsureModal();
-        expect(svc.showVerticalInsureModal()).toBeTrue();
+        expect(svc.showVerticalInsureModal()).toBe(true);
         svc.confirmVerticalInsurePurchase('PN123', '2025-01-01', [{ id: 'Q1' }]);
-        expect(svc.verticalInsureConfirmed()).toBeTrue();
+        expect(svc.verticalInsureConfirmed()).toBe(true);
         expect(svc.viConsent()?.policyNumber).toBe('PN123');
     });
 
     it('declines purchase', () => {
         svc.openVerticalInsureModal();
         svc.declineVerticalInsurePurchase();
-        expect(svc.verticalInsureDeclined()).toBeTrue();
-        expect(svc.hasVerticalInsureDecision()).toBeTrue();
+        expect(svc.verticalInsureDeclined()).toBe(true);
+        expect(svc.hasVerticalInsureDecision()).toBe(true);
     });
 
     it('closes modal without altering consent', () => {
         svc.openVerticalInsureModal();
-        expect(svc.showVerticalInsureModal()).toBeTrue();
+        expect(svc.showVerticalInsureModal()).toBe(true);
         svc.closeVerticalInsureModal();
-        expect(svc.showVerticalInsureModal()).toBeFalse();
-        expect(svc.hasVerticalInsureDecision()).toBeFalse();
+        expect(svc.showVerticalInsureModal()).toBe(false);
+        expect(svc.hasVerticalInsureDecision()).toBe(false);
     });
 });
