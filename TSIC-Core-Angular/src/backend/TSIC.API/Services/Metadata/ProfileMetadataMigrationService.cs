@@ -767,15 +767,14 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     /// </summary>
     public async Task<(string? ProfileType, ProfileMetadata? Metadata)> GetCurrentJobProfileMetadataAsync(Guid regId)
     {
-        // Load the registration and its job
-        var registration = await _repo.GetRegistrationWithJobAsync(regId);
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
 
-        if (registration?.Job == null)
+        if (jobData == null)
         {
             return (null, null);
         }
 
-        var profileType = ExtractProfileType(registration.Job.CoreRegformPlayer);
+        var profileType = ExtractProfileType(jobData.CoreRegformPlayer);
         if (string.IsNullOrEmpty(profileType))
         {
             return (null, null);
@@ -791,17 +790,17 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<List<OptionSet>> GetCurrentJobOptionSetsAsync(Guid regId)
     {
-        var registration = await _repo.GetRegistrationWithJobAsync(regId);
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
 
         var optionSets = new List<OptionSet>();
-        if (registration?.Job == null || string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        if (jobData == null || string.IsNullOrWhiteSpace(jobData.JsonOptions))
         {
             return optionSets; // empty
         }
 
         try
         {
-            var json = registration.Job.JsonOptions!;
+            var json = jobData.JsonOptions!;
             var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json, s_CaseInsensitive);
             if (dict == null) return optionSets;
 
@@ -831,17 +830,17 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<OptionSet?> UpsertCurrentJobOptionSetAsync(Guid regId, string key, List<ProfileFieldOption> values)
     {
-        var registration = await _repo.GetRegistrationWithJobAsync(regId);
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
 
-        if (registration?.Job == null)
+        if (jobData == null)
             return null;
 
         Dictionary<string, JsonElement>? dict = null;
-        if (!string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        if (!string.IsNullOrWhiteSpace(jobData.JsonOptions))
         {
             try
             {
-                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(registration.Job.JsonOptions, s_CaseInsensitive);
+                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jobData.JsonOptions, s_CaseInsensitive);
             }
             catch (Exception ex)
             {
@@ -856,7 +855,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         dict[key] = doc.RootElement.Clone();
 
         var newJsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
-        await _repo.UpdateJobJsonOptionsAsync(registration.Job.JobId, newJsonOptions);
+        await _repo.UpdateJobJsonOptionsAsync(jobData.JobId, newJsonOptions);
 
         return new OptionSet
         {
@@ -958,17 +957,17 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<bool> DeleteCurrentJobOptionSetAsync(Guid regId, string key)
     {
-        var registration = await _repo.GetRegistrationWithJobAsync(regId);
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
 
-        if (registration?.Job == null)
+        if (jobData == null)
             return false;
 
         Dictionary<string, JsonElement>? dict = null;
-        if (!string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        if (!string.IsNullOrWhiteSpace(jobData.JsonOptions))
         {
             try
             {
-                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(registration.Job.JsonOptions, s_CaseInsensitive);
+                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jobData.JsonOptions, s_CaseInsensitive);
             }
             catch (Exception ex)
             {
@@ -980,23 +979,23 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             return false;
 
         var newJsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
-        await _repo.UpdateJobJsonOptionsAsync(registration.Job.JobId, newJsonOptions);
+        await _repo.UpdateJobJsonOptionsAsync(jobData.JobId, newJsonOptions);
         return true;
     }
 
     public async Task<bool> RenameCurrentJobOptionSetAsync(Guid regId, string oldKey, string newKey)
     {
-        var registration = await _repo.GetRegistrationWithJobAsync(regId);
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
 
-        if (registration?.Job == null)
+        if (jobData == null)
             return false;
 
         Dictionary<string, JsonElement>? dict = null;
-        if (!string.IsNullOrWhiteSpace(registration.Job.JsonOptions))
+        if (!string.IsNullOrWhiteSpace(jobData.JsonOptions))
         {
             try
             {
-                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(registration.Job.JsonOptions, s_CaseInsensitive);
+                dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jobData.JsonOptions, s_CaseInsensitive);
             }
             catch (Exception ex)
             {
@@ -1011,7 +1010,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         dict[newKey] = element;
 
         var newJsonOptions = JsonSerializer.Serialize(dict, s_IndentedCamelCase);
-        await _repo.UpdateJobJsonOptionsAsync(registration.Job.JobId, newJsonOptions);
+        await _repo.UpdateJobJsonOptionsAsync(jobData.JobId, newJsonOptions);
         return true;
     }
 
@@ -1330,29 +1329,16 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 };
             }
 
-            // Get the job from the registration
-            var registration = await _repo.GetRegistrationWithJobAsync(regId);
+            // Get the job data from the registration
+            var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
 
-            if (registration == null)
+            if (jobData == null)
             {
                 return new CloneProfileResult
                 {
                     SourceProfileType = sourceProfileType,
                     Success = false,
-                    ErrorMessage = $"Registration with ID '{regId}' not found",
-                    NewProfileType = null,
-                    FieldCount = 0
-                };
-            }
-
-            var job = registration.Job;
-            if (job == null)
-            {
-                return new CloneProfileResult
-                {
-                    SourceProfileType = sourceProfileType,
-                    Success = false,
-                    ErrorMessage = $"Job not found for registration '{regId}'",
+                    ErrorMessage = $"Registration with ID '{regId}' not found or has no job",
                     NewProfileType = null,
                     FieldCount = 0
                 };
@@ -1366,12 +1352,12 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             var metadataJson = JsonSerializer.Serialize(newMetadata);
 
             // Update the current job's CoreRegformPlayer preserving pipe-delimited structure
-            var updatedCoreRegform = UpdateCoreRegformPlayer(job.CoreRegformPlayer, newProfileType);
-            await _repo.UpdateJobCoreRegformAndMetadataAsync(job.JobId, updatedCoreRegform, metadataJson);
+            var updatedCoreRegform = UpdateCoreRegformPlayer(jobData.CoreRegformPlayer, newProfileType);
+            await _repo.UpdateJobCoreRegformAndMetadataAsync(jobData.JobId, updatedCoreRegform, metadataJson);
 
             _logger.LogInformation(
                 "Created new profile type: {NewProfileType} from {SourceProfileType} for job {JobName} (JobId: {JobId})",
-                newProfileType, sourceProfileType, job.JobName, job.JobId);
+                newProfileType, sourceProfileType, jobData.JobName, jobData.JobId);
 
             return new CloneProfileResult
             {
@@ -1512,13 +1498,13 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
     public async Task<(string? ProfileType, string? TeamConstraint, string Raw, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
     {
-        var registration = await _repo.GetRegistrationWithJobAsync(regId);
-        if (registration?.Job == null)
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
+        if (jobData == null)
         {
             return (null, null, string.Empty, null);
         }
 
-        var raw = registration.Job.CoreRegformPlayer ?? string.Empty;
+        var raw = jobData.CoreRegformPlayer ?? string.Empty;
         var (pt, constraint) = ParseCoreRegformParts(raw);
         ProfileMetadata? metadata = null;
         if (!string.IsNullOrEmpty(pt))
@@ -1531,26 +1517,22 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     public async Task<(string ProfileType, string TeamConstraint, string Raw, ProfileMetadata? Metadata)>
         UpdateCurrentJobProfileConfigAsync(Guid regId, string profileType, string teamConstraint)
     {
-        var registration = await _repo.GetRegistrationWithJobAsync(regId);
-        if (registration?.Job == null)
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
+        if (jobData == null)
         {
             throw new InvalidOperationException("Current job not found for supplied regId");
         }
 
         // Build and persist CoreRegformPlayer
         var newCore = BuildCoreRegform(profileType, teamConstraint);
-        registration.Job.CoreRegformPlayer = newCore;
 
         // Refresh PlayerProfileMetadataJson to match the selected type
         var metadata = await GetProfileMetadataAsync(profileType);
-        if (metadata != null)
-        {
-            // Serialize using default options (consistent with other paths)
-            var metadataJson = JsonSerializer.Serialize(metadata);
-            registration.Job.PlayerProfileMetadataJson = metadataJson;
-        }
+        var metadataJsonToSave = metadata != null
+            ? JsonSerializer.Serialize(metadata)
+            : jobData.PlayerProfileMetadataJson ?? string.Empty;
 
-        await _repo.UpdateJobCoreRegformAndMetadataAsync(registration.Job.JobId, newCore, registration.Job.PlayerProfileMetadataJson ?? string.Empty);
+        await _repo.UpdateJobCoreRegformAndMetadataAsync(jobData.JobId, newCore, metadataJsonToSave);
 
         return (profileType, teamConstraint, newCore, metadata);
     }

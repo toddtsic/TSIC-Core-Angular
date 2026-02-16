@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -9,7 +10,7 @@ public interface ITimeslotRepository
 {
     // ── Dates ──
 
-    Task<List<TimeslotsLeagueSeasonDates>> GetDatesAsync(
+    Task<List<TimeslotDateDto>> GetDatesAsync(
         Guid agegroupId, string season, string year, CancellationToken ct = default);
 
     Task<TimeslotsLeagueSeasonDates?> GetDateByIdAsync(int ai, CancellationToken ct = default);
@@ -22,7 +23,7 @@ public interface ITimeslotRepository
 
     // ── Field timeslots ──
 
-    Task<List<TimeslotsLeagueSeasonFields>> GetFieldTimeslotsAsync(
+    Task<List<TimeslotFieldDto>> GetFieldTimeslotsAsync(
         Guid agegroupId, string season, string year, CancellationToken ct = default);
 
     Task<TimeslotsLeagueSeasonFields?> GetFieldTimeslotByIdAsync(int ai, CancellationToken ct = default);

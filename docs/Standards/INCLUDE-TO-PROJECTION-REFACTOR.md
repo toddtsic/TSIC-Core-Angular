@@ -2,9 +2,28 @@
 
 ## Executive Summary
 
-The codebase has **~65 `.Include()` calls across 14 repositories**. Many return full entity graphs to service layers that only consume a subset of fields. This document categorizes every instance and recommends which to convert to `.Select()` projections, ordered by impact.
+The codebase had **~65 `.Include()` calls across 14 repositories**. Many returned full entity graphs to service layers that only consumed a subset of fields. This document categorizes every instance and tracks which were converted to `.Select()` projections.
 
 **Key principle:** `.Include()` generates `SELECT *` across all joined tables. `.Select()` projection generates a targeted `SELECT col1, col2, ...` — less data over the wire, less memory, faster queries.
+
+---
+
+## Completion Status (2026-02-16)
+
+| Phase | Status | Methods Refactored | Notes |
+|-------|--------|-------------------|-------|
+| Phase 0 (Cat A cleanup) | **DONE** | 7 methods | Removed redundant `.Include()` from methods already using `.Select()` |
+| Phase 1a (B-Sub1 bugs) | **DONE** | 2 methods | Added `AsNoTracking()`, removed unnecessary `.Include()` |
+| Phase 1b (C1-C4 hot paths) | **DONE** | 3 methods (C1, C2, C4) | Widget + Menu projections. C3 already had conditional includes — left as-is |
+| Phase 2 (B-Sub2) | **DONE** | 1 method | `AdministratorRepository.GetByIdAsync` split into `FindAsync` + display projection |
+| Phase 3 (C9-C11) | **DONE** | 3 methods | League + Admin list projections |
+| Phase 4 (C12-C18) | **DONE** | 6 of 7 methods | C15 skipped (collection nav, narrow tables, low ROI) |
+| Phase 5 (B-Sub3) | **DEFERRED** | 0 | Tracked mutations — infrequent ops (payment, pool transfer), splitting read/write adds complexity with minimal gain |
+| Phase 6 (C19) | **DEFERRED** | 0 | Single-entity detail view with reflection-based 50+ field extraction — projection infeasible |
+| C5-C8 (Schedule) | **DEFERRED** | 0 | Denormalized Schedule entity — wide table but `.Include()` only adds FName/AgegroupName |
+
+**Total `.Include()` calls eliminated: ~28 across 22 methods**
+**Highest-value wins:** Eliminated `AspNetUsers` password hash loading (C11, C16, C18), `JobDisplayOptions` wide table (C1-C2), identity table joins for single-field lookups (C4, C9-C10, C14, C17)
 
 ---
 
@@ -13,16 +32,17 @@ The codebase has **~65 `.Include()` calls across 14 repositories**. Many return 
 | Metric | Count |
 |--------|-------|
 | Repository files with `.Include()` | 14 |
-| Total `.Include()` occurrences | ~65 |
+| Total `.Include()` occurrences (original) | ~65 |
+| `.Include()` removed via projection | ~28 |
 | Already using `.Select()` projection | 7 methods (good examples) |
 | Intentionally tracked (need entity for updates) | 10 methods — **leave as-is** |
-| **Candidates for projection refactor** | **~19 methods** |
+| Deferred (low ROI / high complexity) | ~9 methods |
 
 ---
 
-## Category A: Already Projecting (No Action Needed)
+## Category A: Already Projecting — `.Include()` Removed ✅ DONE
 
-These methods already follow the preferred pattern — `.Include()` + `.Select()` or just `.Select()` with navigation access:
+These methods already followed the preferred pattern — `.Include()` + `.Select()`. The redundant `.Include()` calls were removed (Phase 0):
 
 | Repository | Method | Notes |
 |-----------|--------|-------|
@@ -121,108 +141,63 @@ These are hit on nearly every user session. Maximum ROI for refactoring.
 
 ### Priority 2 — Medium Frequency (Feature Pages)
 
-#### C5. `ScheduleRepository.GetFilteredGamesAsync`
-- **Includes:** `Field`, `Agegroup` (2 joins)
-- **Consumer:** `ScheduleDivisionService` → schedule grid views
-- **Fields actually used:** `Field.FName`, `Agegroup.AgegroupName` + game columns
-- **Wasted columns:** Full `Field` entity (address, coordinates, etc.), full `Agegroup` entity
-- **Recommendation:** Project to a `ScheduleGameDto` with only needed fields
-- **Effort:** Medium — complex query with date filtering, but mapping is straightforward
+#### C5–C8. `ScheduleRepository` methods — DEFERRED (low ROI)
+- **Methods:** `GetFilteredGamesAsync`, `GetTeamGamesAsync`, `GetBracketGamesAsync`, `GetReschedulerGridAsync`
+- **Includes:** `Field` and/or `Agegroup` (1-2 joins each)
+- **Rationale for deferral:** Schedule entity is denormalized (wide table), `.Include()` only adds FName/AgegroupName. The Schedule table itself dominates the SELECT width. Converting to projection yields minimal savings.
 
-#### C6. `ScheduleRepository.GetTeamGamesAsync`
-- **Includes:** `Field` (1 join)
-- **Consumer:** Team schedule view
-- **Fields actually used:** `Field.FName` + game columns
-- **Recommendation:** Project to DTO with `FieldName` flattened in
-- **Effort:** Low
+#### C9. `LeagueRepository.GetLeaguesByJobIdAsync` ✅ DONE
+- **Refactored to:** `.Select()` projection with `SportName = l.Sport.SportName`
+- Eliminated full `Sports` entity load for a single field
 
-#### C7. `ScheduleRepository.GetBracketGamesAsync`
-- **Includes:** `Field` (1 join)
-- **Consumer:** Bracket display
-- **Fields actually used:** `Field.FName` + bracket game columns
-- **Recommendation:** Same pattern as C6
-- **Effort:** Low
+#### C10. `LeagueRepository.GetByIdWithSportAsync` ✅ DONE
+- **Refactored to:** `.Select()` projection with `SportName` flattened
+- Same pattern as C9
 
-#### C8. `ScheduleRepository.GetReschedulerGridAsync`
-- **Includes:** `Agegroup` (1 join)
-- **Consumer:** Admin rescheduler tool
-- **Fields actually used:** `Agegroup.AgegroupName` + schedule columns
-- **Recommendation:** Project to rescheduler DTO
-- **Effort:** Low
-
-#### C9. `LeagueRepository.GetLeaguesByJobIdAsync`
-- **Includes:** `Sport` (1 join)
-- **Consumer:** League listing
-- **Fields actually used:** `Sport.SportName` (one field)
-- **Recommendation:** Trivial — add `SportName = l.Sport.SportName` to projection, drop Include
-- **Effort:** Very Low
-
-#### C10. `LeagueRepository.GetByIdWithSportAsync`
-- **Includes:** `Sport` (1 join)
-- **Consumer:** League detail view
-- **Fields actually used:** `Sport.SportName`
-- **Recommendation:** Same as C9
-- **Effort:** Very Low
-
-#### C11. `AdministratorRepository.GetByJobIdAsync`
-- **Includes:** `User`, `Role` (2 joins)
-- **Consumer:** Admin list display
-- **Fields actually used:** `User.{FirstName, LastName, Email}`, `Role.Name`
-- **Wasted columns:** Full `AspNetUsers` (password hashes, security stamps, etc.), full `AspNetRoles`
-- **Recommendation:** Project to `AdministratorListItemDto` — significant savings since Identity tables are wide
-- **Effort:** Low
+#### C11. `AdministratorRepository.GetByJobIdAsync` ✅ DONE
+- **Refactored to:** `List<AdministratorListItemDto>` projection
+- **High value:** Eliminated `AspNetUsers` password hash + security stamp loading, full `AspNetRoles` loading — now selects only `FirstName`, `LastName`, `Email`, `Role.Name`
 
 ---
 
 ### Priority 3 — Lower Frequency / Smaller Payloads
 
-#### C12. `TimeslotRepository.GetDatesAsync`
-- **Includes:** `Div` (1 join)
-- **Fields actually used:** `Div` for ordering
-- **Effort:** Low
+#### C12. `TimeslotRepository.GetDatesAsync` ✅ DONE
+- **Refactored to:** `List<TimeslotDateDto>` projection with `DivName = d.Div.DivName`
+- Callers (`TimeslotService`, `ScheduleDivisionService`) updated to use DTO properties
 
-#### C13. `TimeslotRepository.GetFieldTimeslotsAsync`
-- **Includes:** `Field`, `Div` (2 joins)
-- **Fields actually used:** `Field.FName`, `Div.DivName`
-- **Effort:** Low
+#### C13. `TimeslotRepository.GetFieldTimeslotsAsync` ✅ DONE
+- **Refactored to:** `List<TimeslotFieldDto>` projection with `FieldName`, `DivName` flattened
+- `ScheduleDivisionService.FindNextAvailableTimeslot` parameter types updated entity → DTO
 
-#### C14. `FieldRepository.GetLeagueSeasonFieldsAsync`
-- **Includes:** `Field` (1 join)
-- **Fields actually used:** `Field.FName` for display
-- **Effort:** Very Low
+#### C14. `FieldRepository.GetLeagueSeasonFieldsAsync` ✅ DONE
+- **Refactored to:** `List<LeagueSeasonFieldDto>` projection (reused existing DTO)
+- `FieldManagementService` simplified — no more manual `.Select()` mapping
 
-#### C15. `PairingsRepository.GetAgegroupsWithDivisionsAsync`
-- **Includes:** `Divisions` (collection navigation)
-- **Fields actually used:** Hierarchical tree — most Division fields needed
-- **Recommendation:** Lower priority — collection includes are harder to project and the entity is relatively narrow
-- **Effort:** Medium
+#### C15. `PairingsRepository.GetAgegroupsWithDivisionsAsync` — SKIPPED
+- Collection navigation + narrow tables → low ROI, medium complexity
 
-#### C16. `FamilyRepository.GetFamilyRegistrationsForJobAsync` (both overloads)
-- **Includes:** `User` (+ `Job` in second overload)
-- **Fields actually used:** User demographic fields for family profile
-- **Effort:** Low–Medium
+#### C16. `FamilyRepository.GetFamilyRegistrationsForJobAsync` ✅ DONE
+- **Refactored to:** `GetFamilyPlayerEmailsForJobAsync` returning `List<string>` (emails only)
+- **High value:** Eliminated full `AspNetUsers` loading (password hashes!) for email-only lookup
+- Both overloads (jobId and jobPath) converted
 
-#### C17. `ClubRepRepository.GetClubsForUserAsync`
-- **Includes:** `Club` (1 join)
-- **Fields actually used:** `Club.ClubName`
-- **Recommendation:** Trivial — project `ClubName` as string
-- **Effort:** Very Low
+#### C17. `ClubRepRepository.GetClubsForUserAsync` ✅ DONE
+- **Refactored to:** Internal `.Select()` projection (`ClubId`, `ClubName`)
+- No interface change needed — already returned `List<ClubWithUsageInfo>`
 
-#### C18. `ProfileMetadataRepository.GetRegistrationWithJobAsync`
-- **Includes:** `Job` (1 join)
-- **Fields actually used:** `Job.{JobPath, Season, Year}` subset
-- **Effort:** Low
+#### C18. `ProfileMetadataRepository.GetRegistrationWithJobAsync` ✅ DONE
+- **Refactored to:** `GetJobDataForRegistrationAsync` returning `RegistrationJobProjection`
+- Projects only 5 Job fields needed across all 8 callers
+- All 8 callers in `ProfileMetadataMigrationService` updated
 
 ---
 
-### Priority 4 — High Risk / High Effort
+### Priority 4 — High Risk / High Effort — DEFERRED
 
-#### C19. `RegistrationRepository.GetRegistrationDetailAsync`
-- **Includes:** `User`, `Role`, `AssignedTeam`, `Job`, `FamilyUser`, `RegistrationAccounting.ThenInclude(PaymentMethod)` — **6 joins, 3 levels deep**
-- **Consumer:** Registration detail view — complex DTO assembly
-- **Fields actually used:** Extensive — builds `RegistrationDetailDto` with profile values, accounting records, family contact info
-- **Recommendation:** This is the biggest entity graph in the codebase. Refactoring requires careful DTO design to flatten the 3-level hierarchy. Recommend tackling this last, after patterns are established from simpler refactors.
-- **Effort:** High
+#### C19. `RegistrationRepository.GetRegistrationDetailAsync` — DEFERRED
+- **Includes:** `User`, `Role`, `AssignedTeam`, `Job`, `FamilyUser`, `RegistrationAccounting.ThenInclude(PaymentMethod)` — **7 navigation loads, 8 tables**
+- **Rationale for deferral:** Single-entity load (`FirstOrDefaultAsync`) — absolute query overhead is negligible. Method uses **reflection to extract 50+ dynamic profile properties** from the entity, making projection infeasible. Already uses `AsNoTracking()`.
 
 ---
 
@@ -252,25 +227,18 @@ Methods that already use `.Select()` projection don't need `.Include()` at all �
 
 ---
 
-## Implementation Strategy
+## Implementation Strategy (Completed)
 
-### Recommended Approach: Inside-Out by Priority
+### Execution Log
 
-1. **Phase 0 (Quick Wins):** Remove redundant `.Include()` from Category A methods that already project. Zero-risk, immediate cleanup.
-
-2. **Phase 1a (Bugs — B-Sub1):** Add `.AsNoTracking()` + projections to the 4 methods that are purely read-only but missing it. These are correctness fixes, not just performance.
-
-3. **Phase 1b (Hot Paths — C1–C4):** Refactor Widget, Menu, Registration auth. Hit on every session — biggest performance improvement per method.
-
-4. **Phase 2 (ExecuteUpdate — B-Sub2):** Convert 2 simple scalar-update methods to `ExecuteUpdateAsync`. Stops loading `AspNetUsers` password hashes just to flip a boolean.
-
-5. **Phase 3 (Schedule + League — C5–C11):** Medium frequency, straightforward pattern.
-
-6. **Phase 4 (Long Tail — C12–C18):** Lower impact but establishes consistency.
-
-7. **Phase 5 (Narrow Tracked Includes — B-Sub3):** Split read-only context from tracked entity loading for 4 complex business logic methods.
-
-8. **Phase 6 (Registration Detail — C19):** Tackle last — highest complexity, needs careful DTO design.
+1. **Phase 0 (Quick Wins):** ✅ Removed redundant `.Include()` from 7 Category A methods.
+2. **Phase 1a (Bugs — B-Sub1):** ✅ Fixed 2 read-only methods (added `AsNoTracking()`, removed unnecessary includes).
+3. **Phase 1b (Hot Paths — C1–C4):** ✅ Refactored Widget (C1, C2) and Menu (C4) to projections. C3 left as-is (conditional includes already optimized).
+4. **Phase 2 (B-Sub2):** ✅ Split `AdministratorRepository.GetByIdAsync` into `FindAsync` + `GetAdminProjectionByIdAsync`.
+5. **Phase 3 (C9–C11):** ✅ League + Admin list projections. C5–C8 Schedule methods deferred (denormalized entity, low ROI).
+6. **Phase 4 (C12–C18):** ✅ 6 of 7 refactored. C15 skipped (collection navigation, narrow tables).
+7. **Phase 5 (B-Sub3):** ⏭️ Deferred — tracked mutations used in infrequent operations (payment, pool transfer). Splitting read/write queries adds complexity with minimal performance gain.
+8. **Phase 6 (C19):** ⏭️ Deferred — single-entity load with reflection-based 50+ field extraction. Projection is infeasible.
 
 ### Per-Method Refactor Pattern
 

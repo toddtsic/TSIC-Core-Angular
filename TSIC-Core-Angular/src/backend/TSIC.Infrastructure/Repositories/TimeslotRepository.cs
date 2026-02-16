@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -19,15 +20,23 @@ public class TimeslotRepository : ITimeslotRepository
 
     // ── Dates ──
 
-    public async Task<List<TimeslotsLeagueSeasonDates>> GetDatesAsync(
+    public async Task<List<TimeslotDateDto>> GetDatesAsync(
         Guid agegroupId, string season, string year, CancellationToken ct = default)
     {
         return await _context.TimeslotsLeagueSeasonDates
             .AsNoTracking()
-            .Include(d => d.Div)
             .Where(d => d.AgegroupId == agegroupId && d.Season == season && d.Year == year)
             .OrderBy(d => d.GDate)
             .ThenBy(d => d.Rnd)
+            .Select(d => new TimeslotDateDto
+            {
+                Ai = d.Ai,
+                AgegroupId = d.AgegroupId,
+                GDate = d.GDate,
+                Rnd = d.Rnd,
+                DivId = d.DivId,
+                DivName = d.Div != null ? d.Div.DivName : null
+            })
             .ToListAsync(ct);
     }
 
@@ -56,17 +65,28 @@ public class TimeslotRepository : ITimeslotRepository
 
     // ── Field timeslots ──
 
-    public async Task<List<TimeslotsLeagueSeasonFields>> GetFieldTimeslotsAsync(
+    public async Task<List<TimeslotFieldDto>> GetFieldTimeslotsAsync(
         Guid agegroupId, string season, string year, CancellationToken ct = default)
     {
         return await _context.TimeslotsLeagueSeasonFields
             .AsNoTracking()
-            .Include(f => f.Field)
-            .Include(f => f.Div)
             .Where(f => f.AgegroupId == agegroupId && f.Season == season && f.Year == year)
             .OrderBy(f => f.Field.FName)
             .ThenBy(f => f.Dow)
             .ThenBy(f => f.Div!.DivName)
+            .Select(f => new TimeslotFieldDto
+            {
+                Ai = f.Ai,
+                AgegroupId = f.AgegroupId,
+                FieldId = f.FieldId,
+                FieldName = f.Field.FName ?? "",
+                StartTime = f.StartTime ?? "",
+                GamestartInterval = f.GamestartInterval,
+                MaxGamesPerField = f.MaxGamesPerField,
+                Dow = f.Dow,
+                DivId = f.DivId,
+                DivName = f.Div != null ? f.Div.DivName : null
+            })
             .ToListAsync(ct);
     }
 

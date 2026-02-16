@@ -30,4 +30,10 @@ public interface IWidgetRepository
     /// Get the JobTypeId for a given job.
     /// </summary>
     Task<int?> GetJobTypeIdAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get registration, financial, and team/club aggregate metrics for a job.
+    /// Returns a projection with counts and sums — no navigation property loading.
+    /// </summary>
+    Task<DashboardMetricsDto> GetDashboardMetricsAsync(Guid jobId, CancellationToken ct = default);
 }

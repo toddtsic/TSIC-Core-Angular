@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -22,9 +23,9 @@ public interface IFieldRepository
         CancellationToken ct = default);
 
     /// <summary>
-    /// Get fields assigned to a league-season, with Field nav prop included.
+    /// Get fields assigned to a league-season as projected DTOs (AsNoTracking).
     /// </summary>
-    Task<List<FieldsLeagueSeason>> GetLeagueSeasonFieldsAsync(
+    Task<List<LeagueSeasonFieldDto>> GetLeagueSeasonFieldsAsync(
         Guid leagueId,
         string season,
         CancellationToken ct = default);

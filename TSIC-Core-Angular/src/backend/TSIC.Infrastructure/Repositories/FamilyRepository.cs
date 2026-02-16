@@ -27,28 +27,27 @@ public class FamilyRepository : IFamilyRepository
             .FirstOrDefaultAsync(f => f.FamilyUserId == familyUserId, cancellationToken);
     }
 
-    public async Task<List<Registrations>> GetFamilyRegistrationsForJobAsync(
+    public async Task<List<string>> GetFamilyPlayerEmailsForJobAsync(
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
             .AsNoTracking()
-            .Include(r => r.User)
-            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId)
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.User != null && r.User.Email != null)
+            .Select(r => r.User!.Email!)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<Registrations>> GetFamilyRegistrationsForJobAsync(
+    public async Task<List<string>> GetFamilyPlayerEmailsForJobAsync(
         string jobPath,
         string familyUserId,
         CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
             .AsNoTracking()
-            .Include(r => r.User)
-            .Include(r => r.Job)
-            .Where(r => r.Job.JobPath == jobPath && r.FamilyUserId == familyUserId)
+            .Where(r => r.Job.JobPath == jobPath && r.FamilyUserId == familyUserId && r.User != null && r.User.Email != null)
+            .Select(r => r.User!.Email!)
             .ToListAsync(cancellationToken);
     }
 

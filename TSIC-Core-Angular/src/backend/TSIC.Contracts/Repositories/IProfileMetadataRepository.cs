@@ -84,9 +84,9 @@ public interface IProfileMetadataRepository
     // ============ REGISTRATIONS READ OPERATIONS ============
 
     /// <summary>
-    /// Get registration with Job navigation included
+    /// Get Job data for a registration as a projected DTO (AsNoTracking). No entity loading.
     /// </summary>
-    Task<Registrations?> GetRegistrationWithJobAsync(Guid regId);
+    Task<RegistrationJobProjection?> GetJobDataForRegistrationAsync(Guid regId);
 
     /// <summary>
     /// Get registration JobId only (lightweight projection)
@@ -133,5 +133,14 @@ public record JobKnownProfileType
 
 public record JobWithPlayerMetadata
 {
+    public string? PlayerProfileMetadataJson { get; init; }
+}
+
+public record RegistrationJobProjection
+{
+    public required Guid JobId { get; init; }
+    public string? JobName { get; init; }
+    public string? CoreRegformPlayer { get; init; }
+    public string? JsonOptions { get; init; }
     public string? PlayerProfileMetadataJson { get; init; }
 }

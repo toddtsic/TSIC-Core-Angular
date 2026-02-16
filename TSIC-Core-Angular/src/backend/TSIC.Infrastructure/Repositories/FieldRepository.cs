@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -48,17 +49,25 @@ public class FieldRepository : IFieldRepository
             .ToListAsync(ct);
     }
 
-    public async Task<List<FieldsLeagueSeason>> GetLeagueSeasonFieldsAsync(
+    public async Task<List<LeagueSeasonFieldDto>> GetLeagueSeasonFieldsAsync(
         Guid leagueId,
         string season,
         CancellationToken ct = default)
     {
         return await _context.FieldsLeagueSeason
             .AsNoTracking()
-            .Include(fls => fls.Field)
             .Where(fls => fls.LeagueId == leagueId && fls.Season == season)
-            .Where(fls => fls.Field.FName == null || !fls.Field.FName.StartsWith("*")) // Exclude system fields
+            .Where(fls => fls.Field.FName == null || !fls.Field.FName.StartsWith("*"))
             .OrderBy(fls => fls.Field.FName)
+            .Select(fls => new LeagueSeasonFieldDto
+            {
+                FlsId = fls.FlsId,
+                FieldId = fls.FieldId,
+                FName = fls.Field.FName ?? "",
+                City = fls.Field.City,
+                State = fls.Field.State,
+                BActive = fls.BActive
+            })
             .ToListAsync(ct);
     }
 

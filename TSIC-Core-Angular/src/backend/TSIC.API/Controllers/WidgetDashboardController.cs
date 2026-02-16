@@ -44,6 +44,20 @@ public class WidgetDashboardController : ControllerBase
     }
 
     /// <summary>
+    /// Get live aggregate metrics (registrations, financials, scheduling) for the dashboard hero.
+    /// </summary>
+    [HttpGet("metrics")]
+    public async Task<ActionResult<DashboardMetricsDto>> GetMetrics(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetMetricsAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get the public widget dashboard for anonymous visitors.
     /// Returns widgets configured for the Anonymous role, grouped by section and category.
     /// </summary>

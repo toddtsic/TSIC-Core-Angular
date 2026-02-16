@@ -17,4 +17,11 @@ public interface IWidgetDashboardService
         Guid jobId,
         string roleName,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Get live aggregate metrics (registrations, financials, scheduling) for the dashboard hero.
+    /// </summary>
+    Task<DashboardMetricsDto> GetMetricsAsync(
+        Guid jobId,
+        CancellationToken ct = default);
 }

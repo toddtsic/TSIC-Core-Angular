@@ -21,17 +21,15 @@ public class ClubRepRepository : IClubRepRepository
         string clubRepUserId,
         CancellationToken cancellationToken = default)
     {
-        var clubReps = await _context.ClubReps
-            .Where(cr => cr.ClubRepUserId == clubRepUserId)
-            .Include(cr => cr.Club)
+        var clubData = await _context.ClubReps
             .AsNoTracking()
+            .Where(cr => cr.ClubRepUserId == clubRepUserId)
+            .Select(cr => new { cr.ClubId, ClubName = cr.Club!.ClubName! })
             .ToListAsync(cancellationToken);
 
         var result = new List<ClubWithUsageInfo>();
-        foreach (var cr in clubReps)
+        foreach (var cr in clubData)
         {
-            var clubName = cr.Club!.ClubName!;
-
             // Check if this specific club (by name) has any teams registered
             // Teams.ClubrepRegistrationid -> Registrations.ClubName
             var hasTeams = await _context.Teams
@@ -40,12 +38,12 @@ public class ClubRepRepository : IClubRepRepository
                     t => t.ClubrepRegistrationid,
                     r => r.RegistrationId,
                     (t, r) => r.ClubName)
-                .AnyAsync(rcn => rcn == clubName, cancellationToken);
+                .AnyAsync(rcn => rcn == cr.ClubName, cancellationToken);
 
             result.Add(new ClubWithUsageInfo
             {
                 ClubId = cr.ClubId,
-                ClubName = clubName,
+                ClubName = cr.ClubName,
                 IsInUse = hasTeams
             });
         }

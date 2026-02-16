@@ -112,11 +112,11 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
             if (!string.IsNullOrWhiteSpace(fam.MomEmail)) recipients.Add(fam.MomEmail.Trim());
             if (!string.IsNullOrWhiteSpace(fam.DadEmail)) recipients.Add(fam.DadEmail.Trim());
         }
-        var playerRegs = await _familyRepo.GetFamilyRegistrationsForJobAsync(jobPath, familyUserId, ct);
-        foreach (var r in playerRegs)
+        var playerEmails = await _familyRepo.GetFamilyPlayerEmailsForJobAsync(jobPath, familyUserId, ct);
+        foreach (var email in playerEmails)
         {
-            var e = r.User?.Email?.Trim();
-            if (!string.IsNullOrWhiteSpace(e)) recipients.Add(e!);
+            var e = email.Trim();
+            if (!string.IsNullOrWhiteSpace(e)) recipients.Add(e);
         }
         // Normalize and filter to valid looking emails
         var toList = recipients

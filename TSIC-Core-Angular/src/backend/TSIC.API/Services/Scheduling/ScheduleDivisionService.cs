@@ -68,7 +68,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             .Select(g => new ScheduleFieldColumn
             {
                 FieldId = g.Key,
-                FName = g.First().Field?.FName ?? ""
+                FName = g.First().FieldName
             })
             .OrderBy(c => c.FName)
             .ToList();
@@ -376,8 +376,8 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
     /// Matches the legacy GetNextAvailableTimeslot algorithm.
     /// </summary>
     private static (Guid fieldId, DateTime gDate)? FindNextAvailableTimeslot(
-        List<TimeslotsLeagueSeasonDates> dates,
-        List<TimeslotsLeagueSeasonFields> fields,
+        List<TimeslotDateDto> dates,
+        List<TimeslotFieldDto> fields,
         HashSet<(Guid fieldId, DateTime gDate)> occupiedSlots)
     {
         foreach (var date in dates.OrderBy(d => d.GDate))

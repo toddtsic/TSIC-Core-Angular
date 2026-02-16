@@ -85,4 +85,63 @@ public class WidgetRepository : IWidgetRepository
             .Select(j => (int?)j.JobTypeId)
             .FirstOrDefaultAsync(ct);
     }
+
+    public async Task<DashboardMetricsDto> GetDashboardMetricsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Registration + financial aggregates — single GroupBy query
+        var regStats = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId)
+            .GroupBy(r => 1)
+            .Select(g => new
+            {
+                TotalActive = g.Count(r => r.BActive == true),
+                TotalInactive = g.Count(r => r.BActive != true),
+                TotalFees = g.Where(r => r.BActive == true).Sum(r => r.FeeTotal),
+                TotalPaid = g.Where(r => r.BActive == true).Sum(r => r.PaidTotal),
+                TotalOwed = g.Where(r => r.BActive == true).Sum(r => r.OwedTotal),
+                PaidInFull = g.Count(r => r.BActive == true && r.OwedTotal == 0),
+                Underpaid = g.Count(r => r.BActive == true && r.OwedTotal > 0),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        // Team count — sequential (shared DbContext)
+        var teamCount = await _context.Teams
+            .AsNoTracking()
+            .CountAsync(t => t.JobId == jobId && t.Active == true, ct);
+
+        // Club count — distinct ClubName from active registrations
+        var clubCount = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true && r.ClubName != null && r.ClubName != "")
+            .Select(r => r.ClubName)
+            .Distinct()
+            .CountAsync(ct);
+
+        return new DashboardMetricsDto
+        {
+            Registrations = new RegistrationMetrics
+            {
+                TotalActive = regStats?.TotalActive ?? 0,
+                TotalInactive = regStats?.TotalInactive ?? 0,
+                Teams = teamCount,
+                Clubs = clubCount,
+            },
+            Financials = new FinancialMetrics
+            {
+                TotalFees = regStats?.TotalFees ?? 0,
+                TotalPaid = regStats?.TotalPaid ?? 0,
+                TotalOwed = regStats?.TotalOwed ?? 0,
+                PaidInFull = regStats?.PaidInFull ?? 0,
+                Underpaid = regStats?.Underpaid ?? 0,
+            },
+            Scheduling = new SchedulingMetrics
+            {
+                TotalAgegroups = 0,
+                AgegroupsScheduled = 0,
+                FieldCount = 0,
+                TotalDivisions = 0,
+            }
+        };
+    }
 }

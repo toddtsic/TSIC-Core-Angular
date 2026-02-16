@@ -14,17 +14,17 @@ public interface IFamilyRepository
     Task<Families?> GetByFamilyUserIdAsync(string familyUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get registrations for a family within a specific job with included user and team data
+    /// Get player emails for a family within a specific job (projected — no entity loading).
     /// </summary>
-    Task<List<Registrations>> GetFamilyRegistrationsForJobAsync(
+    Task<List<string>> GetFamilyPlayerEmailsForJobAsync(
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get registrations for a family within a specific job (by jobPath) with included user and team data
+    /// Get player emails for a family within a specific job by jobPath (projected — no entity loading).
     /// </summary>
-    Task<List<Registrations>> GetFamilyRegistrationsForJobAsync(
+    Task<List<string>> GetFamilyPlayerEmailsForJobAsync(
         string jobPath,
         string familyUserId,
         CancellationToken cancellationToken = default);

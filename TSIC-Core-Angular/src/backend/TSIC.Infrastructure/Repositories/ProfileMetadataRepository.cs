@@ -179,12 +179,19 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
 
     // ============ REGISTRATIONS READ OPERATIONS ============
 
-    public async Task<Registrations?> GetRegistrationWithJobAsync(Guid regId)
+    public async Task<RegistrationJobProjection?> GetJobDataForRegistrationAsync(Guid regId)
     {
         return await _context.Registrations
             .AsNoTracking()
-            .Include(r => r.Job)
             .Where(r => r.RegistrationId == regId)
+            .Select(r => new RegistrationJobProjection
+            {
+                JobId = r.Job.JobId,
+                JobName = r.Job.JobName,
+                CoreRegformPlayer = r.Job.CoreRegformPlayer,
+                JsonOptions = r.Job.JsonOptions,
+                PlayerProfileMetadataJson = r.Job.PlayerProfileMetadataJson
+            })
             .FirstOrDefaultAsync();
     }
 

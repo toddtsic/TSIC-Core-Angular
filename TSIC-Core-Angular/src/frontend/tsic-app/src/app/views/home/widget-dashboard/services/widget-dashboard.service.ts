@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
-import type { WidgetDashboardResponse } from '@core/api';
+import type { DashboardMetricsDto, WidgetDashboardResponse } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -15,5 +15,9 @@ export class WidgetDashboardService {
 
 	getPublicDashboard(jobPath: string): Observable<WidgetDashboardResponse> {
 		return this.http.get<WidgetDashboardResponse>(`${this.apiUrl}/public/${jobPath}`);
+	}
+
+	getMetrics(): Observable<DashboardMetricsDto> {
+		return this.http.get<DashboardMetricsDto>(`${this.apiUrl}/metrics`);
 	}
 }

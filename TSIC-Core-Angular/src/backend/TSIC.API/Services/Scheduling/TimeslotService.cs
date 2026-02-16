@@ -41,8 +41,8 @@ public sealed class TimeslotService : ITimeslotService
 
         return new TimeslotConfigurationResponse
         {
-            Dates = dates.Select(MapDateDto).ToList(),
-            Fields = fields.Select(MapFieldDto).ToList()
+            Dates = dates,
+            Fields = fields
         };
     }
 
@@ -227,9 +227,8 @@ public sealed class TimeslotService : ITimeslotService
 
         _logger.LogInformation("Added {Count} field timeslots for agegroup {AgId}", newTimeslots.Count, request.AgegroupId);
 
-        // Reload with navigation properties for DTO mapping
-        var all = await _tsRepo.GetFieldTimeslotsAsync(request.AgegroupId, season, year, ct);
-        return all.Select(MapFieldDto).ToList();
+        // Reload as projected DTOs
+        return await _tsRepo.GetFieldTimeslotsAsync(request.AgegroupId, season, year, ct);
     }
 
     public async Task EditFieldTimeslotAsync(

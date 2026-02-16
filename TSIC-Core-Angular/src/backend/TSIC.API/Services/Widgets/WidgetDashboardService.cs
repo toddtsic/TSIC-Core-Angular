@@ -12,6 +12,7 @@ namespace TSIC.API.Services.Widgets;
 public sealed class WidgetDashboardService : IWidgetDashboardService
 {
     private readonly IWidgetRepository _widgetRepo;
+    private readonly ISchedulingDashboardService _schedulingSvc;
     private readonly ILogger<WidgetDashboardService> _logger;
 
     // Section ordering: content first, then health, action, insight
@@ -47,9 +48,11 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
 
     public WidgetDashboardService(
         IWidgetRepository widgetRepo,
+        ISchedulingDashboardService schedulingSvc,
         ILogger<WidgetDashboardService> logger)
     {
         _widgetRepo = widgetRepo;
+        _schedulingSvc = schedulingSvc;
         _logger = logger;
     }
 
@@ -190,6 +193,36 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
             .ToList();
 
         return new WidgetDashboardResponse { Sections = sections };
+    }
+
+    public async Task<DashboardMetricsDto> GetMetricsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        // Get registration + financial metrics from repository
+        var metrics = await _widgetRepo.GetDashboardMetricsAsync(jobId, ct);
+
+        // Get scheduling metrics — separate service (uses different repos, same DbContext scope)
+        try
+        {
+            var schedStatus = await _schedulingSvc.GetStatusAsync(jobId, ct);
+            metrics = metrics with
+            {
+                Scheduling = new SchedulingMetrics
+                {
+                    TotalAgegroups = schedStatus.TotalAgegroups,
+                    AgegroupsScheduled = schedStatus.AgegroupsScheduled,
+                    FieldCount = schedStatus.FieldCount,
+                    TotalDivisions = schedStatus.TotalDivisions,
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            // Scheduling data is optional — log and return zeros
+            _logger.LogWarning(ex, "Failed to load scheduling metrics for job {JobId}", jobId);
+        }
+
+        return metrics;
     }
 
     /// <summary>

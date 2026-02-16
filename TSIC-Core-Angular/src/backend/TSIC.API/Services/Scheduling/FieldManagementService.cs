@@ -59,15 +59,7 @@ public sealed class FieldManagementService : IFieldManagementService
                 Latitude = f.Latitude,
                 Longitude = f.Longitude
             }).ToList(),
-            AssignedFields = assignedRecords.Select(fls => new LeagueSeasonFieldDto
-            {
-                FlsId = fls.FlsId,
-                FieldId = fls.FieldId,
-                FName = fls.Field.FName ?? "",
-                City = fls.Field.City,
-                State = fls.Field.State,
-                BActive = fls.BActive
-            }).ToList()
+            AssignedFields = assignedRecords
         };
     }
 

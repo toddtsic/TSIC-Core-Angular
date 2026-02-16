@@ -1,11 +1,12 @@
 import { Component, computed, inject, input, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
+import { CurrencyPipe } from '@angular/common';
 import { WidgetDashboardService } from './services/widget-dashboard.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
 import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
-import type { WidgetDashboardResponse, WidgetItemDto } from '@core/api';
+import type { DashboardMetricsDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {
 	route?: string;
@@ -18,7 +19,7 @@ interface WidgetConfig {
 @Component({
 	selector: 'app-widget-dashboard',
 	standalone: true,
-	imports: [ClientBannerComponent, BulletinsComponent],
+	imports: [ClientBannerComponent, BulletinsComponent, CurrencyPipe],
 	templateUrl: './widget-dashboard.component.html',
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -37,11 +38,18 @@ export class WidgetDashboardComponent implements OnInit {
 	readonly publicJobPath = input<string>('', { alias: 'jobPath' });
 
 	readonly dashboard = signal<WidgetDashboardResponse | null>(null);
+	readonly metrics = signal<DashboardMetricsDto | null>(null);
 	readonly isLoading = signal(false);
 	readonly hasError = signal(false);
 
 	readonly roleName = computed(() =>
 		this.mode() === 'public' ? '' : (this.auth.currentUser()?.role || ''));
+
+	readonly username = computed(() =>
+		this.auth.currentUser()?.username || '');
+
+	readonly jobName = computed(() =>
+		this.jobService.currentJob()?.jobName || '');
 
 	readonly isPublic = computed(() => this.mode() === 'public');
 
@@ -57,6 +65,21 @@ export class WidgetDashboardComponent implements OnInit {
 	readonly bulletinsLoading = computed(() => this.jobService.bulletinsLoading());
 	readonly bulletinsError = computed(() => this.jobService.bulletinsError());
 
+	// ── Derived metric displays ──
+
+	readonly roleAccentClass = computed(() => {
+		const role = this.roleName().toLowerCase().replace(/\s+/g, '-');
+		return role ? `role-${role}` : '';
+	});
+
+	readonly schedulePercent = computed(() => {
+		const m = this.metrics();
+		if (!m || m.scheduling.totalAgegroups === 0) return 0;
+		return Math.round((m.scheduling.agegroupsScheduled / m.scheduling.totalAgegroups) * 100);
+	});
+
+	readonly isSuperuser = computed(() => this.roleName() === 'Superuser');
+
 	private configCache = new Map<number, WidgetConfig>();
 
 	ngOnInit(): void {
@@ -64,6 +87,7 @@ export class WidgetDashboardComponent implements OnInit {
 			this.loadPublicData();
 		} else {
 			this.loadDashboard();
+			this.loadMetrics();
 		}
 	}
 
@@ -111,6 +135,13 @@ export class WidgetDashboardComponent implements OnInit {
 				this.hasError.set(true);
 				this.isLoading.set(false);
 			}
+		});
+	}
+
+	private loadMetrics(): void {
+		this.svc.getMetrics().subscribe({
+			next: (data) => this.metrics.set(data),
+			error: () => { /* metrics are optional — hero degrades gracefully */ }
 		});
 	}
 
