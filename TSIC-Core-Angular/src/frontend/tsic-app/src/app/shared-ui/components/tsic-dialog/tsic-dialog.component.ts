@@ -22,6 +22,7 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
       (cancel)="$event.preventDefault()"
       (click)="onBackdropClick($event)"
       [tsicFocusTrap]="true"
+      aria-modal="true"
     >
       <ng-content></ng-content>
     </dialog>

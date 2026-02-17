@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { WaiverStateService } from '../services/waiver-state.service';
@@ -86,7 +87,7 @@ import { WaiverStateService } from '../services/waiver-state.service';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WaiversComponent implements OnInit, AfterViewInit {
+export class WaiversComponent implements OnInit, AfterViewInit, OnDestroy {
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
 
@@ -127,12 +128,13 @@ export class WaiversComponent implements OnInit, AfterViewInit {
   }
 
   waiverForm!: FormGroup;
+  private formSub?: Subscription;
   private readonly lockedIds = new Set<string>();
 
   ngOnInit(): void {
     this.buildForm();
     // Subscribe to value changes to push into service (skip disabled locked controls)
-    this.waiverForm.valueChanges.subscribe(v => {
+    this.formSub = this.waiverForm.valueChanges.subscribe(v => {
       // Persist to service
       for (const [key, val] of Object.entries(v)) {
         if (!this.lockedIds.has(key)) {
@@ -204,7 +206,9 @@ export class WaiversComponent implements OnInit, AfterViewInit {
     // Re-evaluate gate after any programmatic seeding
     this.pushGate();
   }
-  // (moved ngAfterViewInit implementation above to add auto-seed logic)
+  ngOnDestroy(): void {
+    this.formSub?.unsubscribe();
+  }
 
   // Reactive continue disabled computation using local map
   disableContinue(): boolean {

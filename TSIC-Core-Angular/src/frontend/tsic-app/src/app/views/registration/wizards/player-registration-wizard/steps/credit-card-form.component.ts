@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
-
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
 
 @Component({
@@ -19,49 +19,55 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         <!-- Personal Information First -->
         <div class="row g-2">
           <div class="col-md-6">
-            <label class="form-label small mb-1">First Name</label>
-            <input class="form-control form-control-sm" formControlName="firstName" aria-required="true">
+            <label for="cc-firstName" class="form-label small mb-1">First Name</label>
+            <input id="cc-firstName" class="form-control form-control-sm" formControlName="firstName" aria-required="true"
+              aria-describedby="cc-firstName-err" [attr.aria-invalid]="form.get('firstName')?.invalid && form.get('firstName')?.touched">
             @if (err('firstName')) {
-              <div class="form-text text-danger">{{ err('firstName') }}</div>
+              <div id="cc-firstName-err" class="form-text text-danger" role="alert">{{ err('firstName') }}</div>
             }
           </div>
           <div class="col-md-6">
-            <label class="form-label small mb-1">Last Name</label>
-            <input class="form-control form-control-sm" formControlName="lastName" aria-required="true">
+            <label for="cc-lastName" class="form-label small mb-1">Last Name</label>
+            <input id="cc-lastName" class="form-control form-control-sm" formControlName="lastName" aria-required="true"
+              aria-describedby="cc-lastName-err" [attr.aria-invalid]="form.get('lastName')?.invalid && form.get('lastName')?.touched">
             @if (err('lastName')) {
-              <div class="form-text text-danger">{{ err('lastName') }}</div>
+              <div id="cc-lastName-err" class="form-text text-danger" role="alert">{{ err('lastName') }}</div>
             }
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-8">
-            <label class="form-label small mb-1">Address</label>
-            <input class="form-control form-control-sm" formControlName="address" aria-required="true">
+            <label for="cc-address" class="form-label small mb-1">Address</label>
+            <input id="cc-address" class="form-control form-control-sm" formControlName="address" aria-required="true"
+              aria-describedby="cc-address-err" [attr.aria-invalid]="form.get('address')?.invalid && form.get('address')?.touched">
             @if (err('address')) {
-              <div class="form-text text-danger">{{ err('address') }}</div>
+              <div id="cc-address-err" class="form-text text-danger" role="alert">{{ err('address') }}</div>
             }
           </div>
           <div class="col-md-4">
-            <label class="form-label small mb-1">Zip Code</label>
-            <input class="form-control form-control-sm" formControlName="zip" aria-required="true">
+            <label for="cc-zip" class="form-label small mb-1">Zip Code</label>
+            <input id="cc-zip" class="form-control form-control-sm" formControlName="zip" aria-required="true"
+              aria-describedby="cc-zip-err" [attr.aria-invalid]="form.get('zip')?.invalid && form.get('zip')?.touched">
             @if (err('zip')) {
-              <div class="form-text text-danger">{{ err('zip') }}</div>
+              <div id="cc-zip-err" class="form-text text-danger" role="alert">{{ err('zip') }}</div>
             }
           </div>
         </div>
         <div class="row g-2 mt-2">
           <div class="col-md-6">
-            <label class="form-label small mb-1">Email</label>
-            <input class="form-control form-control-sm" formControlName="email" autocomplete="email" aria-required="true">
+            <label for="cc-email" class="form-label small mb-1">Email</label>
+            <input id="cc-email" class="form-control form-control-sm" formControlName="email" autocomplete="email" aria-required="true"
+              aria-describedby="cc-email-err" [attr.aria-invalid]="form.get('email')?.invalid && form.get('email')?.touched">
             @if (err('email')) {
-              <div class="form-text text-danger">{{ err('email') }}</div>
+              <div id="cc-email-err" class="form-text text-danger" role="alert">{{ err('email') }}</div>
             }
           </div>
           <div class="col-md-6">
-            <label class="form-label small mb-1">Phone</label>
-            <input class="form-control form-control-sm" formControlName="phone" (input)="formatPhone()" autocomplete="tel" aria-required="true">
+            <label for="cc-phone" class="form-label small mb-1">Phone</label>
+            <input id="cc-phone" class="form-control form-control-sm" formControlName="phone" (input)="formatPhone()" autocomplete="tel" aria-required="true"
+              aria-describedby="cc-phone-err" [attr.aria-invalid]="form.get('phone')?.invalid && form.get('phone')?.touched">
             @if (err('phone')) {
-              <div class="form-text text-danger">{{ err('phone') }}</div>
+              <div id="cc-phone-err" class="form-text text-danger" role="alert">{{ err('phone') }}</div>
             }
           </div>
         </div>
@@ -69,22 +75,24 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         <!-- Credit Card Information Second -->
         <div class="row g-2 mt-3">
           <div class="col-md-3">
-            <label class="form-label small mb-1">CC Type</label>
-            <select class="form-select form-select-sm" formControlName="type" required aria-required="true">
+            <label for="cc-type" class="form-label small mb-1">CC Type</label>
+            <select id="cc-type" class="form-select form-select-sm" formControlName="type" required aria-required="true"
+              aria-describedby="cc-type-err" [attr.aria-invalid]="form.get('type')?.invalid && form.get('type')?.touched">
               <option value=""></option>
               <option value="MC">MC</option>
               <option value="VISA">VISA</option>
               <option value="AMEX">AMEX</option>
             </select>
             @if (err('type')) {
-              <div class="form-text text-danger">{{ err('type') }}</div>
+              <div id="cc-type-err" class="form-text text-danger" role="alert">{{ err('type') }}</div>
             }
           </div>
           <div class="col-md-4">
-            <label class="form-label small mb-1">Card Number</label>
-            <input class="form-control form-control-sm" formControlName="number" (input)="formatNumber()" aria-required="true">
+            <label for="cc-number" class="form-label small mb-1">Card Number</label>
+            <input id="cc-number" class="form-control form-control-sm" formControlName="number" (input)="formatNumber()" aria-required="true"
+              aria-describedby="cc-number-err" [attr.aria-invalid]="form.get('number')?.invalid && form.get('number')?.touched">
             @if (err('number')) {
-              <div class="form-text text-danger">{{ err('number') }}</div>
+              <div id="cc-number-err" class="form-text text-danger" role="alert">{{ err('number') }}</div>
             }
           </div>
           <div class="col-md-3">
@@ -92,19 +100,21 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
             <input id="cc-expiry" class="form-control form-control-sm" formControlName="expiry" aria-required="true"
               (input)="formatExpiry($event)" (blur)="forceMonthLeadingZero()"
               placeholder="MM / YY" inputmode="numeric" autocomplete="cc-exp"
-              aria-describedby="cc-expiry-help">
+              aria-describedby="cc-expiry-help cc-expiry-err"
+              [attr.aria-invalid]="form.get('expiry')?.invalid && form.get('expiry')?.touched">
               @if (!err('expiry')) {
                 <div id="cc-expiry-help" class="form-text">Enter month and year, e.g. 04 / 27</div>
               }
               @if (err('expiry')) {
-                <div class="form-text text-danger">{{ err('expiry') }}</div>
+                <div id="cc-expiry-err" class="form-text text-danger" role="alert">{{ err('expiry') }}</div>
               }
             </div>
             <div class="col-md-2">
-              <label class="form-label small mb-1">CVV</label>
-              <input class="form-control form-control-sm" formControlName="code" (input)="formatCvv()" aria-required="true">
+              <label for="cc-code" class="form-label small mb-1">CVV</label>
+              <input id="cc-code" class="form-control form-control-sm" formControlName="code" (input)="formatCvv()" aria-required="true"
+                aria-describedby="cc-code-err" [attr.aria-invalid]="form.get('code')?.invalid && form.get('code')?.touched">
               @if (err('code')) {
-                <div class="form-text text-danger">{{ err('code') }}</div>
+                <div id="cc-code-err" class="form-text text-danger" role="alert">{{ err('code') }}</div>
               }
             </div>
           </div>
@@ -113,7 +123,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
     `,
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CreditCardFormComponent implements OnInit, OnChanges {
+export class CreditCardFormComponent implements OnInit, OnChanges, OnDestroy {
   @Input() viOnly: boolean = false;
   // Default prefill values (from family user or ccInfo). Only applied to blank, pristine fields.
   @Input() defaultFirstName: string | null = null;
@@ -130,6 +140,7 @@ export class CreditCardFormComponent implements OnInit, OnChanges {
   @Output() valueChange = new EventEmitter<any>();
 
   form!: FormGroup;
+  private formSub?: Subscription;
 
   constructor(private readonly fb: FormBuilder) {
     this.form = this.fb.group({
@@ -146,7 +157,7 @@ export class CreditCardFormComponent implements OnInit, OnChanges {
     });
   }
   ngOnInit(): void {
-    this.form.valueChanges.subscribe(v => {
+    this.formSub = this.form.valueChanges.subscribe(v => {
       const valid = this.form.valid;
       this.ccValidChange.emit(valid);
       this.validChange.emit(valid);
@@ -154,6 +165,9 @@ export class CreditCardFormComponent implements OnInit, OnChanges {
       this.valueChange.emit(v);
     });
     this.applyDefaultsOnce();
+  }
+  ngOnDestroy(): void {
+    this.formSub?.unsubscribe();
   }
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['defaultFirstName'] || changes['defaultLastName'] || changes['defaultAddress'] || changes['defaultZip'] || changes['defaultEmail'] || changes['defaultPhone']) {

@@ -107,8 +107,9 @@
                                     message="Keep this password secure and do NOT share it. Club Rep accounts access private information about multiple teams and many families' children." />
                             </label>
                             <input id="reg-password" formControlName="password" class="form-control" type="password"
-                                placeholder="Create password" autocomplete="new-password" required aria-required="true" />
-                            <div class="form-text small text-muted">Minimum 6 characters
+                                placeholder="Create password" autocomplete="new-password" required aria-required="true"
+                                aria-describedby="reg-password-hint" [attr.aria-invalid]="registrationForm.get('password')?.invalid && registrationForm.get('password')?.touched" />
+                            <div id="reg-password-hint" class="form-text small text-muted">Minimum 6 characters
                             </div>
                         </div>
                     </div>
@@ -147,8 +148,9 @@
                                 <label for="reg-cellphone" class="form-label font-medium">Cell Phone
                                     <span class="text-danger">*</span></label>
                                 <input id="reg-cellphone" formControlName="cellphone" class="form-control" type="tel"
-                                    placeholder="Enter cell phone" autocomplete="tel" required aria-required="true" />
-                                <div class="form-text small text-muted">Numbers only</div>
+                                    placeholder="Enter cell phone" autocomplete="tel" required aria-required="true"
+                                    aria-describedby="reg-cellphone-hint" [attr.aria-invalid]="registrationForm.get('cellphone')?.invalid && registrationForm.get('cellphone')?.touched" />
+                                <div id="reg-cellphone-hint" class="form-text small text-muted">Numbers only</div>
                             </div>
                         </div>
                     </fieldset>

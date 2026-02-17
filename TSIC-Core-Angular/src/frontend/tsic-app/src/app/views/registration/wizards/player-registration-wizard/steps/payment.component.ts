@@ -211,6 +211,7 @@ export class PaymentComponent implements AfterViewInit {
   private lastIdemKey: string | null = null;
   private readonly idemSvc = inject(IdempotencyService);
   verticalInsureError: string | null = null;
+  private viInitRetries = 0;
   // Discount handled by PaymentService now; local UI state removed
   // VI confirmation modal state
   showViChargeConfirm = false;
@@ -257,7 +258,16 @@ export class PaymentComponent implements AfterViewInit {
   private tryInitVerticalInsure(): void {
     if (!this.insuranceState.offerPlayerRegSaver()) return;
     const offerObj = this.insuranceState.verticalInsureOffer().data;
-    if (!offerObj) { setTimeout(() => this.tryInitVerticalInsure(), 150); return; }
+    if (!offerObj) {
+      if (this.viInitRetries++ < 20) { // Max ~3s (20 × 150ms)
+        setTimeout(() => this.tryInitVerticalInsure(), 150);
+      } else {
+        console.warn('[Payment] VerticalInsure offer data not available after 20 retries');
+        this.verticalInsureError = 'Insurance widget could not be loaded. You may still proceed without insurance.';
+      }
+      return;
+    }
+    this.viInitRetries = 0;
     this.insuranceSvc.initWidget('#dVIOffer', offerObj);
   }
 
@@ -317,6 +327,7 @@ export class PaymentComponent implements AfterViewInit {
 
   submit(): void {
     if (this.submitting) return;
+    this.submitting = true; // Set immediately to prevent double-click race condition
     // Gate: require insurance decision ONLY if offered AND user has not confirmed nor declined AND no existing stored policy AND payment is actually due.
     const needInsuranceDecision = this.insuranceState.offerPlayerRegSaver()
       && !this.insuranceState.verticalInsureConfirmed()
@@ -324,16 +335,19 @@ export class PaymentComponent implements AfterViewInit {
       && !this.state.regSaverDetails()
       && this.tsicChargeDueNow();
     if (needInsuranceDecision && this.isViOfferVisible()) {
+      this.submitting = false;
       this.toast.show('Insurance is optional. Please Confirm Purchase or Decline to continue.', 'danger', 4000);
       return;
     }
     // Frontend CC validation hard stop (defensive against accidental blank submits)
     if (this.showCcSection() && !this.ccValid) {
+      this.submitting = false;
       this.toast.show('Credit card form is invalid.', 'danger', 3000);
       return;
     }
     // If VI quotes exist (insurance selected), show charge confirmation modal before proceeding (TSIC+VI or VI-only).
     if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
+      this.submitting = false; // Re-enable after modal interaction
       this.pendingSubmitAfterViConfirm = true;
       this.showViChargeConfirm = true;
       return;
@@ -382,8 +396,7 @@ export class PaymentComponent implements AfterViewInit {
   }
 
   private continueSubmit(): void {
-    if (this.submitting) return;
-    this.submitting = true;
+    this.submitting = true; // Ensure set (may already be true from submit())
     // Reuse existing idempotency key if present; generate and persist if absent
     if (!this.lastIdemKey) {
       const newKey = crypto?.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));

@@ -53,3 +53,15 @@
     cursor: not-allowed !important;
     pointer-events: auto !important; // Override Bootstrap's pointer-events: none to show cursor
 }
+
+/* ============================================
+   CLOSE BUTTON TOUCH TARGET (WCAG 2.5.8)
+   Ensure 44×44px minimum for mobile/touch
+   ============================================ */
+.btn-close {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}

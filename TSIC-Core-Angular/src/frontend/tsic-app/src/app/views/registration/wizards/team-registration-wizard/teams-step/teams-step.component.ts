@@ -26,6 +26,7 @@ import {
 // Removed toolbar click handler usage; no need for ClickEventArgs
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { TeamPaymentService } from '../services/team-payment.service';
+import { filterAndSortAgeGroups } from '../services/age-group-utils';
 import type {
     SuggestedTeamNameDto,
     RegisteredTeamDto,
@@ -376,37 +377,7 @@ export class TeamsStepComponent implements OnInit {
     }
 
     private getFilteredAgeGroupsForModal(): AgeGroupDto[] {
-        return this.ageGroupsSignal()
-            .filter((ag) => {
-                const name = ag.ageGroupName.toLowerCase();
-                if (name.startsWith('dropped')) return false;
-                if (name.startsWith('waitlist')) {
-                    return (
-                        this.toNumber(ag.maxTeams) - this.toNumber(ag.registeredCount) > 0
-                    );
-                }
-                return true;
-            })
-            .sort((a, b) => this.sortAgeGroups(a, b));
-    }
-
-    private sortAgeGroups(a: AgeGroupDto, b: AgeGroupDto): number {
-        const aName = a.ageGroupName.toLowerCase();
-        const bName = b.ageGroupName.toLowerCase();
-        const aFull =
-            this.toNumber(a.registeredCount) >= this.toNumber(a.maxTeams) &&
-            !aName.startsWith('waitlist');
-        const bFull =
-            this.toNumber(b.registeredCount) >= this.toNumber(b.maxTeams) &&
-            !bName.startsWith('waitlist');
-        const aWaitlist = aName.startsWith('waitlist');
-        const bWaitlist = bName.startsWith('waitlist');
-
-        if (aFull && !bFull) return 1;
-        if (!aFull && bFull) return -1;
-        if (aWaitlist && !bWaitlist) return 1;
-        if (!aWaitlist && bWaitlist) return -1;
-        return a.ageGroupName.localeCompare(b.ageGroupName);
+        return filterAndSortAgeGroups(this.ageGroupsSignal());
     }
 
     private calculateFinancialSummary(): FinancialSummary {

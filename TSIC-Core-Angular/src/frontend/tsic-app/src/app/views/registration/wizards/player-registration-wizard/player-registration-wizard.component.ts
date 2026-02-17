@@ -332,8 +332,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
                 // At least one team is full, go back to Team tab and show message
                 const teamsIdx = this.steps().indexOf('teams');
                 if (teamsIdx >= 0) this.currentIndex.set(teamsIdx);
-                // Optionally, display a message to the user (implement your own notification system)
-                alert('One or more selected teams are full. Please update your selections.');
+                this.toast.show('One or more selected teams are full. Please update your selections.', 'warning', 5000);
             } else {
                 const jobPath = this.state.jobPath();
                 try { await this.state.loadFamilyPlayersOnce(jobPath); } catch (err) { console.warn('[PRW] refresh family players failed', err); }
@@ -342,7 +341,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
                 if (nextIdx >= 0) this.currentIndex.set(nextIdx);
             }
         } catch (err) {
-            alert('Error checking team availability: ' + err);
+            this.toast.show('Error checking team availability. Please try again.', 'danger', 5000);
+            console.error('[PRW] preSubmit error:', err);
         }
     }
 

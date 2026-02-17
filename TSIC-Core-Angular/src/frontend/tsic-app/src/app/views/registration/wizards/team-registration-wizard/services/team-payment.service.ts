@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap, catchError } from 'rxjs';
 import type { RegisteredTeamDto, ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto } from '@core/api';
 import { environment } from '@environments/environment';
 
@@ -140,13 +140,11 @@ export class TeamPaymentService {
             teamIds: teamIds.map(id => id as any) // Convert string to Guid
         };
 
-        const observable = this.http.post<ApplyTeamDiscountResponseDto>(
+        return this.http.post<ApplyTeamDiscountResponseDto>(
             `${environment.apiUrl}/team-registration/apply-discount`,
             request
-        );
-
-        observable.subscribe({
-            next: (resp: ApplyTeamDiscountResponseDto) => {
+        ).pipe(
+            tap((resp: ApplyTeamDiscountResponseDto) => {
                 this.discountApplying.set(false);
                 this.appliedDiscountResponse.set(resp);
 
@@ -155,15 +153,14 @@ export class TeamPaymentService {
                 } else {
                     this.discountMessage.set(resp.message || 'Failed to apply discount');
                 }
-            },
-            error: (err: HttpErrorResponse) => {
+            }),
+            catchError((err: HttpErrorResponse) => {
                 this.discountApplying.set(false);
                 this.appliedDiscountResponse.set(null);
                 this.discountMessage.set(err?.error?.message || err?.message || 'Failed to apply discount code');
-            }
-        });
-
-        return observable;
+                throw err;
+            })
+        );
     }
 
     /**
