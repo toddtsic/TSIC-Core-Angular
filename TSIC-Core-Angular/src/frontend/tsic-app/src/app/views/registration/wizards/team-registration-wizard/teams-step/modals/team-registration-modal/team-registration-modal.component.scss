@@ -8,7 +8,7 @@
     display: inline-block;
     background: linear-gradient(90deg, var(--bs-warning-bg-subtle) 0%, transparent 100%);
     border-left: 3px solid var(--bs-warning-border-subtle);
-    padding: 0.25rem 0.5rem;
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     color: var(--bs-emphasis-color);
     font-style: italic;
@@ -75,7 +75,7 @@
 
     .modal-footer {
         flex-wrap: nowrap;
-        gap: 0.5rem !important;
+        gap: var(--space-2) !important;
     }
 
     .modal-footer .btn {

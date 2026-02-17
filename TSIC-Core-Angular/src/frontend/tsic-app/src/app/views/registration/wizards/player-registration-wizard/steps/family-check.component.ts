@@ -26,7 +26,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
         <h5 class="mb-2 fw-semibold pt-3">Do you have a current <strong class="text-primary">FAMILY</strong> username/password?</h5>
         <p class="text-body-secondary small">Use the credentials for your Family Account only. Do not use a coach or director login.</p>
 
-        <fieldset role="radiogroup" aria-labelledby="famCheckLegend" style="margin-top: 2rem;">
+        <fieldset role="radiogroup" aria-labelledby="famCheckLegend" style="margin-top: var(--space-8);">
           <legend id="famCheckLegend" class="visually-hidden">Family account availability</legend>
           <div class="list-group list-group-flush">
             <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
