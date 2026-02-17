@@ -196,8 +196,21 @@
         justify-content: center;
         align-items: center;
         padding: var(--space-8) var(--space-4);
-        background: var(--bs-light);
         text-align: center;
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+
+        // Elevated surface with subtle primary tint
+        background:
+            linear-gradient(135deg,
+                rgba(var(--bs-primary-rgb), 0.06) 0%,
+                rgba(var(--bs-primary-rgb), 0.02) 100%),
+            var(--surface-elevated-bg);
+        backdrop-filter: blur(12px) saturate(150%);
+        border: 1px solid var(--brand-border);
+        box-shadow:
+            var(--shadow-md),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb), 0.08);
 
         .banner-title {
             margin: 0;
@@ -215,14 +228,14 @@
         .banner-subtitle {
             margin: 0;
             font-size: var(--font-size-lg);
-            color: var(--bs-secondary);
+            color: var(--brand-text-muted);
             font-weight: var(--font-weight-medium);
         }
     }
 
     .banner-fallback {
         .banner-title {
-            color: var(--bs-secondary);
+            color: var(--brand-text-muted);
         }
     }
 }
