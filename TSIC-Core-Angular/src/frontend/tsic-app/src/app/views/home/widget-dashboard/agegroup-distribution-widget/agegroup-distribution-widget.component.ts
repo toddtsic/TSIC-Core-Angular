@@ -1,9 +1,14 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
+import type { ITextRenderEventArgs } from '@syncfusion/ej2-charts';
 
 import { WidgetDashboardService } from '../services/widget-dashboard.service';
 import { CollapsibleChartCardComponent } from '../collapsible-chart-card/collapsible-chart-card.component';
 import type { AgegroupDistributionDto } from '@core/api';
+
+const currencyFmt = new Intl.NumberFormat('en-US', {
+	style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+});
 
 /** Read a CSS custom property from :root, with fallback. */
 function cssVar(v: string, fallback: string): string {
@@ -45,6 +50,9 @@ export class AgegroupDistributionWidgetComponent implements OnInit {
 	readonly totalTeamsDisplay = computed(() =>
 		(this.data()?.totalTeams ?? 0).toLocaleString());
 
+	readonly totalRevenueDisplay = computed(() =>
+		currencyFmt.format(this.data()?.totalRevenue ?? 0));
+
 	// Dynamic chart height based on number of age groups
 	readonly chartHeight = computed(() => {
 		const count = this.chartData().length;
@@ -82,8 +90,29 @@ export class AgegroupDistributionWidgetComponent implements OnInit {
 		margin: { top: 0, bottom: 4, left: 0, right: 0 },
 	};
 
+	/** Data label config for the Players series — shows revenue text at each bar end */
+	readonly playerDataLabel = {
+		visible: true,
+		position: 'Top' as const,
+		font: { size: '10px', color: '' },  // color set in textRender
+	};
+
 	readonly chartArea = { border: { width: 0 } };
 	readonly margin = { left: 8, right: 8, top: 4, bottom: 4 };
+
+	/** Replace default data label text with currency-formatted revenue */
+	onTextRender(args: ITextRenderEventArgs): void {
+		const points = this.chartData();
+		const idx = args.point?.index ?? -1;
+		if (idx >= 0 && idx < points.length) {
+			const rev = points[idx].revenue;
+			args.text = rev > 0 ? currencyFmt.format(rev) : '';
+		}
+		// Use muted text color for the label
+		if (args.font) {
+			args.font.color = this.mutedColor();
+		}
+	}
 
 	ngOnInit(): void {
 		this.svc.getAgegroupDistribution().subscribe({

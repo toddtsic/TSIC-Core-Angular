@@ -1,0 +1,63 @@
+<app-collapsible-chart-card title="Registration Pace: Year over Year"
+	icon="bi-graph-up-arrow" [(collapsed)]="isCollapsed">
+
+	<!-- Summary: always visible KPI badges -->
+	<div summary class="widget-summary">
+		@if (hasData()) {
+			<div class="summary-stat primary">
+				<span class="stat-value">{{ currentCountDisplay() }}</span>
+				<span class="stat-label">Current</span>
+			</div>
+			@if (paceDisplay()) {
+				<div class="summary-stat" [class.accent]="paceDisplay().includes('ahead')"
+					[class.warn]="paceDisplay().includes('behind')">
+					<span class="stat-value pace-value">{{ paceDisplay() }}</span>
+				</div>
+			}
+			@if (priorFinalDisplay()) {
+				<div class="summary-stat muted">
+					<span class="stat-value prior-final">{{ priorFinalDisplay() }}</span>
+				</div>
+			}
+		}
+	</div>
+
+	<!-- Chart: only rendered when expanded -->
+	<div chart>
+		@if (hasData()) {
+			<ejs-chart
+				[primaryXAxis]="primaryXAxis()"
+				[primaryYAxis]="primaryYAxis()"
+				[tooltip]="tooltipSettings"
+				[legendSettings]="legendSettings"
+				[chartArea]="chartArea"
+				[margin]="margin"
+				[width]="'100%'"
+				[height]="'320px'"
+				[background]="'transparent'"
+				(tooltipRender)="onTooltipRender($event)">
+
+				<e-series-collection>
+					@for (s of seriesConfigs(); track s.year) {
+						<e-series
+							[dataSource]="s.data"
+							type="Spline"
+							xName="syntheticDate"
+							yName="cumulativeCount"
+							[name]="s.isCurrent ? s.year + ' (current)' : s.year + ' (' + s.finalTotal.toLocaleString() + ' final)'"
+							[fill]="s.color"
+							[width]="s.width"
+							[dashArray]="s.dashArray"
+							opacity="1">
+						</e-series>
+					}
+				</e-series-collection>
+			</ejs-chart>
+		} @else if (hasError()) {
+			<div class="chart-error">Unable to load year-over-year data</div>
+		} @else {
+			<div class="chart-empty">No prior year data for comparison</div>
+		}
+	</div>
+
+</app-collapsible-chart-card>

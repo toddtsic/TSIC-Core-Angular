@@ -347,6 +347,20 @@ public class WidgetRepository : IWidgetRepository
             .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
+        // Revenue per age group (sum of PaidTotal for players with assigned teams)
+        var revenueByAg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.BActive == true
+                     && r.RoleId == RoleConstants.Player
+                     && r.AssignedTeamId != null)
+            .Join(_context.Teams.AsNoTracking(),
+                  r => r.AssignedTeamId,
+                  t => t.TeamId,
+                  (r, t) => new { t.AgegroupId, r.PaidTotal })
+            .GroupBy(x => x.AgegroupId)
+            .Select(g => new { AgegroupId = g.Key, Revenue = g.Sum(x => x.PaidTotal) })
+            .ToListAsync(ct);
+
         // Team counts per age group
         var teamsByAg = await _context.Teams
             .AsNoTracking()
@@ -370,6 +384,7 @@ public class WidgetRepository : IWidgetRepository
         // Merge into distribution points
         var playerLookup = playersByAg.ToDictionary(p => p.AgegroupId, p => p.Count);
         var teamLookup = teamsByAg.ToDictionary(t => t.AgegroupId, t => t.Count);
+        var revenueLookup = revenueByAg.ToDictionary(r => r.AgegroupId, r => r.Revenue);
 
         var points = allAgIds
             .Select(id => new AgegroupDistributionPointDto
@@ -377,6 +392,7 @@ public class WidgetRepository : IWidgetRepository
                 AgegroupName = agNames.GetValueOrDefault(id, "Unknown"),
                 PlayerCount = playerLookup.GetValueOrDefault(id, 0),
                 TeamCount = teamLookup.GetValueOrDefault(id, 0),
+                Revenue = revenueLookup.GetValueOrDefault(id, 0m),
             })
             .OrderBy(p => p.AgegroupName)
             .ToList();
@@ -386,6 +402,117 @@ public class WidgetRepository : IWidgetRepository
             Agegroups = points,
             TotalPlayers = playersByAg.Sum(p => p.Count),
             TotalTeams = teamsByAg.Sum(t => t.Count),
+            TotalRevenue = revenueByAg.Sum(r => r.Revenue),
+        };
+    }
+
+    public async Task<EventContactDto?> GetEventContactAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var adminRoleIds = new[]
+        {
+            RoleConstants.Superuser,
+            RoleConstants.SuperDirector,
+            RoleConstants.Director,
+            RoleConstants.ApiAuthorized,
+            RoleConstants.RefAssignor,
+            RoleConstants.StoreAdmin,
+            RoleConstants.StpAdmin,
+        };
+
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                      && adminRoleIds.Contains(r.RoleId)
+                      && r.BActive == true)
+            .OrderBy(r => r.RegistrationTs)
+            .Select(r => new EventContactDto
+            {
+                FirstName = r.User.FirstName ?? "",
+                LastName = r.User.LastName ?? "",
+                Email = r.User.Email ?? "",
+            })
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<YearOverYearComparisonDto> GetYearOverYearAsync(
+        Guid currentJobId, CancellationToken ct = default)
+    {
+        // 1. Get current job's identity fields
+        var currentJob = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == currentJobId)
+            .Select(j => new
+            {
+                j.CustomerId,
+                j.JobTypeId,
+                j.SportId,
+                j.Season,
+                j.Year,
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (currentJob?.Year == null)
+            return new YearOverYearComparisonDto
+            {
+                Series = [],
+                CurrentYear = "",
+            };
+
+        // 2. Find sibling jobs (same customer + type + sport + season)
+        var siblings = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == currentJob.CustomerId
+                      && j.JobTypeId == currentJob.JobTypeId
+                      && j.SportId == currentJob.SportId
+                      && j.Season == currentJob.Season
+                      && j.Year != null)
+            .OrderByDescending(j => j.Year)
+            .Select(j => new { j.JobId, j.Year, j.JobName })
+            .ToListAsync(ct);
+
+        // Cap at 4 most recent years for chart readability
+        var recentSiblings = siblings.Take(4).ToList();
+
+        // 3. For each sibling, get daily registration counts (sequential — shared DbContext)
+        var series = new List<YearSeriesDto>();
+
+        foreach (var sibling in recentSiblings)
+        {
+            var dailyRaw = await _context.Registrations
+                .AsNoTracking()
+                .Where(r => r.JobId == sibling.JobId && r.BActive == true)
+                .GroupBy(r => r.RegistrationTs.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .OrderBy(x => x.Date)
+                .ToListAsync(ct);
+
+            if (dailyRaw.Count == 0) continue;
+
+            // Build cumulative totals — keep real calendar dates
+            var cumulative = 0;
+            var points = dailyRaw.Select(d =>
+            {
+                cumulative += d.Count;
+                return new YearDayPointDto
+                {
+                    Date = d.Date,
+                    CumulativeCount = cumulative,
+                };
+            }).ToList();
+
+            series.Add(new YearSeriesDto
+            {
+                Year = sibling.Year!,
+                JobName = sibling.JobName ?? sibling.Year!,
+                FinalTotal = cumulative,
+                DailyData = points,
+            });
+        }
+
+        return new YearOverYearComparisonDto
+        {
+            Series = series,
+            CurrentYear = currentJob.Year,
         };
     }
 }

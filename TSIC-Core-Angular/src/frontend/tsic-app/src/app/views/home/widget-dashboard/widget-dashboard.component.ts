@@ -1,5 +1,5 @@
 import { Component, computed, effect, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from './services/widget-dashboard.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
@@ -9,6 +9,8 @@ import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
 import { PlayerTrendWidgetComponent } from './player-trend-widget/player-trend-widget.component';
 import { TeamTrendWidgetComponent } from './team-trend-widget/team-trend-widget.component';
 import { AgegroupDistributionWidgetComponent } from './agegroup-distribution-widget/agegroup-distribution-widget.component';
+import { EventContactWidgetComponent } from './event-contact-widget/event-contact-widget.component';
+import { YearOverYearWidgetComponent } from './year-over-year-widget/year-over-year-widget.component';
 import type { DashboardMetricsDto, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {
@@ -22,7 +24,7 @@ interface WidgetConfig {
 @Component({
 	selector: 'app-widget-dashboard',
 	standalone: true,
-	imports: [ClientBannerComponent, BulletinsComponent, PlayerTrendWidgetComponent, TeamTrendWidgetComponent, AgegroupDistributionWidgetComponent],
+	imports: [ClientBannerComponent, BulletinsComponent, PlayerTrendWidgetComponent, TeamTrendWidgetComponent, AgegroupDistributionWidgetComponent, EventContactWidgetComponent, YearOverYearWidgetComponent],
 	templateUrl: './widget-dashboard.component.html',
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -86,7 +88,15 @@ export class WidgetDashboardComponent {
 	readonly activeJobPath = computed(() => {
 		if (this.mode() === 'public') return this.publicJobPath();
 		const user = this.auth.currentUser();
-		return user?.jobPath || this.route.parent?.snapshot.paramMap.get('jobPath') || '';
+		if (user?.jobPath) return user.jobPath;
+		// Traverse route tree upward to find :jobPath (works in both hub and spoke mode)
+		let r: ActivatedRouteSnapshot | null = this.route.snapshot;
+		while (r) {
+			const jp = r.paramMap.get('jobPath');
+			if (jp) return jp;
+			r = r.parent;
+		}
+		return '';
 	});
 
 	// Bulletin data (used by content widgets)
@@ -320,7 +330,11 @@ export class WidgetDashboardComponent {
 		event.preventDefault();
 		const config = this.getConfig(widget);
 		if (config.route) {
-			this.router.navigate(['/', this.activeJobPath(), ...config.route.split('/')]);
+			const wsKey = this.activeWorkspaceKey();
+			this.router.navigate(
+				['/', this.activeJobPath(), ...config.route.split('/')],
+				wsKey ? { queryParams: { from: wsKey } } : {},
+			);
 		}
 	}
 

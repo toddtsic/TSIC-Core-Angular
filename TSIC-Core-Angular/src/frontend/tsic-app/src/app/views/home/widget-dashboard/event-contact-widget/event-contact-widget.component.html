@@ -1,0 +1,9 @@
+@if (data(); as contact) {
+	<div class="event-contact">
+		<span class="contact-label">For questions about this event, please contact:</span>
+		<div class="contact-info">
+			<span class="contact-name">{{ fullName() }}</span>
+			<a class="contact-email" [href]="mailtoLink()">{{ contact.email }}</a>
+		</div>
+	</div>
+}

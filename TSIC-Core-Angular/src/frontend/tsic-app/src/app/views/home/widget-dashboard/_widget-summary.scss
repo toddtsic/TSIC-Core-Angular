@@ -45,6 +45,10 @@
 	color: var(--bs-warning, #ffc107);
 }
 
+.summary-stat.muted .stat-value {
+	color: var(--brand-text-muted);
+}
+
 // ═══════════════════════════════════════
 // RESPONSIVE
 // ═══════════════════════════════════════

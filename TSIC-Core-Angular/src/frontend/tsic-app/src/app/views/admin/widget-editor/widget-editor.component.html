@@ -1,0 +1,370 @@
+<!-- Page header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+	<h2 class="mb-0">Widget Editor</h2>
+	<div class="d-flex gap-2 flex-wrap">
+		<button class="btn btn-outline-secondary btn-sm" (click)="refresh()" [disabled]="isLoading()">
+			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
+		</button>
+	</div>
+</div>
+
+<!-- Tab navigation -->
+<div class="editor-tabs">
+	<button class="editor-tab" [class.active]="activeTab() === 'matrix'" (click)="activeTab.set('matrix')">
+		<i class="bi bi-grid-3x3 me-1"></i>Default Matrix
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'definitions'" (click)="activeTab.set('definitions')">
+		<i class="bi bi-puzzle me-1"></i>Widget Definitions
+	</button>
+</div>
+
+<!-- Error alert -->
+@if (errorMessage()) {
+	<div class="alert alert-danger d-flex align-items-center" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		{{ errorMessage() }}
+	</div>
+}
+
+<!-- Loading state -->
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="mt-2 text-body-secondary">Loading widget data...</p>
+	</div>
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 1: Default Matrix                 -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'matrix') {
+	<div class="matrix-controls">
+		<!-- JobType selector -->
+		<div class="d-flex align-items-center gap-2">
+			<label for="jobTypeSelect" class="form-label mb-0 fw-semibold">Job Type:</label>
+			<select id="jobTypeSelect" class="form-select form-select-sm" style="width: auto;"
+				[value]="selectedJobTypeId()"
+				(change)="onJobTypeChange($event)">
+				<option [value]="0" disabled>Select a job type...</option>
+				@for (jt of jobTypes(); track jt.jobTypeId) {
+					<option [value]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
+				}
+			</select>
+		</div>
+
+		<!-- Copy from another JobType -->
+		@if (selectedJobTypeId()) {
+			<div class="position-relative">
+				<button class="btn btn-outline-secondary btn-sm" (click)="showCopyMenu.set(!showCopyMenu())">
+					<i class="bi bi-clipboard me-1"></i>Copy from...
+				</button>
+				@if (showCopyMenu()) {
+					<div class="copy-from-menu">
+						@for (jt of jobTypes(); track jt.jobTypeId) {
+							@if (jt.jobTypeId !== selectedJobTypeId()) {
+								<button class="copy-option" (click)="copyFromJobType(jt.jobTypeId)">
+									{{ jt.jobTypeName }}
+								</button>
+							}
+						}
+					</div>
+				}
+			</div>
+		}
+	</div>
+
+	<!-- Matrix empty state -->
+	@if (!selectedJobTypeId()) {
+		<div class="text-center py-5">
+			<i class="bi bi-grid-3x3 fs-1 text-body-secondary"></i>
+			<p class="mt-2 text-body-secondary">Select a job type to manage widget defaults.</p>
+		</div>
+	}
+
+	<!-- Matrix content -->
+	@if (selectedJobTypeId()) {
+		@for (group of workspaceGroups(); track group.workspace) {
+			<div class="matrix-card mb-3">
+				<!-- Workspace accordion header -->
+				<div class="workspace-header" (click)="toggleWorkspace(group.workspace)">
+					<i class="bi chevron" [class.expanded]="isWorkspaceExpanded(group.workspace)"
+						[ngClass]="'bi-chevron-right'"></i>
+					@if (group.icon) {
+						<i class="bi workspace-icon" [ngClass]="'bi-' + group.icon"></i>
+					}
+					<span class="workspace-name">{{ group.label }}</span>
+					<span class="workspace-count">{{ group.widgetCount }} widget{{ group.widgetCount !== 1 ? 's' : '' }}</span>
+				</div>
+
+				<!-- Matrix table (collapsible) -->
+				@if (isWorkspaceExpanded(group.workspace)) {
+					@for (cat of group.categories; track cat.categoryId) {
+						@if (group.categories.length > 1) {
+							<div class="category-subheader">{{ cat.name }}</div>
+						}
+						<table class="matrix-table">
+							<thead>
+								<tr>
+									<th>Widget</th>
+									@for (role of roles(); track role.roleId) {
+										<th [title]="role.roleName">{{ abbreviateRole(role.roleName) }}</th>
+									}
+								</tr>
+							</thead>
+							<tbody>
+								@for (widget of cat.widgets; track widget.widgetId) {
+									<tr>
+										<td>
+											<span class="widget-name">{{ widget.name }}</span>
+										</td>
+										@for (role of roles(); track role.roleId) {
+											<td>
+												<input type="checkbox" class="matrix-checkbox form-check-input"
+													[checked]="isDefaultEnabled(widget.widgetId, role.roleId)"
+													(change)="toggleDefault(widget.widgetId, role.roleId, cat.categoryId)"
+													[title]="widget.name + ' → ' + role.roleName" />
+											</td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+				}
+			</div>
+		}
+
+		<!-- Save bar (sticky) -->
+		@if (isDirty()) {
+			<div class="save-bar">
+				<span class="unsaved-badge">
+					<i class="bi bi-exclamation-circle me-1"></i>
+					{{ changeCount() }} unsaved change{{ changeCount() !== 1 ? 's' : '' }}
+				</span>
+				<button class="btn btn-outline-secondary btn-sm" (click)="resetMatrix()">
+					<i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+				</button>
+				<button class="btn btn-primary btn-sm" (click)="saveMatrix()" [disabled]="isSaving()">
+					@if (isSaving()) {
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+					}
+					<i class="bi bi-check-lg me-1"></i>Save Defaults
+				</button>
+			</div>
+		}
+	}
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 2: Widget Definitions             -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'definitions') {
+	<div class="definitions-toolbar">
+		<span class="text-body-secondary">{{ widgets().length }} widget definition{{ widgets().length !== 1 ? 's' : '' }} registered</span>
+		<button class="btn btn-primary btn-sm" (click)="openAddWidget()">
+			<i class="bi bi-plus-lg me-1"></i>Add Widget
+		</button>
+	</div>
+
+	@if (widgets().length === 0) {
+		<div class="text-center py-5">
+			<i class="bi bi-puzzle fs-1 text-body-secondary"></i>
+			<p class="mt-2 text-body-secondary">No widget definitions found.</p>
+		</div>
+	}
+
+	@if (widgets().length > 0) {
+		<div class="table-responsive">
+			<table class="table table-hover align-middle mb-0 definitions-table">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Type</th>
+						<th>Component Key</th>
+						<th>Category</th>
+						<th>Workspace</th>
+						<th class="col-actions">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (w of widgets(); track w.widgetId) {
+						<tr>
+							<td class="fw-semibold">{{ w.name }}</td>
+							<td>
+								<span class="type-badge" [ngClass]="'type-' + w.widgetType">{{ w.widgetType }}</span>
+							</td>
+							<td class="text-body-secondary font-monospace" style="font-size: 0.85rem;">{{ w.componentKey }}</td>
+							<td>{{ w.categoryName }}</td>
+							<td>
+								<span class="badge bg-secondary-subtle text-secondary-emphasis">{{ w.workspace }}</span>
+							</td>
+							<td>
+								<div class="btn-group btn-group-sm">
+									<button class="btn btn-outline-success" (click)="openAssignRoles(w)" title="Assign Roles">
+										<i class="bi bi-person-check"></i>
+									</button>
+									<button class="btn btn-outline-primary" (click)="openEditWidget(w)" title="Edit">
+										<i class="bi bi-pencil"></i>
+									</button>
+									<button class="btn btn-outline-danger" (click)="confirmDeleteWidget(w)" title="Delete">
+										<i class="bi bi-trash"></i>
+									</button>
+								</div>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- Modals                                -->
+<!-- ══════════════════════════════════════ -->
+
+<!-- Add/Edit Widget Modal -->
+@if (showWidgetModal()) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="closeWidgetModal()">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">{{ editingWidget() ? 'Edit Widget' : 'Add Widget' }}</h5>
+				<button type="button" class="btn-close" (click)="closeWidgetModal()" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<label class="form-label">Name</label>
+					<input type="text" class="form-control form-control-sm"
+						[value]="formName()" (input)="formName.set(asInputValue($event))" />
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Widget Type</label>
+					<select class="form-select form-select-sm"
+						[value]="formWidgetType()" (change)="formWidgetType.set(asSelectValue($event))">
+						<option value="" disabled>Select type...</option>
+						@for (t of widgetTypes; track t) {
+							<option [value]="t">{{ t }}</option>
+						}
+					</select>
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Component Key</label>
+					<input type="text" class="form-control form-control-sm"
+						[value]="formComponentKey()" (input)="formComponentKey.set(asInputValue($event))" />
+					<div class="form-text">Unique identifier used to render the widget component.</div>
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Category</label>
+					<select class="form-select form-select-sm"
+						[value]="formCategoryId()" (change)="formCategoryId.set(+asSelectValue($event))">
+						<option [value]="0" disabled>Select category...</option>
+						@for (c of categories(); track c.categoryId) {
+							<option [value]="c.categoryId">{{ c.name }} ({{ c.workspace }})</option>
+						}
+					</select>
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Description <span class="text-body-secondary">(optional)</span></label>
+					<textarea class="form-control form-control-sm" rows="2"
+						[value]="formDescription()" (input)="formDescription.set(asInputValue($event))"></textarea>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeWidgetModal()">Cancel</button>
+				<button type="button" class="btn btn-primary btn-sm"
+					[disabled]="!isFormValid()" (click)="saveWidget()">
+					{{ editingWidget() ? 'Update' : 'Create' }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm()) {
+	<confirm-dialog
+		title="Delete Widget"
+		[message]="'Delete widget \'' + deleteTarget()?.name + '\'? This cannot be undone.'"
+		confirmLabel="Delete"
+		confirmVariant="danger"
+		(confirmed)="onDeleteConfirmed()"
+		(cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
+	</confirm-dialog>
+}
+
+<!-- Assign Roles Modal -->
+@if (showAssignModal()) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="closeAssignModal()">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Assign: {{ assignTarget()?.name }}</h5>
+				<button type="button" class="btn-close" (click)="closeAssignModal()" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<!-- Defaults (all job types) section -->
+				<div class="assign-section mb-4">
+					<h6 class="assign-section-title">
+						<i class="bi bi-globe me-1"></i>Defaults (all job types)
+					</h6>
+
+					<div class="mb-3">
+						<label class="form-label fw-semibold mb-2">Job Types</label>
+						<div class="d-flex flex-wrap gap-2">
+							<label class="assign-chip" [class.active]="allJobTypesSelected()">
+								<input type="checkbox" class="d-none"
+									[checked]="allJobTypesSelected()"
+									(change)="toggleAllJobTypes()" />
+								Select All
+							</label>
+							@for (jt of jobTypes(); track jt.jobTypeId) {
+								<label class="assign-chip" [class.active]="assignSelectedJobTypes().has(jt.jobTypeId)">
+									<input type="checkbox" class="d-none"
+										[checked]="assignSelectedJobTypes().has(jt.jobTypeId)"
+										(change)="toggleAssignJobType(jt.jobTypeId)" />
+									{{ jt.jobTypeName }}
+								</label>
+							}
+						</div>
+					</div>
+
+					<div class="mb-2">
+						<label class="form-label fw-semibold mb-2">Roles</label>
+						<div class="d-flex flex-wrap gap-2">
+							@for (role of roles(); track role.roleId) {
+								<label class="assign-chip" [class.active]="assignSelectedRoles().has(role.roleId)">
+									<input type="checkbox" class="d-none"
+										[checked]="assignSelectedRoles().has(role.roleId)"
+										(change)="toggleAssignRole(role.roleId)" />
+									{{ role.roleName }}
+								</label>
+							}
+						</div>
+					</div>
+				</div>
+
+				<!-- Summary -->
+				@if (assignmentCount() > 0) {
+					<div class="assign-summary">
+						<i class="bi bi-info-circle me-1"></i>
+						{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
+						({{ assignSelectedRoles().size }} role{{ assignSelectedRoles().size !== 1 ? 's' : '' }}
+						&times; {{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
+					</div>
+				}
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeAssignModal()">Cancel</button>
+				<button type="button" class="btn btn-primary btn-sm"
+					[disabled]="isAssignSaving()"
+					(click)="saveAssignments()">
+					@if (isAssignSaving()) {
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+					}
+					Apply
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}

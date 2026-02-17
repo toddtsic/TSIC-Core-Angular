@@ -1,0 +1,35 @@
+@use '../widget-summary' as *;
+
+:host {
+	display: block;
+}
+
+.pace-value {
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+}
+
+.prior-final {
+	font-size: var(--font-size-xs);
+	font-weight: 500;
+}
+
+.chart-error,
+.chart-empty {
+	padding: var(--space-4);
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-sm);
+	text-align: center;
+}
+
+// Syncfusion overrides
+:host ::ng-deep {
+	.e-chart {
+		background: transparent !important;
+		border: none !important;
+	}
+
+	.e-chart-legend-text {
+		fill: var(--brand-text-muted) !important;
+	}
+}

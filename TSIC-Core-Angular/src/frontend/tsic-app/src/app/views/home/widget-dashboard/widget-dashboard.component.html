@@ -32,6 +32,9 @@
                                             [error]="bulletinsError()"
                                             [jobPath]="activeJobPath()" />
                                     }
+                                    @case ('event-contact') {
+                                        <app-event-contact-widget />
+                                    }
                                 }
                             }
                         </div>
@@ -44,10 +47,6 @@
 
         <!-- ═══════ SPOKE MODE: Single workspace view ═══════ -->
         <div class="spoke-header">
-            <button class="spoke-back" (click)="navigateToHub()" type="button">
-                <i class="bi bi-arrow-left"></i>
-                <span>Dashboard</span>
-            </button>
             <h2 class="spoke-title">{{ activeWorkspaceLabel() }}</h2>
         </div>
 
@@ -133,6 +132,9 @@
                                 @case ('agegroup-distribution') {
                                     <app-agegroup-distribution-widget />
                                 }
+                                @case ('year-over-year') {
+                                    <app-year-over-year-widget />
+                                }
                             }
                         }
                     </div>
@@ -147,6 +149,9 @@
                                         [loading]="bulletinsLoading()"
                                         [error]="bulletinsError()"
                                         [jobPath]="activeJobPath()" />
+                                }
+                                @case ('event-contact') {
+                                    <app-event-contact-widget />
                                 }
                             }
                         }

@@ -60,4 +60,17 @@ public interface IWidgetRepository
     /// Players counted via AssignedTeamId → Team.AgegroupId; teams via Teams.AgegroupId.
     /// </summary>
     Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the primary event contact — the earliest-registered administrator for a job.
+    /// Returns null if no admin registration exists.
+    /// </summary>
+    Task<EventContactDto?> GetEventContactAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get year-over-year registration pace comparison for sibling jobs
+    /// (same customer + type + sport + season, different years).
+    /// Returns up to 4 most recent years.
+    /// </summary>
+    Task<YearOverYearComparisonDto> GetYearOverYearAsync(Guid currentJobId, CancellationToken ct = default);
 }

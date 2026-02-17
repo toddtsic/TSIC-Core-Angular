@@ -12,6 +12,10 @@
 				<span class="stat-value">{{ totalTeamsDisplay() }}</span>
 				<span class="stat-label">Teams</span>
 			</div>
+			<div class="summary-stat muted">
+				<span class="stat-value">{{ totalRevenueDisplay() }}</span>
+				<span class="stat-label">Revenue</span>
+			</div>
 		}
 	</div>
 
@@ -27,7 +31,8 @@
 				[margin]="margin"
 				[width]="'100%'"
 				[height]="chartHeight()"
-				[background]="'transparent'">
+				[background]="'transparent'"
+				(textRender)="onTextRender($event)">
 
 				<e-series-collection>
 					<e-series
@@ -39,7 +44,8 @@
 						[fill]="primaryColor()"
 						opacity="0.75"
 						[columnWidth]="0.6"
-						[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+						[cornerRadius]="{ topLeft: 3, topRight: 3 }"
+						[marker]="{ dataLabel: playerDataLabel }">
 					</e-series>
 					<e-series
 						[dataSource]="chartData()"

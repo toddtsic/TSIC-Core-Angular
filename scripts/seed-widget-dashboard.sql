@@ -13,7 +13,7 @@
 --   1. Creates [widgets] schema + 4 tables (if not exists)
 --   2. Migrates [Section] → [Workspace] column (if old schema)
 --   3. Updates constraints (CHECK + UNIQUE KEY)
---   4. Seeds 11 workspace categories, 19 widget definitions
+--   4. Seeds 11 workspace categories, 20 widget definitions
 --   5. Seeds WidgetDefault entries per role-workspace matrix × ALL JobTypes
 --
 -- Supersedes: seed-anonymous-widgets.sql, seed-chart-widgets.sql,
@@ -298,12 +298,20 @@ IF NOT EXISTS (SELECT 1 FROM widgets.WidgetCategory WHERE Name = 'Schedule View'
     VALUES ('Schedule View', 'scheduling', 'bi-calendar-check', 1);
 
 IF NOT EXISTS (SELECT 1 FROM widgets.WidgetCategory WHERE Name = 'Organization Finances' AND Workspace = 'fin-per-job')
+   AND NOT EXISTS (SELECT 1 FROM widgets.WidgetCategory WHERE Name = 'Customer Finances' AND Workspace = 'fin-per-job')
     INSERT INTO widgets.WidgetCategory (Name, Workspace, Icon, DefaultOrder)
-    VALUES ('Organization Finances', 'fin-per-job', 'bi-cash-stack', 0);
+    VALUES ('Customer Finances', 'fin-per-job', 'bi-cash-stack', 0);
+
+-- Rename existing if present (from older seed runs)
+UPDATE widgets.WidgetCategory SET Name = 'Customer Finances' WHERE Name = 'Organization Finances' AND Workspace = 'fin-per-job';
 
 IF NOT EXISTS (SELECT 1 FROM widgets.WidgetCategory WHERE Name = 'My Finances' AND Workspace = 'fin-per-customer')
+   AND NOT EXISTS (SELECT 1 FROM widgets.WidgetCategory WHERE Name = 'Job Finances' AND Workspace = 'fin-per-customer')
     INSERT INTO widgets.WidgetCategory (Name, Workspace, Icon, DefaultOrder)
-    VALUES ('My Finances', 'fin-per-customer', 'bi-wallet2', 0);
+    VALUES ('Job Finances', 'fin-per-customer', 'bi-wallet2', 0);
+
+-- Rename existing if present (from older seed runs)
+UPDATE widgets.WidgetCategory SET Name = 'Job Finances' WHERE Name = 'My Finances' AND Workspace = 'fin-per-customer';
 
 PRINT 'Workspace categories ensured';
 
@@ -320,8 +328,8 @@ DECLARE @playerMgmtCatId     INT = (SELECT CategoryId FROM widgets.WidgetCategor
 DECLARE @teamMgmtCatId       INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = 'Team Management');
 DECLARE @schedToolsCatId     INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = 'Scheduling Tools');
 DECLARE @schedViewCatId      INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = 'Schedule View');
-DECLARE @orgFinCatId         INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = 'Organization Finances');
-DECLARE @myFinCatId          INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = 'My Finances');
+DECLARE @orgFinCatId         INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = 'Customer Finances');
+DECLARE @myFinCatId          INT = (SELECT CategoryId FROM widgets.WidgetCategory WHERE Name = 'Job Finances');
 
 -- ──────────────────────────────────────────────────────────
 -- 2d. Widget definitions (idempotent)
@@ -419,6 +427,11 @@ IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'view-schedule'
     VALUES ('View Schedule', 'quick-action', 'view-schedule', @schedViewCatId,
             'View published game schedule');
 
+IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'rescheduler')
+    INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description)
+    VALUES ('Rescheduler', 'quick-action', 'rescheduler', @schedViewCatId,
+            'Reschedule or swap individual games');
+
 -- Organization Finances workspace
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'financial-overview')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description)
@@ -454,6 +467,7 @@ DECLARE @viewByClubId      INT = (SELECT WidgetId FROM widgets.Widget WHERE Comp
 DECLARE @schedPipelineId   INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'scheduling-pipeline');
 DECLARE @poolAssignId      INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'pool-assignment');
 DECLARE @viewScheduleId    INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'view-schedule');
+DECLARE @reschedulerId     INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'rescheduler');
 DECLARE @finOverviewId     INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'financial-overview');
 DECLARE @myPaymentsId      INT = (SELECT WidgetId FROM widgets.Widget WHERE ComponentKey = 'my-payments');
 
@@ -576,7 +590,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @regStatusId, @dashStatusCatId, 1,
-    '{"label":"Registrations","icon":"bi-people-fill","route":"registrations"}'
+    '{"label":"Registrations","icon":"bi-people-fill","route":"admin/search"}'
 FROM reference.JobTypes jt CROSS JOIN @adminRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -585,7 +599,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @finStatusId, @dashStatusCatId, 2,
-    '{"label":"Financials","icon":"bi-currency-dollar","route":"financials"}'
+    '{"label":"Financials","icon":"bi-currency-dollar","route":"reporting/financials"}'
 FROM reference.JobTypes jt CROSS JOIN @adminRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -594,7 +608,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @schedStatusId, @dashStatusCatId, 3,
-    '{"label":"Schedule","icon":"bi-calendar-check","route":"scheduling"}'
+    '{"label":"Schedule","icon":"bi-calendar-check","route":"admin/scheduling"}'
 FROM reference.JobTypes jt CROSS JOIN @adminRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -618,7 +632,7 @@ PRINT 'Seeded: dashboard workspace (non-admin roles)';
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @ladtEditorId, @jobConfigCatId, 1,
-    '{"label":"LADT Editor","icon":"bi-diagram-3","route":"ladt"}'
+    '{"label":"LADT Editor","icon":"bi-diagram-3","route":"ladt/admin"}'
 FROM reference.JobTypes jt CROSS JOIN @jobConfigRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -627,7 +641,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @feeConfigId, @jobConfigCatId, 2,
-    '{"label":"Fee Configuration","icon":"bi-tags","route":"fees"}'
+    '{"label":"Fee Configuration","icon":"bi-tags","route":"ladt/admin"}'
 FROM reference.JobTypes jt CROSS JOIN @jobConfigRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -636,7 +650,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @jobSettingsId, @jobConfigCatId, 3,
-    '{"label":"Job Settings","icon":"bi-sliders","route":"settings"}'
+    '{"label":"Job Settings","icon":"bi-sliders","route":"ladt/admin"}'
 FROM reference.JobTypes jt CROSS JOIN @jobConfigRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -649,7 +663,7 @@ PRINT 'Seeded: job-config workspace';
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @searchRegsId, @playerMgmtCatId, 1,
-    '{"label":"Search Registrations","icon":"bi-search","route":"registrations/search"}'
+    '{"label":"Search Registrations","icon":"bi-search","route":"admin/search"}'
 FROM reference.JobTypes jt CROSS JOIN @playerRegFullRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -658,7 +672,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @rosterSwapperId, @playerMgmtCatId, 2,
-    '{"label":"Roster Swapper","icon":"bi-arrow-left-right","route":"roster-swapper"}'
+    '{"label":"Roster Swapper","icon":"bi-arrow-left-right","route":"admin/roster-swapper"}'
 FROM reference.JobTypes jt CROSS JOIN @playerRegFullRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -670,7 +684,7 @@ PRINT 'Seeded: player-reg workspace (full access)';
 -- Player-reg (view-only — Staff)
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @searchRegsId, @playerMgmtCatId, 1,
-    '{"label":"Search Registrations","icon":"bi-search","route":"registrations/search","readOnly":true}'
+    '{"label":"Search Registrations","icon":"bi-search","route":"admin/search","readOnly":true}'
 FROM reference.JobTypes jt CROSS JOIN @playerRegViewRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -683,7 +697,7 @@ PRINT 'Seeded: player-reg workspace (view only)';
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @viewByClubId, @teamMgmtCatId, 1,
-    '{"label":"View by Club","icon":"bi-building","route":"registrations/by-club"}'
+    '{"label":"View by Club","icon":"bi-building","route":"admin/team-search"}'
 FROM reference.JobTypes jt CROSS JOIN @teamRegFullRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -695,7 +709,7 @@ PRINT 'Seeded: team-reg workspace (full access)';
 -- Team-reg (view-only — Staff)
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @viewByClubId, @teamMgmtCatId, 1,
-    '{"label":"View by Club","icon":"bi-building","route":"registrations/by-club","readOnly":true}'
+    '{"label":"View by Club","icon":"bi-building","route":"admin/team-search","readOnly":true}'
 FROM reference.JobTypes jt CROSS JOIN @teamRegViewRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -708,7 +722,7 @@ PRINT 'Seeded: team-reg workspace (view only)';
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @schedPipelineId, @schedToolsCatId, 1,
-    '{"label":"Scheduling Pipeline","icon":"bi-kanban","route":"scheduling/pipeline"}'
+    '{"label":"Scheduling Pipeline","icon":"bi-kanban","route":"admin/scheduling"}'
 FROM reference.JobTypes jt CROSS JOIN @schedFullRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -717,7 +731,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @poolAssignId, @schedToolsCatId, 2,
-    '{"label":"Pool Assignment","icon":"bi-people-fill","route":"scheduling/pools"}'
+    '{"label":"Pool Assignment","icon":"bi-people-fill","route":"admin/pool-assignment"}'
 FROM reference.JobTypes jt CROSS JOIN @schedFullRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -727,7 +741,7 @@ WHERE NOT EXISTS (
 -- LADT also in scheduling workspace (cross-workspace widget)
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @ladtEditorId, @schedToolsCatId, 3,
-    '{"label":"LADT Editor","icon":"bi-diagram-3","route":"ladt"}'
+    '{"label":"LADT Editor","icon":"bi-diagram-3","route":"ladt/admin"}'
 FROM reference.JobTypes jt CROSS JOIN @schedFullRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -737,7 +751,28 @@ WHERE NOT EXISTS (
 
 PRINT 'Seeded: scheduling workspace (full tools)';
 
--- Scheduling (view-only — ClubRep, Player, Staff)
+-- Scheduling — post-scheduling tools (view-schedule + rescheduler) for admin roles
+INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+SELECT jt.JobTypeId, r.RoleId, @viewScheduleId, @schedViewCatId, 1,
+    '{"label":"View Schedule","icon":"bi-calendar-check","route":"admin/scheduling/view-schedule"}'
+FROM reference.JobTypes jt CROSS JOIN @schedFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM widgets.WidgetDefault wd
+    WHERE wd.JobTypeId = jt.JobTypeId AND wd.RoleId = r.RoleId AND wd.WidgetId = @viewScheduleId
+);
+
+INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+SELECT jt.JobTypeId, r.RoleId, @reschedulerId, @schedViewCatId, 2,
+    '{"label":"Rescheduler","icon":"bi-calendar-x","route":"admin/scheduling/rescheduler"}'
+FROM reference.JobTypes jt CROSS JOIN @schedFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM widgets.WidgetDefault wd
+    WHERE wd.JobTypeId = jt.JobTypeId AND wd.RoleId = r.RoleId AND wd.WidgetId = @reschedulerId
+);
+
+PRINT 'Seeded: scheduling workspace (admin post-scheduling tools)';
+
+-- Scheduling (view-only — ClubRep, Player, Staff) — public schedule route
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @viewScheduleId, @schedViewCatId, 1,
     '{"label":"View Schedule","icon":"bi-calendar-check","route":"schedule"}'
@@ -750,10 +785,11 @@ WHERE NOT EXISTS (
 PRINT 'Seeded: scheduling workspace (view only)';
 
 -- ── FIN-PER-JOB workspace ──
+-- NOTE: No dedicated financial page exists yet — route points to reporting/financials as placeholder
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @finOverviewId, @orgFinCatId, 1,
-    '{"label":"Financial Overview","icon":"bi-cash-stack","route":"financials"}'
+    '{"label":"Financial Overview","icon":"bi-cash-stack","route":"reporting/financials"}'
 FROM reference.JobTypes jt CROSS JOIN @finPerJobRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd
@@ -763,10 +799,11 @@ WHERE NOT EXISTS (
 PRINT 'Seeded: fin-per-job workspace';
 
 -- ── FIN-PER-CUSTOMER workspace ──
+-- NOTE: No dedicated my-payments page exists yet — route points to reporting/financials as placeholder
 
 INSERT INTO widgets.WidgetDefault (JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 SELECT jt.JobTypeId, r.RoleId, @myPaymentsId, @myFinCatId, 1,
-    '{"label":"My Payments","icon":"bi-wallet2","route":"my-payments"}'
+    '{"label":"My Payments","icon":"bi-wallet2","route":"reporting/financials"}'
 FROM reference.JobTypes jt CROSS JOIN @finPerCustomerRoles r
 WHERE NOT EXISTS (
     SELECT 1 FROM widgets.WidgetDefault wd

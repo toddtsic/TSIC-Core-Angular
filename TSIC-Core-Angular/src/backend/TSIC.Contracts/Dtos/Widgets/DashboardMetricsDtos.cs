@@ -84,6 +84,7 @@ public record AgegroupDistributionDto
     public required List<AgegroupDistributionPointDto> Agegroups { get; init; }
     public required int TotalPlayers { get; init; }
     public required int TotalTeams { get; init; }
+    public required decimal TotalRevenue { get; init; }
 }
 
 /// <summary>
@@ -94,4 +95,5 @@ public record AgegroupDistributionPointDto
     public required string AgegroupName { get; init; }
     public required int PlayerCount { get; init; }
     public required int TeamCount { get; init; }
+    public required decimal Revenue { get; init; }
 }

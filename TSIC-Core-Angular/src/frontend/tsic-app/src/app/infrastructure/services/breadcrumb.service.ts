@@ -30,6 +30,7 @@ const ROUTE_TITLE_MAP: Record<string, string> = {
 	'admin/profile-migration':             'Profile Migration',
 	'admin/profile-editor':                'Profile Editor',
 	'admin/theme':                         'Theme Editor',
+	'admin/widget-editor':                 'Widget Editor',
 	'menu/admin':                          'Menu Admin',
 	// Legacy routes
 	'fields/index':                        'Fields',
@@ -63,6 +64,7 @@ const ROUTE_WORKSPACE_MAP: Record<string, string> = {
 	'admin/roster-swapper':                'player-reg',
 	'jobdiscountcodes/admin':              'job-config',
 	'jobadministrator/admin':              'job-config',
+	'admin/widget-editor':                 'job-config',
 	// Legacy routes
 	'fields/index':                        'scheduling',
 	'pairings/index':                      'scheduling',

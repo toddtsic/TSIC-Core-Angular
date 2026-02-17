@@ -87,6 +87,7 @@ builder.Services.AddScoped<IFieldRepository, FieldRepository>();
 builder.Services.AddScoped<IPairingsRepository, PairingsRepository>();
 builder.Services.AddScoped<ITimeslotRepository, TimeslotRepository>();
 builder.Services.AddScoped<IWidgetRepository, WidgetRepository>();
+builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
@@ -157,6 +158,7 @@ builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardServi
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Widget Dashboard
 builder.Services.AddScoped<IWidgetDashboardService, WidgetDashboardService>();
+builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

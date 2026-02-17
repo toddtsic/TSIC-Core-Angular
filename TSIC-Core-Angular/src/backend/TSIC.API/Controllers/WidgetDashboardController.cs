@@ -115,6 +115,38 @@ public class WidgetDashboardController : ControllerBase
     }
 
     /// <summary>
+    /// Get the primary event contact for the current job.
+    /// Returns the earliest-registered administrator's name and email.
+    /// </summary>
+    [HttpGet("event-contact")]
+    public async Task<ActionResult<EventContactDto>> GetEventContact(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetEventContactAsync(jobId.Value, ct);
+        if (result == null)
+            return NotFound();
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get year-over-year registration pace comparison across sibling jobs.
+    /// </summary>
+    [HttpGet("year-over-year")]
+    public async Task<ActionResult<YearOverYearComparisonDto>> GetYearOverYear(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _dashboardService.GetYearOverYearAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get the public widget dashboard for anonymous visitors.
     /// Returns widgets configured for the Anonymous role, grouped by workspace and category.
     /// </summary>
@@ -128,6 +160,25 @@ public class WidgetDashboardController : ControllerBase
             return NotFound(new { message = "Job not found" });
 
         var result = await _dashboardService.GetDashboardAsync(jobId.Value, "Anonymous", ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Get the primary event contact for a public job (anonymous access).
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("public/{jobPath}/event-contact")]
+    public async Task<ActionResult<EventContactDto>> GetPublicEventContact(
+        string jobPath, CancellationToken ct)
+    {
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
+        if (jobId == null)
+            return NotFound(new { message = "Job not found" });
+
+        var result = await _dashboardService.GetEventContactAsync(jobId.Value, ct);
+        if (result == null)
+            return NotFound();
+
         return Ok(result);
     }
 }

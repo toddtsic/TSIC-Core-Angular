@@ -7,5 +7,6 @@ export type AgegroupDistributionDto = {
     agegroups: Array<AgegroupDistributionPointDto>;
     totalPlayers: number;
     totalTeams: number;
+    totalRevenue: number;
 };
 

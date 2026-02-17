@@ -37,19 +37,27 @@ export class RegistrationTrendChartComponent {
 	// Chart data
 	readonly chartData = computed(() => this.data().dailyData ?? []);
 
-	// Primary axis config — extend to today so the chart never ends mid-season
-	readonly primaryXAxis = computed(() => ({
-		valueType: 'DateTime' as const,
-		labelFormat: 'MMM d',
-		intervalType: 'Months' as const,
-		interval: 1,
-		maximum: new Date(),
-		majorGridLines: { width: 0 },
-		majorTickLines: { width: 0 },
-		lineStyle: { color: this.borderColor() },
-		labelStyle: { color: this.mutedColor(), size: '11px' },
-		edgeLabelPlacement: 'Shift' as const,
-	}));
+	// Primary axis config — extend 1 month past last data point
+	readonly primaryXAxis = computed(() => {
+		const points = this.chartData();
+		let maximum: Date | undefined;
+		if (points.length > 0) {
+			const last = new Date(points[points.length - 1].date);
+			maximum = new Date(last.getFullYear(), last.getMonth() + 1, last.getDate());
+		}
+		return {
+			valueType: 'DateTime' as const,
+			labelFormat: 'MMM d',
+			intervalType: 'Months' as const,
+			interval: 1,
+			maximum,
+			majorGridLines: { width: 0 },
+			majorTickLines: { width: 0 },
+			lineStyle: { color: this.borderColor() },
+			labelStyle: { color: this.mutedColor(), size: '11px' },
+			edgeLabelPlacement: 'Shift' as const,
+		};
+	});
 
 	readonly primaryYAxis = computed(() => ({
 		title: '',

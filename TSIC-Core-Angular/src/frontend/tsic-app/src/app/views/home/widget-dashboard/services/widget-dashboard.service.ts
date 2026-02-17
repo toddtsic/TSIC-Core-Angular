@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
-import type { AgegroupDistributionDto, DashboardMetricsDto, RegistrationTimeSeriesDto, WidgetDashboardResponse } from '@core/api';
+import type { AgegroupDistributionDto, DashboardMetricsDto, EventContactDto, RegistrationTimeSeriesDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -35,5 +35,17 @@ export class WidgetDashboardService {
 
 	getAgegroupDistribution(): Observable<AgegroupDistributionDto> {
 		return this.http.get<AgegroupDistributionDto>(`${this.apiUrl}/agegroup-distribution`);
+	}
+
+	getEventContact(): Observable<EventContactDto> {
+		return this.http.get<EventContactDto>(`${this.apiUrl}/event-contact`);
+	}
+
+	getPublicEventContact(jobPath: string): Observable<EventContactDto> {
+		return this.http.get<EventContactDto>(`${this.apiUrl}/public/${jobPath}/event-contact`);
+	}
+
+	getYearOverYear(): Observable<YearOverYearComparisonDto> {
+		return this.http.get<YearOverYearComparisonDto>(`${this.apiUrl}/year-over-year`);
 	}
 }

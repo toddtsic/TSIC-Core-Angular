@@ -247,3 +247,29 @@ All use `rgba(0,0,0,...)` instead of `var(--shadow-*)` tokens.
 | Error Handling | — | 6.5/10 | — |
 
 **Overall: B+ (Good) — A- after fixing CRITICALs**
+
+---
+
+## Deferred Items (Future Sessions)
+
+### I8: Handle 401 Token Expiry Mid-Wizard
+- **Scope:** HTTP interceptor + wizard state serialization + login redirect + state restoration
+- **Why deferred:** Architectural feature requiring cross-cutting changes (interceptor, sessionStorage persistence, return-URL routing)
+- **Impact:** Currently a frozen spinner if token expires mid-wizard — no recovery path
+
+### I11: Align Family Account Wizard to WizardActionBarComponent
+- **Scope:** Family wizard uses custom toolbar + child `(next)`/`(back)` events; player/team wizards use `WizardActionBarComponent`
+- **Why deferred:** Significant structural refactor with regression risk; family wizard works correctly as-is
+- **Impact:** UX inconsistency — different navigation patterns across 3 wizards
+
+### I4: Break Apart `submitPayment()` in Team Payment
+- **Scope:** 90-line method handling insurance, idempotency, payment, and state
+- **Why deferred:** Functional correctness is fine; refactoring is code quality improvement only
+
+### I6: Confirmation Polling `setInterval` Without Cleanup
+- **Scope:** `confirmation.component.ts:44-58` — `setInterval` without `ngOnDestroy` cleanup
+- **Impact:** Potential leaked interval if component destroys before timeout
+
+### Minor Items (M1-M15)
+- See MINOR Findings table above — all are nice-to-have improvements
+- M14 (`prefers-reduced-motion` on action bar animations) is the most impactful minor item

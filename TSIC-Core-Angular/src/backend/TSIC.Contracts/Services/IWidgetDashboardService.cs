@@ -52,4 +52,18 @@ public interface IWidgetDashboardService
     Task<AgegroupDistributionDto> GetAgegroupDistributionAsync(
         Guid jobId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the primary event contact — earliest-registered admin.
+    /// </summary>
+    Task<EventContactDto?> GetEventContactAsync(
+        Guid jobId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Get year-over-year registration pace comparison across sibling jobs.
+    /// </summary>
+    Task<YearOverYearComparisonDto> GetYearOverYearAsync(
+        Guid jobId,
+        CancellationToken ct = default);
 }

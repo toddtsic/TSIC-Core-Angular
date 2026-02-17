@@ -6,5 +6,6 @@ export type AgegroupDistributionPointDto = {
     agegroupName: string;
     playerCount: number;
     teamCount: number;
+    revenue: number;
 };
 

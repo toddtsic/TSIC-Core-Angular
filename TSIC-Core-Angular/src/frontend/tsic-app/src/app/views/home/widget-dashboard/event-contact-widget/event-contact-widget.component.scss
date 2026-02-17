@@ -1,0 +1,37 @@
+:host {
+	display: block;
+}
+
+.event-contact {
+	padding: var(--space-3) var(--space-4);
+}
+
+.contact-label {
+	display: block;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+	margin-bottom: var(--space-2);
+}
+
+.contact-info {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-3);
+	flex-wrap: wrap;
+}
+
+.contact-name {
+	font-size: var(--font-size-base);
+	font-weight: 600;
+	color: var(--brand-text);
+}
+
+.contact-email {
+	font-size: var(--font-size-sm);
+	color: var(--bs-primary);
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+}

@@ -95,6 +95,10 @@ export const routes: Routes = [
 					{
 						path: 'theme',
 						loadComponent: () => import('./views/admin/theme-editor/theme-editor.component').then(m => m.ThemeEditorComponent)
+					},
+					{
+						path: 'widget-editor',
+						loadComponent: () => import('./views/admin/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
 					}
 				]
 			},

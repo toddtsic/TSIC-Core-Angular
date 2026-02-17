@@ -253,6 +253,18 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         return await _widgetRepo.GetAgegroupDistributionAsync(jobId, ct);
     }
 
+    public async Task<EventContactDto?> GetEventContactAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetEventContactAsync(jobId, ct);
+    }
+
+    public async Task<YearOverYearComparisonDto> GetYearOverYearAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _widgetRepo.GetYearOverYearAsync(jobId, ct);
+    }
+
     /// <summary>
     /// Internal struct for holding merged widget data before grouping.
     /// </summary>
