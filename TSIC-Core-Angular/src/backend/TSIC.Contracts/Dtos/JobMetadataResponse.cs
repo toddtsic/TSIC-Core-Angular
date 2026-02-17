@@ -31,4 +31,6 @@ public class JobMetadataResponse
     public DateTime? AdnArbStartDate { get; set; }
     // Team registration
     public bool BRegistrationAllowTeam { get; set; }
+    // Job type (e.g. "Players", "League", "Tournament")
+    public string? JobTypeName { get; set; }
 }

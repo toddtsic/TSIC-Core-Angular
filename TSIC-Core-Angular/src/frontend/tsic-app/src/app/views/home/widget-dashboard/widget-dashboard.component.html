@@ -94,7 +94,28 @@
         <!-- ═══════ HUB MODE: Dashboard overview + spoke navigation ═══════ -->
         @if (dashboard(); as db) {
 
-            <!-- Dashboard workspace content (charts, bulletins, status cards) -->
+            <!-- ── Hero: branded strip ── -->
+            <div class="dashboard-hero" [class.hero-with-banner]="heroHasBanner()">
+                @if (heroHasBanner()) {
+                    <div class="hero-bg" [style.background-image]="'url(' + heroBannerBgUrl() + ')'"></div>
+                }
+                <div class="hero-content">
+                    @if (heroLogoUrl()) {
+                        <img class="hero-logo" [src]="heroLogoUrl()" alt="" />
+                    }
+                    <div class="hero-text">
+                        <h1 class="hero-job-name">{{ jobName() }}</h1>
+                        <div class="hero-meta">
+                            <span class="hero-welcome">Welcome back, {{ username() }}</span>
+                            @if (roleName()) {
+                                <span class="hero-role-badge">{{ roleName() }}</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard workspace content (charts, bulletins) -->
             @for (category of hubCategories(); track category.categoryId) {
                 @if (isChartCategory(category)) {
                     <!-- Chart tiles: responsive grid -->
@@ -105,7 +126,9 @@
                                     <app-player-trend-widget />
                                 }
                                 @case ('team-trend-chart') {
-                                    <app-team-trend-widget />
+                                    @if (isTeamJob()) {
+                                        <app-team-trend-widget />
+                                    }
                                 }
                                 @case ('agegroup-distribution') {
                                     <app-agegroup-distribution-widget />
@@ -113,28 +136,7 @@
                             }
                         }
                     </div>
-                } @else if (isStatusCategory(category)) {
-                    <!-- Status cards: compact grid -->
-                    <div class="status-cards">
-                        @for (widget of category.widgets; track widget.widgetId) {
-                            <a class="widget-card wt-status-card"
-                               href="#" (click)="onWidgetClick(widget, $event)">
-                                <div class="widget-icon">
-                                    <i class="bi" [class]="getIcon(widget)"></i>
-                                </div>
-                                <div class="widget-body">
-                                    <div class="widget-name">{{ getLabel(widget) }}</div>
-                                    @if (widget.description) {
-                                        <div class="widget-desc">{{ widget.description }}</div>
-                                    }
-                                </div>
-                                <div class="widget-arrow">
-                                    <i class="bi bi-chevron-right"></i>
-                                </div>
-                            </a>
-                        }
-                    </div>
-                } @else {
+                } @else if (!isStatusCategory(category)) {
                     <!-- Content widgets (e.g. bulletins for non-admin roles) -->
                     <div class="content-widgets">
                         @for (widget of category.widgets; track widget.widgetId) {

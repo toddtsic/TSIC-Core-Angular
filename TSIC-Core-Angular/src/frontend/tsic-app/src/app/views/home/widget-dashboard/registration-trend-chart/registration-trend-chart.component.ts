@@ -37,11 +37,13 @@ export class RegistrationTrendChartComponent {
 	// Chart data
 	readonly chartData = computed(() => this.data().dailyData ?? []);
 
-	// Primary axis config
+	// Primary axis config — extend to today so the chart never ends mid-season
 	readonly primaryXAxis = computed(() => ({
 		valueType: 'DateTime' as const,
 		labelFormat: 'MMM d',
-		intervalType: 'Auto' as const,
+		intervalType: 'Months' as const,
+		interval: 1,
+		maximum: new Date(),
 		majorGridLines: { width: 0 },
 		majorTickLines: { width: 0 },
 		lineStyle: { color: this.borderColor() },

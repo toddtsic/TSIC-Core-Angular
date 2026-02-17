@@ -65,7 +65,7 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
             if (profileType.StartsWith("CAC"))
             {
                 folder = "RegPlayersMulti_ViewModels";
-                fileName = $"{profileType}ViewModels.cs";
+                fileName = $"{profileType}ViewModels.cs"; // plural convention (CAC04ViewModels.cs)
             }
             else // PP profiles
             {
@@ -74,6 +74,18 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
             }
 
             var filePath = Path.Combine(_repoBasePath, "TSIC-Unify-Models", "ViewModels", folder, fileName);
+
+            // Fallback: try singular ViewModel.cs if plural ViewModels.cs not found (some CAC files use singular)
+            if (!File.Exists(filePath) && profileType.StartsWith("CAC"))
+            {
+                var fallbackFileName = $"{profileType}ViewModel.cs";
+                var fallbackPath = Path.Combine(_repoBasePath, "TSIC-Unify-Models", "ViewModels", folder, fallbackFileName);
+                if (File.Exists(fallbackPath))
+                {
+                    _logger.LogInformation("Using singular ViewModel fallback for {ProfileType}: {Path}", profileType, fallbackPath);
+                    filePath = fallbackPath;
+                }
+            }
 
             _logger.LogInformation("Fetching {ProfileType} from local file: {Path}", profileType, filePath);
 
@@ -161,13 +173,13 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
             }
         }
 
-        // CAC files are like CAC04ViewModels.cs (note plural)
+        // CAC files are like CAC04ViewModels.cs (plural) or CAC18ViewModel.cs (singular)
         if (Directory.Exists(cacPath))
         {
-            foreach (var file in Directory.GetFiles(cacPath, "CAC*ViewModels.cs"))
+            foreach (var file in Directory.GetFiles(cacPath, "CAC*ViewModel*.cs"))
             {
                 var fileName = Path.GetFileNameWithoutExtension(file);
-                var m = System.Text.RegularExpressions.Regex.Match(fileName, @"^(CAC\d+)ViewModels$");
+                var m = System.Text.RegularExpressions.Regex.Match(fileName, @"^(CAC\d+)ViewModels?$");
                 if (m.Success) result.Add(m.Groups[1].Value);
             }
         }

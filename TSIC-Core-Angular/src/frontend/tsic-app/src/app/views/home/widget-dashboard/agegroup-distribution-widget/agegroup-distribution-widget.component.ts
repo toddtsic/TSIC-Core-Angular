@@ -48,7 +48,7 @@ export class AgegroupDistributionWidgetComponent implements OnInit {
 	// Dynamic chart height based on number of age groups
 	readonly chartHeight = computed(() => {
 		const count = this.chartData().length;
-		return `${Math.max(120, count * 32 + 40)}px`;
+		return `${Math.max(220, count * 40 + 60)}px`;
 	});
 
 	readonly primaryXAxis = computed(() => ({

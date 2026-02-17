@@ -1,8 +1,9 @@
-import { Component, computed, inject, input, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { WidgetDashboardService } from './services/widget-dashboard.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
 import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
 import { PlayerTrendWidgetComponent } from './player-trend-widget/player-trend-widget.component';
@@ -26,7 +27,7 @@ interface WidgetConfig {
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WidgetDashboardComponent implements OnInit {
+export class WidgetDashboardComponent {
 	private readonly svc = inject(WidgetDashboardService);
 	private readonly auth = inject(AuthService);
 	private readonly jobService = inject(JobService);
@@ -55,6 +56,29 @@ export class WidgetDashboardComponent implements OnInit {
 
 	readonly jobName = computed(() =>
 		this.jobService.currentJob()?.jobName || '');
+
+	// ── Hero branding signals ──
+
+	readonly heroBannerBgUrl = computed(() => {
+		const path = this.jobService.currentJob()?.jobBannerBackgroundPath;
+		return path ? buildAssetUrl(path) : '';
+	});
+
+	readonly heroLogoUrl = computed(() => {
+		const path = this.jobService.currentJob()?.jobBannerPath;
+		if (!path) return '';
+		let url = buildAssetUrl(path);
+		if (url.toLowerCase().endsWith('.pdf')) url = url.slice(0, -4) + '.jpg';
+		return url;
+	});
+
+	readonly heroHasBanner = computed(() => !!this.heroBannerBgUrl());
+
+	/** True when job type supports teams (League, Tournament) */
+	readonly isTeamJob = computed(() => {
+		const typeName = this.jobService.currentJob()?.jobTypeName?.toLowerCase();
+		return typeName === 'league' || typeName === 'tournament';
+	});
 
 	readonly isPublic = computed(() => this.mode() === 'public');
 
@@ -132,20 +156,37 @@ export class WidgetDashboardComponent implements OnInit {
 
 	private configCache = new Map<number, WidgetConfig>();
 
-	ngOnInit(): void {
+	/** Track the last loaded identity to avoid redundant reloads */
+	private lastLoadedKey = '';
+
+	constructor() {
 		// Detect spoke mode from route param
 		const key = this.route.snapshot.paramMap.get('workspaceKey') || '';
 		this.activeWorkspaceKey.set(key);
 
-		if (this.mode() === 'public') {
-			this.loadPublicData();
-		} else {
-			this.loadDashboard();
-			// Only load metrics in hub mode (spoke views don't need them)
-			if (!key) {
-				this.loadMetrics();
+		// Reactive reload: fires when auth state changes (job switch, role switch)
+		effect(() => {
+			const mode = this.mode();
+			const user = this.auth.currentUser();
+			const jobPath = this.activeJobPath();
+			// regId is unique per role+job combination — changes on every role switch
+			const regId = user?.regId || '';
+			const loadKey = `${mode}:${jobPath}:${regId}`;
+
+			if (!jobPath || loadKey === this.lastLoadedKey) return;
+			this.lastLoadedKey = loadKey;
+
+			if (mode === 'public') {
+				this.loadPublicData();
+			} else {
+				// Refresh job metadata for hero branding + header bar
+				this.jobService.fetchJobMetadata(jobPath).subscribe();
+				this.loadDashboard();
+				if (!this.activeWorkspaceKey()) {
+					this.loadMetrics();
+				}
 			}
-		}
+		});
 	}
 
 	/** Public mode: load job metadata + bulletins + widget config */
@@ -225,8 +266,8 @@ export class WidgetDashboardComponent implements OnInit {
 			case 'player-reg': return 'Player Registration';
 			case 'team-reg': return 'Team Registration';
 			case 'scheduling': return 'Scheduling';
-			case 'fin-per-job': return 'Organization Finances';
-			case 'fin-per-customer': return 'My Finances';
+			case 'fin-per-job': return 'Customer Finances';
+			case 'fin-per-customer': return 'Job Finances';
 			default: return workspace;
 		}
 	}
@@ -288,6 +329,6 @@ export class WidgetDashboardComponent implements OnInit {
 	}
 
 	navigateToHub(): void {
-		this.router.navigate(['/', this.activeJobPath(), 'dashboard']);
+		this.router.navigate(['/', this.activeJobPath()]);
 	}
 }

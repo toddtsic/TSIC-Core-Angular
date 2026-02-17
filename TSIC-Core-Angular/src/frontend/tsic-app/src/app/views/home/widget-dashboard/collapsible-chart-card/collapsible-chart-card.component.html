@@ -1,19 +1,30 @@
-<div class="chart-card" [class.collapsed]="collapsed()">
-	<button class="chart-card-header" (click)="toggle()" type="button">
+<div class="chart-card" [class.collapsed]="collapsed()" [class.active]="!collapsed()"
+	(click)="toggle()" role="button" tabindex="0" (keydown.enter)="toggle()" (keydown.space)="toggle(); $event.preventDefault()">
+	<div class="chart-card-header">
 		<i class="bi" [class]="icon()"></i>
 		<span class="chart-card-title">{{ title() }}</span>
-		<i class="bi bi-chevron-down chevron"></i>
-	</button>
+		<i class="bi bi-arrows-fullscreen expand-icon"></i>
+	</div>
 
 	<!-- Summary: always visible (KPI badges) -->
 	<div class="chart-card-summary">
 		<ng-content select="[summary]" />
 	</div>
+</div>
 
-	<!-- Chart: only rendered when expanded -->
-	@if (!collapsed()) {
-		<div class="chart-card-body">
+<!-- Overlay: chart content when expanded -->
+@if (!collapsed()) {
+	<div class="chart-overlay-backdrop" (click)="toggle()"></div>
+	<div class="chart-overlay-panel">
+		<div class="chart-overlay-header">
+			<i class="bi" [class]="icon()"></i>
+			<span class="chart-overlay-title">{{ title() }}</span>
+			<button class="chart-overlay-close" (click)="toggle()" type="button">
+				<i class="bi bi-x-lg"></i>
+			</button>
+		</div>
+		<div class="chart-overlay-body">
 			<ng-content select="[chart]" />
 		</div>
-	}
-</div>
+	</div>
+}

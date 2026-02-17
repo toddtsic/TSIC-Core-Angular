@@ -7,12 +7,12 @@ import { TsicLandingComponent } from '../tsic-landing/tsic-landing.component';
 import { WidgetDashboardComponent } from '../widget-dashboard/widget-dashboard.component';
 
 /**
- * Wrapper component that conditionally loads the appropriate landing page
- * based on whether the jobPath is 'tsic' or an actual job slug.
+ * Index route component that conditionally renders the appropriate landing page.
  *
  * - TSIC path → TsicLandingComponent (marketing page)
- * - Job path + authenticated with role → redirect to /dashboard
- * - Job path + unauthenticated/no role → WidgetDashboardComponent in public mode
+ * - Job path + authenticated (Phase 2) → WidgetDashboardComponent (hub dashboard)
+ * - Job path + authenticated (Phase 1, no role) → redirect to role-selection
+ * - Job path + unauthenticated → WidgetDashboardComponent (public mode)
  */
 @Component({
     selector: 'app-landing-router',
@@ -20,6 +20,8 @@ import { WidgetDashboardComponent } from '../widget-dashboard/widget-dashboard.c
     template: `
 		@if (isTsic()) {
 			<app-tsic-landing />
+		} @else if (isAuthenticated()) {
+			<app-widget-dashboard [mode]="'authenticated'" />
 		} @else {
 			<app-widget-dashboard [mode]="'public'" [jobPath]="currentJobPath()" />
 		}
@@ -44,29 +46,27 @@ export class LandingRouterComponent {
     readonly currentJobPath = computed(() => this.jobPath());
 
     // Check if we're in TSIC context (empty string treated as tsic during initialization)
-    isTsic = computed(() => {
+    readonly isTsic = computed(() => {
         const path = this.jobPath();
         return path === 'tsic' || path === '';
     });
 
-    // Redirect authenticated users based on their auth phase:
-    // - Phase 2 (has role): go straight to dashboard
-    // - Phase 1 (logged in, no role): force role selection
-    private readonly authRedirect = effect(() => {
+    // Authenticated Phase 2 user — render hub dashboard inline
+    readonly isAuthenticated = computed(() =>
+        !this.isTsic() && this.auth.hasSelectedRole()
+    );
+
+    // Phase 1 (logged in, no role) → redirect to role selection
+    private readonly roleSelectionRedirect = effect(() => {
         const path = this.jobPath();
-        if (!path) return;
+        if (!path || path === 'tsic') return;
 
         const user = this.auth.currentUser();
-        if (!user) return; // Not logged in — show public landing/marketing page
+        if (!user) return;
 
-        // Phase 2: has role → redirect to dashboard
-        if (this.auth.hasSelectedRole()) {
-            const jobPath = user.jobPath || path;
-            this.router.navigate(['/', jobPath, 'dashboard'], { replaceUrl: true });
-            return;
+        // Phase 1: logged in but no role yet → force role selection
+        if (!this.auth.hasSelectedRole()) {
+            this.router.navigate(['/', path, 'role-selection'], { replaceUrl: true });
         }
-
-        // Phase 1: logged in but no role → force role selection
-        this.router.navigate(['/', path, 'role-selection'], { replaceUrl: true });
     });
 }

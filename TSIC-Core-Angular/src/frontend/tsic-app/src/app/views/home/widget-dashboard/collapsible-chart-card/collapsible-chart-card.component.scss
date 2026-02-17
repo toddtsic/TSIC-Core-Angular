@@ -9,6 +9,7 @@
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-sm);
 	overflow: hidden;
+	cursor: pointer;
 	transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
 		transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
 		border-color 0.3s ease;
@@ -20,9 +21,10 @@
 		border-color: rgba(var(--bs-primary-rgb), 0.2);
 	}
 
-	// Expanded card: elevated shadow
-	&:not(.collapsed) {
-		box-shadow: var(--shadow-lg);
+	// Active tile: highlighted border when overlay is open
+	&.active {
+		border-color: rgba(var(--bs-primary-rgb), 0.5);
+		box-shadow: var(--shadow-md), 0 0 0 2px rgba(var(--bs-primary-rgb), 0.1);
 	}
 }
 
@@ -38,7 +40,6 @@
 	padding: var(--space-3) var(--space-4);
 	background: none;
 	border: none;
-	cursor: pointer;
 	color: var(--brand-text);
 	font-size: var(--font-size-sm);
 	font-weight: 600;
@@ -59,14 +60,15 @@
 	flex: 1;
 }
 
-.chevron {
-	font-size: 0.875rem;
+.expand-icon {
+	font-size: 0.7rem;
 	color: var(--brand-text-muted);
-	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	opacity: 0;
+	transition: opacity 0.15s ease;
 
-	// Rotate when expanded
-	.chart-card:not(.collapsed) & {
-		transform: rotate(180deg);
+	.chart-card:hover &,
+	.chart-card.active & {
+		opacity: 1;
 	}
 }
 
@@ -79,33 +81,148 @@
 }
 
 // ═══════════════════════════════════════
-// CHART BODY (expanded only)
-// ═══════════════════════════════════════
-
-.chart-card-body {
-	padding: 0 var(--space-4) var(--space-3);
-	overflow-x: auto;
-	animation: slideInChart 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes slideInChart {
-	from {
-		opacity: 0;
-		transform: translateY(-8px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-// ═══════════════════════════════════════
 // COLLAPSED STATE — tighter appearance
 // ═══════════════════════════════════════
 
 .chart-card.collapsed {
 	.chart-card-header {
 		padding-bottom: var(--space-1);
+	}
+}
+
+// ═══════════════════════════════════════
+// CHART OVERLAY — fixed-position panel
+// ═══════════════════════════════════════
+
+.chart-overlay-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.35);
+	z-index: 999;
+	animation: fadeIn 0.2s ease-out;
+}
+
+.chart-overlay-panel {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: min(960px, 92vw);
+	max-height: 85vh;
+	z-index: 1000;
+	background: var(--surface-elevated-bg);
+	backdrop-filter: blur(16px) saturate(160%);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-xl, 0 24px 48px rgba(0, 0, 0, 0.16));
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	animation: overlayIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-overlay-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-4);
+	border-bottom: 1px solid var(--brand-border);
+	flex-shrink: 0;
+
+	> .bi:first-child {
+		color: var(--bs-primary);
+		font-size: 1.1rem;
+	}
+}
+
+.chart-overlay-title {
+	flex: 1;
+	font-weight: 600;
+	font-size: var(--font-size-base);
+	color: var(--brand-text);
+}
+
+.chart-overlay-close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: var(--radius-md);
+	border: none;
+	background: none;
+	color: var(--brand-text-muted);
+	cursor: pointer;
+	transition: all 0.15s ease;
+	flex-shrink: 0;
+
+	&:hover {
+		background: rgba(var(--bs-primary-rgb), 0.08);
+		color: var(--brand-text);
+	}
+}
+
+.chart-overlay-body {
+	padding: var(--space-4);
+	overflow-y: auto;
+	flex: 1;
+	min-height: 0;
+}
+
+// ═══════════════════════════════════════
+// ANIMATIONS
+// ═══════════════════════════════════════
+
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes overlayIn {
+	from {
+		opacity: 0;
+		transform: translate(-50%, -48%);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, -50%);
+	}
+}
+
+// ═══════════════════════════════════════
+// MOBILE — bottom sheet
+// ═══════════════════════════════════════
+
+@media (max-width: 576px) {
+	.chart-overlay-panel {
+		top: auto;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		transform: none;
+		width: 100%;
+		max-height: 95vh;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		animation: slideUpIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.chart-overlay-header {
+		padding: var(--space-2) var(--space-3);
+	}
+
+	.chart-overlay-body {
+		padding: var(--space-2) var(--space-3);
+	}
+
+	@keyframes slideUpIn {
+		from {
+			opacity: 0;
+			transform: translateY(24px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 }
 
@@ -122,7 +239,8 @@
 		transition: none;
 	}
 
-	.chart-card-body {
+	.chart-overlay-backdrop,
+	.chart-overlay-panel {
 		animation: none;
 	}
 }

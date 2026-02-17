@@ -114,7 +114,8 @@ public class JobRepository : IJobRepository
                 AdnArbBillingOccurences = jdo.Job.AdnArbbillingOccurences,
                 AdnArbIntervalLength = jdo.Job.AdnArbintervalLength,
                 AdnArbStartDate = jdo.Job.AdnArbstartDate,
-                BRegistrationAllowTeam = jdo.Job.BRegistrationAllowTeam ?? false
+                BRegistrationAllowTeam = jdo.Job.BRegistrationAllowTeam ?? false,
+                JobTypeName = jdo.Job.JobType.JobTypeName
             })
             .SingleOrDefaultAsync(cancellationToken);
     }

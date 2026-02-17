@@ -22,6 +22,133 @@
 }
 
 // ═══════════════════════════════════════
+// DASHBOARD HERO — branded strip
+// ═══════════════════════════════════════
+
+.dashboard-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-5);
+    padding: var(--space-6) var(--space-6);
+    background: linear-gradient(135deg,
+        rgba(var(--bs-primary-rgb), 0.06) 0%,
+        rgba(var(--bs-primary-rgb), 0.02) 100%);
+    border: 1px solid var(--brand-border);
+}
+
+.dashboard-hero.hero-with-banner {
+    padding: var(--space-8) var(--space-6);
+    border: none;
+    box-shadow: var(--shadow-md);
+}
+
+.hero-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    // Dark gradient overlay for text readability
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            135deg,
+            rgba(0, 0, 0, 0.65) 0%,
+            rgba(0, 0, 0, 0.35) 50%,
+            rgba(0, 0, 0, 0.20) 100%
+        );
+    }
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+}
+
+.hero-logo {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    background: rgba(var(--neutral-0-rgb), 0.15);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(var(--neutral-0-rgb), 0.25);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-1);
+    flex-shrink: 0;
+
+    .dashboard-hero:not(.hero-with-banner) & {
+        background: rgba(var(--bs-primary-rgb), 0.06);
+        border-color: var(--brand-border);
+        backdrop-filter: none;
+        box-shadow: var(--shadow-xs);
+    }
+}
+
+.hero-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.hero-job-name {
+    margin: 0 0 var(--space-1) 0;
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--brand-text);
+
+    .hero-with-banner & {
+        color: var(--neutral-0);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+}
+
+.hero-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.hero-welcome {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--brand-text-muted);
+
+    .hero-with-banner & {
+        color: rgba(var(--neutral-0-rgb), 0.85);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+}
+
+.hero-role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px var(--space-2);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: var(--radius-sm, 4px);
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    color: var(--bs-primary);
+
+    .hero-with-banner & {
+        background: rgba(var(--neutral-0-rgb), 0.2);
+        backdrop-filter: blur(8px);
+        color: var(--neutral-0);
+        border: 1px solid rgba(var(--neutral-0-rgb), 0.25);
+    }
+}
+
+// ═══════════════════════════════════════
 // WORKSPACES
 // ═══════════════════════════════════════
 
@@ -192,15 +319,6 @@
 // WIDGET TYPE VARIANTS
 // ═══════════════════════════════════════
 
-// Status card — slightly smaller icon
-.wt-status-card {
-    .widget-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 1rem;
-    }
-}
-
 // Workflow pipeline — primary accent border
 .wt-workflow-pipeline {
     border-left: 3px solid var(--bs-primary);
@@ -224,23 +342,6 @@ app-player-trend-widget,
 app-team-trend-widget,
 app-agegroup-distribution-widget {
     display: block;
-
-    // Expanded: span full width, push below collapsed tiles
-    &.widget-expanded {
-        grid-column: 1 / -1;
-        order: 10;
-    }
-}
-
-// ═══════════════════════════════════════
-// STATUS CARDS (hub dashboard)
-// ═══════════════════════════════════════
-
-.status-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
 }
 
 // ═══════════════════════════════════════
@@ -394,18 +495,34 @@ app-agegroup-distribution-widget {
 
 @media (max-width: 576px) {
     :host {
-        padding: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+    }
+
+    .dashboard-hero {
+        padding: var(--space-4) var(--space-4);
+        margin-bottom: var(--space-3);
+
+        &.hero-with-banner {
+            padding: var(--space-5) var(--space-4);
+        }
+    }
+
+    .hero-logo {
+        width: 56px;
+        height: 56px;
+    }
+
+    .hero-job-name {
+        font-size: var(--font-size-base);
+    }
+
+    .hero-content {
+        gap: var(--space-3);
     }
 
     .content-widgets.chart-tiles {
         grid-template-columns: 1fr;
-    }
-
-    app-player-trend-widget.widget-expanded,
-    app-team-trend-widget.widget-expanded,
-    app-agegroup-distribution-widget.widget-expanded {
-        grid-column: auto;
-        order: unset;
+        gap: var(--space-2);
     }
 
     .widget-grid {
@@ -416,12 +533,25 @@ app-agegroup-distribution-widget {
         grid-template-columns: 1fr;
     }
 
-    .status-cards {
-        grid-template-columns: 1fr;
+    // Spoke nav: 2 columns on mobile for compact grid
+    .spoke-nav-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-2);
     }
 
-    .spoke-nav-grid {
-        grid-template-columns: 1fr;
+    .spoke-nav-card {
+        padding: var(--space-3);
+        flex-direction: column;
+        text-align: center;
+        gap: var(--space-2);
+    }
+
+    .spoke-nav-desc {
+        display: none;
+    }
+
+    .spoke-nav-arrow {
+        display: none;
     }
 
     .spoke-title {
