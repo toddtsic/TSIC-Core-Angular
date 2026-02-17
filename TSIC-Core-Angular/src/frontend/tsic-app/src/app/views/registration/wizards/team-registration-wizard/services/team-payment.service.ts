@@ -1,7 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, tap, catchError, throwError } from 'rxjs';
-import type { RegisteredTeamDto, ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto } from '@core/api';
+import type { RegisteredTeamDto, ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto, TeamPaymentResponseDto } from '@core/api';
 import { environment } from '@environments/environment';
 
 export interface TeamLineItem {
@@ -170,6 +170,17 @@ export class TeamPaymentService {
         this.appliedDiscountResponse.set(null);
         this.discountMessage.set('');
         this.discountApplying.set(false);
+    }
+
+    /**
+     * Submit team payment to the backend.
+     * Extracted from TeamPaymentStepComponent to keep HTTP calls in the service layer.
+     */
+    submitPayment(request: Record<string, any>): Observable<TeamPaymentResponseDto> {
+        return this.http.post<TeamPaymentResponseDto>(
+            `${environment.apiUrl}/team-payment/process`,
+            request
+        );
     }
 
     reset(): void {

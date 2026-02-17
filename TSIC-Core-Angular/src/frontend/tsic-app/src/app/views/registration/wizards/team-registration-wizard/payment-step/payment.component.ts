@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { TeamPaymentSummaryTableComponent } from './team-payment-summary-table.component';
@@ -28,8 +28,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { environment } from '@environments/environment';
-import type { CreditCardInfo, TeamsMetadataResponse, TeamPaymentRequestDto, TeamPaymentResponseDto } from '@core/api';
+import type { CreditCardInfo, TeamsMetadataResponse, TeamPaymentRequestDto } from '@core/api';
 import { IdempotencyService } from '../../shared/services/idempotency.service';
 
 // Extend generated request DTO with fields derived from client context (not in OpenAPI spec)
@@ -316,7 +315,6 @@ export class TeamPaymentStepComponent
   readonly insuranceState = inject(TeamInsuranceStateService);
   readonly teamReg = inject(TeamRegistrationService);
   readonly auth = inject(AuthService);
-  readonly http = inject(HttpClient);
   readonly toast = inject(ToastService);
   readonly jobService = inject(JobService);
   readonly route = inject(ActivatedRoute);
@@ -495,9 +493,8 @@ export class TeamPaymentStepComponent
         idempotencyKey: this.lastIdemKey,
       };
 
-      const url = `${environment.apiUrl}/team-payment/process`;
       const response = await firstValueFrom(
-        this.http.post<TeamPaymentResponseDto>(url, request),
+        this.paymentSvc.submitPayment(request),
       );
 
       if (response.success) {

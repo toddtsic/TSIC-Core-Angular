@@ -266,6 +266,16 @@ export class AuthService {
     return user?.jobPath || null;
   }
 
+  /**
+   * Public method for wizard services to update the auth token without bracket-notation access.
+   * Sets the token, updates current user from claims, and restarts the refresh timer.
+   */
+  public applyNewToken(token: string): void {
+    this.setToken(token);
+    this.initializeFromToken();
+    this.startTokenRefreshTimer();
+  }
+
   private setToken(token: string): void {
     localStorage.setItem(LocalStorageKey.AuthToken, token);
   }

@@ -1,9 +1,10 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto } from '@core/api';
+import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto, PaymentRequestDto, PaymentResponseDto } from '@core/api';
 import { environment } from '@environments/environment';
 
 // Helper to safely convert number | string to number
@@ -227,5 +228,16 @@ export class PaymentService {
         const teamId = this.playerState.selectedTeams()[playerId];
         const team = this.teams.getTeamById(teamId as string);
         return Number(team?.perRegistrantDeposit ?? 0) || 0;
+    }
+
+    /**
+     * Submit payment to the backend.
+     * Extracted from PaymentComponent to keep HTTP calls in the service layer.
+     */
+    submitPayment(request: PaymentRequestDto): Observable<PaymentResponseDto> {
+        return this.http.post<PaymentResponseDto>(
+            `${environment.apiUrl}/registration/submit-payment`,
+            request
+        );
     }
 }

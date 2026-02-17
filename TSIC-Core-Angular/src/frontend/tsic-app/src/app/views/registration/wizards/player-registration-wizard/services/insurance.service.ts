@@ -99,7 +99,7 @@ export class InsuranceService {
 
     purchaseInsurance(card?: {
         number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; zip?: string; email?: string; phone?: string; address?: string;
-    }): void {
+    }, onComplete?: (message: string) => void): void {
         if (this.purchasing()) return;
         // Prefer explicit VerticalInsure quote identifier; avoid using generic id which may be a registration GUID.
         const quoteIds = this.quotes().map(q => String(q?.quote_id ?? q?.quoteId ?? '')).filter(Boolean);
@@ -107,65 +107,8 @@ export class InsuranceService {
         if (quoteIds.length === 0 || registrationIds.length === 0) {
             console.warn('[InsuranceService] Missing quoteIds or registrationIds before purchase', { quoteCount: quoteIds.length, regCount: registrationIds.length, rawQuotes: this.quotes() });
         }
-        if (quoteIds.length === 0) return; // nothing to purchase
-        if (registrationIds.length !== quoteIds.length) {
-            this.toast.show('Insurance quote / registration mismatch. Please retry.', 'danger', 4000);
-            console.warn('[InsuranceService] Mismatch lengths', { quoteIds, registrationIds });
-            return;
-        }
-        if (!card) {
-            this.toast.show('Credit card information required for insurance purchase', 'danger', 4000);
-            console.warn('[InsuranceService] No credit card provided');
-            return;
-        }
-        const creditCardPayload: CreditCardInfo = {
-            number: card.number?.trim() || undefined,
-            expiry: sanitizeExpiry(card.expiry),
-            code: card.code?.trim() || undefined,
-            firstName: card.firstName?.trim() || undefined,
-            lastName: card.lastName?.trim() || undefined,
-            zip: card.zip?.trim() || undefined,
-            email: card.email?.trim() || undefined,
-            phone: sanitizePhone(card.phone) || undefined,
-            address: card.address?.trim() || undefined
-        };
-        const req: InsurancePurchaseRequestDto = {
-            jobPath: this.state.jobPath(),
-            registrationIds,
-            quoteIds,
-            creditCard: creditCardPayload
-        };
-        this.purchasing.set(true);
-        this.http.post<InsurancePurchaseResponseDto>(`${environment.apiUrl}/insurance/purchase`, req)
-            .subscribe({
-                next: resp => {
-                    this.purchasing.set(false);
-                    if (resp?.success) {
-                        this.toast.show('Processing with Vertical Insurance was SUCCESSFUL', 'success', 3000);
-                    } else {
-                        this.toast.show('Vertical Insurance processing failed', 'danger', 4000);
-                        console.warn('Insurance purchase failed', resp);
-                    }
-                },
-                error: (err: HttpErrorResponse) => {
-                    this.purchasing.set(false);
-                    this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
-                    console.warn('Insurance purchase error', err?.error?.message || err.message || err);
-                }
-            });
-    }
-
-    purchaseInsuranceAndFinish(onFinish: (message: string) => void, card?: {
-        number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; zip?: string; email?: string; phone?: string; address?: string;
-    }): void {
-        if (this.purchasing()) return;
-        const quoteIds = this.quotes().map(q => String(q?.quote_id ?? q?.quoteId ?? '')).filter(Boolean);
-        const registrationIds = this.quotes().map(q => this.extractRegistrationId(q)).filter(Boolean);
-        if (quoteIds.length === 0 || registrationIds.length === 0) {
-            console.warn('[InsuranceService] Missing quoteIds or registrationIds before purchaseAndFinish', { quoteCount: quoteIds.length, regCount: registrationIds.length, rawQuotes: this.quotes() });
-        }
         if (quoteIds.length === 0) {
-            this.toast.show('No insurance quotes to purchase', 'danger', 3000);
+            if (onComplete) this.toast.show('No insurance quotes to purchase', 'danger', 3000);
             return;
         }
         if (registrationIds.length !== quoteIds.length) {
@@ -202,18 +145,18 @@ export class InsuranceService {
                     this.purchasing.set(false);
                     if (resp?.success) {
                         this.toast.show('Processing with Vertical Insurance was SUCCESSFUL', 'success', 3000);
-                        onFinish('Insurance processed via Vertical Insure.');
+                        onComplete?.('Insurance processed via Vertical Insure.');
                     } else {
                         this.toast.show('Vertical Insurance processing failed', 'danger', 4000);
                         console.warn('Insurance purchase failed', resp);
-                        onFinish('Insurance processing failed. Registration is still complete.');
+                        onComplete?.('Insurance processing failed. Registration is still complete.');
                     }
                 },
                 error: (err: HttpErrorResponse) => {
                     this.purchasing.set(false);
                     this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
                     console.warn('Insurance purchase error', err?.error?.message || err.message || err);
-                    onFinish('Insurance processing failed. Registration is still complete.');
+                    onComplete?.('Insurance processing failed. Registration is still complete.');
                 }
             });
     }

@@ -242,8 +242,7 @@ export class RegistrationWizardService {
         ).pipe(
             tap(response => {
                 if (response.accessToken) {
-                    this.auth['setToken'](response.accessToken);
-                    this.auth['initializeFromToken']();
+                    this.auth.applyNewToken(response.accessToken);
                 }
             })
         );
@@ -457,95 +456,14 @@ export class RegistrationWizardService {
                         this._offerPlayerRegSaver = !!offer;
                     } catch { this._offerPlayerRegSaver = false; }
                     // Do not infer Eligibility constraint type on the client. Rely solely on server-provided jobRegForm.constraintType from /family/players.
-                    // Helper to read values regardless of camelCase vs PascalCase coming from API
-                    const getMetaString = (obj: any, key: string): string | null => {
-                        const pascal = key;
-                        const camel = key.length ? key.charAt(0).toLowerCase() + key.slice(1) : key;
-                        const val = obj?.[pascal] ?? obj?.[camel] ?? null;
-                        return (typeof val === 'string' && val.trim()) ? String(val).trim() : null;
-                    };
-                    const normalizeId = (k: string): string => k.length ? (k.charAt(0).toUpperCase() + k.slice(1)) : k;
-                    // Extract waiver text blocks heuristically: keys starting with playerreg/PlayerReg and containing long string content
-                    const waivers: Record<string, string> = {};
-                    for (const [k, v] of Object.entries(meta)) {
-                        const lower = k.toLowerCase();
-                        if (lower.startsWith('playerreg') && typeof v === 'string' && v.trim().length > 0) {
-                            waivers[normalizeId(k)] = v.trim();
-                        }
-                    }
+                    // Delegate waiver extraction + definition building to WaiverStateService
+                    const waivers = this.waiverState.buildFromMetadata(
+                        meta,
+                        this.jobProfileMetadataJson(),
+                        this.selectedPlayerIds(),
+                        this.familyPlayers()
+                    );
                     this.jobWaivers.set(waivers);
-                    // Build structured definitions using explicit mapping when present, but only
-                    // if there is a matching acceptance checkbox field in PlayerProfileMetadataJson (Option 4).
-                    const defs: WaiverDefinition[] = [];
-                    const addDef = (id: string, title: string) => {
-                        const html = getMetaString(meta, id);
-                        if (typeof html === 'string' && html.trim()) {
-                            defs.push({ id, title, html, required: true, version: String(html.length) });
-                        }
-                    };
-                    const rawProfileMeta = this.jobProfileMetadataJson();
-                    const hasAcceptanceField = (predicate: (labelL: string, nameL: string, f: any) => boolean): boolean => {
-                        if (!rawProfileMeta) return false;
-                        try {
-                            const parsed = JSON.parse(rawProfileMeta);
-                            let fields: any[] = [];
-                            if (Array.isArray(parsed)) {
-                                fields = parsed;
-                            } else if (parsed && Array.isArray(parsed.fields)) {
-                                fields = parsed.fields;
-                            }
-                            for (const f of fields) {
-                                const name = String(f?.name || f?.dbColumn || f?.field || '').toLowerCase();
-                                const label = String(f?.label || f?.displayName || f?.display || f?.name || '').toLowerCase();
-                                const t = String(f?.type || f?.inputType || '').toLowerCase();
-                                const isCheckbox = t.includes('checkbox') || label.startsWith('i agree');
-                                if (!isCheckbox) continue;
-                                if (predicate(label, name, f)) return true;
-                            }
-                        } catch { /* ignore malformed profile metadata */ }
-                        return false;
-                    };
-                    // Gate each default waiver by presence of an acceptance checkbox in the profile schema
-                    if (hasAcceptanceField((l, n) => l.includes('waiver') || l.includes('release') || n.includes('waiver'))) {
-                        addDef('PlayerRegReleaseOfLiability', 'Player Waiver');
-                    }
-                    if (hasAcceptanceField((l, n) => (l.includes('code') && l.includes('conduct')) || n.includes('codeofconduct'))) {
-                        addDef('PlayerRegCodeOfConduct', 'Code of Conduct');
-                    }
-                    if (hasAcceptanceField((l, n) => l.includes('covid') || n.includes('covid'))) {
-                        addDef('PlayerRegCovid19Waiver', 'Covid Waiver');
-                    }
-                    if (hasAcceptanceField((l, n) => l.includes('refund') || (l.includes('terms') && l.includes('conditions')) || n.includes('refund'))) {
-                        addDef('PlayerRegRefundPolicy', 'Refund Terms and Conditions');
-                    }
-                    // Fallback: include other PlayerReg* blocks only if there is a matching acceptance checkbox field
-                    for (const [id, html] of Object.entries(waivers)) {
-                        if (defs.some(d => d.id === id)) continue;
-                        const lid = id.toLowerCase();
-                        let allow = false;
-                        if (lid.includes('codeofconduct')) {
-                            allow = hasAcceptanceField((l, n) => (l.includes('code') && l.includes('conduct')) || n.includes('codeofconduct'));
-                        } else if (lid.includes('refund') || lid.includes('terms')) {
-                            allow = hasAcceptanceField((l, n) => l.includes('refund') || (l.includes('terms') && l.includes('conditions')) || n.includes('refund'));
-                        } else if (lid.includes('covid')) {
-                            allow = hasAcceptanceField((l, n) => l.includes('covid') || n.includes('covid'));
-                        } else if (lid.includes('waiver') || lid.includes('release')) {
-                            allow = hasAcceptanceField((l, n) => l.includes('waiver') || l.includes('release') || n.includes('waiver'));
-                        } else {
-                            // Attempt a generic match using the derived friendly title words (conservative: require at least one word match)
-                            const title = friendlyWaiverTitle(id).toLowerCase();
-                            const words = title.split(/[^a-z0-9]+/i).filter(w => w.length >= 3);
-                            if (words.length) {
-                                allow = hasAcceptanceField((l, n) => words.some(w => l.includes(w) || n.includes(w)));
-                            }
-                        }
-                        if (allow) {
-                            defs.push({ id, title: friendlyWaiverTitle(id), html, required: true, version: String(html.length) });
-                        }
-                    }
-                    // Delegate waiver definitions to WaiverStateService
-                    this.waiverState.setDefinitions(defs);
-                    this.waiverState.seedAcceptedWaiversIfReadOnly(this.selectedPlayerIds(), this.familyPlayers());
                     this.parseProfileMetadata();
                 },
                 error: err => {
@@ -1365,12 +1283,6 @@ export interface WaiverDefinition {
 // JSON type helper to avoid `any`/`unknown` in public fields
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-// Helper to create a friendly title from a PlayerReg* key
-// e.g., PlayerRegReleaseOfLiability -> Release Of Liability
-function friendlyWaiverTitle(key: string): string {
-    const trimmed = key.replace(/^PlayerReg/, '');
-    return trimmed.replaceAll(/([a-z])([A-Z])/g, '$1 $2').trim();
-}
 
 function mapFieldType(raw: any): PlayerProfileFieldSchema['type'] {
     const r = String(raw || '').toLowerCase();

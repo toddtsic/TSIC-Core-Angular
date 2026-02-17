@@ -6,13 +6,12 @@ import { PaymentOptionSelectorComponent } from './payment-option-selector.compon
 import { CreditCardFormComponent } from './credit-card-form.component';
 import { PaymentService } from '../services/payment.service';
 import { IdempotencyService } from '../../shared/services/idempotency.service';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from '../services/insurance-state.service';
 import { PaymentStateService } from '../services/payment-state.service';
 import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confirm-modal.component';
 import type { PaymentResponseDto, PaymentRequestDto } from '@core/api';
-import { environment } from '@environments/environment';
 import { TeamService } from '../team.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { InsuranceService } from '../services/insurance.service';
@@ -206,7 +205,6 @@ export class PaymentComponent implements AfterViewInit {
   readonly ccValid = signal(false);
 
   public readonly state = inject(RegistrationWizardService);
-  private readonly http = inject(HttpClient);
   private readonly toast = inject(ToastService);
 
   constructor() { }
@@ -387,7 +385,7 @@ export class PaymentComponent implements AfterViewInit {
 
   private processInsuranceOnlyFinish(msg: string): void {
     this.submitting.set(true);
-    this.insuranceSvc.purchaseInsuranceAndFinish(doneMsg => {
+    this.insuranceSvc.purchaseInsurance(this.creditCard, doneMsg => {
       try {
         this.paymentState.setLastPayment({
           option: this.paymentState.paymentOption(),
@@ -401,7 +399,7 @@ export class PaymentComponent implements AfterViewInit {
       } catch { }
       this.submitting.set(false);
       this.submitted.emit();
-    }, this.creditCard);
+    });
   }
 
   private continueSubmit(): void {
@@ -442,8 +440,7 @@ export class PaymentComponent implements AfterViewInit {
       viPolicyNumber: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
       viPolicyCreateDate: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.insuranceState.viConsent()?.policyCreateDate) : undefined) || undefined
     };
-    // POST using keys matching backend DTO property casing (case-insensitive but explicit for clarity)
-    this.http.post<PaymentResponseDto>(`${environment.apiUrl}/registration/submit-payment`, request).subscribe({
+    this.paySvc.submitPayment(request).subscribe({
       next: (response) => this.handlePaymentResponse(response, rs),
       error: (error: HttpErrorResponse) => this.handlePaymentHttpError(error)
     });
@@ -552,7 +549,7 @@ export class PaymentComponent implements AfterViewInit {
       this.pendingSubmitAfterViConfirm = false;
       // Reuse the same modal: if VI-only flow (no TSIC balance), purchase insurance directly.
       if (this.isViCcOnlyFlow()) {
-        this.insuranceSvc.purchaseInsuranceAndFinish(msg => {
+        this.insuranceSvc.purchaseInsurance(this.creditCard, msg => {
           try {
             this.paymentState.setLastPayment({
               option: this.paymentState.paymentOption(),
@@ -565,7 +562,7 @@ export class PaymentComponent implements AfterViewInit {
             });
           } catch { }
           this.submitted.emit();
-        }, this.creditCard);
+        });
       } else {
         this.continueSubmit();
       }

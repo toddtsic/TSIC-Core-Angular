@@ -66,10 +66,8 @@ export class TeamRegistrationService {
             )
             .pipe(
                 tap((response) => {
-                    // Update token using private methods (same pattern as selectRegistration)
                     if (response.accessToken) {
-                        this.authService['setToken'](response.accessToken);
-                        this.authService['initializeFromToken']();
+                        this.authService.applyNewToken(response.accessToken);
                     }
                 }),
             );
