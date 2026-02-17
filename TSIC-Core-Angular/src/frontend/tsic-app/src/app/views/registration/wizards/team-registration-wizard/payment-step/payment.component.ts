@@ -30,7 +30,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { environment } from '@environments/environment';
 import type { CreditCardInfo, TeamsMetadataResponse } from '@core/api';
-import { IdempotencyService } from '../../player-registration-wizard/services/idempotency.service';
+import { IdempotencyService } from '../../shared/services/idempotency.service';
 
 // TODO: Generate these types when backend controller is complete
 interface TeamPaymentRequestDto {

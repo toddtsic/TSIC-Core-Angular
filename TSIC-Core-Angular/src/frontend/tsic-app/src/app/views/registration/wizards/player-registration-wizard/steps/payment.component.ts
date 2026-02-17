@@ -5,7 +5,7 @@ import { PaymentSummaryComponent } from './payment-summary.component';
 import { PaymentOptionSelectorComponent } from './payment-option-selector.component';
 import { CreditCardFormComponent } from './credit-card-form.component';
 import { PaymentService } from '../services/payment.service';
-import { IdempotencyService } from '../services/idempotency.service';
+import { IdempotencyService } from '../../shared/services/idempotency.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from '../services/insurance-state.service';
