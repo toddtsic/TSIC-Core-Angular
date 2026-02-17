@@ -453,7 +453,8 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         this.loginSubmitting.set(true);
         this.clubSelectionError.set(null);
 
-        this.teamRegService
+        this.workflowSubscription?.unsubscribe();
+        this.workflowSubscription = this.teamRegService
             .initializeRegistration(clubName, this.jobPath)
             .subscribe({
                 next: (response) => {

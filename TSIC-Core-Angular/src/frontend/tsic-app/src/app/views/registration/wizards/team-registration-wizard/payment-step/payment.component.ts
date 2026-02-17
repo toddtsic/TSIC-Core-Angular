@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   signal,
   computed,
@@ -12,11 +13,12 @@ import {
   Output,
   EventEmitter,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, switchMap } from 'rxjs';
 import { TeamPaymentSummaryTableComponent } from './team-payment-summary-table.component';
 import { CreditCardFormComponent } from '../../player-registration-wizard/steps/credit-card-form.component';
 import { TeamPaymentService } from '../services/team-payment.service';
@@ -320,6 +322,7 @@ export class TeamPaymentStepComponent
   readonly route = inject(ActivatedRoute);
   readonly jobContext = inject(JobContextService);
   private readonly idemSvc = inject(IdempotencyService);
+  private readonly destroyRef = inject(DestroyRef);
 
   @ViewChild('viOffer') viOfferElement?: ElementRef<HTMLDivElement>;
 
@@ -358,7 +361,7 @@ export class TeamPaymentStepComponent
 
     // Fetch teams metadata to get club rep contact info for form prefill
     // Context (clubName, jobId) derived from regId token claim on backend
-    this.teamReg.getTeamsMetadata(true).subscribe({
+    this.teamReg.getTeamsMetadata(true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (response) => this.metadata.set(response),
       error: (err) =>
         console.error('[PaymentComponent] Failed to load metadata:', err),
@@ -423,14 +426,11 @@ export class TeamPaymentStepComponent
       return;
     }
 
-    this.paymentSvc.applyDiscount(code, teamIds).subscribe({
-      next: () => {
-        // Success handling is in the service (updates signals)
-        // Refresh payment summary by reloading metadata
-        this.teamReg.getTeamsMetadata(true).subscribe({
-          next: (response) => this.metadata.set(response),
-        });
-      },
+    this.paymentSvc.applyDiscount(code, teamIds).pipe(
+      switchMap(() => this.teamReg.getTeamsMetadata(true)),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: (response) => this.metadata.set(response),
       error: (err) => {
         console.error('[PaymentComponent] Discount application failed:', err);
       },

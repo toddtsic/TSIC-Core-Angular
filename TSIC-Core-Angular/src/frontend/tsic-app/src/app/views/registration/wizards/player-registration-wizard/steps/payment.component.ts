@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, OnDestroy, ViewChild, ElementRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryComponent } from './payment-summary.component';
@@ -182,7 +182,7 @@ import type { LineItem } from '../services/payment.service';
     `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PaymentComponent implements AfterViewInit {
+export class PaymentComponent implements AfterViewInit, OnDestroy {
   @ViewChild('viOffer') viOffer?: ElementRef<HTMLDivElement>;
   @ViewChild('ccSection') ccSection?: ElementRef<HTMLElement>;
   @Output() back = new EventEmitter<void>();
@@ -219,6 +219,8 @@ export class PaymentComponent implements AfterViewInit {
   private readonly idemSvc = inject(IdempotencyService);
   verticalInsureError: string | null = null;
   private viInitRetries = 0;
+  private hydrateTimeout?: ReturnType<typeof setTimeout>;
+  private viInitTimeout?: ReturnType<typeof setTimeout>;
   // Discount handled by PaymentService now; local UI state removed
   // VI confirmation modal state
   readonly showViChargeConfirm = signal(false);
@@ -249,7 +251,7 @@ export class PaymentComponent implements AfterViewInit {
     this.loadStoredIdem();
     // Simpler: one-shot hydrate + short delayed retry (in case data arrives slightly later)
     this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo);
-    setTimeout(() => this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo), 300);
+    this.hydrateTimeout = setTimeout(() => this.simpleHydrateFromCc(this.state.familyUser()?.ccInfo), 300);
     // Hydrate email/phone from familyUser if blank
     const fu = this.state.familyUser();
     if (fu) {
@@ -258,8 +260,14 @@ export class PaymentComponent implements AfterViewInit {
       if (!this.creditCard.phone && fu.phone) this.creditCard.phone = fu.phone;
     }
     // Initialize VerticalInsure (simple retry if offer data not yet present)
-    setTimeout(() => this.tryInitVerticalInsure(), 0);
+    this.viInitTimeout = setTimeout(() => this.tryInitVerticalInsure(), 0);
   }
+
+  ngOnDestroy(): void {
+    clearTimeout(this.hydrateTimeout);
+    clearTimeout(this.viInitTimeout);
+  }
+
   // Payment option selection now delegated to PaymentOptionSelectorComponent
 
   private tryInitVerticalInsure(): void {

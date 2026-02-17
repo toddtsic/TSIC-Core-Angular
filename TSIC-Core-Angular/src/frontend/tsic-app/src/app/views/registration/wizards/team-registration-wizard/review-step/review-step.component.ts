@@ -1,12 +1,14 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   Input,
   OnInit,
   signal,
   computed,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToastService } from '@shared-ui/toast.service';
@@ -26,6 +28,7 @@ export class ReviewStepComponent implements OnInit {
   private readonly teamRegService = inject(TeamRegistrationService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   // State signals
   readonly isLoading = signal(false);
@@ -53,7 +56,7 @@ export class ReviewStepComponent implements OnInit {
     this.isLoading.set(true);
     this.error.set(null);
 
-    this.teamRegService.getConfirmationText(this.registrationId).subscribe({
+    this.teamRegService.getConfirmationText(this.registrationId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (html: string) => {
         if (!html) {
           this.error.set('No confirmation template found for this event');
@@ -84,6 +87,7 @@ export class ReviewStepComponent implements OnInit {
 
     this.teamRegService
       .sendConfirmationEmail(this.registrationId, forceResend)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           if (forceResend) {

@@ -243,33 +243,30 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  private doInlineLogin(): Promise<'ok' | 'tos'> {
+  private async doInlineLogin(): Promise<'ok' | 'tos'> {
     this.inlineError = null;
     if (!this.username || !this.password || this.submitting) {
       // mark touched so validation surfaces if user attempted action
       if (!this.username) this.usernameTouched = true;
       if (!this.password) this.passwordTouched = true;
-      return Promise.resolve('ok');
+      return 'ok';
     }
     this.submitting = true;
-    return new Promise((resolve, reject) => {
-      this.auth.login({ username: this.username.trim(), password: this.password }).subscribe({
-        next: (response) => {
-          this.submitting = false;
-          // Check TOS requirement before proceeding
-          if (this.auth.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
-            resolve('tos'); // Prevent wizard progression until TOS signed
-            return;
-          }
-          resolve('ok');
-        },
-        error: (err) => {
-          this.submitting = false;
-          this.inlineError = err?.error?.message || 'Login failed. Please check your username and password.';
-          reject(err);
-        }
-      });
-    });
+    try {
+      const response = await firstValueFrom(
+        this.auth.login({ username: this.username.trim(), password: this.password })
+      );
+      this.submitting = false;
+      // Check TOS requirement before proceeding
+      if (this.auth.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
+        return 'tos';
+      }
+      return 'ok';
+    } catch (err: any) {
+      this.submitting = false;
+      this.inlineError = err?.error?.message || 'Login failed. Please check your username and password.';
+      throw err;
+    }
   }
 
   async signInThenProceed(): Promise<void> {

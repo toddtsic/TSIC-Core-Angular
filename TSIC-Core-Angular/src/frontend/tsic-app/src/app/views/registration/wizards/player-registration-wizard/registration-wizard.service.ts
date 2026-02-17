@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom, Observable } from 'rxjs';
+import { firstValueFrom, Observable, Subscription } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { PlayerStateService } from './services/player-state.service';
 import { WaiverStateService } from './services/waiver-state.service';
@@ -131,6 +131,9 @@ export class RegistrationWizardService {
     formData = signal<Record<string, any>>({}); // playerId -> { fieldName: value }
     // US Lacrosse number validation status per player
     usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: any }>>({});
+    // Subscription management for fire-and-forget HTTP calls
+    private familyPlayersSub?: Subscription;
+    private metadataSub?: Subscription;
 
     // Server-side validation errors captured from latest preSubmit response (playerId/field/message).
     // Empty array when none; undefined before first preSubmit call.
@@ -217,7 +220,8 @@ export class RegistrationWizardService {
         const base = this.resolveApiBase();
         try { console.debug('[RegWizard] GET family players', { jobPath, base }); } catch { /* no-op */ }
         this.familyPlayersLoading.set(true);
-        this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
+        this.familyPlayersSub?.unsubscribe();
+        this.familyPlayersSub = this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
                     this.handleFamilyPlayersSuccess(resp, jobPath);
@@ -430,7 +434,8 @@ export class RegistrationWizardService {
         if (!jobPath) return;
         if (this.jobProfileMetadataJson() && this.jobJsonOptions()) return; // already have it
         const base = this.resolveApiBase();
-        this.http.get<{ jobId: string; playerProfileMetadataJson?: string | null; jsonOptions?: string | null;[k: string]: any }>(`${base}/jobs/${encodeURIComponent(jobPath)}`)
+        this.metadataSub?.unsubscribe();
+        this.metadataSub = this.http.get<{ jobId: string; playerProfileMetadataJson?: string | null; jsonOptions?: string | null;[k: string]: any }>(`${base}/jobs/${encodeURIComponent(jobPath)}`)
             .subscribe({
                 next: meta => {
                     this.jobId.set(meta.jobId);

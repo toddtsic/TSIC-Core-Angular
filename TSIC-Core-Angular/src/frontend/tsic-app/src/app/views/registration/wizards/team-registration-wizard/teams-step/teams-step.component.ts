@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     OnInit,
     computed,
     inject,
@@ -9,6 +10,7 @@ import {
     CUSTOM_ELEMENTS_SCHEMA,
     ViewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -89,6 +91,7 @@ export class TeamsStepComponent implements OnInit {
     private readonly fieldData = inject(FormFieldDataService);
     private readonly route = inject(ActivatedRoute);
     private readonly toast = inject(ToastService);
+    private readonly destroyRef = inject(DestroyRef);
 
     // Outputs
     proceed = output<void>();
@@ -119,6 +122,7 @@ export class TeamsStepComponent implements OnInit {
     readonly errorMessage = signal<string | null>(null);
     readonly showRegistrationModal = signal(false);
     readonly isRegistering = signal(false);
+    private readonly isUnregistering = signal(false);
     private readonly clubId = signal<number | null>(null);
     readonly attemptedProceed = signal(false);
 
@@ -224,7 +228,7 @@ export class TeamsStepComponent implements OnInit {
         }
         this.errorMessage.set(null);
 
-        this.teamService.getTeamsMetadata().subscribe({
+        this.teamService.getTeamsMetadata().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
             next: (response) => {
                 // Derive clubName from response (authoritative source)
                 this.clubNameSignal.set(response.clubName);
@@ -291,6 +295,7 @@ export class TeamsStepComponent implements OnInit {
     }
 
     unregisterTeam(team: RegisteredTeamDto): void {
+        if (this.isUnregistering()) return;
         if (this.toNumber(team.paidTotal) > 0) {
             this.errorMessage.set(
                 'Cannot unregister a team that has payments. Please contact support.',
@@ -299,8 +304,10 @@ export class TeamsStepComponent implements OnInit {
         }
 
         this.errorMessage.set(null);
-        this.teamService.unregisterTeamFromEvent(team.teamId).subscribe({
+        this.isUnregistering.set(true);
+        this.teamService.unregisterTeamFromEvent(team.teamId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
             next: () => {
+                this.isUnregistering.set(false);
                 this.toast.show('Team unregistered successfully', 'success');
                 const removedName = team.teamName.trim().toLowerCase();
                 this.recentlyAddedTeamNames.update((list) =>
@@ -311,6 +318,7 @@ export class TeamsStepComponent implements OnInit {
                 );
             },
             error: (err) => {
+                this.isUnregistering.set(false);
                 console.error('Failed to unregister team:', err);
                 this.errorMessage.set(
                     err.error?.message || 'Failed to unregister team. Please try again.',
@@ -349,6 +357,7 @@ export class TeamsStepComponent implements OnInit {
                 ageGroupId: data.ageGroupId,
                 levelOfPlay: data.levelOfPlay,
             })
+            .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
                     this.isRegistering.set(false);
@@ -470,7 +479,7 @@ export class TeamsStepComponent implements OnInit {
 
         if (accepted && !this.refundPolicyLocked()) {
             // Call API to record acceptance
-            this.teamService.acceptRefundPolicy().subscribe({
+            this.teamService.acceptRefundPolicy().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
                 next: () => {
                     this.refundPolicyLocked.set(true);
                     this.toast.show(
