@@ -8,6 +8,7 @@ import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
 import { colorClassForIndex, textColorClassForIndex } from '../../shared/utils/color-class.util';
+import { hasAllParts } from '../../shared/utils/property-utils';
 
 @Component({
   selector: 'app-rw-player-forms',
@@ -256,12 +257,12 @@ import { colorClassForIndex, textColorClassForIndex } from '../../shared/utils/c
         <div class="table-responsive mb-3">
           <table class="table table-sm mb-0 align-middle">
             <tbody>
-              <tr><th class="text-nowrap">Member #</th><td>{{ modalData?.membernumber || modalData?.mem_number || '—' }}</td></tr>
-              <tr><th class="text-nowrap">First Name</th><td>{{ modalData?.firstname || '—' }}</td></tr>
-              <tr><th class="text-nowrap">Last Name</th><td>{{ modalData?.lastname || '—' }}</td></tr>
-              <tr><th class="text-nowrap">DOB</th><td>{{ modalData?.birthdate || '—' }}</td></tr>
-              <tr><th class="text-nowrap">Status</th><td>{{ modalData?.mem_status || '—' }}</td></tr>
-              <tr><th class="text-nowrap">Expires</th><td>{{ modalData?.exp_date || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Member #</th><td>{{ modalData?.['membernumber'] || modalData?.['mem_number'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">First Name</th><td>{{ modalData?.['firstname'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Last Name</th><td>{{ modalData?.['lastname'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">DOB</th><td>{{ modalData?.['birthdate'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Status</th><td>{{ modalData?.['mem_status'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Expires</th><td>{{ modalData?.['exp_date'] || '—' }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -353,16 +354,16 @@ export class PlayerFormsComponent {
   textColorClassForIndex = textColorClassForIndex;
 
   value(playerId: string, field: string) { return this.state.getPlayerFieldValue(playerId, field); }
-  setValue(playerId: string, field: string, val: any) { this.state.setPlayerFieldValue(playerId, field, val); }
+  setValue(playerId: string, field: string, val: string | number | boolean | null | string[]) { this.state.setPlayerFieldValue(playerId, field, val); }
   isMultiChecked(playerId: string, field: string, opt: string) {
     const v = this.value(playerId, field);
     return Array.isArray(v) && v.includes(opt);
   }
   toggleMulti(playerId: string, field: string, opt: string, ev: Event) {
     const checked = (ev.target as HTMLInputElement).checked;
-    let v = this.value(playerId, field);
-    if (!Array.isArray(v)) v = [];
-    const arr = [...v];
+    const v = this.value(playerId, field);
+    const current = Array.isArray(v) ? v as string[] : [];
+    const arr = [...current];
     const idx = arr.indexOf(opt);
     if (checked && idx === -1) arr.push(opt);
     if (!checked && idx > -1) arr.splice(idx, 1);
@@ -422,14 +423,14 @@ export class PlayerFormsComponent {
   }
   // --- Modal state for viewing raw API details ---
   modalOpen = false;
-  modalData: any = null;
+  modalData: Record<string, unknown> | null = null;
   openUsLaxDetails(playerId: string) {
     const entry = this.state.usLaxStatus()[playerId];
     this.modalData = entry ? (entry.membership ?? null) : null;
     this.modalOpen = true;
   }
   closeModal() { this.modalOpen = false; this.modalData = null; }
-  prettyJson(obj: any): string {
+  prettyJson(obj: unknown): string {
     try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
   }
   // Determine whether the message is the full guidance block (heuristic: contains ordered list markup and multiple help links)
@@ -492,16 +493,15 @@ export class PlayerFormsComponent {
     if (waiverNames.has(field.name)) return false;
     // Hide eligibility driver fields (handled in the dedicated Eligibility step)
     const tctype = (this.state.teamConstraintType() || '').toUpperCase();
-    const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
     // Generic 'eligibility' named field
     if (lname === 'eligibility' || llabel.includes('eligibility')) return false;
     if (tctype === 'BYGRADYEAR') {
       // e.g., GradYear, GraduationYear, Grad Year, Graduation Year
-      if (hasAll(lname, ['grad', 'year']) || hasAll(llabel, ['grad', 'year'])) return false;
+      if (hasAllParts(lname, ['grad', 'year']) || hasAllParts(llabel, ['grad', 'year'])) return false;
     } else if (tctype === 'BYAGEGROUP') {
-      if (hasAll(lname, ['age', 'group']) || hasAll(llabel, ['age', 'group'])) return false;
+      if (hasAllParts(lname, ['age', 'group']) || hasAllParts(llabel, ['age', 'group'])) return false;
     } else if (tctype === 'BYAGERANGE') {
-      if (hasAll(lname, ['age', 'range']) || hasAll(llabel, ['age', 'range'])) return false;
+      if (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range'])) return false;
     }
     if (!field.condition) return true;
     const otherVal = this.value(playerId, field.condition.field);
@@ -531,7 +531,7 @@ export class PlayerFormsComponent {
   priceForTeam(teamId: string): number | null {
     const all = this.teams.filterByEligibility(null);
     const t = all.find(x => x.teamId === teamId);
-    const fee = (t as any)?.perRegistrantFee as number | undefined;
+    const fee = (t as Record<string, unknown> | undefined)?.['perRegistrantFee'] as number | undefined;
     return fee ?? null;
   }
 

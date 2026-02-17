@@ -238,16 +238,99 @@ public class WidgetEditorRepository : IWidgetEditorRepository
 
     public async Task BulkInsertAssignmentsAsync(int widgetId, int categoryId, List<WidgetAssignmentDto> assignments, CancellationToken ct = default)
     {
+        // Compute max DisplayOrder per jobType so new assignments append at the end
+        var jobTypeIds = assignments.Select(a => a.JobTypeId).Distinct().ToList();
+        var maxOrders = await _context.WidgetDefault
+            .AsNoTracking()
+            .Where(wd => jobTypeIds.Contains(wd.JobTypeId) && wd.CategoryId == categoryId)
+            .GroupBy(wd => wd.JobTypeId)
+            .Select(g => new { JobTypeId = g.Key, MaxOrder = g.Max(wd => wd.DisplayOrder) })
+            .ToDictionaryAsync(x => x.JobTypeId, x => x.MaxOrder, ct);
+
         var entities = assignments.Select(a => new WidgetDefault
         {
             WidgetId = widgetId,
             JobTypeId = a.JobTypeId,
             RoleId = a.RoleId,
             CategoryId = categoryId,
-            DisplayOrder = 0,
+            DisplayOrder = maxOrders.GetValueOrDefault(a.JobTypeId, -1) + 1,
         });
 
         await _context.WidgetDefault.AddRangeAsync(entities, ct);
+    }
+
+    // ══════════════════════════════════════
+    // Per-job overrides
+    // ══════════════════════════════════════
+
+    public async Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobTypeId == jobTypeId)
+            .OrderByDescending(j => j.ExpiryAdmin)
+            .Select(j => new JobRefDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? j.JobPath,
+                JobPath = j.JobPath,
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<JobWidgetEntryDto>> GetJobWidgetsByJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.JobWidget
+            .AsNoTracking()
+            .Where(jw => jw.JobId == jobId)
+            .Select(jw => new JobWidgetEntryDto
+            {
+                WidgetId = jw.WidgetId,
+                RoleId = jw.RoleId,
+                CategoryId = jw.CategoryId,
+                DisplayOrder = jw.DisplayOrder,
+                Config = jw.Config,
+                IsEnabled = jw.IsEnabled,
+                IsOverridden = true,
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<JobWidget>> GetJobWidgetEntitiesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.JobWidget
+            .Where(jw => jw.JobId == jobId)
+            .ToListAsync(ct);
+    }
+
+    public void RemoveJobWidgets(List<JobWidget> jobWidgets)
+    {
+        _context.JobWidget.RemoveRange(jobWidgets);
+    }
+
+    public async Task BulkInsertJobWidgetsAsync(Guid jobId, List<JobWidgetEntryDto> entries, CancellationToken ct = default)
+    {
+        var entities = entries.Select(e => new JobWidget
+        {
+            JobId = jobId,
+            WidgetId = e.WidgetId,
+            RoleId = e.RoleId,
+            CategoryId = e.CategoryId,
+            DisplayOrder = e.DisplayOrder,
+            IsEnabled = e.IsEnabled,
+            Config = e.Config,
+        });
+
+        await _context.JobWidget.AddRangeAsync(entities, ct);
+    }
+
+    public async Task<int?> GetJobTypeIdForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (int?)j.JobTypeId)
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)

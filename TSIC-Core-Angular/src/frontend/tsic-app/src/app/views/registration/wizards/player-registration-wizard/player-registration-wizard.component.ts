@@ -182,7 +182,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         if (selected.length === 0) return false;
         const map = this.state.selectedTeams();
         for (const p of selected) {
-            const val = map[p.playerId ?? ''] as any;
+            const val = map[p.playerId ?? ''];
             if (!val || (Array.isArray(val) && val.length === 0)) return false;
         }
         return true;

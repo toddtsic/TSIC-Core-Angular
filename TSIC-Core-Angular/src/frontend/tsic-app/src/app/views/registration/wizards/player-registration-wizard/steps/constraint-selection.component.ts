@@ -168,11 +168,12 @@ export class ConstraintSelectionComponent {
   }
 
   private getJobOptionsRaw(job: JobMetadataResponse): string | null {
+    const jobRecord = job as unknown as Record<string, unknown>;
     const raw = job.jsonOptions
-      ?? (job as any).jobOptions
-      ?? (job as any).JsonOptions
-      ?? (job as any).jsonoptions
-      ?? (job as any).playerProfileMetadataJson
+      ?? jobRecord['jobOptions']
+      ?? jobRecord['JsonOptions']
+      ?? jobRecord['jsonoptions']
+      ?? jobRecord['playerProfileMetadataJson']
       ?? null;
     return typeof raw === 'string' && raw.trim() ? raw : null;
   }
@@ -180,11 +181,11 @@ export class ConstraintSelectionComponent {
   private extractEligibleOptions(job: JobMetadataResponse, type: string | null): Array<{ value: string; label: string }> {
     const raw = this.getJobOptionsRaw(job);
     if (!raw) return [];
-    let parsed: any;
+    let parsed: Record<string, unknown>;
     try { parsed = JSON.parse(raw); } catch { return []; }
     if (!parsed || typeof parsed !== 'object') return [];
     const keys = Object.keys(parsed);
-    try { if ((globalThis as any).location?.host?.startsWith?.('localhost')) { console.debug('[Eligibility] jsonOptions keys', keys); } } catch { }
+    try { if (typeof location !== 'undefined' && location?.host?.startsWith?.('localhost')) { console.debug('[Eligibility] jsonOptions keys', keys); } } catch { }
     switch (type) {
       case 'BYGRADYEAR': return this.buildGradYearOptions(parsed, keys);
       case 'BYAGEGROUP': return this.buildAgeGroupOptions(parsed, keys);
@@ -193,18 +194,19 @@ export class ConstraintSelectionComponent {
     }
   }
 
-  private buildGradYearOptions(parsed: any, keys: string[]): Array<{ value: string; label: string }> {
-    const isYear = (v: any) => /^(20|19)\d{2}$/.test(String(v));
-    const normalizeObj = (o: any) => {
+  private buildGradYearOptions(parsed: Record<string, unknown>, keys: string[]): Array<{ value: string; label: string }> {
+    const isYear = (v: unknown) => /^(20|19)\d{2}$/.test(String(v));
+    const normalizeObj = (o: unknown) => {
       if (o && typeof o === 'object') {
-        const val = o.Value ?? o.value ?? o.year ?? o.id;
-        const label = o.Text ?? o.text ?? o.label ?? o.name ?? o.display ?? val;
+        const rec = o as Record<string, unknown>;
+        const val = rec['Value'] ?? rec['value'] ?? rec['year'] ?? rec['id'];
+        const label = rec['Text'] ?? rec['text'] ?? rec['label'] ?? rec['name'] ?? rec['display'] ?? val;
         return { value: String(val), label: String(label) };
       }
       return { value: String(o), label: String(o) };
     };
     const key = keys.find(k => k.toLowerCase().includes('grad') && k.toLowerCase().includes('year'));
-    let arr: any[] = [];
+    let arr: unknown[] = [];
     if (key) {
       const candidate = parsed[key];
       if (Array.isArray(candidate)) arr = candidate; else arr = [];
@@ -212,8 +214,8 @@ export class ConstraintSelectionComponent {
     let mapped = arr.map(normalizeObj).filter(o => isYear(o.value));
     if (mapped.length === 0) {
       for (const k of keys) {
-        const candidate = Array.isArray(parsed[k]) ? parsed[k] : [];
-        if (candidate.length > 0 && candidate.every(x => isYear((x && typeof x === 'object') ? (x.Value ?? x.value ?? x.year ?? x.id ?? x) : x))) {
+        const candidate = Array.isArray(parsed[k]) ? parsed[k] as unknown[] : [];
+        if (candidate.length > 0 && candidate.every(x => isYear((x && typeof x === 'object') ? ((x as Record<string, unknown>)['Value'] ?? (x as Record<string, unknown>)['value'] ?? (x as Record<string, unknown>)['year'] ?? (x as Record<string, unknown>)['id'] ?? x) : x))) {
           mapped = candidate.map(normalizeObj).filter(o => isYear(o.value));
           break;
         }
@@ -222,28 +224,30 @@ export class ConstraintSelectionComponent {
     return mapped.sort((a, b) => a.value.localeCompare(b.value));
   }
 
-  private buildAgeGroupOptions(parsed: any, keys: string[]): Array<{ value: string; label: string }> {
+  private buildAgeGroupOptions(parsed: Record<string, unknown>, keys: string[]): Array<{ value: string; label: string }> {
     const key = keys.find(k => k.toLowerCase().includes('age') && k.toLowerCase().includes('group'));
     if (!key) return [];
-    const arr: any[] = Array.isArray(parsed[key]) ? parsed[key] : [];
+    const arr: unknown[] = Array.isArray(parsed[key]) ? parsed[key] as unknown[] : [];
     return arr.map(o => {
       if (o && typeof o === 'object') {
-        const val = o.Value ?? o.value ?? o.id ?? o.code ?? o.name;
-        const label = o.Text ?? o.text ?? o.label ?? o.name ?? val;
+        const rec = o as Record<string, unknown>;
+        const val = rec['Value'] ?? rec['value'] ?? rec['id'] ?? rec['code'] ?? rec['name'];
+        const label = rec['Text'] ?? rec['text'] ?? rec['label'] ?? rec['name'] ?? val;
         return { value: String(val), label: String(label) };
       }
       return { value: String(o), label: String(o) };
     }).filter(o => o.value);
   }
 
-  private buildAgeRangeOptions(parsed: any, keys: string[]): Array<{ value: string; label: string }> {
+  private buildAgeRangeOptions(parsed: Record<string, unknown>, keys: string[]): Array<{ value: string; label: string }> {
     const key = keys.find(k => k.toLowerCase().includes('age') && k.toLowerCase().includes('range'));
     if (!key) return [];
-    const arr: any[] = Array.isArray(parsed[key]) ? parsed[key] : [];
+    const arr: unknown[] = Array.isArray(parsed[key]) ? parsed[key] as unknown[] : [];
     return arr.map(r => {
       if (r && typeof r === 'object') {
-        const min = r.MinAge ?? r.minAge ?? r.min ?? r.start;
-        const max = r.MaxAge ?? r.maxAge ?? r.max ?? r.end;
+        const rec = r as Record<string, unknown>;
+        const min = rec['MinAge'] ?? rec['minAge'] ?? rec['min'] ?? rec['start'];
+        const max = rec['MaxAge'] ?? rec['maxAge'] ?? rec['max'] ?? rec['end'];
         if ((min || min === 0) && (max || max === 0)) {
           return { value: `${min}-${max}`, label: `${min}-${max}` };
         }

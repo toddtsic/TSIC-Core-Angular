@@ -32,6 +32,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import type { CreditCardInfo, TeamsMetadataResponse, TeamPaymentRequestDto } from '@core/api';
 import { IdempotencyService } from '../../shared/services/idempotency.service';
+import type { VIOfferData } from '../../shared/types/wizard.types';
 
 // Extend generated request DTO with fields derived from client context (not in OpenAPI spec)
 type TeamPaymentRequest = TeamPaymentRequestDto & {
@@ -40,11 +41,7 @@ type TeamPaymentRequest = TeamPaymentRequestDto & {
   idempotencyKey?: string | null;
 };
 
-declare global {
-  interface Window {
-    VerticalInsure?: any;
-  }
-}
+// VerticalInsure global typing handled by VIWindowExtension in wizard.types.ts
 
 /**
  * Team payment step component.
@@ -399,7 +396,7 @@ export class TeamPaymentStepComponent
         // Initialize VI widget
         setTimeout(() => {
           if (this.viOfferElement?.nativeElement) {
-            this.insuranceSvc.initWidget('#dVITeamOffer', offer.teamObject);
+            this.insuranceSvc.initWidget('#dVITeamOffer', offer.teamObject as VIOfferData);
           }
         }, 100);
       }

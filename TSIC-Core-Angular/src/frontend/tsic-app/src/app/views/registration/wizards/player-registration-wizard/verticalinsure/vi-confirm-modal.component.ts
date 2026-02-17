@@ -50,10 +50,10 @@ import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.com
 export class ViConfirmModalComponent {
   readonly insuranceState = inject(InsuranceStateService);
 
-  @Input() quotes: any[] | null = null;
+  @Input() quotes: Record<string, unknown>[] | null = null;
   @Input() ready: boolean = false;
   @Input() error: string | null = null;
-  @Output() confirmed = new EventEmitter<{ policyNumber: string | null; policyCreateDate: string | null; quotes: any[] }>();
+  @Output() confirmed = new EventEmitter<{ policyNumber: string | null; policyCreateDate: string | null; quotes: Record<string, unknown>[] }>();
   @Output() declined = new EventEmitter<void>();
   @Output() closed = new EventEmitter<void>();
 

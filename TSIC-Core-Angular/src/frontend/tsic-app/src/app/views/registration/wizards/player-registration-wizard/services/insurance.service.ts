@@ -7,6 +7,7 @@ import type { InsurancePurchaseRequestDto, InsurancePurchaseResponseDto, CreditC
 import { ToastService } from '@shared-ui/toast.service';
 import { ViDarkModeService } from '../../shared/services/vi-dark-mode.service';
 import { sanitizeExpiry, sanitizePhone } from '../../shared/services/credit-card-utils';
+import type { VIOfferData, VIWidgetState, VIWindowExtension } from '../../shared/types/wizard.types';
 
 /** Shape of a VerticalInsure quote returned by the widget. */
 export interface VerticalInsureQuote {
@@ -38,9 +39,10 @@ export class InsuranceService {
     consented = computed(() => this.insuranceState.verticalInsureConfirmed());
     declined = computed(() => this.insuranceState.verticalInsureDeclined());
 
-    initWidget(hostSelector: string, offerData: any): void {
+    initWidget(hostSelector: string, offerData: VIOfferData): void {
         if (this.widgetInitialized()) return;
-        if (!(globalThis as any).VerticalInsure) {
+        const viWindow = globalThis as unknown as VIWindowExtension;
+        if (!viWindow.VerticalInsure) {
             this.error.set('VerticalInsure script missing');
             return;
         }
@@ -48,10 +50,10 @@ export class InsuranceService {
             // Inject computed dark-mode colors into VI's theme (for iframe compatibility)
             this.viDarkMode.injectDarkModeColors(offerData);
 
-            const instance = new (globalThis as any).VerticalInsure(
+            const instance = new viWindow.VerticalInsure(
                 hostSelector,
                 offerData,
-                (st: any) => {
+                (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
                         this.hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
@@ -70,7 +72,7 @@ export class InsuranceService {
                         }
                     });
                 },
-                (st: any) => {
+                (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
                         this.hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
@@ -173,15 +175,15 @@ export class InsuranceService {
                 }
             });
     }
-    private extractRegistrationId(q: any): string {
+    private extractRegistrationId(q: VerticalInsureQuote): string {
         const idFromMeta = this.extractRegistrationIdFromMeta(q?.metadata);
         if (idFromMeta) return idFromMeta;
         return this.inferRegistrationIdFromParticipant(q);
     }
 
-    private extractRegistrationIdFromMeta(meta: any): string {
+    private extractRegistrationIdFromMeta(meta: Record<string, unknown> | undefined): string {
         if (!meta) return '';
-        const direct = meta.TsicRegistrationId ?? meta.tsicRegistrationId ?? meta.tsic_registration_id;
+        const direct = meta['TsicRegistrationId'] ?? meta['tsicRegistrationId'] ?? meta['tsic_registration_id'];
         if (direct) return String(direct);
         for (const k of Object.keys(meta)) {
             if (/registration.?id/i.test(k)) {
@@ -192,7 +194,7 @@ export class InsuranceService {
         return '';
     }
 
-    private inferRegistrationIdFromParticipant(q: any): string {
+    private inferRegistrationIdFromParticipant(q: VerticalInsureQuote): string {
         const fn = q?.policy_attributes?.participant?.first_name?.trim?.() || '';
         const ln = q?.policy_attributes?.participant?.last_name?.trim?.() || '';
         const participant = (fn + ' ' + ln).trim().toLowerCase();

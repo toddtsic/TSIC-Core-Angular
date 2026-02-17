@@ -2,7 +2,7 @@ import { Directive, Input, forwardRef, inject } from '@angular/core';
 import { AbstractControl, NG_ASYNC_VALIDATORS, ValidationErrors } from '@angular/forms';
 import { Observable, of, timer } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
-import { UsLaxService, type UsLaxApiResponseDto } from './uslax.service';
+import { UsLaxService, type UsLaxApiResponseDto, type UsLaxMembershipDto } from './uslax.service';
 import { RegistrationWizardService } from './registration-wizard.service';
 import { environment } from '@environments/environment';
 
@@ -56,13 +56,14 @@ export class UsLaxValidatorDirective {
                 let ok: boolean | undefined;
                 let message: string | undefined;
                 let membership: unknown;
-                if (typeof (res as any)?.ok === 'boolean') {
-                    ok = (res as any).ok; message = (res as any).message; membership = (res as any).membership;
+                const resRecord = res as unknown as Record<string, unknown>;
+                if (typeof resRecord?.['ok'] === 'boolean') {
+                    ok = resRecord['ok'] as boolean; message = resRecord['message'] as string | undefined; membership = resRecord['membership'];
                 } else {
-                    const verdict = this.computeLocalVerdict(res as any, lastName, dob, validThrough);
+                    const verdict = this.computeLocalVerdict(res, lastName, dob, validThrough);
                     ok = verdict.ok; message = verdict.message; membership = verdict.membership;
                 }
-                if (this.playerId) this.state.setUsLaxResult(this.playerId, !!ok, message, membership);
+                if (this.playerId) this.state.setUsLaxResult(this.playerId, !!ok, message, membership as Record<string, unknown> | undefined);
                 return ok ? null : { uslax: { message: message || 'Invalid membership' } };
             }),
             catchError(err => {
@@ -84,9 +85,9 @@ export class UsLaxValidatorDirective {
         if (!a || !b) return false;
         return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     }
-    private toDate(v: any): Date | null {
+    private toDate(v: unknown): Date | null {
         if (!v) return null;
-        const d = v instanceof Date ? v : new Date(v);
+        const d = v instanceof Date ? v : new Date(v as string | number);
         return Number.isNaN(d.getTime()) ? null : d;
     }
     private computeLocalVerdict(
@@ -94,20 +95,20 @@ export class UsLaxValidatorDirective {
         lastName: string,
         dob?: Date,
         validThrough?: Date
-    ): { ok: boolean; message?: string; membership?: any } {
+    ): { ok: boolean; message?: string; membership?: UsLaxMembershipDto | null } {
         // Strictly adhere to observed response: { status_code, output: { ...fields } }
         const membership = res?.output ?? null;
         const guidanceHtml = `<strong>Beginning July 1, 2025 all USA Lacrosse player members will be required to complete the one-time age verification process to maintain active membership status. (<a href='https://www.usalacrosse.com/age-verification' target='_blank' rel='noopener'>Learn more</a>)</strong><br><br>The USA Lacrosse Number entered does not meet validation requirements. To pass validation:<ol><li>The membership must be <strong>Valid and Active</strong></li><li>The membership must not expire before the date required by the event or club director</li><li>The DOB and Last Name Spelling on your Family Account must match what USA Lacrosse has on file</li></ol><br>To look up your USA Lacrosse Number at USA Lacrosse, <a href='https://account.usalacrosse.com/login/lookup' target='_blank' rel='noopener'>CLICK HERE</a><br>To register for a USA Lacrosse Number at USA Lacrosse, <a href='https://www.usalacrosse.com/membership' target='_blank' rel='noopener'>CLICK HERE</a><br>For assistance please contact <a href='mailto:membership@usalacrosse.com'>membership@usalacrosse.com</a> or call 410-235-6882`;
         // If no membership record returned, treat number as invalid and avoid generic guidance/modal
         if (!membership) return { ok: false, message: 'The number you entered is not a valid USA Lacrosse number.', membership: undefined };
 
-        const memLast = this.normalizeName((membership as any).lastname || '');
+        const memLast = this.normalizeName(membership.lastname || '');
         const wantLast = this.normalizeName(lastName);
 
-        const memDob = this.toDate((membership as any).birthdate);
+        const memDob = this.toDate(membership.birthdate);
         const wantDob = dob ? new Date(dob) : null;
 
-        const memExp = this.toDate((membership as any).exp_date);
+        const memExp = this.toDate(membership.exp_date);
         const needThrough = validThrough ? new Date(validThrough) : null;
 
         // Require last name and DOB; only require expiration if a required-through date is specified
@@ -131,7 +132,7 @@ export class UsLaxValidatorDirective {
         }
 
         // Active status check
-        const status = String((membership as any).mem_status || '').trim();
+        const status = String(membership.mem_status || '').trim();
         if (status && status.toLowerCase() !== 'active') {
             return { ok: false, message: `Your USA Lacrosse account is NOT ACTIVE.<br><br>${guidanceHtml}`, membership };
         }

@@ -161,6 +161,88 @@ public sealed class WidgetEditorService : IWidgetEditorService
         await _repo.SaveChangesAsync(ct);
     }
 
+    // ── Per-job overrides ──
+
+    public Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default)
+        => _repo.GetJobsByJobTypeAsync(jobTypeId, ct);
+
+    public async Task<JobOverridesResponse> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // 1. Resolve job type (sequential — DbContext not thread-safe)
+        var jobTypeId = await _repo.GetJobTypeIdForJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Job {jobId} not found.");
+
+        // 2. Get defaults for this job type
+        var defaults = await _repo.GetDefaultsByJobTypeAsync(jobTypeId, ct);
+
+        // 3. Get per-job overrides
+        var overrides = await _repo.GetJobWidgetsByJobAsync(jobId, ct);
+
+        // 4. Build override lookup: widgetId|roleId → JobWidgetEntryDto
+        var overrideMap = new Dictionary<string, JobWidgetEntryDto>();
+        foreach (var o in overrides)
+            overrideMap[$"{o.WidgetId}|{o.RoleId}"] = o;
+
+        // 5. Merge: defaults + overrides
+        var merged = new List<JobWidgetEntryDto>();
+
+        foreach (var def in defaults)
+        {
+            var key = $"{def.WidgetId}|{def.RoleId}";
+            if (overrideMap.Remove(key, out var ov))
+            {
+                // Use override (already has IsOverridden=true)
+                merged.Add(ov);
+            }
+            else
+            {
+                // Inherited default
+                merged.Add(new JobWidgetEntryDto
+                {
+                    WidgetId = def.WidgetId,
+                    RoleId = def.RoleId,
+                    CategoryId = def.CategoryId,
+                    DisplayOrder = def.DisplayOrder,
+                    Config = def.Config,
+                    IsEnabled = true,
+                    IsOverridden = false,
+                });
+            }
+        }
+
+        // 6. Add job-specific additions (overrides with no matching default)
+        foreach (var addition in overrideMap.Values)
+        {
+            merged.Add(addition);
+        }
+
+        return new JobOverridesResponse
+        {
+            JobId = jobId,
+            JobTypeId = jobTypeId,
+            Entries = merged,
+        };
+    }
+
+    public async Task SaveJobOverridesAsync(SaveJobOverridesRequest request, CancellationToken ct = default)
+    {
+        // Only persist entries where IsOverridden=true
+        var overridesToSave = request.Entries
+            .Where(e => e.IsOverridden)
+            .ToList();
+
+        // Load existing JobWidget entries for removal
+        var existing = await _repo.GetJobWidgetEntitiesAsync(request.JobId, ct);
+
+        if (existing.Count > 0)
+            _repo.RemoveJobWidgets(existing);
+
+        if (overridesToSave.Count > 0)
+            await _repo.BulkInsertJobWidgetsAsync(request.JobId, overridesToSave, ct);
+
+        await _repo.SaveChangesAsync(ct);
+    }
+
     private static void ValidateWidgetType(string widgetType)
     {
         if (!AllowedWidgetTypes.Contains(widgetType))

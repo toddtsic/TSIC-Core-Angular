@@ -31,7 +31,7 @@ export class TeamInsuranceStateService {
         confirmed: boolean;
         declined: boolean;
         policyNumbers?: Record<string, string>; // teamId -> policyNumber
-        quotes?: any[];
+        quotes?: Record<string, unknown>[];
         decidedUtc?: string;
     } | null>(null);
 
@@ -53,7 +53,7 @@ export class TeamInsuranceStateService {
         this._showVerticalInsureModal.set(true);
     }
 
-    confirmVerticalInsurePurchase(quotes: any[] = []): void {
+    confirmVerticalInsurePurchase(quotes: Record<string, unknown>[] = []): void {
         this._viConsent.set({
             confirmed: true,
             declined: false,

@@ -11,16 +11,12 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { InsuranceStateService } from '../services/insurance-state.service';
 import { PaymentStateService } from '../services/payment-state.service';
 import { ViChargeConfirmModalComponent } from '../verticalinsure/vi-charge-confirm-modal.component';
-import type { PaymentResponseDto, PaymentRequestDto } from '@core/api';
+import type { PaymentResponseDto, PaymentRequestDto, RegSaverDetailsDto } from '@core/api';
 import { TeamService } from '../team.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { InsuranceService } from '../services/insurance.service';
 import { sanitizeExpiry, sanitizePhone } from '../../shared/services/credit-card-utils';
-
-declare global {
-  // Allow TypeScript to acknowledge the VerticalInsure constructor on window
-  interface Window { VerticalInsure?: any; }
-}
+import type { VIOfferData } from '../../shared/types/wizard.types';
 
 import type { LineItem } from '../services/payment.service';
 
@@ -283,7 +279,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.viInitRetries = 0;
-    this.insuranceSvc.initWidget('#dVIOffer', offerObj);
+    this.insuranceSvc.initWidget('#dVIOffer', offerObj as VIOfferData);
   }
 
 
@@ -460,7 +456,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
   }
 
   // --- Extracted handlers to reduce cognitive complexity ---
-  private handlePaymentResponse(response: PaymentResponseDto, rs: any): void {
+  private handlePaymentResponse(response: PaymentResponseDto, rs: RegSaverDetailsDto | null): void {
     if (response.success) {
       this.handlePaymentSuccess(response, rs);
     } else {
@@ -468,7 +464,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private handlePaymentSuccess(response: PaymentResponseDto, rs: any): void {
+  private handlePaymentSuccess(response: PaymentResponseDto, rs: RegSaverDetailsDto | null): void {
     this.lastError.set(null);
     console.log('Payment successful', response);
     this.clearStoredIdem();
@@ -609,7 +605,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     this.creditCard = { ...this.creditCard, ...val };
   }
   // Removed original simple onCcValidChange; replaced with version that also prompts insurance decision.
-  onCcValidChange(valid: any): void { this.ccValid.set(!!valid); }
+  onCcValidChange(valid: boolean): void { this.ccValid.set(!!valid); }
   // Autofocus logic removed per request
   monthLabel(): string { return this.paySvc.monthLabel(); }
   // --- ARB subscription helpers ---

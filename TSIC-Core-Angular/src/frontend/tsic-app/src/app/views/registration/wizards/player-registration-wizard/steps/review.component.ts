@@ -43,11 +43,11 @@ export class ReviewComponent {
     const allTeams = this.teamService.filterByEligibility(null);
     if (Array.isArray(teams)) {
       return teams.map((tid: string) => {
-        const team = allTeams.find((t: any) => t.teamId === tid);
+        const team = allTeams.find(t => t.teamId === tid);
         return team?.teamName || tid;
       });
     }
-    const team = allTeams.find((t: any) => t.teamId === teams);
+    const team = allTeams.find(t => t.teamId === teams);
     return [team?.teamName || teams];
   }
 

@@ -134,10 +134,10 @@ export class CreditCardFormComponent implements OnInit, OnChanges, OnDestroy {
   @Input() defaultPhone: string | null = null;
   // Original outputs retained for compatibility
   @Output() ccValidChange = new EventEmitter<boolean>();
-  @Output() ccValueChange = new EventEmitter<any>();
+  @Output() ccValueChange = new EventEmitter<Record<string, string>>();
   // Additional outputs matching payment component template expectations (no aliasing)
   @Output() validChange = new EventEmitter<boolean>();
-  @Output() valueChange = new EventEmitter<any>();
+  @Output() valueChange = new EventEmitter<Record<string, string>>();
 
   form!: FormGroup;
   private formSub?: Subscription;

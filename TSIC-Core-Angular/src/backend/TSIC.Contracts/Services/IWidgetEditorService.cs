@@ -22,4 +22,9 @@ public interface IWidgetEditorService
     // ── Widget-centric bulk assignment ──
     Task<WidgetAssignmentsResponse> GetWidgetAssignmentsAsync(int widgetId, CancellationToken ct = default);
     Task SaveWidgetAssignmentsAsync(SaveWidgetAssignmentsRequest request, CancellationToken ct = default);
+
+    // ── Per-job overrides ──
+    Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default);
+    Task<JobOverridesResponse> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default);
+    Task SaveJobOverridesAsync(SaveJobOverridesRequest request, CancellationToken ct = default);
 }

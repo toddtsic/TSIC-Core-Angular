@@ -137,7 +137,7 @@ export class TeamPaymentService {
         const request: ApplyTeamDiscountRequestDto = {
             jobPath: this.jobPath(),
             code,
-            teamIds: teamIds.map(id => id as any) // Convert string to Guid
+            teamIds: teamIds as string[] // GUID strings accepted by API
         };
 
         return this.http.post<ApplyTeamDiscountResponseDto>(
@@ -176,7 +176,7 @@ export class TeamPaymentService {
      * Submit team payment to the backend.
      * Extracted from TeamPaymentStepComponent to keep HTTP calls in the service layer.
      */
-    submitPayment(request: Record<string, any>): Observable<TeamPaymentResponseDto> {
+    submitPayment(request: Record<string, unknown>): Observable<TeamPaymentResponseDto> {
         return this.http.post<TeamPaymentResponseDto>(
             `${environment.apiUrl}/team-payment/process`,
             request

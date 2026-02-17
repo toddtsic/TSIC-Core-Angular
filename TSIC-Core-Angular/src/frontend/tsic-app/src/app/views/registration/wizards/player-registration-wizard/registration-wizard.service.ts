@@ -21,6 +21,7 @@ import type {
     AuthTokenResponse
 } from '@core/api';
 import { environment } from '@environments/environment';
+import { getPropertyCI, pickStringCI, hasAllParts } from '../shared/utils/property-utils';
 
 export type PaymentOption = 'PIF' | 'Deposit' | 'ARB';
 
@@ -123,12 +124,12 @@ export class RegistrationWizardService {
     signatureRole(): 'Parent/Guardian' | 'Adult Player' | '' { return this.waiverState.signatureRole(); }
     setSignatureRole(v: 'Parent/Guardian' | 'Adult Player' | ''): void { this.waiverState.signatureRole.set(v); }
     // Dev-only: capture a normalized snapshot of GET /family/players for the debug panel on Players step
-    debugFamilyPlayersResp = signal<any>(null);
+    debugFamilyPlayersResp = signal<FamilyPlayersResponseDto | null>(null);
 
     // Waiver selection/reactivity handled inside WaiverStateService; no local effect needed.
 
     // US Lacrosse number validation status per player
-    usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: any }>>({});
+    usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: Record<string, unknown> }>>({});
     // Subscription management for fire-and-forget HTTP calls
     private familyPlayersSub?: Subscription;
     private metadataSub?: Subscription;
@@ -285,7 +286,7 @@ export class RegistrationWizardService {
         this.applyPaymentFlags(resp);
     }
 
-    private handleFamilyPlayersError(err: any): void {
+    private handleFamilyPlayersError(err: unknown): void {
         try { console.warn('[RegWizard] Failed to load family players', err); } catch { /* no-op */ }
         this.familyPlayers.set([]);
         this.familyUser.set(null);
@@ -295,7 +296,7 @@ export class RegistrationWizardService {
 
     private extractConstraintType(resp: FamilyPlayersResponseDto): void {
         try {
-            const jrf = resp.jobRegForm || (resp as any).JobRegForm;
+            const jrf = resp.jobRegForm || getPropertyCI<FamilyPlayersResponseDto['jobRegForm']>(resp as Record<string, unknown>, 'jobRegForm');
             const rawCt = jrf?.constraintType ?? null;
             if (typeof rawCt === 'string' && rawCt.trim()) {
                 const norm = rawCt.trim().toUpperCase();
@@ -308,45 +309,41 @@ export class RegistrationWizardService {
     }
 
     private applyFamilyUser(resp: FamilyPlayersResponseDto): void {
-        const fu = resp.familyUser || (resp as any).FamilyUser || null;
+        const fu = resp.familyUser || getPropertyCI<Record<string, unknown>>(resp as Record<string, unknown>, 'familyUser');
         if (!fu) { this.familyUser.set(null); return; }
-        const pick = (o: any, keys: string[]): string | undefined => {
-            for (const k of keys) {
-                const v = o?.[k];
-                if (typeof v === 'string' && v.trim()) return String(v).trim();
-            }
-            return undefined;
-        };
-        const norm: any = {
-            familyUserId: fu.familyUserId,
-            displayName: fu.displayName,
-            userName: fu.userName,
-            firstName: pick(fu, ['firstName', 'FirstName', 'parentFirstName', 'ParentFirstName', 'motherFirstName', 'MotherFirstName', 'guardianFirstName', 'GuardianFirstName', 'billingFirstName', 'BillingFirstName']),
-            lastName: pick(fu, ['lastName', 'LastName', 'parentLastName', 'ParentLastName', 'motherLastName', 'MotherLastName', 'guardianLastName', 'GuardianLastName', 'billingLastName', 'BillingLastName']),
-            address: pick(fu, ['address', 'Address', 'billingAddress', 'BillingAddress', 'street', 'Street', 'street1', 'Street1', 'address1', 'Address1']),
-            address1: pick(fu, ['address1', 'Address1', 'street1', 'Street1']),
-            address2: pick(fu, ['address2', 'Address2', 'street2', 'Street2', 'apt', 'Apt', 'aptNumber', 'AptNumber', 'suite', 'Suite']),
-            city: pick(fu, ['city', 'City']),
-            state: pick(fu, ['state', 'State', 'stateCode', 'StateCode']),
-            zipCode: pick(fu, ['zipCode', 'ZipCode', 'zip', 'Zip', 'postalCode', 'PostalCode']),
-            zip: pick(fu, ['zip', 'Zip']),
-            postalCode: pick(fu, ['postalCode', 'PostalCode']),
-            email: pick(fu, ['email', 'Email', 'parentEmail', 'ParentEmail', 'motherEmail', 'MotherEmail', 'guardianEmail', 'GuardianEmail', 'billingEmail', 'BillingEmail', 'userName', 'UserName']),
+        const o = fu as Record<string, unknown>;
+        const norm = {
+            familyUserId: o['familyUserId'] as string,
+            displayName: o['displayName'] as string,
+            userName: o['userName'] as string,
+            firstName: pickStringCI(o, 'firstName', 'parentFirstName', 'motherFirstName', 'guardianFirstName', 'billingFirstName'),
+            lastName: pickStringCI(o, 'lastName', 'parentLastName', 'motherLastName', 'guardianLastName', 'billingLastName'),
+            address: pickStringCI(o, 'address', 'billingAddress', 'street', 'street1', 'address1'),
+            address1: pickStringCI(o, 'address1', 'street1'),
+            address2: pickStringCI(o, 'address2', 'street2', 'apt', 'aptNumber', 'suite'),
+            city: pickStringCI(o, 'city'),
+            state: pickStringCI(o, 'state', 'stateCode'),
+            zipCode: pickStringCI(o, 'zipCode', 'zip', 'postalCode'),
+            zip: pickStringCI(o, 'zip'),
+            postalCode: pickStringCI(o, 'postalCode'),
+            email: pickStringCI(o, 'email', 'parentEmail', 'motherEmail', 'guardianEmail', 'billingEmail', 'userName'),
             phone: (() => {
-                const raw = pick(fu, ['phone', 'Phone', 'parentPhone', 'ParentPhone', 'motherPhone', 'MotherPhone', 'guardianPhone', 'GuardianPhone', 'billingPhone', 'BillingPhone', 'phoneNumber', 'PhoneNumber', 'cellPhone', 'CellPhone', 'mobile', 'Mobile']);
+                const raw = pickStringCI(o, 'phone', 'parentPhone', 'motherPhone', 'guardianPhone', 'billingPhone', 'phoneNumber', 'cellPhone', 'mobile');
                 return raw ? raw.replaceAll(/\D+/g, '') : undefined;
-            })()
+            })(),
+            ccInfo: undefined as { firstName?: string; lastName?: string; streetAddress?: string; zip?: string; email?: string; phone?: string } | undefined
         };
-        const rawCc = resp.ccInfo || (resp as any).CcInfo || null;
+        const rawCc = resp.ccInfo || getPropertyCI<Record<string, unknown>>(resp as Record<string, unknown>, 'ccInfo');
         if (rawCc) {
+            const cc = rawCc as Record<string, unknown>;
             norm.ccInfo = {
-                firstName: pick(rawCc, ['firstName', 'FirstName']),
-                lastName: pick(rawCc, ['lastName', 'LastName']),
-                streetAddress: pick(rawCc, ['streetAddress', 'StreetAddress', 'address', 'Address']),
-                zip: pick(rawCc, ['zip', 'Zip', 'zipCode', 'ZipCode', 'postalCode', 'PostalCode']),
-                email: pick(rawCc, ['email', 'Email']),
+                firstName: pickStringCI(cc, 'firstName'),
+                lastName: pickStringCI(cc, 'lastName'),
+                streetAddress: pickStringCI(cc, 'streetAddress', 'address'),
+                zip: pickStringCI(cc, 'zip', 'zipCode', 'postalCode'),
+                email: pickStringCI(cc, 'email'),
                 phone: (() => {
-                    const raw = pick(rawCc, ['phone', 'Phone']);
+                    const raw = pickStringCI(cc, 'phone');
                     return raw ? raw.replaceAll(/\D+/g, '') : undefined;
                 })()
             };
@@ -355,7 +352,7 @@ export class RegistrationWizardService {
     }
 
     private applyRegSaverDetails(resp: FamilyPlayersResponseDto): void {
-        const rs = resp.regSaverDetails || (resp as any).RegSaverDetails || null;
+        const rs = resp.regSaverDetails || getPropertyCI<RegSaverDetailsDto>(resp as Record<string, unknown>, 'regSaverDetails');
         if (!rs) { this.regSaverDetails.set(null); return; }
         this.regSaverDetails.set({
             policyNumber: rs.policyNumber,
@@ -364,40 +361,44 @@ export class RegistrationWizardService {
     }
 
     private buildFamilyPlayersList(resp: FamilyPlayersResponseDto): FamilyPlayerDto[] {
-        const rawPlayers: any[] = resp.familyPlayers || (resp as any).FamilyPlayers || (resp as any).players || (resp as any).Players || [];
+        const r = resp as Record<string, unknown>;
+        const rawPlayers: Record<string, unknown>[] = (resp.familyPlayers as Record<string, unknown>[]) || getPropertyCI<Record<string, unknown>[]>(r, 'familyPlayers', 'players') || [];
         return rawPlayers.map(p => {
-            const prior: any[] = p.priorRegistrations || p.PriorRegistrations || [];
-            const priorRegs: FamilyPlayerRegistrationDto[] = prior.map(r => ({
-                registrationId: r.registrationId ?? r.RegistrationId ?? '',
-                active: !!(r.active ?? r.Active),
-                financials: {
-                    feeBase: +(r.financials?.feeBase ?? r.financials?.FeeBase ?? 0),
-                    feeProcessing: +(r.financials?.feeProcessing ?? r.financials?.FeeProcessing ?? 0),
-                    feeDiscount: +(r.financials?.feeDiscount ?? r.financials?.FeeDiscount ?? 0),
-                    feeDonation: +(r.financials?.feeDonation ?? r.financials?.FeeDonation ?? 0),
-                    feeLateFee: +(r.financials?.feeLateFee ?? r.financials?.FeeLateFee ?? 0),
-                    feeTotal: +(r.financials?.feeTotal ?? r.financials?.FeeTotal ?? 0),
-                    owedTotal: +(r.financials?.owedTotal ?? r.financials?.OwedTotal ?? 0),
-                    paidTotal: +(r.financials?.paidTotal ?? r.financials?.PaidTotal ?? 0)
-                },
-                assignedTeamId: r.assignedTeamId ?? r.AssignedTeamId ?? undefined,
-                assignedTeamName: r.assignedTeamName ?? r.AssignedTeamName ?? undefined,
-                adnSubscriptionId: r.adnSubscriptionId ?? undefined,
-                adnSubscriptionStatus: r.adnSubscriptionStatus ?? undefined,
-                adnSubscriptionAmountPerOccurence: r.adnSubscriptionAmountPerOccurence ?? undefined,
-                adnSubscriptionBillingOccurences: r.adnSubscriptionBillingOccurences ?? undefined,
-                adnSubscriptionIntervalLength: r.adnSubscriptionIntervalLength ?? undefined,
-                adnSubscriptionStartDate: r.adnSubscriptionStartDate ?? undefined,
-                formFieldValues: r.formFieldValues || r.FormFieldValues || r.formValues || r.FormValues || null
-            }));
+            const prior: Record<string, unknown>[] = getPropertyCI<Record<string, unknown>[]>(p, 'priorRegistrations') || [];
+            const priorRegs: FamilyPlayerRegistrationDto[] = prior.map(r => {
+                const fin = getPropertyCI<Record<string, unknown>>(r, 'financials');
+                return {
+                    registrationId: getPropertyCI<string>(r, 'registrationId') ?? '',
+                    active: !!getPropertyCI<boolean>(r, 'active'),
+                    financials: {
+                        feeBase: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeBase') ?? 0),
+                        feeProcessing: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeProcessing') ?? 0),
+                        feeDiscount: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeDiscount') ?? 0),
+                        feeDonation: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeDonation') ?? 0),
+                        feeLateFee: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeLateFee') ?? 0),
+                        feeTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeTotal') ?? 0),
+                        owedTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'owedTotal') ?? 0),
+                        paidTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'paidTotal') ?? 0)
+                    },
+                    assignedTeamId: getPropertyCI<string>(r, 'assignedTeamId') ?? undefined,
+                    assignedTeamName: getPropertyCI<string>(r, 'assignedTeamName') ?? undefined,
+                    adnSubscriptionId: (r['adnSubscriptionId'] as string) ?? undefined,
+                    adnSubscriptionStatus: (r['adnSubscriptionStatus'] as string) ?? undefined,
+                    adnSubscriptionAmountPerOccurence: (r['adnSubscriptionAmountPerOccurence'] as number) ?? undefined,
+                    adnSubscriptionBillingOccurences: (r['adnSubscriptionBillingOccurences'] as number) ?? undefined,
+                    adnSubscriptionIntervalLength: (r['adnSubscriptionIntervalLength'] as number) ?? undefined,
+                    adnSubscriptionStartDate: (r['adnSubscriptionStartDate'] as string) ?? undefined,
+                    formFieldValues: (getPropertyCI<Record<string, unknown>>(r, 'formFieldValues', 'formValues') ?? {}) as Record<string, unknown>
+                };
+            });
             return {
-                playerId: p.playerId ?? '',
-                firstName: p.firstName ?? '',
-                lastName: p.lastName ?? '',
-                gender: p.gender ?? '',
-                dob: p.dob ?? p.Dob ?? undefined,
-                registered: !!(p.registered ?? p.Registered),
-                selected: !!(p.selected ?? p.Selected ?? (p.registered ?? p.Registered)),
+                playerId: getPropertyCI<string>(p, 'playerId') ?? '',
+                firstName: getPropertyCI<string>(p, 'firstName') ?? '',
+                lastName: getPropertyCI<string>(p, 'lastName') ?? '',
+                gender: getPropertyCI<string>(p, 'gender') ?? '',
+                dob: getPropertyCI<string>(p, 'dob') ?? undefined,
+                registered: !!getPropertyCI<boolean>(p, 'registered'),
+                selected: !!getPropertyCI<boolean>(p, 'selected') || !!getPropertyCI<boolean>(p, 'registered'),
                 priorRegistrations: priorRegs
             } as FamilyPlayerDto;
         });
@@ -409,7 +410,7 @@ export class RegistrationWizardService {
             if (!fp.registered) continue;
             const teamIds = fp.priorRegistrations
                 .map(r => r.assignedTeamId)
-                .filter((id: any): id is string => typeof id === 'string' && !!id);
+                .filter((id): id is string => typeof id === 'string' && !!id);
             if (!teamIds.length) continue;
             const unique: string[] = [];
             for (const t of teamIds) if (!unique.includes(t)) unique.push(t);
@@ -432,7 +433,7 @@ export class RegistrationWizardService {
         if (this.jobProfileMetadataJson() && this.jobJsonOptions()) return; // already have it
         const base = this.resolveApiBase();
         this.metadataSub?.unsubscribe();
-        this.metadataSub = this.http.get<{ jobId: string; playerProfileMetadataJson?: string | null; jsonOptions?: string | null;[k: string]: any }>(`${base}/jobs/${encodeURIComponent(jobPath)}`)
+        this.metadataSub = this.http.get<{ jobId: string; playerProfileMetadataJson?: string | null; jsonOptions?: string | null;[k: string]: unknown }>(`${base}/jobs/${encodeURIComponent(jobPath)}`)
             .subscribe({
                 next: meta => {
                     this.jobId.set(meta.jobId);
@@ -440,10 +441,11 @@ export class RegistrationWizardService {
                     this.jobJsonOptions.set(meta.jsonOptions || null);
                     // Payment flags & schedule from server metadata
                     try {
-                        const arb = (meta as any).AdnArb ?? (meta as any).adnArb ?? false;
-                        const occ = (meta as any).AdnArbBillingOccurences ?? (meta as any).adnArbBillingOccurences ?? null;
-                        const intLen = (meta as any).AdnArbIntervalLength ?? (meta as any).adnArbIntervalLength ?? null;
-                        const start = (meta as any).AdnArbStartDate ?? (meta as any).adnArbStartDate ?? null;
+                        const m = meta as Record<string, unknown>;
+                        const arb = getPropertyCI<boolean>(m, 'adnArb') ?? false;
+                        const occ = getPropertyCI<number>(m, 'adnArbBillingOccurences') ?? null;
+                        const intLen = getPropertyCI<number>(m, 'adnArbIntervalLength') ?? null;
+                        const start = getPropertyCI<string>(m, 'adnArbStartDate') ?? null;
                         this.adnArb.set(!!arb);
                         this.adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
                         this.adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
@@ -542,8 +544,8 @@ export class RegistrationWizardService {
     }
 
     private copyFormFieldValues(
-        source: Record<string, any>,
-        target: Record<string, any>,
+        source: Record<string, unknown>,
+        target: Record<string, unknown>,
         schemaNameByLower: Record<string, string>
     ): void {
         for (const [rawKey, rawValue] of Object.entries(source)) {
@@ -580,13 +582,13 @@ export class RegistrationWizardService {
         return lookup;
     }
 
-    private shouldSkipPlayerForDefaults(player: any): boolean {
+    private shouldSkipPlayerForDefaults(player: FamilyPlayerDto): boolean {
         return player.registered || !player.selected;
     }
 
     private applyDefaultsToPlayer(
-        player: any,
-        formValues: Record<string, Record<string, any>>,
+        player: FamilyPlayerDto,
+        formValues: Record<string, Record<string, unknown>>,
         schemaNameByLower: Record<string, string>
     ): void {
         const pid = player.playerId;
@@ -606,14 +608,14 @@ export class RegistrationWizardService {
         }
     }
 
-    private resolveFieldName(rawKey: string, schemaNameByLower: Record<string, string>): string | null {
+    private resolveFieldName(rawKey: string, schemaNameByLower: Record<string, string>, alias?: Record<string, string>): string | null {
         const kLower = rawKey.toLowerCase();
         let targetName = schemaNameByLower[kLower];
 
         if (!targetName) {
-            const alias = this.formSchema.aliasFieldMap();
-            const foundAlias = Object.keys(alias).find(a => a.toLowerCase() === kLower);
-            if (foundAlias) targetName = alias[foundAlias];
+            const aliasMap = alias ?? this.formSchema.aliasFieldMap();
+            const foundAlias = Object.keys(aliasMap).find(a => a.toLowerCase() === kLower);
+            if (foundAlias) targetName = aliasMap[foundAlias];
         }
 
         return targetName || null;
@@ -664,8 +666,7 @@ export class RegistrationWizardService {
         const tctype = (this.teamConstraintType() || '').toUpperCase();
         if (!tctype || !schemas.length) return null;
         const candidates = schemas.filter(f => (f.visibility ?? 'public') !== 'hidden' && (f.visibility ?? 'public') !== 'adminOnly');
-        const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
-        const byName = (parts: string[]) => candidates.find(f => hasAll(f.name.toLowerCase(), parts) || hasAll(f.label.toLowerCase(), parts));
+        const byName = (parts: string[]) => candidates.find(f => hasAllParts(f.name.toLowerCase(), parts) || hasAllParts(f.label.toLowerCase(), parts));
         if (tctype === 'BYGRADYEAR') return byName(['grad', 'year'])?.name || null;
         if (tctype === 'BYAGEGROUP') return byName(['age', 'group'])?.name || null;
         if (tctype === 'BYAGERANGE') return byName(['age', 'range'])?.name || null;
@@ -674,14 +675,14 @@ export class RegistrationWizardService {
     }
 
     /** Update a single player's field value */
-    setPlayerFieldValue(playerId: string, fieldName: string, value: any): void {
+    setPlayerFieldValue(playerId: string, fieldName: string, value: string | number | boolean | null | string[]): void {
         const all = { ...this.playerFormValues() };
         if (!all[playerId]) all[playerId] = {};
         all[playerId][fieldName] = value;
         this.playerFormValues.set(all);
         // Track US Lacrosse number value in usLaxStatus map when field updated
         if (fieldName.toLowerCase() === 'sportassnid') {
-            const statusMap = { ...this.usLaxStatus() } as Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: any }>;
+            const statusMap = { ...this.usLaxStatus() } as Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: Record<string, unknown> }>;
             const existing = statusMap[playerId] || { value: '', status: 'idle' };
             const raw = String(value ?? '').trim();
             // Dev/test bypass: immediately mark the well-known test number as valid without calling validator
@@ -695,7 +696,7 @@ export class RegistrationWizardService {
     }
 
     /** Convenience accessor */
-    getPlayerFieldValue(playerId: string, fieldName: string): any {
+    getPlayerFieldValue(playerId: string, fieldName: string): unknown {
         return this.playerFormValues()[playerId]?.[fieldName];
     }
 
@@ -790,7 +791,7 @@ export class RegistrationWizardService {
 
     private processInsuranceOffer(resp: PreSubmitPlayerRegistrationResponseDto): void {
         try {
-            const ins: any = (resp as any)?.insurance;
+            const ins = getPropertyCI<{ available?: boolean; playerObject?: unknown; error?: unknown }>(resp as Record<string, unknown>, 'insurance');
             if (ins?.available && ins?.playerObject) {
                 this.verticalInsureOffer.set({ loading: false, data: ins.playerObject, error: null });
             } else if (ins?.error) {
@@ -810,7 +811,7 @@ export class RegistrationWizardService {
                 .filter(s => (s.visibility ?? 'public') !== 'hidden' && (s.visibility ?? 'public') !== 'adminOnly')
                 .map(s => s.name)
         );
-        const all = this.playerFormValues()[playerId] || {} as { [k: string]: any };
+        const all = this.playerFormValues()[playerId] || {} as Record<string, unknown>;
         const out: { [k: string]: Json } = {};
         for (const [k, v] of Object.entries(all)) {
             if (!visibleNames.has(k)) continue;
@@ -877,8 +878,7 @@ export class RegistrationWizardService {
         const schemas = this.profileFieldSchemas();
         if (!tctype || !schemas || schemas.length === 0) return null;
         const visible = schemas.filter(f => (f.visibility ?? 'public') !== 'hidden' && (f.visibility ?? 'public') !== 'adminOnly');
-        const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
-        const byNameOrLabel = (parts: string[]) => visible.find(f => hasAll(f.name.toLowerCase(), parts) || hasAll(f.label.toLowerCase(), parts));
+        const byNameOrLabel = (parts: string[]) => visible.find(f => hasAllParts(f.name.toLowerCase(), parts) || hasAllParts(f.label.toLowerCase(), parts));
         switch (tctype) {
             case 'BYGRADYEAR':
                 return byNameOrLabel(['grad', 'year'])?.name || null;
@@ -944,10 +944,10 @@ export class RegistrationWizardService {
     }
     /** Required valid-through date for USA Lax membership (from Job JsonOptions.USLaxNumberValidThroughDate) */
     getUsLaxValidThroughDate(): Date | null {
-        const opts = this.getJobOptionsObject() as { [k: string]: any } | null;
+        const opts = this.getJobOptionsObject() as Record<string, unknown> | null;
         const v = opts ? (opts['USLaxNumberValidThroughDate'] ?? opts['usLaxNumberValidThroughDate'] ?? null) : null;
         if (!v) return null;
-        const d = new Date(v);
+        const d = new Date(v as string | number);
         return Number.isNaN(d.getTime()) ? null : d;
     }
     /** Last name for a player: prefer familyPlayers list; fallback to form values */
@@ -1042,7 +1042,7 @@ export class RegistrationWizardService {
         for (const [rawK, rawV] of Object.entries(df)) {
             if (rawV == null || rawV === '') continue;
 
-            const targetName = this.resolveTargetFieldName(rawK, schemaNameByLower, alias);
+            const targetName = this.resolveFieldName(rawK, schemaNameByLower, alias);
             if (!targetName) continue;
 
             const existing = target[targetName];
@@ -1053,19 +1053,9 @@ export class RegistrationWizardService {
         this.playerFormValues.set(curVals);
     }
 
-    private resolveTargetFieldName(rawKey: string, schemaNameByLower: Record<string, string>, alias: Record<string, string>): string | null {
-        const kLower = rawKey.toLowerCase();
-        let targetName = schemaNameByLower[kLower];
 
-        if (!targetName) {
-            const foundAlias = Object.keys(alias).find(a => a.toLowerCase() === kLower);
-            if (foundAlias) targetName = alias[foundAlias];
-        }
 
-        return targetName || null;
-    }
-
-    private isFieldValueBlank(value: any): boolean {
+    private isFieldValueBlank(value: unknown): boolean {
         return value == null ||
             (typeof value === 'string' && value.trim() === '') ||
             (Array.isArray(value) && value.length === 0);
@@ -1105,12 +1095,16 @@ export class RegistrationWizardService {
 
 
     setUsLaxValidating(playerId: string): void {
-        const m = { ...this.usLaxStatus() }; const cur = m[playerId] || { value: '', status: 'idle' };
-        m[playerId] = { ...cur, status: 'validating', message: undefined }; this.usLaxStatus.set(m);
+        this.updateUsLaxEntry(playerId, { status: 'validating', message: undefined });
     }
-    setUsLaxResult(playerId: string, ok: boolean, message?: string, membership?: any): void {
-        const m = { ...this.usLaxStatus() }; const cur = m[playerId] || { value: '', status: 'idle' };
-        m[playerId] = { ...cur, status: ok ? 'valid' : 'invalid', message, membership }; this.usLaxStatus.set(m);
+    setUsLaxResult(playerId: string, ok: boolean, message?: string, membership?: Record<string, unknown>): void {
+        this.updateUsLaxEntry(playerId, { status: ok ? 'valid' : 'invalid', message, membership });
+    }
+    private updateUsLaxEntry(playerId: string, patch: Partial<{ status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: Record<string, unknown> }>): void {
+        const m = { ...this.usLaxStatus() };
+        const cur = m[playerId] || { value: '', status: 'idle' as const };
+        m[playerId] = { ...cur, ...patch };
+        this.usLaxStatus.set(m);
     }
 
     // --- Client-side metadata driven validation -------------------------------------------
@@ -1133,13 +1127,12 @@ export class RegistrationWizardService {
         // Hide generic eligibility markers
         if (lname === 'eligibility' || llabel.includes('eligibility')) return false;
         const tctype = (this.teamConstraintType() || '').toUpperCase();
-        const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
         if (tctype === 'BYGRADYEAR') {
-            if (hasAll(lname, ['grad', 'year']) || hasAll(llabel, ['grad', 'year'])) return false;
+            if (hasAllParts(lname, ['grad', 'year']) || hasAllParts(llabel, ['grad', 'year'])) return false;
         } else if (tctype === 'BYAGEGROUP') {
-            if (hasAll(lname, ['age', 'group']) || hasAll(llabel, ['age', 'group'])) return false;
+            if (hasAllParts(lname, ['age', 'group']) || hasAllParts(llabel, ['age', 'group'])) return false;
         } else if (tctype === 'BYAGERANGE') {
-            if (hasAll(lname, ['age', 'range']) || hasAll(llabel, ['age', 'range'])) return false;
+            if (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range'])) return false;
         }
         if (!field.condition) return true;
         const otherVal = this.getPlayerFieldValue(playerId, field.condition.field);
@@ -1161,7 +1154,7 @@ export class RegistrationWizardService {
         return null;
     }
 
-    private isRequiredInvalid(field: PlayerProfileFieldSchema, raw: any, str: string): boolean {
+    private isRequiredInvalid(field: PlayerProfileFieldSchema, raw: unknown, str: string): boolean {
         if (!field.required) return false;
         if (field.type === 'checkbox') return raw !== true;
         if (field.type === 'multiselect') {
@@ -1170,7 +1163,7 @@ export class RegistrationWizardService {
         return str.length === 0;
     }
 
-    private validateBasicType(field: PlayerProfileFieldSchema, raw: any, str: string): string | null {
+    private validateBasicType(field: PlayerProfileFieldSchema, raw: unknown, str: string): string | null {
         if (str.length === 0 && field.type !== 'multiselect') return null; // empty non-required handled earlier
         switch (field.type) {
             case 'number':
@@ -1264,7 +1257,7 @@ export interface PlayerProfileFieldSchema {
     options: string[];
     helpText: string | null;
     visibility?: 'public' | 'adminOnly' | 'hidden';
-    condition?: { field: string; value: any; operator?: string } | null;
+    condition?: { field: string; value: unknown; operator?: string } | null;
 }
 
 export interface WaiverDefinition {

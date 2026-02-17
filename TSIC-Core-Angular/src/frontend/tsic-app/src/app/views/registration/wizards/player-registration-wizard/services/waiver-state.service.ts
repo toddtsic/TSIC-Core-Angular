@@ -1,6 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 import type { WaiverDefinition } from '../registration-wizard.service';
 import type { FamilyPlayerDto } from '@core/api';
+import type { RawProfileField } from '../../shared/types/wizard.types';
+import { hasAllParts } from '../../shared/utils/property-utils';
 
 /**
  * WaiverStateService: owns waiver definitions, mapping, acceptance & signature state.
@@ -116,13 +118,13 @@ export class WaiverStateService {
      * Returns the waiver text map for the root service to store in jobWaivers.
      */
     buildFromMetadata(
-        meta: Record<string, any>,
+        meta: Record<string, unknown>,
         rawProfileMeta: string | null,
         selectedPlayerIds: string[],
         familyPlayers: FamilyPlayerDto[]
     ): Record<string, string> {
         const normalizeId = (k: string): string => k.length ? (k.charAt(0).toUpperCase() + k.slice(1)) : k;
-        const getMetaString = (obj: any, key: string): string | null => {
+        const getMetaString = (obj: Record<string, unknown>, key: string): string | null => {
             const pascal = key;
             const camel = key.length ? key.charAt(0).toLowerCase() + key.slice(1) : key;
             const val = obj?.[pascal] ?? obj?.[camel] ?? null;
@@ -147,11 +149,11 @@ export class WaiverStateService {
             }
         };
 
-        const hasAcceptanceField = (predicate: (labelL: string, nameL: string, f: any) => boolean): boolean => {
+        const hasAcceptanceField = (predicate: (labelL: string, nameL: string, f: RawProfileField) => boolean): boolean => {
             if (!rawProfileMeta) return false;
             try {
                 const parsed = JSON.parse(rawProfileMeta);
-                let fields: any[] = [];
+                let fields: RawProfileField[] = [];
                 if (Array.isArray(parsed)) {
                     fields = parsed;
                 } else if (parsed && Array.isArray(parsed.fields)) {
@@ -159,7 +161,7 @@ export class WaiverStateService {
                 }
                 for (const f of fields) {
                     const name = String(f?.name || f?.dbColumn || f?.field || '').toLowerCase();
-                    const label = String(f?.label || f?.displayName || f?.display || f?.name || '').toLowerCase();
+                    const label = String(f?.label || f?.displayName || f?.['display'] || f?.name || '').toLowerCase();
                     const t = String(f?.type || f?.inputType || '').toLowerCase();
                     const isCheckbox = t.includes('checkbox') || label.startsWith('i agree');
                     if (!isCheckbox) continue;
@@ -232,7 +234,7 @@ export class WaiverStateService {
     private detectWaiverFieldsFromSchemas(schemas: { name: string; label: string; type: string; required: boolean; visibility?: string }[]): { fields: string[]; labels: string[] } {
         const detectedFields: string[] = [];
         const detectedLabels: string[] = [];
-        const containsAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
+        const containsAll = hasAllParts;
         for (const f of schemas) {
             try {
                 const lname = f.name.toLowerCase();
@@ -275,15 +277,14 @@ export class WaiverStateService {
                 }
                 return m;
             };
-            const hasAll = (s: string, parts: string[]) => parts.every(p => s.includes(p));
             const pick = (def: WaiverDefinition): string | null => {
                 const idL = def.id.toLowerCase();
                 const titleL = def.title.toLowerCase();
                 let candidates = checkboxSchemas;
-                if (idL.includes('codeofconduct') || hasAll(titleL, ['code', 'conduct'])) {
-                    candidates = candidates.filter(f => hasAll(f.label.toLowerCase(), ['code', 'conduct']) || hasAll(f.name.toLowerCase(), ['code', 'conduct']));
-                } else if (idL.includes('refund') || titleL.includes('refund') || hasAll(titleL, ['terms', 'conditions'])) {
-                    candidates = candidates.filter(f => f.label.toLowerCase().includes('refund') || hasAll(f.label.toLowerCase(), ['terms', 'conditions']) || f.name.toLowerCase().includes('refund'));
+                if (idL.includes('codeofconduct') || hasAllParts(titleL, ['code', 'conduct'])) {
+                    candidates = candidates.filter(f => hasAllParts(f.label.toLowerCase(), ['code', 'conduct']) || hasAllParts(f.name.toLowerCase(), ['code', 'conduct']));
+                } else if (idL.includes('refund') || titleL.includes('refund') || hasAllParts(titleL, ['terms', 'conditions'])) {
+                    candidates = candidates.filter(f => f.label.toLowerCase().includes('refund') || hasAllParts(f.label.toLowerCase(), ['terms', 'conditions']) || f.name.toLowerCase().includes('refund'));
                 } else if (idL.includes('covid') || titleL.includes('covid')) {
                     candidates = candidates.filter(f => f.label.toLowerCase().includes('covid') || f.name.toLowerCase().includes('covid'));
                 } else if (titleL.includes('waiver') || titleL.includes('release') || idL.includes('waiver') || idL.includes('release')) {

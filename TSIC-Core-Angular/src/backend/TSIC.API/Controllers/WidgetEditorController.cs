@@ -179,4 +179,51 @@ public class WidgetEditorController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    // ── Per-job overrides ──
+
+    [HttpGet("jobs-by-type/{jobTypeId:int}")]
+    public async Task<ActionResult<List<JobRefDto>>> GetJobsByJobType(
+        int jobTypeId,
+        CancellationToken ct)
+    {
+        var result = await _editorService.GetJobsByJobTypeAsync(jobTypeId, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("job-overrides/{jobId:guid}")]
+    public async Task<ActionResult<JobOverridesResponse>> GetJobOverrides(
+        Guid jobId,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result = await _editorService.GetJobOverridesAsync(jobId, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPut("job-overrides/{jobId:guid}")]
+    public async Task<ActionResult> SaveJobOverrides(
+        Guid jobId,
+        [FromBody] SaveJobOverridesRequest request,
+        CancellationToken ct)
+    {
+        if (request.JobId != jobId)
+            return BadRequest(new { message = "JobId in URL does not match request body." });
+
+        try
+        {
+            await _editorService.SaveJobOverridesAsync(request, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 }

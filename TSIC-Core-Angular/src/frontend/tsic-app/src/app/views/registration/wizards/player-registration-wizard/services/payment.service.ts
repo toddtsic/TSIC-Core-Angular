@@ -4,7 +4,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { PlayerStateService } from './player-state.service';
 import { TeamService } from '../team.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto, PaymentRequestDto, PaymentResponseDto } from '@core/api';
+import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto, PaymentRequestDto, PaymentResponseDto, RegistrationFinancialsDto } from '@core/api';
 import { environment } from '@environments/environment';
 
 // Helper to safely convert number | string to number
@@ -27,10 +27,16 @@ export class PaymentService {
     private readonly teams = inject(TeamService);
     private readonly http = inject(HttpClient);
 
-    appliedDiscount = signal(0);
-    discountMessage = signal<string | null>(null);
-    discountApplying = signal(false);
-    appliedDiscountResponse = signal<ApplyDiscountResponseDto | null>(null);
+    // --- Signal encapsulation: private backing + public readonly ---
+    private readonly _appliedDiscount = signal(0);
+    private readonly _discountMessage = signal<string | null>(null);
+    private readonly _discountApplying = signal(false);
+    private readonly _appliedDiscountResponse = signal<ApplyDiscountResponseDto | null>(null);
+
+    readonly appliedDiscount = this._appliedDiscount.asReadonly();
+    readonly discountMessage = this._discountMessage.asReadonly();
+    readonly discountApplying = this._discountApplying.asReadonly();
+    readonly appliedDiscountResponse = this._appliedDiscountResponse.asReadonly();
 
     lineItems = computed<LineItem[]>(() => {
         const items: LineItem[] = [];
@@ -113,8 +119,8 @@ export class PaymentService {
     monthLabel(): string { return this.arbIntervalLength() === 1 ? 'month' : 'months'; }
 
     resetDiscount(): void {
-        this.appliedDiscount.set(0);
-        this.discountMessage.set(null);
+        this._appliedDiscount.set(0);
+        this._discountMessage.set(null);
     }
 
     applyDiscount(code: string): void {
@@ -125,12 +131,12 @@ export class PaymentService {
             amount: option === 'Deposit' ? this.getDepositForPlayer(li.playerId) : li.amount
         }));
         if (items.length === 0) {
-            this.appliedDiscount.set(0);
-            this.discountMessage.set('No payable items eligible for discount');
+            this._appliedDiscount.set(0);
+            this._discountMessage.set('No payable items eligible for discount');
             return;
         }
-        this.discountApplying.set(true);
-        this.discountMessage.set(null);
+        this._discountApplying.set(true);
+        this._discountMessage.set(null);
         const req: ApplyDiscountRequestDto = {
             jobPath: this.state.jobPath(),
             code,
@@ -139,12 +145,12 @@ export class PaymentService {
         this.http.post<ApplyDiscountResponseDto>(`${environment.apiUrl}/player-registration/apply-discount`, req)
             .subscribe({
                 next: (resp: ApplyDiscountResponseDto) => {
-                    this.discountApplying.set(false);
-                    this.appliedDiscountResponse.set(resp);
+                    this._discountApplying.set(false);
+                    this._appliedDiscountResponse.set(resp);
                     const total = resp?.totalDiscount ?? 0;
                     if (resp?.success && toNumber(total) > 0) {
-                        this.appliedDiscount.set(0); // rely on refreshed financials/owed totals
-                        this.discountMessage.set(resp?.message || 'Discount applied');
+                        this._appliedDiscount.set(0); // rely on refreshed financials/owed totals
+                        this._discountMessage.set(resp?.message || 'Discount applied');
 
                         // Merge returned UpdatedFinancials into family players for immediate UI reflection
                         // This optimizes the response without requiring a full async reload
@@ -157,15 +163,15 @@ export class PaymentService {
                         const jobPath = this.state.jobPath();
                         this.state.loadFamilyPlayersOnce(jobPath).catch(err => console.warn('[Payment] refresh after discount failed', err));
                     } else {
-                        this.appliedDiscount.set(0);
-                        this.discountMessage.set(resp?.message || 'Invalid or ineligible discount code');
+                        this._appliedDiscount.set(0);
+                        this._discountMessage.set(resp?.message || 'Invalid or ineligible discount code');
                     }
                 },
                 error: (err: HttpErrorResponse) => {
-                    this.discountApplying.set(false);
-                    this.appliedDiscountResponse.set(null);
-                    this.appliedDiscount.set(0);
-                    this.discountMessage.set(err?.error?.message || err?.message || 'Failed to apply code');
+                    this._discountApplying.set(false);
+                    this._appliedDiscountResponse.set(null);
+                    this._appliedDiscount.set(0);
+                    this._discountMessage.set(err?.error?.message || err?.message || 'Failed to apply code');
                 }
             });
     }
@@ -183,7 +189,7 @@ export class PaymentService {
      * The async loadFamilyPlayersOnce() ensures definitive server state after this completes.
      * @param updatedFinancials Dictionary of playerId → RegistrationFinancialsDto from ApplyDiscountResponseDto
      */
-    private mergeUpdatedFinancials(updatedFinancials: Record<string, any>): void {
+    private mergeUpdatedFinancials(updatedFinancials: Record<string, RegistrationFinancialsDto>): void {
         const players = this.state.familyPlayers();
         const updated = players.map(p => {
             const newFinancials = updatedFinancials[p.playerId];
@@ -204,7 +210,7 @@ export class PaymentService {
         this.state.familyPlayers.set(updated);
     }
 
-    private getAmountFromFinancials(financials: any): number {
+    private getAmountFromFinancials(financials: RegistrationFinancialsDto): number {
         if (financials?.owedTotal !== undefined && financials?.owedTotal !== null) {
             const owed = toNumber(financials.owedTotal);
             if (owed >= 0) return owed; // owedTotal is authoritative and already accounts for discounts
@@ -219,7 +225,7 @@ export class PaymentService {
         return Math.max(0, due);
     }
 
-    private getAmount(team: any): number {
+    private getAmount(team: { perRegistrantFee?: number | string | null } | null | undefined): number {
         const v = Number(team?.perRegistrantFee ?? 0);
         return Number.isNaN(v) || v <= 0 ? 100 : v;
     }

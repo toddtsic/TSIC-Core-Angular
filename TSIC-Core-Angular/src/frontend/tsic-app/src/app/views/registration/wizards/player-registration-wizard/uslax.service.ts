@@ -30,9 +30,9 @@ export class UsLaxService {
     // Resolve backend proxy endpoint (preferred) with optional override.
     // If environment.usLaxValidationUrl provided, use it; else build from environment.apiUrl.
     private getValidationUrl(): string {
-        const env: any = environment as any;
-        if (env.usLaxValidationUrl) return env.usLaxValidationUrl;
-        const base: string = (env.apiUrl || '').toString();
+        const env = environment as Record<string, unknown>;
+        if (env['usLaxValidationUrl']) return String(env['usLaxValidationUrl']);
+        const base: string = (env['apiUrl'] || '').toString();
         if (base) return `${base.replace(/\/$/, '')}/validation/uslax`;
         // Fallback to relative if apiUrl not configured (requires dev proxy to be set up)
         return '/api/validation/uslax';

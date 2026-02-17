@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import type { PlayerProfileFieldSchema } from '../registration-wizard.service';
+import type { RawProfileField, RawOptionItem } from '../../shared/types/wizard.types';
 
 /**
  * FormSchemaService encapsulates player profile field schema & alias mapping state.
@@ -23,20 +24,20 @@ export class FormSchemaService {
         }
         try {
             const json = JSON.parse(rawProfileMetadataJson);
-            let fields: any[] = [];
+            let fields: RawProfileField[] = [];
             if (Array.isArray(json)) fields = json; else if (json && Array.isArray(json.fields)) fields = json.fields; else fields = [];
             // Parse option sets (case-insensitive key access helper) for dropdown overrides
-            let optionSets: Record<string, any> | null = null;
+            let optionSets: Record<string, unknown> | null = null;
             if (rawJsonOptions) {
                 try {
                     const parsed = JSON.parse(rawJsonOptions);
                     if (parsed && typeof parsed === 'object') optionSets = parsed;
                 } catch { /* ignore malformed options */ }
             }
-            const getOptionSetInsensitive = (key: string): any[] | null => {
+            const getOptionSetInsensitive = (key: string): RawOptionItem[] | null => {
                 if (!optionSets || !key) return null;
                 const found = Object.keys(optionSets).find(k => k.toLowerCase() === key.toLowerCase());
-                return found ? optionSets[found] : null;
+                return found ? optionSets[found] as RawOptionItem[] : null;
             };
             const getMappedOptionSetKey = (name: string, label: string): string | null => {
                 const l = (label || name || '').toLowerCase();
@@ -51,7 +52,7 @@ export class FormSchemaService {
                 return null;
             };
             const aliasMapLocal: Record<string, string> = {};
-            const mapFieldType = (raw: any): PlayerProfileFieldSchema['type'] => {
+            const mapFieldType = (raw: string | null | undefined): PlayerProfileFieldSchema['type'] => {
                 const r = String(raw || '').toLowerCase();
                 switch (r) {
                     case 'text': case 'string': return 'text';
@@ -78,7 +79,7 @@ export class FormSchemaService {
                 const options = (() => {
                     let mapped: string[] = [];
                     const direct = Array.isArray(f.options) ? f.options : [];
-                    mapped = direct.map((o: any) => String(o?.value ?? o?.Value ?? o?.label ?? o?.Text ?? o));
+                    mapped = direct.map((o: RawOptionItem) => String(o?.value ?? o?.Value ?? o?.label ?? o?.Text ?? o));
                     if ((!mapped || mapped.length === 0) && optionSets && dsKey) {
                         const setVal = optionSets[dsKey] ?? getOptionSetInsensitive(dsKey) ?? null;
                         if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v?.id ?? v?.Id ?? v?.code ?? v?.Code ?? v?.year ?? v?.Year ?? v));

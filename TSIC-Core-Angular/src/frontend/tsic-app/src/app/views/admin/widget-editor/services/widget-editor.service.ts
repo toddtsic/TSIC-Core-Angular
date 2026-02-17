@@ -13,6 +13,9 @@ import type {
 	SaveWidgetDefaultsRequest,
 	WidgetAssignmentsResponse,
 	SaveWidgetAssignmentsRequest,
+	JobRefDto,
+	JobOverridesResponse,
+	SaveJobOverridesRequest,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -70,5 +73,19 @@ export class WidgetEditorService {
 
 	saveWidgetAssignments(request: SaveWidgetAssignmentsRequest): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/widgets/${request.widgetId}/assignments`, request);
+	}
+
+	// ── Per-job overrides ──
+
+	getJobsByJobType(jobTypeId: number): Observable<JobRefDto[]> {
+		return this.http.get<JobRefDto[]>(`${this.apiUrl}/jobs-by-type/${jobTypeId}`);
+	}
+
+	getJobOverrides(jobId: string): Observable<JobOverridesResponse> {
+		return this.http.get<JobOverridesResponse>(`${this.apiUrl}/job-overrides/${jobId}`);
+	}
+
+	saveJobOverrides(request: SaveJobOverridesRequest): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/job-overrides/${request.jobId}`, request);
 	}
 }

@@ -16,6 +16,9 @@
 	<button class="editor-tab" [class.active]="activeTab() === 'definitions'" (click)="activeTab.set('definitions')">
 		<i class="bi bi-puzzle me-1"></i>Widget Definitions
 	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'overrides'" (click)="activeTab.set('overrides')">
+		<i class="bi bi-sliders me-1"></i>Job Overrides
+	</button>
 </div>
 
 <!-- Error alert -->
@@ -107,15 +110,23 @@
 						<table class="matrix-table">
 							<thead>
 								<tr>
+									<th class="col-drag"></th>
 									<th>Widget</th>
 									@for (role of roles(); track role.roleId) {
 										<th [title]="role.roleName">{{ abbreviateRole(role.roleName) }}</th>
 									}
 								</tr>
 							</thead>
-							<tbody>
+							<tbody cdkDropList [cdkDropListData]="cat"
+								(cdkDropListDropped)="onWidgetDrop($event, cat.categoryId)">
 								@for (widget of cat.widgets; track widget.widgetId) {
-									<tr>
+									<tr cdkDrag>
+										<td class="col-drag">
+											<span class="drag-grip" cdkDragHandle
+												title="Drag to reorder" aria-label="Drag to reorder">
+												<i class="bi bi-grip-vertical"></i>
+											</span>
+										</td>
 										<td>
 											<span class="widget-name">{{ widget.name }}</span>
 										</td>
@@ -127,6 +138,12 @@
 													[title]="widget.name + ' → ' + role.roleName" />
 											</td>
 										}
+										<ng-template cdkDragPreview>
+											<div class="drag-preview-row">
+												<i class="bi bi-grip-vertical me-2"></i>
+												<span>{{ widget.name }}</span>
+											</div>
+										</ng-template>
 									</tr>
 								}
 							</tbody>
@@ -218,6 +235,172 @@
 				</tbody>
 			</table>
 		</div>
+	}
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 3: Job Overrides                  -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'overrides') {
+	<div class="matrix-controls">
+		<!-- JobType selector -->
+		<div class="d-flex align-items-center gap-2">
+			<label for="overrideJobTypeSelect" class="form-label mb-0 fw-semibold">Job Type:</label>
+			<select id="overrideJobTypeSelect" class="form-select form-select-sm" style="width: auto;"
+				[value]="overrideSelectedJobTypeId()"
+				(change)="onOverrideJobTypeChange($event)">
+				<option [value]="0" disabled>Select a job type...</option>
+				@for (jt of jobTypes(); track jt.jobTypeId) {
+					<option [value]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
+				}
+			</select>
+		</div>
+
+		<!-- Job selector (cascading) -->
+		@if (overrideSelectedJobTypeId()) {
+			<div class="d-flex align-items-center gap-2">
+				<label for="overrideJobSelect" class="form-label mb-0 fw-semibold">Job:</label>
+				<select id="overrideJobSelect" class="form-select form-select-sm" style="width: auto; min-width: 200px;"
+					[value]="overrideSelectedJobId()"
+					(change)="onOverrideJobChange($event)">
+					<option value="" disabled>Select a job...</option>
+					@for (job of overrideJobs(); track job.jobId) {
+						<option [value]="job.jobId">{{ job.jobName }}</option>
+					}
+				</select>
+			</div>
+		}
+
+		<!-- Reset All Overrides -->
+		@if (overrideSelectedJobId() && hasAnyOverrides()) {
+			<button class="btn btn-outline-warning btn-sm" (click)="resetAllOverrides()">
+				<i class="bi bi-arrow-counterclockwise me-1"></i>Reset All Overrides
+			</button>
+		}
+	</div>
+
+	<!-- Override empty state -->
+	@if (!overrideSelectedJobTypeId()) {
+		<div class="text-center py-5">
+			<i class="bi bi-sliders fs-1 text-body-secondary"></i>
+			<p class="mt-2 text-body-secondary">Select a job type and job to manage per-job widget overrides.</p>
+		</div>
+	}
+
+	@if (overrideSelectedJobTypeId() && !overrideSelectedJobId()) {
+		<div class="text-center py-5">
+			<i class="bi bi-briefcase fs-1 text-body-secondary"></i>
+			<p class="mt-2 text-body-secondary">Select a job to view and customize its widget assignments.</p>
+		</div>
+	}
+
+	@if (overrideSelectedJobId() && isOverrideLoading()) {
+		<div class="text-center py-5">
+			<div class="spinner-border text-primary" role="status">
+				<span class="visually-hidden">Loading...</span>
+			</div>
+			<p class="mt-2 text-body-secondary">Loading job overrides...</p>
+		</div>
+	}
+
+	<!-- Override legend -->
+	@if (overrideSelectedJobId() && !isOverrideLoading()) {
+		<div class="override-legend mb-3">
+			<span class="legend-item"><span class="legend-swatch inherited"></span> Inherited</span>
+			<span class="legend-item"><span class="legend-swatch override-enabled"></span> Override (enabled)</span>
+			<span class="legend-item"><span class="legend-swatch override-disabled"></span> Override (disabled)</span>
+		</div>
+	}
+
+	<!-- Override matrix content -->
+	@if (overrideSelectedJobId() && !isOverrideLoading()) {
+		@for (group of overrideWorkspaceGroups(); track group.workspace) {
+			<div class="matrix-card mb-3">
+				<div class="workspace-header" (click)="toggleWorkspace(group.workspace)">
+					<i class="bi chevron" [class.expanded]="isWorkspaceExpanded(group.workspace)"
+						[ngClass]="'bi-chevron-right'"></i>
+					@if (group.icon) {
+						<i class="bi workspace-icon" [ngClass]="'bi-' + group.icon"></i>
+					}
+					<span class="workspace-name">{{ group.label }}</span>
+					<span class="workspace-count">{{ group.widgetCount }} widget{{ group.widgetCount !== 1 ? 's' : '' }}</span>
+				</div>
+
+				@if (isWorkspaceExpanded(group.workspace)) {
+					@for (cat of group.categories; track cat.categoryId) {
+						@if (group.categories.length > 1) {
+							<div class="category-subheader">{{ cat.name }}</div>
+						}
+						<table class="matrix-table">
+							<thead>
+								<tr>
+									<th class="col-drag"></th>
+									<th>Widget</th>
+									@for (role of roles(); track role.roleId) {
+										<th [title]="role.roleName">{{ abbreviateRole(role.roleName) }}</th>
+									}
+								</tr>
+							</thead>
+							<tbody cdkDropList [cdkDropListData]="cat"
+								(cdkDropListDropped)="onOverrideWidgetDrop($event, cat.categoryId)">
+								@for (widget of cat.widgets; track widget.widgetId) {
+									<tr cdkDrag>
+										<td class="col-drag">
+											<span class="drag-grip" cdkDragHandle
+												title="Drag to reorder" aria-label="Drag to reorder">
+												<i class="bi bi-grip-vertical"></i>
+											</span>
+										</td>
+										<td>
+											<span class="widget-name">{{ widget.name }}</span>
+											@if (isWidgetOverridden(widget.widgetId)) {
+												<span class="override-badge overridden ms-2">overridden</span>
+											}
+										</td>
+										@for (role of roles(); track role.roleId) {
+											<td>
+												<input type="checkbox"
+													class="matrix-checkbox form-check-input"
+													[class.override-enabled]="isOverrideEntry(widget.widgetId, role.roleId) && isOverrideEnabled(widget.widgetId, role.roleId)"
+													[class.override-disabled]="isOverrideEntry(widget.widgetId, role.roleId) && !isOverrideEnabled(widget.widgetId, role.roleId)"
+													[checked]="isOverrideEnabled(widget.widgetId, role.roleId)"
+													(change)="toggleOverride(widget.widgetId, role.roleId, cat.categoryId)"
+													[title]="widget.name + ' → ' + role.roleName + (isOverrideEntry(widget.widgetId, role.roleId) ? ' (overridden)' : ' (inherited)')" />
+											</td>
+										}
+										<ng-template cdkDragPreview>
+											<div class="drag-preview-row">
+												<i class="bi bi-grip-vertical me-2"></i>
+												<span>{{ widget.name }}</span>
+											</div>
+										</ng-template>
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+				}
+			</div>
+		}
+
+		<!-- Override save bar (sticky) -->
+		@if (isOverrideDirty()) {
+			<div class="save-bar">
+				<span class="unsaved-badge">
+					<i class="bi bi-exclamation-circle me-1"></i>
+					Unsaved override changes
+				</span>
+				<button class="btn btn-outline-secondary btn-sm" (click)="resetOverrides()">
+					<i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+				</button>
+				<button class="btn btn-primary btn-sm" (click)="saveOverrides()" [disabled]="isOverrideSaving()">
+					@if (isOverrideSaving()) {
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+					}
+					<i class="bi bi-check-lg me-1"></i>Save Overrides
+				</button>
+			</div>
+		}
 	}
 }
 

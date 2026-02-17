@@ -1,5 +1,6 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { WidgetEditorService } from './services/widget-editor.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -11,6 +12,8 @@ import type {
 	WidgetDefinitionDto,
 	WidgetDefaultEntryDto,
 	WidgetAssignmentDto,
+	JobRefDto,
+	JobWidgetEntryDto,
 } from '@core/api';
 
 // ── Local view-model types ──
@@ -55,7 +58,7 @@ const WORKSPACE_LABELS: Record<string, string> = {
 @Component({
 	selector: 'app-widget-editor',
 	standalone: true,
-	imports: [CommonModule, TsicDialogComponent, ConfirmDialogComponent],
+	imports: [CommonModule, DragDropModule, TsicDialogComponent, ConfirmDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './widget-editor.component.html',
 	styleUrl: './widget-editor.component.scss',
@@ -71,7 +74,7 @@ export class WidgetEditorComponent {
 	readonly widgets = signal<WidgetDefinitionDto[]>([]);
 
 	// ── UI state ──
-	readonly activeTab = signal<'matrix' | 'definitions'>('matrix');
+	readonly activeTab = signal<'matrix' | 'definitions' | 'overrides'>('matrix');
 	readonly isLoading = signal(false);
 	readonly isSaving = signal(false);
 	readonly errorMessage = signal<string | null>(null);
@@ -104,6 +107,15 @@ export class WidgetEditorComponent {
 	readonly assignOriginalPairs = signal<Set<string>>(new Set());
 	readonly isAssignSaving = signal(false);
 
+	// ── Job Override state ──
+	readonly overrideSelectedJobTypeId = signal<number>(0);
+	readonly overrideJobs = signal<JobRefDto[]>([]);
+	readonly overrideSelectedJobId = signal<string>('');
+	readonly overrideEntries = signal<JobWidgetEntryDto[]>([]);
+	readonly overrideOriginalEntries = signal<JobWidgetEntryDto[]>([]);
+	readonly isOverrideLoading = signal(false);
+	readonly isOverrideSaving = signal(false);
+
 	// ── Allowed widget types ──
 	readonly widgetTypes = ['content', 'chart', 'status-card', 'quick-action', 'workflow-pipeline', 'link-group'];
 
@@ -111,6 +123,16 @@ export class WidgetEditorComponent {
 	readonly workspaceGroups = computed<WorkspaceGroup[]>(() => {
 		const cats = this.categories();
 		const widgetList = this.widgets();
+		const entries = this.matrixEntries();
+
+		// Build displayOrder lookup: widgetId → min displayOrder from matrixEntries
+		const orderMap = new Map<number, number>();
+		for (const e of entries) {
+			const existing = orderMap.get(e.widgetId);
+			if (existing === undefined || e.displayOrder < existing) {
+				orderMap.set(e.widgetId, e.displayOrder);
+			}
+		}
 
 		// Group categories by workspace
 		const wsMap = new Map<string, WidgetCategoryRefDto[]>();
@@ -127,7 +149,13 @@ export class WidgetEditorComponent {
 				.map(c => ({
 					categoryId: c.categoryId,
 					name: c.name,
-					widgets: widgetList.filter(w => w.categoryId === c.categoryId),
+					widgets: widgetList
+						.filter(w => w.categoryId === c.categoryId)
+						.sort((a, b) => {
+							const oa = orderMap.get(a.widgetId) ?? Number.MAX_SAFE_INTEGER;
+							const ob = orderMap.get(b.widgetId) ?? Number.MAX_SAFE_INTEGER;
+							return oa !== ob ? oa - ob : a.name.localeCompare(b.name);
+						}),
 				}))
 				.filter(cg => cg.widgets.length > 0);
 
@@ -152,11 +180,13 @@ export class WidgetEditorComponent {
 		const original = this.originalEntries();
 		if (current.length !== original.length) return true;
 		const key = (e: WidgetDefaultEntryDto) => `${e.widgetId}|${e.roleId}`;
-		const currentKeys = new Set(current.map(key));
-		const originalKeys = new Set(original.map(key));
-		if (currentKeys.size !== originalKeys.size) return true;
-		for (const k of currentKeys) {
-			if (!originalKeys.has(k)) return true;
+		const currentMap = new Map(current.map(e => [key(e), e]));
+		const originalMap = new Map(original.map(e => [key(e), e]));
+		if (currentMap.size !== originalMap.size) return true;
+		for (const [k, ce] of currentMap) {
+			const oe = originalMap.get(k);
+			if (!oe) return true;
+			if (ce.displayOrder !== oe.displayOrder) return true;
 		}
 		return false;
 	});
@@ -165,14 +195,21 @@ export class WidgetEditorComponent {
 		const current = this.matrixEntries();
 		const original = this.originalEntries();
 		const key = (e: WidgetDefaultEntryDto) => `${e.widgetId}|${e.roleId}`;
-		const currentKeys = new Set(current.map(key));
-		const originalKeys = new Set(original.map(key));
+		const currentMap = new Map(current.map(e => [key(e), e]));
+		const originalMap = new Map(original.map(e => [key(e), e]));
 		let count = 0;
-		for (const k of currentKeys) {
-			if (!originalKeys.has(k)) count++;
+		// Count added entries
+		for (const k of currentMap.keys()) {
+			if (!originalMap.has(k)) count++;
 		}
-		for (const k of originalKeys) {
-			if (!currentKeys.has(k)) count++;
+		// Count removed entries
+		for (const k of originalMap.keys()) {
+			if (!currentMap.has(k)) count++;
+		}
+		// Count reordered entries
+		for (const [k, ce] of currentMap) {
+			const oe = originalMap.get(k);
+			if (oe && ce.displayOrder !== oe.displayOrder) count++;
 		}
 		return count;
 	});
@@ -184,6 +221,79 @@ export class WidgetEditorComponent {
 		this.formComponentKey().trim().length > 0 &&
 		this.formCategoryId() > 0
 	);
+
+	// ── Computed: workspace groups for override matrix ──
+	readonly overrideWorkspaceGroups = computed<WorkspaceGroup[]>(() => {
+		const cats = this.categories();
+		const widgetList = this.widgets();
+		const entries = this.overrideEntries();
+
+		// Build displayOrder lookup from override entries
+		const orderMap = new Map<number, number>();
+		for (const e of entries) {
+			const existing = orderMap.get(e.widgetId);
+			if (existing === undefined || e.displayOrder < existing) {
+				orderMap.set(e.widgetId, e.displayOrder);
+			}
+		}
+
+		const wsMap = new Map<string, WidgetCategoryRefDto[]>();
+		for (const c of cats) {
+			const existing = wsMap.get(c.workspace) || [];
+			existing.push(c);
+			wsMap.set(c.workspace, existing);
+		}
+
+		const groups: WorkspaceGroup[] = [];
+		for (const [workspace, wsCats] of wsMap) {
+			const categoryGroups: CategoryGroup[] = wsCats
+				.sort((a, b) => a.defaultOrder - b.defaultOrder)
+				.map(c => ({
+					categoryId: c.categoryId,
+					name: c.name,
+					widgets: widgetList
+						.filter(w => w.categoryId === c.categoryId)
+						.sort((a, b) => {
+							const oa = orderMap.get(a.widgetId) ?? Number.MAX_SAFE_INTEGER;
+							const ob = orderMap.get(b.widgetId) ?? Number.MAX_SAFE_INTEGER;
+							return oa !== ob ? oa - ob : a.name.localeCompare(b.name);
+						}),
+				}))
+				.filter(cg => cg.widgets.length > 0);
+
+			if (categoryGroups.length === 0) continue;
+
+			const totalWidgets = categoryGroups.reduce((sum, cg) => sum + cg.widgets.length, 0);
+			groups.push({
+				workspace,
+				label: WORKSPACE_LABELS[workspace] || workspace,
+				icon: wsCats[0]?.icon || null,
+				widgetCount: totalWidgets,
+				categories: categoryGroups,
+			});
+		}
+
+		return groups;
+	});
+
+	// ── Computed: override dirty detection ──
+	readonly isOverrideDirty = computed(() => {
+		const current = this.overrideEntries();
+		const original = this.overrideOriginalEntries();
+		if (current.length !== original.length) return true;
+		const key = (e: JobWidgetEntryDto) => `${e.widgetId}|${e.roleId}`;
+		const currentMap = new Map(current.map(e => [key(e), e]));
+		const originalMap = new Map(original.map(e => [key(e), e]));
+		if (currentMap.size !== originalMap.size) return true;
+		for (const [k, ce] of currentMap) {
+			const oe = originalMap.get(k);
+			if (!oe) return true;
+			if (ce.isEnabled !== oe.isEnabled) return true;
+			if (ce.isOverridden !== oe.isOverridden) return true;
+			if (ce.displayOrder !== oe.displayOrder) return true;
+		}
+		return false;
+	});
 
 	constructor() {
 		this.loadReferenceData();
@@ -272,11 +382,15 @@ export class WidgetEditorComponent {
 		if (idx >= 0) {
 			entries.splice(idx, 1);
 		} else {
+			// Append at end: max displayOrder in this category + 1
+			const maxOrder = entries
+				.filter(e => e.categoryId === categoryId)
+				.reduce((max, e) => Math.max(max, e.displayOrder), -1);
 			entries.push({
 				widgetId,
 				roleId,
 				categoryId,
-				displayOrder: 0,
+				displayOrder: maxOrder + 1,
 				config: undefined,
 			} as WidgetDefaultEntryDto);
 		}
@@ -286,6 +400,29 @@ export class WidgetEditorComponent {
 
 	resetMatrix(): void {
 		this.matrixEntries.set([...this.originalEntries()]);
+	}
+
+	onWidgetDrop(event: CdkDragDrop<CategoryGroup>, categoryId: number): void {
+		if (event.previousIndex === event.currentIndex) return;
+
+		// Get current category's widgets (already sorted by displayOrder via computed)
+		const group = this.workspaceGroups()
+			.flatMap(ws => ws.categories)
+			.find(c => c.categoryId === categoryId);
+		if (!group) return;
+
+		const reorderedWidgets = group.widgets.slice();
+		moveItemInArray(reorderedWidgets, event.previousIndex, event.currentIndex);
+
+		// Reassign displayOrder for ALL matrixEntries matching these widgets in this category
+		const entries = this.matrixEntries().map(entry => {
+			if (entry.categoryId !== categoryId) return entry;
+			const newOrder = reorderedWidgets.findIndex(w => w.widgetId === entry.widgetId);
+			if (newOrder < 0) return entry;
+			return { ...entry, displayOrder: newOrder };
+		});
+
+		this.matrixEntries.set(entries);
 	}
 
 	saveMatrix(): void {
@@ -537,6 +674,156 @@ export class WidgetEditorComponent {
 				this.toast.show(err?.error?.message || 'Failed to save assignments.', 'danger', 4000);
 			},
 		});
+	}
+
+	// ═══════════════════════════════════
+	// Job Overrides
+	// ═══════════════════════════════════
+
+	onOverrideJobTypeChange(event: Event): void {
+		const jobTypeId = +(event.target as HTMLSelectElement).value;
+		this.overrideSelectedJobTypeId.set(jobTypeId);
+		this.overrideSelectedJobId.set('');
+		this.overrideEntries.set([]);
+		this.overrideOriginalEntries.set([]);
+		if (jobTypeId > 0) {
+			this.editorService.getJobsByJobType(jobTypeId).subscribe({
+				next: jobs => this.overrideJobs.set(jobs),
+				error: err => this.handleError('Failed to load jobs', err),
+			});
+		} else {
+			this.overrideJobs.set([]);
+		}
+	}
+
+	onOverrideJobChange(event: Event): void {
+		const jobId = (event.target as HTMLSelectElement).value;
+		this.overrideSelectedJobId.set(jobId);
+		if (jobId) {
+			this.loadJobOverrides(jobId);
+		}
+	}
+
+	private loadJobOverrides(jobId: string): void {
+		this.isOverrideLoading.set(true);
+		this.editorService.getJobOverrides(jobId).subscribe({
+			next: response => {
+				this.overrideEntries.set([...response.entries]);
+				this.overrideOriginalEntries.set([...response.entries]);
+				this.isOverrideLoading.set(false);
+			},
+			error: err => {
+				this.handleError('Failed to load job overrides', err);
+				this.isOverrideLoading.set(false);
+			},
+		});
+	}
+
+	isOverrideEnabled(widgetId: number, roleId: string): boolean {
+		const entry = this.overrideEntries().find(
+			e => e.widgetId === widgetId && e.roleId === roleId);
+		return entry ? entry.isEnabled : false;
+	}
+
+	isOverrideEntry(widgetId: number, roleId: string): boolean {
+		const entry = this.overrideEntries().find(
+			e => e.widgetId === widgetId && e.roleId === roleId);
+		return entry?.isOverridden ?? false;
+	}
+
+	isWidgetOverridden(widgetId: number): boolean {
+		return this.overrideEntries().some(
+			e => e.widgetId === widgetId && e.isOverridden);
+	}
+
+	hasAnyOverrides(): boolean {
+		return this.overrideEntries().some(e => e.isOverridden);
+	}
+
+	toggleOverride(widgetId: number, roleId: string, categoryId: number): void {
+		const entries = this.overrideEntries().slice();
+		const idx = entries.findIndex(
+			e => e.widgetId === widgetId && e.roleId === roleId);
+
+		if (idx >= 0) {
+			const entry = entries[idx];
+			if (entry.isOverridden) {
+				// Already an override — toggle isEnabled
+				entries[idx] = { ...entry, isEnabled: !entry.isEnabled };
+			} else {
+				// Inherited default — create override to disable it
+				entries[idx] = { ...entry, isOverridden: true, isEnabled: false };
+			}
+		} else {
+			// Not in defaults — add as job-specific addition
+			const maxOrder = entries
+				.filter(e => e.categoryId === categoryId)
+				.reduce((max, e) => Math.max(max, e.displayOrder), -1);
+			entries.push({
+				widgetId, roleId, categoryId,
+				displayOrder: maxOrder + 1,
+				config: undefined,
+				isEnabled: true,
+				isOverridden: true,
+			} as JobWidgetEntryDto);
+		}
+
+		this.overrideEntries.set(entries);
+	}
+
+	resetOverrides(): void {
+		this.overrideEntries.set([...this.overrideOriginalEntries()]);
+	}
+
+	resetAllOverrides(): void {
+		// Remove all overrides — revert everything to inherited defaults
+		const entries = this.overrideEntries().map(e =>
+			e.isOverridden ? { ...e, isOverridden: false, isEnabled: true } : e
+		);
+		this.overrideEntries.set(entries);
+	}
+
+	saveOverrides(): void {
+		const jobId = this.overrideSelectedJobId();
+		if (!jobId) return;
+
+		this.isOverrideSaving.set(true);
+		this.editorService.saveJobOverrides({
+			jobId,
+			entries: this.overrideEntries(),
+		} as any).subscribe({
+			next: () => {
+				this.overrideOriginalEntries.set([...this.overrideEntries()]);
+				this.isOverrideSaving.set(false);
+				this.toast.show('Job overrides saved successfully.', 'success');
+			},
+			error: err => {
+				this.isOverrideSaving.set(false);
+				this.toast.show(err?.error?.message || 'Failed to save overrides.', 'danger', 4000);
+			},
+		});
+	}
+
+	onOverrideWidgetDrop(event: CdkDragDrop<CategoryGroup>, categoryId: number): void {
+		if (event.previousIndex === event.currentIndex) return;
+
+		const group = this.overrideWorkspaceGroups()
+			.flatMap(ws => ws.categories)
+			.find(c => c.categoryId === categoryId);
+		if (!group) return;
+
+		const reorderedWidgets = group.widgets.slice();
+		moveItemInArray(reorderedWidgets, event.previousIndex, event.currentIndex);
+
+		// Reassign displayOrder and mark as overridden
+		const entries = this.overrideEntries().map(entry => {
+			if (entry.categoryId !== categoryId) return entry;
+			const newOrder = reorderedWidgets.findIndex(w => w.widgetId === entry.widgetId);
+			if (newOrder < 0) return entry;
+			return { ...entry, displayOrder: newOrder, isOverridden: true };
+		});
+
+		this.overrideEntries.set(entries);
 	}
 
 	// ═══════════════════════════════════

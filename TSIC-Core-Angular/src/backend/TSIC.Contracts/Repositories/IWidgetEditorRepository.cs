@@ -30,5 +30,13 @@ public interface IWidgetEditorRepository
     Task<List<WidgetDefault>> GetDefaultEntitiesByWidgetAsync(int widgetId, CancellationToken ct = default);
     Task BulkInsertAssignmentsAsync(int widgetId, int categoryId, List<WidgetAssignmentDto> assignments, CancellationToken ct = default);
 
+    // ── Per-job overrides ──
+    Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default);
+    Task<List<JobWidgetEntryDto>> GetJobWidgetsByJobAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<JobWidget>> GetJobWidgetEntitiesAsync(Guid jobId, CancellationToken ct = default);
+    void RemoveJobWidgets(List<JobWidget> jobWidgets);
+    Task BulkInsertJobWidgetsAsync(Guid jobId, List<JobWidgetEntryDto> entries, CancellationToken ct = default);
+    Task<int?> GetJobTypeIdForJobAsync(Guid jobId, CancellationToken ct = default);
+
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

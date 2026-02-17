@@ -262,9 +262,10 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
         return 'tos';
       }
       return 'ok';
-    } catch (err: any) {
+    } catch (err: unknown) {
       this.submitting = false;
-      this.inlineError = err?.error?.message || 'Login failed. Please check your username and password.';
+      const httpErr = err as { error?: { message?: string } };
+      this.inlineError = httpErr?.error?.message || 'Login failed. Please check your username and password.';
       throw err;
     }
   }

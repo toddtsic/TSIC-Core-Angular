@@ -143,3 +143,53 @@ public record SaveWidgetAssignmentsRequest
     public required int CategoryId { get; init; }
     public required List<WidgetAssignmentDto> Assignments { get; init; }
 }
+
+// ══════════════════════════════════════
+// Per-Job Widget Overrides
+// ══════════════════════════════════════
+
+/// <summary>
+/// Lightweight job reference for the job-type-filtered dropdown.
+/// </summary>
+public record JobRefDto
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public required string JobPath { get; init; }
+}
+
+/// <summary>
+/// A single cell in the per-job override matrix.
+/// Represents either an inherited default or an explicit JobWidget entry.
+/// </summary>
+public record JobWidgetEntryDto
+{
+    public required int WidgetId { get; init; }
+    public required string RoleId { get; init; }
+    public required int CategoryId { get; init; }
+    public required int DisplayOrder { get; init; }
+    public string? Config { get; init; }
+    public required bool IsEnabled { get; init; }
+    /// <summary>True if an explicit JobWidget row exists (override); false if inherited from defaults.</summary>
+    public required bool IsOverridden { get; init; }
+}
+
+/// <summary>
+/// Full job-overrides view: merged defaults + per-job overrides.
+/// </summary>
+public record JobOverridesResponse
+{
+    public required Guid JobId { get; init; }
+    public required int JobTypeId { get; init; }
+    public required List<JobWidgetEntryDto> Entries { get; init; }
+}
+
+/// <summary>
+/// Request to save per-job widget overrides.
+/// Only entries with IsOverridden=true are persisted as JobWidget rows.
+/// </summary>
+public record SaveJobOverridesRequest
+{
+    public required Guid JobId { get; init; }
+    public required List<JobWidgetEntryDto> Entries { get; init; }
+}

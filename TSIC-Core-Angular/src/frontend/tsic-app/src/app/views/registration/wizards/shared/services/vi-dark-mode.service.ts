@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import type { VIOfferData } from '../types/wizard.types';
 
 /**
  * Shared VerticalInsure dark-mode integration service.
@@ -21,7 +22,7 @@ export class ViDarkModeService {
      * iframe (which cannot access the host page's CSS variables) renders
      * with the correct palette.
      */
-    injectDarkModeColors(offerData: any): void {
+    injectDarkModeColors(offerData: VIOfferData): void {
         if (!offerData?.theme) return;
 
         const style = globalThis.window.getComputedStyle(document.documentElement);

@@ -309,8 +309,8 @@ export class TeamPaymentSummaryTableComponent {
   public sortOptions = { allowUnsort: false };
   onQueryCellInfo(args: QueryCellInfoEventArgs): void {
     if (args.column?.field === 'rowNum' && args.data) {
-      const index = (this.grid.currentViewData as any[]).findIndex(
-        (item) => item.teamId === (args.data as any).teamId,
+      const index = (this.grid.currentViewData as Record<string, unknown>[]).findIndex(
+        (item) => item['teamId'] === (args.data as Record<string, unknown>)['teamId'],
       );
       (args.cell as HTMLElement).innerText = (index + 1).toString();
     }

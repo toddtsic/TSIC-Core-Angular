@@ -9,6 +9,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { firstValueFrom } from 'rxjs';
 import { ViDarkModeService } from '../../shared/services/vi-dark-mode.service';
 import type { VerticalInsureQuote } from '../../player-registration-wizard/services/insurance.service';
+import type { VIOfferData, VIWidgetState, VIWindowExtension, VIWidgetInstance, VIQuoteObject } from '../../shared/types/wizard.types';
 
 /**
  * Team insurance service - manages Vertical Insure widget integration for teams.
@@ -23,7 +24,7 @@ export class TeamInsuranceService {
     private readonly auth = inject(AuthService);
     private readonly viDarkMode = inject(ViDarkModeService);
 
-    quotes = signal<VerticalInsureQuote[]>([]);
+    quotes = signal<VIQuoteObject[]>([]);
     hasUserResponse = signal(false);
     error = signal<string | null>(null);
     widgetInitialized = signal(false);
@@ -38,9 +39,10 @@ export class TeamInsuranceService {
      * @param hostSelector CSS selector for widget mount point (e.g., '#dVITeamOffer')
      * @param offerData PreSubmitTeamInsuranceDto.TeamObject from backend
      */
-    initWidget(hostSelector: string, offerData: any): void {
+    initWidget(hostSelector: string, offerData: VIOfferData): void {
         if (this.widgetInitialized()) return;
-        if (!(globalThis as any).VerticalInsure) {
+        const viWindow = globalThis as unknown as VIWindowExtension;
+        if (!viWindow.VerticalInsure) {
             this.error.set('VerticalInsure script missing');
             return;
         }
@@ -48,10 +50,10 @@ export class TeamInsuranceService {
             // Inject computed dark-mode colors into VI's theme (for iframe compatibility)
             this.viDarkMode.injectDarkModeColors(offerData);
 
-            const instance = new (globalThis as any).VerticalInsure(
+            const instance: VIWidgetInstance = new viWindow.VerticalInsure!(
                 hostSelector,
                 offerData,
-                (st: any) => {
+                (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
                         this.hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
@@ -70,7 +72,7 @@ export class TeamInsuranceService {
                         }
                     });
                 },
-                (st: any) => {
+                (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
                         this.hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
@@ -107,7 +109,7 @@ export class TeamInsuranceService {
     quotedTeams(): string[] {
         return this.quotes().flatMap(q => {
             const teams = q?.policy_attributes?.teams || [];
-            return teams.map((t: any) => t?.team_name || '').filter(Boolean);
+            return teams.map((t: Record<string, unknown>) => String(t?.['team_name'] || '')).filter(Boolean);
         });
     }
 

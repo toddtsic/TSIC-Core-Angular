@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import type { Loadable } from '@infrastructure/shared/state.models';
-import type { VIPlayerObjectResponse } from '@core/api';
+import type { VIPlayerObjectResponse, RegSaverDetailsDto } from '@core/api';
 
 /**
  * Facade service for insurance-related state (offer, modal, consent).
@@ -14,7 +14,7 @@ export class InsuranceStateService {
 
     // Job-level offer flag still sourced from wizard (avoids cycle)
     offerPlayerRegSaver(): boolean { return this.reg.offerPlayerRegSaver(); }
-    regSaverDetails(): any { return this.reg.regSaverDetails(); }
+    regSaverDetails(): RegSaverDetailsDto | null { return this.reg.regSaverDetails(); }
     // Migrated offer payload signal (initially synchronized from wizard for backward compatibility)
     private readonly _verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
     verticalInsureOffer(): Loadable<VIPlayerObjectResponse> { return this._verticalInsureOffer(); }
@@ -33,7 +33,7 @@ export class InsuranceStateService {
 
     // Localized signals migrated from wizard ---------------------------------
     private readonly _showVerticalInsureModal = signal<boolean>(false);
-    private readonly _viConsent = signal<{ confirmed: boolean; declined: boolean; policyNumber?: string | null; policyCreateDate?: string | null; quotes?: any[]; decidedUtc?: string } | null>(null);
+    private readonly _viConsent = signal<{ confirmed: boolean; declined: boolean; policyNumber?: string | null; policyCreateDate?: string | null; quotes?: Record<string, unknown>[]; decidedUtc?: string } | null>(null);
 
     showVerticalInsureModal(): boolean { return this._showVerticalInsureModal(); }
     viConsent() { return this._viConsent(); }
@@ -46,7 +46,7 @@ export class InsuranceStateService {
         if (!this.offerPlayerRegSaver()) return;
         this._showVerticalInsureModal.set(true);
     }
-    confirmVerticalInsurePurchase(policyNumber: string | null, policyCreateDate: string | null, quotes: any[] = []): void {
+    confirmVerticalInsurePurchase(policyNumber: string | null, policyCreateDate: string | null, quotes: Record<string, unknown>[] = []): void {
         this._viConsent.set({ confirmed: true, declined: false, policyNumber, policyCreateDate, quotes, decidedUtc: new Date().toISOString() });
         this._showVerticalInsureModal.set(false);
     }

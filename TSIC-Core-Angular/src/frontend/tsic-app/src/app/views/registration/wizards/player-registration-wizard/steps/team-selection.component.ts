@@ -5,7 +5,8 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 import { PlayerStateService } from '../services/player-state.service';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
 import { TeamService } from '../team.service';
-import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent } from '@syncfusion/ej2-angular-dropdowns';
+import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent, type FieldSettingsModel } from '@syncfusion/ej2-angular-dropdowns';
+import type { FilteringEventArgs, SelectEventArgs } from '@syncfusion/ej2-angular-dropdowns';
 import { colorClassForIndex, textColorClassForIndex } from '../../shared/utils/color-class.util';
 
 @Component({
@@ -180,9 +181,9 @@ import { colorClassForIndex, textColorClassForIndex } from '../../shared/utils/c
                                        [valueTemplate]="multiValueTemplate"
                                        [itemTemplate]="multiItemTemplate"
                                        (filtering)="onFiltering($event)"
-                                       (beforeSelect)="onMsBeforeSelect(p.userId, $event)"
-                                       (select)="onMsSelect(p.userId, $event)"
-                                       (removed)="onMsRemoved(p.userId, $event)"
+                                       (beforeSelect)="onMsBeforeSelect(p.userId, $any($event))"
+                                       (select)="onMsSelect(p.userId, $any($event))"
+                                       (removed)="onMsRemoved(p.userId, $any($event))"
                                        [enabled]="!(showEligibilityBadge() && !eligibilityFor(p.userId)) && !(isRegistered(p.userId) && !hasAlternativeOpenTeam(p.userId))"
                                        [value]="selectedArrayFor(p.userId)"
                                        (change)="onSyncMultiChange(p.userId, $event)">
@@ -242,7 +243,7 @@ export class TeamSelectionComponent {
   selectedTeams = () => this.playerState.selectedTeams();
   // readonly mode removed; selection is locked only for players with prior registrations
   // Syncfusion field mapping (disable selection for FULL teams)
-  syncFields = { text: 'teamName', value: 'teamId', disabled: 'rosterIsFull' } as any;
+  syncFields: FieldSettingsModel = { text: 'teamName', value: 'teamId', disabled: 'rosterIsFull' };
 
   constructor() {
     // Auto-open the first unassigned player's selector once data is loaded and view is ready
@@ -346,7 +347,7 @@ export class TeamSelectionComponent {
         const fp = this.wizard.familyPlayers().find(p => p.playerId === playerId);
         const ids = (fp?.priorRegistrations || [])
           .map(r => r.assignedTeamId)
-          .filter((id: any): id is string => typeof id === 'string' && !!id);
+          .filter((id): id is string => typeof id === 'string' && !!id);
         // Deduplicate
         const uniq: string[] = [];
         for (const id of ids) if (!uniq.includes(id)) uniq.push(id);
@@ -379,7 +380,7 @@ export class TeamSelectionComponent {
     } catch { return !!this.multiSelect; }
   });
   // Native select fallback for PP (non-CAC) single-select mode
-  onNativeSingleChange(playerId: string, value: any) {
+  onNativeSingleChange(playerId: string, value: string | null | undefined) {
     const val = (value == null || value === '') ? '' : String(value);
     const current = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (val) current[playerId] = val; else delete current[playerId];
@@ -388,14 +389,14 @@ export class TeamSelectionComponent {
   eligibilityFor(playerId: string) {
     return this.playerState.getEligibilityForPlayer(playerId);
   }
-  onSyncSingleChange(playerId: string, e: any) {
+  onSyncSingleChange(playerId: string, e: { itemData?: Record<string, unknown>; value?: string }) {
     // no readonly mode; only registered players are locked via isRegistered
-    const val = e?.itemData?.teamId || e?.value || '';
+    const val = (e?.itemData?.['teamId'] as string) || e?.value || '';
     const current = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (val) current[playerId] = String(val); else delete current[playerId];
     this.playerState.setSelectedTeams(current);
   }
-  onSyncMultiChange(playerId: string, e: any) {
+  onSyncMultiChange(playerId: string, e: { value?: (string | number)[] }) {
     // Allow changes even for previously registered players; server enforces paid/locked rules.
     let values: string[] = Array.isArray(e?.value) ? e.value.map(String) : [];
     // If Syncfusion gives null/undefined fallback to empty array
@@ -419,14 +420,14 @@ export class TeamSelectionComponent {
     if (same) return; // avoid redundant state updates that can trigger loops
     const map = { ...this.selectedTeams() } as Record<string, string | string[]>;
     if (filtered.length === 0) delete map[playerId]; else map[playerId] = filtered;
-    this.playerState.setSelectedTeams(map as any);
+    this.playerState.setSelectedTeams(map);
   }
-  onFiltering(e: any) {
+  onFiltering(_e: FilteringEventArgs) {
     // No-op: using Syncfusion default filtering
   }
-  onMsBeforeSelect(playerId: string, e: any) {
+  onMsBeforeSelect(playerId: string, e: { itemData?: Record<string, unknown>; value?: string; cancel?: boolean }) {
     // Cancel selection if FULL or would exceed capacity when near limits
-    const id = e?.itemData?.teamId ?? e?.itemData?.value ?? e?.value;
+    const id = String(e?.itemData?.['teamId'] ?? e?.itemData?.['value'] ?? e?.value ?? '');
     if (!id) return;
     const all = this.teamService.filterByEligibility(null);
     const team = all.find(t => t.teamId === id);
@@ -435,9 +436,9 @@ export class TeamSelectionComponent {
       e.cancel = true;
     }
   }
-  onMsSelect(playerId: string, e: any) {
+  onMsSelect(playerId: string, e: { itemData?: Record<string, unknown>; value?: string }) {
     // Only registered players are locked via isRegistered
-    const id = e?.itemData?.teamId ?? e?.itemData?.value ?? e?.value;
+    const id = String(e?.itemData?.['teamId'] ?? e?.itemData?.['value'] ?? e?.value ?? '');
     if (!id) return;
     const current = this.selectedArrayFor(playerId);
     if (current.includes(id)) return;
@@ -445,9 +446,9 @@ export class TeamSelectionComponent {
     // Reuse change handler pathway for consistency
     this.onSyncMultiChange(playerId, { value: next });
   }
-  onMsRemoved(playerId: string, e: any) {
+  onMsRemoved(playerId: string, e: { itemData?: Record<string, unknown>; value?: string }) {
     // Only registered players are locked via isRegistered
-    const id = e?.itemData?.teamId ?? e?.itemData?.value ?? e?.value;
+    const id = String(e?.itemData?.['teamId'] ?? e?.itemData?.['value'] ?? e?.value ?? '');
     if (!id) return;
     const current = this.selectedArrayFor(playerId);
     if (!current.includes(id)) return;
@@ -529,7 +530,7 @@ export class TeamSelectionComponent {
         if (this.selectedArrayFor(p.userId).length > 0) continue;
         const teams = this.filteredTeamsFor(p.userId) || [];
         // Filter to teams that are actually selectable
-        const selectable = teams.filter((t: any) => !t.rosterIsFull && this.baseRemaining(t.teamId) > 0);
+        const selectable = teams.filter(t => !t.rosterIsFull && this.baseRemaining(t.teamId) > 0);
         if (selectable.length === 1) {
           const t = selectable[0];
           // Guard against exceeding capacity when near limits
@@ -540,7 +541,7 @@ export class TeamSelectionComponent {
           changed = true;
         }
       }
-      if (changed) this.playerState.setSelectedTeams(map as any);
+      if (changed) this.playerState.setSelectedTeams(map);
     } catch { /* no-op */ }
   }
   wouldExceedCapacity(playerId: string, team: { teamId: string; maxRosterSize: number; rosterIsFull?: boolean }): boolean {

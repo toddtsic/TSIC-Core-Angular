@@ -131,9 +131,12 @@ export type { InsurancePurchaseRequestDto } from './models/InsurancePurchaseRequ
 export type { InsurancePurchaseResponseDto } from './models/InsurancePurchaseResponseDto';
 export type { JobMetadataResponse } from './models/JobMetadataResponse';
 export type { JobOptionDto } from './models/JobOptionDto';
+export type { JobOverridesResponse } from './models/JobOverridesResponse';
+export type { JobRefDto } from './models/JobRefDto';
 export type { JobRegFieldDto } from './models/JobRegFieldDto';
 export type { JobRegFormDto } from './models/JobRegFormDto';
 export type { JobTypeRefDto } from './models/JobTypeRefDto';
+export type { JobWidgetEntryDto } from './models/JobWidgetEntryDto';
 export type { LadtTreeNodeDto } from './models/LadtTreeNodeDto';
 export type { LadtTreeRootDto } from './models/LadtTreeRootDto';
 export type { LeagueDetailDto } from './models/LeagueDetailDto';
@@ -229,6 +232,7 @@ export type { RosterTransferFeePreviewDto } from './models/RosterTransferFeePrev
 export type { RosterTransferPreviewRequest } from './models/RosterTransferPreviewRequest';
 export type { RosterTransferRequest } from './models/RosterTransferRequest';
 export type { RosterTransferResultDto } from './models/RosterTransferResultDto';
+export type { SaveJobOverridesRequest } from './models/SaveJobOverridesRequest';
 export type { SaveWidgetAssignmentsRequest } from './models/SaveWidgetAssignmentsRequest';
 export type { SaveWidgetDefaultsRequest } from './models/SaveWidgetDefaultsRequest';
 export type { ScheduleCapabilitiesDto } from './models/ScheduleCapabilitiesDto';
