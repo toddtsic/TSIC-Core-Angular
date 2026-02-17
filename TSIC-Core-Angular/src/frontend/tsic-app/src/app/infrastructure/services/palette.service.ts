@@ -168,6 +168,8 @@ export class PaletteService {
                 : '0, 0, 0';
         };
 
+        // Colors apply in both light and dark modes
+        // Surfaces/text only apply in light mode — dark mode has its own tuned values
         const css = `:root {
           --bs-primary: ${palette.primary};
           --bs-primary-rgb: ${hexToRgb(palette.primary)};
@@ -185,6 +187,8 @@ export class PaletteService {
           --bs-light-rgb: ${hexToRgb(palette.light)};
           --bs-dark: ${palette.dark};
           --bs-dark-rgb: ${hexToRgb(palette.dark)};
+        }
+        :root:not([data-bs-theme='dark']) {
           --bs-body-color: ${palette.bodyColor};
           --bs-body-color-rgb: ${hexToRgb(palette.bodyColor)};
           --brand-surface: ${palette.cardBg};
