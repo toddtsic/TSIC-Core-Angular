@@ -29,6 +29,7 @@ import {
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ToastService } from '@shared-ui/toast.service';
+import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
 import type {
     ClubRepClubDto,
     ClubRepRegistrationRequest,
@@ -50,6 +51,7 @@ export interface LoginStepResult {
         FormsModule,
         InfoTooltipComponent,
         AutofocusDirective,
+        WizardModalComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

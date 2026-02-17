@@ -42,6 +42,7 @@ import { TeamInsuranceStateService } from './services/team-insurance-state.servi
 import { TeamInsuranceService } from './services/team-insurance.service';
 import { UserPreferencesService } from '@infrastructure/services/user-preferences.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { WizardModalComponent } from '../shared/wizard-modal/wizard-modal.component';
 import type { ClubRepClubDto, ClubSearchResult } from '@core/api';
 
 enum WizardStep {
@@ -66,6 +67,7 @@ enum WizardStep {
         StepIndicatorComponent,
         ClubRepLoginStepComponent,
         ReviewStepComponent,
+        WizardModalComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

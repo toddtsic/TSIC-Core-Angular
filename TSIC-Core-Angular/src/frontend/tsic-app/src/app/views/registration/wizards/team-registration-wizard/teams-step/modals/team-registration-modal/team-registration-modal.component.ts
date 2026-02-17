@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, computed, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { WizardModalComponent } from '../../../../shared/wizard-modal/wizard-modal.component';
 import type { SuggestedTeamNameDto, AgeGroupDto, ClubTeamDto } from '@core/api';
 export interface RegistrationData {
     clubTeamId?: number;
@@ -13,7 +14,7 @@ export interface RegistrationData {
 @Component({
     selector: 'app-team-registration-modal',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, WizardModalComponent],
     templateUrl: './team-registration-modal.component.html',
     styleUrls: ['./team-registration-modal.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InsuranceStateService } from '../services/insurance-state.service';
+import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
 
 /**
  * VerticalInsure Confirmation Modal
@@ -10,46 +11,39 @@ import { InsuranceStateService } from '../services/insurance-state.service';
 @Component({
   selector: 'app-vi-confirm-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, WizardModalComponent],
   template: `
-    <div class="modal-backdrop fade show" (click)="close(false)"></div>
-    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true">
-      <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">RegSaver Player Insurance</h5>
-            <button type="button" class="btn-close" aria-label="Close" (click)="close(false)"></button>
-          </div>
-          <div class="modal-body">
-            <p class="mb-3">RegSaver player registration insurance is optional coverage offered for eligible events. It can reimburse certain fees under covered circumstances (e.g., injury, illness). Review the quote details below and choose whether to purchase. Declining will not affect your ability to continue registration.</p>
-            <div id="viQuoteContainer" class="border rounded p-3 mb-3">
-              <!-- VerticalInsure widget will render into this container via existing Payment component initialization logic -->
-              @if (!ready) {
-              <div class="text-center text-muted">Loading insurance options…</div>
-              }
-            </div>
-            @if (error) {
-            <div class="alert alert-warning small">{{ error }}</div>
-            }
-            @if (quotes?.length) {
-            <div class="mb-3">
-              <h6 class="fw-semibold">Available Quotes</h6>
-              <ul class="list-unstyled small mb-0">
-                @for (q of quotes; track q.planName || q.name) {
-                <li>• {{ q?.planName || q?.name || 'Plan' }} – {{ q?.price | currency }}</li>
-                }
-              </ul>
-            </div>
-            }
-          </div>
-          <div class="modal-footer d-flex flex-column flex-sm-row gap-2">
-            <button type="button" class="btn btn-outline-secondary w-100 w-sm-auto" (click)="decline()">Decline Insurance</button>
-            <button type="button" class="btn btn-primary w-100 w-sm-auto" [disabled]="!canConfirm()" (click)="confirm()">Confirm Purchase</button>
-          </div>
-          <div class="px-3 pb-3 small text-muted">By confirming purchase you agree to the insurance provider's terms. A policy number will be returned after successful processing.</div>
+    <app-wizard-modal title="RegSaver Player Insurance" size="lg" (closed)="close(false)">
+      <div modal-body>
+        <p class="mb-3">RegSaver player registration insurance is optional coverage offered for eligible events. It can reimburse certain fees under covered circumstances (e.g., injury, illness). Review the quote details below and choose whether to purchase. Declining will not affect your ability to continue registration.</p>
+        <div id="viQuoteContainer" class="border rounded p-3 mb-3">
+          <!-- VerticalInsure widget will render into this container via existing Payment component initialization logic -->
+          @if (!ready) {
+          <div class="text-center text-muted">Loading insurance options…</div>
+          }
         </div>
+        @if (error) {
+        <div class="alert alert-warning small">{{ error }}</div>
+        }
+        @if (quotes?.length) {
+        <div class="mb-3">
+          <h6 class="fw-semibold">Available Quotes</h6>
+          <ul class="list-unstyled small mb-0">
+            @for (q of quotes; track q.planName || q.name) {
+            <li>• {{ q?.planName || q?.name || 'Plan' }} – {{ q?.price | currency }}</li>
+            }
+          </ul>
+        </div>
+        }
       </div>
-    </div>
+      <div modal-footer>
+        <div class="modal-footer d-flex flex-column flex-sm-row gap-2">
+          <button type="button" class="btn btn-outline-secondary w-100 w-sm-auto" (click)="decline()">Decline Insurance</button>
+          <button type="button" class="btn btn-primary w-100 w-sm-auto" [disabled]="!canConfirm()" (click)="confirm()">Confirm Purchase</button>
+        </div>
+        <div class="px-3 pb-3 small text-muted">By confirming purchase you agree to the insurance provider's terms. A policy number will be returned after successful processing.</div>
+      </div>
+    </app-wizard-modal>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })

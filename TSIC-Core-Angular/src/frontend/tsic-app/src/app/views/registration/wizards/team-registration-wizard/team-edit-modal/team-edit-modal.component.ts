@@ -2,13 +2,14 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal, effect } 
 
 import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
+import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { ClubTeamManagementDto, UpdateClubTeamRequest } from '@core/api';
 
 @Component({
     selector: 'app-team-edit-modal',
     standalone: true,
-    imports: [FormsModule],
+    imports: [FormsModule, WizardModalComponent],
     templateUrl: './team-edit-modal.component.html',
     styleUrls: ['./team-edit-modal.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
