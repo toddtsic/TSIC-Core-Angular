@@ -80,8 +80,8 @@
                         <button class="palette-swatch"
                             [style.background]="palette.primary"
                             [class.active]="paletteService.selectedIndex() === $index"
-                            [title]="palette.name"
-                            (click)="paletteService.selectPalette($index); $event.stopPropagation()">
+                            [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
+                            (click)="paletteService.selectPalette($index); closeMobilePalette()">
                             @if (paletteService.selectedIndex() === $index) {
                             <i class="bi bi-check2"></i>
                             }
@@ -169,8 +169,8 @@
                             <button class="palette-swatch"
                                 [style.background]="palette.primary"
                                 [class.active]="paletteService.selectedIndex() === $index"
-                                [title]="palette.name"
-                                (click)="paletteService.selectPalette($index); $event.stopPropagation()">
+                                [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
+                                (click)="paletteService.selectPalette($index); closeUserMenu()">
                                 @if (paletteService.selectedIndex() === $index) {
                                 <i class="bi bi-check2"></i>
                                 }
