@@ -551,16 +551,6 @@ export class PlayerFormsComponent {
     this.state.setSelectedTeams(map);
   }
 
-  // Inline team selection (only active when Teams step skipped). For simplicity support single team selection here.
-  canShowInlineTeamSelect(): boolean {
-    return false; // Reverted: teams selection handled in dedicated Teams step
-  }
-  inlineTeamsFor(playerId: string) {
-    return []; // Not used after revert
-  }
-  inlineSelectedTeam(playerId: string): string | null { return null; }
-  onInlineTeamChange(playerId: string, value: string) { /* no-op after revert */ }
-
   /** Disable Continue when any required visible field is invalid/pending. MVP: gate on USA Lacrosse field. */
   isNextDisabled(): boolean {
     // Readonly mode (editing existing registrations) should not block navigation

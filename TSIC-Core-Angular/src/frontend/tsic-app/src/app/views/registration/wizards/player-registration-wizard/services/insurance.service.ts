@@ -8,6 +8,19 @@ import { ToastService } from '@shared-ui/toast.service';
 import { ViDarkModeService } from '../../shared/services/vi-dark-mode.service';
 import { sanitizeExpiry, sanitizePhone } from '../../shared/services/credit-card-utils';
 
+/** Shape of a VerticalInsure quote returned by the widget. */
+export interface VerticalInsureQuote {
+    quote_id?: string;
+    quoteId?: string;
+    total?: number;
+    id?: string;
+    metadata?: Record<string, unknown>;
+    policy_attributes?: {
+        participant?: { first_name?: string; last_name?: string };
+        teams?: { team_name?: string }[];
+    };
+}
+
 @Injectable({ providedIn: 'root' })
 export class InsuranceService {
     private readonly state = inject(RegistrationWizardService);
@@ -15,7 +28,7 @@ export class InsuranceService {
     private readonly http = inject(HttpClient);
     private readonly toast = inject(ToastService);
     private readonly viDarkMode = inject(ViDarkModeService);
-    quotes = signal<any[]>([]);
+    quotes = signal<VerticalInsureQuote[]>([]);
     hasUserResponse = signal(false);
     error = signal<string | null>(null);
     widgetInitialized = signal(false);

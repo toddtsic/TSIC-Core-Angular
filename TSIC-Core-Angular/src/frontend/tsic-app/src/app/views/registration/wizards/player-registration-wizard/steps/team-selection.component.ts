@@ -394,8 +394,6 @@ export class TeamSelectionComponent {
     if (val) current[playerId] = String(val); else delete current[playerId];
     this.playerState.setSelectedTeams(current);
   }
-  // Adapter for native select change
-  onSingleChange(playerId: string, value: any) { /* legacy adapter unused in template */ }
   onSyncMultiChange(playerId: string, e: any) {
     // Allow changes even for previously registered players; server enforces paid/locked rules.
     let values: string[] = Array.isArray(e?.value) ? e.value.map(String) : [];
@@ -455,8 +453,6 @@ export class TeamSelectionComponent {
     const next = current.filter(x => x !== id);
     this.onSyncMultiChange(playerId, { value: next });
   }
-  // Adapter for native multi-select change
-  onMultiChange(playerId: string, event: Event) { /* legacy adapter unused in template */ }
   // Calculate tentative roster including current selections in this session
   tentativeRoster(teamId: string): number {
     // Access through public filtered collection plus original roster size

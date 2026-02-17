@@ -108,7 +108,7 @@ export class RegistrationWizardService {
     // Map of backend db column/property names (PascalCase) -> schema field name used in UI
     aliasFieldMap = signal<Record<string, string>>({});
     // Per-player form values (fieldName -> value)
-    playerFormValues = signal<Record<string, Record<string, any>>>({});
+    playerFormValues = signal<Record<string, Record<string, string | number | boolean | null | string[]>>>({});
     // Waiver text HTML blocks (job-level). Structured waiver state lives in WaiverStateService.
     jobWaivers = signal<Record<string, string>>({});
     // Waiver delegating accessors (maintain existing call sites that invoke like signals)
@@ -127,8 +127,6 @@ export class RegistrationWizardService {
 
     // Waiver selection/reactivity handled inside WaiverStateService; no local effect needed.
 
-    // Forms data per player (dynamic fields later)
-    formData = signal<Record<string, any>>({}); // playerId -> { fieldName: value }
     // US Lacrosse number validation status per player
     usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: any }>>({});
     // Subscription management for fire-and-forget HTTP calls
@@ -163,7 +161,6 @@ export class RegistrationWizardService {
         this.playerState.reset();
         this.teamConstraintType.set(null);
         this.teamConstraintValue.set(null);
-        this.formData.set({});
         this.paymentOption.set('PIF');
         this.lastPayment.set(null);
         this.confirmation.set(null);
@@ -511,7 +508,7 @@ export class RegistrationWizardService {
 
     private initializeFormValuesForSelectedPlayers(schemas: PlayerProfileFieldSchema[]): void {
         const selectedIds = this.selectedPlayerIds();
-        const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+        const current = { ...this.playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
         for (const pid of selectedIds) {
             if (!current[pid]) current[pid] = {};
             for (const f of schemas) if (!(f.name in current[pid])) current[pid][f.name] = null;
@@ -521,7 +518,7 @@ export class RegistrationWizardService {
 
     private seedPlayerValuesFromPriorRegistrations(schemas: PlayerProfileFieldSchema[]): void {
         try {
-            const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+            const current = { ...this.playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
             const schemaNameByLower = this.buildSchemaLookup(schemas);
 
             for (const player of this.familyPlayers()) {
@@ -561,7 +558,7 @@ export class RegistrationWizardService {
 
     private seedPlayerValuesFromDefaults(schemas: PlayerProfileFieldSchema[]): void {
         try {
-            const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+            const current = { ...this.playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
             const schemaNameByLower = this.buildSchemaLookup(schemas);
 
             for (const player of this.familyPlayers()) {
@@ -626,7 +623,7 @@ export class RegistrationWizardService {
         try {
             const alias = this.formSchema.aliasFieldMap();
             if (!alias || !Object.keys(alias).length) return;
-            const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+            const current = { ...this.playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
             for (const [, vals] of Object.entries(current)) {
                 for (const [from, to] of Object.entries(alias)) {
                     if (from in vals && !(to in vals)) vals[to] = vals[from];
@@ -977,7 +974,7 @@ export class RegistrationWizardService {
             || keys.find(k => k.toLowerCase().includes('birth') && k.toLowerCase().includes('date'))
             || null;
         if (pick) {
-            const d = new Date(vals[pick]);
+            const d = new Date(vals[pick] as string | number);
             if (!Number.isNaN(d.getTime())) return d;
         }
         return null;
@@ -1020,7 +1017,7 @@ export class RegistrationWizardService {
     }
 
     private initializeFormFieldsForPlayer(playerId: string, schemas: PlayerProfileFieldSchema[]): void {
-        const current = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+        const current = { ...this.playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
         if (!current[playerId]) current[playerId] = {};
         for (const f of schemas) {
             if (!(f.name in current[playerId])) {
@@ -1039,7 +1036,7 @@ export class RegistrationWizardService {
         for (const s of schemas) schemaNameByLower[s.name.toLowerCase()] = s.name;
 
         const alias = this.formSchema.aliasFieldMap();
-        const curVals = { ...this.playerFormValues() } as Record<string, Record<string, any>>;
+        const curVals = { ...this.playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
         const target = curVals[playerId];
 
         for (const [rawK, rawV] of Object.entries(df)) {
@@ -1050,7 +1047,7 @@ export class RegistrationWizardService {
 
             const existing = target[targetName];
             const isBlank = this.isFieldValueBlank(existing);
-            if (isBlank) target[targetName] = rawV;
+            if (isBlank) target[targetName] = rawV as PlayerFormFieldValue;
         }
 
         this.playerFormValues.set(curVals);
@@ -1285,68 +1282,8 @@ export interface WaiverDefinition {
 
 // Enriched DTOs moved to ./family-players.dto
 
+/** Allowed form field values (covers text, number, date, checkbox, select, multiselect). */
+export type PlayerFormFieldValue = string | number | boolean | null | string[];
+
 // JSON type helper to avoid `any`/`unknown` in public fields
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
-
-
-function mapFieldType(raw: any): PlayerProfileFieldSchema['type'] {
-    const r = String(raw || '').toLowerCase();
-    switch (r) {
-        case 'text':
-        case 'string': return 'text';
-        case 'int':
-        case 'integer':
-        case 'number': return 'number';
-        case 'date':
-        case 'datetime': return 'date';
-        case 'select':
-        case 'dropdown': return 'select';
-        case 'multiselect':
-        case 'multi-select': return 'multiselect';
-        case 'checkbox':
-        case 'bool':
-        case 'boolean': return 'checkbox';
-        default: return 'text';
-    }
-}
-
-// Attempt to derive constraint type from jsonOptions (stringified JSON) heuristically.
-// Returns one of known types or null if no recognizable constraint token present.
-function deriveConstraintTypeFromJsonOptions(raw: string | null | undefined): string | null {
-    if (!raw || typeof raw !== 'string' || !raw.trim()) return null;
-    try {
-        // Parse the JSON object first; only derive constraint if an explicit constraint key exists.
-        let obj: any; try { obj = JSON.parse(raw); } catch { obj = null; }
-        if (!obj || typeof obj !== 'object') return null;
-        const entries = Object.entries(obj);
-        // Look for explicit constraint descriptor keys and prefer their values.
-        const explicitKey = entries.find(([k]) => {
-            const lk = k.toLowerCase();
-            return lk === 'constrainttype' || lk === 'teamconstraint' || lk === 'eligibilityconstraint';
-        });
-        if (explicitKey) {
-            const rawVal = explicitKey[1];
-            let valRaw = '';
-            if (typeof rawVal === 'string') {
-                valRaw = rawVal.toUpperCase();
-            } else if (typeof rawVal === 'number' || typeof rawVal === 'boolean') {
-                valRaw = String(rawVal).toUpperCase();
-            }
-            switch (valRaw) {
-                case 'BYGRADYEAR':
-                case 'BYAGEGROUP':
-                case 'BYAGERANGE':
-                case 'BYCLUBNAME':
-                    return valRaw;
-            }
-            return null; // explicit but unrecognized value -> treat as none
-        }
-        // No explicit constraint key: do NOT infer from the mere presence of option sets; safest is null.
-        // (Previously we inferred from keys like GradYear lists causing unwanted Eligibility step.)
-        return null;
-    } catch {
-        return null;
-    }
-}
-
-// --- Confirmation DTOs imported from NSwag-generated models ---

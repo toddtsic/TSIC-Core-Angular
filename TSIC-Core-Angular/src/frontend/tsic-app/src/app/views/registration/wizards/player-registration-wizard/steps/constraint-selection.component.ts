@@ -145,7 +145,7 @@ export class ConstraintSelectionComponent {
   });
 
   // Heuristic detection (temporary until backend-configured type exposed)
-  private detectConstraintType(job: JobMetadataResponse): string {
+  private detectConstraintType(job: JobMetadataResponse): string | null {
     const existing = this.state.teamConstraintType();
     if (existing) return existing;
     const raw = job.jsonOptions;
@@ -163,7 +163,7 @@ export class ConstraintSelectionComponent {
       } catch { /* ignore */ }
     }
     // No recognizable constraint tokens -> no eligibility step required
-    return null as any; // signal null upstream; cast to any to satisfy legacy return type signature
+    return null;
   }
 
   private getJobOptionsRaw(job: JobMetadataResponse): string | null {
@@ -176,7 +176,7 @@ export class ConstraintSelectionComponent {
     return typeof raw === 'string' && raw.trim() ? raw : null;
   }
 
-  private extractEligibleOptions(job: JobMetadataResponse, type: string): Array<{ value: string; label: string }> {
+  private extractEligibleOptions(job: JobMetadataResponse, type: string | null): Array<{ value: string; label: string }> {
     const raw = this.getJobOptionsRaw(job);
     if (!raw) return [];
     let parsed: any;

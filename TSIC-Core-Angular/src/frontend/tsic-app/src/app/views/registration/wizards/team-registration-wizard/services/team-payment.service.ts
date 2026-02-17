@@ -51,7 +51,7 @@ export class TeamPaymentService {
     // Line items for all registered teams
     lineItems = computed<TeamLineItem[]>(() => {
         const teams = this.teams();
-        return teams.map((t: any) => ({
+        return teams.map(t => ({
             teamId: t.teamId,
             teamName: t.teamName,
             ageGroup: t.ageGroupName || '',

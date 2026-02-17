@@ -460,7 +460,7 @@ export class TeamPaymentStepComponent
       if (this.insuranceState.verticalInsureConfirmed()) {
         const teamIds = this.paymentSvc.teamIdsWithBalance();
         const quotes = this.insuranceSvc.quotes();
-        const quoteIds = quotes.map((q) => q.id || q.quote_id).filter(Boolean);
+        const quoteIds = quotes.map((q) => q.id || q.quote_id).filter((id): id is string => !!id);
 
         const viResult = await this.insuranceSvc.purchaseTeamInsurance(
           teamIds,

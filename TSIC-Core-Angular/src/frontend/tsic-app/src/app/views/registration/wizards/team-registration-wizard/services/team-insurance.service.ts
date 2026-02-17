@@ -8,6 +8,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { firstValueFrom } from 'rxjs';
 import { ViDarkModeService } from '../../shared/services/vi-dark-mode.service';
+import type { VerticalInsureQuote } from '../../player-registration-wizard/services/insurance.service';
 
 /**
  * Team insurance service - manages Vertical Insure widget integration for teams.
@@ -22,7 +23,7 @@ export class TeamInsuranceService {
     private readonly auth = inject(AuthService);
     private readonly viDarkMode = inject(ViDarkModeService);
 
-    quotes = signal<any[]>([]);
+    quotes = signal<VerticalInsureQuote[]>([]);
     hasUserResponse = signal(false);
     error = signal<string | null>(null);
     widgetInitialized = signal(false);
