@@ -117,3 +117,15 @@
 :host {
     display: block;
 }
+
+// Respect reduced motion preferences
+@media (prefers-reduced-motion: reduce) {
+    .wizard-action-bar .btn {
+        transition: none;
+
+        &:hover:not(:disabled),
+        &:active:not(:disabled) {
+            transform: none;
+        }
+    }
+}

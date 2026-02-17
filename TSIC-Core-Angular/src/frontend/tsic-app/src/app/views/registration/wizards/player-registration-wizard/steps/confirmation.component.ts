@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, computed, inject, OnInit, OnDestroy, signal } from '@angular/core';
 
 import { RegistrationWizardService } from '../registration-wizard.service';
 
@@ -37,13 +37,13 @@ import { RegistrationWizardService } from '../registration-wizard.service';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ConfirmationComponent implements OnInit {
+export class ConfirmationComponent implements OnInit, OnDestroy {
   @Output() completed = new EventEmitter<void>();
   readonly state = inject(RegistrationWizardService);
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
-    // Trigger load once jobId & familyUser are known.
-    // Simple polling for initial presence; avoids race without extra subscriptions.
     const tryLoad = () => {
       if (this.state.jobId() && this.state.familyUser()?.familyUserId) {
         this.state.loadConfirmation();
@@ -52,9 +52,20 @@ export class ConfirmationComponent implements OnInit {
       return false;
     };
     if (!tryLoad()) {
-      const timer = setInterval(() => { if (tryLoad()) clearInterval(timer); }, 250);
-      setTimeout(() => clearInterval(timer), 4000); // safety stop
+      this.pollTimer = setInterval(() => {
+        if (tryLoad()) this.clearTimers();
+      }, 250);
+      this.safetyTimer = setTimeout(() => this.clearTimers(), 4000);
     }
+  }
+
+  ngOnDestroy(): void {
+    this.clearTimers();
+  }
+
+  private clearTimers(): void {
+    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+    if (this.safetyTimer) { clearTimeout(this.safetyTimer); this.safetyTimer = null; }
   }
 
   conf = computed(() => this.state.confirmation());

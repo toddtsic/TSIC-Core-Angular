@@ -28,25 +28,25 @@
 /* Step Chips */
 .rw-steps-list {
     list-style: none;
-    padding: 0 0 1rem 0;
+    padding: 0 0 var(--space-4) 0;
     margin: 0;
     display: flex;
     flex-wrap: nowrap;
-    gap: .5rem;
+    gap: var(--space-2);
     overflow-x: auto;
 
     @media (max-width: 767.98px) {
-        padding-bottom: 1.5rem;
+        padding-bottom: var(--space-6);
     }
 }
 
 .rw-step {
     display: inline-flex;
     align-items: center;
-    gap: .5rem;
+    gap: var(--space-2);
     border: 1px solid var(--bs-border-color);
     border-radius: var(--radius-full);
-    padding: .25rem .75rem;
+    padding: var(--space-1) var(--space-3);
     background: var(--bs-body-bg);
     color: var(--bs-body-color);
     white-space: nowrap;
@@ -91,7 +91,7 @@
     background-color: var(--bg-elevated);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    padding: .75rem 1rem;
+    padding: var(--space-3) var(--space-4);
     box-shadow: var(--shadow-xs);
 
     &.sticky {
@@ -117,7 +117,7 @@
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    padding: .5rem;
+    padding: var(--space-2);
 }
 
 :root[data-bs-theme='dark'] .rw-sticky-header,
@@ -127,8 +127,8 @@
 
 /* Bottom Navigation */
 .rw-bottom-nav {
-    margin-top: 1.25rem;
-    padding: .75rem 1rem;
+    margin-top: var(--space-5);
+    padding: var(--space-3) var(--space-4);
     background-color: var(--bg-elevated);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
@@ -142,7 +142,7 @@
 
 /* Progress Bars */
 .rw-progress {
-    height: 10px;
+    height: var(--space-2);
     border: none;
     border-radius: var(--radius-full);
     overflow: hidden;
@@ -178,24 +178,24 @@
     background-color: var(--bs-primary-bg-subtle);
     border-left: 4px solid var(--bs-primary);
     border-radius: var(--radius-lg);
-    padding: 1rem;
-    margin: .5rem 0 .75rem 0;
+    padding: var(--space-4);
+    margin: var(--space-2) 0 var(--space-3) 0;
 }
 
 .rw-accent-panel-neutral {
     background-color: var(--bs-secondary-bg);
     border-left: 3px solid var(--bs-secondary);
     border-radius: var(--radius-lg);
-    padding: 1rem;
-    margin: .5rem 0 .75rem 0;
+    padding: var(--space-4);
+    margin: var(--space-2) 0 var(--space-3) 0;
 }
 
 .rw-badge {
     display: inline-flex;
     align-items: center;
-    gap: .4rem;
+    gap: var(--space-1);
     border-radius: var(--radius-full);
-    padding: .25rem .75rem;
+    padding: var(--space-1) var(--space-3);
     font-weight: 600;
     letter-spacing: .1px;
     border: 1px solid transparent;
@@ -237,7 +237,7 @@
         #{$selector} form .form-control,
         #{$selector} form .form-select {
             font-size: var(--font-size-sm);
-            padding: 0.25rem 0.5rem;
+            padding: var(--space-1) var(--space-2);
         }
 
         #{$selector} .btn-group.w-100 .btn {
@@ -248,7 +248,7 @@
 
         #{$selector} form .form-label {
             margin-top: 0.375rem;
-            margin-bottom: 0.25rem;
+            margin-bottom: var(--space-1);
             line-height: 1.25;
         }
 

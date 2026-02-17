@@ -29,25 +29,15 @@ import { JobContextService } from '@infrastructure/services/job-context.service'
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { environment } from '@environments/environment';
-import type { CreditCardInfo, TeamsMetadataResponse } from '@core/api';
+import type { CreditCardInfo, TeamsMetadataResponse, TeamPaymentRequestDto, TeamPaymentResponseDto } from '@core/api';
 import { IdempotencyService } from '../../shared/services/idempotency.service';
 
-// TODO: Generate these types when backend controller is complete
-interface TeamPaymentRequestDto {
+// Extend generated request DTO with fields derived from client context (not in OpenAPI spec)
+type TeamPaymentRequest = TeamPaymentRequestDto & {
   jobPath: string;
   clubRepRegId: string;
-  teamIds: string[];
-  totalAmount: number;
-  creditCard: CreditCardInfo;
   idempotencyKey?: string | null;
-}
-
-interface TeamPaymentResponseDto {
-  success: boolean;
-  transactionId?: string;
-  error?: string;
-  message?: string;
-}
+};
 
 declare global {
   interface Window {
@@ -496,7 +486,7 @@ export class TeamPaymentStepComponent
       }
 
       // Step 2: Process TSIC payment
-      const request: TeamPaymentRequestDto = {
+      const request: TeamPaymentRequest = {
         jobPath,
         clubRepRegId: regId,
         teamIds: this.paymentSvc.teamIdsWithBalance(),
@@ -518,7 +508,7 @@ export class TeamPaymentStepComponent
         this.toast.show('Payment processed successfully', 'success');
         this.paymentState.setLastPayment({
           amount: this.paymentSvc.balanceDue(),
-          transactionId: response.transactionId,
+          transactionId: response.transactionId ?? undefined,
           viPolicyNumbers,
           message: response.message || null,
         });
