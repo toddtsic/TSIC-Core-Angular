@@ -27,7 +27,7 @@
 <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-3 pt-1">
     <h5 class="mb-0 fw-semibold">Have <strong class="text-primary">CLUB REP</strong> credentials?</h5>
 
-    <div class="btn-group" role="group" aria-label="Club Rep account availability">
+    <div class="btn-group" role="radiogroup" aria-label="Club Rep account availability">
         <input type="radio" class="btn-check" name="hasClubRepAccountMobile" id="seg-hasClubRep-yes" [value]="'yes'"
             [checked]="hasClubRepAccount() === 'yes'" (change)="onHasCredentialsChange('yes')" />
         <label class="btn btn-outline-primary px-4" for="seg-hasClubRep-yes"

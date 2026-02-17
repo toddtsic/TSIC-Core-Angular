@@ -29,6 +29,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
         </div>
       }
 
+      <div role="radiogroup" aria-labelledby="pay-option-title">
       @if (svc.isArbScenario()) {
         <div class="form-check">
           <input class="form-check-input" type="radio" id="arb" name="payOpt" [checked]="state.paymentOption() === 'ARB'" (change)="choose('ARB')">
@@ -59,6 +60,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
           <label class="form-check-label" for="pifOnly">Pay In Full - {{ svc.totalAmount() | currency }}</label>
         </div>
       }
+      </div>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
