@@ -81,7 +81,7 @@
                             [style.background]="palette.primary"
                             [class.active]="paletteService.selectedIndex() === $index"
                             [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
-                            (click)="paletteService.selectPalette($index); closeMobilePalette()">
+                            (click)="paletteService.togglePalette($index); closeMobilePalette()">
                             @if (paletteService.selectedIndex() === $index) {
                             <i class="bi bi-check2"></i>
                             }
@@ -170,7 +170,7 @@
                                 [style.background]="palette.primary"
                                 [class.active]="paletteService.selectedIndex() === $index"
                                 [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
-                                (click)="paletteService.selectPalette($index); closeUserMenu()">
+                                (click)="paletteService.togglePalette($index); closeUserMenu()">
                                 @if (paletteService.selectedIndex() === $index) {
                                 <i class="bi bi-check2"></i>
                                 }

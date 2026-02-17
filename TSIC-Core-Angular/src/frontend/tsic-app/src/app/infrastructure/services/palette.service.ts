@@ -157,8 +157,20 @@ export class PaletteService {
         this.applyPalette(index);
     }
 
+    togglePalette(index: number): void {
+        this.selectPalette(this.selectedIndex() === index ? 0 : index);
+    }
+
     private applyPalette(index: number): void {
         this.selectedIndex.set(index);
+
+        // Default palette (index 0) matches SCSS defaults — no injection needed.
+        // This lets _theme-dark.scss dark-mode overrides work unopposed.
+        if (index === 0) {
+            document.getElementById('tsic-palette')?.remove();
+            return;
+        }
+
         const palette = this.palettes[index];
 
         const hexToRgb = (hex: string): string => {
@@ -168,9 +180,9 @@ export class PaletteService {
                 : '0, 0, 0';
         };
 
-        // Colors apply in both light and dark modes
-        // Surfaces/text only apply in light mode — dark mode has its own tuned values
-        const css = `:root {
+        // Colors apply in light mode only — dark mode has its own tuned accent values.
+        // Surfaces/text also light-only so dark surfaces are preserved.
+        const css = `:root:not([data-bs-theme='dark']) {
           --bs-primary: ${palette.primary};
           --bs-primary-rgb: ${hexToRgb(palette.primary)};
           --bs-secondary: ${palette.secondary};
@@ -187,8 +199,6 @@ export class PaletteService {
           --bs-light-rgb: ${hexToRgb(palette.light)};
           --bs-dark: ${palette.dark};
           --bs-dark-rgb: ${hexToRgb(palette.dark)};
-        }
-        :root:not([data-bs-theme='dark']) {
           --bs-body-color: ${palette.bodyColor};
           --bs-body-color-rgb: ${hexToRgb(palette.bodyColor)};
           --brand-surface: ${palette.cardBg};
