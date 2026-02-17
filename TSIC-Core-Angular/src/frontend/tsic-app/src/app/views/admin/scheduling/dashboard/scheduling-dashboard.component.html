@@ -18,7 +18,8 @@
     } @else {
         <div class="card-grid">
             @for (card of cards(); track card.title) {
-                <a [routerLink]="card.isExternal ? card.route : card.route"
+                <a [routerLink]="card.route"
+                   [queryParams]="card.queryParams"
                    class="status-card"
                    [class.status-success]="card.severity === 'success'"
                    [class.status-partial]="card.severity === 'partial'"
@@ -53,11 +54,11 @@
         <div class="tools-section">
             <div class="tools-header">Post-Scheduling Tools</div>
             <div class="tools-grid">
-                <a routerLink="/admin/scheduling/view-schedule" class="tool-link">
+                <a routerLink="view-schedule" class="tool-link">
                     <i class="bi bi-eye"></i>
                     <span>View Schedule</span>
                 </a>
-                <a routerLink="/admin/scheduling/rescheduler" class="tool-link">
+                <a routerLink="rescheduler" class="tool-link">
                     <i class="bi bi-arrow-repeat"></i>
                     <span>Rescheduler</span>
                 </a>

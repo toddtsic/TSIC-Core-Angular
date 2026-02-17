@@ -12,13 +12,14 @@ import { ClientMenuComponent } from '../components/client-menu/client-menu.compo
 import { ClientBannerComponent } from '../components/client-banner/client-banner.component';
 import { ClientFooterBarComponent } from '../components/client-footer-bar/client-footer-bar.component';
 import { ScrollToTopComponent } from '../../shared-ui/scroll-to-top/scroll-to-top.component';
+import { BreadcrumbComponent } from '../../shared-ui/breadcrumb/breadcrumb.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
 import { isJobLanding } from '@infrastructure/utils/route-segment.utils';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientFooterBarComponent, ScrollToTopComponent],
+  imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientFooterBarComponent, ScrollToTopComponent, BreadcrumbComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush

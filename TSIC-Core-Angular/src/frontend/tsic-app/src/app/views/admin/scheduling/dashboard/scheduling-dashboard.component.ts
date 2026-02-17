@@ -25,8 +25,8 @@ export class SchedulingDashboardComponent implements OnInit {
             {
                 title: 'LADT Setup',
                 icon: 'bi-diagram-3',
-                route: '/ladt/admin',
-                isExternal: true,
+                route: '../../ladt/admin',
+                queryParams: { from: 'scheduling' },
                 metric: `${s.totalAgegroups} agegroups \u00b7 ${s.totalDivisions} divisions`,
                 detail: s.totalDivisions > 0
                     ? (s.divisionsAreThemed ? 'themed' : 'not themed')
@@ -36,8 +36,8 @@ export class SchedulingDashboardComponent implements OnInit {
             {
                 title: 'Pool Assignment',
                 icon: 'bi-people',
-                route: '/admin/pool-assignment',
-                isExternal: true,
+                route: '../../admin/pool-assignment',
+                queryParams: { from: 'scheduling' },
                 metric: `${s.agegroupsPoolComplete}/${s.totalAgegroups} agegroups`,
                 detail: 'complete',
                 severity: s.agegroupsPoolComplete >= s.totalAgegroups ? 'success' as const
@@ -47,7 +47,7 @@ export class SchedulingDashboardComponent implements OnInit {
                 title: 'Fields',
                 icon: 'bi-geo-alt',
                 route: 'fields',
-                isExternal: false,
+                queryParams: null as Record<string, string> | null,
                 metric: `${s.fieldCount} fields`,
                 detail: null,
                 severity: s.fieldCount > 0 ? 'success' as const : 'empty' as const
@@ -56,7 +56,7 @@ export class SchedulingDashboardComponent implements OnInit {
                 title: 'Pairings',
                 icon: 'bi-arrow-left-right',
                 route: 'pairings',
-                isExternal: false,
+                queryParams: null as Record<string, string> | null,
                 metric: `${s.poolSizesWithPairings}/${s.totalDistinctPoolSizes} pool sizes`,
                 detail: 'with pairings',
                 severity: s.totalDistinctPoolSizes === 0 ? 'empty' as const
@@ -67,7 +67,7 @@ export class SchedulingDashboardComponent implements OnInit {
                 title: 'Timeslots',
                 icon: 'bi-clock',
                 route: 'timeslots',
-                isExternal: false,
+                queryParams: null as Record<string, string> | null,
                 metric: `${s.agegroupsReady}/${s.totalAgegroups} agegroups`,
                 detail: 'ready to schedule',
                 severity: s.agegroupsReady >= s.totalAgegroups ? 'success' as const
@@ -77,7 +77,7 @@ export class SchedulingDashboardComponent implements OnInit {
                 title: 'Schedule',
                 icon: 'bi-calendar-check',
                 route: 'schedule-division',
-                isExternal: false,
+                queryParams: null as Record<string, string> | null,
                 metric: `${s.agegroupsScheduled}/${s.totalAgegroups} agegroups`,
                 detail: 'scheduled',
                 severity: s.agegroupsScheduled >= s.totalAgegroups ? 'success' as const
