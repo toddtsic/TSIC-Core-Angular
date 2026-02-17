@@ -101,7 +101,7 @@ import {
             <!-- Level of Play Column -->
             <e-column
               field="levelOfPlay"
-              headerText="LOP"
+              headerText="Level of Play"
               width="auto"
               textAlign="Center"
             >
@@ -113,7 +113,7 @@ import {
             <!-- Registration Date Column -->
             <e-column
               field="registrationTs"
-              headerText="Reg-Date"
+              headerText="Registered"
               width="auto"
               textAlign="Center"
               type="date"
@@ -151,7 +151,7 @@ import {
             @if (svc.showFeeProcessingColumn()) {
               <e-column
                 field="feeProcessing"
-                headerText="Fee-Processing"
+                headerText="Processing Fee"
                 width="auto"
                 textAlign="Right"
                 format="C2"
@@ -161,7 +161,7 @@ import {
             <!-- CC Owed Total Column (always visible) -->
             <e-column
               field="ccOwedTotal"
-              headerText="CC Owed Total"
+              headerText="CC Owed"
               width="auto"
               textAlign="Right"
               format="C2"
@@ -171,7 +171,7 @@ import {
             @if (svc.showFeeProcessingColumn()) {
               <e-column
                 field="ckOwedTotal"
-                headerText="Ck Owed Total"
+                headerText="Check Owed"
                 width="auto"
                 textAlign="Right"
                 format="C2"

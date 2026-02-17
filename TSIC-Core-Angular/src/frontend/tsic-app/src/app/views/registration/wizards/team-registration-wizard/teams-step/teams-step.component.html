@@ -41,9 +41,10 @@
         <div class="p-5 text-center text-muted">
             <i class="bi bi-inbox fs-1 d-block mb-3"></i>
             <p class="mb-2 fw-semibold">No teams registered yet</p>
-            <p class="small mb-0">
-                Click "Add New Team" to register your first team for this event.
-            </p>
+            <p class="small mb-3">Register your first team for this event to get started.</p>
+            <button type="button" class="btn btn-primary" (click)="openRegistrationModal()">
+                <i class="bi bi-plus-circle-fill me-2"></i>Register a Team
+            </button>
         </div>
         } @else {
         <div class="p-0">
@@ -64,14 +65,14 @@
                     <e-column field="teamName" headerText="Team" width="auto"></e-column>
 
                     <!-- Level of Play Column -->
-                    <e-column field="levelOfPlay" headerText="LOP" width="auto" textAlign="Center">
+                    <e-column field="levelOfPlay" headerText="Level of Play" width="auto" textAlign="Center">
                         <ng-template #template let-data>
                             {{ data.levelOfPlay || "" }}
                         </ng-template>
                     </e-column>
 
                     <!-- Registration Date Column (hidden on mobile) -->
-                    <e-column field="registrationTs" headerText="Reg Date" width="auto" textAlign="Center" type="date"
+                    <e-column field="registrationTs" headerText="Registered" width="auto" textAlign="Center" type="date"
                         format="MM/dd/yyyy" hideAtMedia="(max-width: 767.98px)"></e-column>
 
                     <!-- Paid Total Column (hidden on mobile — shown in card footer badges) -->

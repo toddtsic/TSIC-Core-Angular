@@ -1,13 +1,16 @@
 import { TeamService } from '../team.service';
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { PaymentService } from '../services/payment.service';
+import { WaiverStateService } from '../services/waiver-state.service';
 import { JobService } from '@infrastructure/services/job.service';
 
 @Component({
   selector: 'app-rw-review',
   standalone: true,
-  imports: [],
+  imports: [CommonModule],
   templateUrl: './review.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -17,14 +20,21 @@ export class ReviewComponent {
   private readonly jobService = inject(JobService);
   public readonly state = inject(RegistrationWizardService);
   public readonly teamService = inject(TeamService);
-
-  constructor() { }
-
+  public readonly paySvc = inject(PaymentService);
+  public readonly waiverState = inject(WaiverStateService);
 
   selectedPlayers() {
     return this.state.familyPlayers()
       .filter(p => p.selected || p.registered)
-      .map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
+      .map(p => {
+        const fp = this.state.familyPlayers().find(f => f.playerId === p.playerId);
+        return {
+          userId: p.playerId,
+          name: `${p.firstName} ${p.lastName}`.trim(),
+          dob: fp?.dob || null,
+          gender: fp?.gender || null
+        };
+      });
   }
 
   getTeamsForPlayer(playerId: string): string[] {
@@ -41,13 +51,28 @@ export class ReviewComponent {
     return [team?.teamName || teams];
   }
 
+  getAmountForPlayer(playerId: string): number | null {
+    const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
+    return li ? li.amount : null;
+  }
+
   jobName(): string {
     return this.jobService.getCurrentJob()?.jobName || this.state.jobPath() || '';
   }
 
   isMultiTeamMode(): boolean {
-    // Mirror logic used elsewhere: multi team when constraint type absent or BYCLUBNAME
     const t = (this.state.teamConstraintType() || '').toUpperCase();
     return !t || t === 'BYCLUBNAME';
+  }
+
+  hasWaivers(): boolean {
+    return this.waiverState.waiverDefinitions().length > 0;
+  }
+
+  waiverSummary(): { title: string; accepted: boolean }[] {
+    return this.waiverState.waiverDefinitions().map(d => ({
+      title: d.title,
+      accepted: this.waiverState.isWaiverAccepted(d.id)
+    }));
   }
 }

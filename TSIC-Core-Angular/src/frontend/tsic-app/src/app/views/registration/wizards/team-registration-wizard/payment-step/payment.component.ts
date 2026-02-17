@@ -106,6 +106,15 @@ declare global {
           </div>
         }
 
+        <!-- Prominent balance due banner -->
+        @if (paymentSvc.hasBalance()) {
+          <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3"
+               style="background: var(--bs-primary); color: var(--neutral-0);">
+            <span class="fw-semibold">Balance Due</span>
+            <span class="fs-4 fw-bold">{{ paymentSvc.amountToCharge() | currency }}</span>
+          </div>
+        }
+
         <!-- Payment summary table -->
         <app-team-payment-summary-table #summaryTable></app-team-payment-summary-table>
 
@@ -273,7 +282,7 @@ declare global {
                 <span class="spinner-border spinner-border-sm me-2"></span>
                 Processing...
               } @else {
-                Submit Payment
+                Pay {{ paymentSvc.amountToCharge() | currency }} Now
               }
             </button>
           </div>

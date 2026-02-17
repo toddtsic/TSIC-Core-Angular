@@ -47,7 +47,16 @@ import type { LineItem } from '../services/payment.service';
             @if (lastError.errorCode) { <span class="badge bg-danger-subtle text-dark border">{{ lastError.errorCode }}</span> }
           </div>
         }
-    
+
+        <!-- Prominent balance due banner -->
+        @if (currentTotal() > 0) {
+          <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3"
+               style="background: var(--bs-primary); color: var(--neutral-0);">
+            <span class="fw-semibold">Balance Due</span>
+            <span class="fs-4 fw-bold">{{ currentTotal() | currency }}</span>
+          </div>
+        }
+
         <app-payment-summary></app-payment-summary>
         <!-- Payment Option section - only shown when amount is due -->
         @if (currentTotal() > 0) {
@@ -166,7 +175,7 @@ import type { LineItem } from '../services/payment.service';
           }
           @if (showPayNowButton()) {
             <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="!canSubmit()">
-              Pay Now
+              Pay {{ currentTotal() | currency }} Now
             </button>
           }
         </div>
