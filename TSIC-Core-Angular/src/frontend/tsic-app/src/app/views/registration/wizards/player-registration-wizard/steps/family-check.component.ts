@@ -303,6 +303,9 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
         this.state.hasFamilyAccount.set('yes');
         this.next.emit();
       }
+    } catch (err) {
+      // Error is already displayed via this.inlineError set in doInlineLogin
+      console.warn('Login failed:', err);
     } finally {
       this.submittingAction = null;
     }
@@ -321,6 +324,9 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
       const playersReturn = jobPath ? `/${jobPath}/register-player?step=players` : `/register-player?step=players`;
       const familyWizardUrl = `/tsic/family-account?mode=edit&next=register-player&jobPath=${encodeURIComponent(jobPath)}&returnUrl=${encodeURIComponent(playersReturn)}`;
       this.router.navigateByUrl(familyWizardUrl);
+    } catch (err) {
+      // Error is already displayed via this.inlineError set in doInlineLogin
+      console.warn('Login failed:', err);
     } finally { this.submittingAction = null; }
   }
 

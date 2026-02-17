@@ -100,6 +100,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     private readonly paymentSvc = inject(PaymentService);
     private readonly insuranceSvc = inject(InsuranceService);
     private readonly toast = inject(ToastService);
+    readonly proceedingToPayment = signal(false);
 
     // Helper: registrations relevant for ARB active determination
     private relevantRegs() {
@@ -325,6 +326,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     // Start step removed; branching handled via Family Check CTAs and direct deep-links
 
     async proceedToPayment() {
+        if (this.proceedingToPayment()) return;
+        this.proceedingToPayment.set(true);
         // Call preSubmit before showing payment step
         try {
             const result = await this.state.preSubmitRegistration();
@@ -343,6 +346,8 @@ export class PlayerRegistrationWizardComponent implements OnInit {
         } catch (err) {
             this.toast.show('Error checking team availability. Please try again.', 'danger', 5000);
             console.error('[PRW] preSubmit error:', err);
+        } finally {
+            this.proceedingToPayment.set(false);
         }
     }
 

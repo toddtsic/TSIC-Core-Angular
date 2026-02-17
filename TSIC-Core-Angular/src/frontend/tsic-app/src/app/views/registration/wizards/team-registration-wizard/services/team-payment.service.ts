@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, tap, catchError } from 'rxjs';
+import { Observable, tap, catchError, throwError } from 'rxjs';
 import type { RegisteredTeamDto, ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto } from '@core/api';
 import { environment } from '@environments/environment';
 
@@ -124,11 +124,11 @@ export class TeamPaymentService {
      */
     applyDiscount(code: string, teamIds: string[]): Observable<ApplyTeamDiscountResponseDto> {
         if (!code || this.discountApplying()) {
-            throw new Error('Invalid discount code or already applying');
+            return throwError(() => new Error('Invalid discount code or already applying'));
         }
 
         if (teamIds.length === 0) {
-            throw new Error('No teams selected for discount');
+            return throwError(() => new Error('No teams selected for discount'));
         }
 
         this.discountApplying.set(true);

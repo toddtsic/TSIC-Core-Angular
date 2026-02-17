@@ -206,12 +206,14 @@ export class InsuranceService {
                     } else {
                         this.toast.show('Vertical Insurance processing failed', 'danger', 4000);
                         console.warn('Insurance purchase failed', resp);
+                        onFinish('Insurance processing failed. Registration is still complete.');
                     }
                 },
                 error: (err: HttpErrorResponse) => {
                     this.purchasing.set(false);
                     this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
                     console.warn('Insurance purchase error', err?.error?.message || err.message || err);
+                    onFinish('Insurance processing failed. Registration is still complete.');
                 }
             });
     }

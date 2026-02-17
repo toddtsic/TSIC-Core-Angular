@@ -4,7 +4,24 @@ import { FormsModule } from '@angular/forms';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
 import { TeamRegistrationService } from '../services/team-registration.service';
-import { ClubTeamManagementDto, UpdateClubTeamRequest } from '@core/api';
+
+// Local interfaces — backend endpoints for ClubTeam management are not yet implemented.
+// Replace with @core/api imports once the backend DTOs are generated.
+export interface ClubTeamManagementDto {
+    clubTeamId: number;
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
+    isActive: boolean;
+    hasBeenRegisteredForAnyEvent: boolean;
+}
+
+export interface UpdateClubTeamRequest {
+    clubTeamId: number;
+    clubTeamName: string;
+    clubTeamGradYear: string;
+    clubTeamLevelOfPlay: string;
+}
 
 @Component({
     selector: 'app-team-edit-modal',

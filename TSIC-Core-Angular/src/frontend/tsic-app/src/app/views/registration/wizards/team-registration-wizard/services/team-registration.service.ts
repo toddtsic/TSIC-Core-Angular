@@ -13,6 +13,7 @@ import {
     ClubRepClubDto,
     CheckExistingRegistrationsResponse,
 } from '@core/api';
+import type { UpdateClubTeamRequest } from '../team-edit-modal/team-edit-modal.component';
 
 /**
  * Team Registration Service
@@ -222,5 +223,41 @@ export class TeamRegistrationService {
             `${this.apiUrl}/send-confirmation-email`,
             request,
         );
+    }
+
+    // --- Club Team Management stubs ---
+    // Backend endpoints not yet implemented. These stubs prevent runtime crashes
+    // and show a user-facing message. Replace with real HTTP calls once backend is ready.
+
+    updateClubTeam(
+        request: UpdateClubTeamRequest,
+        onSuccess: (response: { message: string }) => void,
+        onError: (error: string) => void,
+    ): void {
+        onError('Club team editing is not yet available. This feature is coming soon.');
+    }
+
+    inactivateClubTeam(
+        clubTeamId: number,
+        onSuccess: (response: { message: string }) => void,
+        onError: (error: string) => void,
+    ): void {
+        onError('Club team inactivation is not yet available. This feature is coming soon.');
+    }
+
+    activateClubTeam(
+        clubTeamId: number,
+        onSuccess: (response: { message: string }) => void,
+        onError: (error: string) => void,
+    ): void {
+        onError('Club team activation is not yet available. This feature is coming soon.');
+    }
+
+    deleteClubTeam(
+        clubTeamId: number,
+        onSuccess: (response: { message: string }) => void,
+        onError: (error: string) => void,
+    ): void {
+        onError('Club team deletion is not yet available. This feature is coming soon.');
     }
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, ViewChild, ElementRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryComponent } from './payment-summary.component';
@@ -38,13 +38,13 @@ import type { LineItem } from '../services/payment.service';
         <h5 class="mb-0 fw-semibold">{{ insuranceState.offerPlayerRegSaver() ? 'Payment/Insurance' : 'Payment' }}</h5>
       </div>
       <div class="card-body">
-        @if (lastError) {
+        @if (lastError()) {
           <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
             <div class="grow">
               <div class="fw-semibold mb-1">Payment Error</div>
-              <div class="small">{{ lastError.message || 'An error occurred.' }}</div>
+              <div class="small">{{ lastError()!.message || 'An error occurred.' }}</div>
             </div>
-            @if (lastError.errorCode) { <span class="badge bg-danger-subtle text-dark border">{{ lastError.errorCode }}</span> }
+            @if (lastError()!.errorCode) { <span class="badge bg-danger-subtle text-dark border">{{ lastError()!.errorCode }}</span> }
           </div>
         }
 
@@ -110,7 +110,7 @@ import type { LineItem } from '../services/payment.service';
         }
     
         <!-- RegSaver charge confirmation modal (Bootstrap-style) -->
-        @if (showViChargeConfirm) {
+        @if (showViChargeConfirm()) {
           <app-vi-charge-confirm-modal
             [quotedPlayers]="viQuotedPlayers()"
             [premiumTotal]="viPremiumTotal()"
@@ -203,7 +203,7 @@ export class PaymentComponent implements AfterViewInit {
     email: '',
     phone: ''
   };
-  ccValid = false;
+  readonly ccValid = signal(false);
 
   public readonly state = inject(RegistrationWizardService);
   private readonly http = inject(HttpClient);
@@ -215,15 +215,15 @@ export class PaymentComponent implements AfterViewInit {
   // quotes & user response now supplied by insuranceSvc signals
   // Flag retained for potential future auto-selection logic; currently unused.
   private readonly userChangedOption = false;
-  submitting = false;
-  lastError: { message: string | null; errorCode: string | null } | null = null;
+  readonly submitting = signal(false);
+  readonly lastError = signal<{ message: string | null; errorCode: string | null } | null>(null);
   private lastIdemKey: string | null = null;
   private readonly idemSvc = inject(IdempotencyService);
   verticalInsureError: string | null = null;
   private viInitRetries = 0;
   // Discount handled by PaymentService now; local UI state removed
   // VI confirmation modal state
-  showViChargeConfirm = false;
+  readonly showViChargeConfirm = signal(false);
   private pendingSubmitAfterViConfirm = false;
   private loadStoredIdem(): void {
     this.lastIdemKey = this.idemSvc.load(this.state.jobId(), this.state.familyUser()?.familyUserId) || null;
@@ -307,16 +307,16 @@ export class PaymentComponent implements AfterViewInit {
     if (this.arbHideAllOptions()) return false;
     const tsicCharge = this.tsicChargeDueNow();
     const ccNeeded = this.showCcSection();
-    const ccOk = !ccNeeded || this.ccValid;
+    const ccOk = !ccNeeded || this.ccValid();
     // For TSIC payment only (insurance-only handled by separate button)
-    return tsicCharge && ccOk && !this.submitting;
+    return tsicCharge && ccOk && !this.submitting();
   }
 
   canInsuranceOnlySubmit(): boolean {
     if (!this.isViCcOnlyFlow()) return false;
     const ccNeeded = this.showCcSection();
-    const ccOk = !ccNeeded || this.ccValid;
-    return ccOk && !this.submitting;
+    const ccOk = !ccNeeded || this.ccValid();
+    return ccOk && !this.submitting();
   }
 
   // Progression handler for ARB-covered or no-payment scenarios.
@@ -335,8 +335,8 @@ export class PaymentComponent implements AfterViewInit {
   }
 
   submit(): void {
-    if (this.submitting) return;
-    this.submitting = true; // Set immediately to prevent double-click race condition
+    if (this.submitting()) return;
+    this.submitting.set(true); // Set immediately to prevent double-click race condition
     // Gate: require insurance decision ONLY if offered AND user has not confirmed nor declined AND no existing stored policy AND payment is actually due.
     const needInsuranceDecision = this.insuranceState.offerPlayerRegSaver()
       && !this.insuranceState.verticalInsureConfirmed()
@@ -344,21 +344,21 @@ export class PaymentComponent implements AfterViewInit {
       && !this.state.regSaverDetails()
       && this.tsicChargeDueNow();
     if (needInsuranceDecision && this.isViOfferVisible()) {
-      this.submitting = false;
+      this.submitting.set(false);
       this.toast.show('Insurance is optional. Please Confirm Purchase or Decline to continue.', 'danger', 4000);
       return;
     }
     // Frontend CC validation hard stop (defensive against accidental blank submits)
-    if (this.showCcSection() && !this.ccValid) {
-      this.submitting = false;
+    if (this.showCcSection() && !this.ccValid()) {
+      this.submitting.set(false);
       this.toast.show('Credit card form is invalid.', 'danger', 3000);
       return;
     }
     // If VI quotes exist (insurance selected), show charge confirmation modal before proceeding (TSIC+VI or VI-only).
     if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
-      this.submitting = false; // Re-enable after modal interaction
+      this.submitting.set(false); // Re-enable after modal interaction
       this.pendingSubmitAfterViConfirm = true;
-      this.showViChargeConfirm = true;
+      this.showViChargeConfirm.set(true);
       return;
     }
     this.continueSubmit();
@@ -367,18 +367,18 @@ export class PaymentComponent implements AfterViewInit {
   // Insurance-only submission path (no TSIC payment). Performs CC validation and processes VI purchase directly.
   submitInsuranceOnly(): void {
     if (!this.canInsuranceOnlySubmit()) return;
-    if (this.submitting) return;
+    if (this.submitting()) return;
     // Gate: insurance decision must be confirmed (isViCcOnlyFlow implies confirmed + offer)
     if (!this.insuranceState.verticalInsureConfirmed()) return;
     // CC validation defensive check
-    if (this.showCcSection() && !this.ccValid) {
+    if (this.showCcSection() && !this.ccValid()) {
       this.toast.show('Credit card form is invalid.', 'danger', 3000);
       return;
     }
     // If quotes require confirmation, show modal (reusing existing confirmation flow)
     if (this.insuranceSvc.quotes().length > 0) {
       this.pendingSubmitAfterViConfirm = true;
-      this.showViChargeConfirm = true;
+      this.showViChargeConfirm.set(true);
       return;
     }
     // No quotes/premium -> finalize immediately
@@ -386,7 +386,7 @@ export class PaymentComponent implements AfterViewInit {
   }
 
   private processInsuranceOnlyFinish(msg: string): void {
-    this.submitting = true;
+    this.submitting.set(true);
     this.insuranceSvc.purchaseInsuranceAndFinish(doneMsg => {
       try {
         this.paymentState.setLastPayment({
@@ -399,13 +399,13 @@ export class PaymentComponent implements AfterViewInit {
           message: doneMsg || msg
         });
       } catch { }
-      this.submitting = false;
+      this.submitting.set(false);
       this.submitted.emit();
     }, this.creditCard);
   }
 
   private continueSubmit(): void {
-    this.submitting = true; // Ensure set (may already be true from submit())
+    this.submitting.set(true); // Ensure set (may already be true from submit())
     // Reuse existing idempotency key if present; generate and persist if absent
     if (!this.lastIdemKey) {
       const newKey = crypto?.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
@@ -459,7 +459,7 @@ export class PaymentComponent implements AfterViewInit {
   }
 
   private handlePaymentSuccess(response: PaymentResponseDto, rs: any): void {
-    this.lastError = null;
+    this.lastError.set(null);
     console.log('Payment successful', response);
     this.clearStoredIdem();
     this.lastIdemKey = null;
@@ -475,7 +475,7 @@ export class PaymentComponent implements AfterViewInit {
       });
     } catch { /* ignore */ }
     this.submitted.emit();
-    this.submitting = false;
+    this.submitting.set(false);
     if (this.paymentState.paymentOption() === 'ARB') {
       this.patchArbSubscriptions(response);
     }
@@ -486,18 +486,18 @@ export class PaymentComponent implements AfterViewInit {
 
   private handlePaymentFailure(response: PaymentResponseDto): void {
     console.error('Payment failed', response.message);
-    this.submitting = false;
-    this.lastError = { message: response.message || null, errorCode: response.errorCode || null };
+    this.submitting.set(false);
+    this.lastError.set({ message: response.message || null, errorCode: response.errorCode || null });
     const msg = `[${response.errorCode || 'ERROR'}] ${response.message || 'Payment failed.'}`;
     this.toast.show(msg, 'danger', 6000);
   }
 
   private handlePaymentHttpError(error: HttpErrorResponse): void {
     console.error('Payment error', error?.error?.message || error.message || error);
-    this.submitting = false;
+    this.submitting.set(false);
     const apiMsg = (error.error && typeof error.error === 'object') ? (error.error.message || JSON.stringify(error.error)) : (error.message || 'Network error');
     const apiCode = (error.error && typeof error.error === 'object') ? (error.error.errorCode || null) : null;
-    this.lastError = { message: apiMsg, errorCode: apiCode };
+    this.lastError.set({ message: apiMsg, errorCode: apiCode });
     this.toast.show(`[${apiCode || 'NETWORK'}] ${apiMsg}`, 'danger', 6000);
   }
 
@@ -543,11 +543,11 @@ export class PaymentComponent implements AfterViewInit {
     return u || '';
   }
   cancelViConfirm(): void {
-    this.showViChargeConfirm = false;
+    this.showViChargeConfirm.set(false);
     this.pendingSubmitAfterViConfirm = false;
   }
   confirmViAndContinue(): void {
-    this.showViChargeConfirm = false;
+    this.showViChargeConfirm.set(false);
     if (this.pendingSubmitAfterViConfirm) {
       this.pendingSubmitAfterViConfirm = false;
       // Reuse the same modal: if VI-only flow (no TSIC balance), purchase insurance directly.
@@ -599,7 +599,7 @@ export class PaymentComponent implements AfterViewInit {
     this.creditCard = { ...this.creditCard, ...val };
   }
   // Removed original simple onCcValidChange; replaced with version that also prompts insurance decision.
-  onCcValidChange(valid: any): void { this.ccValid = !!valid; }
+  onCcValidChange(valid: any): void { this.ccValid.set(!!valid); }
   // Autofocus logic removed per request
   monthLabel(): string { return this.paySvc.monthLabel(); }
   // --- ARB subscription helpers ---
