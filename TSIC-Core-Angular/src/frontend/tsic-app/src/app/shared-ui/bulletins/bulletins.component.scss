@@ -1,7 +1,7 @@
 // Bulletins component - clean slate
 
 .bulletins-section {
-    padding: var(--space-2) var(--space-4) var(--space-4) var(--space-4);
+    padding: 0 var(--space-4) var(--space-4) var(--space-4);
 
     // Mobile: fill most of the view
     @media (max-width: 767px) {
