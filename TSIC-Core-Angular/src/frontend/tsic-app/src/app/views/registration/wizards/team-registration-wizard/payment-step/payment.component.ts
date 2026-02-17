@@ -30,6 +30,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { environment } from '@environments/environment';
 import type { CreditCardInfo, TeamsMetadataResponse } from '@core/api';
+import { IdempotencyService } from '../../player-registration-wizard/services/idempotency.service';
 
 // TODO: Generate these types when backend controller is complete
 interface TeamPaymentRequestDto {
@@ -38,6 +39,7 @@ interface TeamPaymentRequestDto {
   teamIds: string[];
   totalAmount: number;
   creditCard: CreditCardInfo;
+  idempotencyKey?: string | null;
 }
 
 interface TeamPaymentResponseDto {
@@ -320,6 +322,7 @@ export class TeamPaymentStepComponent
   readonly jobService = inject(JobService);
   readonly route = inject(ActivatedRoute);
   readonly jobContext = inject(JobContextService);
+  private readonly idemSvc = inject(IdempotencyService);
 
   @ViewChild('viOffer') viOfferElement?: ElementRef<HTMLDivElement>;
 
@@ -333,6 +336,7 @@ export class TeamPaymentStepComponent
   lastError = signal<string | null>(null);
   metadata = signal<TeamsMetadataResponse | null>(null);
   discountCode = '';
+  private lastIdemKey: string | null = null;
 
   // Insurance offer loaded
   private readonly insuranceOfferLoaded = signal(false);
@@ -350,6 +354,11 @@ export class TeamPaymentStepComponent
   });
 
   ngOnInit(): void {
+    // Hydrate any existing idempotency key (from a previous failed attempt)
+    const jobId = this.jobService.currentJob()?.jobId;
+    const regId = this.auth.currentUser()?.regId;
+    this.lastIdemKey = this.idemSvc.load(jobId, regId) || null;
+
     // Fetch teams metadata to get club rep contact info for form prefill
     // Context (clubName, jobId) derived from regId token claim on backend
     this.teamReg.getTeamsMetadata(true).subscribe({
@@ -470,6 +479,13 @@ export class TeamPaymentStepComponent
         this.insuranceState.updatePolicyNumbers(viResult.policies || {});
       }
 
+      // Generate idempotency key if absent; persist for retry safety
+      if (!this.lastIdemKey) {
+        const newKey = crypto?.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+        this.lastIdemKey = newKey;
+        this.idemSvc.persist(jobId, regId, newKey);
+      }
+
       // Step 2: Process TSIC payment
       const request: TeamPaymentRequestDto = {
         jobPath,
@@ -477,6 +493,7 @@ export class TeamPaymentStepComponent
         teamIds: this.paymentSvc.teamIdsWithBalance(),
         totalAmount: this.paymentSvc.balanceDue(),
         creditCard: ccData,
+        idempotencyKey: this.lastIdemKey,
       };
 
       const url = `${environment.apiUrl}/team-payment/process`;
@@ -485,6 +502,10 @@ export class TeamPaymentStepComponent
       );
 
       if (response.success) {
+        // Clear idempotency key on success - next payment gets a new key
+        this.idemSvc.clear(jobId, regId);
+        this.lastIdemKey = null;
+
         this.toast.show('Payment processed successfully', 'success');
         this.paymentState.setLastPayment({
           amount: this.paymentSvc.balanceDue(),

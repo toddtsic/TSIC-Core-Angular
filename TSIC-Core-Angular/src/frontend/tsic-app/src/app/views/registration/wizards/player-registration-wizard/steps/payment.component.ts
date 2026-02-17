@@ -16,6 +16,7 @@ import { environment } from '@environments/environment';
 import { TeamService } from '../team.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { InsuranceService } from '../services/insurance.service';
+import { sanitizeExpiry, sanitizePhone } from '../../shared/services/credit-card-utils';
 
 declare global {
   // Allow TypeScript to acknowledge the VerticalInsure constructor on window
@@ -399,15 +400,6 @@ export class PaymentComponent implements AfterViewInit {
         default: return 0;
       }
     };
-    // Sanitize expiry to MMYY (remove all non-digits and ensure length 4)
-    const sanitizeExpiry = (raw: string): string => {
-      const digits = String(raw || '').replaceAll(/\D+/g, '').slice(0, 4);
-      if (digits.length === 3) { // if user somehow produced MYY -> pad
-        return '0' + digits;
-      }
-      return digits;
-    };
-    const sanitizePhone = (raw: string): string => String(raw || '').replaceAll(/\D+/g, '').slice(0, 15);
     const creditCardPayload = this.showCcSection() ? {
       number: this.creditCard.number?.trim() || null,
       expiry: sanitizeExpiry(this.creditCard.expiry),

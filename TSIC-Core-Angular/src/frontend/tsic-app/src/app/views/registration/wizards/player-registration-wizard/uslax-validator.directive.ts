@@ -4,6 +4,7 @@ import { Observable, of, timer } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { UsLaxService, type UsLaxApiResponseDto } from './uslax.service';
 import { RegistrationWizardService } from './registration-wizard.service';
+import { environment } from '@environments/environment';
 
 @Directive({
     selector: '[usLaxValidator]',
@@ -33,8 +34,8 @@ export class UsLaxValidatorDirective {
             return of(null);
         }
 
-        // Shortcut: accept known test number without calling USA Lacrosse
-        if (value === '424242424242') {
+        // Shortcut: accept known test number without calling USA Lacrosse (dev only)
+        if (environment.testUsLaxNumber && value === environment.testUsLaxNumber) {
             if (this.playerId) {
                 this.state.setUsLaxResult(this.playerId, true, 'Test US Lax number accepted');
             }
