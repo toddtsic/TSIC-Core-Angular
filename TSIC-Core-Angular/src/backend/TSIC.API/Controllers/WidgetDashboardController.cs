@@ -26,7 +26,7 @@ public class WidgetDashboardController : ControllerBase
 
     /// <summary>
     /// Get the merged widget dashboard for the current user's job and role.
-    /// Returns widgets grouped by section (health/action/insight) and category.
+    /// Returns widgets grouped by workspace (dashboard/player-reg/scheduling/etc.) and category.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<WidgetDashboardResponse>> GetDashboard(CancellationToken ct)
@@ -116,7 +116,7 @@ public class WidgetDashboardController : ControllerBase
 
     /// <summary>
     /// Get the public widget dashboard for anonymous visitors.
-    /// Returns widgets configured for the Anonymous role, grouped by section and category.
+    /// Returns widgets configured for the Anonymous role, grouped by workspace and category.
     /// </summary>
     [AllowAnonymous]
     [HttpGet("public/{jobPath}")]

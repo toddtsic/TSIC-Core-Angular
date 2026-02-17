@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { WidgetDashboardService } from '../services/widget-dashboard.service';
 import { CollapsibleChartCardComponent } from '../collapsible-chart-card/collapsible-chart-card.component';
 import { RegistrationTrendChartComponent } from '../registration-trend-chart/registration-trend-chart.component';
@@ -8,23 +8,44 @@ import type { RegistrationTimeSeriesDto } from '@core/api';
 	selector: 'app-player-trend-widget',
 	standalone: true,
 	imports: [CollapsibleChartCardComponent, RegistrationTrendChartComponent],
-	template: `
-		<app-collapsible-chart-card storageKey="player-trend" title="Player Registrations" icon="bi-people">
-			@if (data(); as d) {
-				<app-registration-trend-chart [data]="d" unitLabel="Players" barSeriesName="Daily Players" />
-			} @else if (hasError()) {
-				<div class="chart-error">Unable to load player trend</div>
-			}
-		</app-collapsible-chart-card>
-	`,
-	styles: [`.chart-error { padding: var(--space-4); color: var(--brand-text-muted); font-size: var(--font-size-sm); text-align: center; }`],
-	changeDetection: ChangeDetectionStrategy.OnPush
+	templateUrl: './player-trend-widget.component.html',
+	styleUrl: './player-trend-widget.component.scss',
+	changeDetection: ChangeDetectionStrategy.OnPush,
+	host: {
+		'[class.widget-collapsed]': 'isCollapsed()',
+		'[class.widget-expanded]': '!isCollapsed()',
+	}
 })
 export class PlayerTrendWidgetComponent implements OnInit {
 	private readonly svc = inject(WidgetDashboardService);
 
 	readonly data = signal<RegistrationTimeSeriesDto | null>(null);
 	readonly hasError = signal(false);
+
+	/** Two-way bound with collapsible-chart-card's collapsed model */
+	readonly isCollapsed = signal(true);
+
+	// KPI display values (moved up from registration-trend-chart)
+	readonly totalRegsDisplay = computed(() => {
+		const s = this.data()?.summary;
+		return s ? s.totalRegistrations.toLocaleString() : '0';
+	});
+
+	readonly totalRevenueDisplay = computed(() => {
+		const s = this.data()?.summary;
+		if (!s) return '$0';
+		return new Intl.NumberFormat('en-US', {
+			style: 'currency', currency: 'USD', maximumFractionDigits: 0
+		}).format(s.totalRevenue);
+	});
+
+	readonly outstandingDisplay = computed(() => {
+		const s = this.data()?.summary;
+		if (!s || s.totalOutstanding <= 0) return '';
+		return new Intl.NumberFormat('en-US', {
+			style: 'currency', currency: 'USD', maximumFractionDigits: 0
+		}).format(s.totalOutstanding);
+	});
 
 	ngOnInit(): void {
 		this.svc.getPlayerTrend().subscribe({

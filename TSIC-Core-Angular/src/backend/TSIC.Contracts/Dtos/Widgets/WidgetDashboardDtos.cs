@@ -1,19 +1,19 @@
 namespace TSIC.Contracts.Dtos.Widgets;
 
 /// <summary>
-/// Full dashboard response: widgets grouped by section and category.
+/// Full dashboard response: widgets grouped by workspace and category.
 /// </summary>
 public record WidgetDashboardResponse
 {
-    public required List<WidgetSectionDto> Sections { get; init; }
+    public required List<WidgetWorkspaceDto> Workspaces { get; init; }
 }
 
 /// <summary>
-/// A dashboard section (health, action, insight) containing categorized widget groups.
+/// A workspace (dashboard, player-reg, scheduling, etc.) containing categorized widget groups.
 /// </summary>
-public record WidgetSectionDto
+public record WidgetWorkspaceDto
 {
-    public required string Section { get; init; }
+    public required string Workspace { get; init; }
     public required List<WidgetCategoryGroupDto> Categories { get; init; }
 }
 
@@ -62,5 +62,5 @@ public record WidgetItemProjection
     public required string CategoryName { get; init; }
     public string? CategoryIcon { get; init; }
     public required int CategoryDefaultOrder { get; init; }
-    public required string Section { get; init; }
+    public required string Workspace { get; init; }
 }

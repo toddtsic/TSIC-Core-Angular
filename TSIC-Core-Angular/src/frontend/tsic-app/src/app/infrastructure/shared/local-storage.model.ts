@@ -1,16 +1,23 @@
 /**
  * Local Storage Keys
- * Centralized enum for all localStorage keys used in the application
+ * Centralized enum for all localStorage keys used in the application.
+ * EVERY static key must be registered here — no bare string literals elsewhere.
  */
 export enum LocalStorageKey {
-    /** Selected color palette index (0-7) */
+    // ── Auth ──
+    AuthToken = 'auth_token',
+    RefreshToken = 'refresh_token',
+    ClubRepClubCount = 'clubRepClubCount',
+
+    // ── Navigation ──
+    LastJobPath = 'last_job_path',
+
+    // ── Theme / UI ──
+    AppTheme = 'app-theme',
     SelectedPalette = 'tsic-selected-palette',
 
-    /** Authentication token */
-    AuthToken = 'tsic_token',
-
-    /** Theme overrides for job path (format: tsic:theme:{jobPath}:{theme}) */
-    ThemeOverride = 'tsic:theme'
+    // ── Scheduling ──
+    SchedulePlacementMode = 'tsic.scheduleDivision.placementMode',
 }
 
 /**
@@ -22,10 +29,16 @@ export interface UserPreferences {
 }
 
 /**
- * Type-safe localStorage value types
+ * Type-safe localStorage value types.
+ * Dynamic-key services (IdempotencyService, ThemeOverridesService) manage their
+ * own key composition and are excluded from this schema.
  */
 export interface LocalStorageSchema {
-    [LocalStorageKey.SelectedPalette]: number;
     [LocalStorageKey.AuthToken]: string;
-    [LocalStorageKey.ThemeOverride]: string; // JSON string
+    [LocalStorageKey.RefreshToken]: string;
+    [LocalStorageKey.ClubRepClubCount]: string;
+    [LocalStorageKey.LastJobPath]: string;
+    [LocalStorageKey.AppTheme]: 'light' | 'dark';
+    [LocalStorageKey.SelectedPalette]: number;
+    [LocalStorageKey.SchedulePlacementMode]: 'mouse' | 'keyboard';
 }

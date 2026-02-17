@@ -3,8 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { WidgetCategoryGroupDto } from './WidgetCategoryGroupDto';
-export type WidgetSectionDto = {
-    section: string;
+export type WidgetWorkspaceDto = {
+    workspace: string;
     categories: Array<WidgetCategoryGroupDto>;
 };
 

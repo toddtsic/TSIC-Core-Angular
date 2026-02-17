@@ -1,7 +1,7 @@
 import { Component, computed, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
 import type { ITooltipRenderEventArgs, IAxisLabelRenderEventArgs } from '@syncfusion/ej2-charts';
-import type { RegistrationTimeSeriesDto, DailyRegistrationPointDto } from '@core/api';
+import type { RegistrationTimeSeriesDto } from '@core/api';
 
 /** Read a CSS custom property from :root, with fallback. */
 function cssVar(v: string, fallback: string): string {
@@ -34,31 +34,8 @@ export class RegistrationTrendChartComponent {
 	readonly textColor = signal(cssVar('--brand-text', '#212529'));
 	readonly borderColor = signal(cssVar('--brand-border', 'rgba(0,0,0,0.1)'));
 
-	// Chart configuration
+	// Chart data
 	readonly chartData = computed(() => this.data().dailyData ?? []);
-	readonly summary = computed(() => this.data().summary);
-
-	// Summary display values
-	readonly totalRegsDisplay = computed(() => {
-		const s = this.summary();
-		return s ? s.totalRegistrations.toLocaleString() : '0';
-	});
-
-	readonly totalRevenueDisplay = computed(() => {
-		const s = this.summary();
-		if (!s) return '$0';
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency', currency: 'USD', maximumFractionDigits: 0
-		}).format(s.totalRevenue);
-	});
-
-	readonly outstandingDisplay = computed(() => {
-		const s = this.summary();
-		if (!s || s.totalOutstanding <= 0) return '';
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency', currency: 'USD', maximumFractionDigits: 0
-		}).format(s.totalOutstanding);
-	});
 
 	// Primary axis config
 	readonly primaryXAxis = computed(() => ({

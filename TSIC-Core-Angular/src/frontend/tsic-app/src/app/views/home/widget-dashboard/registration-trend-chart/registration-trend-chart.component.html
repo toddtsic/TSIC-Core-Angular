@@ -1,75 +1,55 @@
-<div class="trend-chart-container">
+<!-- Chart-only: KPI summary is now rendered by the parent wrapper widget -->
+<ejs-chart
+    [primaryXAxis]="primaryXAxis()"
+    [primaryYAxis]="primaryYAxis()"
+    [tooltip]="tooltipSettings"
+    [legendSettings]="legendSettings"
+    [chartArea]="chartArea"
+    [margin]="margin"
+    [width]="'100%'"
+    [height]="'180px'"
+    [background]="'transparent'"
+    (tooltipRender)="onTooltipRender($event)"
+    (axisLabelRender)="onAxisLabelRender($event)">
 
-    <!-- Summary badges overlaying the chart area -->
-    <div class="trend-summary">
-        <div class="summary-stat primary">
-            <span class="stat-value">{{ totalRegsDisplay() }}</span>
-            <span class="stat-label">{{ unitLabel() }}</span>
-        </div>
-        <div class="summary-stat accent">
-            <span class="stat-value">{{ totalRevenueDisplay() }}</span>
-            <span class="stat-label">Revenue</span>
-        </div>
-        @if (outstandingDisplay()) {
-            <div class="summary-stat warn">
-                <span class="stat-value">{{ outstandingDisplay() }}</span>
-                <span class="stat-label">Outstanding</span>
-            </div>
-        }
-    </div>
+    <e-axes>
+        <e-axis
+            name="secondaryYAxis"
+            [opposedPosition]="true"
+            [majorGridLines]="{ width: 0 }"
+            [majorTickLines]="{ width: 0 }"
+            [lineStyle]="{ width: 0 }"
+            [labelStyle]="{ color: accentColor(), size: '11px' }"
+            [minimum]="0">
+        </e-axis>
+    </e-axes>
 
-    <!-- Syncfusion Combo Chart -->
-    <ejs-chart
-        [primaryXAxis]="primaryXAxis()"
-        [primaryYAxis]="primaryYAxis()"
-        [tooltip]="tooltipSettings"
-        [legendSettings]="legendSettings"
-        [chartArea]="chartArea"
-        [margin]="margin"
-        [height]="'160px'"
-        [background]="'transparent'"
-        (tooltipRender)="onTooltipRender($event)"
-        (axisLabelRender)="onAxisLabelRender($event)">
+    <e-series-collection>
+        <!-- Daily registration bars (primary Y — auto-scaled to max daily count) -->
+        <e-series
+            [dataSource]="chartData()"
+            type="Column"
+            xName="date"
+            yName="count"
+            [name]="barSeriesName()"
+            [fill]="primaryColor()"
+            opacity="0.75"
+            [columnWidth]="0.6"
+            [cornerRadius]="{ topLeft: 3, topRight: 3 }">
+        </e-series>
 
-        <e-axes>
-            <e-axis
-                name="secondaryYAxis"
-                [opposedPosition]="true"
-                [majorGridLines]="{ width: 0 }"
-                [majorTickLines]="{ width: 0 }"
-                [lineStyle]="{ width: 0 }"
-                [labelStyle]="{ color: accentColor(), size: '11px' }"
-                [minimum]="0">
-            </e-axis>
-        </e-axes>
-
-        <e-series-collection>
-            <!-- Daily registration bars (primary Y — auto-scaled to max daily count) -->
-            <e-series
-                [dataSource]="chartData()"
-                type="Column"
-                xName="date"
-                yName="count"
-                [name]="barSeriesName()"
-                [fill]="primaryColor()"
-                opacity="0.75"
-                [columnWidth]="0.6"
-                [cornerRadius]="{ topLeft: 3, topRight: 3 }">
-            </e-series>
-
-            <!-- Cumulative revenue line (secondary Y — $0 to total) -->
-            <e-series
-                [dataSource]="chartData()"
-                type="SplineArea"
-                xName="date"
-                yName="cumulativeRevenue"
-                name="Cumulative Revenue"
-                yAxisName="secondaryYAxis"
-                [fill]="accentColor()"
-                opacity="0.06"
-                [border]="{ width: 2, color: accentColor() }"
-                [marker]="{ visible: false }">
-            </e-series>
-        </e-series-collection>
-    </ejs-chart>
-</div>
+        <!-- Cumulative revenue line (secondary Y — $0 to total) -->
+        <e-series
+            [dataSource]="chartData()"
+            type="SplineArea"
+            xName="date"
+            yName="cumulativeRevenue"
+            name="Cumulative Revenue"
+            yAxisName="secondaryYAxis"
+            [fill]="accentColor()"
+            opacity="0.06"
+            [border]="{ width: 2, color: accentColor() }"
+            [marker]="{ visible: false }">
+        </e-series>
+    </e-series-collection>
+</ejs-chart>

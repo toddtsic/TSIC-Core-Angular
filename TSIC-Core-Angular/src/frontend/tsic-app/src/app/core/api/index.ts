@@ -314,4 +314,4 @@ export type { WhoPlaysWhoResponse } from './models/WhoPlaysWhoResponse';
 export type { WidgetCategoryGroupDto } from './models/WidgetCategoryGroupDto';
 export type { WidgetDashboardResponse } from './models/WidgetDashboardResponse';
 export type { WidgetItemDto } from './models/WidgetItemDto';
-export type { WidgetSectionDto } from './models/WidgetSectionDto';
+export type { WidgetWorkspaceDto } from './models/WidgetWorkspaceDto';

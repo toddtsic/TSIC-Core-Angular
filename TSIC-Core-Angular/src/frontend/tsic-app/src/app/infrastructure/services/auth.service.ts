@@ -12,6 +12,7 @@ import {
   RegistrationRoleDto
 } from '../view-models/auth.models';
 import { environment } from '@environments/environment';
+import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
 @Injectable({
   providedIn: 'root'
@@ -20,9 +21,6 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly apiUrl = `${environment.apiUrl}/auth`;
-  private readonly TOKEN_KEY = 'auth_token';
-  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
-  private readonly CLUB_REP_CLUB_COUNT_KEY = 'clubRepClubCount';
 
   // Prevent multiple simultaneous refresh attempts
   private refreshInProgress: Observable<AuthTokenResponse> | null = null;
@@ -170,6 +168,7 @@ export class AuthService {
    * Logout - revoke refresh token and clear stored auth data
    */
   logout(options?: { redirectTo?: string; queryParams?: Record<string, any> }): void {
+    this.stopTokenRefreshTimer();
     const refreshToken = this.getRefreshToken();
 
     // Revoke refresh token on server if it exists
@@ -180,10 +179,10 @@ export class AuthService {
     }
 
     // Clear local storage (including last_job_path to prevent stale cross-job redirects)
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    localStorage.removeItem(this.CLUB_REP_CLUB_COUNT_KEY);
-    localStorage.removeItem('last_job_path');
+    localStorage.removeItem(LocalStorageKey.AuthToken);
+    localStorage.removeItem(LocalStorageKey.RefreshToken);
+    localStorage.removeItem(LocalStorageKey.ClubRepClubCount);
+    localStorage.removeItem(LocalStorageKey.LastJobPath);
     this.currentUser.set(null);
     const redirect = options?.redirectTo || '/tsic/login';
     const q = options?.queryParams || undefined;
@@ -200,10 +199,10 @@ export class AuthService {
    */
   logoutLocal(): void {
     this.stopTokenRefreshTimer();
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    localStorage.removeItem(this.CLUB_REP_CLUB_COUNT_KEY);
-    localStorage.removeItem('last_job_path');
+    localStorage.removeItem(LocalStorageKey.AuthToken);
+    localStorage.removeItem(LocalStorageKey.RefreshToken);
+    localStorage.removeItem(LocalStorageKey.ClubRepClubCount);
+    localStorage.removeItem(LocalStorageKey.LastJobPath);
     this.currentUser.set(null);
     // reset one-shot registration fetch so next authenticated flow can reload
     this._registrationsFetched = false;
@@ -249,7 +248,7 @@ export class AuthService {
    * Get stored JWT token
    */
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    return localStorage.getItem(LocalStorageKey.AuthToken);
   }
 
   /**
@@ -268,32 +267,32 @@ export class AuthService {
   }
 
   private setToken(token: string): void {
-    localStorage.setItem(this.TOKEN_KEY, token);
+    localStorage.setItem(LocalStorageKey.AuthToken, token);
   }
 
   private setRefreshToken(token: string): void {
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
+    localStorage.setItem(LocalStorageKey.RefreshToken, token);
   }
 
   /**
    * Get stored refresh token
    */
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    return localStorage.getItem(LocalStorageKey.RefreshToken);
   }
 
   /**
    * Store club count for club rep refresh routing
    */
   setClubRepClubCount(count: number): void {
-    localStorage.setItem(this.CLUB_REP_CLUB_COUNT_KEY, count.toString());
+    localStorage.setItem(LocalStorageKey.ClubRepClubCount, count.toString());
   }
 
   /**
    * Get stored club count for refresh routing logic
    */
   getClubRepClubCount(): number {
-    const stored = localStorage.getItem(this.CLUB_REP_CLUB_COUNT_KEY);
+    const stored = localStorage.getItem(LocalStorageKey.ClubRepClubCount);
     return stored ? parseInt(stored, 10) : 0;
   }
 

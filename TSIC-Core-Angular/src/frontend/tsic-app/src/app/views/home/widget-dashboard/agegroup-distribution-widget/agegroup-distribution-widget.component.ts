@@ -16,13 +16,20 @@ function cssVar(v: string, fallback: string): string {
 	imports: [CollapsibleChartCardComponent, ChartAllModule],
 	templateUrl: './agegroup-distribution-widget.component.html',
 	styleUrl: './agegroup-distribution-widget.component.scss',
-	changeDetection: ChangeDetectionStrategy.OnPush
+	changeDetection: ChangeDetectionStrategy.OnPush,
+	host: {
+		'[class.widget-collapsed]': 'isCollapsed()',
+		'[class.widget-expanded]': '!isCollapsed()',
+	}
 })
 export class AgegroupDistributionWidgetComponent implements OnInit {
 	private readonly svc = inject(WidgetDashboardService);
 
 	readonly data = signal<AgegroupDistributionDto | null>(null);
 	readonly hasError = signal(false);
+
+	/** Two-way bound with collapsible-chart-card's collapsed model */
+	readonly isCollapsed = signal(true);
 
 	// Resolve palette colors eagerly so chart never receives post-init property changes
 	readonly primaryColor = signal(cssVar('--bs-primary', '#0d6efd'));

@@ -115,15 +115,12 @@ export class LocalStorageService {
     }
 
     /**
-     * Clear all application localStorage (use with caution)
+     * Clear all application localStorage keys registered in LocalStorageKey (use with caution)
      */
     clear(): void {
         try {
-            // Only clear keys that start with 'tsic'
             Object.values(LocalStorageKey).forEach(key => {
-                if (key.startsWith('tsic')) {
-                    localStorage.removeItem(key);
-                }
+                localStorage.removeItem(key);
             });
         } catch (error) {
             console.warn('Failed to clear localStorage:', error);

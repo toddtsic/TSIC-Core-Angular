@@ -1,40 +1,7 @@
+@use '../widget-summary' as *;
+
 :host {
 	display: block;
-}
-
-.distribution-summary {
-	display: flex;
-	align-items: center;
-	gap: var(--space-5);
-	padding: 0 var(--space-1) var(--space-2);
-}
-
-.summary-stat {
-	display: flex;
-	align-items: baseline;
-	gap: var(--space-2);
-}
-
-.stat-value {
-	font-size: var(--font-size-xl);
-	font-weight: 700;
-	line-height: 1;
-}
-
-.stat-label {
-	font-size: var(--font-size-xs);
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.4px;
-	color: var(--brand-text-muted);
-}
-
-.summary-stat.primary .stat-value {
-	color: var(--bs-primary);
-}
-
-.summary-stat.accent .stat-value {
-	color: var(--brand-accent, #6f42c1);
 }
 
 .chart-error {

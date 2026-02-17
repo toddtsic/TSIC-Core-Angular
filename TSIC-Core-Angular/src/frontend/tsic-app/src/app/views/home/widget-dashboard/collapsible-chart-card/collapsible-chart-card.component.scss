@@ -9,19 +9,33 @@
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-sm);
 	overflow: hidden;
-	transition: box-shadow 0.2s ease;
+	transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+		transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+		border-color 0.3s ease;
 
-	&:hover {
+	// Collapsed tile: hover lift
+	&.collapsed:hover {
+		transform: translateY(-2px);
 		box-shadow: var(--shadow-md);
+		border-color: rgba(var(--bs-primary-rgb), 0.2);
+	}
+
+	// Expanded card: elevated shadow
+	&:not(.collapsed) {
+		box-shadow: var(--shadow-lg);
 	}
 }
+
+// ═══════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════
 
 .chart-card-header {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
 	width: 100%;
-	padding: var(--space-2) var(--space-4);
+	padding: var(--space-3) var(--space-4);
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -37,7 +51,7 @@
 
 	> .bi:first-child {
 		color: var(--bs-primary);
-		font-size: 1rem;
+		font-size: 1.1rem;
 	}
 }
 
@@ -46,18 +60,69 @@
 }
 
 .chevron {
-	font-size: 0.75rem;
+	font-size: 0.875rem;
 	color: var(--brand-text-muted);
-	transition: transform 0.2s ease;
+	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+	// Rotate when expanded
+	.chart-card:not(.collapsed) & {
+		transform: rotate(180deg);
+	}
 }
+
+// ═══════════════════════════════════════
+// SUMMARY (always visible)
+// ═══════════════════════════════════════
+
+.chart-card-summary {
+	// Let projected content control its own padding
+}
+
+// ═══════════════════════════════════════
+// CHART BODY (expanded only)
+// ═══════════════════════════════════════
 
 .chart-card-body {
-	padding: 0 var(--space-3) var(--space-2);
+	padding: 0 var(--space-4) var(--space-3);
+	overflow-x: auto;
+	animation: slideInChart 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// Collapsed state — tighter appearance
+@keyframes slideInChart {
+	from {
+		opacity: 0;
+		transform: translateY(-8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+// ═══════════════════════════════════════
+// COLLAPSED STATE — tighter appearance
+// ═══════════════════════════════════════
+
 .chart-card.collapsed {
 	.chart-card-header {
-		padding-bottom: var(--space-2);
+		padding-bottom: var(--space-1);
+	}
+}
+
+// ═══════════════════════════════════════
+// ACCESSIBILITY
+// ═══════════════════════════════════════
+
+@media (prefers-reduced-motion: reduce) {
+	.chart-card {
+		transition: none;
+	}
+
+	.chevron {
+		transition: none;
+	}
+
+	.chart-card-body {
+		animation: none;
 	}
 }

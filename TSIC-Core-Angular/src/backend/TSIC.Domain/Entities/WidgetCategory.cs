@@ -9,7 +9,7 @@ public partial class WidgetCategory
 
     public string Name { get; set; } = null!;
 
-    public string Section { get; set; } = null!;
+    public string Workspace { get; set; } = null!;
 
     public string? Icon { get; set; }
 

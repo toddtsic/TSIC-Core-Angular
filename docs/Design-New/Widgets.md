@@ -359,15 +359,15 @@ BEGIN
     (
         [CategoryId]    INT IDENTITY(1,1)   NOT NULL,
         [Name]          NVARCHAR(100)       NOT NULL,
-        [Section]       NVARCHAR(20)        NOT NULL,   -- 'content' | 'health' | 'action' | 'insight'
+        [Workspace]     NVARCHAR(20)        NOT NULL,   -- workspace slug (see CHECK constraint)
         [Icon]          NVARCHAR(50)        NULL,       -- Bootstrap icon class
         [DefaultOrder]  INT                 NOT NULL    DEFAULT 0,
 
         CONSTRAINT [PK_widgets_WidgetCategory]
             PRIMARY KEY CLUSTERED ([CategoryId]),
 
-        CONSTRAINT [CK_widgets_WidgetCategory_Section]
-            CHECK ([Section] IN ('content', 'health', 'action', 'insight'))
+        CONSTRAINT [CK_widgets_WidgetCategory_Workspace]
+            CHECK ([Workspace] IN ('public','dashboard','job-config','player-reg','team-reg','scheduling','fin-per-job','fin-per-customer'))
     );
 END
 GO
@@ -437,8 +437,8 @@ BEGIN
             FOREIGN KEY ([CategoryId])
             REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
 
-        CONSTRAINT [UQ_widgets_WidgetDefault_JobType_Role_Widget]
-            UNIQUE ([JobTypeId], [RoleId], [WidgetId])
+        CONSTRAINT [UQ_widgets_WidgetDefault_JobType_Role_Widget_Category]
+            UNIQUE ([JobTypeId], [RoleId], [WidgetId], [CategoryId])
     );
 END
 GO
@@ -491,15 +491,13 @@ GO
 
 ---
 
-## 12. Seed Data Script — All Roles (Scheduling + Anonymous Public)
+## 12. Seed Data Script — All Roles × All Workspaces
 
-> **Purpose**: Populates widget categories, widgets, and defaults for:
-> - **Scheduling roles** (Director / SuperDirector / SuperUser) on League (JobTypeId=2) and Tournament (JobTypeId=3) job types
-> - **Chart widgets** (Player Trend, Team Trend, Age Group Distribution) for Director / SuperDirector / SuperUser
-> - **Anonymous public** role — content widgets (banner + bulletins) for ALL job types
+> **Purpose**: Populates workspace categories, widgets, and defaults for all 8 workspaces
+> across the full role-workspace matrix (Anonymous, SuperUser, SuperDirector, Director,
+> Club Rep, Player, Staff, Unassigned Adult) × ALL job types.
 >
-> Role inheritance: Director ⊂ SuperDirector ⊂ SuperUser.
-> Idempotent — MERGE-based, safe to run on fresh or existing data.
+> Idempotent — safe to run on fresh or existing data.
 
 <details>
 <summary>Click to expand seed data script</summary>
@@ -852,12 +850,20 @@ SET NOCOUNT OFF;
     What it does:
       1. Creates [widgets] schema (if not exists)
       2. Creates 4 tables: WidgetCategory, Widget, WidgetDefault, JobWidget
-      3. Seeds 10 categories, 22 widgets
-      4. Seeds scheduling defaults: 102 rows (3 roles × 2 job types)
-      5. Seeds anonymous defaults: 2 content widgets × all job types
+      3. Seeds workspace categories (public, dashboard, job-config, player-reg,
+         team-reg, scheduling, fin-per-job, fin-per-customer)
+      4. Seeds widget definitions for all workspaces
+      5. Seeds WidgetDefault entries per the role-workspace matrix × ALL JobTypes
 
-    Scheduling roles: Director (15) ⊂ SuperDirector (16) ⊂ SuperUser (20)
-    Anonymous public: Client Banner + Bulletins (content section)
+    Roles seeded:
+      Anonymous        → public (banner + bulletins)
+      SuperUser        → all workspaces
+      SuperDirector    → all workspaces
+      Director         → all except fin-per-customer
+      Club Rep         → dashboard, player-reg, team-reg, scheduling (view)
+      Player           → dashboard, player-reg, scheduling (view)
+      Staff            → dashboard, player-reg (view), team-reg (view), scheduling (view)
+      Unassigned Adult → dashboard only
 */
 
 -- ============================================================
@@ -878,14 +884,14 @@ BEGIN
     (
         [CategoryId]    INT IDENTITY(1,1)   NOT NULL,
         [Name]          NVARCHAR(100)       NOT NULL,
-        [Section]       NVARCHAR(20)        NOT NULL,
+        [Workspace]     NVARCHAR(20)        NOT NULL,
         [Icon]          NVARCHAR(50)        NULL,
         [DefaultOrder]  INT                 NOT NULL    DEFAULT 0,
 
         CONSTRAINT [PK_widgets_WidgetCategory]
             PRIMARY KEY CLUSTERED ([CategoryId]),
-        CONSTRAINT [CK_widgets_WidgetCategory_Section]
-            CHECK ([Section] IN ('content', 'health', 'action', 'insight'))
+        CONSTRAINT [CK_widgets_WidgetCategory_Workspace]
+            CHECK ([Workspace] IN ('public','dashboard','job-config','player-reg','team-reg','scheduling','fin-per-job','fin-per-customer'))
     );
 END
 GO
@@ -942,8 +948,8 @@ BEGIN
         CONSTRAINT [FK_widgets_WidgetDefault_CategoryId]
             FOREIGN KEY ([CategoryId])
             REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
-        CONSTRAINT [UQ_widgets_WidgetDefault_JobType_Role_Widget]
-            UNIQUE ([JobTypeId], [RoleId], [WidgetId])
+        CONSTRAINT [UQ_widgets_WidgetDefault_JobType_Role_Widget_Category]
+            UNIQUE ([JobTypeId], [RoleId], [WidgetId], [CategoryId])
     );
 END
 GO
@@ -984,211 +990,412 @@ END
 GO
 
 -- ============================================================
--- PART 2: Seed Data (from Section 12)
+-- PART 2: Seed Data
 -- ============================================================
 
 SET NOCOUNT ON;
 
--- Categories (10)
+-- ────────────────────────────────────────────────────────────
+-- 2a. Workspace Categories
+-- ────────────────────────────────────────────────────────────
+
 MERGE [widgets].[WidgetCategory] AS target
 USING (VALUES
-    ('Content',                 'content',  NULL,                   0),
-    ('Dashboard Charts',        'content',  NULL,                   1),
-    ('Registration Overview',   'health',   'bi-people',            1),
-    ('Financial Overview',      'health',   'bi-currency-dollar',   2),
-    ('Scheduling Overview',     'health',   'bi-calendar-check',    3),
-    ('Event Setup',             'action',   'bi-gear',              1),
-    ('Registrations',           'action',   'bi-person-lines-fill', 2),
-    ('Communication',           'action',   'bi-envelope',          3),
-    ('Job Administration',      'action',   'bi-shield-lock',       4),
-    ('Reports',                 'insight',  'bi-bar-chart',         1)
-) AS source ([Name], [Section], [Icon], [DefaultOrder])
+    ('Public Content',          'public',           NULL,                   0),
+    ('Dashboard Bulletins',     'dashboard',        NULL,                   -1),
+    ('Dashboard Charts',        'dashboard',        NULL,                   1),
+    ('Dashboard Status',        'dashboard',        'bi-activity',          0),
+    ('Job Configuration',       'job-config',       'bi-gear-fill',         0),
+    ('Player Management',       'player-reg',       'bi-person-lines-fill', 0),
+    ('Team Management',         'team-reg',         'bi-people-fill',       0),
+    ('Scheduling Tools',        'scheduling',       'bi-calendar-range',    0),
+    ('Schedule View',           'scheduling',       'bi-calendar-check',    1),
+    ('Organization Finances',   'fin-per-job',      'bi-cash-stack',        0),
+    ('My Finances',             'fin-per-customer', 'bi-wallet2',           0)
+) AS source ([Name], [Workspace], [Icon], [DefaultOrder])
 ON target.[Name] = source.[Name]
 WHEN NOT MATCHED THEN
-    INSERT ([Name], [Section], [Icon], [DefaultOrder])
-    VALUES (source.[Name], source.[Section], source.[Icon], source.[DefaultOrder]);
+    INSERT ([Name], [Workspace], [Icon], [DefaultOrder])
+    VALUES (source.[Name], source.[Workspace], source.[Icon], source.[DefaultOrder]);
 
--- Widgets (22: 17 scheduling + 3 chart + 2 content)
+-- ────────────────────────────────────────────────────────────
+-- 2b. Resolve category IDs
+-- ────────────────────────────────────────────────────────────
+
+DECLARE @publicContentCatId     INT = (SELECT TOP 1 CategoryId FROM [widgets].[WidgetCategory] WHERE [Workspace] = 'public' ORDER BY DefaultOrder);
+DECLARE @dashBulletinsCatId     INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Dashboard Bulletins');
+DECLARE @dashChartsCatId        INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Dashboard Charts');
+DECLARE @dashStatusCatId        INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Dashboard Status');
+DECLARE @jobConfigCatId         INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Job Configuration');
+DECLARE @playerMgmtCatId        INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Player Management');
+DECLARE @teamMgmtCatId          INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Team Management');
+DECLARE @schedToolsCatId         INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Scheduling Tools');
+DECLARE @schedViewCatId          INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Schedule View');
+DECLARE @orgFinCatId             INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'Organization Finances');
+DECLARE @myFinCatId              INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE [Name] = 'My Finances');
+
+-- ────────────────────────────────────────────────────────────
+-- 2c. Widget Definitions
+-- ────────────────────────────────────────────────────────────
+
 MERGE [widgets].[Widget] AS target
 USING (
-    SELECT s.[Name], s.[WidgetType], s.[ComponentKey], s.[Description], wc.[CategoryId]
+    SELECT s.[Name], s.[WidgetType], s.[ComponentKey], s.[Description], s.[CategoryId]
     FROM (VALUES
-        ('Client Banner',          'content',              'client-banner',            'Content',                  'Job banner with logo and images'),
-        ('Bulletins',              'content',              'bulletins',                'Content',                  'Active job bulletins and announcements'),
-        ('Player Registration Trend', 'chart',            'player-trend-chart',       'Dashboard Charts',         'Daily player registration counts and cumulative revenue over time'),
-        ('Team Registration Trend',   'chart',            'team-trend-chart',         'Dashboard Charts',         'Daily team registration counts and cumulative revenue over time'),
-        ('Age Group Distribution',    'chart',            'agegroup-distribution',    'Dashboard Charts',         'Player and team counts broken down by age group'),
-        ('Registration Count',     'status-card',          'registration-status',      'Registration Overview',    'Club and team registration counts'),
-        ('Financial Status',       'status-card',          'financial-status',         'Financial Overview',       'Payment status and outstanding balances'),
-        ('Scheduling Status',      'status-card',          'scheduling-status',        'Scheduling Overview',      'Schedule completion status'),
-        ('Scheduling Pipeline',    'workflow-pipeline',    'scheduling-pipeline',      'Event Setup',              'Step-by-step scheduling workflow'),
-        ('Pool Assignment',        'quick-action',         'pool-assignment',          'Event Setup',              'Assign teams to pools'),
-        ('Search Registrations',   'quick-action',         'search-registrations',     'Registrations',            'Search and manage registrations'),
-        ('View by Club',           'quick-action',         'view-by-club',             'Registrations',            'Browse registrations grouped by club'),
-        ('Compose Email',          'quick-action',         'compose-email',            'Communication',            'Send email to registrants'),
-        ('Manage Bulletins',       'quick-action',         'manage-bulletins',         'Communication',            'Create and manage job bulletins'),
-        ('LADT Editor',            'quick-action',         'ladt-editor',              'Event Setup',              'Configure leagues, age groups, divisions, and teams'),
-        ('Roster Swapper',         'quick-action',         'roster-swapper',           'Registrations',            'Move players between rosters'),
-        ('Discount Codes',         'quick-action',         'discount-codes',           'Registrations',            'Manage registration discount codes'),
-        ('Cross-Job Financials',   'quick-action',         'cross-job-financials',     'Reports',                  'Revenue overview across all customer jobs'),
-        ('Job Administrators',     'quick-action',         'job-administrators',       'Job Administration',       'Manage administrator access for this job'),
-        ('Profile Editor',         'quick-action',         'profile-editor',           'Job Administration',       'Edit user profile data'),
-        ('Profile Migration',      'quick-action',         'profile-migration',        'Job Administration',       'Migrate legacy user profiles'),
-        ('Theme Editor',           'quick-action',         'theme-editor',             'Job Administration',       'Customize job theme and branding')
-    ) AS s ([Name], [WidgetType], [ComponentKey], [CategoryName], [Description])
-    INNER JOIN [widgets].[WidgetCategory] wc ON wc.[Name] = s.[CategoryName]
+        -- Content widgets (public workspace)
+        ('Client Banner',              'content',      'client-banner',            'Job banner with logo and images',                      @publicContentCatId),
+        ('Bulletins',                  'content',      'bulletins',                'Active job bulletins and announcements',                @publicContentCatId),
+        -- Chart widgets (dashboard workspace)
+        ('Player Registration Trend',  'chart',        'player-trend-chart',       'Daily player registration counts and cumulative revenue over time', @dashChartsCatId),
+        ('Team Registration Trend',    'chart',        'team-trend-chart',         'Daily team registration counts and cumulative revenue over time',   @dashChartsCatId),
+        ('Age Group Distribution',     'chart',        'agegroup-distribution',    'Player and team counts broken down by age group',       @dashChartsCatId),
+        -- Status card widgets (dashboard workspace)
+        ('Registration Status',        'status-card',  'registration-status',      'Active registration count and trend indicator',         @dashStatusCatId),
+        ('Financial Status',           'status-card',  'financial-status',         'Revenue collected vs outstanding balance summary',      @dashStatusCatId),
+        ('Scheduling Status',          'status-card',  'scheduling-status',        'Schedule completion percentage and game count',         @dashStatusCatId),
+        -- Job Configuration workspace
+        ('LADT Editor',                'quick-action', 'ladt-editor',              'Configure leagues, age groups, divisions, and teams',  @jobConfigCatId),
+        ('Fee Configuration',          'quick-action', 'fee-config',               'Configure registration fees and payment options',      @jobConfigCatId),
+        ('Job Settings',               'quick-action', 'job-settings',             'General event configuration and settings',             @jobConfigCatId),
+        -- Player Registration workspace
+        ('Search Registrations',       'quick-action', 'search-registrations',     'Search and manage player registrations',               @playerMgmtCatId),
+        ('Roster Swapper',             'quick-action', 'roster-swapper',           'Move players between team rosters',                    @playerMgmtCatId),
+        -- Team Registration workspace
+        ('View by Club',               'quick-action', 'view-by-club',             'Browse registrations grouped by club',                 @teamMgmtCatId),
+        -- Scheduling workspace
+        ('Scheduling Pipeline',        'quick-action', 'scheduling-pipeline',      'Step-by-step scheduling workflow',                     @schedToolsCatId),
+        ('Pool Assignment',            'quick-action', 'pool-assignment',          'Assign teams to pools',                                @schedToolsCatId),
+        ('View Schedule',              'quick-action', 'view-schedule',            'View published game schedule',                         @schedViewCatId),
+        -- Organization Finances workspace
+        ('Financial Overview',         'quick-action', 'financial-overview',       'Payment status and outstanding balance reports',        @orgFinCatId),
+        -- My Finances workspace
+        ('My Payments',                'quick-action', 'my-payments',              'View your payment history and outstanding balances',    @myFinCatId)
+    ) AS s ([Name], [WidgetType], [ComponentKey], [Description], [CategoryId])
 ) AS source
 ON target.[ComponentKey] = source.[ComponentKey]
 WHEN NOT MATCHED THEN
     INSERT ([Name], [WidgetType], [ComponentKey], [CategoryId], [Description])
     VALUES (source.[Name], source.[WidgetType], source.[ComponentKey], source.[CategoryId], source.[Description]);
 
--- Role GUIDs
-DECLARE @DirectorRoleId      NVARCHAR(450) = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06';
-DECLARE @SuperDirectorRoleId NVARCHAR(450) = '7B9EB503-53C9-44FA-94A0-17760C512440';
-DECLARE @SuperuserRoleId     NVARCHAR(450) = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9';
+-- ────────────────────────────────────────────────────────────
+-- 2d. Resolve widget IDs
+-- ────────────────────────────────────────────────────────────
 
--- Config JSON lookup
-DECLARE @WidgetConfigs TABLE (ComponentKey NVARCHAR(100), Config NVARCHAR(MAX));
-INSERT INTO @WidgetConfigs VALUES
-    ('registration-status',  '{"endpoint":"api/registrations/summary","label":"Registrations","icon":"bi-people","format":"count"}'),
-    ('financial-status',     '{"endpoint":"api/payments/summary","label":"Financials","icon":"bi-currency-dollar","format":"currency"}'),
-    ('scheduling-status',    '{"endpoint":"api/scheduling/status","label":"Schedule","icon":"bi-calendar-check","format":"status"}'),
-    ('scheduling-pipeline',  '{"route":"admin/scheduling","icon":"bi-calendar-range"}'),
-    ('pool-assignment',      '{"route":"admin/pool-assignment","label":"Pool Assignment","icon":"bi-diagram-3"}'),
-    ('search-registrations', '{"route":"admin/search","label":"Search Registrations","icon":"bi-search"}'),
-    ('view-by-club',         '{"route":"admin/team-search","label":"View by Club","icon":"bi-building"}'),
-    ('compose-email',        '{"route":"email/compose","label":"Compose Email","icon":"bi-envelope-plus"}'),
-    ('manage-bulletins',     '{"route":"bulletins/manage","label":"Manage Bulletins","icon":"bi-megaphone"}'),
-    ('ladt-editor',          '{"route":"ladt/admin","label":"LADT Editor","icon":"bi-list-nested"}'),
-    ('roster-swapper',       '{"route":"admin/roster-swapper","label":"Roster Swapper","icon":"bi-arrow-left-right"}'),
-    ('discount-codes',       '{"route":"jobdiscountcodes/admin","label":"Discount Codes","icon":"bi-tags"}'),
-    ('cross-job-financials', '{"route":"reporting/job-revenue","label":"Cross-Job Financials","icon":"bi-cash-stack"}'),
-    ('job-administrators',   '{"route":"jobadministrator/admin","label":"Job Administrators","icon":"bi-person-gear"}'),
-    ('profile-editor',       '{"route":"admin/profile-editor","label":"Profile Editor","icon":"bi-person-badge"}'),
-    ('profile-migration',    '{"route":"admin/profile-migration","label":"Profile Migration","icon":"bi-arrow-repeat"}'),
-    ('theme-editor',         '{"route":"admin/theme","label":"Theme Editor","icon":"bi-palette"}');
+DECLARE @bannerWidgetId         INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'client-banner');
+DECLARE @bulletinsWidgetId      INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'bulletins');
+DECLARE @playerTrendId          INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'player-trend-chart');
+DECLARE @teamTrendId            INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'team-trend-chart');
+DECLARE @agDistId               INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'agegroup-distribution');
+DECLARE @regStatusId            INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'registration-status');
+DECLARE @finStatusId            INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'financial-status');
+DECLARE @schedStatusId          INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'scheduling-status');
+DECLARE @ladtEditorId           INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'ladt-editor');
+DECLARE @feeConfigId            INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'fee-config');
+DECLARE @jobSettingsId          INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'job-settings');
+DECLARE @searchRegsId           INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'search-registrations');
+DECLARE @rosterSwapperId        INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'roster-swapper');
+DECLARE @viewByClubId           INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'view-by-club');
+DECLARE @schedPipelineId        INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'scheduling-pipeline');
+DECLARE @poolAssignId           INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'pool-assignment');
+DECLARE @viewScheduleId         INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'view-schedule');
+DECLARE @finOverviewId          INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'financial-overview');
+DECLARE @myPaymentsId           INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'my-payments');
 
--- Director (15 widgets)
-DECLARE @DirectorWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
-INSERT INTO @DirectorWidgets VALUES
-    ('registration-status', 1), ('financial-status', 2), ('scheduling-status', 3),
-    ('scheduling-pipeline', 1), ('pool-assignment', 2), ('ladt-editor', 3),
-    ('search-registrations', 1), ('view-by-club', 2), ('roster-swapper', 3), ('discount-codes', 4),
-    ('compose-email', 1), ('manage-bulletins', 2),
-    ('player-trend-chart', 1), ('team-trend-chart', 2), ('agegroup-distribution', 3);
+-- ────────────────────────────────────────────────────────────
+-- 2e. Role GUIDs
+-- ────────────────────────────────────────────────────────────
 
--- SuperDirector (16 widgets) = Director + cross-job financials
-DECLARE @SuperDirectorWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
-INSERT INTO @SuperDirectorWidgets SELECT * FROM @DirectorWidgets;
-INSERT INTO @SuperDirectorWidgets VALUES ('cross-job-financials', 1);
+DECLARE @anonymousId        NVARCHAR(450) = 'CBF3F384-190F-4962-BF58-40B095628DC8';
+DECLARE @superuserId        NVARCHAR(450) = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9';
+DECLARE @superDirectorId    NVARCHAR(450) = '7B9EB503-53C9-44FA-94A0-17760C512440';
+DECLARE @directorId         NVARCHAR(450) = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06';
+DECLARE @clubRepId          NVARCHAR(450) = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+DECLARE @playerId           NVARCHAR(450) = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
+DECLARE @staffId            NVARCHAR(450) = '1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA';
+DECLARE @guestId            NVARCHAR(450) = 'E956616B-DF48-4225-8A10-424229105711'; -- Unassigned Adult
 
--- SuperUser (20 widgets) = SuperDirector + 4 admin tools
-DECLARE @SuperuserWidgets TABLE (ComponentKey NVARCHAR(100), DisplayOrder INT);
-INSERT INTO @SuperuserWidgets SELECT * FROM @SuperDirectorWidgets;
-INSERT INTO @SuperuserWidgets VALUES
-    ('job-administrators', 1), ('profile-editor', 2),
-    ('profile-migration', 3), ('theme-editor', 4);
+-- ────────────────────────────────────────────────────────────
+-- 2f. Role sets for batch inserts
+-- ────────────────────────────────────────────────────────────
 
--- Seed defaults for all 3 roles × 2 job types (6 MERGE statements)
--- Director × JobType 2
-MERGE [widgets].[WidgetDefault] AS target
-USING (
-    SELECT 2, @DirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
-    FROM @DirectorWidgets dw
-    INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
-) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
-WHEN NOT MATCHED THEN
-    INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-    VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
+-- Admin roles: full dashboard (charts + status + bulletins)
+DECLARE @adminRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @adminRoles VALUES (@superuserId), (@superDirectorId), (@directorId);
 
--- Director × JobType 3
-MERGE [widgets].[WidgetDefault] AS target
-USING (
-    SELECT 3, @DirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
-    FROM @DirectorWidgets dw
-    INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
-) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
-WHEN NOT MATCHED THEN
-    INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-    VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
+-- Dashboard-only roles: bulletins only (no charts/status)
+DECLARE @dashboardOnlyRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @dashboardOnlyRoles VALUES (@clubRepId), (@playerId), (@staffId), (@guestId);
 
--- SuperDirector × JobType 2
-MERGE [widgets].[WidgetDefault] AS target
-USING (
-    SELECT 2, @SuperDirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
-    FROM @SuperDirectorWidgets dw
-    INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
-) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
-WHEN NOT MATCHED THEN
-    INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-    VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
+-- Job configuration workspace
+DECLARE @jobConfigRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @jobConfigRoles VALUES (@superuserId), (@superDirectorId), (@directorId);
 
--- SuperDirector × JobType 3
-MERGE [widgets].[WidgetDefault] AS target
-USING (
-    SELECT 3, @SuperDirectorRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
-    FROM @SuperDirectorWidgets dw
-    INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
-) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
-WHEN NOT MATCHED THEN
-    INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-    VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
+-- Player registration — full access
+DECLARE @playerRegFullRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @playerRegFullRoles VALUES (@superuserId), (@superDirectorId), (@directorId), (@clubRepId), (@playerId);
 
--- SuperUser × JobType 2
-MERGE [widgets].[WidgetDefault] AS target
-USING (
-    SELECT 2, @SuperuserRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
-    FROM @SuperuserWidgets dw
-    INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
-) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
-WHEN NOT MATCHED THEN
-    INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-    VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
+-- Player registration — view only
+DECLARE @playerRegViewRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @playerRegViewRoles VALUES (@staffId);
 
--- SuperUser × JobType 3
-MERGE [widgets].[WidgetDefault] AS target
-USING (
-    SELECT 3, @SuperuserRoleId, w.[WidgetId], w.[CategoryId], dw.[DisplayOrder], wc.[Config]
-    FROM @SuperuserWidgets dw
-    INNER JOIN [widgets].[Widget] w ON w.[ComponentKey] = dw.[ComponentKey]
-    LEFT JOIN @WidgetConfigs wc ON wc.[ComponentKey] = dw.[ComponentKey]
-) AS source ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-ON target.[JobTypeId] = source.[JobTypeId] AND target.[RoleId] = source.[RoleId] AND target.[WidgetId] = source.[WidgetId]
-WHEN NOT MATCHED THEN
-    INSERT ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-    VALUES (source.[JobTypeId], source.[RoleId], source.[WidgetId], source.[CategoryId], source.[DisplayOrder], source.[Config]);
+-- Team registration — full access
+DECLARE @teamRegFullRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @teamRegFullRoles VALUES (@superuserId), (@superDirectorId), (@directorId), (@clubRepId);
 
--- Anonymous defaults (2 content widgets × all job types)
-DECLARE @AnonymousRoleId NVARCHAR(450) = 'CBF3F384-190F-4962-BF58-40B095628DC8';
-DECLARE @BannerWidgetId INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'client-banner');
-DECLARE @BulletinsWidgetId INT = (SELECT WidgetId FROM [widgets].[Widget] WHERE ComponentKey = 'bulletins');
-DECLARE @ContentCatId INT = (SELECT CategoryId FROM [widgets].[WidgetCategory] WHERE Name = 'Content' AND Section = 'content');
+-- Team registration — view only
+DECLARE @teamRegViewRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @teamRegViewRoles VALUES (@staffId);
+
+-- Scheduling — full tools
+DECLARE @schedFullRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @schedFullRoles VALUES (@superuserId), (@superDirectorId), (@directorId);
+
+-- Scheduling — view only
+DECLARE @schedViewRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @schedViewRoles VALUES (@clubRepId), (@playerId), (@staffId);
+
+-- Org-level financials
+DECLARE @finPerJobRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @finPerJobRoles VALUES (@superuserId), (@superDirectorId), (@directorId);
+
+-- Customer-level financials
+DECLARE @finPerCustomerRoles TABLE (RoleId NVARCHAR(450));
+INSERT INTO @finPerCustomerRoles VALUES (@superuserId), (@superDirectorId);
+
+-- ────────────────────────────────────────────────────────────
+-- 2g. Seed WidgetDefault entries
+--     Pattern: INSERT...SELECT FROM JobTypes CROSS JOIN @roles WHERE NOT EXISTS
+-- ────────────────────────────────────────────────────────────
+
+-- ── PUBLIC workspace: Anonymous banner + bulletins ──
 
 INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-SELECT jt.[JobTypeId], @AnonymousRoleId, @BannerWidgetId, @ContentCatId, 1, NULL
+SELECT jt.[JobTypeId], @anonymousId, @bannerWidgetId, @publicContentCatId, 1, NULL
 FROM [reference].[JobTypes] jt
 WHERE NOT EXISTS (
     SELECT 1 FROM [widgets].[WidgetDefault] wd
-    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = @AnonymousRoleId AND wd.[WidgetId] = @BannerWidgetId
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = @anonymousId AND wd.[WidgetId] = @bannerWidgetId
 );
 
 INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
-SELECT jt.[JobTypeId], @AnonymousRoleId, @BulletinsWidgetId, @ContentCatId, 2, NULL
+SELECT jt.[JobTypeId], @anonymousId, @bulletinsWidgetId, @publicContentCatId, 2, NULL
 FROM [reference].[JobTypes] jt
 WHERE NOT EXISTS (
     SELECT 1 FROM [widgets].[WidgetDefault] wd
-    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = @AnonymousRoleId AND wd.[WidgetId] = @BulletinsWidgetId
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = @anonymousId AND wd.[WidgetId] = @bulletinsWidgetId
+);
+
+-- ── DASHBOARD workspace: Admin roles — bulletins + charts + status ──
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @bulletinsWidgetId, @dashBulletinsCatId, 1, NULL
+FROM [reference].[JobTypes] jt CROSS JOIN @adminRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @bulletinsWidgetId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @playerTrendId, @dashChartsCatId, 1, NULL
+FROM [reference].[JobTypes] jt CROSS JOIN @adminRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @playerTrendId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @teamTrendId, @dashChartsCatId, 2, NULL
+FROM [reference].[JobTypes] jt CROSS JOIN @adminRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @teamTrendId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @agDistId, @dashChartsCatId, 3, NULL
+FROM [reference].[JobTypes] jt CROSS JOIN @adminRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @agDistId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @regStatusId, @dashStatusCatId, 1,
+    '{"label":"Registrations","icon":"bi-people-fill","route":"registrations"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @adminRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @regStatusId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @finStatusId, @dashStatusCatId, 2,
+    '{"label":"Financials","icon":"bi-currency-dollar","route":"financials"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @adminRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @finStatusId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @schedStatusId, @dashStatusCatId, 3,
+    '{"label":"Schedule","icon":"bi-calendar-check","route":"scheduling"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @adminRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @schedStatusId
+);
+
+-- Dashboard-only roles (ClubRep, Player, Staff, Guest): bulletins only
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @bulletinsWidgetId, @dashBulletinsCatId, 1, NULL
+FROM [reference].[JobTypes] jt CROSS JOIN @dashboardOnlyRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @bulletinsWidgetId
+);
+
+-- ── JOB-CONFIG workspace ──
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @ladtEditorId, @jobConfigCatId, 1,
+    '{"label":"LADT Editor","icon":"bi-diagram-3","route":"ladt"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @jobConfigRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @ladtEditorId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @feeConfigId, @jobConfigCatId, 2,
+    '{"label":"Fee Configuration","icon":"bi-tags","route":"fees"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @jobConfigRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @feeConfigId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @jobSettingsId, @jobConfigCatId, 3,
+    '{"label":"Job Settings","icon":"bi-sliders","route":"settings"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @jobConfigRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @jobSettingsId
+);
+
+-- ── PLAYER-REG workspace (full access) ──
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @searchRegsId, @playerMgmtCatId, 1,
+    '{"label":"Search Registrations","icon":"bi-search","route":"registrations/search"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @playerRegFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @searchRegsId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @rosterSwapperId, @playerMgmtCatId, 2,
+    '{"label":"Roster Swapper","icon":"bi-arrow-left-right","route":"roster-swapper"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @playerRegFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @rosterSwapperId
+);
+
+-- Player-reg workspace (view-only — Staff)
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @searchRegsId, @playerMgmtCatId, 1,
+    '{"label":"Search Registrations","icon":"bi-search","route":"registrations/search","readOnly":true}'
+FROM [reference].[JobTypes] jt CROSS JOIN @playerRegViewRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @searchRegsId
+);
+
+-- ── TEAM-REG workspace (full access) ──
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @viewByClubId, @teamMgmtCatId, 1,
+    '{"label":"View by Club","icon":"bi-building","route":"registrations/by-club"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @teamRegFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @viewByClubId
+);
+
+-- Team-reg workspace (view-only — Staff)
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @viewByClubId, @teamMgmtCatId, 1,
+    '{"label":"View by Club","icon":"bi-building","route":"registrations/by-club","readOnly":true}'
+FROM [reference].[JobTypes] jt CROSS JOIN @teamRegViewRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @viewByClubId
+);
+
+-- ── SCHEDULING workspace (full tools) ──
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @schedPipelineId, @schedToolsCatId, 1,
+    '{"label":"Scheduling Pipeline","icon":"bi-kanban","route":"scheduling/pipeline"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @schedFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @schedPipelineId
+);
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @poolAssignId, @schedToolsCatId, 2,
+    '{"label":"Pool Assignment","icon":"bi-people-fill","route":"scheduling/pools"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @schedFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @poolAssignId
+);
+
+-- LADT also appears in scheduling workspace for admin roles
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @ladtEditorId, @schedToolsCatId, 3,
+    '{"label":"LADT Editor","icon":"bi-diagram-3","route":"ladt"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @schedFullRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @ladtEditorId
+      AND wd.[CategoryId] = @schedToolsCatId
+);
+
+-- Scheduling workspace (view-only — ClubRep, Player, Staff)
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @viewScheduleId, @schedViewCatId, 1,
+    '{"label":"View Schedule","icon":"bi-calendar-check","route":"schedule"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @schedViewRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @viewScheduleId
+);
+
+-- ── FIN-PER-JOB workspace ──
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @finOverviewId, @orgFinCatId, 1,
+    '{"label":"Financial Overview","icon":"bi-cash-stack","route":"financials"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @finPerJobRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @finOverviewId
+);
+
+-- ── FIN-PER-CUSTOMER workspace ──
+
+INSERT INTO [widgets].[WidgetDefault] ([JobTypeId], [RoleId], [WidgetId], [CategoryId], [DisplayOrder], [Config])
+SELECT jt.[JobTypeId], r.RoleId, @myPaymentsId, @myFinCatId, 1,
+    '{"label":"My Payments","icon":"bi-wallet2","route":"my-payments"}'
+FROM [reference].[JobTypes] jt CROSS JOIN @finPerCustomerRoles r
+WHERE NOT EXISTS (
+    SELECT 1 FROM [widgets].[WidgetDefault] wd
+    WHERE wd.[JobTypeId] = jt.[JobTypeId] AND wd.[RoleId] = r.RoleId AND wd.[WidgetId] = @myPaymentsId
 );
 
 -- Summary

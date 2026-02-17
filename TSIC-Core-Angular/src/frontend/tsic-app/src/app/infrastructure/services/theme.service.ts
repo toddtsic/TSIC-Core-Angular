@@ -1,10 +1,10 @@
 import { Injectable, signal } from '@angular/core';
+import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
 @Injectable({
     providedIn: 'root'
 })
 export class ThemeService {
-    private readonly THEME_KEY = 'app-theme';
 
     // Signal for reactive theme state
     theme = signal<'light' | 'dark'>(this.getInitialTheme());
@@ -16,7 +16,7 @@ export class ThemeService {
 
     private getInitialTheme(): 'light' | 'dark' {
         // Check localStorage first
-        const stored = localStorage.getItem(this.THEME_KEY);
+        const stored = localStorage.getItem(LocalStorageKey.AppTheme);
         if (stored === 'light' || stored === 'dark') {
             return stored;
         }
@@ -37,7 +37,7 @@ export class ThemeService {
     setTheme(theme: 'light' | 'dark'): void {
         this.theme.set(theme);
         this.applyTheme(theme);
-        localStorage.setItem(this.THEME_KEY, theme);
+        localStorage.setItem(LocalStorageKey.AppTheme, theme);
     }
 
     private applyTheme(theme: 'light' | 'dark'): void {

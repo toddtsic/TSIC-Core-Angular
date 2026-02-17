@@ -266,7 +266,7 @@ export class RegistrationWizardService {
 
     private shouldLoadFamily(jobPath: string | null | undefined): boolean {
         if (!jobPath) return false;
-        if (!localStorage.getItem('auth_token')) {
+        if (!this.auth.getToken()) {
             try { console.debug('[RegWizard] loadFamilyPlayers skipped (no auth token)'); } catch { /* no-op */ }
             return false;
         }

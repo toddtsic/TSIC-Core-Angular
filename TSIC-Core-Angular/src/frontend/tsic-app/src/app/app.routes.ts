@@ -71,6 +71,13 @@ export const routes: Routes = [
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/home/widget-dashboard/widget-dashboard.component').then(m => m.WidgetDashboardComponent)
 			},
+			// Workspace spoke view (individual workspace detail page)
+			{
+				path: 'workspace/:workspaceKey',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/home/widget-dashboard/widget-dashboard.component').then(m => m.WidgetDashboardComponent)
+			},
 			// Brand preview (design system showcase)
 			{
 				path: 'brand-preview',

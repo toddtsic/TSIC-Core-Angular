@@ -19,6 +19,7 @@ import {
 import { formatTime, teamDes } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
+import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
 @Component({
     selector: 'app-schedule-division',
@@ -55,7 +56,6 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly isGridLoading = signal(false);
 
     // ── Placement workflow ──
-    private static readonly PLACEMENT_MODE_KEY = 'tsic.scheduleDivision.placementMode';
     readonly placementMode = signal<'mouse' | 'keyboard'>(this.loadPlacementMode());
     readonly selectedPairing = signal<PairingDto | null>(null);
     readonly isPlacing = signal(false);
@@ -213,13 +213,13 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Placement Workflow ──
 
     private loadPlacementMode(): 'mouse' | 'keyboard' {
-        const stored = localStorage.getItem(ScheduleDivisionComponent.PLACEMENT_MODE_KEY);
+        const stored = localStorage.getItem(LocalStorageKey.SchedulePlacementMode);
         return stored === 'keyboard' ? 'keyboard' : 'mouse';
     }
 
     setPlacementMode(mode: 'mouse' | 'keyboard'): void {
         this.placementMode.set(mode);
-        localStorage.setItem(ScheduleDivisionComponent.PLACEMENT_MODE_KEY, mode);
+        localStorage.setItem(LocalStorageKey.SchedulePlacementMode, mode);
     }
 
     onPairingClick(pairing: PairingDto): void {

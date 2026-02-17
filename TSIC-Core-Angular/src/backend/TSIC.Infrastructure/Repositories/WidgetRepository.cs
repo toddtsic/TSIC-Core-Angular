@@ -26,7 +26,7 @@ public class WidgetRepository : IWidgetRepository
         return await _context.WidgetDefault
             .AsNoTracking()
             .Where(wd => wd.JobTypeId == jobTypeId && wd.RoleId == roleId)
-            .OrderBy(wd => wd.Category.Section)
+            .OrderBy(wd => wd.Category.Workspace)
             .ThenBy(wd => wd.Category.DefaultOrder)
             .ThenBy(wd => wd.DisplayOrder)
             .Select(wd => new WidgetItemProjection
@@ -43,7 +43,7 @@ public class WidgetRepository : IWidgetRepository
                 CategoryName = wd.Category.Name,
                 CategoryIcon = wd.Category.Icon,
                 CategoryDefaultOrder = wd.Category.DefaultOrder,
-                Section = wd.Category.Section
+                Workspace = wd.Category.Workspace
             })
             .ToListAsync(ct);
     }
@@ -56,7 +56,7 @@ public class WidgetRepository : IWidgetRepository
         return await _context.JobWidget
             .AsNoTracking()
             .Where(jw => jw.JobId == jobId && jw.RoleId == roleId)
-            .OrderBy(jw => jw.Category.Section)
+            .OrderBy(jw => jw.Category.Workspace)
             .ThenBy(jw => jw.Category.DefaultOrder)
             .ThenBy(jw => jw.DisplayOrder)
             .Select(jw => new WidgetItemProjection
@@ -73,7 +73,7 @@ public class WidgetRepository : IWidgetRepository
                 CategoryName = jw.Category.Name,
                 CategoryIcon = jw.Category.Icon,
                 CategoryDefaultOrder = jw.Category.DefaultOrder,
-                Section = jw.Category.Section
+                Workspace = jw.Category.Workspace
             })
             .ToListAsync(ct);
     }

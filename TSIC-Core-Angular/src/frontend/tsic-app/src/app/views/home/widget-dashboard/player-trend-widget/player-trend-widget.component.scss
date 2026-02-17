@@ -1,0 +1,12 @@
+@use '../widget-summary' as *;
+
+:host {
+	display: block;
+}
+
+.chart-error {
+	padding: var(--space-4);
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-sm);
+	text-align: center;
+}

@@ -8,7 +8,7 @@ import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
 import { PlayerTrendWidgetComponent } from './player-trend-widget/player-trend-widget.component';
 import { TeamTrendWidgetComponent } from './team-trend-widget/team-trend-widget.component';
 import { AgegroupDistributionWidgetComponent } from './agegroup-distribution-widget/agegroup-distribution-widget.component';
-import type { DashboardMetricsDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
+import type { DashboardMetricsDto, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {
 	route?: string;
@@ -43,6 +43,9 @@ export class WidgetDashboardComponent implements OnInit {
 	readonly metrics = signal<DashboardMetricsDto | null>(null);
 	readonly isLoading = signal(false);
 	readonly hasError = signal(false);
+
+	/** Active workspace key when in spoke mode (empty = hub mode) */
+	readonly activeWorkspaceKey = signal('');
 
 	readonly roleName = computed(() =>
 		this.mode() === 'public' ? '' : (this.auth.currentUser()?.role || ''));
@@ -82,14 +85,66 @@ export class WidgetDashboardComponent implements OnInit {
 
 	readonly isSuperuser = computed(() => this.roleName() === 'Superuser');
 
+	// ── Hub/Spoke computed signals ──
+
+	/** True when rendering a single workspace (spoke mode) */
+	readonly isSpokeMode = computed(() => !!this.activeWorkspaceKey());
+
+	/** The 'dashboard' workspace from the API response (hub content) */
+	readonly dashboardWorkspace = computed(() => {
+		const db = this.dashboard();
+		if (!db) return null;
+		return db.workspaces.find(ws => ws.workspace === 'dashboard') ?? null;
+	});
+
+	/** Dashboard categories for the hub, excluding bulletins for admin roles */
+	readonly hubCategories = computed(() => {
+		const ws = this.dashboardWorkspace();
+		if (!ws) return [];
+		if (!this.auth.isAdmin()) return ws.categories;
+		return ws.categories.filter(cat =>
+			!cat.widgets.some(w => w.componentKey === 'bulletins')
+		);
+	});
+
+	/** Non-dashboard, non-public workspaces — these become spoke navigation cards */
+	readonly spokeWorkspaces = computed(() => {
+		const db = this.dashboard();
+		if (!db) return [];
+		return db.workspaces.filter(ws =>
+			ws.workspace !== 'dashboard' && ws.workspace !== 'public'
+		);
+	});
+
+	/** The workspace to render when in spoke mode */
+	readonly activeWorkspace = computed(() => {
+		const key = this.activeWorkspaceKey();
+		const db = this.dashboard();
+		if (!key || !db) return null;
+		return db.workspaces.find(ws => ws.workspace === key) ?? null;
+	});
+
+	/** Display label for the active spoke workspace */
+	readonly activeWorkspaceLabel = computed(() => {
+		const key = this.activeWorkspaceKey();
+		return key ? this.workspaceLabel(key) : '';
+	});
+
 	private configCache = new Map<number, WidgetConfig>();
 
 	ngOnInit(): void {
+		// Detect spoke mode from route param
+		const key = this.route.snapshot.paramMap.get('workspaceKey') || '';
+		this.activeWorkspaceKey.set(key);
+
 		if (this.mode() === 'public') {
 			this.loadPublicData();
 		} else {
 			this.loadDashboard();
-			this.loadMetrics();
+			// Only load metrics in hub mode (spoke views don't need them)
+			if (!key) {
+				this.loadMetrics();
+			}
 		}
 	}
 
@@ -147,18 +202,56 @@ export class WidgetDashboardComponent implements OnInit {
 		});
 	}
 
-	/** Returns true if a section contains only content widgets */
-	isContentSection(section: string): boolean {
-		return section === 'content';
+	/** Returns true if a workspace renders full-width content components (banner, bulletins, charts) */
+	isContentWorkspace(workspace: string): boolean {
+		return workspace === 'public' || workspace === 'dashboard';
 	}
 
-	sectionLabel(section: string): string {
-		switch (section) {
-			case 'content': return '';
-			case 'health': return 'Status';
-			case 'action': return 'Tools';
-			case 'insight': return 'Insights';
-			default: return section;
+	/** Returns true if a category contains only chart-type widgets (for tile grid layout) */
+	isChartCategory(category: WidgetCategoryGroupDto): boolean {
+		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'chart');
+	}
+
+	/** Returns true if a category contains only status-card type widgets */
+	isStatusCategory(category: WidgetCategoryGroupDto): boolean {
+		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'status-card');
+	}
+
+	workspaceLabel(workspace: string): string {
+		switch (workspace) {
+			case 'public': return '';
+			case 'dashboard': return '';
+			case 'job-config': return 'Event Setup';
+			case 'player-reg': return 'Player Registration';
+			case 'team-reg': return 'Team Registration';
+			case 'scheduling': return 'Scheduling';
+			case 'fin-per-job': return 'Organization Finances';
+			case 'fin-per-customer': return 'My Finances';
+			default: return workspace;
+		}
+	}
+
+	workspaceIcon(workspace: string): string {
+		switch (workspace) {
+			case 'job-config': return 'bi-gear-fill';
+			case 'player-reg': return 'bi-person-lines-fill';
+			case 'team-reg': return 'bi-people-fill';
+			case 'scheduling': return 'bi-calendar-range';
+			case 'fin-per-job': return 'bi-cash-stack';
+			case 'fin-per-customer': return 'bi-wallet2';
+			default: return 'bi-grid';
+		}
+	}
+
+	workspaceDescription(workspace: string): string {
+		switch (workspace) {
+			case 'job-config': return 'Event setup, LADT editor, fee structures';
+			case 'player-reg': return 'Player registration search and management';
+			case 'team-reg': return 'Team and club registration management';
+			case 'scheduling': return 'Scheduling pipeline, pools, and game management';
+			case 'fin-per-job': return 'Revenue, balances, and payment summaries';
+			case 'fin-per-customer': return 'Your payment history and balances';
+			default: return '';
 		}
 	}
 
@@ -188,5 +281,13 @@ export class WidgetDashboardComponent implements OnInit {
 		if (config.route) {
 			this.router.navigate(['/', this.activeJobPath(), ...config.route.split('/')]);
 		}
+	}
+
+	navigateToWorkspace(workspaceKey: string): void {
+		this.router.navigate(['/', this.activeJobPath(), 'workspace', workspaceKey]);
+	}
+
+	navigateToHub(): void {
+		this.router.navigate(['/', this.activeJobPath(), 'dashboard']);
 	}
 }

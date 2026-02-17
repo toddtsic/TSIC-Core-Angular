@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
 @Injectable({ providedIn: 'root' })
 export class LastLocationService {
-    private readonly STORAGE_KEY = 'last_job_path';
 
     constructor(private readonly router: Router) {
         // Track last visited jobPath (first URL segment that isn't 'tsic')
@@ -17,19 +17,19 @@ export class LastLocationService {
 
                 // Clear stored path if landing on error pages
                 if (first === 'not-found' || path === '**') {
-                    localStorage.removeItem(this.STORAGE_KEY);
+                    localStorage.removeItem(LocalStorageKey.LastJobPath);
                     return;
                 }
 
                 // Only persist when it's a valid job path (not 'tsic', not error routes)
                 if (first && first !== 'tsic' && this.isSafeJobPath(first)) {
-                    localStorage.setItem(this.STORAGE_KEY, first);
+                    localStorage.setItem(LocalStorageKey.LastJobPath, first);
                 }
             });
     }
 
     getLastJobPath(): string | null {
-        const v = localStorage.getItem(this.STORAGE_KEY);
+        const v = localStorage.getItem(LocalStorageKey.LastJobPath);
         return v && this.isSafeJobPath(v) ? v : null;
     }
 

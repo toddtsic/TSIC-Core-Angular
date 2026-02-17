@@ -1,4 +1,4 @@
-<div class="dashboard-container" [class.dashboard-public]="isPublic()">
+<div class="dashboard-container" [class.dashboard-public]="isPublic()" [class.dashboard-spoke]="isSpokeMode()">
 
     <!-- ═══════ LOADING / ERROR ═══════ -->
     @if (isLoading()) {
@@ -12,76 +12,166 @@
             <span>Unable to load dashboard</span>
             <button class="btn btn-sm btn-outline-secondary ms-2" (click)="loadDashboard()">Retry</button>
         </div>
-    } @else {
+    } @else if (isPublic()) {
 
-        <!-- ═══════ WIDGET SECTIONS ═══════ -->
+        <!-- ═══════ PUBLIC MODE: Anonymous landing (unchanged) ═══════ -->
         @if (dashboard(); as db) {
-            @for (section of db.sections; track section.section) {
-                <div class="dashboard-section" [class]="'section-' + section.section">
-                    @if (sectionLabel(section.section)) {
-                        <div class="section-label">{{ sectionLabel(section.section) }}</div>
-                    }
-
-                    @for (category of section.categories; track category.categoryId) {
-                        @if (isContentSection(section.section)) {
-                            <!-- Content section: render components inline, full-width -->
-                            <div class="content-widgets">
-                                @for (widget of category.widgets; track widget.widgetId) {
-                                    @switch (widget.componentKey) {
-                                        @case ('client-banner') {
-                                            <app-client-banner />
-                                        }
-                                        @case ('bulletins') {
-                                            <app-bulletins
-                                                [bulletins]="bulletins()"
-                                                [loading]="bulletinsLoading()"
-                                                [error]="bulletinsError()"
-                                                [jobPath]="activeJobPath()" />
-                                        }
-                                        @case ('player-trend-chart') {
-                                            <app-player-trend-widget />
-                                        }
-                                        @case ('team-trend-chart') {
-                                            <app-team-trend-widget />
-                                        }
-                                        @case ('agegroup-distribution') {
-                                            <app-agegroup-distribution-widget />
-                                        }
+            @for (workspace of db.workspaces; track workspace.workspace) {
+                <div class="dashboard-workspace" [class]="'workspace-' + workspace.workspace">
+                    @for (category of workspace.categories; track category.categoryId) {
+                        <div class="content-widgets">
+                            @for (widget of category.widgets; track widget.widgetId) {
+                                @switch (widget.componentKey) {
+                                    @case ('client-banner') {
+                                        <app-client-banner />
+                                    }
+                                    @case ('bulletins') {
+                                        <app-bulletins
+                                            [bulletins]="bulletins()"
+                                            [loading]="bulletinsLoading()"
+                                            [error]="bulletinsError()"
+                                            [jobPath]="activeJobPath()" />
                                     }
                                 }
-                            </div>
-                        } @else {
-                            <!-- Navigation section: render as card grid -->
-                            <div class="category-group">
-                                <div class="category-header">
-                                    @if (category.icon) {
-                                        <i class="bi" [class]="category.icon"></i>
-                                    }
-                                    <span>{{ category.categoryName }}</span>
-                                </div>
-
-                                <div class="widget-grid" [class]="'wgrid-' + section.section">
-                                    @for (widget of category.widgets; track widget.widgetId) {
-                                        <a class="widget-card" [class]="'wt-' + widget.widgetType"
-                                           href="#" (click)="onWidgetClick(widget, $event)">
-                                            <div class="widget-icon">
-                                                <i class="bi" [class]="getIcon(widget)"></i>
-                                            </div>
-                                            <div class="widget-body">
-                                                <div class="widget-name">{{ getLabel(widget) }}</div>
-                                                @if (widget.description) {
-                                                    <div class="widget-desc">{{ widget.description }}</div>
-                                                }
-                                            </div>
-                                            <div class="widget-arrow">
-                                                <i class="bi bi-chevron-right"></i>
-                                            </div>
-                                        </a>
-                                    }
-                                </div>
-                            </div>
-                        }
+                            }
+                        </div>
                     }
+                </div>
+            }
+        }
+
+    } @else if (isSpokeMode()) {
+
+        <!-- ═══════ SPOKE MODE: Single workspace view ═══════ -->
+        <div class="spoke-header">
+            <button class="spoke-back" (click)="navigateToHub()" type="button">
+                <i class="bi bi-arrow-left"></i>
+                <span>Dashboard</span>
+            </button>
+            <h2 class="spoke-title">{{ activeWorkspaceLabel() }}</h2>
+        </div>
+
+        @if (activeWorkspace(); as ws) {
+            @for (category of ws.categories; track category.categoryId) {
+                <div class="category-group">
+                    <div class="category-header">
+                        @if (category.icon) {
+                            <i class="bi" [class]="category.icon"></i>
+                        }
+                        <span>{{ category.categoryName }}</span>
+                    </div>
+
+                    <div class="widget-grid">
+                        @for (widget of category.widgets; track widget.widgetId) {
+                            <a class="widget-card" [class]="'wt-' + widget.widgetType"
+                               href="#" (click)="onWidgetClick(widget, $event)">
+                                <div class="widget-icon">
+                                    <i class="bi" [class]="getIcon(widget)"></i>
+                                </div>
+                                <div class="widget-body">
+                                    <div class="widget-name">{{ getLabel(widget) }}</div>
+                                    @if (widget.description) {
+                                        <div class="widget-desc">{{ widget.description }}</div>
+                                    }
+                                </div>
+                                <div class="widget-arrow">
+                                    <i class="bi bi-chevron-right"></i>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        } @else {
+            <div class="spoke-empty">
+                <i class="bi bi-inbox text-secondary"></i>
+                <span class="text-secondary">No widgets available for this workspace</span>
+            </div>
+        }
+
+    } @else {
+
+        <!-- ═══════ HUB MODE: Dashboard overview + spoke navigation ═══════ -->
+        @if (dashboard(); as db) {
+
+            <!-- Dashboard workspace content (charts, bulletins, status cards) -->
+            @for (category of hubCategories(); track category.categoryId) {
+                @if (isChartCategory(category)) {
+                    <!-- Chart tiles: responsive grid -->
+                    <div class="content-widgets chart-tiles">
+                        @for (widget of category.widgets; track widget.widgetId) {
+                            @switch (widget.componentKey) {
+                                @case ('player-trend-chart') {
+                                    <app-player-trend-widget />
+                                }
+                                @case ('team-trend-chart') {
+                                    <app-team-trend-widget />
+                                }
+                                @case ('agegroup-distribution') {
+                                    <app-agegroup-distribution-widget />
+                                }
+                            }
+                        }
+                    </div>
+                } @else if (isStatusCategory(category)) {
+                    <!-- Status cards: compact grid -->
+                    <div class="status-cards">
+                        @for (widget of category.widgets; track widget.widgetId) {
+                            <a class="widget-card wt-status-card"
+                               href="#" (click)="onWidgetClick(widget, $event)">
+                                <div class="widget-icon">
+                                    <i class="bi" [class]="getIcon(widget)"></i>
+                                </div>
+                                <div class="widget-body">
+                                    <div class="widget-name">{{ getLabel(widget) }}</div>
+                                    @if (widget.description) {
+                                        <div class="widget-desc">{{ widget.description }}</div>
+                                    }
+                                </div>
+                                <div class="widget-arrow">
+                                    <i class="bi bi-chevron-right"></i>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                } @else {
+                    <!-- Content widgets (e.g. bulletins for non-admin roles) -->
+                    <div class="content-widgets">
+                        @for (widget of category.widgets; track widget.widgetId) {
+                            @switch (widget.componentKey) {
+                                @case ('bulletins') {
+                                    <app-bulletins
+                                        [bulletins]="bulletins()"
+                                        [loading]="bulletinsLoading()"
+                                        [error]="bulletinsError()"
+                                        [jobPath]="activeJobPath()" />
+                                }
+                            }
+                        }
+                    </div>
+                }
+            }
+
+            <!-- Spoke navigation: workspace cards -->
+            @if (spokeWorkspaces().length > 0) {
+                <div class="spoke-nav-section">
+                    <div class="workspace-label">Workspaces</div>
+                    <div class="spoke-nav-grid">
+                        @for (ws of spokeWorkspaces(); track ws.workspace) {
+                            <button class="spoke-nav-card" (click)="navigateToWorkspace(ws.workspace)" type="button">
+                                <div class="spoke-nav-icon">
+                                    <i class="bi" [class]="workspaceIcon(ws.workspace)"></i>
+                                </div>
+                                <div class="spoke-nav-body">
+                                    <div class="spoke-nav-name">{{ workspaceLabel(ws.workspace) }}</div>
+                                    <div class="spoke-nav-desc">{{ workspaceDescription(ws.workspace) }}</div>
+                                </div>
+                                <div class="spoke-nav-arrow">
+                                    <i class="bi bi-chevron-right"></i>
+                                </div>
+                            </button>
+                        }
+                    </div>
                 </div>
             }
         }

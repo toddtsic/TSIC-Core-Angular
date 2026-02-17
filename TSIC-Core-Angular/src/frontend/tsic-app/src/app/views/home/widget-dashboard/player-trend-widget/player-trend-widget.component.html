@@ -1,0 +1,33 @@
+<app-collapsible-chart-card title="Player Registrations"
+	icon="bi-people" [(collapsed)]="isCollapsed">
+
+	<!-- Summary: always visible KPI badges -->
+	<div summary class="widget-summary">
+		@if (data()) {
+			<div class="summary-stat primary">
+				<span class="stat-value">{{ totalRegsDisplay() }}</span>
+				<span class="stat-label">Players</span>
+			</div>
+			<div class="summary-stat accent">
+				<span class="stat-value">{{ totalRevenueDisplay() }}</span>
+				<span class="stat-label">Revenue</span>
+			</div>
+			@if (outstandingDisplay()) {
+				<div class="summary-stat warn">
+					<span class="stat-value">{{ outstandingDisplay() }}</span>
+					<span class="stat-label">Outstanding</span>
+				</div>
+			}
+		}
+	</div>
+
+	<!-- Chart: only rendered when expanded -->
+	<div chart>
+		@if (data(); as d) {
+			<app-registration-trend-chart [data]="d" unitLabel="Players" barSeriesName="Daily Players" />
+		} @else if (hasError()) {
+			<div class="chart-error">Unable to load player trend</div>
+		}
+	</div>
+
+</app-collapsible-chart-card>

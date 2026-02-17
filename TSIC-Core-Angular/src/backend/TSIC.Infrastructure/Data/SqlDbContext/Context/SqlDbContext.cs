@@ -7077,7 +7077,7 @@ public partial class SqlDbContext : DbContext
 
             entity.Property(e => e.Icon).HasMaxLength(50);
             entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.Section).HasMaxLength(20);
+            entity.Property(e => e.Workspace).HasMaxLength(20);
         });
 
         modelBuilder.Entity<WidgetDefault>(entity =>
@@ -7086,7 +7086,7 @@ public partial class SqlDbContext : DbContext
 
             entity.ToTable("WidgetDefault", "widgets");
 
-            entity.HasIndex(e => new { e.JobTypeId, e.RoleId, e.WidgetId }, "UQ_widgets_WidgetDefault_JobType_Role_Widget").IsUnique();
+            entity.HasIndex(e => new { e.JobTypeId, e.RoleId, e.WidgetId, e.CategoryId }, "UQ_widgets_WidgetDefault_JobType_Role_Widget_Category").IsUnique();
 
             entity.HasOne(d => d.Category).WithMany(p => p.WidgetDefault)
                 .HasForeignKey(d => d.CategoryId)

@@ -1,7 +1,9 @@
-<app-collapsible-chart-card storageKey="agegroup-distribution" title="Age Group Distribution" icon="bi-bar-chart-steps">
-	@if (data(); as d) {
-		<!-- Summary badges -->
-		<div class="distribution-summary">
+<app-collapsible-chart-card title="Age Group Distribution"
+	icon="bi-bar-chart-steps" [(collapsed)]="isCollapsed">
+
+	<!-- Summary: always visible KPI badges -->
+	<div summary class="widget-summary">
+		@if (data()) {
 			<div class="summary-stat primary">
 				<span class="stat-value">{{ totalPlayersDisplay() }}</span>
 				<span class="stat-label">Players</span>
@@ -10,45 +12,51 @@
 				<span class="stat-value">{{ totalTeamsDisplay() }}</span>
 				<span class="stat-label">Teams</span>
 			</div>
-		</div>
+		}
+	</div>
 
-		<!-- Horizontal bar chart -->
-		<ejs-chart
-			[primaryXAxis]="primaryXAxis()"
-			[primaryYAxis]="primaryYAxis()"
-			[tooltip]="tooltipSettings"
-			[legendSettings]="legendSettings"
-			[chartArea]="chartArea"
-			[margin]="margin"
-			[height]="chartHeight()"
-			[background]="'transparent'">
+	<!-- Chart: only rendered when expanded -->
+	<div chart>
+		@if (data()) {
+			<ejs-chart
+				[primaryXAxis]="primaryXAxis()"
+				[primaryYAxis]="primaryYAxis()"
+				[tooltip]="tooltipSettings"
+				[legendSettings]="legendSettings"
+				[chartArea]="chartArea"
+				[margin]="margin"
+				[width]="'100%'"
+				[height]="chartHeight()"
+				[background]="'transparent'">
 
-			<e-series-collection>
-				<e-series
-					[dataSource]="chartData()"
-					type="Bar"
-					xName="agegroupName"
-					yName="playerCount"
-					name="Players"
-					[fill]="primaryColor()"
-					opacity="0.75"
-					[columnWidth]="0.6"
-					[cornerRadius]="{ topLeft: 3, topRight: 3 }">
-				</e-series>
-				<e-series
-					[dataSource]="chartData()"
-					type="Bar"
-					xName="agegroupName"
-					yName="teamCount"
-					name="Teams"
-					[fill]="accentColor()"
-					opacity="0.75"
-					[columnWidth]="0.6"
-					[cornerRadius]="{ topLeft: 3, topRight: 3 }">
-				</e-series>
-			</e-series-collection>
-		</ejs-chart>
-	} @else if (hasError()) {
-		<div class="chart-error">Unable to load age group distribution</div>
-	}
+				<e-series-collection>
+					<e-series
+						[dataSource]="chartData()"
+						type="Bar"
+						xName="agegroupName"
+						yName="playerCount"
+						name="Players"
+						[fill]="primaryColor()"
+						opacity="0.75"
+						[columnWidth]="0.6"
+						[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+					</e-series>
+					<e-series
+						[dataSource]="chartData()"
+						type="Bar"
+						xName="agegroupName"
+						yName="teamCount"
+						name="Teams"
+						[fill]="accentColor()"
+						opacity="0.75"
+						[columnWidth]="0.6"
+						[cornerRadius]="{ topLeft: 3, topRight: 3 }">
+					</e-series>
+				</e-series-collection>
+			</ejs-chart>
+		} @else if (hasError()) {
+			<div class="chart-error">Unable to load age group distribution</div>
+		}
+	</div>
+
 </app-collapsible-chart-card>

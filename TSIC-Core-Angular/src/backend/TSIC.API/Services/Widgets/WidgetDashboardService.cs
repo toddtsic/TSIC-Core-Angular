@@ -7,7 +7,7 @@ namespace TSIC.API.Services.Widgets;
 
 /// <summary>
 /// Assembles the widget dashboard by merging WidgetDefault (Role+JobType)
-/// with JobWidget (per-job overrides) and grouping into sections/categories.
+/// with JobWidget (per-job overrides) and grouping into workspaces/categories.
 /// </summary>
 public sealed class WidgetDashboardService : IWidgetDashboardService
 {
@@ -15,13 +15,17 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
     private readonly ISchedulingDashboardService _schedulingSvc;
     private readonly ILogger<WidgetDashboardService> _logger;
 
-    // Section ordering: content first, then health, action, insight
-    private static readonly Dictionary<string, int> SectionOrder = new()
+    // Workspace ordering: public/dashboard first, then workspaces alphabetically by purpose
+    private static readonly Dictionary<string, int> WorkspaceOrder = new()
     {
-        ["content"] = -1,
-        ["health"] = 0,
-        ["action"] = 1,
-        ["insight"] = 2
+        ["public"] = -1,
+        ["dashboard"] = 0,
+        ["job-config"] = 1,
+        ["player-reg"] = 2,
+        ["team-reg"] = 3,
+        ["scheduling"] = 4,
+        ["fin-per-job"] = 5,
+        ["fin-per-customer"] = 6
     };
 
     /// <summary>
@@ -63,7 +67,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
         {
             _logger.LogWarning("Widget dashboard: unknown role name '{RoleName}'", roleName);
-            return new WidgetDashboardResponse { Sections = [] };
+            return new WidgetDashboardResponse { Workspaces = [] };
         }
 
         // 2. Resolve job type
@@ -71,7 +75,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         if (jobTypeId is null)
         {
             _logger.LogWarning("Widget dashboard requested for unknown job {JobId}", jobId);
-            return new WidgetDashboardResponse { Sections = [] };
+            return new WidgetDashboardResponse { Workspaces = [] };
         }
 
         // 2. Fetch defaults and per-job overrides (sequential — DbContext is not thread-safe)
@@ -103,7 +107,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
                     CategoryName = ov.CategoryName,
                     CategoryIcon = ov.CategoryIcon,
                     CategoryDefaultOrder = ov.CategoryDefaultOrder,
-                    Section = ov.Section,
+                    Workspace = ov.Workspace,
                     DisplayOrder = ov.DisplayOrder,
                     Config = ov.Config ?? def.Config,
                     IsOverridden = true
@@ -125,7 +129,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
                     CategoryName = def.CategoryName,
                     CategoryIcon = def.CategoryIcon,
                     CategoryDefaultOrder = def.CategoryDefaultOrder,
-                    Section = def.Section,
+                    Workspace = def.Workspace,
                     DisplayOrder = def.DisplayOrder,
                     Config = def.Config,
                     IsOverridden = false
@@ -150,21 +154,21 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
                 CategoryName = addition.CategoryName,
                 CategoryIcon = addition.CategoryIcon,
                 CategoryDefaultOrder = addition.CategoryDefaultOrder,
-                Section = addition.Section,
+                Workspace = addition.Workspace,
                 DisplayOrder = addition.DisplayOrder,
                 Config = addition.Config,
                 IsOverridden = true
             });
         }
 
-        // 6. Group into sections → categories → ordered widgets
-        var sections = mergedWidgets
-            .GroupBy(w => w.Section)
-            .OrderBy(g => SectionOrder.GetValueOrDefault(g.Key, 99))
-            .Select(sectionGroup => new WidgetSectionDto
+        // 6. Group into workspaces → categories → ordered widgets
+        var workspaces = mergedWidgets
+            .GroupBy(w => w.Workspace)
+            .OrderBy(g => WorkspaceOrder.GetValueOrDefault(g.Key, 99))
+            .Select(wsGroup => new WidgetWorkspaceDto
             {
-                Section = sectionGroup.Key,
-                Categories = sectionGroup
+                Workspace = wsGroup.Key,
+                Categories = wsGroup
                     .GroupBy(w => w.CategoryId)
                     .OrderBy(g => g.First().CategoryDefaultOrder)
                     .Select(catGroup => new WidgetCategoryGroupDto
@@ -192,7 +196,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
             })
             .ToList();
 
-        return new WidgetDashboardResponse { Sections = sections };
+        return new WidgetDashboardResponse { Workspaces = workspaces };
     }
 
     public async Task<DashboardMetricsDto> GetMetricsAsync(
@@ -263,7 +267,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
         public string CategoryName { get; init; } = "";
         public string? CategoryIcon { get; init; }
         public int CategoryDefaultOrder { get; init; }
-        public string Section { get; init; } = "";
+        public string Workspace { get; init; } = "";
         public int DisplayOrder { get; init; }
         public string? Config { get; init; }
         public bool IsOverridden { get; init; }

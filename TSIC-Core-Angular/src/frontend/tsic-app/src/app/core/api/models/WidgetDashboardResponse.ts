@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { WidgetSectionDto } from './WidgetSectionDto';
+import type { WidgetWorkspaceDto } from './WidgetWorkspaceDto';
 export type WidgetDashboardResponse = {
-    sections: Array<WidgetSectionDto>;
+    workspaces: Array<WidgetWorkspaceDto>;
 };
 
