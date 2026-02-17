@@ -9,10 +9,10 @@
     </div>
     <div class="card-body">
       <div class="row g-3">
-        @for (palette of palettes; track $index) {
+        @for (palette of paletteService.palettes; track $index) {
           <div class="col-md-3">
-            <button class="palette-option w-100 text-start" [class.active]="selectedPalette() === $index"
-              (click)="selectPalette($index)">
+            <button class="palette-option w-100 text-start" [class.active]="paletteService.selectedIndex() === $index"
+              (click)="paletteService.selectPalette($index)">
               <div class="palette-colors mb-2">
                 <span class="color-swatch" [style.background-color]="palette.primary"></span>
                 <span class="color-swatch" [style.background-color]="palette.secondary"></span>

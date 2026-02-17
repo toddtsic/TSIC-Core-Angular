@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { PaletteService } from '@infrastructure/services/palette.service';
 import { ThemeService } from '@infrastructure/services/theme.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { MenuStateService } from '../../services/menu-state.service';
@@ -19,6 +20,7 @@ export class ClientHeaderBarComponent {
     private readonly jobService = inject(JobService);
     private readonly router = inject(Router);
     readonly themeService = inject(ThemeService);
+    readonly paletteService = inject(PaletteService);
     private readonly menuState = inject(MenuStateService);
 
     // (menu/sidebar bindings removed) -- header is decoupled from menus
@@ -39,8 +41,14 @@ export class ClientHeaderBarComponent {
 
     // Desktop dropdown state
     userMenuOpen = signal(false);
+    paletteExpanded = signal(false);
     menuTop = signal(0);
     menuRight = signal(0);
+
+    // Mobile palette panel state
+    mobilePaletteOpen = signal(false);
+    mobilePaletteTop = signal(0);
+    mobilePaletteRight = signal(0);
 
     // Mobile menu toggle
     toggleOffcanvas() {
@@ -62,6 +70,24 @@ export class ClientHeaderBarComponent {
 
     closeUserMenu() {
         this.userMenuOpen.set(false);
+        this.paletteExpanded.set(false);
+    }
+
+    toggleMobilePalette(event: Event) {
+        event.stopPropagation();
+        const wasOpen = this.mobilePaletteOpen();
+        this.mobilePaletteOpen.set(!wasOpen);
+
+        if (!wasOpen) {
+            const btn = event.currentTarget as HTMLElement;
+            const rect = btn.getBoundingClientRect();
+            this.mobilePaletteTop.set(rect.bottom + 8);
+            this.mobilePaletteRight.set(window.innerWidth - rect.right);
+        }
+    }
+
+    closeMobilePalette() {
+        this.mobilePaletteOpen.set(false);
     }
 
     switchRole() {

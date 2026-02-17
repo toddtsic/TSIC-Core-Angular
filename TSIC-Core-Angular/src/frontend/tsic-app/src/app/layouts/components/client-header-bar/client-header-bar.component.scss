@@ -453,6 +453,80 @@
     }
 }
 
+// Palette picker — chevron rotation
+.palette-chevron {
+    margin-left: auto;
+    font-size: var(--font-size-2xs);
+    opacity: 0.6;
+    transition: transform 0.2s ease;
+
+    &.open {
+        transform: rotate(180deg);
+    }
+}
+
+// Inline swatch grid — 8 circles in a compact row
+.palette-swatch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    justify-content: center;
+}
+
+.palette-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: var(--font-size-xs);
+    padding: 0;
+
+    &:hover {
+        transform: scale(1.15);
+        box-shadow: var(--shadow-md);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+
+    &.active {
+        border-color: var(--bs-body-color);
+        box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px var(--bs-body-color);
+    }
+
+    .bi {
+        font-size: 0.7rem;
+        line-height: 1;
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+    }
+}
+
+// Mobile palette panel — fixed-position swatch picker
+.mobile-palette-panel {
+    position: fixed;
+    z-index: 10001;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    padding: var(--space-3);
+    animation: userMenuFadeIn 0.15s ease;
+    min-width: 180px;
+
+    :host-context([data-bs-theme="dark"]) & {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+}
+
 @keyframes userMenuFadeIn {
     from {
         opacity: 0;

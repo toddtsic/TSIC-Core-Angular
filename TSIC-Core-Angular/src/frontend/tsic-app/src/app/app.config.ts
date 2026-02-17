@@ -5,6 +5,7 @@ import { authInterceptor } from './infrastructure/interceptors/auth.interceptor'
 
 import { routes } from './app.routes';
 import { LastLocationService } from './infrastructure/services/last-location.service';
+import { PaletteService } from './infrastructure/services/palette.service';
 import { ThemeOverridesService } from './infrastructure/services/theme-overrides.service';
 import { JobContextService } from './infrastructure/services/job-context.service';
 
@@ -30,6 +31,13 @@ export const appConfig: ApplicationConfig = {
       provide: APP_INITIALIZER,
       deps: [ThemeOverridesService],
       useFactory: (svc: ThemeOverridesService) => () => void 0,
+      multi: true
+    },
+    // Apply saved palette on startup so colors persist across navigation
+    {
+      provide: APP_INITIALIZER,
+      deps: [PaletteService],
+      useFactory: (svc: PaletteService) => () => void 0,
       multi: true
     },
     // Initialize JobContextService early so jobPath is available to components/guards
