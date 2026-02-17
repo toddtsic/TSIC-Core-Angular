@@ -1,16 +1,15 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
 /**
  * Shared step indicator component for multi-step wizards.
  * Supports both fixed step counts (Team: 4 steps) and dynamic step counts (Player: 7-9 steps).
- * 
+ *
+ * Responsive behavior (handled internally — no external d-none/d-md-block needed):
+ * - Desktop (≥768px): Full step indicator with circles + labels + connectors
+ * - Mobile (<768px): Compact "Step X of Y — Label" + thin progress bar
+ *
  * Usage:
  * <app-step-indicator [steps]="steps()" [currentIndex]="currentIndex()" />
- * 
- * - Displays circular badges with step numbers (or checkmark if completed)
- * - Connectors between steps
- * - Light/dark mode support via CSS variables
- * - Responsive design (hides labels on mobile)
  */
 
 export interface StepDefinition {
@@ -39,6 +38,19 @@ export class StepIndicatorComponent {
      * Example: 0 = first step, 1 = second step, etc.
      */
     readonly currentIndex = input.required<number>();
+
+    /** Progress percentage (0–100) for the mobile progress bar. */
+    readonly progressPercent = computed(() => {
+        const total = this.steps().length;
+        return total > 0 ? ((this.currentIndex() + 1) / total) * 100 : 0;
+    });
+
+    /** Label of the current step for the mobile compact display. */
+    readonly currentLabel = computed(() => {
+        const steps = this.steps();
+        const idx = this.currentIndex();
+        return steps[idx]?.label ?? '';
+    });
 
     /**
      * Check if a step has been completed (past steps).

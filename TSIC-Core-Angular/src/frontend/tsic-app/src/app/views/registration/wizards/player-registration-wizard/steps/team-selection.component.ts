@@ -37,7 +37,10 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
   :host ::ng-deep .rw-teams-single .e-input-group input.e-input { padding-left: .75rem !important; }
     /* Placeholder clarity */
     :host ::ng-deep .rw-teams-ms .e-multi-select-wrapper input.e-input::placeholder,
-    :host ::ng-deep .rw-teams-single .e-input-group input.e-input::placeholder { color: #555 !important; opacity: .75; }
+    :host ::ng-deep .rw-teams-single .e-input-group input.e-input::placeholder { color: var(--bs-secondary-color) !important; opacity: .75; }
+  /* Remove-team x: expand touch target to 44px via pseudo-element while keeping visual size compact */
+  .remove-team-btn { position: relative; padding: 0.125rem 0.25rem; }
+  .remove-team-btn::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); min-width: 2.75rem; min-height: 2.75rem; }
   `],
   template: `
     <div class="card shadow border-0 card-rounded">
@@ -82,8 +85,8 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                             <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
                               <span class="name">{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</span>
                               @if (canRemoveTeam(p.userId, id)) {
-                                <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 p-0 align-baseline"
-                                        (click)="removeTeam(p.userId, id)">
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 align-baseline remove-team-btn"
+                                        (click)="removeTeam(p.userId, id)" aria-label="Remove team">
                                   ×
                                 </button>
                               }
@@ -104,7 +107,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                             [allowFiltering]="true"
                                             [filterBarPlaceholder]="'Type to search teams...'"
                                             [filterType]="'Contains'"
-                                            [popupHeight]="'320px'"
+                                            [popupHeight]="'min(320px, 50vh)'"
                                             [popupWidth]="'100%'"
                                             [zIndex]="1200"
                                             [cssClass]="'rw-teams-single'"
@@ -169,7 +172,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                                        [allowFiltering]="true"
                                        [filterBarPlaceholder]="'Type to search teams...'"
                                        [filterType]="'Contains'"
-                                       [popupHeight]="'320px'"
+                                       [popupHeight]="'min(320px, 50vh)'"
                                        [popupWidth]="'100%'"
                                        [zIndex]="1200"
                                        [cssClass]="'rw-teams-ms'"

@@ -20,14 +20,14 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         <div class="row g-2">
           <div class="col-md-6">
             <label class="form-label small mb-1">First Name</label>
-            <input class="form-control form-control-sm" formControlName="firstName">
+            <input class="form-control form-control-sm" formControlName="firstName" aria-required="true">
             @if (err('firstName')) {
               <div class="form-text text-danger">{{ err('firstName') }}</div>
             }
           </div>
           <div class="col-md-6">
             <label class="form-label small mb-1">Last Name</label>
-            <input class="form-control form-control-sm" formControlName="lastName">
+            <input class="form-control form-control-sm" formControlName="lastName" aria-required="true">
             @if (err('lastName')) {
               <div class="form-text text-danger">{{ err('lastName') }}</div>
             }
@@ -36,14 +36,14 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         <div class="row g-2 mt-2">
           <div class="col-md-8">
             <label class="form-label small mb-1">Address</label>
-            <input class="form-control form-control-sm" formControlName="address">
+            <input class="form-control form-control-sm" formControlName="address" aria-required="true">
             @if (err('address')) {
               <div class="form-text text-danger">{{ err('address') }}</div>
             }
           </div>
           <div class="col-md-4">
             <label class="form-label small mb-1">Zip Code</label>
-            <input class="form-control form-control-sm" formControlName="zip">
+            <input class="form-control form-control-sm" formControlName="zip" aria-required="true">
             @if (err('zip')) {
               <div class="form-text text-danger">{{ err('zip') }}</div>
             }
@@ -52,14 +52,14 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         <div class="row g-2 mt-2">
           <div class="col-md-6">
             <label class="form-label small mb-1">Email</label>
-            <input class="form-control form-control-sm" formControlName="email" autocomplete="email">
+            <input class="form-control form-control-sm" formControlName="email" autocomplete="email" aria-required="true">
             @if (err('email')) {
               <div class="form-text text-danger">{{ err('email') }}</div>
             }
           </div>
           <div class="col-md-6">
             <label class="form-label small mb-1">Phone</label>
-            <input class="form-control form-control-sm" formControlName="phone" (input)="formatPhone()" autocomplete="tel">
+            <input class="form-control form-control-sm" formControlName="phone" (input)="formatPhone()" autocomplete="tel" aria-required="true">
             @if (err('phone')) {
               <div class="form-text text-danger">{{ err('phone') }}</div>
             }
@@ -82,14 +82,14 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
           </div>
           <div class="col-md-4">
             <label class="form-label small mb-1">Card Number</label>
-            <input class="form-control form-control-sm" formControlName="number" (input)="formatNumber()">
+            <input class="form-control form-control-sm" formControlName="number" (input)="formatNumber()" aria-required="true">
             @if (err('number')) {
               <div class="form-text text-danger">{{ err('number') }}</div>
             }
           </div>
           <div class="col-md-3">
             <label class="form-label small mb-1" for="cc-expiry">Expiry (MM / YY)</label>
-            <input id="cc-expiry" class="form-control form-control-sm" formControlName="expiry"
+            <input id="cc-expiry" class="form-control form-control-sm" formControlName="expiry" aria-required="true"
               (input)="formatExpiry($event)" (blur)="forceMonthLeadingZero()"
               placeholder="MM / YY" inputmode="numeric" autocomplete="cc-exp"
               aria-describedby="cc-expiry-help">
@@ -102,7 +102,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
             </div>
             <div class="col-md-2">
               <label class="form-label small mb-1">CVV</label>
-              <input class="form-control form-control-sm" formControlName="code" (input)="formatCvv()">
+              <input class="form-control form-control-sm" formControlName="code" (input)="formatCvv()" aria-required="true">
               @if (err('code')) {
                 <div class="form-text text-danger">{{ err('code') }}</div>
               }

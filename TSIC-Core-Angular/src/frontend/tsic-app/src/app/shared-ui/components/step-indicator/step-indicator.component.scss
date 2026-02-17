@@ -1,7 +1,25 @@
 /* Shared step indicator styling - light/dark mode support via CSS variables */
+/* Responsive: mobile shows compact bar, desktop shows full badges + connectors */
 
+/* --- Mobile compact bar --- */
+.mobile-step-bar {
+    padding: var(--space-1) 0;
+
+    .progress {
+        height: 3px;
+        background-color: var(--bs-gray-300);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        background-color: var(--bs-primary);
+        transition: width 0.3s ease;
+    }
+}
+
+/* --- Desktop full indicator --- */
 .step-container {
-    display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
@@ -94,42 +112,12 @@
     }
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-    .step-item {
-        min-width: 50px;
-        gap: var(--space-1);
-    }
-
-    .step-badge {
-        width: 28px;
-        height: 28px;
-        border-width: 1.5px;
-    }
-
-    .step-connector {
-        max-width: 20px;
-        margin-top: 14px;
-    }
-}
-
-/* Hide labels on small screens */
-@media (max-width: 576px) {
-    .step-label {
-        display: none;
-    }
-
-    .step-item {
-        min-width: var(--space-7);
-    }
-
-    .step-badge {
-        width: var(--space-6);
-        height: var(--space-6);
-    }
-
-    .step-connector {
-        max-width: 15px;
-        margin-top: calc(var(--space-6) / 2);
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .step-badge,
+    .step-label,
+    .step-connector,
+    .mobile-step-bar .progress-bar {
+        transition: none;
     }
 }

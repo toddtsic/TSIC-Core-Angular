@@ -26,8 +26,9 @@
           }
         </div>
 
+        <!-- Step indicator (responsive: compact bar on mobile, full badges on desktop) -->
         @if (!isLoadingMetadata() && !metadataError()) {
-        <div class="mb-1 d-none d-md-block">
+        <div class="mb-1">
           <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentStepIndex()" />
         </div>
         }

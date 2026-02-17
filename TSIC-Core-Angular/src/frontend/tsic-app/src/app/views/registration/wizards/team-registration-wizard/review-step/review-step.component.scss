@@ -1,6 +1,11 @@
 .review-step-container {
   padding: 1rem 0;
 
+  /* 44px WCAG touch targets on mobile */
+  .btn {
+    min-height: 2.75rem;
+  }
+
   .confirmation-wrapper {
     .confirmation-content {
       max-height: 500px;

@@ -53,9 +53,9 @@
                 [autoFit]="true" (queryCellInfo)="onQueryCellInfo($event)" (dataBound)="onDataBound()"
                 class="tight-table">
                 <e-columns>
-                    <!-- Row Number Column -->
+                    <!-- Row Number Column (hidden on mobile) -->
                     <e-column field="rowNum" headerText="#" width="auto" textAlign="Center" [allowSorting]="false"
-                        [allowFiltering]="false"></e-column>
+                        [allowFiltering]="false" hideAtMedia="(max-width: 767.98px)"></e-column>
 
                     <!-- Age Group Column -->
                     <e-column field="ageGroupName" headerText="Age Group" width="auto"></e-column>
@@ -70,21 +70,21 @@
                         </ng-template>
                     </e-column>
 
-                    <!-- Registration Date Column -->
+                    <!-- Registration Date Column (hidden on mobile) -->
                     <e-column field="registrationTs" headerText="Reg Date" width="auto" textAlign="Center" type="date"
-                        format="MM/dd/yyyy"></e-column>
+                        format="MM/dd/yyyy" hideAtMedia="(max-width: 767.98px)"></e-column>
 
-                    <!-- Paid Total Column -->
+                    <!-- Paid Total Column (hidden on mobile — shown in card footer badges) -->
                     <e-column field="paidTotal" headerText="Paid Total" width="auto" textAlign="Right"
-                        format="C2"></e-column>
+                        format="C2" hideAtMedia="(max-width: 767.98px)"></e-column>
 
-                    <!-- Deposit Due Column -->
+                    <!-- Deposit Due Column (hidden on mobile — shown in card footer badges) -->
                     <e-column field="depositDue" headerText="Deposit Due" width="auto" textAlign="Right"
-                        format="C2"></e-column>
+                        format="C2" hideAtMedia="(max-width: 767.98px)"></e-column>
 
-                    <!-- Additional Due Column -->
+                    <!-- Additional Due Column (hidden on mobile — shown in card footer badges) -->
                     <e-column field="additionalDue" headerText="Additional Due" width="auto" textAlign="Right"
-                        format="C2"></e-column>
+                        format="C2" hideAtMedia="(max-width: 767.98px)"></e-column>
                 </e-columns>
 
                 <!-- Aggregates for Footer Totals -->
@@ -168,7 +168,7 @@
         <!-- Acceptance Checkbox -->
         <div class="form-check">
             <input type="checkbox" class="form-check-input" id="refundPolicyCheckbox" [checked]="refundPolicyAccepted()"
-                [disabled]="refundPolicyLocked()" [class.is-invalid]="attemptedProceed() && !refundPolicyAccepted()"
+                [disabled]="refundPolicyLocked()" [class.is-invalid]="attemptedProceed() && !refundPolicyAccepted()" aria-required="true"
                 (change)="
               onRefundPolicyAcceptanceChange($any($event.target).checked)
             " />

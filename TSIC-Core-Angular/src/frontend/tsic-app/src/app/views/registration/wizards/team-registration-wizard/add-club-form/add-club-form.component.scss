@@ -15,8 +15,10 @@
 
     .alert {
         .btn-close {
-            padding: 0.25rem;
+            padding: 0.5rem;
             font-size: var(--font-size-sm);
+            min-width: 2.75rem; /* 44px WCAG touch target */
+            min-height: 2.75rem;
         }
     }
 }

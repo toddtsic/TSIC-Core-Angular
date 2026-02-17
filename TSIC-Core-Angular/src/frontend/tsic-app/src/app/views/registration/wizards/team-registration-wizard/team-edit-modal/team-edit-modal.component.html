@@ -43,7 +43,7 @@
                 </label>
                 <input type="text" class="form-control" id="teamName" [ngModel]="teamName()"
                     (ngModelChange)="teamName.set($event)" [disabled]="!canEditName() || isSubmitting()"
-                    [readonly]="!canEditName()" name="teamName" required maxlength="80">
+                    [readonly]="!canEditName()" name="teamName" required aria-required="true" maxlength="80">
             </div>
 
             <!-- Graduation Year -->
@@ -56,7 +56,7 @@
                 </label>
                 <select class="form-select" id="gradYear" [ngModel]="gradYear()"
                     (ngModelChange)="gradYear.set($event)" [disabled]="!canEditGradYear() || isSubmitting()"
-                    name="gradYear" required>
+                    name="gradYear" required aria-required="true">
                     @for (year of gradYearOptions(); track year) {
                     <option [value]="year">{{ year }}</option>
                     }
@@ -71,7 +71,7 @@
                 </label>
                 <select class="form-select" id="levelOfPlay" [ngModel]="levelOfPlay()"
                     (ngModelChange)="levelOfPlay.set($event)" [disabled]="isSubmitting()" name="levelOfPlay"
-                    required maxlength="50">
+                    required aria-required="true" maxlength="50">
                     @for (option of levelOfPlayOptions(); track option.value) {
                     <option [value]="option.value">{{ option.label }}</option>
                     }

@@ -1,5 +1,23 @@
 <div class="step-indicator">
-    <div class="step-container">
+    <!-- Mobile: compact progress bar + label -->
+    <div class="mobile-step-bar d-md-none">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-semibold text-primary">
+                Step {{ currentIndex() + 1 }} of {{ steps().length }}
+            </span>
+            <span class="small text-muted">{{ currentLabel() }}</span>
+        </div>
+        <div class="progress" role="progressbar"
+            [attr.aria-valuenow]="currentIndex() + 1"
+            [attr.aria-valuemin]="1"
+            [attr.aria-valuemax]="steps().length"
+            aria-label="Wizard progress">
+            <div class="progress-bar" [style.width.%]="progressPercent()"></div>
+        </div>
+    </div>
+
+    <!-- Desktop: full step indicator with badges + labels + connectors -->
+    <div class="step-container d-none d-md-flex">
         @for (step of steps(); track step.id; let isLast = $last; let stepIndex = $index) {
         <div class="step-item" [class.completed]="isCompleted(stepIndex)" [class.active]="isActive(stepIndex)"
             [class.future]="isFuture(stepIndex)">

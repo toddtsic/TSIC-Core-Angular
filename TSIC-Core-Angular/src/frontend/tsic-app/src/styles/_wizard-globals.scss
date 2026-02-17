@@ -92,3 +92,22 @@ h2#rw-title {
 h2#tw-title {
     @include wizard-title;
 }
+
+// Print stylesheet — hide wizard chrome, show content
+@media print {
+
+    .wizard-fixed-header,
+    .wizard-action-bar-container {
+        display: none !important;
+    }
+
+    .wizard-scrollable-content {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
+    .confirmation-content {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+}

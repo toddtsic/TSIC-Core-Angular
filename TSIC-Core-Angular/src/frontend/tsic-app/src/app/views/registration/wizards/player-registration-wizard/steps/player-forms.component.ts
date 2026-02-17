@@ -92,6 +92,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                       <input type="text" class="form-control form-control-sm"
                              #uslax="ngModel"
                              [required]="usLaxField.required"
+                             [attr.aria-required]="usLaxField.required || null"
                              [id]="helpId(player.userId, usLaxField.name)"
                              [ngModel]="value(player.userId, usLaxField.name)"
                              (ngModelChange)="setValue(player.userId, usLaxField.name, $event)"
@@ -103,9 +104,8 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                         } @else if (uslax?.invalid && (uslax?.dirty || uslax?.touched)) {
                           @if (usLaxStatus(player.userId).membership !== undefined) {
                             <button type="button"
-                                    class="btn btn-warning btn-sm fw-semibold mt-2 mb-2 pt-1 pb-1 px-3 me-2"
-                                    (click)="openUsLaxDetails(player.userId)"
-                                    style="box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.1);">
+                                    class="btn btn-warning btn-sm fw-semibold mt-2 mb-2 pt-1 pb-1 px-3 me-2 shadow-sm"
+                                    (click)="openUsLaxDetails(player.userId)">
                               Click here for error details
                             </button>
                           }
@@ -154,6 +154,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
            <input type="text" class="form-control form-control-sm"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
+                                 [attr.aria-required]="field.required || null"
                                  autocomplete="off"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
@@ -162,6 +163,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
            <input type="number" class="form-control form-control-sm"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
+                                 [attr.aria-required]="field.required || null"
                                  inputmode="numeric"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
@@ -170,6 +172,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
            <input type="date" class="form-control form-control-sm"
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
+                                 [attr.aria-required]="field.required || null"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
@@ -177,6 +180,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
         <select class="form-select form-select-sm"
                                   [id]="helpId(player.userId, field.name)"
                                   [required]="field.required"
+                                  [attr.aria-required]="field.required || null"
                                   [ngModel]="value(player.userId, field.name)"
                                   (ngModelChange)="setValue(player.userId, field.name, $event)">
                             <option [ngValue]="null">-- Select {{ field.label }} --</option>

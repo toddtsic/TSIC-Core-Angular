@@ -7,7 +7,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
   standalone: true,
   imports: [CommonModule, TsicDialogComponent],
   styles: [`
-      .vi-header { background: linear-gradient(90deg,var(--bs-primary),var(--bs-indigo)); color:#fff; }
+      .vi-header { background: linear-gradient(90deg,var(--bs-primary),var(--bs-indigo)); color: var(--neutral-0, #fff); }
       .vi-header h5 { font-weight:600; letter-spacing:.5px; }
       .vi-body { background: var(--bs-body-bg); }
       .vi-section + .vi-section { border-top:1px solid var(--bs-border-color-translucent); margin-top:1rem; padding-top:1rem; }

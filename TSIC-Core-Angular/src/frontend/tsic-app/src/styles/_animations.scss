@@ -218,4 +218,17 @@
         background-color: rgb(var(--bs-primary-rgb));
         color: var(--bs-light);
     }
+
+    /* Disable all slide/fade entrance animations */
+    *[style*="animation: slideIn"],
+    *[style*="animation: fadeIn"] {
+        animation: none !important;
+    }
+
+    .selectable,
+    .btn,
+    .form-control,
+    .form-select {
+        transition: none !important;
+    }
 }

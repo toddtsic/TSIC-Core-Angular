@@ -60,11 +60,6 @@
 /* Mobile optimizations */
 @media (max-width: 575.98px) {
 
-    /* Compact modal for mobile */
-    .modal-dialog {
-        margin: 0.5rem;
-    }
-
     .form-label {
         font-size: var(--font-size-base);
     }
@@ -85,7 +80,8 @@
 
     .modal-footer .btn {
         font-size: var(--font-size-xs);
-        padding: 0.25rem 0.5rem;
+        padding: 0.375rem 0.5rem;
         white-space: nowrap;
+        min-height: 2.75rem; /* 44px WCAG touch target */
     }
 }

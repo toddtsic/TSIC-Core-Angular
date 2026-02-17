@@ -30,7 +30,6 @@ import { AuthService } from '@infrastructure/services/auth.service';
           <legend id="famCheckLegend" class="visually-hidden">Family account availability</legend>
           <div class="list-group list-group-flush">
             <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
-                   style="cursor: pointer;"
                    [class.border-info]="hasAccount === 'yes'"
                    [class.bg-info]="hasAccount === 'yes'"
                    [class.bg-opacity-10]="hasAccount === 'yes'">
@@ -86,7 +85,6 @@ import { AuthService } from '@infrastructure/services/auth.service';
             }
 
             <label class="list-group-item d-flex align-items-center gap-3 py-3 selectable border-2 rounded mb-2"
-                   style="cursor: pointer;"
                    [class.border-info]="hasAccount === 'no'"
                    [class.bg-info]="hasAccount === 'no'"
                    [class.bg-opacity-10]="hasAccount === 'no'">

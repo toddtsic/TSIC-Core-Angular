@@ -16,10 +16,10 @@ import { RegistrationWizardService } from '../registration-wizard.service';
       @if (state.jobHasActiveDiscountCodes()) {
         <div class="mb-3">
           <label for="discountCode" class="form-label small mb-1 me-2 d-block d-md-inline">Discount Code</label>
-          <div class="input-group input-group-sm w-auto d-inline-flex align-items-center">
-            <input id="discountCode" type="text" [(ngModel)]="code" class="form-control form-control-sm" placeholder="Enter code"
-                   [disabled]="svc.discountApplying()" style="min-width: 180px;">
-            <button type="button" class="btn btn-outline-primary btn-sm" (click)="apply()" [disabled]="svc.discountApplying() || !code">Apply</button>
+          <div class="input-group w-auto d-inline-flex align-items-center">
+            <input id="discountCode" type="text" [(ngModel)]="code" class="form-control" placeholder="Enter code"
+                   [disabled]="svc.discountApplying()" style="min-width: 180px; min-height: 2.75rem;">
+            <button type="button" class="btn btn-outline-primary" (click)="apply()" [disabled]="svc.discountApplying() || !code" style="min-height: 2.75rem;">Apply</button>
           </div>
           @if (svc.discountMessage()) {
             <div class="form-text mt-1"

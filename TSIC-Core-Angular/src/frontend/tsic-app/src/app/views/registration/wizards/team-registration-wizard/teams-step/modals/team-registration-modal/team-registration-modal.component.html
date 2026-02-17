@@ -35,7 +35,7 @@
                 <select class="form-select" id="clubTeamSelect"
                     [ngModel]="selectedClubTeamId()"
                     (ngModelChange)="selectedClubTeamId.set($event); onClubTeamSelected()"
-                    [ngModelOptions]="{standalone: true}" required>
+                    [ngModelOptions]="{standalone: true}" required aria-required="true">
                     <option value="">Choose a team...</option>
                     @for (ct of availableClubTeams(); track ct.clubTeamId) {
                     <option [value]="ct.clubTeamId.toString()">
@@ -91,7 +91,7 @@
                     [ngModel]="teamNameInput()" (ngModelChange)="teamNameInput.set($event)"
                     (input)="onTeamNameInput($event)" [ngModelOptions]="{standalone: true}"
                     placeholder="Enter team name" autocomplete="off"
-                    spellcheck="false" autofocus required maxlength="80" pattern="[a-zA-Z0-9\s]+">
+                    spellcheck="false" autofocus required aria-required="true" maxlength="80" pattern="[a-zA-Z0-9\s]+">
 
                 @if (suggestedTeamNames.length > 0 && filteredSuggestions().length > 0) {
                 <select size="4" class="form-select mt-1 small" (change)="selectFromList($event)">
@@ -113,7 +113,7 @@
                 </label>
                 <select class="form-select" id="gradYear"
                     [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
-                    [ngModelOptions]="{standalone: true}" required>
+                    [ngModelOptions]="{standalone: true}" required aria-required="true">
                     <option value="">Select year...</option>
                     @for (year of gradYearOptions(); track year) {
                     <option [value]="year">{{ year }}</option>
@@ -130,7 +130,7 @@
                 <select class="form-select" id="levelOfPlay"
                     [ngModel]="levelOfPlayInput()"
                     (ngModelChange)="levelOfPlayInput.set($event)"
-                    [ngModelOptions]="{standalone: true}" required>
+                    [ngModelOptions]="{standalone: true}" required aria-required="true">
                     <option value="">Select level...</option>
                     @for (lop of availableLevelsOfPlay; track lop.value) {
                     <option [value]="lop.value">{{ lop.label }}</option>
@@ -146,7 +146,7 @@
                 <select class="form-select" id="ageGroup"
                     [ngModel]="selectedAgeGroupId()"
                     (ngModelChange)="selectedAgeGroupId.set($event)"
-                    [ngModelOptions]="{standalone: true}" required>
+                    [ngModelOptions]="{standalone: true}" required aria-required="true">
                     <option value="">Select age group...</option>
                     @for (ag of filteredAgeGroups(); track ag.ageGroupId) {
                     @let isFull = ag.registeredCount >= ag.maxTeams;

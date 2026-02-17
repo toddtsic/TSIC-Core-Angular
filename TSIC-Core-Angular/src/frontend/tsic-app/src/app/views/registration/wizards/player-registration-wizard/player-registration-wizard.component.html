@@ -3,11 +3,10 @@
     <div class="col-12">
       <!-- Fixed header region containing title, step indicator, and action bar -->
       <div class="wizard-fixed-header">
-        <!-- Mobile: Ultra-compact single line -->
+        <!-- Mobile: Ultra-compact title -->
         <div class="d-md-none text-center mb-1">
           <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
             <h2 id="rw-title" class="mb-0 fw-bold fs-6">Player Registration</h2>
-            <span class="text-muted small">Step {{ currentIndex() + 1 }}/{{ steps().length }}</span>
             @if (familyLastName()) {
             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
               {{ familyLastName() }}
@@ -16,21 +15,20 @@
           </div>
         </div>
 
-        <!-- Desktop: Full layout -->
+        <!-- Desktop: Full title -->
         <div class="d-none d-md-block text-center mb-3">
           <h2 id="rw-title" class="mb-1 fw-bold">Player Registration</h2>
-          <div class="step-info d-flex align-items-center justify-content-center flex-wrap gap-2">
-            <p class="text-muted mb-0 fs-6">Step {{ currentIndex() + 1 }} of {{ steps().length }}</p>
-            @if (familyLastName()) {
+          @if (familyLastName()) {
+          <div class="d-flex align-items-center justify-content-center">
             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
               {{ familyLastName() }} Family
             </span>
-            }
           </div>
+          }
         </div>
 
-        <!-- Step indicator with circular badges (hidden on mobile) -->
-        <div class="mb-1 d-none d-md-block">
+        <!-- Step indicator (responsive: compact bar on mobile, full badges on desktop) -->
+        <div class="mb-1">
           <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
         </div>
 
