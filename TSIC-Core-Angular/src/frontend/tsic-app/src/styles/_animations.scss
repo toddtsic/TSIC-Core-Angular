@@ -137,6 +137,12 @@
 .gradient-header {
     background: linear-gradient(135deg, var(--gradient-primary-start) 0%, var(--gradient-primary-end) 100%) !important;
     color: var(--neutral-0) !important;
+    border-top-left-radius: var(--radius-xl) !important;
+    border-top-right-radius: var(--radius-xl) !important;
+
+    h1, h2, h3, h4, h5, h6, p {
+        color: inherit !important;
+    }
 }
 
 .btn-gradient {

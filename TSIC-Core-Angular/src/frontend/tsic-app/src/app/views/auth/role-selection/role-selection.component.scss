@@ -1,4 +1,58 @@
-// Item template custom styling - flex layout for logo + text
+// ─── Header ───────────────────────────────────────
+.role-header {
+  background: var(--brand-primary);
+  color: var(--neutral-0);
+  padding: var(--space-8) var(--space-4);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+
+  h2, p {
+    color: inherit !important;
+  }
+}
+
+// ─── Username badge (frosted pill on header) ──────
+.username-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full, 9999px);
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+// ─── Dark mode ────────────────────────────────────
+:host-context([data-bs-theme='dark']) {
+  .role-header {
+    background: var(--bg-elevated);
+    color: var(--bs-body-color);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .username-badge {
+    background: rgba(var(--bs-primary-rgb), 0.15);
+    color: var(--bs-primary);
+  }
+}
+
+// ─── Role badge ───────────────────────────────────
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bs-primary-bg-subtle, rgba(var(--bs-primary-rgb), 0.1));
+  color: var(--bs-primary);
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--bs-primary-border-subtle, rgba(var(--bs-primary-rgb), 0.25));
+}
+
+// ─── Dropdown item template ──────────────────────
 .dropdown-item-custom {
   display: flex;
   align-items: center;

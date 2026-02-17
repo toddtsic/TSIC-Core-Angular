@@ -1,15 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
-import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
-
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [DropDownListModule, WizardThemeDirective],
+  imports: [DropDownListModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss'],
@@ -22,6 +20,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   registrations = signal<any[]>([]);
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
+  readonly username = computed(() => this.authService.currentUser()?.username ?? '');
 
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
