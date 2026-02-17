@@ -30,7 +30,7 @@ import { environment } from '@environments/environment';
         @if (showDebug() && state.debugFamilyPlayersResp()) {
           <div class="alert alert-secondary mb-3" role="region" aria-label="Family players raw response">
             <div class="d-flex justify-content-between align-items-start mb-2">
-              <strong class="me-2">Debug: Raw GetFamilyPlayers Response <span class="badge bg-warning text-dark ms-2">dev only</span></strong>
+              <strong class="me-2">Debug: Raw GetFamilyPlayers Response <span class="badge bg-warning-subtle text-warning-emphasis ms-2">dev only</span></strong>
               <button type="button" class="btn btn-sm btn-outline-secondary" (click)="state.debugFamilyPlayersResp.set(null)">Hide</button>
             </div>
             <pre class="small mb-0" style="max-height:240px; overflow:auto;">
@@ -40,7 +40,7 @@ import { environment } from '@environments/environment';
         }
         <!-- Loading overlay -->
         @if (state.familyPlayersLoading()) {
-        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-75" style="z-index: 10;">
+        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-body bg-opacity-75" style="z-index: 10;">
           <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
           <div class="fw-semibold">Loading Family Players...</div>
         </div>

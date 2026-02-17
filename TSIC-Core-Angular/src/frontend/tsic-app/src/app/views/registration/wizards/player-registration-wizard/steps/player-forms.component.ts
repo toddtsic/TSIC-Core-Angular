@@ -32,7 +32,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
           <div class="fw-semibold mb-1">Selected teams</div>
           <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
             @for (id of selectedPlayersWithTeams[0]?.teamIds ?? []; track id) {
-              <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
+              <li class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">
                 <span class="name">{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</span>
               </li>
             }
@@ -147,7 +147,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                           } @else {
                             <span class="badge bg-danger text-white">Required</span>
                           }
-                        } @else { <span class="badge text-bg-light border">Optional</span> }
+                        } @else { <span class="badge bg-body-secondary text-body-secondary border">Optional</span> }
                       </label>
                       @switch (field.type) {
                         @case ('text') {
@@ -245,7 +245,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 @if (modalOpen) {
   <!-- USA Lacrosse API Details modal -->
   <div class="position-fixed top-0 start-0 w-100 h-100" style="background: rgba(0,0,0,0.5); z-index: 1050;" role="presentation" (click)="closeModal()"></div>
-  <div class="position-fixed top-50 start-50 translate-middle bg-white rounded shadow border w-100" style="max-width: 720px; z-index: 1060;" role="dialog" aria-modal="true" aria-label="USA Lacrosse API Details">
+  <div class="position-fixed top-50 start-50 translate-middle bg-body rounded shadow border w-100" style="max-width: 720px; z-index: 1060;" role="dialog" aria-modal="true" aria-label="USA Lacrosse API Details">
     <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
       <h6 class="mb-0">USA Lacrosse API Details</h6>
       <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeModal()">Close</button>
@@ -269,7 +269,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
           <button type="button" class="btn btn-sm btn-outline-primary" (click)="copyModalJson()">Copy JSON</button>
           <a class="btn btn-sm btn-link" href="#" (click)="$event.preventDefault(); closeModal()">Done</a>
         </div>
-        <pre class="bg-light border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
+        <pre class="bg-body-secondary border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
       } @else {
         <div class="alert alert-warning small">No membership details were returned by the API.</div>
       }

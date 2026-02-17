@@ -43,14 +43,14 @@ import type { LineItem } from '../services/payment.service';
               <div class="fw-semibold mb-1">Payment Error</div>
               <div class="small">{{ lastError()!.message || 'An error occurred.' }}</div>
             </div>
-            @if (lastError()!.errorCode) { <span class="badge bg-danger-subtle text-dark border">{{ lastError()!.errorCode }}</span> }
+            @if (lastError()!.errorCode) { <span class="badge bg-danger-subtle text-danger-emphasis border">{{ lastError()!.errorCode }}</span> }
           </div>
         }
 
         <!-- Prominent balance due banner -->
         @if (currentTotal() > 0) {
           <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3"
-               style="background: var(--bs-primary); color: var(--neutral-0);">
+               class="bg-primary text-white">
             <span class="fw-semibold">Balance Due</span>
             <span class="fs-4 fw-bold">{{ currentTotal() | currency }}</span>
           </div>
@@ -131,7 +131,7 @@ import type { LineItem } from '../services/payment.service';
           @if (state.regSaverDetails()) {
             <div class="alert alert-info border-0 mb-3" role="status">
               <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-info-subtle text-dark border">RegSaver</span>
+                <span class="badge bg-info-subtle text-info-emphasis border">RegSaver</span>
                 <div>
                   <div class="fw-semibold">RegSaver policy on file</div>
                   <div class="small text-muted">Policy #: {{ state.regSaverDetails()!.policyNumber }} • Created: {{ state.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}</div>
@@ -145,7 +145,7 @@ import type { LineItem } from '../services/payment.service';
               <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
               @if (isViCcOnlyFlow()) {
                 <div class="alert alert-warning border-0" role="status">
-                  <span class="badge bg-warning-subtle text-dark border me-1">Insurance Premium</span>
+                  <span class="badge bg-warning-subtle text-warning-emphasis border me-1">Insurance Premium</span>
                   A registration balance is not due, but an insurance premium is. Enter card details and click <strong>Proceed with Insurance Processing</strong>.
                 </div>
               }

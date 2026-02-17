@@ -78,8 +78,8 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
             justify-content: flex-end;
             gap: 0.5rem;
             padding: 1rem;
-            border-top: 1px solid rgba(0, 0, 0, 0.1);
-            background: var(--bs-body-bg, #fff);
+            border-top: 1px solid var(--bs-border-color-translucent);
+            background: var(--bs-body-bg);
         }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,

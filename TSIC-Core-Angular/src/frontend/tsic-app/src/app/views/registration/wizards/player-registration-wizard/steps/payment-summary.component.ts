@@ -43,7 +43,7 @@ import { PaymentService } from '../services/payment.service';
                   @switch (prog.state) {
                     @case ('issue') { <span class="text-warning">Issue</span> }
                     @case ('pending') { <span>{{ prog.nextDate | date:'MMM d, y'}} ({{ prog.nextIndex + 1 }}/{{ prog.total }})</span> }
-                    @case ('completed') { <span class="badge bg-secondary-subtle text-dark border" title="No further scheduled billing dates">No more due</span> }
+                    @case ('completed') { <span class="badge bg-secondary-subtle text-secondary-emphasis border" title="No further scheduled billing dates">No more due</span> }
                     @default { <span>-</span> }
                   }
                 }

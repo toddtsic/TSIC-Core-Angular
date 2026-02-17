@@ -73,7 +73,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                           <div class="small text-muted">Eligibility not selected; go back to set it.</div>
                         } @else {
                           <div class="small">
-                            Eligibility: <span class="badge bg-primary-subtle text-dark">{{ eligibilityFor(p.userId) }}</span>
+                            Eligibility: <span class="badge bg-primary-subtle text-primary-emphasis">{{ eligibilityFor(p.userId) }}</span>
                           </div>
                         }
                       }
@@ -82,7 +82,7 @@ import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDo
                         <div class="fw-semibold mb-1">Selected teams</div>
                         <ul class="list-unstyled d-flex flex-wrap gap-2 m-0">
                           @for (id of selectedArrayFor(p.userId); track id) {
-                            <li class="badge bg-primary-subtle text-dark border border-primary-subtle">
+                            <li class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">
                               <span class="name">{{ nameForTeam(id) }} @if (priceForTeam(id) != null) { ({{ priceForTeam(id) | currency }}) }</span>
                               @if (canRemoveTeam(p.userId, id)) {
                                 <button type="button" class="btn btn-sm btn-link text-decoration-none ms-1 align-baseline remove-team-btn"

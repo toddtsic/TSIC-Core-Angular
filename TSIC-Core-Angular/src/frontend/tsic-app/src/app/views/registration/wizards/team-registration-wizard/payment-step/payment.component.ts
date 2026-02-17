@@ -100,7 +100,7 @@ declare global {
         <!-- Prominent balance due banner -->
         @if (paymentSvc.hasBalance()) {
           <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3"
-               style="background: var(--bs-primary); color: var(--neutral-0);">
+               class="bg-primary text-white">
             <span class="fw-semibold">Balance Due</span>
             <span class="fs-4 fw-bold">{{ paymentSvc.amountToCharge() | currency }}</span>
           </div>
