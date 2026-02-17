@@ -61,7 +61,8 @@ import { WaiverStateService } from '../services/waiver-state.service';
          [formControlName]="bindingKey(w.id)"
          [id]="'waiver-' + w.id"
          [class.is-invalid]="submitted() && w.required && controlInvalid(w.id)"
-         [attr.aria-invalid]="submitted() && w.required && controlInvalid(w.id)" />
+         [attr.aria-invalid]="submitted() && w.required && controlInvalid(w.id)"
+         [attr.aria-describedby]="(submitted() && w.required && controlInvalid(w.id)) ? 'waiver-err-' + w.id : null" />
                       <label class="form-check-label" [for]="'waiver-' + w.id">
                         I have read and agree to the {{ w.title.toLowerCase() }}
                       </label>
@@ -69,7 +70,7 @@ import { WaiverStateService } from '../services/waiver-state.service';
                         <span class="badge bg-secondary ms-2" title="Previously accepted and locked">Locked</span>
                       }
                       @if (submitted() && w.required && controlInvalid(w.id)) {
-                        <div class="invalid-feedback d-block mt-1">Please accept this waiver to continue.</div>
+                        <div [id]="'waiver-err-' + w.id" class="invalid-feedback d-block mt-1">Please accept this waiver to continue.</div>
                       }
                     </div>
                   </div>

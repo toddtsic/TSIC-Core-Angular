@@ -3,14 +3,17 @@
     <div class="col-12">
       <!-- Fixed header region containing title, step indicator, and action bar -->
       <div class="wizard-fixed-header">
+        <!-- Visually-hidden fallback heading — always present for aria-labelledby -->
+        <h1 id="tw-title" class="visually-hidden">Team Registration</h1>
+
         <!-- Mobile: Ultra-compact -->
         <div class="d-md-none text-center mb-1">
           @if (clubName()) {
-          <h2 id="tw-title" class="mb-0 fw-bold fs-6">
+          <h2 class="mb-0 fw-bold fs-6" aria-hidden="true">
             <span class="text-primary">{{ clubName() }}</span> • Team
           </h2>
           } @else {
-          <h2 class="mb-0 fw-bold fs-6">Team Registration</h2>
+          <h2 class="mb-0 fw-bold fs-6" aria-hidden="true">Team Registration</h2>
           }
         </div>
 

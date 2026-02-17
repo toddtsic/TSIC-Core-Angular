@@ -1,4 +1,4 @@
-<main class="container-fluid px-3 py-2 rw-wizard-container" aria-labelledby="rw-title" [wizardTheme]="'player'">
+<main class="container-fluid px-3 py-2 rw-wizard-container" aria-labelledby="rw-title-mobile rw-title-desktop" [wizardTheme]="'player'">
   <div class="row justify-content-center">
     <div class="col-12">
       <!-- Fixed header region containing title, step indicator, and action bar -->
@@ -6,7 +6,7 @@
         <!-- Mobile: Ultra-compact title -->
         <div class="d-md-none text-center mb-1">
           <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
-            <h2 id="rw-title" class="mb-0 fw-bold fs-6">Player Registration</h2>
+            <h2 id="rw-title-mobile" class="mb-0 fw-bold fs-6">Player Registration</h2>
             @if (familyLastName()) {
             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
               {{ familyLastName() }}
@@ -17,7 +17,7 @@
 
         <!-- Desktop: Full title -->
         <div class="d-none d-md-block text-center mb-3">
-          <h2 id="rw-title" class="mb-1 fw-bold">Player Registration</h2>
+          <h2 id="rw-title-desktop" class="mb-1 fw-bold">Player Registration</h2>
           @if (familyLastName()) {
           <div class="d-flex align-items-center justify-content-center">
             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">

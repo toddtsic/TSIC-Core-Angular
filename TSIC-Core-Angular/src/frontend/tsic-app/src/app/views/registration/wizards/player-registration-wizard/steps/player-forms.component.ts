@@ -6,11 +6,12 @@ import type { PreSubmitValidationErrorDto } from '@core/api';
 import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
+import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
 
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective],
+  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, WizardModalComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -155,6 +156,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  [attr.aria-required]="field.required || null"
+                                 [attr.aria-invalid]="isFieldInvalid(player.userId, field.name) || null"
                                  autocomplete="off"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
@@ -164,6 +166,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  [attr.aria-required]="field.required || null"
+                                 [attr.aria-invalid]="isFieldInvalid(player.userId, field.name) || null"
                                  inputmode="numeric"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
@@ -173,6 +176,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                  [id]="helpId(player.userId, field.name)"
                                  [required]="field.required"
                                  [attr.aria-required]="field.required || null"
+                                 [attr.aria-invalid]="isFieldInvalid(player.userId, field.name) || null"
                                  [ngModel]="value(player.userId, field.name)"
                                  (ngModelChange)="setValue(player.userId, field.name, $event)" />
                         }
@@ -181,6 +185,7 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
                                   [id]="helpId(player.userId, field.name)"
                                   [required]="field.required"
                                   [attr.aria-required]="field.required || null"
+                                  [attr.aria-invalid]="isFieldInvalid(player.userId, field.name) || null"
                                   [ngModel]="value(player.userId, field.name)"
                                   (ngModelChange)="setValue(player.userId, field.name, $event)">
                             <option [ngValue]="null">-- Select {{ field.label }} --</option>
@@ -243,15 +248,9 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
     </div>
 
 @if (modalOpen) {
-  <!-- USA Lacrosse API Details modal -->
-  <div class="position-fixed top-0 start-0 w-100 h-100" style="background: rgba(0,0,0,0.5); z-index: 1050;" role="presentation" (click)="closeModal()"></div>
-  <div class="position-fixed top-50 start-50 translate-middle bg-body rounded shadow border w-100" style="max-width: 720px; z-index: 1060;" role="dialog" aria-modal="true" aria-label="USA Lacrosse API Details">
-    <div class="d-flex justify-content-between align-items-center border-bottom px-3 py-2">
-      <h6 class="mb-0">USA Lacrosse API Details</h6>
-      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closeModal()">Close</button>
-    </div>
-    <div class="p-3">
-      <p class="small text-muted mb-2">Your membership didn’t validate. Recommend calling USA Lacrosse at call 410-235-6882. Please share the following information with them.</p>
+  <app-wizard-modal title="USA Lacrosse API Details" size="md" (closed)="closeModal()">
+    <div modal-body>
+      <p class="small text-muted mb-2">Your membership didn't validate. Recommend calling USA Lacrosse at call 410-235-6882. Please share the following information with them.</p>
       @if (modalData) {
         <div class="table-responsive mb-3">
           <table class="table table-sm mb-0 align-middle">
@@ -267,14 +266,16 @@ import { UsLaxValidatorDirective } from '../uslax-validator.directive';
         </div>
         <div class="mb-2 d-flex gap-2">
           <button type="button" class="btn btn-sm btn-outline-primary" (click)="copyModalJson()">Copy JSON</button>
-          <a class="btn btn-sm btn-link" href="#" (click)="$event.preventDefault(); closeModal()">Done</a>
         </div>
         <pre class="bg-body-secondary border rounded p-2 small" style="max-height: 320px; overflow: auto">{{ prettyJson(modalData) }}</pre>
       } @else {
         <div class="alert alert-warning small">No membership details were returned by the API.</div>
       }
     </div>
-  </div>
+    <div modal-footer>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="closeModal()">Done</button>
+    </div>
+  </app-wizard-modal>
 }
   `,
   styles: [
@@ -397,6 +398,10 @@ export class PlayerFormsComponent {
     if (Array.isArray(raw)) return raw.length > 0;
     if (typeof raw === 'boolean') return raw === true;
     return String(raw).trim().length > 0;
+  }
+  isFieldInvalid(playerId: string, fieldName: string): boolean {
+    const errs = this.state.validateAllSelectedPlayers();
+    return !!errs[playerId]?.[fieldName];
   }
   usLaxStatus(playerId: string) {
     return this.state.usLaxStatus()[playerId] || { value: '', status: 'idle' };

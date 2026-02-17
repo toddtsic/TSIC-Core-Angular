@@ -14,12 +14,14 @@
                 <button type="button" class="btn btn-sm"
                     [class.btn-primary]="mode() === 'select'"
                     [class.btn-outline-primary]="mode() !== 'select'"
+                    [attr.aria-pressed]="mode() === 'select'"
                     (click)="setMode('select')">
                     <i class="bi bi-list-check me-1"></i>Select Existing Team
                 </button>
                 <button type="button" class="btn btn-sm"
                     [class.btn-primary]="mode() === 'create'"
                     [class.btn-outline-primary]="mode() !== 'create'"
+                    [attr.aria-pressed]="mode() === 'create'"
                     (click)="setMode('create')">
                     <i class="bi bi-plus-circle me-1"></i>Register New Team
                 </button>

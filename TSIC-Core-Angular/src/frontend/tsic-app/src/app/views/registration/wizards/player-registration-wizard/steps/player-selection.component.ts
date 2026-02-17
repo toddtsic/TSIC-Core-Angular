@@ -41,7 +41,9 @@ import { environment } from '@environments/environment';
         <!-- Loading overlay -->
         @if (state.familyPlayersLoading()) {
         <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-body bg-opacity-75" style="z-index: 10;">
-          <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+          <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading…</span>
+          </div>
           <div class="fw-semibold">Loading Family Players...</div>
         </div>
         }
@@ -60,7 +62,7 @@ import { environment } from '@environments/environment';
         [checked]="isSelected(p.playerId)"
         [disabled]="state.isPlayerLocked(p.playerId)"
         (change)="!state.isPlayerLocked(p.playerId) && state.togglePlayerSelection(p.playerId)"
-        [attr.aria-label]="state.isPlayerLocked(p.playerId) ? 'Already registered' : (isSelected(p.playerId) ? 'Deselect player' : 'Select player')" />
+        [attr.aria-label]="state.isPlayerLocked(p.playerId) ? 'Already registered: ' + p.firstName + ' ' + p.lastName : (isSelected(p.playerId) ? 'Deselect ' + p.firstName + ' ' + p.lastName : 'Select ' + p.firstName + ' ' + p.lastName)" />
                 <div>
                   <div class="fw-semibold">{{ p.firstName }} {{ p.lastName }}</div>
                   <div class="player-meta small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
