@@ -455,6 +455,7 @@ export class TeamsStepComponent implements OnInit {
         }
 
         // Populate payment service with teams and metadata
+        this.paymentService.jobPath.set(this.jobContext.jobPath() || '');
         this.paymentService.teams.set(this.registeredTeamsSignal());
         this.paymentService.paymentMethodsAllowedCode.set(
             this.paymentMethodsAllowedCode(),

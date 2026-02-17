@@ -1,17 +1,18 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, computed, inject, CUSTOM_ELEMENTS_SCHEMA, ViewChildren, QueryList, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { NgClass, NgStyle, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { PlayerStateService } from '../services/player-state.service';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
 import { TeamService } from '../team.service';
 import { DropDownListModule, MultiSelectModule, CheckBoxSelectionService, DropDownListComponent, MultiSelectComponent } from '@syncfusion/ej2-angular-dropdowns';
+import { colorClassForIndex, textColorClassForIndex } from '../../shared/utils/color-class.util';
 
 @Component({
   selector: 'app-rw-team-selection',
   standalone: true,
   // Use Syncfusion components for typeahead and checkbox MultiSelect UX
-  imports: [CommonModule, FormsModule, DropDownListModule, MultiSelectModule],
+  imports: [NgClass, NgStyle, CurrencyPipe, FormsModule, DropDownListModule, MultiSelectModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [CheckBoxSelectionService],
   styles: [`
@@ -564,15 +565,6 @@ export class TeamSelectionComponent {
   }
   trackPlayer = (_: number, p: { userId: string }) => p.userId;
 
-  // Deterministic color per player index
-  colorClassForIndex(idx: number): string {
-    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
-    return palette[idx % palette.length];
-  }
-
-  // Coordinated text badge color per player index
-  textColorClassForIndex(idx: number): string {
-    const palette = ['bg-primary-subtle text-primary-emphasis border border-primary-subtle', 'bg-success-subtle text-success-emphasis border border-success-subtle', 'bg-info-subtle text-info-emphasis border border-info-subtle', 'bg-warning-subtle text-warning-emphasis border border-warning-subtle', 'bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle'];
-    return palette[idx % palette.length];
-  }
+  colorClassForIndex = colorClassForIndex;
+  textColorClassForIndex = textColorClassForIndex;
 }

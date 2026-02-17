@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { NgClass, DatePipe, JsonPipe } from '@angular/common';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { FormsModule } from '@angular/forms';
 import { environment } from '@environments/environment';
+import { colorClassForIndex } from '../../shared/utils/color-class.util';
 
 @Component({
   selector: 'app-rw-player-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [NgClass, DatePipe, JsonPipe, FormsModule],
   styles: [`
     .player-row {
       border-radius: var(--radius-sm);
@@ -65,7 +66,7 @@ import { environment } from '@environments/environment';
         [attr.aria-label]="state.isPlayerLocked(p.playerId) ? 'Already registered: ' + p.firstName + ' ' + p.lastName : (isSelected(p.playerId) ? 'Deselect ' + p.firstName + ' ' + p.lastName : 'Select ' + p.firstName + ' ' + p.lastName)" />
                 <div>
                   <div class="fw-semibold">{{ p.firstName }} {{ p.lastName }}</div>
-                  <div class="player-meta small">{{ p.gender || 'Gender N/A' }} • {{ p.dob || 'DOB not on file' }}</div>
+                  <div class="player-meta small">{{ p.gender || 'Gender N/A' }} • {{ p.dob ? (p.dob | date:'mediumDate') : 'DOB not on file' }}</div>
                 </div>
               </div>
               @if (state.isPlayerLocked(p.playerId)) { <span class="badge bg-secondary" title="Previously registered for this job">Locked</span> }
@@ -111,8 +112,5 @@ export class PlayerSelectionComponent implements OnInit {
     } catch { return false; }
   }
 
-  colorClassForIndex(idx: number): string {
-    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
-    return palette[idx % palette.length];
-  }
+  colorClassForIndex = colorClassForIndex;
 }

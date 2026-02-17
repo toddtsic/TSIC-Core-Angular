@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, effect, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
+import { colorClassForIndex, textColorClassForIndex } from '../../shared/utils/color-class.util';
 import { JobService } from '@infrastructure/services/job.service';
 import type { JobMetadataResponse } from '@core/api';
 // Reactive forms were previously layered here but not used in the template; simplified to template-driven.
@@ -9,7 +10,7 @@ import type { JobMetadataResponse } from '@core/api';
 @Component({
   selector: 'app-rw-eligibility-selection',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [NgClass, FormsModule],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -311,15 +312,6 @@ export class ConstraintSelectionComponent {
     return Array.isArray(opts) && opts.some(o => o?.value === val);
   }
 
-  // Deterministic color per player index
-  colorClassForIndex(idx: number): string {
-    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
-    return palette[idx % palette.length];
-  }
-
-  // Coordinated text badge color per player index
-  textColorClassForIndex(idx: number): string {
-    const palette = ['bg-primary-subtle text-primary-emphasis border border-primary-subtle', 'bg-success-subtle text-success-emphasis border border-success-subtle', 'bg-info-subtle text-info-emphasis border border-info-subtle', 'bg-warning-subtle text-warning-emphasis border border-warning-subtle', 'bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle'];
-    return palette[idx % palette.length];
-  }
+  colorClassForIndex = colorClassForIndex;
+  textColorClassForIndex = textColorClassForIndex;
 }

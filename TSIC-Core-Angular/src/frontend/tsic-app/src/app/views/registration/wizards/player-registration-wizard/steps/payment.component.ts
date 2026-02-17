@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, OnDestroy, ViewChild, ElementRef, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, OnDestroy, ViewChild, ElementRef, signal, computed } from '@angular/core';
+import { NgClass, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryComponent } from './payment-summary.component';
 import { PaymentOptionSelectorComponent } from './payment-option-selector.component';
@@ -30,7 +30,7 @@ import type { LineItem } from '../services/payment.service';
 @Component({
   selector: 'app-rw-payment',
   standalone: true,
-  imports: [CommonModule, FormsModule, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
+  imports: [NgClass, CurrencyPipe, DatePipe, FormsModule, ViChargeConfirmModalComponent, PaymentSummaryComponent, PaymentOptionSelectorComponent, CreditCardFormComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -289,25 +289,30 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
 
   // --- Delegated getters wrapping PaymentService signals ---
   lineItems(): LineItem[] { return this.paySvc.lineItems(); }
-  currentTotal(): number { return this.paySvc.currentTotal(); }
-  isViCcOnlyFlow(): boolean {
-    // Insurance premium-only flow: no immediate TSIC charge due (either zero balance OR all ARB active), insurance confirmed, and quotes (premium) present.
-    return !this.tsicChargeDueNow() && this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0;
-  }
-  private tsicChargeDueNow(): boolean {
+  readonly currentTotal = computed(() => this.paySvc.currentTotal());
+  readonly arbHideAllOptions = computed(() => {
+    const regs = this.relevantRegs();
+    if (!regs.length) return false;
+    return regs.every(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
+  });
+  readonly tsicChargeDueNow = computed(() => {
     // Immediate TSIC payment is due only when balance > 0 and not fully covered by active ARB subscriptions.
     if (this.arbHideAllOptions()) return false;
     return this.currentTotal() > 0;
-  }
-  showPayNowButton(): boolean {
+  });
+  readonly isViCcOnlyFlow = computed(() => {
+    // Insurance premium-only flow: no immediate TSIC charge due (either zero balance OR all ARB active), insurance confirmed, and quotes (premium) present.
+    return !this.tsicChargeDueNow() && this.insuranceState.offerPlayerRegSaver() && this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0;
+  });
+  readonly showPayNowButton = computed(() => {
     // Pay Now should only be visible if a TSIC charge is actually due.
     return this.tsicChargeDueNow();
-  }
-  showCcSection(): boolean {
+  });
+  readonly showCcSection = computed(() => {
     // Show CC when TSIC charge due OR insurance quotes (premium) present (even before confirmation) to allow early form completion.
     return this.tsicChargeDueNow() || (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0);
-  }
-  showNoPaymentInfo(): boolean { return !this.tsicChargeDueNow() && !this.isViCcOnlyFlow(); }
+  });
+  readonly showNoPaymentInfo = computed(() => !this.tsicChargeDueNow() && !this.isViCcOnlyFlow());
   canSubmit(): boolean {
     // Hide submit when all ARB subs active (nothing to do)
     if (this.arbHideAllOptions()) return false;
@@ -608,19 +613,10 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
   // Autofocus logic removed per request
   monthLabel(): string { return this.paySvc.monthLabel(); }
   // --- ARB subscription helpers ---
-  private priorRegs() {
-    return this.state.familyPlayers().flatMap(p => p.priorRegistrations || []);
-  }
   private relevantRegs() {
     // Consider registrations tied to selected or already registered players
     const playerIds = new Set(this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId));
     return this.state.familyPlayers().filter(p => playerIds.has(p.playerId)).flatMap(p => p.priorRegistrations || []);
-  }
-  // Hide payment options when ALL relevant registrations have an active subscription (future billing handled automatically).
-  arbHideAllOptions(): boolean {
-    const regs = this.relevantRegs();
-    if (!regs.length) return false;
-    return regs.every(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
   }
   arbProblemAny(): boolean {
     const regs = this.relevantRegs();

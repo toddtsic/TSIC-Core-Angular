@@ -21,7 +21,20 @@ import { RegistrationWizardService } from '../registration-wizard.service';
         <h5 class="mb-0 fw-semibold">Confirmation</h5>
       </div>
       <div class="card-body">
-        @if (!confirmationLoaded()) {
+        @if (loadError()) {
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <div>
+              <div class="fw-semibold mb-1">Unable to load confirmation</div>
+              <div class="small">The confirmation data did not load in time. Please try again.</div>
+            </div>
+          </div>
+          <div class="text-center">
+            <button type="button" class="btn btn-primary" (click)="retry()">
+              <i class="bi bi-arrow-clockwise me-1"></i> Retry
+            </button>
+          </div>
+        } @else if (!confirmationLoaded()) {
           <p class="text-muted">Loading confirmation summary…</p>
         } @else {
           <button type="button" class="btn btn-outline-primary mb-3" [disabled]="resending()" (click)="onResendClick()">
@@ -55,7 +68,10 @@ export class ConfirmationComponent implements OnInit, OnDestroy {
       this.pollTimer = setInterval(() => {
         if (tryLoad()) this.clearTimers();
       }, 250);
-      this.safetyTimer = setTimeout(() => this.clearTimers(), 4000);
+      this.safetyTimer = setTimeout(() => {
+        this.clearTimers();
+        if (!this.confirmationLoaded()) this.loadError.set(true);
+      }, 4000);
     }
   }
 
@@ -70,8 +86,14 @@ export class ConfirmationComponent implements OnInit, OnDestroy {
 
   conf = computed(() => this.state.confirmation());
   confirmationLoaded = computed(() => !!this.conf());
+  readonly loadError = signal(false);
   resending = signal(false);
   resendMessage = signal<string>('');
+
+  retry(): void {
+    this.loadError.set(false);
+    this.ngOnInit();
+  }
 
   async onResendClick(): Promise<void> {
     if (this.resending()) return;

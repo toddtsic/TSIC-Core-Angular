@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { NgClass, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RegistrationWizardService, PlayerProfileFieldSchema } from '../registration-wizard.service';
 import type { PreSubmitValidationErrorDto } from '@core/api';
@@ -7,11 +7,12 @@ import { UsLaxService } from '../uslax.service';
 import { TeamService } from '../team.service';
 import { UsLaxValidatorDirective } from '../uslax-validator.directive';
 import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
+import { colorClassForIndex, textColorClassForIndex } from '../../shared/utils/color-class.util';
 
 @Component({
   selector: 'app-rw-player-forms',
   standalone: true,
-  imports: [CommonModule, FormsModule, UsLaxValidatorDirective, WizardModalComponent],
+  imports: [NgClass, CurrencyPipe, FormsModule, UsLaxValidatorDirective, WizardModalComponent],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -348,17 +349,8 @@ export class PlayerFormsComponent {
   selectedPlayers = () => this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => ({ userId: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
   jobId = () => this.state.jobId();
   jobPath = () => this.state.jobPath();
-  // Deterministic color per player across steps (light/dark friendly using *-subtle variants)
-  colorClassForIndex(idx: number): string {
-    const palette = ['bg-primary-subtle border-primary-subtle', 'bg-success-subtle border-success-subtle', 'bg-info-subtle border-info-subtle', 'bg-warning-subtle border-warning-subtle', 'bg-secondary-subtle border-secondary-subtle'];
-    return palette[idx % palette.length];
-  }
-
-  // Coordinated text badge color per player index
-  textColorClassForIndex(idx: number): string {
-    const palette = ['bg-primary-subtle text-primary-emphasis border border-primary-subtle', 'bg-success-subtle text-success-emphasis border border-success-subtle', 'bg-info-subtle text-info-emphasis border border-info-subtle', 'bg-warning-subtle text-warning-emphasis border border-warning-subtle', 'bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle'];
-    return palette[idx % palette.length];
-  }
+  colorClassForIndex = colorClassForIndex;
+  textColorClassForIndex = textColorClassForIndex;
 
   value(playerId: string, field: string) { return this.state.getPlayerFieldValue(playerId, field); }
   setValue(playerId: string, field: string, val: any) { this.state.setPlayerFieldValue(playerId, field, val); }

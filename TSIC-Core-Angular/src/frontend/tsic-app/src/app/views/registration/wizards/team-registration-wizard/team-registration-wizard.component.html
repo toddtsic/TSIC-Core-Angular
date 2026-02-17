@@ -104,16 +104,16 @@
               (registrationSuccess)="handleRegistrationSuccess($event)"></app-club-rep-login-step>
             }
 
-            @if (step() === WizardStep.RegisterTeams) {
-            <app-teams-step (proceed)="step.set(WizardStep.Payment)"></app-teams-step>
-            }
-
-            @if (step() === WizardStep.Payment) {
-            <app-team-payment-step (proceed)="step.set(WizardStep.Review)"></app-team-payment-step>
-            }
-
-            @if (step() === WizardStep.Review) {
-            <app-review-step [registrationId]="registrationId()"></app-review-step>
+            @switch (step()) {
+              @case (WizardStep.RegisterTeams) {
+                <app-teams-step (proceed)="step.set(WizardStep.Payment)"></app-teams-step>
+              }
+              @case (WizardStep.Payment) {
+                <app-team-payment-step (proceed)="step.set(WizardStep.Review)"></app-team-payment-step>
+              }
+              @case (WizardStep.Review) {
+                <app-review-step [registrationId]="registrationId()"></app-review-step>
+              }
             }
           </div>
           <!-- /card-body -->
