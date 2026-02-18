@@ -1,0 +1,66 @@
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+	</div>
+} @else if (options()) {
+	<h2 class="page-title">Registration Dropdown Options</h2>
+	<p class="page-subtitle">Configure the dropdown values that appear on player and team registration forms. Use semicolons to add multiple values at once.</p>
+
+	@for (group of groups; track group.key) {
+		<section class="category-group">
+			<h3 class="group-header">
+				<i class="bi" [class]="group.key === 'clothing' ? 'bi-tag' : group.key === 'player' ? 'bi-person' : 'bi-people'"></i>
+				{{ group.label }}
+			</h3>
+
+			@for (cat of group.categories; track cat.key) {
+				<div class="category-row">
+					<label class="category-label">{{ cat.label }}</label>
+
+					<div class="chip-list">
+						@for (val of getValues(cat.key); track $index) {
+							<span class="chip">
+								{{ val }}
+								<button class="chip-remove"
+									(click)="removeValue(cat.key, $index)"
+									[attr.aria-label]="'Remove ' + val"
+									type="button">&times;</button>
+							</span>
+						} @empty {
+							<span class="empty-hint">No values configured</span>
+						}
+					</div>
+
+					<div class="add-row">
+						<input class="form-control form-control-sm add-input"
+							[value]="getAddInput(cat.key)"
+							(input)="setAddInput(cat.key, $event)"
+							(keydown.enter)="addValues(cat.key)"
+							placeholder="Add value (semicolon for bulk)" />
+						<button class="btn btn-sm btn-outline-primary add-btn"
+							(click)="addValues(cat.key)"
+							type="button">Add</button>
+					</div>
+				</div>
+			}
+		</section>
+	}
+
+	<!-- Sticky save bar -->
+	@if (isDirty()) {
+		<div class="save-bar">
+			<span class="unsaved-badge">
+				{{ changeCount() }} {{ changeCount() === 1 ? 'category' : 'categories' }} modified
+			</span>
+			<button class="btn btn-sm btn-outline-secondary" (click)="reset()" [disabled]="isSaving()" type="button">Reset</button>
+			<button class="btn btn-sm btn-primary" (click)="save()" [disabled]="isSaving()" type="button">
+				@if (isSaving()) {
+					<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+				}
+				Save Changes
+			</button>
+		</div>
+	}
+}

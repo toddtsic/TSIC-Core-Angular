@@ -1,0 +1,169 @@
+<div class="job-clone-container">
+	<h2 class="page-title">Job Clone</h2>
+	<p class="page-subtitle">Create a new season by cloning an existing job and its configuration.</p>
+
+	<!-- Source Job Selector -->
+	<section class="form-section">
+		<h3 class="section-title">Source Job</h3>
+		@if (isLoadingSources()) {
+			<p class="loading-text">Loading jobs...</p>
+		} @else {
+			<div class="form-row">
+				<label class="form-label" for="sourceJob">Clone from</label>
+				<select id="sourceJob" class="form-select"
+					[ngModel]="selectedSourceId()"
+					(ngModelChange)="selectedSourceId.set($event); onSourceSelected()">
+					<option value="">— Select a job —</option>
+					@for (job of sourceJobs(); track job.jobId) {
+						<option [value]="job.jobId">
+							{{ job.jobName }} ({{ job.year }} {{ job.season }}) — {{ job.jobPath }}
+						</option>
+					}
+				</select>
+			</div>
+		}
+	</section>
+
+	@if (selectedSourceId()) {
+		<!-- Target Identity -->
+		<section class="form-section">
+			<h3 class="section-title">Target Job</h3>
+			<div class="form-grid">
+				<div class="form-row">
+					<label class="form-label" for="jobPath">Job Path</label>
+					<input id="jobPath" type="text" class="form-input" [(ngModel)]="jobPathTarget"
+						placeholder="e.g., lftc-summer-2026">
+				</div>
+				<div class="form-row">
+					<label class="form-label" for="jobName">Job Name</label>
+					<input id="jobName" type="text" class="form-input" [(ngModel)]="jobNameTarget"
+						placeholder="e.g., LFTC Summer 2026">
+				</div>
+				<div class="form-row">
+					<label class="form-label" for="year">Year</label>
+					<input id="year" type="text" class="form-input" [(ngModel)]="yearTarget"
+						placeholder="2026">
+				</div>
+				<div class="form-row">
+					<label class="form-label" for="season">Season</label>
+					<input id="season" type="text" class="form-input" [(ngModel)]="seasonTarget"
+						placeholder="Summer">
+				</div>
+				<div class="form-row">
+					<label class="form-label" for="displayName">Display Name</label>
+					<input id="displayName" type="text" class="form-input" [(ngModel)]="displayName">
+				</div>
+				<div class="form-row">
+					<label class="form-label" for="leagueName">League Name</label>
+					<input id="leagueName" type="text" class="form-input" [(ngModel)]="leagueNameTarget">
+				</div>
+			</div>
+		</section>
+
+		<!-- Dates -->
+		<section class="form-section">
+			<h3 class="section-title">Expiry Dates</h3>
+			<div class="form-grid form-grid--two">
+				<div class="form-row">
+					<label class="form-label" for="expiryAdmin">Admin Expiry</label>
+					<input id="expiryAdmin" type="date" class="form-input" [(ngModel)]="expiryAdmin">
+				</div>
+				<div class="form-row">
+					<label class="form-label" for="expiryUsers">User Expiry</label>
+					<input id="expiryUsers" type="date" class="form-input" [(ngModel)]="expiryUsers">
+				</div>
+			</div>
+		</section>
+
+		<!-- Email -->
+		<section class="form-section">
+			<h3 class="section-title">Email</h3>
+			<div class="form-row">
+				<label class="form-label" for="regFormFrom">Registration From Email</label>
+				<input id="regFormFrom" type="email" class="form-input" [(ngModel)]="regFormFrom"
+					placeholder="Leave blank to copy from source">
+			</div>
+		</section>
+
+		<!-- Options -->
+		<section class="form-section">
+			<h3 class="section-title">Options</h3>
+			<div class="options-grid">
+				<label class="checkbox-label">
+					<input type="checkbox" [(ngModel)]="upAgegroupNamesByOne">
+					<span>Advance agegroup grad years by one</span>
+				</label>
+				<label class="checkbox-label">
+					<input type="checkbox" [(ngModel)]="setDirectorsToInactive">
+					<span>Set cloned Directors to inactive</span>
+				</label>
+				<label class="checkbox-label">
+					<input type="checkbox" [(ngModel)]="noParallaxSlide1">
+					<span>Remove parallax slide 1</span>
+				</label>
+			</div>
+		</section>
+
+		<!-- Clone Action -->
+		<section class="form-section action-section">
+			@if (error()) {
+				<div class="error-banner">{{ error() }}</div>
+			}
+
+			<button class="btn-clone" (click)="onClone()" [disabled]="isCloning()">
+				@if (isCloning()) {
+					<span class="spinner"></span> Cloning...
+				} @else {
+					Clone Job
+				}
+			</button>
+		</section>
+
+		<!-- Result -->
+		@if (result(); as r) {
+			<section class="form-section result-section">
+				<h3 class="section-title result-title">Clone Complete</h3>
+				<div class="result-card">
+					<div class="result-header">
+						<strong>{{ r.newJobName }}</strong>
+						<span class="result-path">{{ r.newJobPath }}</span>
+					</div>
+					<div class="result-summary">
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.bulletinsCloned }}</span>
+							<span class="summary-label">Bulletins</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.ageRangesCloned }}</span>
+							<span class="summary-label">Age Ranges</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.menusCloned }}</span>
+							<span class="summary-label">Menus</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.menuItemsCloned }}</span>
+							<span class="summary-label">Menu Items</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.adminRegistrationsCloned }}</span>
+							<span class="summary-label">Admins</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.leaguesCloned }}</span>
+							<span class="summary-label">Leagues</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.agegroupsCloned }}</span>
+							<span class="summary-label">Agegroups</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-count">{{ r.summary.divisionsCloned }}</span>
+							<span class="summary-label">Divisions</span>
+						</div>
+					</div>
+				</div>
+			</section>
+		}
+	}
+</div>
