@@ -10,14 +10,14 @@
 
 <!-- Tab navigation -->
 <div class="editor-tabs">
-	<button class="editor-tab" [class.active]="activeTab() === 'matrix'" (click)="activeTab.set('matrix')">
-		<i class="bi bi-grid-3x3 me-1"></i>Default Matrix
-	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'definitions'" (click)="activeTab.set('definitions')">
 		<i class="bi bi-puzzle me-1"></i>Widget Definitions
 	</button>
 	<button class="editor-tab" [class.active]="activeTab() === 'overrides'" (click)="activeTab.set('overrides')">
 		<i class="bi bi-sliders me-1"></i>Job Overrides
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'matrix'" (click)="activeTab.set('matrix')">
+		<i class="bi bi-grid-3x3 me-1"></i>Default Matrix
 	</button>
 </div>
 
@@ -476,6 +476,11 @@
 					<input type="text" class="form-control form-control-sm"
 						[value]="formComponentKey()" (input)="formComponentKey.set(asInputValue($event))" />
 					<div class="form-text">Unique identifier used to render the widget component.</div>
+					<div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3" style="font-size: 0.8rem;">
+						<i class="bi bi-exclamation-triangle-fill mt-1"></i>
+						<span>This key <strong>must</strong> have a matching entry in
+						<code>widgets/widget-registry.ts</code> or the widget will not render on the dashboard.</span>
+					</div>
 				</div>
 				<div class="mb-3">
 					<label class="form-label">Category</label>
