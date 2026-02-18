@@ -361,7 +361,7 @@ export class TeamPaymentStepComponent
     // Context (clubName, jobId) derived from regId token claim on backend
     this.teamReg.getTeamsMetadata(true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (response) => this.metadata.set(response),
-      error: (err) =>
+      error: (err: unknown) =>
         console.error('[PaymentComponent] Failed to load metadata:', err),
     });
   }
@@ -432,7 +432,7 @@ export class TeamPaymentStepComponent
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: (response) => this.metadata.set(response),
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('[PaymentComponent] Discount application failed:', err);
       },
     });

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, inject, signal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal, output } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
 import { ClubService } from '@infrastructure/services/club.service';
@@ -18,11 +19,12 @@ import { formatHttpError } from '../../shared/utils/error-utils';
     styleUrls: ['./add-club-form.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AddClubFormComponent implements OnInit, OnDestroy {
+export class AddClubFormComponent implements OnInit {
     // Services
     private readonly fb = inject(FormBuilder);
     private readonly clubService = inject(ClubService);
     private readonly teamRegService = inject(TeamRegistrationService);
+    private readonly destroyRef = inject(DestroyRef);
 
     // Outputs
     readonly clubAdded = output<void>();
@@ -45,13 +47,9 @@ export class AddClubFormComponent implements OnInit, OnDestroy {
         this.addClubForm = this.fb.group({
             clubName: ['', [Validators.required, Validators.maxLength(200)]]
         });
-    }
-
-    ngOnDestroy(): void {
-        this.addClubSubscription?.unsubscribe();
-        if (this.successTimeoutId) {
-            clearTimeout(this.successTimeoutId);
-        }
+        this.destroyRef.onDestroy(() => {
+            if (this.successTimeoutId) clearTimeout(this.successTimeoutId);
+        });
     }
 
     submitAddClub(): void {
@@ -76,6 +74,7 @@ export class AddClubFormComponent implements OnInit, OnDestroy {
         this.addClubSubscription?.unsubscribe();
 
         this.addClubSubscription = this.clubService.addClub(request).pipe(
+            takeUntilDestroyed(this.destroyRef),
             switchMap((response) => {
                 if (response.success) {
                     this.successMessage.set('Club added successfully!');
@@ -92,7 +91,7 @@ export class AddClubFormComponent implements OnInit, OnDestroy {
                     return of(null);
                 }
             }),
-            catchError((err) => {
+            catchError((err: unknown) => {
                 this.errorMessage.set(formatHttpError(err));
                 this.isSubmitting.set(false);
                 console.error('Add club error:', err);
@@ -110,7 +109,7 @@ export class AddClubFormComponent implements OnInit, OnDestroy {
                     }, 1500);
                 }
             },
-            error: (err) => {
+            error: (err: unknown) => {
                 console.error('Unexpected error in submitAddClub:', err);
                 this.isSubmitting.set(false);
             }

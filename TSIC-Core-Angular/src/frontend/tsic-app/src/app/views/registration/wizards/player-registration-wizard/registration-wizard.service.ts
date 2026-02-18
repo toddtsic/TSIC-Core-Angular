@@ -256,7 +256,7 @@ export class RegistrationWizardService {
                     this.handleFamilyPlayersSuccess(resp, jobPath);
                     this._familyPlayersLoading.set(false);
                 },
-                error: err => {
+                error: (err: unknown) => {
                     this.handleFamilyPlayersError(err);
                     this._familyPlayersLoading.set(false);
                 }
@@ -501,7 +501,7 @@ export class RegistrationWizardService {
                     this._jobWaivers.set(waivers);
                     this.parseProfileMetadata();
                 },
-                error: err => {
+                error: (err: unknown) => {
                     console.error('[RegWizard] Failed to load job metadata for form parsing', err);
                 }
             });

@@ -76,7 +76,7 @@ export class ClubRepWorkflowService {
                             hasConflict: conflictCheck.hasConflict ?? false,
                             conflictDetails: conflictCheck
                         })),
-                        catchError(err => {
+                        catchError((err: unknown) => {
                             console.error('Conflict check failed, proceeding anyway:', err);
                             // On conflict check failure, proceed without conflict data
                             return of({
@@ -95,21 +95,22 @@ export class ClubRepWorkflowService {
                     conflictDetails: null
                 });
             }),
-            catchError(err => {
-                // Re-throw with enhanced error info
-                if (err.type === 'TOS_REQUIRED' || err.type === 'NOT_A_CLUB_REP') {
+            catchError((err: unknown) => {
+                // Re-throw workflow errors (typed shapes from throwError above)
+                const e = err as { type?: string; error?: string | { error?: string; message?: string } };
+                if (e?.type === 'TOS_REQUIRED' || e?.type === 'NOT_A_CLUB_REP') {
                     return throwError(() => err);
                 }
 
                 // Generic error handling
                 let message = 'Login failed. Please check your username and password.';
-                if (err?.error) {
-                    if (typeof err.error === 'string') {
-                        message = err.error;
-                    } else if (err.error.error) {
-                        message = err.error.error;
-                    } else if (err.error.message) {
-                        message = err.error.message;
+                if (e?.error) {
+                    if (typeof e.error === 'string') {
+                        message = e.error;
+                    } else if (e.error.error) {
+                        message = e.error.error;
+                    } else if (e.error.message) {
+                        message = e.error.message;
                     }
                 }
                 return throwError(() => ({ type: 'LOGIN_FAILED', message }));
@@ -154,14 +155,14 @@ export class ClubRepWorkflowService {
                             map(clubs => ({ success: true, clubs, autoLoginFailed: false }))
                         );
                     }),
-                    catchError(loginErr => {
+                    catchError((loginErr: unknown) => {
                         // Auto-login failed, but registration succeeded
                         console.error('Auto-login failed after registration:', loginErr);
                         return of({ success: true, clubs: undefined, autoLoginFailed: true });
                     })
                 );
             }),
-            catchError(err => {
+            catchError((err: unknown) => {
                 // Registration failed or duplicate club detected
                 return throwError(() => err);
             })

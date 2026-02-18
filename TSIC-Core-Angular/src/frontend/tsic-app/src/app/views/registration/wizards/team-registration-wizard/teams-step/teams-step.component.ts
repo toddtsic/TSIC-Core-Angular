@@ -258,7 +258,7 @@ export class TeamsStepComponent implements OnInit {
 
                 this.isLoading.set(false);
             },
-            error: (err) => {
+            error: (err: unknown) => {
                 console.error('Failed to load teams metadata:', err);
                 this.errorMessage.set(formatHttpError(err));
                 this.isLoading.set(false);
@@ -316,7 +316,7 @@ export class TeamsStepComponent implements OnInit {
                     list.filter((t) => t.teamId !== team.teamId),
                 );
             },
-            error: (err) => {
+            error: (err: unknown) => {
                 this.isUnregistering.set(false);
                 console.error('Failed to unregister team:', err);
                 this.errorMessage.set(formatHttpError(err));
@@ -360,7 +360,7 @@ export class TeamsStepComponent implements OnInit {
                     this.isRegistering.set(false);
                     onSuccess();
                 },
-                error: (err) => {
+                error: (err: unknown) => {
                     console.error('Failed to register team:', err);
                     this.isRegistering.set(false);
                     this.errorMessage.set(formatHttpError(err));
@@ -481,7 +481,7 @@ export class TeamsStepComponent implements OnInit {
                         'success',
                     );
                 },
-                error: (err) => {
+                error: (err: unknown) => {
                     console.error('Failed to record refund policy acceptance:', err);
                     this.toast.show(
                         'Failed to record acceptance. Please try again.',

@@ -219,7 +219,7 @@ export class FamAccountStepReviewComponent implements OnInit {
           this.createError = res?.message || 'Unable to create Family Account';
         }
       },
-      error: (err) => {
+      error: (err: unknown) => {
         this.creating = false;
         this.createError = formatHttpError(err);
       }
@@ -270,7 +270,7 @@ export class FamAccountStepReviewComponent implements OnInit {
           this.createError = res?.message || 'Unable to update Family Account';
         }
       },
-      error: (err) => {
+      error: (err: unknown) => {
         this.creating = false;
         this.createError = formatHttpError(err);
       }

@@ -74,7 +74,7 @@ export class ReviewStepComponent implements OnInit {
         }
         this.isLoading.set(false);
       },
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Error loading confirmation text:', err);
         this.error.set(formatHttpError(err));
         this.isLoading.set(false);
@@ -103,7 +103,7 @@ export class ReviewStepComponent implements OnInit {
             this.isResending.set(false);
           }
         },
-        error: (err) => {
+        error: (err: unknown) => {
           console.error('Error sending confirmation email:', err);
           if (forceResend) {
             this.toast.show(`✗ ${formatHttpError(err)}`, 'danger', 7000);

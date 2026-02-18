@@ -334,7 +334,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                     this.fieldData.setJobOptions(job.jsonOptions);
                     // Registration status now available via jobService.isTeamRegistrationOpen()
                 },
-                error: (err) => {
+                error: (err: unknown) => {
                     console.error('Failed to load job metadata:', err);
                     this.metadataError.set(
                         'Failed to load registration information. Please try again.',
@@ -430,7 +430,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
             next: (clubs) => {
                 this.availableClubs.set(clubs);
             },
-            error: (err) => {
+            error: (err: unknown) => {
                 console.error('Failed to reload clubs:', err);
             },
         });
@@ -513,7 +513,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                         return of(null);
                     }
                 }),
-                catchError((err) => {
+                catchError((err: unknown) => {
                     this.addClubError.set('Failed to add club. Please try again.');
                     this.addClubSubmitting.set(false);
                     console.error('Add club error:', err);
@@ -537,7 +537,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
                         }, 1500);
                     }
                 },
-                error: (err) => {
+                error: (err: unknown) => {
                     // This should be caught by catchError above, but just in case
                     console.error('Unexpected error in submitAddClub:', err);
                     this.addClubSubmitting.set(false);

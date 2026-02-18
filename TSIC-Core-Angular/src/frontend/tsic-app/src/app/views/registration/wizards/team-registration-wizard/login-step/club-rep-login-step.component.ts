@@ -196,7 +196,7 @@ export class ClubRepLoginStepComponent implements OnInit {
                         this.showLoginModal.set(true);
                         this.loginModalStep.set('clubSelection');
                     },
-                    error: (err) => {
+                    error: (err: unknown) => {
                         this.loginSubmitting.set(false);
                         console.error('Failed to fetch clubs on init:', err);
                         this.inlineError.set(
@@ -274,16 +274,17 @@ export class ClubRepLoginStepComponent implements OnInit {
                         this.inlineError.set(null);
                     }
                 },
-                error: (err) => {
+                error: (err: unknown) => {
                     this.loginSubmitting.set(false);
+                    const e = err as { type?: string; message?: string };
 
                     // Handle specific error types
-                    if (err.type === 'TOS_REQUIRED') {
+                    if (e.type === 'TOS_REQUIRED') {
                         // User redirected to TOS page, no error message needed
                         return;
                     }
 
-                    if (err.type === 'NOT_A_CLUB_REP') {
+                    if (e.type === 'NOT_A_CLUB_REP') {
                         this.inlineError.set(
                             'You are not registered as a club representative.',
                         );
@@ -292,7 +293,7 @@ export class ClubRepLoginStepComponent implements OnInit {
 
                     // Generic error
                     this.inlineError.set(
-                        err.message || 'Login failed. Please try again.',
+                        e.message || 'Login failed. Please try again.',
                     );
                 },
             });
@@ -354,24 +355,25 @@ export class ClubRepLoginStepComponent implements OnInit {
                         this.hasClubRepAccount.set('yes');
                     }
                 },
-                error: (err) => {
+                error: (err: unknown) => {
                     this.registrationSubmitting.set(false);
+                    const e = err as { type?: string; message?: string; similarClubs?: ClubSearchResult[] };
 
                     // Handle duplicate/similar club conflict
-                    if (err.type === 'REGISTRATION_FAILED' && err.similarClubs) {
+                    if (e.type === 'REGISTRATION_FAILED' && e.similarClubs) {
                         this.setDuplicateModalState({
                             isOpen: true,
                             message:
-                                err.message ||
+                                e.message ||
                                 'A club with a very similar name already exists. Please verify before creating a new club rep.',
-                            clubs: err.similarClubs,
+                            clubs: e.similarClubs,
                         });
                         return;
                     }
 
                     // Generic error handling
                     this.registrationError.set(
-                        err.message || 'Registration failed. Please try again.',
+                        e.message || 'Registration failed. Please try again.',
                     );
                 },
             });
@@ -476,11 +478,12 @@ export class ClubRepLoginStepComponent implements OnInit {
                     this.showLoginModal.set(false);
                     this.loginSuccess.emit(loginResult);
                 },
-                error: (err) => {
+                error: (err: unknown) => {
                     this.loginSubmitting.set(false);
+                    const e = err as { error?: { message?: string }; message?: string };
                     const errorMessage =
-                        err.error?.message ||
-                        err.message ||
+                        e.error?.message ||
+                        e.message ||
                         'Failed to initialize registration. Please try again.';
                     this.clubSelectionError.set(errorMessage);
                 },

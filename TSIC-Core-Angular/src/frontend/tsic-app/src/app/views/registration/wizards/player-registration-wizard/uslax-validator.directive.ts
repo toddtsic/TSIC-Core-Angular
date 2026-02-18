@@ -66,8 +66,9 @@ export class UsLaxValidatorDirective {
                 if (this.playerId) this.state.setUsLaxResult(this.playerId, !!ok, message, membership as Record<string, unknown> | undefined);
                 return ok ? null : { uslax: { message: message || 'Invalid membership' } };
             }),
-            catchError(err => {
-                const msg = err?.error?.message || 'Validation failed';
+            catchError((err: unknown) => {
+                const httpErr = err as { error?: { message?: string } };
+                const msg = httpErr?.error?.message || 'Validation failed';
                 if (this.playerId) this.state.setUsLaxResult(this.playerId, false, msg);
                 return of({ uslax: { message: msg } });
             })
