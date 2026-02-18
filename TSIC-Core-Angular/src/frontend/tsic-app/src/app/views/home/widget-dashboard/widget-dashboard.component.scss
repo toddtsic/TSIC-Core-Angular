@@ -329,6 +329,47 @@
 }
 
 // ═══════════════════════════════════════
+// DISPLAY STYLE VARIANTS — link-tile
+// ═══════════════════════════════════════
+
+// hero: larger CTA tile with accent background
+.widget-card.ds-hero {
+    padding: var(--space-4) var(--space-5);
+    background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.06), var(--surface-elevated-bg));
+    border-color: rgba(var(--bs-primary-rgb), 0.25);
+
+    .widget-icon {
+        width: 52px;
+        height: 52px;
+        font-size: 1.4rem;
+    }
+
+    .widget-name {
+        font-size: var(--font-size-base);
+    }
+}
+
+// compact: dense tile, no description
+.widget-card.ds-compact {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+
+    .widget-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+
+    .widget-desc {
+        display: none;
+    }
+
+    .widget-name {
+        font-size: 0.8rem;
+    }
+}
+
+// ═══════════════════════════════════════
 // CHART TILE GRID LAYOUT
 // ═══════════════════════════════════════
 
@@ -336,6 +377,23 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: var(--space-3);
+}
+
+// ── DISPLAY STYLE VARIANTS — chart-tile ──
+
+.chart-tile-wrapper {
+    display: block;
+}
+
+// wide: spans two grid columns
+.chart-tile-wrapper.ds-wide {
+    grid-column: span 2;
+}
+
+// spark: compact inline sparkline (future)
+.chart-tile-wrapper.ds-spark {
+    max-height: 120px;
+    overflow: hidden;
 }
 
 app-player-trend-widget,
@@ -523,6 +581,11 @@ app-agegroup-distribution-widget {
     .content-widgets.chart-tiles {
         grid-template-columns: 1fr;
         gap: var(--space-2);
+    }
+
+    // Wide chart tiles collapse to single column on mobile
+    .chart-tile-wrapper.ds-wide {
+        grid-column: span 1;
     }
 
     .widget-grid {

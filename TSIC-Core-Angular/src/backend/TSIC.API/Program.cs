@@ -88,6 +88,8 @@ builder.Services.AddScoped<IPairingsRepository, PairingsRepository>();
 builder.Services.AddScoped<ITimeslotRepository, TimeslotRepository>();
 builder.Services.AddScoped<IWidgetRepository, WidgetRepository>();
 builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
+builder.Services.AddScoped<IJobCloneRepository, JobCloneRepository>();
+builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
@@ -159,6 +161,8 @@ builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, Registration
 // Widget Dashboard
 builder.Services.AddScoped<IWidgetDashboardService, WidgetDashboardService>();
 builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
+builder.Services.AddScoped<IJobCloneService, JobCloneService>();
+builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

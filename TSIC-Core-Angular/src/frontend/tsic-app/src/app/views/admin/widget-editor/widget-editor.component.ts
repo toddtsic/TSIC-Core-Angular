@@ -74,7 +74,7 @@ export class WidgetEditorComponent {
 	readonly widgets = signal<WidgetDefinitionDto[]>([]);
 
 	// ── UI state ──
-	readonly activeTab = signal<'matrix' | 'definitions' | 'overrides'>('matrix');
+	readonly activeTab = signal<'definitions' | 'overrides' | 'matrix'>('definitions');
 	readonly isLoading = signal(false);
 	readonly isSaving = signal(false);
 	readonly errorMessage = signal<string | null>(null);

@@ -31,6 +31,8 @@ const ROUTE_TITLE_MAP: Record<string, string> = {
 	'admin/profile-editor':                'Profile Editor',
 	'admin/theme':                         'Theme Editor',
 	'admin/widget-editor':                 'Widget Editor',
+	'admin/job-clone':                     'Job Clone',
+	'admin/ddl-options':                   'DDL Options',
 	'menu/admin':                          'Menu Admin',
 	// Legacy routes
 	'fields/index':                        'Fields',
@@ -65,6 +67,8 @@ const ROUTE_WORKSPACE_MAP: Record<string, string> = {
 	'jobdiscountcodes/admin':              'job-config',
 	'jobadministrator/admin':              'job-config',
 	'admin/widget-editor':                 'job-config',
+	'admin/job-clone':                     'job-config',
+	'admin/ddl-options':                   'job-config',
 	// Legacy routes
 	'fields/index':                        'scheduling',
 	'pairings/index':                      'scheduling',

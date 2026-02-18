@@ -60,6 +60,7 @@ export type { CloneFieldDowRequest } from './models/CloneFieldDowRequest';
 export type { CloneFieldsRequest } from './models/CloneFieldsRequest';
 export type { CloneProfileRequest } from './models/CloneProfileRequest';
 export type { CloneProfileResult } from './models/CloneProfileResult';
+export type { CloneSummary } from './models/CloneSummary';
 export type { CloneTeamRequest } from './models/CloneTeamRequest';
 export type { ClubRegistrationDto } from './models/ClubRegistrationDto';
 export type { ClubRepClubDto } from './models/ClubRepClubDto';
@@ -129,6 +130,10 @@ export type { GetConfirmationTextRequest } from './models/GetConfirmationTextReq
 export type { InitializeRegistrationRequest } from './models/InitializeRegistrationRequest';
 export type { InsurancePurchaseRequestDto } from './models/InsurancePurchaseRequestDto';
 export type { InsurancePurchaseResponseDto } from './models/InsurancePurchaseResponseDto';
+export type { JobCloneRequest } from './models/JobCloneRequest';
+export type { JobCloneResponse } from './models/JobCloneResponse';
+export type { JobCloneSourceDto } from './models/JobCloneSourceDto';
+export type { JobDdlOptionsDto } from './models/JobDdlOptionsDto';
 export type { JobMetadataResponse } from './models/JobMetadataResponse';
 export type { JobOptionDto } from './models/JobOptionDto';
 export type { JobOverridesResponse } from './models/JobOverridesResponse';
