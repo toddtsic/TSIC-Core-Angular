@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, AfterViewInit, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgClass } from '@angular/common';
-import { Subscription } from 'rxjs';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { WaiverStateService } from '../services/waiver-state.service';
@@ -88,7 +88,7 @@ import { WaiverStateService } from '../services/waiver-state.service';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WaiversComponent implements OnInit, AfterViewInit, OnDestroy {
+export class WaiversComponent implements OnInit, AfterViewInit {
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
 
@@ -129,13 +129,15 @@ export class WaiversComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   waiverForm!: FormGroup;
-  private formSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
   private readonly lockedIds = new Set<string>();
 
   ngOnInit(): void {
     this.buildForm();
     // Subscribe to value changes to push into service (skip disabled locked controls)
-    this.formSub = this.waiverForm.valueChanges.subscribe(v => {
+    this.waiverForm.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(v => {
       // Persist to service
       for (const [key, val] of Object.entries(v)) {
         if (!this.lockedIds.has(key)) {
@@ -207,9 +209,7 @@ export class WaiversComponent implements OnInit, AfterViewInit, OnDestroy {
     // Re-evaluate gate after any programmatic seeding
     this.pushGate();
   }
-  ngOnDestroy(): void {
-    this.formSub?.unsubscribe();
-  }
+  // ngOnDestroy removed — subscription auto-cleaned by takeUntilDestroyed
 
   // Reactive continue disabled computation using local map
   disableContinue(): boolean {

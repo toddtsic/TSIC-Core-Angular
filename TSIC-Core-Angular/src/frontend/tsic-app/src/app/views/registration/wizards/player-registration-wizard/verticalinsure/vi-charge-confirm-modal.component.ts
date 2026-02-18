@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 @Component({
   selector: 'app-vi-charge-confirm-modal',
   standalone: true,
-  imports: [CommonModule, TsicDialogComponent],
+  imports: [CurrencyPipe, TsicDialogComponent],
   styles: [`
       .vi-header { background: linear-gradient(90deg,var(--bs-primary),var(--brand-primary-dark, var(--bs-primary))); color: var(--bs-white); }
       .vi-header h5 { font-weight:600; letter-spacing:.5px; }

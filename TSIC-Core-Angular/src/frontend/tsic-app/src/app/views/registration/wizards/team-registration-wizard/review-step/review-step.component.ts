@@ -9,7 +9,6 @@ import {
   computed,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
@@ -19,7 +18,7 @@ import { TeamRegistrationService } from '../services/team-registration.service';
   templateUrl: './review-step.component.html',
   styleUrls: ['./review-step.component.scss'],
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReviewStepComponent implements OnInit {

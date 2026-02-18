@@ -257,7 +257,7 @@ export class RegistrationWizardService {
         try {
             const resp = await firstValueFrom(this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } }));
             this.handleFamilyPlayersSuccess(resp, jobPath);
-        } catch (err) {
+        } catch (err: unknown) {
             this.handleFamilyPlayersError(err);
             throw err;
         } finally {
@@ -457,8 +457,8 @@ export class RegistrationWizardService {
                     // Offer flag for RegSaver
                     try {
                         const offer = (meta as any).offerPlayerRegsaverInsurance ?? (meta as any).OfferPlayerRegsaverInsurance;
-                        this._offerPlayerRegSaver = !!offer;
-                    } catch { this._offerPlayerRegSaver = false; }
+                        this._offerPlayerRegSaver.set(!!offer);
+                    } catch { this._offerPlayerRegSaver.set(false); }
                     // Do not infer Eligibility constraint type on the client. Rely solely on server-provided jobRegForm.constraintType from /family/players.
                     // Delegate waiver extraction + definition building to WaiverStateService
                     const waivers = this.waiverState.buildFromMetadata(
@@ -476,11 +476,11 @@ export class RegistrationWizardService {
             });
     }
     // RegSaver offer flag (job-level)
-    private _offerPlayerRegSaver = false;
+    private readonly _offerPlayerRegSaver = signal(false);
     // VerticalInsure offer state retained (widget/playerObject payload) for preSubmit response integration
     verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
     /** Whether the job offers player RegSaver insurance */
-    offerPlayerRegSaver(): boolean { return this._offerPlayerRegSaver; }
+    readonly offerPlayerRegSaver = this._offerPlayerRegSaver.asReadonly();
 
     // Removed direct fetch of VerticalInsure player-object; preSubmit response is now the single source of truth.
     /** Delegated schema + waiver processing via extracted services. */
@@ -538,7 +538,7 @@ export class RegistrationWizardService {
             }
 
             this.playerFormValues.set(current);
-        } catch (e) {
+        } catch (e: unknown) {
             console.debug('[RegWizard] Prior registration seed failed', e);
         }
     }
@@ -569,7 +569,7 @@ export class RegistrationWizardService {
             }
 
             this.playerFormValues.set(current);
-        } catch (e) {
+        } catch (e: unknown) {
             console.debug('[RegWizard] Default values seed failed', e);
         }
     }
@@ -632,7 +632,7 @@ export class RegistrationWizardService {
                 }
             }
             this.playerFormValues.set(current);
-        } catch (e) {
+        } catch (e: unknown) {
             console.debug('[RegWizard] Alias backfill failed', e);
         }
     }
@@ -726,7 +726,7 @@ export class RegistrationWizardService {
     preSubmitRegistration(): Promise<PreSubmitPlayerRegistrationResponseDto> {
         const jobPath = this.jobPath();
         const familyUserId = this.familyUser()?.familyUserId;
-        try { this.ensurePreSubmitPrerequisites(jobPath, familyUserId); } catch (e) {
+        try { this.ensurePreSubmitPrerequisites(jobPath, familyUserId); } catch (e: unknown) {
             return Promise.reject(e);
         }
         // At this point non-null validated by ensurePreSubmitPrerequisites
@@ -865,7 +865,7 @@ export class RegistrationWizardService {
                     out[name] = true;
                 }
             }
-        } catch (e) {
+        } catch (e: unknown) {
             console.warn('[RegWizard] Waiver acceptance injection failed – using map fallback', e);
             for (const name of names) if (this.isWaiverAccepted(name)) out[name] = true;
         }

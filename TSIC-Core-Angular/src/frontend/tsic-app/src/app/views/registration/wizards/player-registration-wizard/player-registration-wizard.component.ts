@@ -62,7 +62,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
             // If no waivers present, drop waivers step
             const withWaivers = hasWaivers ? stepsBase : (stepsBase.filter(s => s !== 'waivers') as StepId[]);
             return withWaivers;
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('[PRW] Error computing steps; fallback applied', err);
             return this.baseSteps;
         }
@@ -338,12 +338,12 @@ export class PlayerRegistrationWizardComponent implements OnInit {
                 this.toast.show('One or more selected teams are full. Please update your selections.', 'warning', 5000);
             } else {
                 const jobPath = this.state.jobPath();
-                try { await this.state.loadFamilyPlayersOnce(jobPath); } catch (err) { console.warn('[PRW] refresh family players failed', err); }
+                try { await this.state.loadFamilyPlayersOnce(jobPath); } catch (err: unknown) { console.warn('[PRW] refresh family players failed', err); }
                 // All teams OK, proceed to Forms or Payment
                 const nextIdx = this.steps().indexOf(result.nextTab === 'Forms' ? 'forms' : 'payment');
                 if (nextIdx >= 0) this.currentIndex.set(nextIdx);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             this.toast.show('Error checking team availability. Please try again.', 'danger', 5000);
             console.error('[PRW] preSubmit error:', err);
         } finally {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, OnInit, signal, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
@@ -18,7 +18,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
             <i class="bi bi-shield-check fs-4 shrink-0"></i>
             <div>
               <strong class="d-block mb-1">Player Account Security:</strong>
-              This Family/Player account is for viewing YOUR CHILD'S TEAM ONLY and can be safely shared with your child. 
+              This Family/Player account is for viewing YOUR CHILD'S TEAM ONLY and can be safely shared with your child.
               If you plan to coach or volunteer, you'll need a separate Coach account to protect other families' privacy.
             </div>
           </div>
@@ -54,28 +54,28 @@ import { AuthService } from '@infrastructure/services/auth.service';
                     <input #famPasswordInput id="famPassword" name="famPassword" class="form-control form-control-sm" type="password" [(ngModel)]="password" autocomplete="current-password" (keyup.enter)="signInThenProceed()" />
                   </div>
                 </div>
-                @if (inlineError) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError }}</div> }
+                @if (inlineError()) { <div class="alert alert-danger py-2 mb-2" role="alert">{{ inlineError() }}</div> }
                 <div class="text-body-secondary small mb-3">Enter credentials once, then choose an action below.</div>
-                
+
                 <!-- Action buttons -->
                 <div class="d-flex flex-column gap-2">
                   <div>
                     <button type="button"
                             class="btn btn-primary me-2"
-                            [disabled]="submitting || !username || !password"
+                            [disabled]="submitting() || !username || !password"
                             (click)="signInThenProceed()">
-                      @if (submitting && submittingAction === 'proceed') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
-                      <span>{{ submitting && submittingAction === 'proceed' ? 'Signing in…' : 'Sign in & Continue Registration' }}</span>
+                      @if (submitting() && submittingAction() === 'proceed') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
+                      <span>{{ submitting() && submittingAction() === 'proceed' ? 'Signing in…' : 'Sign in & Continue Registration' }}</span>
                     </button>
                     <span class="text-body-secondary small">Authenticate and jump straight to selecting players.</span>
                   </div>
                   <div>
                     <button type="button"
                             class="btn btn-success me-2"
-                            [disabled]="submitting || !username || !password"
+                            [disabled]="submitting() || !username || !password"
                             (click)="signInThenGoFamilyAccount()">
-                      @if (submitting && submittingAction === 'manage') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
-                      <span>{{ submitting && submittingAction === 'manage' ? 'Signing in…' : 'Sign in & Manage Family' }}</span>
+                      @if (submitting() && submittingAction() === 'manage') { <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> }
+                      <span>{{ submitting() && submittingAction() === 'manage' ? 'Signing in…' : 'Sign in & Manage Family' }}</span>
                     </button>
                     <span class="text-body-secondary small">Authenticate then review / update your family before registering.</span>
                   </div>
@@ -91,7 +91,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
               <input class="form-check-input mt-0" type="radio" name="famHasAccount" [(ngModel)]="hasAccount" [value]="'no'" />
               <div class="grow">
                 <div class="fw-semibold">No — I need to create one</div>
-                <div class="text-muted small">We’ll help you create a Family Account before continuing.</div>
+                <div class="text-muted small">We'll help you create a Family Account before continuing.</div>
               </div>
             </label>
 
@@ -131,14 +131,11 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
 
   username = '';
   password = '';
-  loginError: string | null = null;
-  submitting = false; // legacy overall submitting flag (network in-flight)
-  submittingAction: 'proceed' | 'manage' | null = null; // which button initiated login
-  inlineError: string | null = null;
+  readonly submitting = signal(false);
+  readonly submittingAction = signal<'proceed' | 'manage' | null>(null);
+  readonly inlineError = signal<string | null>(null);
   @ViewChild('famPasswordInput') famPasswordInput?: ElementRef<HTMLInputElement>;
   private _pendingFocusPassword = false;
-  usernameTouched = false;
-  passwordTouched = false;
 
   ngOnInit(): void { this.initialize(); }
 
@@ -244,47 +241,40 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   }
 
   private async doInlineLogin(): Promise<'ok' | 'tos'> {
-    this.inlineError = null;
-    if (!this.username || !this.password || this.submitting) {
-      // mark touched so validation surfaces if user attempted action
-      if (!this.username) this.usernameTouched = true;
-      if (!this.password) this.passwordTouched = true;
+    this.inlineError.set(null);
+    if (!this.username || !this.password || this.submitting()) {
       return 'ok';
     }
-    this.submitting = true;
+    this.submitting.set(true);
     try {
       const response = await firstValueFrom(
         this.auth.login({ username: this.username.trim(), password: this.password })
       );
-      this.submitting = false;
+      this.submitting.set(false);
       // Check TOS requirement before proceeding
       if (this.auth.checkAndNavigateToTosIfRequired(response, this.router, this.router.url)) {
         return 'tos';
       }
       return 'ok';
     } catch (err: unknown) {
-      this.submitting = false;
+      this.submitting.set(false);
       const httpErr = err as { error?: { message?: string } };
-      this.inlineError = httpErr?.error?.message || 'Login failed. Please check your username and password.';
+      this.inlineError.set(httpErr?.error?.message || 'Login failed. Please check your username and password.');
       throw err;
     }
   }
 
   async signInThenProceed(): Promise<void> {
     // Distinguish which button initiated request
-    this.submittingAction = 'proceed';
+    this.submittingAction.set('proceed');
     if (!this.username || !this.password) {
       // focus first invalid
       if (!this.username) {
-        const el = document.getElementById('famUsername');
-        try { el?.focus(); } catch { }
+        try { document.getElementById('famUsername')?.focus(); } catch { }
       } else if (!this.password) {
-        const el = document.getElementById('famPassword');
-        try { el?.focus(); } catch { }
+        try { document.getElementById('famPassword')?.focus(); } catch { }
       }
-      this.usernameTouched = true;
-      this.passwordTouched = true;
-      this.submittingAction = null;
+      this.submittingAction.set(null);
       return;
     }
     try {
@@ -292,7 +282,7 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
       if (result !== 'ok') {
         return;
       }
-      if (!this.inlineError) {
+      if (!this.inlineError()) {
         // Upgrade Phase 1 token to job-scoped token (adds jobPath claim)
         const jobPath = this.state.jobPath() || this.resolveJobPath();
         await firstValueFrom(this.state.setWizardContext(jobPath));
@@ -301,38 +291,38 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
         this.state.hasFamilyAccount.set('yes');
         this.next.emit();
       }
-    } catch (err) {
+    } catch (err: unknown) {
       // Error is already displayed via this.inlineError set in doInlineLogin
       console.warn('Login failed:', err);
     } finally {
-      this.submittingAction = null;
+      this.submittingAction.set(null);
     }
   }
 
   async signInThenGoFamilyAccount(): Promise<void> {
-    this.submittingAction = 'manage';
-    if (!this.ensureCredentialsOrFocus()) { this.submittingAction = null; return; }
+    this.submittingAction.set('manage');
+    if (!this.ensureCredentialsOrFocus()) { this.submittingAction.set(null); return; }
     try {
       const result = await this.doInlineLogin();
       if (result !== 'ok') {
         return;
       }
-      if (this.inlineError) return;
+      if (this.inlineError()) return;
       const jobPath = this.resolveJobPath();
       const playersReturn = jobPath ? `/${jobPath}/register-player?step=players` : `/register-player?step=players`;
       const familyWizardUrl = `/tsic/family-account?mode=edit&next=register-player&jobPath=${encodeURIComponent(jobPath)}&returnUrl=${encodeURIComponent(playersReturn)}`;
       this.router.navigateByUrl(familyWizardUrl);
-    } catch (err) {
+    } catch (err: unknown) {
       // Error is already displayed via this.inlineError set in doInlineLogin
       console.warn('Login failed:', err);
-    } finally { this.submittingAction = null; }
+    } finally { this.submittingAction.set(null); }
   }
 
   private ensureCredentialsOrFocus(): boolean {
     if (this.username && this.password) return true;
     if (!this.username) { try { document.getElementById('famUsername')?.focus(); } catch { } }
     else if (!this.password) { try { document.getElementById('famPassword')?.focus(); } catch { } }
-    this.usernameTouched = true; this.passwordTouched = true; return false;
+    return false;
   }
 
   private resolveJobPath(): string {

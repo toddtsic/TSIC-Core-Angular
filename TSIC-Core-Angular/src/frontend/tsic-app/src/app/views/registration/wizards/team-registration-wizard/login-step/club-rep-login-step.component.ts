@@ -6,11 +6,12 @@ import {
     Input,
     inject,
     OnInit,
-    OnDestroy,
+    DestroyRef,
     computed,
     signal,
 } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     ReactiveFormsModule,
     FormsModule,
@@ -55,7 +56,7 @@ export interface LoginStepResult {
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
+export class ClubRepLoginStepComponent implements OnInit {
     @Input() jobPath: string | null = null;
     @Output() loginSuccess = new EventEmitter<LoginStepResult>();
     @Output() registrationSuccess = new EventEmitter<LoginStepResult>();
@@ -99,8 +100,9 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
     registrationForm: FormGroup;
     loginForm: FormGroup;
 
-    // Single subscription for workflow operations
+    // Single subscription for workflow operations (manual cancel-and-resubscribe, auto-cleanup via takeUntilDestroyed)
     private workflowSubscription?: Subscription;
+    private readonly destroyRef = inject(DestroyRef);
 
     // Expose modal state for template binding
     duplicateModalOpen = computed(() => this.duplicateModalState().isOpen);
@@ -169,7 +171,9 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
                 this.loginSubmitting.set(true);
                 this.inlineError.set(null);
 
-                this.workflowSubscription = this.teamRegService.getMyClubs().subscribe({
+                this.workflowSubscription = this.teamRegService.getMyClubs().pipe(
+                    takeUntilDestroyed(this.destroyRef)
+                ).subscribe({
                     next: (clubs) => {
                         this.loginSubmitting.set(false);
                         this.availableClubs.set(clubs);
@@ -204,10 +208,7 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         }
     }
 
-    ngOnDestroy(): void {
-        // Clean up workflow subscription to prevent memory leaks
-        this.workflowSubscription?.unsubscribe();
-    }
+    // ngOnDestroy removed — subscriptions auto-cleaned by takeUntilDestroyed
 
     signInThenProceed(): void {
         if (this.loginForm.invalid) {
@@ -238,6 +239,7 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
                 this.jobPath,
                 this.jobService.isTeamRegistrationOpen(),
             )
+            .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (result) => {
                     this.loginSubmitting.set(false);
@@ -322,6 +324,7 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
 
         this.workflowSubscription = this.workflowService
             .registerAndAutoLogin(request)
+            .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (result) => {
                     this.registrationSubmitting.set(false);
@@ -456,6 +459,7 @@ export class ClubRepLoginStepComponent implements OnInit, OnDestroy {
         this.workflowSubscription?.unsubscribe();
         this.workflowSubscription = this.teamRegService
             .initializeRegistration(clubName, this.jobPath)
+            .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (response) => {
                     this.loginSubmitting.set(false);

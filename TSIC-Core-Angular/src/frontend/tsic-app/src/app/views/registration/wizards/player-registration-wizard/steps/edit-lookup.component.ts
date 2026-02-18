@@ -1,10 +1,8 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 @Component({
   selector: 'app-rw-edit-lookup',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">

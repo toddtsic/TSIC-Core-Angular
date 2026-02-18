@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { DestroyRef, Injectable } from '@angular/core';
 import type { VIOfferData } from '../types/wizard.types';
 
 /**
@@ -40,7 +40,7 @@ export class ViDarkModeService {
      * Apply and maintain dark-mode styling to VI widget host container.
      * Sets up a MutationObserver to reapply styling when VI injects/updates nodes.
      */
-    applyViDarkMode(hostSelector: string): void {
+    applyViDarkMode(hostSelector: string, destroyRef?: DestroyRef): void {
         const host = document.querySelector(hostSelector) as HTMLElement;
         if (!host) return;
 
@@ -71,6 +71,11 @@ export class ViDarkModeService {
                 attributes: true,
                 attributeFilter: ['style', 'class']
             });
+        }
+
+        // Auto-disconnect on caller destruction if DestroyRef provided
+        if (destroyRef) {
+            destroyRef.onDestroy(() => this.disconnect());
         }
     }
 

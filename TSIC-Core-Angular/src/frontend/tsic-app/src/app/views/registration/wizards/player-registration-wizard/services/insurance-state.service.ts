@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, effect } from '@angular/core';
+import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
 import type { Loadable } from '@infrastructure/shared/state.models';
 import type { VIPlayerObjectResponse, RegSaverDetailsDto } from '@core/api';
@@ -12,9 +12,9 @@ import type { VIPlayerObjectResponse, RegSaverDetailsDto } from '@core/api';
 export class InsuranceStateService {
     private readonly reg = inject(RegistrationWizardService);
 
-    // Job-level offer flag still sourced from wizard (avoids cycle)
-    offerPlayerRegSaver(): boolean { return this.reg.offerPlayerRegSaver(); }
-    regSaverDetails(): RegSaverDetailsDto | null { return this.reg.regSaverDetails(); }
+    // Job-level flags sourced from wizard signals (computed for reactive template binding)
+    readonly offerPlayerRegSaver = computed(() => this.reg.offerPlayerRegSaver());
+    readonly regSaverDetails = computed(() => this.reg.regSaverDetails());
     // Migrated offer payload signal (initially synchronized from wizard for backward compatibility)
     private readonly _verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
     verticalInsureOffer(): Loadable<VIPlayerObjectResponse> { return this._verticalInsureOffer(); }

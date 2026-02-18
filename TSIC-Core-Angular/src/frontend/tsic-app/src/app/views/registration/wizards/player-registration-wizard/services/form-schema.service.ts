@@ -125,7 +125,7 @@ export class FormSchemaService {
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
             this.profileFieldSchemas.set(schemas);
             this.aliasFieldMap.set(aliasMapLocal);
-        } catch (e) {
+        } catch (e: unknown) {
             console.error('[FormSchemaService] Failed to parse profile metadata', e);
             this.profileFieldSchemas.set([]);
             this.aliasFieldMap.set({});

@@ -138,7 +138,7 @@ export class ConstraintSelectionComponent {
       this._eligibleOptions.set(opts);
       // No local FormGroup used; each player's selection is tracked via state map.
       this.loading.set(false);
-    } catch (e) {
+    } catch (e: unknown) {
       this.error.set('Unable to load eligibility options');
       console.error('[Eligibility] Parse failure', e);
       this.loading.set(false);

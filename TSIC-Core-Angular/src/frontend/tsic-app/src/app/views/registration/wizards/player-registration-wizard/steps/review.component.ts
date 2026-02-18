@@ -1,6 +1,6 @@
 import { TeamService } from '../team.service';
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 
 import { RegistrationWizardService } from '../registration-wizard.service';
 import { PaymentService } from '../services/payment.service';
@@ -10,7 +10,7 @@ import { JobService } from '@infrastructure/services/job.service';
 @Component({
   selector: 'app-rw-review',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CurrencyPipe, DatePipe],
   templateUrl: './review.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

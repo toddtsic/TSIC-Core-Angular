@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, DestroyRef, inject, SimpleChanges } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
 
 @Component({
@@ -123,7 +123,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
     `,
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CreditCardFormComponent implements OnInit, OnChanges, OnDestroy {
+export class CreditCardFormComponent implements OnInit, OnChanges {
   @Input() viOnly: boolean = false;
   // Default prefill values (from family user or ccInfo). Only applied to blank, pristine fields.
   @Input() defaultFirstName: string | null = null;
@@ -140,7 +140,7 @@ export class CreditCardFormComponent implements OnInit, OnChanges, OnDestroy {
   @Output() valueChange = new EventEmitter<Record<string, string>>();
 
   form!: FormGroup;
-  private formSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(private readonly fb: FormBuilder) {
     this.form = this.fb.group({
@@ -157,7 +157,9 @@ export class CreditCardFormComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
   ngOnInit(): void {
-    this.formSub = this.form.valueChanges.subscribe(v => {
+    this.form.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(v => {
       const valid = this.form.valid;
       this.ccValidChange.emit(valid);
       this.validChange.emit(valid);
@@ -165,9 +167,6 @@ export class CreditCardFormComponent implements OnInit, OnChanges, OnDestroy {
       this.valueChange.emit(v);
     });
     this.applyDefaultsOnce();
-  }
-  ngOnDestroy(): void {
-    this.formSub?.unsubscribe();
   }
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['defaultFirstName'] || changes['defaultLastName'] || changes['defaultAddress'] || changes['defaultZip'] || changes['defaultEmail'] || changes['defaultPhone']) {

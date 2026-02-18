@@ -1,10 +1,8 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
 @Component({
     selector: 'app-rw-bottom-nav',
     standalone: true,
-    imports: [CommonModule],
+    imports: [],
     template: `
     <div class="rw-bottom-nav d-flex gap-2" [class.mt-3]="addTopMargin" [class.border-top]="showBorderTop" [class.pt-3]="showBorderTop">
   @if (!hideBack) { <button type="button" class="btn btn-outline-secondary" (click)="back.emit()">{{ backLabel }}</button> }

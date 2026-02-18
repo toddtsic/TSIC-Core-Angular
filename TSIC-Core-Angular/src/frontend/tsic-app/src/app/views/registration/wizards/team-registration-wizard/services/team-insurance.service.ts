@@ -90,7 +90,7 @@ export class TeamInsuranceService {
                     });
                 }
             );
-        } catch (e) {
+        } catch (e: unknown) {
             console.error('VerticalInsure init error', e);
             this.error.set('VerticalInsure initialization failed');
         }
@@ -130,7 +130,7 @@ export class TeamInsuranceService {
                 this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error: result.error || 'Not available' });
                 return null;
             }
-        } catch (err) {
+        } catch (err: unknown) {
             const error = err instanceof HttpErrorResponse ? err.message : 'Failed to fetch insurance offer';
             this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error });
             return null;
@@ -173,7 +173,7 @@ export class TeamInsuranceService {
                 this.toast.show(response.error || 'Insurance purchase failed', 'danger');
                 return { success: false, error: response.error || undefined };
             }
-        } catch (err) {
+        } catch (err: unknown) {
             const error = err instanceof HttpErrorResponse ? err.message : 'Insurance purchase failed';
             this.toast.show(error, 'danger');
             return { success: false, error };

@@ -31,22 +31,36 @@ export interface TeamLineItem {
 export class TeamPaymentService {
     private readonly http = inject(HttpClient);
 
-    // Teams signal - must be set by the component that owns team state
-    teams = signal<RegisteredTeamDto[]>([]);
+    // --- Signal encapsulation: private backing + public readonly + controlled mutators ---
+    private readonly _teams = signal<RegisteredTeamDto[]>([]);
+    private readonly _paymentMethodsAllowedCode = signal<number>(1);
+    private readonly _bAddProcessingFees = signal<boolean>(false);
+    private readonly _bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
+    private readonly _jobPath = signal<string>('');
+    private readonly _selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
+    private readonly _appliedDiscountResponse = signal<ApplyTeamDiscountResponseDto | null>(null);
+    private readonly _discountMessage = signal<string>('');
+    private readonly _discountApplying = signal<boolean>(false);
 
-    // Metadata signals - payment configuration
-    paymentMethodsAllowedCode = signal<number>(1); // 1=CC only, 2=Both, 3=Check only
-    bAddProcessingFees = signal<boolean>(false);
-    bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
-    jobPath = signal<string>('');
+    readonly teams = this._teams.asReadonly();
+    readonly paymentMethodsAllowedCode = this._paymentMethodsAllowedCode.asReadonly();
+    readonly bAddProcessingFees = this._bAddProcessingFees.asReadonly();
+    readonly bApplyProcessingFeesToTeamDeposit = this._bApplyProcessingFeesToTeamDeposit.asReadonly();
+    readonly jobPath = this._jobPath.asReadonly();
+    readonly selectedPaymentMethod = this._selectedPaymentMethod.asReadonly();
+    readonly appliedDiscountResponse = this._appliedDiscountResponse.asReadonly();
+    readonly discountMessage = this._discountMessage.asReadonly();
+    readonly discountApplying = this._discountApplying.asReadonly();
 
-    // Selected payment method signal
-    selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
-
-    // Discount signals
-    appliedDiscountResponse = signal<ApplyTeamDiscountResponseDto | null>(null);
-    discountMessage = signal<string>('');
-    discountApplying = signal<boolean>(false);
+    // Controlled mutators
+    setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); }
+    setPaymentConfig(code: number, addFees: boolean, applyToDeposit: boolean): void {
+        this._paymentMethodsAllowedCode.set(code);
+        this._bAddProcessingFees.set(addFees);
+        this._bApplyProcessingFeesToTeamDeposit.set(applyToDeposit);
+    }
+    setJobPath(value: string): void { this._jobPath.set(value); }
+    selectPaymentMethod(method: 'CC' | 'Check'): void { this._selectedPaymentMethod.set(method); }
 
     // Line items for all registered teams
     lineItems = computed<TeamLineItem[]>(() => {
@@ -131,8 +145,8 @@ export class TeamPaymentService {
             return throwError(() => new Error('No teams selected for discount'));
         }
 
-        this.discountApplying.set(true);
-        this.discountMessage.set('');
+        this._discountApplying.set(true);
+        this._discountMessage.set('');
 
         const request: ApplyTeamDiscountRequestDto = {
             jobPath: this.jobPath(),
@@ -145,19 +159,19 @@ export class TeamPaymentService {
             request
         ).pipe(
             tap((resp: ApplyTeamDiscountResponseDto) => {
-                this.discountApplying.set(false);
-                this.appliedDiscountResponse.set(resp);
+                this._discountApplying.set(false);
+                this._appliedDiscountResponse.set(resp);
 
                 if (resp.success && resp.successCount > 0) {
-                    this.discountMessage.set(resp.message || 'Discount applied');
+                    this._discountMessage.set(resp.message || 'Discount applied');
                 } else {
-                    this.discountMessage.set(resp.message || 'Failed to apply discount');
+                    this._discountMessage.set(resp.message || 'Failed to apply discount');
                 }
             }),
             catchError((err: HttpErrorResponse) => {
-                this.discountApplying.set(false);
-                this.appliedDiscountResponse.set(null);
-                this.discountMessage.set(err?.error?.message || err?.message || 'Failed to apply discount code');
+                this._discountApplying.set(false);
+                this._appliedDiscountResponse.set(null);
+                this._discountMessage.set(err?.error?.message || err?.message || 'Failed to apply discount code');
                 throw err;
             })
         );
@@ -167,9 +181,9 @@ export class TeamPaymentService {
      * Reset discount state
      */
     resetDiscount(): void {
-        this.appliedDiscountResponse.set(null);
-        this.discountMessage.set('');
-        this.discountApplying.set(false);
+        this._appliedDiscountResponse.set(null);
+        this._discountMessage.set('');
+        this._discountApplying.set(false);
     }
 
     /**
@@ -184,12 +198,12 @@ export class TeamPaymentService {
     }
 
     reset(): void {
-        this.teams.set([]);
-        this.paymentMethodsAllowedCode.set(1);
-        this.bAddProcessingFees.set(false);
-        this.bApplyProcessingFeesToTeamDeposit.set(false);
-        this.selectedPaymentMethod.set('CC');
-        this.jobPath.set('');
+        this._teams.set([]);
+        this._paymentMethodsAllowedCode.set(1);
+        this._bAddProcessingFees.set(false);
+        this._bApplyProcessingFeesToTeamDeposit.set(false);
+        this._selectedPaymentMethod.set('CC');
+        this._jobPath.set('');
         this.resetDiscount();
     }
 }

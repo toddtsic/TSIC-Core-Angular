@@ -14,7 +14,7 @@ import {
   EventEmitter,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CommonModule } from '@angular/common';
+import { NgClass, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
@@ -52,7 +52,8 @@ type TeamPaymentRequest = TeamPaymentRequestDto & {
   selector: 'app-team-payment-step',
   standalone: true,
   imports: [
-    CommonModule,
+    NgClass,
+    CurrencyPipe,
     FormsModule,
     TeamPaymentSummaryTableComponent,
     CreditCardFormComponent,
@@ -400,7 +401,7 @@ export class TeamPaymentStepComponent
           }
         }, 100);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load insurance offer:', error);
     }
   }
@@ -511,7 +512,7 @@ export class TeamPaymentStepComponent
       } else {
         throw new Error(response.error || 'Payment processing failed');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const message =
         error instanceof HttpErrorResponse
           ? error.error?.message || error.message

@@ -90,7 +90,7 @@ export class InsuranceService {
                     });
                 }
             );
-        } catch (e) {
+        } catch (e: unknown) {
             console.error('VerticalInsure init error', e);
             this.error.set('VerticalInsure initialization failed');
         }

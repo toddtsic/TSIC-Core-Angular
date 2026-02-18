@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentService } from '../services/payment.service';
 import { RegistrationWizardService } from '../registration-wizard.service';
@@ -7,7 +7,7 @@ import { RegistrationWizardService } from '../registration-wizard.service';
 @Component({
   selector: 'app-payment-option-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CurrencyPipe, DatePipe, FormsModule],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-option-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">

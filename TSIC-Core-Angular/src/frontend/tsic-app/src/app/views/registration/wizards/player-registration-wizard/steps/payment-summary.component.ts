@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RegistrationWizardService } from '../registration-wizard.service';
-import { CommonModule } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { PaymentService } from '../services/payment.service';
 
 @Component({
   selector: 'app-payment-summary',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CurrencyPipe, DatePipe],
   template: `
     <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="pay-summary-title"
              style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">

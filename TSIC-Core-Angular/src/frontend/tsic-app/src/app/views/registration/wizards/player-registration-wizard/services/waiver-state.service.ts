@@ -226,7 +226,7 @@ export class WaiverStateService {
                 if (synthesized.length) this.waiverDefinitions.set(synthesized);
             }
             if (Object.keys(this.waiversAccepted()).length === 0) this.seedAcceptedWaiversIfReadOnly(selectedPlayerIds, familyPlayers);
-        } catch (e) {
+        } catch (e: unknown) {
             console.debug('[WaiverState] processSchemasAndBindWaivers failed', e);
         }
     }

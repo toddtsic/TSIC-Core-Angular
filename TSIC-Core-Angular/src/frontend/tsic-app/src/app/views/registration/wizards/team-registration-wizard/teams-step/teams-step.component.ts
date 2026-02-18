@@ -11,7 +11,7 @@ import {
     ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CommonModule } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import {
@@ -65,7 +65,7 @@ interface FinancialSummary {
     selector: 'app-teams-step',
     standalone: true,
     imports: [
-        CommonModule,
+        CurrencyPipe,
         FormsModule,
         GridAllModule,
         TeamRegistrationModalComponent,
@@ -455,21 +455,19 @@ export class TeamsStepComponent implements OnInit {
         }
 
         // Populate payment service with teams and metadata
-        this.paymentService.jobPath.set(this.jobContext.jobPath() || '');
-        this.paymentService.teams.set(this.registeredTeamsSignal());
-        this.paymentService.paymentMethodsAllowedCode.set(
+        this.paymentService.setJobPath(this.jobContext.jobPath() || '');
+        this.paymentService.setTeams(this.registeredTeamsSignal());
+        this.paymentService.setPaymentConfig(
             this.paymentMethodsAllowedCode(),
-        );
-        this.paymentService.bAddProcessingFees.set(this.bAddProcessingFees());
-        this.paymentService.bApplyProcessingFeesToTeamDeposit.set(
+            this.bAddProcessingFees(),
             this.bApplyProcessingFeesToTeamDeposit(),
         );
 
         // Set initial payment method based on allowed options
         if (this.paymentMethodsAllowedCode() === 3) {
-            this.paymentService.selectedPaymentMethod.set('Check'); // Check only
+            this.paymentService.selectPaymentMethod('Check'); // Check only
         } else {
-            this.paymentService.selectedPaymentMethod.set('CC'); // Default to CC
+            this.paymentService.selectPaymentMethod('CC'); // Default to CC
         }
 
         this.proceed.emit();

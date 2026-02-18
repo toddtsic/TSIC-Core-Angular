@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { TeamPaymentService } from '../services/team-payment.service';
 import {
   GridModule,
@@ -16,7 +16,7 @@ import {
 @Component({
   selector: 'app-team-payment-summary-table',
   standalone: true,
-  imports: [CommonModule, GridModule],
+  imports: [CurrencyPipe, GridModule],
   providers: [SortService, ExcelExportService],
   template: `
     <section
@@ -38,7 +38,7 @@ import {
             id="paymentMethod"
             class="form-select"
             [value]="svc.selectedPaymentMethod()"
-            (change)="svc.selectedPaymentMethod.set($any($event.target).value)"
+            (change)="svc.selectPaymentMethod($any($event.target).value)"
           >
             <option value="CC">Credit Card</option>
             <option value="Check">Check</option>

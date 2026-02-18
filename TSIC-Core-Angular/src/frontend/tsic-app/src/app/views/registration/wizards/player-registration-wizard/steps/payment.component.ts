@@ -16,7 +16,7 @@ import { TeamService } from '../team.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { InsuranceService } from '../services/insurance.service';
 import { sanitizeExpiry, sanitizePhone } from '../../shared/services/credit-card-utils';
-import type { VIOfferData } from '../../shared/types/wizard.types';
+import type { VIOfferData, CreditCardFormValue } from '../../shared/types/wizard.types';
 
 import type { LineItem } from '../services/payment.service';
 
@@ -186,7 +186,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
 
   readonly teamService = inject(TeamService);
 
-  creditCard = {
+  private readonly _creditCard = signal<CreditCardFormValue>({
     type: '',
     number: '',
     expiry: '',
@@ -197,7 +197,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     zip: '',
     email: '',
     phone: ''
-  };
+  });
   readonly ccValid = signal(false);
 
   public readonly state = inject(RegistrationWizardService);
@@ -251,9 +251,12 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     // Hydrate email/phone from familyUser if blank
     const fu = this.state.familyUser();
     if (fu) {
-      if (!this.creditCard.email && fu.email?.includes('@')) this.creditCard.email = fu.email;
-      if (!this.creditCard.email && fu.userName?.includes('@')) this.creditCard.email = fu.userName;
-      if (!this.creditCard.phone && fu.phone) this.creditCard.phone = fu.phone;
+      const cc = this._creditCard();
+      const patch: Partial<CreditCardFormValue> = {};
+      if (!cc.email && fu.email?.includes('@')) patch.email = fu.email;
+      if (!cc.email && !patch.email && fu.userName?.includes('@')) patch.email = fu.userName;
+      if (!cc.phone && fu.phone) patch.phone = fu.phone;
+      if (Object.keys(patch).length) this._creditCard.update(c => ({ ...c, ...patch }));
     }
     // Initialize VerticalInsure (simple retry if offer data not yet present)
     this.viInitTimeout = setTimeout(() => this.tryInitVerticalInsure(), 0);
@@ -309,7 +312,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     return this.tsicChargeDueNow() || (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0);
   });
   readonly showNoPaymentInfo = computed(() => !this.tsicChargeDueNow() && !this.isViCcOnlyFlow());
-  canSubmit(): boolean {
+  readonly canSubmit = computed(() => {
     // Hide submit when all ARB subs active (nothing to do)
     if (this.arbHideAllOptions()) return false;
     const tsicCharge = this.tsicChargeDueNow();
@@ -317,14 +320,14 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     const ccOk = !ccNeeded || this.ccValid();
     // For TSIC payment only (insurance-only handled by separate button)
     return tsicCharge && ccOk && !this.submitting();
-  }
+  });
 
-  canInsuranceOnlySubmit(): boolean {
+  readonly canInsuranceOnlySubmit = computed(() => {
     if (!this.isViCcOnlyFlow()) return false;
     const ccNeeded = this.showCcSection();
     const ccOk = !ccNeeded || this.ccValid();
     return ccOk && !this.submitting();
-  }
+  });
 
   // Progression handler for ARB-covered or no-payment scenarios.
   continueArbOrZero(): void {
@@ -394,7 +397,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
 
   private processInsuranceOnlyFinish(msg: string): void {
     this.submitting.set(true);
-    this.insuranceSvc.purchaseInsurance(this.creditCard, doneMsg => {
+    this.insuranceSvc.purchaseInsurance(this._creditCard(), doneMsg => {
       try {
         this.paymentState.setLastPayment({
           option: this.paymentState.paymentOption(),
@@ -429,16 +432,17 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
         default: return 0;
       }
     };
+    const cc = this._creditCard();
     const creditCardPayload = this.showCcSection() ? {
-      number: this.creditCard.number?.trim() || null,
-      expiry: sanitizeExpiry(this.creditCard.expiry),
-      code: this.creditCard.code?.trim() || null,
-      firstName: this.creditCard.firstName?.trim() || null,
-      lastName: this.creditCard.lastName?.trim() || null,
-      address: this.creditCard.address?.trim() || null,
-      zip: this.creditCard.zip?.trim() || null,
-      email: (this.creditCard.email || this.state.familyUser()?.userName || '').trim() || null,
-      phone: sanitizePhone(this.creditCard.phone)
+      number: cc.number?.trim() || null,
+      expiry: sanitizeExpiry(cc.expiry),
+      code: cc.code?.trim() || null,
+      firstName: cc.firstName?.trim() || null,
+      lastName: cc.lastName?.trim() || null,
+      address: cc.address?.trim() || null,
+      zip: cc.zip?.trim() || null,
+      email: (cc.email || this.state.familyUser()?.userName || '').trim() || null,
+      phone: sanitizePhone(cc.phone)
     } : null;
     const request: PaymentRequestDto = {
       jobPath: this.state.jobPath(),
@@ -486,7 +490,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
       this.patchArbSubscriptions(response);
     }
     if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
-      this.insuranceSvc.purchaseInsurance(this.creditCard);
+      this.insuranceSvc.purchaseInsurance(this._creditCard());
     }
   }
 
@@ -540,14 +544,10 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
   // Deposit helper provided directly by PaymentService; wrapper retained if template needs it later.
   getDepositForPlayer(playerId: string): number { return this.paySvc.getDepositForPlayer(playerId); }
 
-  // --- VI Confirmation helpers ---
-  viQuotedPlayers(): string[] { return this.insuranceSvc.quotedPlayers(); }
-  viPremiumTotal(): number { return this.insuranceSvc.premiumTotal(); }
-  viCcEmail(): string {
-    // Prefer family user username if that is an email
-    const u = this.state.familyUser()?.userName || '';
-    return u || '';
-  }
+  // --- VI Confirmation helpers (computed signals for template efficiency) ---
+  readonly viQuotedPlayers = computed(() => this.insuranceSvc.quotedPlayers());
+  readonly viPremiumTotal = computed(() => this.insuranceSvc.premiumTotal());
+  readonly viCcEmail = computed(() => this.state.familyUser()?.userName || '');
   cancelViConfirm(): void {
     this.showViChargeConfirm.set(false);
     this.pendingSubmitAfterViConfirm = false;
@@ -558,7 +558,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
       this.pendingSubmitAfterViConfirm = false;
       // Reuse the same modal: if VI-only flow (no TSIC balance), purchase insurance directly.
       if (this.isViCcOnlyFlow()) {
-        this.insuranceSvc.purchaseInsurance(this.creditCard, msg => {
+        this.insuranceSvc.purchaseInsurance(this._creditCard(), msg => {
           try {
             this.paymentState.setLastPayment({
               option: this.paymentState.paymentOption(),
@@ -581,12 +581,15 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
   // Removed client-side heuristic CC prefill; data now supplied by server via ccInfo.
   private simpleHydrateFromCc(cc?: { firstName?: string; lastName?: string; streetAddress?: string; zip?: string; email?: string; phone?: string; }): void {
     if (!cc) return;
-    if (!this.creditCard.firstName && cc.firstName) this.creditCard.firstName = cc.firstName.trim();
-    if (!this.creditCard.lastName && cc.lastName) this.creditCard.lastName = cc.lastName.trim();
-    if (!this.creditCard.address && cc.streetAddress) this.creditCard.address = cc.streetAddress.trim();
-    if (!this.creditCard.zip && cc.zip) this.creditCard.zip = cc.zip.trim();
-    if (!this.creditCard.email && cc.email?.includes('@')) this.creditCard.email = cc.email.trim();
-    if (!this.creditCard.phone && cc.phone) this.creditCard.phone = cc.phone.replaceAll(/\D+/g, '');
+    const cur = this._creditCard();
+    const patch: Partial<CreditCardFormValue> = {};
+    if (!cur.firstName && cc.firstName) patch.firstName = cc.firstName.trim();
+    if (!cur.lastName && cc.lastName) patch.lastName = cc.lastName.trim();
+    if (!cur.address && cc.streetAddress) patch.address = cc.streetAddress.trim();
+    if (!cur.zip && cc.zip) patch.zip = cc.zip.trim();
+    if (!cur.email && cc.email?.includes('@')) patch.email = cc.email.trim();
+    if (!cur.phone && cc.phone) patch.phone = cc.phone.replaceAll(/\D+/g, '');
+    if (Object.keys(patch).length) this._creditCard.update(c => ({ ...c, ...patch }));
   }
 
   // (Legacy insurance purchase methods removed; handled by InsuranceService.)
@@ -601,22 +604,20 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     } catch { return false; }
   }
   // Receive credit card form changes from child component
-  onCcValueChange(val: { type?: string; number?: string; expiry?: string; code?: string; firstName?: string; lastName?: string; address?: string; zip?: string; email?: string; phone?: string; }): void {
-    this.creditCard = { ...this.creditCard, ...val };
+  onCcValueChange(val: Partial<CreditCardFormValue>): void {
+    this._creditCard.update(c => ({ ...c, ...val }));
   }
   // Removed original simple onCcValidChange; replaced with version that also prompts insurance decision.
   onCcValidChange(valid: boolean): void { this.ccValid.set(!!valid); }
   // Autofocus logic removed per request
   monthLabel(): string { return this.paySvc.monthLabel(); }
-  // --- ARB subscription helpers ---
-  private relevantRegs() {
-    // Consider registrations tied to selected or already registered players
+  // --- ARB subscription helpers (computed signals for template efficiency) ---
+  private readonly relevantRegs = computed(() => {
     const playerIds = new Set(this.state.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId));
     return this.state.familyPlayers().filter(p => playerIds.has(p.playerId)).flatMap(p => p.priorRegistrations || []);
-  }
-  arbProblemAny(): boolean {
+  });
+  readonly arbProblemAny = computed(() => {
     const regs = this.relevantRegs();
-    // Any registration with a subscription id but non-active status
     return regs.some(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() !== 'active');
-  }
+  });
 }

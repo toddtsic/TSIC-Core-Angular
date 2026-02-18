@@ -4,11 +4,11 @@ import {
     inject,
     OnInit,
     OnDestroy,
+    DestroyRef,
     signal,
     computed,
     ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import {
     ReactiveFormsModule,
     FormsModule,
@@ -18,6 +18,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TeamsStepComponent } from './teams-step/teams-step.component';
 import { WizardActionBarComponent } from '../shared/wizard-action-bar/wizard-action-bar.component';
 import { StepIndicatorComponent, type StepDefinition } from '@shared-ui/components/step-indicator/step-indicator.component';
@@ -58,7 +59,6 @@ enum WizardStep {
     styleUrls: ['./team-registration-wizard.component.scss'],
     standalone: true,
     imports: [
-        CommonModule,
         ReactiveFormsModule,
         FormsModule,
         TeamsStepComponent,
@@ -103,6 +103,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     private addClubSubscription?: Subscription;
     private reloadClubsSubscription?: Subscription;
     private addClubTimeoutId?: ReturnType<typeof setTimeout>;
+    private readonly destroyRef = inject(DestroyRef);
 
     // Step definitions for shared StepIndicatorComponent
     stepDefinitions = computed<StepDefinition[]>(() => {
@@ -327,6 +328,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         // Single fetch - sets both JsonOptions and registration status
         this.metadataSubscription = this.jobService
             .fetchJobMetadata(jobPath)
+            .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (job) => {
                     this.fieldData.setJobOptions(job.jsonOptions);
@@ -422,7 +424,9 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
     loadClubs(): void {
         this.reloadClubsSubscription?.unsubscribe();
 
-        this.reloadClubsSubscription = this.teamRegService.getMyClubs().subscribe({
+        this.reloadClubsSubscription = this.teamRegService.getMyClubs().pipe(
+            takeUntilDestroyed(this.destroyRef)
+        ).subscribe({
             next: (clubs) => {
                 this.availableClubs.set(clubs);
             },
@@ -493,6 +497,7 @@ export class TeamRegistrationWizardComponent implements OnInit, OnDestroy {
         this.addClubSubscription = this.clubService
             .addClub(request)
             .pipe(
+                takeUntilDestroyed(this.destroyRef),
                 switchMap((response) => {
                     if (response.success) {
                         this.addClubSuccess.set('Club added successfully!');

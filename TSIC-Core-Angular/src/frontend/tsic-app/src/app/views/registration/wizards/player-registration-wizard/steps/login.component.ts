@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -9,7 +8,7 @@ import { LoginComponent } from '../../../login/login.component';
 @Component({
   selector: 'app-rw-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoginComponent],
+  imports: [FormsModule, LoginComponent],
   template: `
   <div class="card shadow border-0 card-rounded">
     <div class="card-header card-header-subtle border-0 py-3">

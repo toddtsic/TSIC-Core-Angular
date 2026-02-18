@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { InsuranceStateService } from '../services/insurance-state.service';
 import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.component';
 
@@ -11,7 +11,7 @@ import { WizardModalComponent } from '../../shared/wizard-modal/wizard-modal.com
 @Component({
   selector: 'app-vi-confirm-modal',
   standalone: true,
-  imports: [CommonModule, WizardModalComponent],
+  imports: [CurrencyPipe, WizardModalComponent],
   template: `
     <app-wizard-modal title="RegSaver Player Insurance" size="lg" (closed)="close(false)">
       <div modal-body>
