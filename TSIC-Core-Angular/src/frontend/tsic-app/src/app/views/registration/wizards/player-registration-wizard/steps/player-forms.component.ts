@@ -257,12 +257,12 @@ import { hasAllParts } from '../../shared/utils/property-utils';
         <div class="table-responsive mb-3">
           <table class="table table-sm mb-0 align-middle">
             <tbody>
-              <tr><th class="text-nowrap">Member #</th><td>{{ modalData?.['membernumber'] || modalData?.['mem_number'] || '—' }}</td></tr>
-              <tr><th class="text-nowrap">First Name</th><td>{{ modalData?.['firstname'] || '—' }}</td></tr>
-              <tr><th class="text-nowrap">Last Name</th><td>{{ modalData?.['lastname'] || '—' }}</td></tr>
-              <tr><th class="text-nowrap">DOB</th><td>{{ modalData?.['birthdate'] || '—' }}</td></tr>
-              <tr><th class="text-nowrap">Status</th><td>{{ modalData?.['mem_status'] || '—' }}</td></tr>
-              <tr><th class="text-nowrap">Expires</th><td>{{ modalData?.['exp_date'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Member #</th><td>{{ modalData['membernumber'] || modalData['mem_number'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">First Name</th><td>{{ modalData['firstname'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Last Name</th><td>{{ modalData['lastname'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">DOB</th><td>{{ modalData['birthdate'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Status</th><td>{{ modalData['mem_status'] || '—' }}</td></tr>
+              <tr><th class="text-nowrap">Expires</th><td>{{ modalData['exp_date'] || '—' }}</td></tr>
             </tbody>
           </table>
         </div>
