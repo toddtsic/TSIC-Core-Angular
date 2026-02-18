@@ -4,6 +4,10 @@
 	display: block;
 }
 
+:host:empty {
+	display: none;
+}
+
 .chart-error {
 	padding: var(--space-4);
 	color: var(--brand-text-muted);

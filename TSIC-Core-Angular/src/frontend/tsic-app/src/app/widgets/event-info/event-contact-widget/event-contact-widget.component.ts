@@ -1,5 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import type { EventContactDto } from '@core/api';
 
 @Component({
@@ -11,6 +13,8 @@ import type { EventContactDto } from '@core/api';
 })
 export class EventContactWidgetComponent implements OnInit {
 	private readonly svc = inject(WidgetDashboardService);
+	private readonly auth = inject(AuthService);
+	private readonly route = inject(ActivatedRoute);
 
 	readonly data = signal<EventContactDto | null>(null);
 	readonly hasError = signal(false);
@@ -27,9 +31,25 @@ export class EventContactWidgetComponent implements OnInit {
 	});
 
 	ngOnInit(): void {
-		this.svc.getEventContact().subscribe({
+		const call$ = this.auth.isAuthenticated()
+			? this.svc.getEventContact()
+			: this.svc.getPublicEventContact(this.resolveJobPath());
+
+		call$.subscribe({
 			next: (d) => this.data.set(d),
 			error: () => this.hasError.set(true),
 		});
+	}
+
+	private resolveJobPath(): string {
+		const user = this.auth.currentUser();
+		if (user?.jobPath) return user.jobPath;
+		let r: ActivatedRouteSnapshot | null = this.route.snapshot;
+		while (r) {
+			const jp = r.paramMap.get('jobPath');
+			if (jp) return jp;
+			r = r.parent;
+		}
+		return '';
 	}
 }

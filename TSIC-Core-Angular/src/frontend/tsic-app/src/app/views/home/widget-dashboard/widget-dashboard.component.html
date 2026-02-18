@@ -14,27 +14,15 @@
         </div>
     } @else if (isPublic()) {
 
-        <!-- ═══════ PUBLIC MODE: Anonymous landing (unchanged) ═══════ -->
+        <!-- ═══════ PUBLIC MODE: Anonymous landing ═══════ -->
         @if (dashboard(); as db) {
             @for (workspace of db.workspaces; track workspace.workspace) {
                 <div class="dashboard-workspace" [class]="'workspace-' + workspace.workspace">
                     @for (category of workspace.categories; track category.categoryId) {
                         <div class="content-widgets">
                             @for (widget of category.widgets; track widget.widgetId) {
-                                @switch (widget.componentKey) {
-                                    @case ('client-banner') {
-                                        <app-client-banner />
-                                    }
-                                    @case ('bulletins') {
-                                        <app-bulletins
-                                            [bulletins]="bulletins()"
-                                            [loading]="bulletinsLoading()"
-                                            [error]="bulletinsError()"
-                                            [jobPath]="activeJobPath()" />
-                                    }
-                                    @case ('event-contact') {
-                                        <app-event-contact-widget />
-                                    }
+                                @if (resolveWidget(widget.componentKey); as cmp) {
+                                    <ng-container *ngComponentOutlet="cmp" />
                                 }
                             }
                         </div>
@@ -62,7 +50,7 @@
 
                     <div class="widget-grid">
                         @for (widget of category.widgets; track widget.widgetId) {
-                            <a class="widget-card" [class]="'wt-' + widget.widgetType"
+                            <a class="widget-card" [class]="'wt-' + widget.widgetType + ' ds-' + getDisplayStyle(widget)"
                                href="#" (click)="onWidgetClick(widget, $event)">
                                 <div class="widget-icon">
                                     <i class="bi" [class]="getIcon(widget)"></i>
@@ -120,39 +108,19 @@
                     <!-- Chart tiles: responsive grid -->
                     <div class="content-widgets chart-tiles">
                         @for (widget of category.widgets; track widget.widgetId) {
-                            @switch (widget.componentKey) {
-                                @case ('player-trend-chart') {
-                                    <app-player-trend-widget />
+                            <div class="chart-tile-wrapper" [class]="'ds-' + getDisplayStyle(widget)">
+                                @if (resolveWidget(widget.componentKey); as cmp) {
+                                    <ng-container *ngComponentOutlet="cmp" />
                                 }
-                                @case ('team-trend-chart') {
-                                    @if (isTeamJob()) {
-                                        <app-team-trend-widget />
-                                    }
-                                }
-                                @case ('agegroup-distribution') {
-                                    <app-agegroup-distribution-widget />
-                                }
-                                @case ('year-over-year') {
-                                    <app-year-over-year-widget />
-                                }
-                            }
+                            </div>
                         }
                     </div>
                 } @else if (!isStatusCategory(category)) {
                     <!-- Content widgets (e.g. bulletins for non-admin roles) -->
                     <div class="content-widgets">
                         @for (widget of category.widgets; track widget.widgetId) {
-                            @switch (widget.componentKey) {
-                                @case ('bulletins') {
-                                    <app-bulletins
-                                        [bulletins]="bulletins()"
-                                        [loading]="bulletinsLoading()"
-                                        [error]="bulletinsError()"
-                                        [jobPath]="activeJobPath()" />
-                                }
-                                @case ('event-contact') {
-                                    <app-event-contact-widget />
-                                }
+                            @if (resolveWidget(widget.componentKey); as cmp) {
+                                <ng-container *ngComponentOutlet="cmp" />
                             }
                         }
                     </div>

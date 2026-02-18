@@ -1,5 +1,6 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { CollapsibleChartCardComponent } from '@widgets/shared/chart-card/collapsible-chart-card.component';
 import { RegistrationTrendChartComponent } from '@widgets/shared/registration-trend-chart/registration-trend-chart.component';
 import type { RegistrationTimeSeriesDto } from '@core/api';
@@ -18,6 +19,12 @@ import type { RegistrationTimeSeriesDto } from '@core/api';
 })
 export class TeamTrendWidgetComponent implements OnInit {
 	private readonly svc = inject(WidgetDashboardService);
+	private readonly jobService = inject(JobService);
+
+	readonly isTeamJob = computed(() => {
+		const typeName = this.jobService.currentJob()?.jobTypeName?.toLowerCase();
+		return typeName === 'league' || typeName === 'tournament';
+	});
 
 	readonly data = signal<RegistrationTimeSeriesDto | null>(null);
 	readonly hasError = signal(false);
@@ -48,6 +55,8 @@ export class TeamTrendWidgetComponent implements OnInit {
 	});
 
 	ngOnInit(): void {
+		if (!this.isTeamJob()) return;
+
 		this.svc.getTeamTrend().subscribe({
 			next: (d) => this.data.set(d),
 			error: () => this.hasError.set(true),

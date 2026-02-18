@@ -1,16 +1,11 @@
-import { Component, computed, effect, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, ChangeDetectionStrategy, Type } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
 import { Router, ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
+import { WIDGET_REGISTRY } from '@widgets/widget-registry';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
-import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
-import { BulletinsComponent } from '@widgets/communications/bulletins.component';
-import { PlayerTrendWidgetComponent } from '@widgets/registration/player-trend-widget/player-trend-widget.component';
-import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widget/team-trend-widget.component';
-import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegroup-distribution-widget/agegroup-distribution-widget.component';
-import { EventContactWidgetComponent } from '@widgets/event-info/event-contact-widget/event-contact-widget.component';
-import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
 import type { DashboardMetricsDto, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {
@@ -19,12 +14,13 @@ interface WidgetConfig {
 	label?: string;
 	icon?: string;
 	format?: string;
+	displayStyle?: string;
 }
 
 @Component({
 	selector: 'app-widget-dashboard',
 	standalone: true,
-	imports: [ClientBannerComponent, BulletinsComponent, PlayerTrendWidgetComponent, TeamTrendWidgetComponent, AgegroupDistributionWidgetComponent, EventContactWidgetComponent, YearOverYearWidgetComponent],
+	imports: [NgComponentOutlet],
 	templateUrl: './widget-dashboard.component.html',
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -76,12 +72,6 @@ export class WidgetDashboardComponent {
 
 	readonly heroHasBanner = computed(() => !!this.heroBannerBgUrl());
 
-	/** True when job type supports teams (League, Tournament) */
-	readonly isTeamJob = computed(() => {
-		const typeName = this.jobService.currentJob()?.jobTypeName?.toLowerCase();
-		return typeName === 'league' || typeName === 'tournament';
-	});
-
 	readonly isPublic = computed(() => this.mode() === 'public');
 
 	/** Resolved job path — from input (public) or JWT/route (authenticated) */
@@ -98,11 +88,6 @@ export class WidgetDashboardComponent {
 		}
 		return '';
 	});
-
-	// Bulletin data (used by content widgets)
-	readonly bulletins = computed(() => this.jobService.bulletins());
-	readonly bulletinsLoading = computed(() => this.jobService.bulletinsLoading());
-	readonly bulletinsError = computed(() => this.jobService.bulletinsError());
 
 	// ── Derived metric displays ──
 
@@ -197,6 +182,11 @@ export class WidgetDashboardComponent {
 				}
 			}
 		});
+	}
+
+	/** Resolve a componentKey to its Angular component class, or null if unknown */
+	resolveWidget(componentKey: string): Type<unknown> | null {
+		return WIDGET_REGISTRY[componentKey] ?? null;
 	}
 
 	/** Public mode: load job metadata + bulletins + widget config */
@@ -324,6 +314,10 @@ export class WidgetDashboardComponent {
 
 	getLabel(widget: WidgetItemDto): string {
 		return this.getConfig(widget).label || widget.name;
+	}
+
+	getDisplayStyle(widget: WidgetItemDto): string {
+		return this.getConfig(widget).displayStyle || 'standard';
 	}
 
 	onWidgetClick(widget: WidgetItemDto, event: Event): void {
