@@ -1,10 +1,11 @@
-import { Component, computed, effect, inject, input, signal, ChangeDetectionStrategy, Type } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, isDevMode, ChangeDetectionStrategy, Type } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { Router, ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
 import { WIDGET_REGISTRY } from '@widgets/widget-registry';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { ToastService } from '@shared-ui/toast.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import type { DashboardMetricsDto, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
@@ -29,6 +30,7 @@ export class WidgetDashboardComponent {
 	private readonly svc = inject(WidgetDashboardService);
 	private readonly auth = inject(AuthService);
 	private readonly jobService = inject(JobService);
+	private readonly toast = inject(ToastService);
 	private readonly router = inject(Router);
 	private readonly route = inject(ActivatedRoute);
 
@@ -150,6 +152,7 @@ export class WidgetDashboardComponent {
 	});
 
 	private configCache = new Map<number, WidgetConfig>();
+	private warnedKeys = new Set<string>();
 
 	/** Track the last loaded identity to avoid redundant reloads */
 	private lastLoadedKey = '';
@@ -186,7 +189,15 @@ export class WidgetDashboardComponent {
 
 	/** Resolve a componentKey to its Angular component class, or null if unknown */
 	resolveWidget(componentKey: string): Type<unknown> | null {
-		return WIDGET_REGISTRY[componentKey] ?? null;
+		const cmp = WIDGET_REGISTRY[componentKey] ?? null;
+		if (!cmp && isDevMode() && !this.warnedKeys.has(componentKey)) {
+			this.warnedKeys.add(componentKey);
+			this.toast.show(
+				`Widget "${componentKey}" has no registry entry. Add it to widgets/widget-registry.ts.`,
+				'warning', 8000,
+			);
+		}
+		return cmp;
 	}
 
 	/** Public mode: load job metadata + bulletins + widget config */
