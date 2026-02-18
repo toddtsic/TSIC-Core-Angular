@@ -319,8 +319,8 @@
 // WIDGET TYPE VARIANTS
 // ═══════════════════════════════════════
 
-// Workflow pipeline — primary accent border
-.wt-workflow-pipeline {
+// Link tile — primary accent border (navigation tiles)
+.wt-link-tile {
     border-left: 3px solid var(--bs-primary);
 
     .widget-icon {

@@ -4,7 +4,7 @@ import { WidgetDashboardService } from '@widgets/services/widget-dashboard.servi
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
-import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
+import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { PlayerTrendWidgetComponent } from '@widgets/registration/player-trend-widget/player-trend-widget.component';
 import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widget/team-trend-widget.component';
@@ -258,14 +258,14 @@ export class WidgetDashboardComponent {
 		return workspace === 'public' || workspace === 'dashboard';
 	}
 
-	/** Returns true if a category contains only chart-type widgets (for tile grid layout) */
+	/** Returns true if a category contains only chart-tile type widgets (for tile grid layout) */
 	isChartCategory(category: WidgetCategoryGroupDto): boolean {
-		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'chart');
+		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'chart-tile');
 	}
 
-	/** Returns true if a category contains only status-card type widgets */
+	/** Returns true if a category contains only status-tile type widgets */
 	isStatusCategory(category: WidgetCategoryGroupDto): boolean {
-		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'status-card');
+		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'status-tile');
 	}
 
 	workspaceLabel(workspace: string): string {

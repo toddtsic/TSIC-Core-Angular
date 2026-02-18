@@ -9,7 +9,6 @@ import { JobContextService } from '@infrastructure/services/job-context.service'
 import { ThemeService } from '@infrastructure/services/theme.service';
 import { ClientHeaderBarComponent } from '../components/client-header-bar/client-header-bar.component';
 import { ClientMenuComponent } from '../components/client-menu/client-menu.component';
-import { ClientBannerComponent } from '../components/client-banner/client-banner.component';
 import { ClientFooterBarComponent } from '../components/client-footer-bar/client-footer-bar.component';
 import { ScrollToTopComponent } from '../../shared-ui/scroll-to-top/scroll-to-top.component';
 import { BreadcrumbComponent } from '../../shared-ui/breadcrumb/breadcrumb.component';

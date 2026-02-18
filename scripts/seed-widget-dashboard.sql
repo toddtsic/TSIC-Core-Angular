@@ -94,8 +94,7 @@ BEGIN
             FOREIGN KEY ([CategoryId])
             REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
         CONSTRAINT [CK_widgets_Widget_WidgetType]
-            CHECK ([WidgetType] IN ('content','chart','status-card',
-                   'action-card','pipeline-card','link-card'))
+            CHECK ([WidgetType] IN ('content','chart-tile','status-tile','link-tile'))
     );
     PRINT 'Created table: widgets.Widget';
 END
@@ -218,7 +217,7 @@ IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_widgets_Widget_W
     ALTER TABLE [widgets].[Widget] DROP CONSTRAINT [CK_widgets_Widget_WidgetType];
 
 ALTER TABLE [widgets].[Widget] ADD CONSTRAINT [CK_widgets_Widget_WidgetType]
-    CHECK ([WidgetType] IN ('content','chart','status-card','action-card','pipeline-card','link-card'));
+    CHECK ([WidgetType] IN ('content','chart-tile','status-tile','link-tile'));
 
 PRINT 'Batch 1 complete: schema + tables + migration';
 GO
@@ -340,129 +339,129 @@ DECLARE @myFinCatId          INT = (SELECT CategoryId FROM widgets.WidgetCategor
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'client-banner')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
     VALUES ('Client Banner', 'content', 'client-banner', @publicContentCatId,
-            'Job banner with logo and images', NULL);
+            'Job banner with logo and images', '{"displayStyle":"banner"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'bulletins')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
     VALUES ('Bulletins', 'content', 'bulletins', @publicContentCatId,
-            'Active job bulletins and announcements', NULL);
+            'Active job bulletins and announcements', '{"displayStyle":"feed"}');
 
 -- Chart widgets
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'player-trend-chart')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Player Registration Trend', 'chart', 'player-trend-chart', @dashChartsCatId,
+    VALUES ('Player Registration Trend', 'chart-tile', 'player-trend-chart', @dashChartsCatId,
             'Daily player registration counts and cumulative revenue over time', NULL);
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'team-trend-chart')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Team Registration Trend', 'chart', 'team-trend-chart', @dashChartsCatId,
+    VALUES ('Team Registration Trend', 'chart-tile', 'team-trend-chart', @dashChartsCatId,
             'Daily team registration counts and cumulative revenue over time', NULL);
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'agegroup-distribution')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Age Group Distribution', 'chart', 'agegroup-distribution', @dashChartsCatId,
+    VALUES ('Age Group Distribution', 'chart-tile', 'agegroup-distribution', @dashChartsCatId,
             'Player and team counts broken down by age group', NULL);
 
--- Status card widgets (dashboard KPIs)
+-- Status tile widgets (dashboard KPIs)
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'registration-status')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Registration Status', 'status-card', 'registration-status', @dashStatusCatId,
+    VALUES ('Registration Status', 'status-tile', 'registration-status', @dashStatusCatId,
             'Active registration count and trend indicator',
             '{"label":"Registrations","icon":"bi-people-fill","route":"admin/search"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'financial-status')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Financial Status', 'status-card', 'financial-status', @dashStatusCatId,
+    VALUES ('Financial Status', 'status-tile', 'financial-status', @dashStatusCatId,
             'Revenue collected vs outstanding balance summary',
             '{"label":"Financials","icon":"bi-currency-dollar","route":"reporting/financials"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'scheduling-status')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Scheduling Status', 'status-card', 'scheduling-status', @dashStatusCatId,
+    VALUES ('Scheduling Status', 'status-tile', 'scheduling-status', @dashStatusCatId,
             'Schedule completion percentage and game count',
             '{"label":"Schedule","icon":"bi-calendar-check","route":"admin/scheduling"}');
 
 -- Job Configuration workspace
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'ladt-editor')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('LADT Editor', 'action-card', 'ladt-editor', @jobConfigCatId,
+    VALUES ('LADT Editor', 'link-tile', 'ladt-editor', @jobConfigCatId,
             'Configure leagues, age groups, divisions, and teams',
             '{"label":"LADT Editor","icon":"bi-diagram-3","route":"ladt/admin"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'fee-config')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Fee Configuration', 'action-card', 'fee-config', @jobConfigCatId,
+    VALUES ('Fee Configuration', 'link-tile', 'fee-config', @jobConfigCatId,
             'Configure registration fees and payment options',
             '{"label":"Fee Configuration","icon":"bi-tags","route":"ladt/admin"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'job-settings')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Job Settings', 'action-card', 'job-settings', @jobConfigCatId,
+    VALUES ('Job Settings', 'link-tile', 'job-settings', @jobConfigCatId,
             'General event configuration and settings',
             '{"label":"Job Settings","icon":"bi-sliders","route":"ladt/admin"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'widget-editor')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Widget Editor', 'action-card', 'widget-editor', @jobConfigCatId,
+    VALUES ('Widget Editor', 'link-tile', 'widget-editor', @jobConfigCatId,
             'Configure widget assignments and dashboard layout (SuperUser only)',
             '{"label":"Widget Editor","icon":"bi-gear-fill","route":"admin/widget-editor"}');
 
 -- Player Registration workspace
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'search-registrations')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Search Registrations', 'action-card', 'search-registrations', @playerMgmtCatId,
+    VALUES ('Search Registrations', 'link-tile', 'search-registrations', @playerMgmtCatId,
             'Search and manage player registrations',
             '{"label":"Search Registrations","icon":"bi-search","route":"admin/search"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'roster-swapper')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Roster Swapper', 'action-card', 'roster-swapper', @playerMgmtCatId,
+    VALUES ('Roster Swapper', 'link-tile', 'roster-swapper', @playerMgmtCatId,
             'Move players between team rosters',
             '{"label":"Roster Swapper","icon":"bi-arrow-left-right","route":"admin/roster-swapper"}');
 
 -- Team Registration workspace
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'view-by-club')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('View by Club', 'action-card', 'view-by-club', @teamMgmtCatId,
+    VALUES ('View by Club', 'link-tile', 'view-by-club', @teamMgmtCatId,
             'Browse registrations grouped by club',
             '{"label":"View by Club","icon":"bi-building","route":"admin/team-search"}');
 
 -- Scheduling workspace
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'scheduling-pipeline')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Scheduling Pipeline', 'action-card', 'scheduling-pipeline', @schedToolsCatId,
+    VALUES ('Scheduling Pipeline', 'link-tile', 'scheduling-pipeline', @schedToolsCatId,
             'Step-by-step scheduling workflow',
             '{"label":"Scheduling Pipeline","icon":"bi-kanban","route":"admin/scheduling"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'pool-assignment')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Pool Assignment', 'action-card', 'pool-assignment', @schedToolsCatId,
+    VALUES ('Pool Assignment', 'link-tile', 'pool-assignment', @schedToolsCatId,
             'Assign teams to pools',
             '{"label":"Pool Assignment","icon":"bi-people-fill","route":"admin/pool-assignment"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'view-schedule')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('View Schedule', 'action-card', 'view-schedule', @schedViewCatId,
+    VALUES ('View Schedule', 'link-tile', 'view-schedule', @schedViewCatId,
             'View published game schedule',
             '{"label":"View Schedule","icon":"bi-calendar-check","route":"admin/scheduling/view-schedule"}');
 
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'rescheduler')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Rescheduler', 'action-card', 'rescheduler', @schedViewCatId,
+    VALUES ('Rescheduler', 'link-tile', 'rescheduler', @schedViewCatId,
             'Reschedule or swap individual games',
             '{"label":"Rescheduler","icon":"bi-calendar-x","route":"admin/scheduling/rescheduler"}');
 
 -- Organization Finances workspace
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'financial-overview')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('Financial Overview', 'action-card', 'financial-overview', @orgFinCatId,
+    VALUES ('Financial Overview', 'link-tile', 'financial-overview', @orgFinCatId,
             'Payment status and outstanding balance reports',
             '{"label":"Financial Overview","icon":"bi-cash-stack","route":"reporting/financials"}');
 
 -- My Finances workspace
 IF NOT EXISTS (SELECT 1 FROM widgets.Widget WHERE ComponentKey = 'my-payments')
     INSERT INTO widgets.Widget (Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
-    VALUES ('My Payments', 'action-card', 'my-payments', @myFinCatId,
+    VALUES ('My Payments', 'link-tile', 'my-payments', @myFinCatId,
             'View your payment history and outstanding balances',
             '{"label":"My Payments","icon":"bi-wallet2","route":"reporting/financials"}');
 

@@ -29,9 +29,11 @@ UPDATE widgets.Widget SET WidgetType = 'link-card'      WHERE WidgetType = 'link
 
 PRINT 'Updated WidgetType values in widgets.Widget';
 
--- 3. Re-add the CHECK constraint with new allowed values
+-- 3. Re-add the CHECK constraint with consolidated values
+--    (Allows both intermediate and final names so consolidation script can run next)
 ALTER TABLE [widgets].[Widget] ADD CONSTRAINT [CK_widgets_Widget_WidgetType]
-    CHECK ([WidgetType] IN ('content','chart','status-card','action-card','pipeline-card','link-card'));
+    CHECK ([WidgetType] IN ('content','chart','chart-tile','status-card','status-tile',
+                            'action-card','pipeline-card','link-card','link-tile'));
 
 PRINT 'Re-created CK_widgets_Widget_WidgetType constraint with new values';
 

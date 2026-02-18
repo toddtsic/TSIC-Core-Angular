@@ -15,7 +15,7 @@ public sealed class WidgetEditorService : IWidgetEditorService
 
     private static readonly HashSet<string> AllowedWidgetTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "content", "chart", "status-card", "quick-action", "workflow-pipeline", "link-group"
+        "content", "chart-tile", "status-tile", "link-tile"
     };
 
     public WidgetEditorService(IWidgetEditorRepository repo)

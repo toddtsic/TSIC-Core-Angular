@@ -282,12 +282,10 @@
 	padding: 2px 8px;
 	border-radius: 999px;
 
-	&.type-content       { background: var(--bs-info-bg-subtle);    color: var(--bs-info-text-emphasis); }
-	&.type-chart         { background: var(--bs-primary-bg-subtle); color: var(--bs-primary-text-emphasis); }
-	&.type-status-card   { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
-	&.type-action-card   { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
-	&.type-link-card     { background: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-text-emphasis); }
-	&.type-pipeline-card { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+	&.type-content      { background: var(--bs-info-bg-subtle);      color: var(--bs-info-text-emphasis); }
+	&.type-chart-tile   { background: var(--bs-primary-bg-subtle);   color: var(--bs-primary-text-emphasis); }
+	&.type-status-tile  { background: var(--bs-success-bg-subtle);   color: var(--bs-success-text-emphasis); }
+	&.type-link-tile    { background: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-text-emphasis); }
 }
 
 // ── Copy-from dropdown ──

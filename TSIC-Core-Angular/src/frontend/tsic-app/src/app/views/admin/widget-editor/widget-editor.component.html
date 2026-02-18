@@ -344,6 +344,8 @@
 			<span class="legend-item"><span class="legend-swatch inherited"></span> Inherited</span>
 			<span class="legend-item"><span class="legend-swatch override-enabled"></span> Override (enabled)</span>
 			<span class="legend-item"><span class="legend-swatch override-disabled"></span> Override (disabled)</span>
+			<span class="legend-item"><span class="legend-swatch override-addition"></span> Job-specific addition</span>
+			<span class="legend-item hint">Right-click to revert</span>
 		</div>
 	}
 
@@ -396,11 +398,13 @@
 											<td>
 												<input type="checkbox"
 													class="matrix-checkbox form-check-input"
-													[class.override-enabled]="isOverrideEntry(widget.widgetId, role.roleId) && isOverrideEnabled(widget.widgetId, role.roleId)"
+													[class.override-enabled]="isOverrideEntry(widget.widgetId, role.roleId) && isOverrideEnabled(widget.widgetId, role.roleId) && !isAdditionEntry(widget.widgetId, role.roleId)"
 													[class.override-disabled]="isOverrideEntry(widget.widgetId, role.roleId) && !isOverrideEnabled(widget.widgetId, role.roleId)"
+													[class.override-addition]="isAdditionEntry(widget.widgetId, role.roleId)"
 													[checked]="isOverrideEnabled(widget.widgetId, role.roleId)"
 													(change)="toggleOverride(widget.widgetId, role.roleId, cat.categoryId)"
-													[title]="widget.name + ' → ' + role.roleName + (isOverrideEntry(widget.widgetId, role.roleId) ? ' (overridden)' : ' (inherited)')" />
+													(contextmenu)="revertOverride($event, widget.widgetId, role.roleId)"
+													[title]="widget.name + ' → ' + role.roleName + (isAdditionEntry(widget.widgetId, role.roleId) ? ' (addition — right-click to remove)' : isOverrideEntry(widget.widgetId, role.roleId) ? ' (overridden — right-click to revert)' : ' (inherited)')" />
 											</td>
 										}
 										<ng-template cdkDragPreview>
@@ -492,6 +496,19 @@
 				<fieldset class="config-fieldset mb-3">
 					<legend class="form-label mb-2">Dashboard Config <span class="text-body-secondary">(optional)</span></legend>
 					<div class="row g-2">
+						@if (displayStyleOptions[formWidgetType()]; as styles) {
+							<div class="col-12">
+								<label class="form-label form-label-sm mb-1">Display Style</label>
+								<select class="form-select form-select-sm"
+									[value]="formDisplayStyle()" (change)="formDisplayStyle.set(asSelectValue($event))">
+									<option value="">Default ({{ styles[0] }})</option>
+									@for (s of styles; track s) {
+										<option [value]="s">{{ s }}</option>
+									}
+								</select>
+								<div class="form-text">Visual variant within this tile type.</div>
+							</div>
+						}
 						<div class="col-12">
 							<label class="form-label form-label-sm mb-1">Icon</label>
 							<div class="input-group input-group-sm">
@@ -512,7 +529,7 @@
 							<input type="text" class="form-control form-control-sm font-monospace"
 								placeholder="e.g. admin/widget-editor"
 								[value]="formConfigRoute()" (input)="formConfigRoute.set(asInputValue($event))" />
-							<div class="form-text">Relative path from the job root. Used for dashboard card navigation.</div>
+							<div class="form-text">Relative path from the job root. Used for dashboard tile navigation.</div>
 						</div>
 					</div>
 				</fieldset>

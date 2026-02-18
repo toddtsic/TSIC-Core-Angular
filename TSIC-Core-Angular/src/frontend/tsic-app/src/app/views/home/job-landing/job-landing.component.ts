@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
-import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
+import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 

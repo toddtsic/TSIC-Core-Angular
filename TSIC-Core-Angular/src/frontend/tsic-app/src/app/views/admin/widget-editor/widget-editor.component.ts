@@ -96,6 +96,7 @@ export class WidgetEditorComponent {
 	readonly formDescription = signal('');
 	readonly formConfigIcon = signal('');
 	readonly formConfigRoute = signal('');
+	readonly formDisplayStyle = signal('');
 
 	// ── Delete confirm state ──
 	readonly showDeleteConfirm = signal(false);
@@ -123,7 +124,15 @@ export class WidgetEditorComponent {
 	readonly defSortDirection = signal<'asc' | 'desc'>('asc');
 
 	// ── Allowed widget types ──
-	readonly widgetTypes = ['content', 'chart', 'status-card', 'action-card', 'pipeline-card', 'link-card'];
+	readonly widgetTypes = ['content', 'chart-tile', 'status-tile', 'link-tile'];
+
+	/** Valid displayStyle options per WidgetType */
+	readonly displayStyleOptions: Record<string, string[]> = {
+		'content':      ['banner', 'feed', 'block'],
+		'chart-tile':   ['standard', 'wide', 'spark'],
+		'status-tile':  ['standard', 'hero', 'compact'],
+		'link-tile':    ['standard', 'hero', 'compact'],
+	};
 
 	// ── Computed: workspace groups for matrix ──
 	readonly workspaceGroups = computed<WorkspaceGroup[]>(() => {
@@ -508,6 +517,7 @@ export class WidgetEditorComponent {
 		this.formDescription.set('');
 		this.formConfigIcon.set('');
 		this.formConfigRoute.set('');
+		this.formDisplayStyle.set('');
 		this.showWidgetModal.set(true);
 	}
 
@@ -915,26 +925,31 @@ export class WidgetEditorComponent {
 		if (!json) {
 			this.formConfigIcon.set('');
 			this.formConfigRoute.set('');
+			this.formDisplayStyle.set('');
 			return;
 		}
 		try {
 			const obj = JSON.parse(json);
 			this.formConfigIcon.set(obj.icon || '');
 			this.formConfigRoute.set(obj.route || '');
+			this.formDisplayStyle.set(obj.displayStyle || '');
 		} catch {
 			this.formConfigIcon.set('');
 			this.formConfigRoute.set('');
+			this.formDisplayStyle.set('');
 		}
 	}
 
 	private serializeConfigFromFields(): string | null {
 		const icon = this.formConfigIcon().trim();
 		const route = this.formConfigRoute().trim();
-		if (!icon && !route) return null;
+		const displayStyle = this.formDisplayStyle().trim();
+		if (!icon && !route && !displayStyle) return null;
 		const obj: Record<string, string> = {};
 		obj['label'] = this.formName().trim();
 		if (icon) obj['icon'] = icon;
 		if (route) obj['route'] = route;
+		if (displayStyle) obj['displayStyle'] = displayStyle;
 		return JSON.stringify(obj);
 	}
 
