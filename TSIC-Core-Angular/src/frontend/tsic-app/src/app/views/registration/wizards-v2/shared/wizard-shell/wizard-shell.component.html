@@ -1,0 +1,66 @@
+<main class="container-fluid px-3 py-2 rw-wizard-container"
+      [wizardTheme]="config().theme"
+      aria-labelledby="wz-title-mobile wz-title-desktop">
+  <div class="row justify-content-center">
+    <div class="col-12">
+
+      <!-- Fixed header: title + step indicator + action bar -->
+      <div class="wizard-fixed-header">
+
+        <!-- Mobile: compact title + optional badge -->
+        <div class="d-md-none text-center mb-1">
+          <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+            <h2 id="wz-title-mobile" class="mb-0 fw-bold fs-6">{{ config().title }}</h2>
+            @if (config().badge) {
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
+              {{ config().badge }}
+            </span>
+            }
+          </div>
+        </div>
+
+        <!-- Desktop: full title + optional badge -->
+        <div class="d-none d-md-block text-center mb-3">
+          <h2 id="wz-title-desktop" class="mb-1 fw-bold">{{ config().title }}</h2>
+          @if (config().badge) {
+          <div class="d-flex align-items-center justify-content-center">
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 small">
+              {{ config().badge }}
+            </span>
+          </div>
+          }
+        </div>
+
+        <!-- Step indicator (responsive: compact bar on mobile, full dots on desktop) -->
+        <div class="mb-1">
+          <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
+        </div>
+
+        <!-- Action bar (hidden on first step — first step has its own CTAs) -->
+        @if (showActionBar()) {
+        <div class="wizard-action-bar-container">
+          <app-wizard-action-bar
+            [canBack]="currentIndex() > 0"
+            [canContinue]="canContinue()"
+            [continueLabel]="continueLabel()"
+            [showContinue]="showContinue()"
+            [detailsBadgeLabel]="detailsBadgeLabel()"
+            [detailsBadgeClass]="detailsBadgeClass()"
+            (back)="back.emit()"
+            (continue)="continue.emit()" />
+        </div>
+        }
+      </div>
+
+      <!-- Scrollable content: wizard projects its step components here -->
+      <div class="wizard-scrollable-content">
+        <div class="mb-4">
+          <div class="px-4 pb-4 pt-3">
+            <ng-content />
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>

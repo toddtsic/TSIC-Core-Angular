@@ -1,0 +1,33 @@
+<app-wizard-shell
+  [steps]="steps()"
+  [currentIndex]="currentIndex()"
+  [config]="shellConfig()"
+  [canContinue]="canContinue()"
+  [showContinue]="showContinue()"
+  (back)="back()"
+  (continue)="next()">
+
+  @switch (currentStepId()) {
+    @case ('credentials') {
+      <app-fam-credentials-step />
+    }
+    @case ('contacts') {
+      <app-fam-contacts-step />
+    }
+    @case ('address') {
+      <app-fam-address-step />
+    }
+    @case ('children') {
+      <app-fam-children-step />
+    }
+    @case ('review') {
+      <app-fam-review-step (completed)="finish($event)" />
+    }
+    @default {
+      <div class="alert alert-warning" role="note">
+        Unknown step "{{ currentStepId() }}". Please go back and try again.
+      </div>
+    }
+  }
+
+</app-wizard-shell>

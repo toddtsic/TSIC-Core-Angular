@@ -40,25 +40,25 @@ export const routes: Routes = [
 				path: 'role-selection',
 				loadComponent: () => import('./views/auth/role-selection/role-selection.component').then(m => m.RoleSelectionComponent)
 			},
-			// Family Account wizard (create/manage family + children)
+			// Family Account wizard (v2)
 			{
 				path: 'family-account',
-				loadComponent: () => import('./views/registration/wizards/family-account-wizard/family-account-wizard.component').then(m => m.FamilyAccountWizardComponent)
+				loadComponent: () => import('./views/registration/wizards-v2/family/family-wizard.component').then(m => m.FamilyWizardV2Component)
 			},
 			// Registration entry screen: sign in then choose next action
 			{
 				path: 'registration',
 				loadComponent: () => import('./views/registration/registration-entry/registration-entry.component').then(m => m.RegistrationEntryComponent)
 			},
-			// Registration wizard route (player-specific)
+			// Player registration wizard (v2)
 			{
 				path: 'register-player',
-				loadComponent: () => import('./views/registration/wizards/player-registration-wizard/player-registration-wizard.component').then(m => m.PlayerRegistrationWizardComponent)
+				loadComponent: () => import('./views/registration/wizards-v2/player/player-wizard.component').then(m => m.PlayerWizardV2Component)
 			},
-			// Registration wizard route (team-specific)
+			// Team registration wizard (v2)
 			{
 				path: 'register-team',
-				loadComponent: () => import('./views/registration/wizards/team-registration-wizard/team-registration-wizard.component').then(m => m.TeamRegistrationWizardComponent)
+				loadComponent: () => import('./views/registration/wizards-v2/team/team-wizard.component').then(m => m.TeamWizardV2Component)
 			},
 			{
 				path: 'home',
@@ -99,6 +99,14 @@ export const routes: Routes = [
 					{
 						path: 'widget-editor',
 						loadComponent: () => import('./views/admin/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
+					},
+					{
+						path: 'job-clone',
+						loadComponent: () => import('./views/admin/job-clone/job-clone.component').then(m => m.JobCloneComponent)
+					},
+					{
+						path: 'ddl-options',
+						loadComponent: () => import('./views/admin/ddl-options/ddl-options.component').then(m => m.DdlOptionsComponent)
 					}
 				]
 			},

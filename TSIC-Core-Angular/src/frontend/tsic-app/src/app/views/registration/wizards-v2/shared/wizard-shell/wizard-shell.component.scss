@@ -1,0 +1,10 @@
+/*
+ * WizardShellComponent styles.
+ *
+ * All heavy lifting done by global wizard styles:
+ *   - src/styles/_wizard.scss           (theme scopes, step indicator, toolbar)
+ *   - shared-ui/styles/_wizard-globals.scss (container, card-theme mixins)
+ *   - shared-ui/styles/_wizard-themes.scss  (theme mixins, light/dark mode)
+ *
+ * This file only adds shell-specific overrides if needed.
+ */

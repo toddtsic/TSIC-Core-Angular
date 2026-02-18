@@ -13,7 +13,12 @@ import {
     ClubRepClubDto,
     CheckExistingRegistrationsResponse,
 } from '@core/api';
-import type { UpdateClubTeamRequest } from '../team-edit-modal/team-edit-modal.component';
+/** Stub type — backend endpoint not yet implemented. */
+export interface UpdateClubTeamRequest {
+    clubTeamId: number;
+    teamName?: string;
+    ageGroupId?: number;
+}
 
 /**
  * Team Registration Service
