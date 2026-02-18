@@ -2,8 +2,8 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } 
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
 import type { ITooltipRenderEventArgs } from '@syncfusion/ej2-charts';
 
-import { WidgetDashboardService } from '../services/widget-dashboard.service';
-import { CollapsibleChartCardComponent } from '../collapsible-chart-card/collapsible-chart-card.component';
+import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
+import { CollapsibleChartCardComponent } from '@widgets/shared/chart-card/collapsible-chart-card.component';
 import type { YearOverYearComparisonDto, YearSeriesDto } from '@core/api';
 
 /** Palette colors for prior-year series (current year uses --bs-primary) */

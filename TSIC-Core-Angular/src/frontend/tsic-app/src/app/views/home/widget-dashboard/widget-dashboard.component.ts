@@ -1,16 +1,16 @@
 import { Component, computed, effect, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router, ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { WidgetDashboardService } from './services/widget-dashboard.service';
+import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { ClientBannerComponent } from '@layouts/components/client-banner/client-banner.component';
-import { BulletinsComponent } from '@shared-ui/bulletins/bulletins.component';
-import { PlayerTrendWidgetComponent } from './player-trend-widget/player-trend-widget.component';
-import { TeamTrendWidgetComponent } from './team-trend-widget/team-trend-widget.component';
-import { AgegroupDistributionWidgetComponent } from './agegroup-distribution-widget/agegroup-distribution-widget.component';
-import { EventContactWidgetComponent } from './event-contact-widget/event-contact-widget.component';
-import { YearOverYearWidgetComponent } from './year-over-year-widget/year-over-year-widget.component';
+import { BulletinsComponent } from '@widgets/communications/bulletins.component';
+import { PlayerTrendWidgetComponent } from '@widgets/registration/player-trend-widget/player-trend-widget.component';
+import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widget/team-trend-widget.component';
+import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegroup-distribution-widget/agegroup-distribution-widget.component';
+import { EventContactWidgetComponent } from '@widgets/event-info/event-contact-widget/event-contact-widget.component';
+import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
 import type { DashboardMetricsDto, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {

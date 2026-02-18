@@ -1,22 +1,22 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { WidgetDashboardService } from '../services/widget-dashboard.service';
-import { CollapsibleChartCardComponent } from '../collapsible-chart-card/collapsible-chart-card.component';
-import { RegistrationTrendChartComponent } from '../registration-trend-chart/registration-trend-chart.component';
+import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
+import { CollapsibleChartCardComponent } from '@widgets/shared/chart-card/collapsible-chart-card.component';
+import { RegistrationTrendChartComponent } from '@widgets/shared/registration-trend-chart/registration-trend-chart.component';
 import type { RegistrationTimeSeriesDto } from '@core/api';
 
 @Component({
-	selector: 'app-player-trend-widget',
+	selector: 'app-team-trend-widget',
 	standalone: true,
 	imports: [CollapsibleChartCardComponent, RegistrationTrendChartComponent],
-	templateUrl: './player-trend-widget.component.html',
-	styleUrl: './player-trend-widget.component.scss',
+	templateUrl: './team-trend-widget.component.html',
+	styleUrl: './team-trend-widget.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	host: {
 		'[class.widget-collapsed]': 'isCollapsed()',
 		'[class.widget-expanded]': '!isCollapsed()',
 	}
 })
-export class PlayerTrendWidgetComponent implements OnInit {
+export class TeamTrendWidgetComponent implements OnInit {
 	private readonly svc = inject(WidgetDashboardService);
 
 	readonly data = signal<RegistrationTimeSeriesDto | null>(null);
@@ -25,7 +25,7 @@ export class PlayerTrendWidgetComponent implements OnInit {
 	/** Two-way bound with collapsible-chart-card's collapsed model */
 	readonly isCollapsed = signal(true);
 
-	// KPI display values (moved up from registration-trend-chart)
+	// KPI display values
 	readonly totalRegsDisplay = computed(() => {
 		const s = this.data()?.summary;
 		return s ? s.totalRegistrations.toLocaleString() : '0';
@@ -48,7 +48,7 @@ export class PlayerTrendWidgetComponent implements OnInit {
 	});
 
 	ngOnInit(): void {
-		this.svc.getPlayerTrend().subscribe({
+		this.svc.getTeamTrend().subscribe({
 			next: (d) => this.data.set(d),
 			error: () => this.hasError.set(true),
 		});

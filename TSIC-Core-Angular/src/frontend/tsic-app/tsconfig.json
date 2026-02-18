@@ -28,7 +28,8 @@
       "@shared/*": ["src/app/shared/*"],
       "@shared-ui/*": ["src/app/shared-ui/*"],
       "@layouts/*": ["src/app/layouts/*"],
-      "@views/*": ["src/app/views/*"]
+      "@views/*": ["src/app/views/*"],
+      "@widgets/*": ["src/app/widgets/*"]
     }
   },
   "angularCompilerOptions": {

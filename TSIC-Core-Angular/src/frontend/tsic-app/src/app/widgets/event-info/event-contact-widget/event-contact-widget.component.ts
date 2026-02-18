@@ -1,5 +1,5 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { WidgetDashboardService } from '../services/widget-dashboard.service';
+import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
 import type { EventContactDto } from '@core/api';
 
 @Component({

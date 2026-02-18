@@ -123,7 +123,7 @@ export class WidgetEditorComponent {
 	readonly defSortDirection = signal<'asc' | 'desc'>('asc');
 
 	// ── Allowed widget types ──
-	readonly widgetTypes = ['content', 'chart', 'status-card', 'quick-action', 'workflow-pipeline', 'link-group'];
+	readonly widgetTypes = ['content', 'chart', 'status-card', 'action-card', 'pipeline-card', 'link-card'];
 
 	// ── Computed: workspace groups for matrix ──
 	readonly workspaceGroups = computed<WorkspaceGroup[]>(() => {
@@ -755,6 +755,16 @@ export class WidgetEditorComponent {
 		return entry?.isOverridden ?? false;
 	}
 
+	isAdditionEntry(widgetId: number, roleId: string): boolean {
+		const entry = this.overrideEntries().find(
+			e => e.widgetId === widgetId && e.roleId === roleId);
+		if (!entry?.isOverridden || !entry.isEnabled) return false;
+		// It's an addition if there was no inherited entry for this widget+role
+		const original = this.overrideOriginalEntries().find(
+			e => e.widgetId === widgetId && e.roleId === roleId);
+		return !original || original.isOverridden;
+	}
+
 	isWidgetOverridden(widgetId: number): boolean {
 		return this.overrideEntries().some(
 			e => e.widgetId === widgetId && e.isOverridden);
@@ -792,6 +802,30 @@ export class WidgetEditorComponent {
 				isEnabled: true,
 				isOverridden: true,
 			} as JobWidgetEntryDto);
+		}
+
+		this.overrideEntries.set(entries);
+	}
+
+	revertOverride(event: MouseEvent, widgetId: number, roleId: string): void {
+		event.preventDefault(); // suppress context menu
+		const entries = this.overrideEntries().slice();
+		const idx = entries.findIndex(
+			e => e.widgetId === widgetId && e.roleId === roleId);
+		if (idx < 0) return;
+
+		const entry = entries[idx];
+		if (!entry.isOverridden) return; // already inherited — nothing to revert
+
+		// Check if there was an inherited original entry
+		const original = this.overrideOriginalEntries().find(
+			e => e.widgetId === widgetId && e.roleId === roleId && !e.isOverridden);
+		if (original) {
+			// Revert to inherited state
+			entries[idx] = { ...original };
+		} else {
+			// Was a job-specific addition — remove entirely
+			entries.splice(idx, 1);
 		}
 
 		this.overrideEntries.set(entries);

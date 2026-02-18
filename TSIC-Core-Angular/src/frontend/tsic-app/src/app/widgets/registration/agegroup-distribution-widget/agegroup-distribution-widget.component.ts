@@ -2,8 +2,8 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } 
 import { ChartAllModule } from '@syncfusion/ej2-angular-charts';
 import type { ITextRenderEventArgs } from '@syncfusion/ej2-charts';
 
-import { WidgetDashboardService } from '../services/widget-dashboard.service';
-import { CollapsibleChartCardComponent } from '../collapsible-chart-card/collapsible-chart-card.component';
+import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
+import { CollapsibleChartCardComponent } from '@widgets/shared/chart-card/collapsible-chart-card.component';
 import type { AgegroupDistributionDto } from '@core/api';
 
 const currencyFmt = new Intl.NumberFormat('en-US', {
