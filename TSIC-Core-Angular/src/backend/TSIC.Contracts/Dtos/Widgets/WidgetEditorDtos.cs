@@ -49,6 +49,7 @@ public record WidgetDefinitionDto
     public required string ComponentKey { get; init; }
     public required int CategoryId { get; init; }
     public string? Description { get; init; }
+    public string? DefaultConfig { get; init; }
     public required string CategoryName { get; init; }
     public required string Workspace { get; init; }
 }
@@ -63,6 +64,7 @@ public record CreateWidgetRequest
     public required string ComponentKey { get; init; }
     public required int CategoryId { get; init; }
     public string? Description { get; init; }
+    public string? DefaultConfig { get; init; }
 }
 
 /// <summary>
@@ -75,6 +77,7 @@ public record UpdateWidgetRequest
     public required string ComponentKey { get; init; }
     public required int CategoryId { get; init; }
     public string? Description { get; init; }
+    public string? DefaultConfig { get; init; }
 }
 
 // ══════════════════════════════════════

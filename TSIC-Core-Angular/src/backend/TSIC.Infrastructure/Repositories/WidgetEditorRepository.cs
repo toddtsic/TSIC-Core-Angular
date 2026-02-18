@@ -101,6 +101,7 @@ public class WidgetEditorRepository : IWidgetEditorRepository
                 ComponentKey = w.ComponentKey,
                 CategoryId = w.CategoryId,
                 Description = w.Description,
+                DefaultConfig = w.DefaultConfig,
                 CategoryName = w.Category.Name,
                 Workspace = w.Category.Workspace,
             })
@@ -126,6 +127,7 @@ public class WidgetEditorRepository : IWidgetEditorRepository
                 ComponentKey = w.ComponentKey,
                 CategoryId = w.CategoryId,
                 Description = w.Description,
+                DefaultConfig = w.DefaultConfig,
                 CategoryName = w.Category.Name,
                 Workspace = w.Category.Workspace,
             })
@@ -247,6 +249,13 @@ public class WidgetEditorRepository : IWidgetEditorRepository
             .Select(g => new { JobTypeId = g.Key, MaxOrder = g.Max(wd => wd.DisplayOrder) })
             .ToDictionaryAsync(x => x.JobTypeId, x => x.MaxOrder, ct);
 
+        // Inherit DefaultConfig from the widget definition
+        var defaultConfig = await _context.Widget
+            .AsNoTracking()
+            .Where(w => w.WidgetId == widgetId)
+            .Select(w => w.DefaultConfig)
+            .FirstOrDefaultAsync(ct);
+
         var entities = assignments.Select(a => new WidgetDefault
         {
             WidgetId = widgetId,
@@ -254,6 +263,7 @@ public class WidgetEditorRepository : IWidgetEditorRepository
             RoleId = a.RoleId,
             CategoryId = categoryId,
             DisplayOrder = maxOrders.GetValueOrDefault(a.JobTypeId, -1) + 1,
+            Config = defaultConfig,
         });
 
         await _context.WidgetDefault.AddRangeAsync(entities, ct);
@@ -331,6 +341,39 @@ public class WidgetEditorRepository : IWidgetEditorRepository
             .Where(j => j.JobId == jobId)
             .Select(j => (int?)j.JobTypeId)
             .FirstOrDefaultAsync(ct);
+    }
+
+    // ══════════════════════════════════════
+    // Config propagation
+    // ══════════════════════════════════════
+
+    public async Task<int> PropagateDefaultConfigAsync(int widgetId, string? defaultConfig, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(defaultConfig)) return 0;
+
+        var count = 0;
+
+        // Backfill WidgetDefault entries with NULL Config
+        var defaults = await _context.WidgetDefault
+            .Where(wd => wd.WidgetId == widgetId && wd.Config == null)
+            .ToListAsync(ct);
+        foreach (var wd in defaults)
+        {
+            wd.Config = defaultConfig;
+            count++;
+        }
+
+        // Backfill JobWidget entries with NULL Config
+        var jobWidgets = await _context.JobWidget
+            .Where(jw => jw.WidgetId == widgetId && jw.Config == null)
+            .ToListAsync(ct);
+        foreach (var jw in jobWidgets)
+        {
+            jw.Config = defaultConfig;
+            count++;
+        }
+
+        return count;
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)

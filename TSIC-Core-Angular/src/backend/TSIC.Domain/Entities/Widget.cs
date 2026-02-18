@@ -17,6 +17,8 @@ public partial class Widget
 
     public string? Description { get; set; }
 
+    public string? DefaultConfig { get; set; }
+
     public virtual WidgetCategory Category { get; set; } = null!;
 
     public virtual ICollection<JobWidget> JobWidget { get; set; } = new List<JobWidget>();

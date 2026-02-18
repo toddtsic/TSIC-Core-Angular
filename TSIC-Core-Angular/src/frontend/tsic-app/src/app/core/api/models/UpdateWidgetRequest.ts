@@ -8,5 +8,6 @@ export type UpdateWidgetRequest = {
     componentKey: string;
     categoryId: number;
     description?: string | null;
+    defaultConfig?: string | null;
 };
 

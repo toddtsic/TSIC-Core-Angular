@@ -53,6 +53,7 @@ public sealed class WidgetEditorService : IWidgetEditorService
             ComponentKey = request.ComponentKey,
             CategoryId = request.CategoryId,
             Description = request.Description,
+            DefaultConfig = request.DefaultConfig,
         };
 
         _repo.AddWidget(entity);
@@ -78,6 +79,10 @@ public sealed class WidgetEditorService : IWidgetEditorService
         entity.ComponentKey = request.ComponentKey;
         entity.CategoryId = request.CategoryId;
         entity.Description = request.Description;
+        entity.DefaultConfig = request.DefaultConfig;
+
+        // Propagate DefaultConfig to existing entries with NULL Config
+        await _repo.PropagateDefaultConfigAsync(widgetId, request.DefaultConfig, ct);
 
         await _repo.SaveChangesAsync(ct);
 

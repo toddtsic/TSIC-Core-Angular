@@ -197,16 +197,47 @@
 			<table class="table table-hover align-middle mb-0 definitions-table">
 				<thead>
 					<tr>
-						<th>Name</th>
-						<th>Type</th>
-						<th>Component Key</th>
-						<th>Category</th>
-						<th>Workspace</th>
+						<th class="sortable-header" (click)="toggleDefSort('name')">
+							Name
+							@if (defSortColumn() === 'name') {
+								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
+							}
+						</th>
+						<th class="sortable-header" (click)="toggleDefSort('widgetType')">
+							Type
+							@if (defSortColumn() === 'widgetType') {
+								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
+							}
+						</th>
+						<th class="sortable-header" (click)="toggleDefSort('componentKey')">
+							Component Key
+							@if (defSortColumn() === 'componentKey') {
+								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
+							}
+						</th>
+						<th class="sortable-header" (click)="toggleDefSort('categoryName')">
+							Category
+							@if (defSortColumn() === 'categoryName') {
+								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
+							}
+						</th>
+						<th class="sortable-header" (click)="toggleDefSort('workspace')">
+							Workspace
+							@if (defSortColumn() === 'workspace') {
+								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
+							}
+						</th>
+						<th class="sortable-header" (click)="toggleDefSort('defaultConfig')">
+							Config
+							@if (defSortColumn() === 'defaultConfig') {
+								<i class="bi sort-icon" [ngClass]="defSortDirection() === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'"></i>
+							}
+						</th>
 						<th class="col-actions">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
-					@for (w of widgets(); track w.widgetId) {
+					@for (w of sortedWidgets(); track w.widgetId) {
 						<tr>
 							<td class="fw-semibold">{{ w.name }}</td>
 							<td>
@@ -216,6 +247,10 @@
 							<td>{{ w.categoryName }}</td>
 							<td>
 								<span class="badge bg-secondary-subtle text-secondary-emphasis">{{ w.workspace }}</span>
+							</td>
+							<td class="text-body-secondary font-monospace" style="font-size: 0.75rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+								[title]="w.defaultConfig || '(none)'">
+								{{ w.defaultConfig || '—' }}
 							</td>
 							<td>
 								<div class="btn-group btn-group-sm">
@@ -419,7 +454,7 @@
 			<div class="modal-body">
 				<div class="mb-3">
 					<label class="form-label">Name</label>
-					<input type="text" class="form-control form-control-sm"
+					<input type="text" class="form-control form-control-sm" autofocus
 						[value]="formName()" (input)="formName.set(asInputValue($event))" />
 				</div>
 				<div class="mb-3">
@@ -453,6 +488,34 @@
 					<textarea class="form-control form-control-sm" rows="2"
 						[value]="formDescription()" (input)="formDescription.set(asInputValue($event))"></textarea>
 				</div>
+				<!-- Dashboard Config (structured fields → serialized as JSON) -->
+				<fieldset class="config-fieldset mb-3">
+					<legend class="form-label mb-2">Dashboard Config <span class="text-body-secondary">(optional)</span></legend>
+					<div class="row g-2">
+						<div class="col-12">
+							<label class="form-label form-label-sm mb-1">Icon</label>
+							<div class="input-group input-group-sm">
+								<span class="input-group-text font-monospace">bi-</span>
+								<input type="text" class="form-control form-control-sm"
+									placeholder="e.g. gear-fill"
+									[value]="formConfigIcon().startsWith('bi-') ? formConfigIcon().slice(3) : formConfigIcon()"
+									(input)="formConfigIcon.set('bi-' + asInputValue($event))" />
+								@if (formConfigIcon()) {
+									<span class="input-group-text">
+										<i class="bi" [ngClass]="formConfigIcon()"></i>
+									</span>
+								}
+							</div>
+						</div>
+						<div class="col-12">
+							<label class="form-label form-label-sm mb-1">Route</label>
+							<input type="text" class="form-control form-control-sm font-monospace"
+								placeholder="e.g. admin/widget-editor"
+								[value]="formConfigRoute()" (input)="formConfigRoute.set(asInputValue($event))" />
+							<div class="form-text">Relative path from the job root. Used for dashboard card navigation.</div>
+						</div>
+					</div>
+				</fieldset>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeWidgetModal()">Cancel</button>

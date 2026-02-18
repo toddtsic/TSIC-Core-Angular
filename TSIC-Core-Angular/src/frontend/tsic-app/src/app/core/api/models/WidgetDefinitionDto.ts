@@ -9,6 +9,7 @@ export type WidgetDefinitionDto = {
     componentKey: string;
     categoryId: number;
     description?: string | null;
+    defaultConfig?: string | null;
     categoryName: string;
     workspace: string;
 };

@@ -38,5 +38,8 @@ public interface IWidgetEditorRepository
     Task BulkInsertJobWidgetsAsync(Guid jobId, List<JobWidgetEntryDto> entries, CancellationToken ct = default);
     Task<int?> GetJobTypeIdForJobAsync(Guid jobId, CancellationToken ct = default);
 
+    // ── Config propagation ──
+    Task<int> PropagateDefaultConfigAsync(int widgetId, string? defaultConfig, CancellationToken ct = default);
+
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

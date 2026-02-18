@@ -94,6 +94,8 @@ export class WidgetEditorComponent {
 	readonly formComponentKey = signal('');
 	readonly formCategoryId = signal(0);
 	readonly formDescription = signal('');
+	readonly formConfigIcon = signal('');
+	readonly formConfigRoute = signal('');
 
 	// ── Delete confirm state ──
 	readonly showDeleteConfirm = signal(false);
@@ -115,6 +117,10 @@ export class WidgetEditorComponent {
 	readonly overrideOriginalEntries = signal<JobWidgetEntryDto[]>([]);
 	readonly isOverrideLoading = signal(false);
 	readonly isOverrideSaving = signal(false);
+
+	// ── Definitions sort state ──
+	readonly defSortColumn = signal<keyof WidgetDefinitionDto>('name');
+	readonly defSortDirection = signal<'asc' | 'desc'>('asc');
 
 	// ── Allowed widget types ──
 	readonly widgetTypes = ['content', 'chart', 'status-card', 'quick-action', 'workflow-pipeline', 'link-group'];
@@ -221,6 +227,18 @@ export class WidgetEditorComponent {
 		this.formComponentKey().trim().length > 0 &&
 		this.formCategoryId() > 0
 	);
+
+	// ── Computed: sorted widget definitions ──
+	readonly sortedWidgets = computed(() => {
+		const col = this.defSortColumn();
+		const dir = this.defSortDirection();
+		return this.widgets().slice().sort((a, b) => {
+			const va = String(a[col] ?? '').toLowerCase();
+			const vb = String(b[col] ?? '').toLowerCase();
+			const cmp = va.localeCompare(vb);
+			return dir === 'asc' ? cmp : -cmp;
+		});
+	});
 
 	// ── Computed: workspace groups for override matrix ──
 	readonly overrideWorkspaceGroups = computed<WorkspaceGroup[]>(() => {
@@ -386,12 +404,14 @@ export class WidgetEditorComponent {
 			const maxOrder = entries
 				.filter(e => e.categoryId === categoryId)
 				.reduce((max, e) => Math.max(max, e.displayOrder), -1);
+			// Inherit DefaultConfig from the widget definition
+			const widget = this.widgets().find(w => w.widgetId === widgetId);
 			entries.push({
 				widgetId,
 				roleId,
 				categoryId,
 				displayOrder: maxOrder + 1,
-				config: undefined,
+				config: widget?.defaultConfig ?? undefined,
 			} as WidgetDefaultEntryDto);
 		}
 
@@ -486,6 +506,8 @@ export class WidgetEditorComponent {
 		this.formComponentKey.set('');
 		this.formCategoryId.set(0);
 		this.formDescription.set('');
+		this.formConfigIcon.set('');
+		this.formConfigRoute.set('');
 		this.showWidgetModal.set(true);
 	}
 
@@ -496,6 +518,7 @@ export class WidgetEditorComponent {
 		this.formComponentKey.set(widget.componentKey);
 		this.formCategoryId.set(widget.categoryId);
 		this.formDescription.set(widget.description || '');
+		this.parseConfigToFields(widget.defaultConfig);
 		this.showWidgetModal.set(true);
 	}
 
@@ -511,6 +534,7 @@ export class WidgetEditorComponent {
 			componentKey: this.formComponentKey().trim(),
 			categoryId: this.formCategoryId(),
 			description: this.formDescription().trim() || undefined,
+			defaultConfig: this.serializeConfigFromFields() || undefined,
 		};
 
 		const editing = this.editingWidget();
@@ -759,10 +783,12 @@ export class WidgetEditorComponent {
 			const maxOrder = entries
 				.filter(e => e.categoryId === categoryId)
 				.reduce((max, e) => Math.max(max, e.displayOrder), -1);
+			// Inherit DefaultConfig from the widget definition
+			const widget = this.widgets().find(w => w.widgetId === widgetId);
 			entries.push({
 				widgetId, roleId, categoryId,
 				displayOrder: maxOrder + 1,
-				config: undefined,
+				config: widget?.defaultConfig ?? undefined,
 				isEnabled: true,
 				isOverridden: true,
 			} as JobWidgetEntryDto);
@@ -830,6 +856,15 @@ export class WidgetEditorComponent {
 	// Helpers
 	// ═══════════════════════════════════
 
+	toggleDefSort(column: keyof WidgetDefinitionDto): void {
+		if (this.defSortColumn() === column) {
+			this.defSortDirection.set(this.defSortDirection() === 'asc' ? 'desc' : 'asc');
+		} else {
+			this.defSortColumn.set(column);
+			this.defSortDirection.set('asc');
+		}
+	}
+
 	abbreviateRole(roleName: string): string {
 		return ROLE_ABBREVIATIONS[roleName] || roleName.slice(0, 3);
 	}
@@ -840,6 +875,33 @@ export class WidgetEditorComponent {
 
 	asSelectValue(event: Event): string {
 		return (event.target as HTMLSelectElement).value;
+	}
+
+	private parseConfigToFields(json: string | null | undefined): void {
+		if (!json) {
+			this.formConfigIcon.set('');
+			this.formConfigRoute.set('');
+			return;
+		}
+		try {
+			const obj = JSON.parse(json);
+			this.formConfigIcon.set(obj.icon || '');
+			this.formConfigRoute.set(obj.route || '');
+		} catch {
+			this.formConfigIcon.set('');
+			this.formConfigRoute.set('');
+		}
+	}
+
+	private serializeConfigFromFields(): string | null {
+		const icon = this.formConfigIcon().trim();
+		const route = this.formConfigRoute().trim();
+		if (!icon && !route) return null;
+		const obj: Record<string, string> = {};
+		obj['label'] = this.formName().trim();
+		if (icon) obj['icon'] = icon;
+		if (route) obj['route'] = route;
+		return JSON.stringify(obj);
 	}
 
 	private handleError(context: string, err: any): void {
