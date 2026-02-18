@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, AfterViewInit, OnDestroy, ViewChild, ElementRef, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, EventEmitter, Output, inject, AfterViewInit, OnDestroy, ViewChild, ElementRef, signal, computed } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgClass, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryComponent } from './payment-summary.component';
@@ -236,6 +237,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
   // Effect to auto-select a valid payment option based on current scenario.
   // Moved from ngAfterViewInit to a field initializer to ensure a proper injection context (fixes NG0203).
   private readonly paySvc = inject(PaymentService);
+  private readonly destroyRef = inject(DestroyRef);
   // Added InsuranceService delegation property
   readonly insuranceSvc = inject(InsuranceService);
   readonly insuranceState = inject(InsuranceStateService);
@@ -274,7 +276,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
     const offerObj = this.insuranceState.verticalInsureOffer().data;
     if (!offerObj) {
       if (this.viInitRetries++ < 20) { // Max ~3s (20 × 150ms)
-        setTimeout(() => this.tryInitVerticalInsure(), 150);
+        this.viInitTimeout = setTimeout(() => this.tryInitVerticalInsure(), 150);
       } else {
         console.warn('[Payment] VerticalInsure offer data not available after 20 retries');
         this.verticalInsureError = 'Insurance widget could not be loaded. You may still proceed without insurance.';
@@ -453,7 +455,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
       viPolicyNumber: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
       viPolicyCreateDate: (this.insuranceState.verticalInsureConfirmed() ? (rs?.policyCreateDate || this.insuranceState.viConsent()?.policyCreateDate) : undefined) || undefined
     };
-    this.paySvc.submitPayment(request).subscribe({
+    this.paySvc.submitPayment(request).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (response) => this.handlePaymentResponse(response, rs),
       error: (error: HttpErrorResponse) => this.handlePaymentHttpError(error)
     });
@@ -530,7 +532,7 @@ export class PaymentComponent implements AfterViewInit, OnDestroy {
         });
         return { ...fp, priorRegistrations: prior };
       });
-      this.state.familyPlayers.set(updated);
+      this.state.updateFamilyPlayers(updated);
     } catch { /* ignore */ }
   }
 

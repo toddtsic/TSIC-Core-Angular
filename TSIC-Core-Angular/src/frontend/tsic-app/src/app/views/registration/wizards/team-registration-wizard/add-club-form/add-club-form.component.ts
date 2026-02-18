@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, inject, signal, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription, switchMap, catchError, of } from 'rxjs';
 import { ClubService } from '@infrastructure/services/club.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import type { ClubSearchResult } from '@core/api';
+import { formatHttpError } from '../../shared/utils/error-utils';
 
 /**
  * Reusable add-club form component with similar clubs detection and resolution.
@@ -13,7 +13,7 @@ import type { ClubSearchResult } from '@core/api';
 @Component({
     selector: 'app-add-club-form',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule],
+    imports: [ReactiveFormsModule],
     templateUrl: './add-club-form.component.html',
     styleUrls: ['./add-club-form.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -93,8 +93,7 @@ export class AddClubFormComponent implements OnInit, OnDestroy {
                 }
             }),
             catchError((err) => {
-                const message = err.error?.message || 'Failed to add club. Please try again.';
-                this.errorMessage.set(message);
+                this.errorMessage.set(formatHttpError(err));
                 this.isSubmitting.set(false);
                 console.error('Add club error:', err);
                 return of(null);

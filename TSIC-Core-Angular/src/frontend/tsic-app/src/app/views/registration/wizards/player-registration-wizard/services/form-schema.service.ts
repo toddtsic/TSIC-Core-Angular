@@ -12,14 +12,16 @@ import type { RawProfileField, RawOptionItem } from '../../shared/types/wizard.t
  */
 @Injectable({ providedIn: 'root' })
 export class FormSchemaService {
-    profileFieldSchemas = signal<PlayerProfileFieldSchema[]>([]);
-    aliasFieldMap = signal<Record<string, string>>({});
+    private readonly _profileFieldSchemas = signal<PlayerProfileFieldSchema[]>([]);
+    private readonly _aliasFieldMap = signal<Record<string, string>>({});
+    readonly profileFieldSchemas = this._profileFieldSchemas.asReadonly();
+    readonly aliasFieldMap = this._aliasFieldMap.asReadonly();
 
     /** Lightweight parse: focuses only on field schemas & alias mapping. */
     parse(rawProfileMetadataJson: string | null, rawJsonOptions: string | null): void {
         if (!rawProfileMetadataJson) {
-            this.profileFieldSchemas.set([]);
-            this.aliasFieldMap.set({});
+            this._profileFieldSchemas.set([]);
+            this._aliasFieldMap.set({});
             return;
         }
         try {
@@ -123,12 +125,12 @@ export class FormSchemaService {
                 })();
                 return { name, label, type, required, options, helpText, visibility, condition } as PlayerProfileFieldSchema;
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
-            this.profileFieldSchemas.set(schemas);
-            this.aliasFieldMap.set(aliasMapLocal);
+            this._profileFieldSchemas.set(schemas);
+            this._aliasFieldMap.set(aliasMapLocal);
         } catch (e: unknown) {
             console.error('[FormSchemaService] Failed to parse profile metadata', e);
-            this.profileFieldSchemas.set([]);
-            this.aliasFieldMap.set({});
+            this._profileFieldSchemas.set([]);
+            this._aliasFieldMap.set({});
         }
     }
 }

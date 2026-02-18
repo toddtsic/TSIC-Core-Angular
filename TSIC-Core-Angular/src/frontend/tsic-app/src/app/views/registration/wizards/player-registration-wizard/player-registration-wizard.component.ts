@@ -250,7 +250,7 @@ export class PlayerRegistrationWizardComponent implements OnInit {
     private initializeWizard(): void {
         this.resetWizardState();
         const jobPath = this.resolveJobPath();
-        this.state.jobPath.set(jobPath);
+        this.state.setJobPath(jobPath);
         this.loadPlayers(jobPath);
         const hadStep = this.applyQueryStep();
         this.autoAdvanceIfAuthenticated(hadStep);

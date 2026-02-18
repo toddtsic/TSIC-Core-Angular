@@ -123,7 +123,7 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
   get hasAccount(): 'yes' | 'no' | null { return this.state.hasFamilyAccount(); }
   set hasAccount(v: 'yes' | 'no' | null) {
     const prev = this.state.hasFamilyAccount();
-    this.state.hasFamilyAccount.set(v);
+    this.state.setHasFamilyAccount(v);
     if (v === 'yes' && prev !== 'yes') {
       this._pendingFocusPassword = true;
     }
@@ -154,14 +154,14 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
     // If user logged out but state still says 'yes', clear it.
     const currentUser = this.auth.getCurrentUser();
     if (!currentUser && this.state.hasFamilyAccount() === 'yes') {
-      this.state.hasFamilyAccount.set(null);
+      this.state.setHasFamilyAccount(null);
     }
 
     // Pre-select "Yes" if user is already authenticated with Family role
     if (currentUser) {
       const roles = currentUser?.roles || (currentUser?.role ? [currentUser.role] : []);
       if (roles.includes(Roles.Family) && this.state.hasFamilyAccount() === null) {
-        this.state.hasFamilyAccount.set('yes');
+        this.state.setHasFamilyAccount('yes');
       }
       // Prefill username from JWT
       if (currentUser.username && !this.username) {
@@ -288,7 +288,7 @@ export class FamilyCheckStepComponent implements OnInit, AfterViewChecked {
         await firstValueFrom(this.state.setWizardContext(jobPath));
 
         this.state.resetForFamilySwitch();
-        this.state.hasFamilyAccount.set('yes');
+        this.state.setHasFamilyAccount('yes');
         this.next.emit();
       }
     } catch (err: unknown) {

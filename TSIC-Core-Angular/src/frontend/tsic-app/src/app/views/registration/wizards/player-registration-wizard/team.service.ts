@@ -2,6 +2,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import { RegistrationWizardService } from './registration-wizard.service';
+import { formatHttpError } from '../shared/utils/error-utils';
 
 // Shared model (aligns with backend AvailableTeamDto)
 export interface AvailableTeam {
@@ -32,8 +33,10 @@ export class TeamService {
     // raw teams for current job
     private readonly _teams = signal<AvailableTeam[] | null>(null);
     // loading + error state signals
-    loading = signal<boolean>(false);
-    error = signal<string | null>(null);
+    private readonly _loading = signal<boolean>(false);
+    private readonly _error = signal<string | null>(null);
+    readonly loading = this._loading.asReadonly();
+    readonly error = this._error.asReadonly();
 
     // simple in-memory cache keyed by jobPath
     private readonly cache = new Map<string, CacheEntry>();
@@ -156,20 +159,20 @@ export class TeamService {
 
     private fetch(jobPath: string, force: boolean): void {
         if (!jobPath) return;
-        this.loading.set(true);
-        this.error.set(null);
+        this._loading.set(true);
+        this._error.set(null);
         const base = environment.apiUrl;
         this.http.get<AvailableTeam[]>(`${base}/jobs/${encodeURIComponent(jobPath)}/available-teams`)
             .subscribe({
                 next: data => {
-                    this.loading.set(false);
+                    this._loading.set(false);
                     this._teams.set(data || []);
                     this.cache.set(jobPath, { data: data || [], ts: Date.now() });
                 },
                 error: err => {
                     console.error('[TeamService] failed to load teams', err);
-                    this.loading.set(false);
-                    this.error.set(err?.message || 'Failed to load teams');
+                    this._loading.set(false);
+                    this._error.set(formatHttpError(err));
                     if (!force) {
                         this._teams.set([]);
                     }

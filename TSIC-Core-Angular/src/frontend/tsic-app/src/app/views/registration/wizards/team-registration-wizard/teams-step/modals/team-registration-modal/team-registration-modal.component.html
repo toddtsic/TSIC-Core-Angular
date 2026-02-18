@@ -168,12 +168,12 @@
         <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-primary" (click)="onRegisterAddAnother()"
                 [disabled]="isRegistering || !isFormValid()">
-                @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> }
                 Register &amp; Add Another
             </button>
             <button type="button" class="btn btn-primary" (click)="onRegister()"
                 [disabled]="isRegistering || !isFormValid()">
-                @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                @if (isRegistering) { <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> }
                 Register and Return
             </button>
         </div>

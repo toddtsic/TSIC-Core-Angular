@@ -18,7 +18,7 @@
         @if (errorMessage()) {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
-            <button type="button" class="btn-close" (click)="errorMessage.set(null)"></button>
+            <button type="button" class="btn-close" aria-label="Dismiss error" (click)="errorMessage.set(null)"></button>
         </div>
         }
 
@@ -116,7 +116,7 @@
             <button type="button" class="btn btn-primary btn-sm" (click)="saveChanges()"
                 [disabled]="isSubmitting()">
                 @if (isSubmitting()) {
-                <span class="spinner-border spinner-border-sm me-1"></span>
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
                 }
                 Save Changes
             </button>

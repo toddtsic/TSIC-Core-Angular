@@ -133,7 +133,7 @@ export class ConstraintSelectionComponent {
     try {
       const constraintType = this.detectConstraintType(job);
       this._teamConstraintType.set(constraintType);
-      this.state.teamConstraintType.set(constraintType);
+      this.state.setTeamConstraintType(constraintType);
       const opts = this.extractEligibleOptions(job, constraintType);
       this._eligibleOptions.set(opts);
       // No local FormGroup used; each player's selection is tracked via state map.
@@ -274,7 +274,7 @@ export class ConstraintSelectionComponent {
     const values = Object.values(eligMap).filter(v => !!v);
     const unique = Array.from(new Set(values));
     if (unique.length === 1) {
-      this.state.teamConstraintValue.set(unique[0]);
+      this.state.setTeamConstraintValue(unique[0]);
     }
     this.next.emit();
   }

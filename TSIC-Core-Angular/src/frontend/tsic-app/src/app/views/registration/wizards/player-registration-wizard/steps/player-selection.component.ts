@@ -32,7 +32,7 @@ import { colorClassForIndex } from '../../shared/utils/color-class.util';
           <div class="alert alert-secondary mb-3" role="region" aria-label="Family players raw response">
             <div class="d-flex justify-content-between align-items-start mb-2">
               <strong class="me-2">Debug: Raw GetFamilyPlayers Response <span class="badge bg-warning-subtle text-warning-emphasis ms-2">dev only</span></strong>
-              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="state.debugFamilyPlayersResp.set(null)">Hide</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="state.clearDebugFamilyPlayersResp()">Hide</button>
             </div>
             <pre class="small mb-0" style="max-height:240px; overflow:auto;">
 {{ state.debugFamilyPlayersResp() | json }}

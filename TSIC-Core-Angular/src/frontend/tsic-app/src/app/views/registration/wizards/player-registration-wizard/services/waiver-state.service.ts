@@ -11,26 +11,37 @@ import { hasAllParts } from '../../shared/utils/property-utils';
 @Injectable({ providedIn: 'root' })
 export class WaiverStateService {
 
-    // Signals migrated from RegistrationWizardService
-    waiverDefinitions = signal<WaiverDefinition[]>([]);
-    waiverIdToField = signal<Record<string, string>>({});
-    waiversAccepted = signal<Record<string, boolean>>({});
-    waiverFieldNames = signal<string[]>([]);
-    waiversGateOk = signal<boolean>(false);
-    signatureName = signal<string>('');
-    signatureRole = signal<'Parent/Guardian' | 'Adult Player' | ''>('');
+    // --- Signal encapsulation: private backing + public readonly + controlled mutators ---
+    private readonly _waiverDefinitions = signal<WaiverDefinition[]>([]);
+    private readonly _waiverIdToField = signal<Record<string, string>>({});
+    private readonly _waiversAccepted = signal<Record<string, boolean>>({});
+    private readonly _waiverFieldNames = signal<string[]>([]);
+    private readonly _waiversGateOk = signal<boolean>(false);
+    private readonly _signatureName = signal<string>('');
+    private readonly _signatureRole = signal<'Parent/Guardian' | 'Adult Player' | ''>('');
+
+    readonly waiverDefinitions = this._waiverDefinitions.asReadonly();
+    readonly waiverIdToField = this._waiverIdToField.asReadonly();
+    readonly waiversAccepted = this._waiversAccepted.asReadonly();
+    readonly waiverFieldNames = this._waiverFieldNames.asReadonly();
+    readonly waiversGateOk = this._waiversGateOk.asReadonly();
+    readonly signatureName = this._signatureName.asReadonly();
+    readonly signatureRole = this._signatureRole.asReadonly();
 
     // Removed automatic effect to eliminate circular dependency with RegistrationWizardService.
     // Caller (wizard) is responsible for invoking recompute when selection or definitions change.
 
-    setDefinitions(defs: WaiverDefinition[]): void { this.waiverDefinitions.set(defs); }
-    setWaiverFieldNames(names: string[]): void { this.waiverFieldNames.set(names); }
-    setBindings(map: Record<string, string>): void { this.waiverIdToField.set(map); }
+    setDefinitions(defs: WaiverDefinition[]): void { this._waiverDefinitions.set(defs); }
+    setWaiverFieldNames(names: string[]): void { this._waiverFieldNames.set(names); }
+    setBindings(map: Record<string, string>): void { this._waiverIdToField.set(map); }
+    setWaiversGateOk(v: boolean): void { this._waiversGateOk.set(v); }
+    setSignatureName(v: string): void { this._signatureName.set(v); }
+    setSignatureRole(v: 'Parent/Guardian' | 'Adult Player' | ''): void { this._signatureRole.set(v); }
 
     setWaiverAccepted(idOrField: string, accepted: boolean): void {
-        const bindings = this.waiverIdToField();
+        const bindings = this._waiverIdToField();
         const field = bindings[idOrField] || idOrField;
-        const map = { ...this.waiversAccepted() } as Record<string, boolean>;
+        const map = { ...this._waiversAccepted() } as Record<string, boolean>;
         let defId: string | undefined;
         for (const [k, v] of Object.entries(bindings)) if (v === field) { defId = k; break; }
         if (accepted) {
@@ -40,18 +51,18 @@ export class WaiverStateService {
             delete map[field];
             if (defId) delete map[defId]; else delete map[idOrField];
         }
-        this.waiversAccepted.set(map);
+        this._waiversAccepted.set(map);
     }
 
     isWaiverAccepted(key: string): boolean {
-        const bindings = this.waiverIdToField();
+        const bindings = this._waiverIdToField();
         const field = bindings[key] || key;
-        const map = this.waiversAccepted();
+        const map = this._waiversAccepted();
         return !!map[field] || !!map[key];
     }
 
     allRequiredWaiversAccepted(): boolean {
-        const defs = this.waiverDefinitions();
+        const defs = this._waiverDefinitions();
         if (!defs.length) return true;
         for (const d of defs) {
             if (!d.required) continue;
@@ -61,32 +72,32 @@ export class WaiverStateService {
     }
 
     requireSignature(): boolean {
-        return this.waiverDefinitions().some(w => w.required);
+        return this._waiverDefinitions().some(w => w.required);
     }
 
     /** Recompute waiver acceptance when player selection changes. */
     recomputeWaiverAcceptanceOnSelectionChange(selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try {
-            const defs = this.waiverDefinitions();
+            const defs = this._waiverDefinitions();
             const selectedIds = new Set(selectedPlayerIds);
             if (!defs.length || !selectedIds.size) return;
             const players = familyPlayers.filter(p => selectedIds.has(p.playerId));
             const allSelectedRegistered = players.every(p => p.registered);
             if (allSelectedRegistered) {
-                if (Object.keys(this.waiversAccepted()).length === 0) {
+                if (Object.keys(this._waiversAccepted()).length === 0) {
                     const accepted: Record<string, boolean> = {};
-                    const map = this.waiverIdToField();
+                    const map = this._waiverIdToField();
                     for (const d of defs) {
                         if (!d.required) continue;
                         const field = map[d.id] || d.id;
                         accepted[field] = true;
                     }
-                    this.waiversAccepted.set(accepted);
+                    this._waiversAccepted.set(accepted);
                 }
             } else {
-                if (Object.keys(this.waiversAccepted()).length > 0) this.waiversAccepted.set({});
-                if (this.signatureName()) this.signatureName.set('');
-                if (this.signatureRole()) this.signatureRole.set('');
+                if (Object.keys(this._waiversAccepted()).length > 0) this._waiversAccepted.set({});
+                if (this._signatureName()) this._signatureName.set('');
+                if (this._signatureRole()) this._signatureRole.set('');
             }
         } catch { /* ignore */ }
     }
@@ -94,9 +105,9 @@ export class WaiverStateService {
     /** Seed acceptance for read-only scenarios (all selected players registered). */
     seedAcceptedWaiversIfReadOnly(selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try {
-            const defs = this.waiverDefinitions();
+            const defs = this._waiverDefinitions();
             if (!defs.length) return;
-            if (Object.keys(this.waiversAccepted()).length > 0) return;
+            if (Object.keys(this._waiversAccepted()).length > 0) return;
             const selected = new Set(selectedPlayerIds);
             if (!selected.size) return;
             const players = familyPlayers.filter(p => selected.has(p.playerId));
@@ -104,10 +115,10 @@ export class WaiverStateService {
             const accepted: Record<string, boolean> = {};
             for (const d of defs) {
                 if (!d.required) continue;
-                const field = this.waiverIdToField()[d.id] || d.id;
+                const field = this._waiverIdToField()[d.id] || d.id;
                 accepted[field] = true;
             }
-            this.waiversAccepted.set(accepted);
+            this._waiversAccepted.set(accepted);
         } catch { /* ignore */ }
     }
 
@@ -219,13 +230,13 @@ export class WaiverStateService {
     processSchemasAndBindWaivers(defs: WaiverDefinition[], schemas: { name: string; label: string; type: string; required: boolean; visibility?: string }[], selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try {
             const { fields, labels } = this.detectWaiverFieldsFromSchemas(schemas);
-            this.waiverFieldNames.set(fields);
+            this._waiverFieldNames.set(fields);
             this.buildBindings(defs, schemas, fields);
             if ((defs?.length ?? 0) === 0 && labels.length) {
                 const synthesized = this.synthesizeDefinitions(labels);
-                if (synthesized.length) this.waiverDefinitions.set(synthesized);
+                if (synthesized.length) this._waiverDefinitions.set(synthesized);
             }
-            if (Object.keys(this.waiversAccepted()).length === 0) this.seedAcceptedWaiversIfReadOnly(selectedPlayerIds, familyPlayers);
+            if (Object.keys(this._waiversAccepted()).length === 0) this.seedAcceptedWaiversIfReadOnly(selectedPlayerIds, familyPlayers);
         } catch (e: unknown) {
             console.debug('[WaiverState] processSchemasAndBindWaivers failed', e);
         }
@@ -304,15 +315,15 @@ export class WaiverStateService {
                 const chosen = exact || pick(d);
                 if (chosen) bindings[d.id] = chosen;
             }
-            this.waiverIdToField.set(bindings);
-            const current = { ...this.waiversAccepted() } as Record<string, boolean>;
+            this._waiverIdToField.set(bindings);
+            const current = { ...this._waiversAccepted() } as Record<string, boolean>;
             let changed = false;
             for (const [id, field] of Object.entries(bindings)) {
                 if (current[id] !== undefined && current[field] === undefined) {
                     current[field] = current[id]; delete current[id]; changed = true;
                 }
             }
-            if (changed) this.waiversAccepted.set(current);
+            if (changed) this._waiversAccepted.set(current);
         } catch { /* ignore binding issues */ }
     }
 

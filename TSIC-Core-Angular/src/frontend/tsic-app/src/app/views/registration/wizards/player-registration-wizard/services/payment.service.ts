@@ -6,6 +6,7 @@ import { TeamService } from '../team.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import type { ApplyDiscountItemDto, ApplyDiscountRequestDto, ApplyDiscountResponseDto, PaymentRequestDto, PaymentResponseDto, RegistrationFinancialsDto } from '@core/api';
 import { environment } from '@environments/environment';
+import { formatHttpError } from '../../shared/utils/error-utils';
 
 // Helper to safely convert number | string to number
 function toNumber(value: number | string | undefined | null): number {
@@ -171,7 +172,7 @@ export class PaymentService {
                     this._discountApplying.set(false);
                     this._appliedDiscountResponse.set(null);
                     this._appliedDiscount.set(0);
-                    this._discountMessage.set(err?.error?.message || err?.message || 'Failed to apply code');
+                    this._discountMessage.set(formatHttpError(err));
                 }
             });
     }
@@ -207,7 +208,7 @@ export class PaymentService {
             };
             return updated;
         });
-        this.state.familyPlayers.set(updated);
+        this.state.updateFamilyPlayers(updated);
     }
 
     private getAmountFromFinancials(financials: RegistrationFinancialsDto): number {

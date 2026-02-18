@@ -156,12 +156,12 @@ export class FamAccountStepAccountComponent {
         const p1c = group.get('p1EmailConfirm')?.value;
         const p2e = group.get('p2Email')?.value;
         const p2c = group.get('p2EmailConfirm')?.value;
-        const errors: any = {};
+        const errors: Record<string, boolean> = {};
         if (p1e || p1c) {
-          if (!p1e || !p1c || p1e !== p1c) errors.p1EmailMismatch = true;
+          if (!p1e || !p1c || p1e !== p1c) errors['p1EmailMismatch'] = true;
         }
         if (p2e || p2c) {
-          if (p2e && p2c && p2e !== p2c) errors.p2EmailMismatch = true;
+          if (p2e && p2c && p2e !== p2c) errors['p2EmailMismatch'] = true;
         }
         return Object.keys(errors).length ? errors : null;
       }
@@ -209,17 +209,14 @@ export class FamAccountStepAccountComponent {
     this.submitted = true;
     if (this.form.invalid) return;
     const v = this.form.value;
-    this.state.parent1FirstName.set(v.p1First ?? '');
-    this.state.parent1LastName.set(v.p1Last ?? '');
-    this.state.parent1Phone.set(v.p1Phone ?? '');
-    this.state.parent1Email.set(v.p1Email ?? '');
-    this.state.parent1EmailConfirm.set(v.p1EmailConfirm ?? '');
-
-    this.state.parent2FirstName.set(v.p2First ?? '');
-    this.state.parent2LastName.set(v.p2Last ?? '');
-    this.state.parent2Phone.set(v.p2Phone ?? '');
-    this.state.parent2Email.set(v.p2Email ?? '');
-    this.state.parent2EmailConfirm.set(v.p2EmailConfirm ?? '');
+    this.state.setParent1(
+        v.p1First ?? '', v.p1Last ?? '', v.p1Phone ?? '',
+        v.p1Email ?? '', v.p1EmailConfirm ?? ''
+    );
+    this.state.setParent2(
+        v.p2First ?? '', v.p2Last ?? '', v.p2Phone ?? '',
+        v.p2Email ?? '', v.p2EmailConfirm ?? ''
+    );
     this.next.emit();
   }
 }

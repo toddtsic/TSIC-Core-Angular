@@ -14,7 +14,7 @@
     <div class="grow">
       <strong>Unable to Load Confirmation</strong>
       <p class="mb-0 mt-1">{{ error() }}</p>
-      <button class="btn btn-sm btn-outline-danger mt-2" (click)="loadConfirmationText()">
+      <button type="button" class="btn btn-sm btn-outline-danger mt-2" (click)="loadConfirmationText()">
         <i class="bi bi-arrow-clockwise me-1"></i>Retry
       </button>
     </div>
@@ -26,10 +26,10 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="mb-0">Registration Confirmation</h5>
       <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" (click)="printConfirmation()" [disabled]="!confirmationHtml()">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="printConfirmation()" [disabled]="!confirmationHtml()">
           <i class="bi bi-printer me-1"></i>Print
         </button>
-        <button class="btn btn-sm btn-outline-primary" (click)="resendConfirmationEmail()"
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="resendConfirmationEmail()"
           [disabled]="isResending() || !canResend()">
           @if (isResending()) {
           <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, DestroyRef, inject, SimpleChanges } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 
 @Component({
   selector: 'app-credit-card-form',
@@ -139,11 +139,10 @@ export class CreditCardFormComponent implements OnInit, OnChanges {
   @Output() validChange = new EventEmitter<boolean>();
   @Output() valueChange = new EventEmitter<Record<string, string>>();
 
-  form!: FormGroup;
+  private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
 
-  constructor(private readonly fb: FormBuilder) {
-    this.form = this.fb.group({
+  form = this.fb.group({
       type: ['', Validators.required],
       number: ['', [Validators.required, this.numberValidator.bind(this)]],
       expiry: ['', [Validators.required, this.expiryValidator]],
@@ -155,7 +154,7 @@ export class CreditCardFormComponent implements OnInit, OnChanges {
       email: ['', [Validators.required, this.emailValidator]],
       phone: ['', [Validators.required, this.phoneValidator]]
     });
-  }
+
   ngOnInit(): void {
     this.form.valueChanges.pipe(
       takeUntilDestroyed(this.destroyRef)
@@ -163,8 +162,9 @@ export class CreditCardFormComponent implements OnInit, OnChanges {
       const valid = this.form.valid;
       this.ccValidChange.emit(valid);
       this.validChange.emit(valid);
-      this.ccValueChange.emit(v);
-      this.valueChange.emit(v);
+      const vals = v as Record<string, string>;
+      this.ccValueChange.emit(vals);
+      this.valueChange.emit(vals);
     });
     this.applyDefaultsOnce();
   }

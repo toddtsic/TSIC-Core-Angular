@@ -25,6 +25,6 @@ export class PaymentStateService {
     lastPayment(): PaymentSummary | null { return this.reg.lastPayment(); }
 
     // Mutators -----------------------------------------------------------------
-    setPaymentOption(opt: PaymentOption): void { this.reg.paymentOption.set(opt); }
-    setLastPayment(summary: PaymentSummary | null): void { this.reg.lastPayment.set(summary); }
+    setPaymentOption(opt: PaymentOption): void { this.reg.setPaymentOption(opt); }
+    setLastPayment(summary: PaymentSummary | null): void { this.reg.setLastPayment(summary); }
 }

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, OnInit } from '@angular/core';
-
+import { ChangeDetectionStrategy, Component, DestroyRef, EventEmitter, Output, inject, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { FamilyAccountWizardService } from '../family-account-wizard.service';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -7,6 +8,7 @@ import { LoginComponent } from '../../../../auth/login/login.component';
 import { FamilyService } from '@infrastructure/services/family.service';
 import type { FamilyRegistrationRequest, FamilyUpdateRequest } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
+import { formatHttpError } from '../../shared/utils/error-utils';
 
 @Component({
   selector: 'app-fam-account-step-review',
@@ -132,11 +134,9 @@ export class FamAccountStepReviewComponent implements OnInit {
   private readonly authSvc = inject(AuthService);
   private readonly familyService = inject(FamilyService);
   private readonly jobService = inject(JobService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
   public readonly state = inject(FamilyAccountWizardService);
-
-  constructor() { }
-
-  // Centralized login component handles its own credentials, errors, and loading state
 
   creating = false;
   createError: string | null = null;
@@ -150,13 +150,7 @@ export class FamAccountStepReviewComponent implements OnInit {
   }
   // Show 'Return to Player Registration' only when next=register-player is present
   get showReturnToRegistration(): boolean {
-    try {
-      const qp = (globalThis as any)?.location?.search || '';
-      const params = new URLSearchParams(qp);
-      return params.get('next') === 'register-player';
-    } catch {
-      return false;
-    }
+    return this.route.snapshot.queryParamMap.get('next') === 'register-player';
   }
 
   // Dynamic labels (Mom/Dad etc.) or fallback
@@ -216,7 +210,7 @@ export class FamAccountStepReviewComponent implements OnInit {
       }))
     };
 
-    this.familyService.registerFamily(req).subscribe({
+    this.familyService.registerFamily(req).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.creating = false;
         if (res?.success) {
@@ -227,7 +221,7 @@ export class FamAccountStepReviewComponent implements OnInit {
       },
       error: (err) => {
         this.creating = false;
-        this.createError = err?.error?.message || 'Unable to create Family Account';
+        this.createError = formatHttpError(err);
       }
     });
   }
@@ -267,7 +261,7 @@ export class FamAccountStepReviewComponent implements OnInit {
       }))
     };
 
-    this.familyService.updateFamily(req).subscribe({
+    this.familyService.updateFamily(req).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.creating = false;
         if (res?.success) {
@@ -278,7 +272,7 @@ export class FamAccountStepReviewComponent implements OnInit {
       },
       error: (err) => {
         this.creating = false;
-        this.createError = err?.error?.message || 'Unable to update Family Account';
+        this.createError = formatHttpError(err);
       }
     });
   }

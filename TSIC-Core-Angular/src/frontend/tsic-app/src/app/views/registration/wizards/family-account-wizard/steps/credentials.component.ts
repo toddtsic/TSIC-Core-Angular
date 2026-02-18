@@ -99,8 +99,7 @@ export class FamAccountStepCredentialsComponent {
 
     const v = this.form.value;
     if (!this.isAuthed) {
-      this.state.username.set(v.username ?? '');
-      this.state.password.set(v.password ?? '');
+      this.state.setCredentials(v.username ?? '', v.password ?? '');
     }
     this.next.emit();
   }

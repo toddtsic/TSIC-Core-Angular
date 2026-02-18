@@ -6,7 +6,8 @@ import { HttpErrorResponse } from '@angular/common/http';
  */
 export function formatHttpError(err: unknown): string {
     if (err instanceof HttpErrorResponse) {
-        const apiMsg = err.error?.message;
+        // Check both lowercase (.message) and PascalCase (.Message) — .NET APIs may use either
+        const apiMsg = err.error?.message ?? err.error?.Message;
         if (typeof apiMsg === 'string' && apiMsg) return apiMsg;
         return err.message || `HTTP ${err.status}`;
     }

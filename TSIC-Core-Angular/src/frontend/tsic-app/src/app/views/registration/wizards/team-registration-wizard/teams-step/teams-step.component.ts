@@ -38,6 +38,7 @@ import type {
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { formatHttpError } from '../../shared/utils/error-utils';
 import {
     TeamRegistrationModalComponent,
     type RegistrationData,
@@ -259,9 +260,7 @@ export class TeamsStepComponent implements OnInit {
             },
             error: (err) => {
                 console.error('Failed to load teams metadata:', err);
-                this.errorMessage.set(
-                    err.error?.message || 'Failed to load team data. Please try again.',
-                );
+                this.errorMessage.set(formatHttpError(err));
                 this.isLoading.set(false);
             },
         });
@@ -320,9 +319,7 @@ export class TeamsStepComponent implements OnInit {
             error: (err) => {
                 this.isUnregistering.set(false);
                 console.error('Failed to unregister team:', err);
-                this.errorMessage.set(
-                    err.error?.message || 'Failed to unregister team. Please try again.',
-                );
+                this.errorMessage.set(formatHttpError(err));
             },
         });
     }
@@ -366,9 +363,7 @@ export class TeamsStepComponent implements OnInit {
                 error: (err) => {
                     console.error('Failed to register team:', err);
                     this.isRegistering.set(false);
-                    this.errorMessage.set(
-                        err.error?.message || 'Failed to register team. Please try again.',
-                    );
+                    this.errorMessage.set(formatHttpError(err));
                 },
             });
     }

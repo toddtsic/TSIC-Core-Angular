@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, tap, catchError, throwError } from 'rxjs';
 import type { RegisteredTeamDto, ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto, TeamPaymentResponseDto } from '@core/api';
 import { environment } from '@environments/environment';
+import { formatHttpError } from '../../shared/utils/error-utils';
 
 export interface TeamLineItem {
     teamId: string;
@@ -171,7 +172,7 @@ export class TeamPaymentService {
             catchError((err: HttpErrorResponse) => {
                 this._discountApplying.set(false);
                 this._appliedDiscountResponse.set(null);
-                this._discountMessage.set(err?.error?.message || err?.message || 'Failed to apply discount code');
+                this._discountMessage.set(formatHttpError(err));
                 throw err;
             })
         );

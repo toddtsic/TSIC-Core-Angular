@@ -12,6 +12,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
+import { formatHttpError } from '../../shared/utils/error-utils';
 
 @Component({
   selector: 'app-review-step',
@@ -28,6 +29,12 @@ export class ReviewStepComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
+
+  private printTimeout?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => clearTimeout(this.printTimeout));
+  }
 
   // State signals
   readonly isLoading = signal(false);
@@ -69,9 +76,7 @@ export class ReviewStepComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error loading confirmation text:', err);
-        this.error.set(
-          err?.error?.Message || 'Failed to load confirmation text',
-        );
+        this.error.set(formatHttpError(err));
         this.isLoading.set(false);
       },
     });
@@ -101,9 +106,7 @@ export class ReviewStepComponent implements OnInit {
         error: (err) => {
           console.error('Error sending confirmation email:', err);
           if (forceResend) {
-            const message =
-              err?.error?.Message || 'Failed to send confirmation email';
-            this.toast.show(`✗ ${message}`, 'danger', 7000);
+            this.toast.show(`✗ ${formatHttpError(err)}`, 'danger', 7000);
             this.isResending.set(false);
           }
         },
@@ -143,7 +146,7 @@ export class ReviewStepComponent implements OnInit {
       `);
       printWindow.document.close();
       printWindow.focus();
-      setTimeout(() => {
+      this.printTimeout = setTimeout(() => {
         printWindow.print();
         printWindow.close();
       }, 250);

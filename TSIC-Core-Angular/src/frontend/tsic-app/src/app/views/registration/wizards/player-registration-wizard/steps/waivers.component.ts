@@ -131,6 +131,11 @@ export class WaiversComponent implements OnInit, AfterViewInit {
   waiverForm!: FormGroup;
   private readonly destroyRef = inject(DestroyRef);
   private readonly lockedIds = new Set<string>();
+  private scrollTimeout?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => clearTimeout(this.scrollTimeout));
+  }
 
   ngOnInit(): void {
     this.buildForm();
@@ -276,7 +281,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
         // Found the first subsequent unchecked, open it
         this.openSet.set(new Set([w.id]));
         // Scroll into view (defer to allow collapse/expand classes to apply)
-        setTimeout(() => {
+        this.scrollTimeout = setTimeout(() => {
           const headerBtn = document.getElementById('waiver-h-' + w.id)?.querySelector('button');
           (headerBtn as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 30);
@@ -302,7 +307,7 @@ export class WaiversComponent implements OnInit, AfterViewInit {
   private pushGate(): void {
     try {
       const allow = !this.disableContinue();
-      this.waiverState.waiversGateOk.set(allow);
+      this.waiverState.setWaiversGateOk(allow);
     } catch {
       // no-op
     }

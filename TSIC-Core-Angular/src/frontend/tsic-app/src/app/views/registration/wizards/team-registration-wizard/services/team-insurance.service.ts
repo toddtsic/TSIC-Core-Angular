@@ -1,15 +1,15 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { TeamRegistrationService } from './team-registration.service';
 import { TeamInsuranceStateService } from './team-insurance-state.service';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import type { TeamInsurancePurchaseRequestDto, TeamInsurancePurchaseResponseDto, CreditCardInfo, PreSubmitTeamInsuranceDto } from '@core/api';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { firstValueFrom } from 'rxjs';
 import { ViDarkModeService } from '../../shared/services/vi-dark-mode.service';
-import type { VerticalInsureQuote } from '../../player-registration-wizard/services/insurance.service';
 import type { VIOfferData, VIWidgetState, VIWindowExtension, VIWidgetInstance, VIQuoteObject } from '../../shared/types/wizard.types';
+import { formatHttpError } from '../../shared/utils/error-utils';
 
 /**
  * Team insurance service - manages Vertical Insure widget integration for teams.
@@ -24,11 +24,16 @@ export class TeamInsuranceService {
     private readonly auth = inject(AuthService);
     private readonly viDarkMode = inject(ViDarkModeService);
 
-    quotes = signal<VIQuoteObject[]>([]);
-    hasUserResponse = signal(false);
-    error = signal<string | null>(null);
-    widgetInitialized = signal(false);
+    private readonly _quotes = signal<VIQuoteObject[]>([]);
+    private readonly _hasUserResponse = signal(false);
+    private readonly _error = signal<string | null>(null);
+    private readonly _widgetInitialized = signal(false);
     private readonly purchasing = signal(false);
+
+    readonly quotes = this._quotes.asReadonly();
+    readonly hasUserResponse = this._hasUserResponse.asReadonly();
+    readonly error = this._error.asReadonly();
+    readonly widgetInitialized = this._widgetInitialized.asReadonly();
 
     offerEnabled = computed(() => this.insuranceState.offerTeamRegSaver());
     consented = computed(() => this.insuranceState.verticalInsureConfirmed());
@@ -43,7 +48,7 @@ export class TeamInsuranceService {
         if (this.widgetInitialized()) return;
         const viWindow = globalThis as unknown as VIWindowExtension;
         if (!viWindow.VerticalInsure) {
-            this.error.set('VerticalInsure script missing');
+            this._error.set('VerticalInsure script missing');
             return;
         }
         try {
@@ -55,11 +60,11 @@ export class TeamInsuranceService {
                 offerData,
                 (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
-                        this.hasUserResponse.set(valid);
+                        this._hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
-                        this.quotes.set(quotes);
-                        this.error.set(null);
-                        this.widgetInitialized.set(true);
+                        this._quotes.set(quotes);
+                        this._error.set(null);
+                        this._widgetInitialized.set(true);
                         // Apply dark-mode styling after widget renders
                         this.viDarkMode.applyViDarkMode(hostSelector);
                         // Map widget state to decision signals
@@ -74,9 +79,9 @@ export class TeamInsuranceService {
                 },
                 (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
-                        this.hasUserResponse.set(valid);
+                        this._hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
-                        this.quotes.set(quotes);
+                        this._quotes.set(quotes);
                         // Re-apply dark-mode on state changes (user interaction)
                         this.viDarkMode.applyViDarkMode(hostSelector);
                         // Update decision on subsequent changes
@@ -92,7 +97,7 @@ export class TeamInsuranceService {
             );
         } catch (e: unknown) {
             console.error('VerticalInsure init error', e);
-            this.error.set('VerticalInsure initialization failed');
+            this._error.set('VerticalInsure initialization failed');
         }
     }
 
@@ -131,8 +136,7 @@ export class TeamInsuranceService {
                 return null;
             }
         } catch (err: unknown) {
-            const error = err instanceof HttpErrorResponse ? err.message : 'Failed to fetch insurance offer';
-            this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error });
+            this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error: formatHttpError(err) });
             return null;
         }
     }
@@ -174,19 +178,19 @@ export class TeamInsuranceService {
                 return { success: false, error: response.error || undefined };
             }
         } catch (err: unknown) {
-            const error = err instanceof HttpErrorResponse ? err.message : 'Insurance purchase failed';
-            this.toast.show(error, 'danger');
-            return { success: false, error };
+            const message = formatHttpError(err);
+            this.toast.show(message, 'danger');
+            return { success: false, error: message };
         } finally {
             this.purchasing.set(false);
         }
     }
 
     reset(): void {
-        this.quotes.set([]);
-        this.hasUserResponse.set(false);
-        this.error.set(null);
-        this.widgetInitialized.set(false);
+        this._quotes.set([]);
+        this._hasUserResponse.set(false);
+        this._error.set(null);
+        this._widgetInitialized.set(false);
         this.purchasing.set(false);
         this.viDarkMode.disconnect();
     }

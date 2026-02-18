@@ -62,7 +62,7 @@
                 <span class="text-danger">*</span>
             </label>
             <input id="addClubName" type="text" class="form-control" formControlName="clubName"
-                placeholder="Enter club name" [disabled]="isSubmitting()" maxlength="200" autocomplete="organization" />
+                placeholder="Enter club name" [disabled]="isSubmitting()" maxlength="200" autocomplete="organization" required aria-required="true" />
             @if (addClubForm.get('clubName')?.hasError('maxlength') &&
             addClubForm.get('clubName')?.touched) {
             <div class="form-text text-danger">
@@ -77,7 +77,7 @@
             </button>
             <button type="submit" class="btn btn-primary" [disabled]="addClubForm.invalid || isSubmitting()">
                 @if (isSubmitting()) {
-                <span class="spinner-border spinner-border-sm me-1"></span>
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
                 }
                 <i class="bi bi-plus-circle me-1"></i>
                 Add Club

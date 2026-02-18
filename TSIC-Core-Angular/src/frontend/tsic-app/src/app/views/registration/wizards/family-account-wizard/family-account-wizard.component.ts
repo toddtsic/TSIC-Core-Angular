@@ -47,7 +47,7 @@ export class FamilyAccountWizardComponent implements OnInit {
         if (nextParam === 'register-player') this.nextAction = 'register-player';
         const mode = this.route.snapshot.queryParamMap.get('mode');
         if (mode === 'edit') {
-            this.state.mode.set('edit');
+            this.state.setMode('edit');
         }
 
         // If a returnUrl carries a jobPath, pre-load the job to get dynamic labels
@@ -76,27 +76,32 @@ export class FamilyAccountWizardComponent implements OnInit {
             this.familyService.getMyFamily().subscribe({
                 next: (p) => {
                     // Populate contacts
-                    this.state.username.set(p.username ?? '');
-                    this.state.parent1FirstName.set(p.primary?.firstName ?? '');
-                    this.state.parent1LastName.set(p.primary?.lastName ?? '');
-                    this.state.parent1Phone.set(p.primary?.cellphone ?? '');
-                    this.state.parent1Email.set(p.primary?.email ?? '');
-                    this.state.parent1EmailConfirm.set(p.primary?.email ?? '');
-
-                    this.state.parent2FirstName.set(p.secondary?.firstName ?? '');
-                    this.state.parent2LastName.set(p.secondary?.lastName ?? '');
-                    this.state.parent2Phone.set(p.secondary?.cellphone ?? '');
-                    this.state.parent2Email.set(p.secondary?.email ?? '');
-                    this.state.parent2EmailConfirm.set(p.secondary?.email ?? '');
+                    this.state.setUsername(p.username ?? '');
+                    this.state.setParent1(
+                        p.primary?.firstName ?? '',
+                        p.primary?.lastName ?? '',
+                        p.primary?.cellphone ?? '',
+                        p.primary?.email ?? '',
+                        p.primary?.email ?? ''
+                    );
+                    this.state.setParent2(
+                        p.secondary?.firstName ?? '',
+                        p.secondary?.lastName ?? '',
+                        p.secondary?.cellphone ?? '',
+                        p.secondary?.email ?? '',
+                        p.secondary?.email ?? ''
+                    );
 
                     // Address
-                    this.state.address1.set(p.address?.streetAddress ?? '');
-                    this.state.city.set(p.address?.city ?? '');
-                    this.state.state.set(p.address?.state ?? '');
-                    this.state.postalCode.set(p.address?.postalCode ?? '');
+                    this.state.setAddress(
+                        p.address?.streetAddress ?? '',
+                        p.address?.city ?? '',
+                        p.address?.state ?? '',
+                        p.address?.postalCode ?? ''
+                    );
 
                     // Children
-                    const kids = (p.children ?? []).map((c: any) => ({
+                    const kids = (p.children ?? []).map((c: { firstName?: string | null; lastName?: string | null; gender?: string | null; dob?: string | null; email?: string | null; phone?: string | null }) => ({
                         firstName: c.firstName ?? '',
                         lastName: c.lastName ?? '',
                         gender: c.gender ?? '',
@@ -104,7 +109,7 @@ export class FamilyAccountWizardComponent implements OnInit {
                         email: c.email ?? undefined,
                         phone: c.phone ?? undefined
                     }));
-                    this.state.children.set(kids);
+                    this.state.setChildren(kids);
                 }
             });
         }

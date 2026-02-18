@@ -12,73 +12,124 @@ export interface ChildProfileDraft {
 @Injectable({ providedIn: 'root' })
 export class FamilyAccountWizardService {
     // Account basics (placeholder only; real implementation will call API)
-    parentFirstName = signal<string>('');
-    parentLastName = signal<string>('');
-    email = signal<string>('');
-    username = signal<string>('');
-    password = signal<string>('');
+    private readonly _parentFirstName = signal<string>('');
+    private readonly _parentLastName = signal<string>('');
+    private readonly _email = signal<string>('');
+    private readonly _username = signal<string>('');
+    private readonly _password = signal<string>('');
+    readonly parentFirstName = this._parentFirstName.asReadonly();
+    readonly parentLastName = this._parentLastName.asReadonly();
+    readonly email = this._email.asReadonly();
+    readonly username = this._username.asReadonly();
+    readonly password = this._password.asReadonly();
 
     // Mode: 'create' = creating a new Family Account, 'edit' = editing existing
-    mode = signal<'create' | 'edit'>('create');
+    private readonly _mode = signal<'create' | 'edit'>('create');
+    readonly mode = this._mode.asReadonly();
 
     // Address (AspNetUser profile fields)
-    address1 = signal<string>('');
-    address2 = signal<string>('');
-    city = signal<string>('');
-    state = signal<string>('');
-    postalCode = signal<string>('');
+    private readonly _address1 = signal<string>('');
+    private readonly _address2 = signal<string>('');
+    private readonly _city = signal<string>('');
+    private readonly _state = signal<string>('');
+    private readonly _postalCode = signal<string>('');
+    readonly address1 = this._address1.asReadonly();
+    readonly address2 = this._address2.asReadonly();
+    readonly city = this._city.asReadonly();
+    readonly state = this._state.asReadonly();
+    readonly postalCode = this._postalCode.asReadonly();
 
     // Parent contact info
-    parent1FirstName = signal<string>('');
-    parent1LastName = signal<string>('');
-    parent1Phone = signal<string>('');
-    parent1Email = signal<string>('');
-    parent1EmailConfirm = signal<string>('');
+    private readonly _parent1FirstName = signal<string>('');
+    private readonly _parent1LastName = signal<string>('');
+    private readonly _parent1Phone = signal<string>('');
+    private readonly _parent1Email = signal<string>('');
+    private readonly _parent1EmailConfirm = signal<string>('');
+    readonly parent1FirstName = this._parent1FirstName.asReadonly();
+    readonly parent1LastName = this._parent1LastName.asReadonly();
+    readonly parent1Phone = this._parent1Phone.asReadonly();
+    readonly parent1Email = this._parent1Email.asReadonly();
+    readonly parent1EmailConfirm = this._parent1EmailConfirm.asReadonly();
 
-    parent2FirstName = signal<string>('');
-    parent2LastName = signal<string>('');
-    parent2Phone = signal<string>('');
-    parent2Email = signal<string>('');
-    parent2EmailConfirm = signal<string>('');
+    private readonly _parent2FirstName = signal<string>('');
+    private readonly _parent2LastName = signal<string>('');
+    private readonly _parent2Phone = signal<string>('');
+    private readonly _parent2Email = signal<string>('');
+    private readonly _parent2EmailConfirm = signal<string>('');
+    readonly parent2FirstName = this._parent2FirstName.asReadonly();
+    readonly parent2LastName = this._parent2LastName.asReadonly();
+    readonly parent2Phone = this._parent2Phone.asReadonly();
+    readonly parent2Email = this._parent2Email.asReadonly();
+    readonly parent2EmailConfirm = this._parent2EmailConfirm.asReadonly();
 
     // Children
-    children = signal<ChildProfileDraft[]>([]);
+    private readonly _children = signal<ChildProfileDraft[]>([]);
+    readonly children = this._children.asReadonly();
+
+    // --- Controlled mutators ---
+    setMode(v: 'create' | 'edit'): void { this._mode.set(v); }
+    setCredentials(username: string, password: string): void {
+        this._username.set(username);
+        this._password.set(password);
+    }
+    setUsername(v: string): void { this._username.set(v); }
+    setParent1(first: string, last: string, phone: string, email: string, emailConfirm: string): void {
+        this._parent1FirstName.set(first);
+        this._parent1LastName.set(last);
+        this._parent1Phone.set(phone);
+        this._parent1Email.set(email);
+        this._parent1EmailConfirm.set(emailConfirm);
+    }
+    setParent2(first: string, last: string, phone: string, email: string, emailConfirm: string): void {
+        this._parent2FirstName.set(first);
+        this._parent2LastName.set(last);
+        this._parent2Phone.set(phone);
+        this._parent2Email.set(email);
+        this._parent2EmailConfirm.set(emailConfirm);
+    }
+    setAddress(address1: string, city: string, state: string, postalCode: string): void {
+        this._address1.set(address1);
+        this._city.set(city);
+        this._state.set(state);
+        this._postalCode.set(postalCode);
+    }
+    setChildren(kids: ChildProfileDraft[]): void { this._children.set(kids); }
 
     addChild(child: ChildProfileDraft): void {
-        const next = [...this.children(), child];
-        this.children.set(next);
+        const next = [...this._children(), child];
+        this._children.set(next);
     }
 
     removeChildAt(index: number): void {
-        const list = [...this.children()];
+        const list = [...this._children()];
         if (index >= 0 && index < list.length) {
             list.splice(index, 1);
-            this.children.set(list);
+            this._children.set(list);
         }
     }
 
     reset(): void {
-        this.parentFirstName.set('');
-        this.parentLastName.set('');
-        this.email.set('');
-        this.username.set('');
-        this.password.set('');
-        this.mode.set('create');
-        this.address1.set('');
-        this.address2.set('');
-        this.city.set('');
-        this.state.set('');
-        this.postalCode.set('');
-        this.parent1FirstName.set('');
-        this.parent1LastName.set('');
-        this.parent1Phone.set('');
-        this.parent1Email.set('');
-        this.parent1EmailConfirm.set('');
-        this.parent2FirstName.set('');
-        this.parent2LastName.set('');
-        this.parent2Phone.set('');
-        this.parent2Email.set('');
-        this.parent2EmailConfirm.set('');
-        this.children.set([]);
+        this._parentFirstName.set('');
+        this._parentLastName.set('');
+        this._email.set('');
+        this._username.set('');
+        this._password.set('');
+        this._mode.set('create');
+        this._address1.set('');
+        this._address2.set('');
+        this._city.set('');
+        this._state.set('');
+        this._postalCode.set('');
+        this._parent1FirstName.set('');
+        this._parent1LastName.set('');
+        this._parent1Phone.set('');
+        this._parent1Email.set('');
+        this._parent1EmailConfirm.set('');
+        this._parent2FirstName.set('');
+        this._parent2LastName.set('');
+        this._parent2Phone.set('');
+        this._parent2Email.set('');
+        this._parent2EmailConfirm.set('');
+        this._children.set([]);
     }
 }

@@ -73,7 +73,7 @@ export class PaymentOptionSelectorComponent {
   constructor() { }
 
   choose(opt: 'PIF' | 'Deposit' | 'ARB') {
-    this.state.paymentOption.set(opt);
+    this.state.setPaymentOption(opt);
     this.svc.resetDiscount();
   }
 

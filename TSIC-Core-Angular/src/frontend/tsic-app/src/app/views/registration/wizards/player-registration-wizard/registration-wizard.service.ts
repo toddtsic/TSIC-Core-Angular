@@ -34,36 +34,38 @@ export class RegistrationWizardService {
     private readonly waiverState = inject(WaiverStateService);
     private readonly formSchema = inject(FormSchemaService);
     // Job context
-    jobPath = signal<string>('');
-    jobId = signal<string>('');
-
+    private readonly _jobPath = signal<string>('');
+    private readonly _jobId = signal<string>('');
+    readonly jobPath = this._jobPath.asReadonly();
+    readonly jobId = this._jobId.asReadonly();
 
     // Family account presence (from Family Check step)
-    hasFamilyAccount = signal<'yes' | 'no' | null>(null);
+    private readonly _hasFamilyAccount = signal<'yes' | 'no' | null>(null);
+    readonly hasFamilyAccount = this._hasFamilyAccount.asReadonly();
 
     // Players and selections
     // Family players enriched with prior registrations + selection flag
-    familyPlayers = signal<FamilyPlayerDto[]>([]);
-    familyPlayersLoading = signal<boolean>(false);
+    private readonly _familyPlayers = signal<FamilyPlayerDto[]>([]);
+    private readonly _familyPlayersLoading = signal<boolean>(false);
+    readonly familyPlayers = this._familyPlayers.asReadonly();
+    readonly familyPlayersLoading = this._familyPlayersLoading.asReadonly();
     // Family user summary (from players endpoint). Includes optional contact fields for convenience defaults on Payment.
-    familyUser = signal<{
+    private readonly _familyUser = signal<{
         familyUserId: string;
         displayName: string;
         userName: string;
-        // Optional contact fields (when provided by API)
         firstName?: string;
         lastName?: string;
-        address?: string;      // consolidated address
-        address1?: string;     // line 1
-        address2?: string;     // line 2
+        address?: string;
+        address1?: string;
+        address2?: string;
         city?: string;
         state?: string;
-        zipCode?: string;      // preferred zip property
-        zip?: string;          // fallback zip property
-        postalCode?: string;   // alternative naming
-        email?: string;        // derived guardian email
-        phone?: string;        // derived guardian phone (digits only)
-        // Server-provided credit card info (authoritative guardian billing details)
+        zipCode?: string;
+        zip?: string;
+        postalCode?: string;
+        email?: string;
+        phone?: string;
         ccInfo?: {
             firstName?: string;
             lastName?: string;
@@ -73,8 +75,10 @@ export class RegistrationWizardService {
             phone?: string;
         };
     } | null>(null);
+    readonly familyUser = this._familyUser.asReadonly();
     // RegSaver (optional insurance) details for family/job
-    regSaverDetails = signal<RegSaverDetailsDto | null>(null);
+    private readonly _regSaverDetails = signal<RegSaverDetailsDto | null>(null);
+    readonly regSaverDetails = this._regSaverDetails.asReadonly();
     // Design Principle: EACH REGISTRATION OWNS ITS OWN SNAPSHOT OF FORM VALUES.
     // We do NOT merge or unify formValues across multiple registrations for a player.
     // Any edit that creates a new registration stamps values only into that new registration.
@@ -82,9 +86,10 @@ export class RegistrationWizardService {
     // Whether an existing player registration for the current job + active family user already exists.
     // null = unknown/not yet checked; true/false = definitive.
     // Eligibility type is job-wide (e.g., BYGRADYEAR), but the selected value is PER PLAYER
-    teamConstraintType = signal<string | null>(null); // e.g., BYGRADYEAR
-    // Deprecated: legacy single eligibility value (kept for backward compatibility where needed)
-    teamConstraintValue = signal<string | null>(null); // e.g., 2027
+    private readonly _teamConstraintType = signal<string | null>(null);
+    private readonly _teamConstraintValue = signal<string | null>(null);
+    readonly teamConstraintType = this._teamConstraintType.asReadonly();
+    readonly teamConstraintValue = this._teamConstraintValue.asReadonly();
     // Backward-compatible facade methods for selectedTeams
     selectedTeams(): Record<string, string | string[]> { return this.playerState.selectedTeams(); }
     setSelectedTeams(map: Record<string, string | string[]>): void { this.playerState.setSelectedTeams(map); }
@@ -94,42 +99,53 @@ export class RegistrationWizardService {
     getEligibilityForPlayer(playerId: string): string | undefined { return this.playerState.getEligibilityForPlayer(playerId); }
     // (migrated) eligibility & selectedTeams now owned by PlayerStateService
     // Job metadata raw JSON snapshots
-    jobProfileMetadataJson = signal<string | null>(null);
-    jobJsonOptions = signal<string | null>(null);
+    private readonly _jobProfileMetadataJson = signal<string | null>(null);
+    private readonly _jobJsonOptions = signal<string | null>(null);
+    readonly jobProfileMetadataJson = this._jobProfileMetadataJson.asReadonly();
+    readonly jobJsonOptions = this._jobJsonOptions.asReadonly();
     // Job payment feature flags
-    jobHasActiveDiscountCodes = signal<boolean>(false);
-    jobUsesAmex = signal<boolean>(false);
-    // Payment flags & ARB schedule (ALLOWPIF removed; UI derives options from scenarios only)
-    adnArb = signal<boolean>(false);
-    adnArbBillingOccurences = signal<number | null>(null);
-    adnArbIntervalLength = signal<number | null>(null);
-    adnArbStartDate = signal<string | null>(null);
+    private readonly _jobHasActiveDiscountCodes = signal<boolean>(false);
+    private readonly _jobUsesAmex = signal<boolean>(false);
+    readonly jobHasActiveDiscountCodes = this._jobHasActiveDiscountCodes.asReadonly();
+    readonly jobUsesAmex = this._jobUsesAmex.asReadonly();
+    // Payment flags & ARB schedule
+    private readonly _adnArb = signal<boolean>(false);
+    private readonly _adnArbBillingOccurences = signal<number | null>(null);
+    private readonly _adnArbIntervalLength = signal<number | null>(null);
+    private readonly _adnArbStartDate = signal<string | null>(null);
+    readonly adnArb = this._adnArb.asReadonly();
+    readonly adnArbBillingOccurences = this._adnArbBillingOccurences.asReadonly();
+    readonly adnArbIntervalLength = this._adnArbIntervalLength.asReadonly();
+    readonly adnArbStartDate = this._adnArbStartDate.asReadonly();
     // Parsed field schema derived from PlayerProfileMetadataJson
-    profileFieldSchemas = signal<PlayerProfileFieldSchema[]>([]);
-    // Map of backend db column/property names (PascalCase) -> schema field name used in UI
-    aliasFieldMap = signal<Record<string, string>>({});
+    private readonly _profileFieldSchemas = signal<PlayerProfileFieldSchema[]>([]);
+    private readonly _aliasFieldMap = signal<Record<string, string>>({});
+    readonly profileFieldSchemas = this._profileFieldSchemas.asReadonly();
+    readonly aliasFieldMap = this._aliasFieldMap.asReadonly();
     // Per-player form values (fieldName -> value)
-    playerFormValues = signal<Record<string, Record<string, string | number | boolean | null | string[]>>>({});
-    // Waiver text HTML blocks (job-level). Structured waiver state lives in WaiverStateService.
-    jobWaivers = signal<Record<string, string>>({});
+    private readonly _playerFormValues = signal<Record<string, Record<string, string | number | boolean | null | string[]>>>({});
+    readonly playerFormValues = this._playerFormValues.asReadonly();
+    // Waiver text HTML blocks (job-level)
+    private readonly _jobWaivers = signal<Record<string, string>>({});
+    readonly jobWaivers = this._jobWaivers.asReadonly();
     // Waiver delegating accessors (maintain existing call sites that invoke like signals)
     waiverDefinitions(): WaiverDefinition[] { return this.waiverState.waiverDefinitions(); }
     waiverIdToField(): Record<string, string> { return this.waiverState.waiverIdToField(); }
     waiversAccepted(): Record<string, boolean> { return this.waiverState.waiversAccepted(); }
     waiverFieldNames(): string[] { return this.waiverState.waiverFieldNames(); }
     waiversGateOk(): boolean { return this.waiverState.waiversGateOk(); }
-    setWaiversGateOk(v: boolean): void { this.waiverState.waiversGateOk.set(v); }
+    setWaiversGateOk(v: boolean): void { this.waiverState.setWaiversGateOk(v); }
     signatureName(): string { return this.waiverState.signatureName(); }
-    setSignatureName(v: string): void { this.waiverState.signatureName.set(v); }
+    setSignatureName(v: string): void { this.waiverState.setSignatureName(v); }
     signatureRole(): 'Parent/Guardian' | 'Adult Player' | '' { return this.waiverState.signatureRole(); }
-    setSignatureRole(v: 'Parent/Guardian' | 'Adult Player' | ''): void { this.waiverState.signatureRole.set(v); }
+    setSignatureRole(v: 'Parent/Guardian' | 'Adult Player' | ''): void { this.waiverState.setSignatureRole(v); }
     // Dev-only: capture a normalized snapshot of GET /family/players for the debug panel on Players step
-    debugFamilyPlayersResp = signal<FamilyPlayersResponseDto | null>(null);
-
-    // Waiver selection/reactivity handled inside WaiverStateService; no local effect needed.
+    private readonly _debugFamilyPlayersResp = signal<FamilyPlayersResponseDto | null>(null);
+    readonly debugFamilyPlayersResp = this._debugFamilyPlayersResp.asReadonly();
 
     // US Lacrosse number validation status per player
-    usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: Record<string, unknown> }>>({});
+    private readonly _usLaxStatus = signal<Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: Record<string, unknown> }>>({});
+    readonly usLaxStatus = this._usLaxStatus.asReadonly();
     // Subscription management for fire-and-forget HTTP calls
     private familyPlayersSub?: Subscription;
     private metadataSub?: Subscription;
@@ -141,9 +157,10 @@ export class RegistrationWizardService {
     hasServerValidationErrors(): boolean { return !!this._serverValidationErrors?.length; }
 
     // Payment
-    paymentOption = signal<PaymentOption>('PIF');
+    private readonly _paymentOption = signal<PaymentOption>('PIF');
+    readonly paymentOption = this._paymentOption.asReadonly();
     // Last payment summary for Confirmation step
-    lastPayment = signal<{
+    private readonly _lastPayment = signal<{
         option: PaymentOption;
         amount: number;
         transactionId?: string;
@@ -152,32 +169,34 @@ export class RegistrationWizardService {
         viPolicyCreateDate?: string | null;
         message?: string | null;
     } | null>(null);
+    readonly lastPayment = this._lastPayment.asReadonly();
 
     // Confirmation DTO from backend (Finish tab)
-    confirmation = signal<PlayerRegConfirmationDto | null>(null);
+    private readonly _confirmation = signal<PlayerRegConfirmationDto | null>(null);
+    readonly confirmation = this._confirmation.asReadonly();
 
     reset(): void {
-        this.hasFamilyAccount.set(null);
-        this.familyPlayers.set([]);
+        this._hasFamilyAccount.set(null);
+        this._familyPlayers.set([]);
         this.playerState.reset();
-        this.teamConstraintType.set(null);
-        this.teamConstraintValue.set(null);
-        this.paymentOption.set('PIF');
-        this.lastPayment.set(null);
-        this.confirmation.set(null);
-        this.familyUser.set(null);
-        this.jobProfileMetadataJson.set(null);
-        this.jobJsonOptions.set(null);
-        this.profileFieldSchemas.set([]);
-        this.playerFormValues.set({});
-        this.jobWaivers.set({});
+        this._teamConstraintType.set(null);
+        this._teamConstraintValue.set(null);
+        this._paymentOption.set('PIF');
+        this._lastPayment.set(null);
+        this._confirmation.set(null);
+        this._familyUser.set(null);
+        this._jobProfileMetadataJson.set(null);
+        this._jobJsonOptions.set(null);
+        this._profileFieldSchemas.set([]);
+        this._playerFormValues.set({});
+        this._jobWaivers.set({});
         // Waiver state reset handled by WaiverStateService automatically (no local reset needed)
-        this.adnArb.set(false);
-        this.adnArbBillingOccurences.set(null);
-        this.adnArbIntervalLength.set(null);
-        this.adnArbStartDate.set(null);
-        this.jobHasActiveDiscountCodes.set(false);
-        this.jobUsesAmex.set(false);
+        this._adnArb.set(false);
+        this._adnArbBillingOccurences.set(null);
+        this._adnArbIntervalLength.set(null);
+        this._adnArbStartDate.set(null);
+        this._jobHasActiveDiscountCodes.set(false);
+        this._jobUsesAmex.set(false);
     }
 
     /**
@@ -187,9 +206,21 @@ export class RegistrationWizardService {
         const jp = this.jobPath();
         const jid = this.jobId();
         this.reset();
-        if (jp) this.jobPath.set(jp);
-        if (jid) this.jobId.set(jid);
+        if (jp) this._jobPath.set(jp);
+        if (jid) this._jobId.set(jid);
     }
+
+    // --- Controlled mutators for signals written by step components ---
+    setJobPath(v: string): void { this._jobPath.set(v); }
+    setJobId(v: string): void { this._jobId.set(v); }
+    setHasFamilyAccount(v: 'yes' | 'no' | null): void { this._hasFamilyAccount.set(v); }
+    setTeamConstraintType(v: string | null): void { this._teamConstraintType.set(v); }
+    setTeamConstraintValue(v: string | null): void { this._teamConstraintValue.set(v); }
+    setPaymentOption(v: PaymentOption): void { this._paymentOption.set(v); }
+    setLastPayment(v: { option: PaymentOption; amount: number; transactionId?: string; subscriptionId?: string; viPolicyNumber?: string | null; viPolicyCreateDate?: string | null; message?: string | null } | null): void { this._lastPayment.set(v); }
+    setConfirmation(v: PlayerRegConfirmationDto | null): void { this._confirmation.set(v); }
+    updateFamilyPlayers(players: FamilyPlayerDto[]): void { this._familyPlayers.set(players); }
+    clearDebugFamilyPlayersResp(): void { this._debugFamilyPlayersResp.set(null); }
 
     /** Seed required waiver acceptance only when ALL selected players are already registered (delegated). */
     // Waiver acceptance seeding delegated to WaiverStateService
@@ -216,18 +247,18 @@ export class RegistrationWizardService {
     loadFamilyPlayers(jobPath: string): void {
         if (!this.shouldLoadFamily(jobPath)) return;
         const base = this.resolveApiBase();
-        try { console.debug('[RegWizard] GET family players', { jobPath, base }); } catch { /* no-op */ }
-        this.familyPlayersLoading.set(true);
+        console.debug('[RegWizard] GET family players', { jobPath, base });
+        this._familyPlayersLoading.set(true);
         this.familyPlayersSub?.unsubscribe();
         this.familyPlayersSub = this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } })
             .subscribe({
                 next: resp => {
                     this.handleFamilyPlayersSuccess(resp, jobPath);
-                    this.familyPlayersLoading.set(false);
+                    this._familyPlayersLoading.set(false);
                 },
                 error: err => {
                     this.handleFamilyPlayersError(err);
-                    this.familyPlayersLoading.set(false);
+                    this._familyPlayersLoading.set(false);
                 }
             });
     }
@@ -253,7 +284,7 @@ export class RegistrationWizardService {
     async loadFamilyPlayersOnce(jobPath: string): Promise<void> {
         if (!this.shouldLoadFamily(jobPath)) return;
         const base = this.resolveApiBase();
-        this.familyPlayersLoading.set(true);
+        this._familyPlayersLoading.set(true);
         try {
             const resp = await firstValueFrom(this.http.get<FamilyPlayersResponseDto>(`${base}/family/players`, { params: { jobPath, debug: '1' } }));
             this.handleFamilyPlayersSuccess(resp, jobPath);
@@ -261,37 +292,37 @@ export class RegistrationWizardService {
             this.handleFamilyPlayersError(err);
             throw err;
         } finally {
-            this.familyPlayersLoading.set(false);
+            this._familyPlayersLoading.set(false);
         }
     }
 
     private shouldLoadFamily(jobPath: string | null | undefined): boolean {
         if (!jobPath) return false;
         if (!this.auth.getToken()) {
-            try { console.debug('[RegWizard] loadFamilyPlayers skipped (no auth token)'); } catch { /* no-op */ }
+            console.debug('[RegWizard] loadFamilyPlayers skipped (no auth token)');
             return false;
         }
         return true;
     }
 
     private handleFamilyPlayersSuccess(resp: FamilyPlayersResponseDto, jobPath: string): void {
-        this.debugFamilyPlayersResp.set(resp);
+        this._debugFamilyPlayersResp.set(resp);
         this.extractConstraintType(resp);
         this.applyFamilyUser(resp);
         this.applyRegSaverDetails(resp);
         const players = this.buildFamilyPlayersList(resp);
-        this.familyPlayers.set(players);
+        this._familyPlayers.set(players);
         this.prefillTeamsFromPriorRegistrations(players);
         this.ensureJobMetadata(jobPath);
         this.applyPaymentFlags(resp);
     }
 
     private handleFamilyPlayersError(err: unknown): void {
-        try { console.warn('[RegWizard] Failed to load family players', err); } catch { /* no-op */ }
-        this.familyPlayers.set([]);
-        this.familyUser.set(null);
-        this.regSaverDetails.set(null);
-        this.debugFamilyPlayersResp.set(null);
+        console.warn('[RegWizard] Failed to load family players', err);
+        this._familyPlayers.set([]);
+        this._familyUser.set(null);
+        this._regSaverDetails.set(null);
+        this._debugFamilyPlayersResp.set(null);
     }
 
     private extractConstraintType(resp: FamilyPlayersResponseDto): void {
@@ -300,17 +331,17 @@ export class RegistrationWizardService {
             const rawCt = jrf?.constraintType ?? null;
             if (typeof rawCt === 'string' && rawCt.trim()) {
                 const norm = rawCt.trim().toUpperCase();
-                this.teamConstraintType.set(norm);
-                try { console.debug('[RegWizard] constraintType from /family/players:', norm); } catch { /* no-op */ }
+                this._teamConstraintType.set(norm);
+                console.debug('[RegWizard] constraintType from /family/players:', norm);
             } else {
-                try { console.warn('[RegWizard] constraintType not present in /family/players response; Eligibility step may be hidden.'); } catch { /* no-op */ }
+                console.warn('[RegWizard] constraintType not present in /family/players response; Eligibility step may be hidden.');
             }
         } catch { /* ignore */ }
     }
 
     private applyFamilyUser(resp: FamilyPlayersResponseDto): void {
         const fu = resp.familyUser || getPropertyCI<Record<string, unknown>>(resp as Record<string, unknown>, 'familyUser');
-        if (!fu) { this.familyUser.set(null); return; }
+        if (!fu) { this._familyUser.set(null); return; }
         const o = fu as Record<string, unknown>;
         const norm = {
             familyUserId: o['familyUserId'] as string,
@@ -348,13 +379,13 @@ export class RegistrationWizardService {
                 })()
             };
         }
-        this.familyUser.set(norm);
+        this._familyUser.set(norm);
     }
 
     private applyRegSaverDetails(resp: FamilyPlayersResponseDto): void {
         const rs = resp.regSaverDetails || getPropertyCI<RegSaverDetailsDto>(resp as Record<string, unknown>, 'regSaverDetails');
-        if (!rs) { this.regSaverDetails.set(null); return; }
-        this.regSaverDetails.set({
+        if (!rs) { this._regSaverDetails.set(null); return; }
+        this._regSaverDetails.set({
             policyNumber: rs.policyNumber,
             policyCreateDate: rs.policyCreateDate
         });
@@ -422,8 +453,8 @@ export class RegistrationWizardService {
 
     private applyPaymentFlags(resp: FamilyPlayersResponseDto): void {
         try {
-            this.jobHasActiveDiscountCodes.set(!!resp.jobHasActiveDiscountCodes);
-            this.jobUsesAmex.set(!!resp.jobUsesAmex);
+            this._jobHasActiveDiscountCodes.set(!!resp.jobHasActiveDiscountCodes);
+            this._jobUsesAmex.set(!!resp.jobUsesAmex);
         } catch { /* ignore */ }
     }
 
@@ -436,9 +467,9 @@ export class RegistrationWizardService {
         this.metadataSub = this.http.get<{ jobId: string; playerProfileMetadataJson?: string | null; jsonOptions?: string | null;[k: string]: unknown }>(`${base}/jobs/${encodeURIComponent(jobPath)}`)
             .subscribe({
                 next: meta => {
-                    this.jobId.set(meta.jobId);
-                    this.jobProfileMetadataJson.set(meta.playerProfileMetadataJson || null);
-                    this.jobJsonOptions.set(meta.jsonOptions || null);
+                    this._jobId.set(meta.jobId);
+                    this._jobProfileMetadataJson.set(meta.playerProfileMetadataJson || null);
+                    this._jobJsonOptions.set(meta.jsonOptions || null);
                     // Payment flags & schedule from server metadata
                     try {
                         const m = meta as Record<string, unknown>;
@@ -446,17 +477,17 @@ export class RegistrationWizardService {
                         const occ = getPropertyCI<number>(m, 'adnArbBillingOccurences') ?? null;
                         const intLen = getPropertyCI<number>(m, 'adnArbIntervalLength') ?? null;
                         const start = getPropertyCI<string>(m, 'adnArbStartDate') ?? null;
-                        this.adnArb.set(!!arb);
-                        this.adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
-                        this.adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
-                        this.adnArbStartDate.set(start ? String(start) : null);
+                        this._adnArb.set(!!arb);
+                        this._adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
+                        this._adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
+                        this._adnArbStartDate.set(start ? String(start) : null);
                         // Default to ARB when enabled; else PIF. UI will adjust based on scenario when teams are selected.
-                        this.paymentOption.set(this.adnArb() ? 'ARB' : 'PIF');
+                        this._paymentOption.set(this.adnArb() ? 'ARB' : 'PIF');
                     } catch { /* non-critical */ }
                     // Do not set constraintType from client-side heuristics; rely solely on /family/players response.
                     // Offer flag for RegSaver
                     try {
-                        const offer = (meta as any).offerPlayerRegsaverInsurance ?? (meta as any).OfferPlayerRegsaverInsurance;
+                        const offer = getPropertyCI<boolean>(meta as Record<string, unknown>, 'offerPlayerRegsaverInsurance');
                         this._offerPlayerRegSaver.set(!!offer);
                     } catch { this._offerPlayerRegSaver.set(false); }
                     // Do not infer Eligibility constraint type on the client. Rely solely on server-provided jobRegForm.constraintType from /family/players.
@@ -467,7 +498,7 @@ export class RegistrationWizardService {
                         this.selectedPlayerIds(),
                         this.familyPlayers()
                     );
-                    this.jobWaivers.set(waivers);
+                    this._jobWaivers.set(waivers);
                     this.parseProfileMetadata();
                 },
                 error: err => {
@@ -478,7 +509,8 @@ export class RegistrationWizardService {
     // RegSaver offer flag (job-level)
     private readonly _offerPlayerRegSaver = signal(false);
     // VerticalInsure offer state retained (widget/playerObject payload) for preSubmit response integration
-    verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
+    private readonly _verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
+    readonly verticalInsureOffer = this._verticalInsureOffer.asReadonly();
     /** Whether the job offers player RegSaver insurance */
     readonly offerPlayerRegSaver = this._offerPlayerRegSaver.asReadonly();
 
@@ -489,8 +521,8 @@ export class RegistrationWizardService {
         const rawOpts = this.jobJsonOptions();
         this.formSchema.parse(rawMeta, rawOpts);
         const schemas = this.formSchema.profileFieldSchemas();
-        this.profileFieldSchemas.set(schemas);
-        this.aliasFieldMap.set(this.formSchema.aliasFieldMap());
+        this._profileFieldSchemas.set(schemas);
+        this._aliasFieldMap.set(this.formSchema.aliasFieldMap());
         this.bindWaiversToSchemas(schemas);
         this.initializeFormValuesForSelectedPlayers(schemas);
         this.seedPlayerValuesFromPriorRegistrations(schemas);
@@ -515,7 +547,7 @@ export class RegistrationWizardService {
             if (!current[pid]) current[pid] = {};
             for (const f of schemas) if (!(f.name in current[pid])) current[pid][f.name] = null;
         }
-        this.playerFormValues.set(current);
+        this._playerFormValues.set(current);
     }
 
     private seedPlayerValuesFromPriorRegistrations(schemas: PlayerProfileFieldSchema[]): void {
@@ -537,7 +569,7 @@ export class RegistrationWizardService {
                 );
             }
 
-            this.playerFormValues.set(current);
+            this._playerFormValues.set(current);
         } catch (e: unknown) {
             console.debug('[RegWizard] Prior registration seed failed', e);
         }
@@ -568,7 +600,7 @@ export class RegistrationWizardService {
                 this.applyDefaultsToPlayer(player, current, schemaNameByLower);
             }
 
-            this.playerFormValues.set(current);
+            this._playerFormValues.set(current);
         } catch (e: unknown) {
             console.debug('[RegWizard] Default values seed failed', e);
         }
@@ -631,7 +663,7 @@ export class RegistrationWizardService {
                     if (from in vals && !(to in vals)) vals[to] = vals[from];
                 }
             }
-            this.playerFormValues.set(current);
+            this._playerFormValues.set(current);
         } catch (e: unknown) {
             console.debug('[RegWizard] Alias backfill failed', e);
         }
@@ -658,7 +690,7 @@ export class RegistrationWizardService {
             const selected = this.selectedPlayerIds();
             const values = selected.map(id => map[id]).filter(v => !!v);
             const unique = Array.from(new Set(values));
-            if (unique.length === 1) this.teamConstraintValue.set(unique[0]);
+            if (unique.length === 1) this._teamConstraintValue.set(unique[0]);
         } catch { /* ignore */ }
     }
 
@@ -679,7 +711,7 @@ export class RegistrationWizardService {
         const all = { ...this.playerFormValues() };
         if (!all[playerId]) all[playerId] = {};
         all[playerId][fieldName] = value;
-        this.playerFormValues.set(all);
+        this._playerFormValues.set(all);
         // Track US Lacrosse number value in usLaxStatus map when field updated
         if (fieldName.toLowerCase() === 'sportassnid') {
             const statusMap = { ...this.usLaxStatus() } as Record<string, { value: string; status: 'idle' | 'validating' | 'valid' | 'invalid'; message?: string; membership?: Record<string, unknown> }>;
@@ -691,7 +723,7 @@ export class RegistrationWizardService {
             } else {
                 statusMap[playerId] = { ...existing, value: raw, status: 'idle', message: undefined };
             }
-            this.usLaxStatus.set(statusMap);
+            this._usLaxStatus.set(statusMap);
         }
     }
 
@@ -713,7 +745,7 @@ export class RegistrationWizardService {
         for (const pid of Object.keys(teams)) {
             if (!selectedIds.has(pid)) delete teams[pid];
         }
-        this.playerFormValues.set(forms);
+        this._playerFormValues.set(forms);
         this.playerState.setSelectedTeams(teams);
     }
 
@@ -784,7 +816,7 @@ export class RegistrationWizardService {
 
     private captureServerValidationErrors(resp: PreSubmitPlayerRegistrationResponseDto): void {
         try {
-            const ve = (resp as any)?.validationErrors as PreSubmitValidationErrorDto[] | undefined;
+            const ve = getPropertyCI<PreSubmitValidationErrorDto[]>(resp as Record<string, unknown>, 'validationErrors');
             this._serverValidationErrors = (ve && Array.isArray(ve) && ve.length) ? ve : [];
         } catch { this._serverValidationErrors = []; }
     }
@@ -793,11 +825,11 @@ export class RegistrationWizardService {
         try {
             const ins = getPropertyCI<{ available?: boolean; playerObject?: unknown; error?: unknown }>(resp as Record<string, unknown>, 'insurance');
             if (ins?.available && ins?.playerObject) {
-                this.verticalInsureOffer.set({ loading: false, data: ins.playerObject, error: null });
+                this._verticalInsureOffer.set({ loading: false, data: ins.playerObject, error: null });
             } else if (ins?.error) {
-                this.verticalInsureOffer.set({ loading: false, data: null, error: String(ins.error) });
+                this._verticalInsureOffer.set({ loading: false, data: null, error: String(ins.error) });
             } else {
-                this.verticalInsureOffer.set({ loading: false, data: null, error: null });
+                this._verticalInsureOffer.set({ loading: false, data: null, error: null });
             }
         } catch { /* ignore */ }
     }
@@ -910,15 +942,15 @@ export class RegistrationWizardService {
         const base = this.resolveApiBase();
         const jobPath = this.jobPath();
         if (!jobPath) {
-            try { console.warn('[RegWizard] loadConfirmation skipped: no jobPath'); } catch { /* no-op */ }
+            console.warn('[RegWizard] loadConfirmation skipped: no jobPath');
             return;
         }
         this.http.get<PlayerRegConfirmationDto>(`${base}/player-registration/confirmation`)
             .subscribe({
-                next: dto => this.confirmation.set(dto),
+                next: dto => this._confirmation.set(dto),
                 error: err => {
-                    try { console.warn('[RegWizard] Confirmation fetch failed', err); } catch { /* no-op */ }
-                    this.confirmation.set(null);
+                    console.warn('[RegWizard] Confirmation fetch failed', err);
+                    this._confirmation.set(null);
                 }
             });
     }
@@ -929,7 +961,7 @@ export class RegistrationWizardService {
         return firstValueFrom(this.http.post(`${base}/player-registration/confirmation/resend`, null))
             .then(() => true)
             .catch(err => {
-                try { console.warn('[RegWizard] Resend confirmation failed', err); } catch { /* no-op */ }
+                console.warn('[RegWizard] Resend confirmation failed', err);
                 return false;
             });
     }
@@ -996,7 +1028,7 @@ export class RegistrationWizardService {
         const list = this.familyPlayers();
         let becameSelected = false;
 
-        this.familyPlayers.set(list.map(p => {
+        this._familyPlayers.set(list.map(p => {
             if (p.playerId !== playerId) return p;
             if (p.registered) return p; // locked
             const nextSelected = !p.selected;
@@ -1024,7 +1056,7 @@ export class RegistrationWizardService {
                 current[playerId][f.name] = null;
             }
         }
-        this.playerFormValues.set(current);
+        this._playerFormValues.set(current);
     }
 
     private applyDefaultValuesForPlayer(playerId: string, schemas: PlayerProfileFieldSchema[]): void {
@@ -1050,7 +1082,7 @@ export class RegistrationWizardService {
             if (isBlank) target[targetName] = rawV as PlayerFormFieldValue;
         }
 
-        this.playerFormValues.set(curVals);
+        this._playerFormValues.set(curVals);
     }
 
 
@@ -1084,7 +1116,7 @@ export class RegistrationWizardService {
             .map(id => this.getEligibilityForPlayer(id))
             .filter(v => !!v);
         const uniq = Array.from(new Set(eligValues));
-        if (uniq.length === 1) this.teamConstraintValue.set(uniq[0]!);
+        if (uniq.length === 1) this._teamConstraintValue.set(uniq[0]!);
     }
 
     selectedPlayerIds(): string[] {
@@ -1104,7 +1136,7 @@ export class RegistrationWizardService {
         const m = { ...this.usLaxStatus() };
         const cur = m[playerId] || { value: '', status: 'idle' as const };
         m[playerId] = { ...cur, ...patch };
-        this.usLaxStatus.set(m);
+        this._usLaxStatus.set(m);
     }
 
     // --- Client-side metadata driven validation -------------------------------------------

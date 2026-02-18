@@ -131,7 +131,7 @@ type TeamPaymentRequest = TeamPaymentRequestDto & {
                 (click)="applyDiscount()"
               >
                 @if (paymentSvc.discountApplying()) {
-                  <span class="spinner-border spinner-border-sm me-2"></span>
+                  <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   Applying...
                 } @else {
                   Apply
@@ -268,7 +268,7 @@ type TeamPaymentRequest = TeamPaymentRequestDto & {
               (click)="submitPayment()"
             >
               @if (submitting()) {
-                <span class="spinner-border spinner-border-sm me-2"></span>
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 Processing...
               } @else {
                 Pay {{ paymentSvc.amountToCharge() | currency }} Now
@@ -376,9 +376,12 @@ export class TeamPaymentStepComponent
     }
   }
 
+  private viInitTimeout?: ReturnType<typeof setTimeout>;
+
   ngOnDestroy(): void {
+    clearTimeout(this.viInitTimeout);
     // Reset insurance state when leaving payment step
-    this.insuranceSvc.widgetInitialized.set(false);
+    this.insuranceSvc.reset();
   }
 
   private async loadInsuranceOffer(): Promise<void> {
@@ -395,7 +398,7 @@ export class TeamPaymentStepComponent
 
       if (offer?.available && offer.teamObject) {
         // Initialize VI widget
-        setTimeout(() => {
+        this.viInitTimeout = setTimeout(() => {
           if (this.viOfferElement?.nativeElement) {
             this.insuranceSvc.initWidget('#dVITeamOffer', offer.teamObject as VIOfferData);
           }

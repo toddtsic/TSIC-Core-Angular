@@ -87,10 +87,7 @@ export class FamAccountStepAddressComponent {
     this.submitted = true;
     if (this.form.invalid) return;
     const v = this.form.value;
-    this.state.address1.set(v.address1 ?? '');
-    this.state.city.set(v.city ?? '');
-    this.state.state.set(v.state ?? '');
-    this.state.postalCode.set(v.postalCode ?? '');
+    this.state.setAddress(v.address1 ?? '', v.city ?? '', v.state ?? '', v.postalCode ?? '');
     this.next.emit();
   }
 }

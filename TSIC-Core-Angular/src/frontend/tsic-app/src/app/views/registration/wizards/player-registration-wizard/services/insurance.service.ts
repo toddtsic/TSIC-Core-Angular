@@ -29,11 +29,16 @@ export class InsuranceService {
     private readonly http = inject(HttpClient);
     private readonly toast = inject(ToastService);
     private readonly viDarkMode = inject(ViDarkModeService);
-    quotes = signal<VerticalInsureQuote[]>([]);
-    hasUserResponse = signal(false);
-    error = signal<string | null>(null);
-    widgetInitialized = signal(false);
+    private readonly _quotes = signal<VerticalInsureQuote[]>([]);
+    private readonly _hasUserResponse = signal(false);
+    private readonly _error = signal<string | null>(null);
+    private readonly _widgetInitialized = signal(false);
     private readonly purchasing = signal(false);
+
+    readonly quotes = this._quotes.asReadonly();
+    readonly hasUserResponse = this._hasUserResponse.asReadonly();
+    readonly error = this._error.asReadonly();
+    readonly widgetInitialized = this._widgetInitialized.asReadonly();
 
     offerEnabled = computed(() => this.insuranceState.offerPlayerRegSaver());
     consented = computed(() => this.insuranceState.verticalInsureConfirmed());
@@ -43,7 +48,7 @@ export class InsuranceService {
         if (this.widgetInitialized()) return;
         const viWindow = globalThis as unknown as VIWindowExtension;
         if (!viWindow.VerticalInsure) {
-            this.error.set('VerticalInsure script missing');
+            this._error.set('VerticalInsure script missing');
             return;
         }
         try {
@@ -55,11 +60,11 @@ export class InsuranceService {
                 offerData,
                 (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
-                        this.hasUserResponse.set(valid);
+                        this._hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
-                        this.quotes.set(quotes);
-                        this.error.set(null);
-                        this.widgetInitialized.set(true);
+                        this._quotes.set(quotes);
+                        this._error.set(null);
+                        this._widgetInitialized.set(true);
                         // Apply dark-mode styling after widget renders
                         this.viDarkMode.applyViDarkMode(hostSelector);
                         // Map widget state to decision signals: quotes -> confirmed, none -> declined
@@ -74,9 +79,9 @@ export class InsuranceService {
                 },
                 (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
-                        this.hasUserResponse.set(valid);
+                        this._hasUserResponse.set(valid);
                         const quotes = st?.quotes || [];
-                        this.quotes.set(quotes);
+                        this._quotes.set(quotes);
                         // Re-apply dark-mode on state changes (user interaction)
                         this.viDarkMode.applyViDarkMode(hostSelector);
                         // Update decision on subsequent changes as well
@@ -92,7 +97,7 @@ export class InsuranceService {
             );
         } catch (e: unknown) {
             console.error('VerticalInsure init error', e);
-            this.error.set('VerticalInsure initialization failed');
+            this._error.set('VerticalInsure initialization failed');
         }
     }
 
