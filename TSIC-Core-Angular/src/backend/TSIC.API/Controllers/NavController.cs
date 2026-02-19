@@ -110,7 +110,7 @@ public class NavController : ControllerBase
     [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult<NavEditorNavDto>> CreateNav([FromBody] CreateNavRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -123,7 +123,7 @@ public class NavController : ControllerBase
     [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult<NavEditorNavItemDto>> CreateNavItem([FromBody] CreateNavItemRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -136,7 +136,7 @@ public class NavController : ControllerBase
     [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult<NavEditorNavItemDto>> UpdateNavItem(int navItemId, [FromBody] UpdateNavItemRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -158,7 +158,7 @@ public class NavController : ControllerBase
     [Authorize(Policy = "SuperUserOnly")]
     public async Task<IActionResult> ReorderNavItems([FromBody] ReorderNavItemsRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -171,7 +171,7 @@ public class NavController : ControllerBase
     [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult<NavEditorNavDto>> ImportLegacy([FromBody] ImportLegacyMenuRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -193,7 +193,7 @@ public class NavController : ControllerBase
     [Authorize(Policy = "SuperUserOnly")]
     public async Task<ActionResult<object>> EnsureAllRoleNavs()
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 

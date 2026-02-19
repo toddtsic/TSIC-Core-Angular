@@ -37,6 +37,25 @@ var foo = await _repo.GetFooAsync(id, ct);
 var bar = await _repo.GetBarAsync(id, ct);
 ```
 
+## JWT Claim Access
+
+ASP.NET Core remaps standard JWT claim names. NEVER use raw strings:
+
+```csharp
+// WRONG — "sub" is remapped, returns null
+var userId = User.FindFirst("sub")?.Value;
+
+// CORRECT — use ClaimTypes constants
+var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+var role = User.FindFirst(ClaimTypes.Role)?.Value;
+```
+
+| JWT Claim | ASP.NET Remaps To |
+|-----------|-------------------|
+| `sub` | `ClaimTypes.NameIdentifier` |
+| `role` | `ClaimTypes.Role` |
+| Custom claims (`username`, `regId`, `jobPath`) | No remapping — use raw string |
+
 ## Clean Architecture Layers
 
 ```

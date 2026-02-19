@@ -129,12 +129,18 @@ export class MenuAdminComponent implements OnInit {
         if (result.type === 'create') {
             this.navAdminService.createItem(result.data as CreateNavItemRequest).subscribe({
                 next: () => { this.toast.show('Nav item created.', 'success'); this.loadNavs(); },
-                error: () => this.toast.show('Failed to create nav item.', 'danger')
+                error: (err) => {
+                    console.error('Create nav item failed:', err);
+                    this.toast.show(`Failed to create: ${err.status} ${err.statusText}`, 'danger');
+                }
             });
         } else {
             this.navAdminService.updateItem(result.navItemId!, result.data as UpdateNavItemRequest).subscribe({
                 next: () => { this.toast.show('Nav item updated.', 'success'); this.loadNavs(); },
-                error: () => this.toast.show('Failed to update nav item.', 'danger')
+                error: (err) => {
+                    console.error('Update nav item failed:', err);
+                    this.toast.show(`Failed to update: ${err.status} ${err.statusText}`, 'danger');
+                }
             });
         }
     }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
@@ -42,7 +43,7 @@ public class MenuAdminController : ControllerBase
     [HttpPut("menus/{menuId:guid}/active")]
     public async Task<IActionResult> ToggleMenuActive(Guid menuId, [FromBody] UpdateMenuActiveRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -62,7 +63,7 @@ public class MenuAdminController : ControllerBase
         if (jobId == null)
             return BadRequest("Job ID could not be determined from user token");
 
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -77,7 +78,7 @@ public class MenuAdminController : ControllerBase
     [HttpPut("items/{menuItemId:guid}")]
     public async Task<ActionResult<MenuItemAdminDto>> UpdateMenuItem(Guid menuItemId, [FromBody] UpdateMenuItemRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -102,7 +103,7 @@ public class MenuAdminController : ControllerBase
     [HttpPut("items/reorder")]
     public async Task<IActionResult> ReorderItems([FromBody] ReorderMenuItemsRequest request)
     {
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
@@ -121,7 +122,7 @@ public class MenuAdminController : ControllerBase
         if (jobId == null)
             return BadRequest("Job ID could not be determined from user token");
 
-        var userId = User.FindFirst("sub")?.Value;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized("User ID not found in token");
 
