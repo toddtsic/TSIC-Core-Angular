@@ -5,6 +5,7 @@ import { WidgetEditorService } from './services/widget-editor.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
+import { WIDGET_MANIFEST } from '@widgets/widget-registry';
 import type {
 	JobTypeRefDto,
 	RoleRefDto,
@@ -97,6 +98,17 @@ export class WidgetEditorComponent {
 	readonly formConfigIcon = signal('');
 	readonly formConfigRoute = signal('');
 	readonly formDisplayStyle = signal('');
+	/** True when user selected "Other (custom key)" in the dropdown */
+	readonly useCustomKey = signal(false);
+
+	// ── Manifest-driven intelligence ──
+	readonly manifestKeys = Object.keys(WIDGET_MANIFEST);
+
+	/** Manifest keys that have no matching Widget definition in the database */
+	readonly uncoveredKeys = computed(() => {
+		const dbKeys = new Set(this.widgets().map(w => w.componentKey));
+		return this.manifestKeys.filter(k => !dbKeys.has(k));
+	});
 
 	// ── Delete confirm state ──
 	readonly showDeleteConfirm = signal(false);
@@ -518,6 +530,7 @@ export class WidgetEditorComponent {
 		this.formConfigIcon.set('');
 		this.formConfigRoute.set('');
 		this.formDisplayStyle.set('');
+		this.useCustomKey.set(false);
 		this.showWidgetModal.set(true);
 	}
 
@@ -529,7 +542,43 @@ export class WidgetEditorComponent {
 		this.formCategoryId.set(widget.categoryId);
 		this.formDescription.set(widget.description || '');
 		this.parseConfigToFields(widget.defaultConfig);
+		this.useCustomKey.set(!WIDGET_MANIFEST[widget.componentKey]);
 		this.showWidgetModal.set(true);
+	}
+
+	/** Handle Component Key dropdown selection — auto-fills form from manifest */
+	onComponentKeySelect(value: string): void {
+		if (value === '__custom__') {
+			this.useCustomKey.set(true);
+			this.formComponentKey.set('');
+			return;
+		}
+		this.useCustomKey.set(false);
+		this.formComponentKey.set(value);
+		const entry = WIDGET_MANIFEST[value];
+		if (!entry) return;
+
+		this.formName.set(entry.label);
+		this.formWidgetType.set(entry.widgetType);
+		this.formDescription.set(entry.description || '');
+		this.formConfigIcon.set(entry.icon);
+		this.formConfigRoute.set(entry.route || '');
+		this.formDisplayStyle.set(entry.displayStyle || '');
+
+		// Best-effort category match by workspace
+		const cat = this.categories().find(c => c.workspace === entry.workspace);
+		if (cat) this.formCategoryId.set(cat.categoryId);
+	}
+
+	/** One-click: open Add Widget modal pre-filled from manifest */
+	createFromManifest(key: string): void {
+		this.openAddWidget();
+		this.onComponentKeySelect(key);
+	}
+
+	/** Get the manifest icon for a component key (used by uncovered panel) */
+	getManifestIcon(key: string): string {
+		return WIDGET_MANIFEST[key]?.icon || 'bi-puzzle';
 	}
 
 	closeWidgetModal(): void {

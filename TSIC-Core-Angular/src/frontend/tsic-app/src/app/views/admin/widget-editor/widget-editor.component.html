@@ -185,6 +185,27 @@
 		</button>
 	</div>
 
+	<!-- Uncovered manifest entries — routes without widget definitions -->
+	@if (uncoveredKeys().length > 0) {
+		<div class="uncovered-panel mb-3">
+			<div class="uncovered-header">
+				<i class="bi bi-exclamation-diamond me-2"></i>
+				{{ uncoveredKeys().length }} manifest entr{{ uncoveredKeys().length === 1 ? 'y' : 'ies' }}
+				without widget definitions
+			</div>
+			<div class="uncovered-grid">
+				@for (key of uncoveredKeys(); track key) {
+					<button class="uncovered-item" (click)="createFromManifest(key)" type="button"
+						[title]="'Create widget definition for ' + key">
+						<i class="bi" [ngClass]="getManifestIcon(key)"></i>
+						<span class="uncovered-key">{{ key }}</span>
+						<i class="bi bi-plus-circle"></i>
+					</button>
+				}
+			</div>
+		</div>
+	}
+
 	@if (widgets().length === 0) {
 		<div class="text-center py-5">
 			<i class="bi bi-puzzle fs-1 text-body-secondary"></i>
@@ -467,20 +488,32 @@
 						[value]="formWidgetType()" (change)="formWidgetType.set(asSelectValue($event))">
 						<option value="" disabled>Select type...</option>
 						@for (t of widgetTypes; track t) {
-							<option [value]="t">{{ t }}</option>
+							<option [value]="t" [selected]="formWidgetType() === t">{{ t }}</option>
 						}
 					</select>
 				</div>
 				<div class="mb-3">
 					<label class="form-label">Component Key</label>
-					<input type="text" class="form-control form-control-sm"
-						[value]="formComponentKey()" (input)="formComponentKey.set(asInputValue($event))" />
-					<div class="form-text">Unique identifier used to render the widget component.</div>
-					<div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3" style="font-size: 0.8rem;">
-						<i class="bi bi-exclamation-triangle-fill mt-1"></i>
-						<span>This key <strong>must</strong> have a matching entry in
-						<code>widgets/widget-registry.ts</code> or the widget will not render on the dashboard.</span>
-					</div>
+					<select class="form-select form-select-sm"
+						[value]="useCustomKey() ? '__custom__' : formComponentKey()"
+						(change)="onComponentKeySelect(asSelectValue($event))">
+						<option value="" disabled>Select from manifest...</option>
+						@for (key of manifestKeys; track key) {
+							<option [value]="key" [selected]="!useCustomKey() && formComponentKey() === key">{{ key }}</option>
+						}
+						<option value="__custom__" [selected]="useCustomKey()">Other (custom key)...</option>
+					</select>
+					@if (useCustomKey()) {
+						<input type="text" class="form-control form-control-sm mt-2"
+							placeholder="Enter custom component key..."
+							[value]="formComponentKey()" (input)="formComponentKey.set(asInputValue($event))" />
+						<div class="alert alert-warning d-flex align-items-start gap-2 mt-2 mb-0 py-2 px-3" style="font-size: 0.8rem;">
+							<i class="bi bi-exclamation-triangle-fill mt-1"></i>
+							<span>Custom keys require a matching entry in
+							<code>widget-registry.ts</code> to render on the dashboard.</span>
+						</div>
+					}
+					<div class="form-text">Select a manifest entry to auto-fill the form, or choose "Other" for a custom key.</div>
 				</div>
 				<div class="mb-3">
 					<label class="form-label">Category</label>
@@ -488,7 +521,7 @@
 						[value]="formCategoryId()" (change)="formCategoryId.set(+asSelectValue($event))">
 						<option [value]="0" disabled>Select category...</option>
 						@for (c of categories(); track c.categoryId) {
-							<option [value]="c.categoryId">{{ c.name }} ({{ c.workspace }})</option>
+							<option [value]="c.categoryId" [selected]="formCategoryId() === c.categoryId">{{ c.name }} ({{ c.workspace }})</option>
 						}
 					</select>
 				</div>

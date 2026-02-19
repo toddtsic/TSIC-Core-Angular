@@ -201,6 +201,50 @@
 	color: var(--brand-text);
 }
 
+// ── Uncovered manifest panel ──
+
+.uncovered-panel {
+	border: 1px dashed var(--bs-warning);
+	border-radius: var(--space-2);
+	padding: var(--space-3);
+	background: color-mix(in srgb, var(--bs-warning) 5%, transparent);
+}
+
+.uncovered-header {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--bs-warning-text-emphasis);
+	margin-bottom: var(--space-2);
+}
+
+.uncovered-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.uncovered-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--space-1);
+	background: var(--bs-body-bg);
+	font-size: 0.8rem;
+	font-family: var(--bs-font-monospace);
+	cursor: pointer;
+	transition: border-color 0.15s;
+
+	&:hover {
+		border-color: var(--bs-primary);
+	}
+
+	.uncovered-key {
+		color: var(--brand-text);
+	}
+}
+
 // ── Definitions tab ──
 
 .definitions-toolbar {

@@ -192,10 +192,11 @@ export class WidgetDashboardComponent {
 		const cmp = WIDGET_REGISTRY[componentKey] ?? null;
 		if (!cmp && isDevMode() && !this.warnedKeys.has(componentKey)) {
 			this.warnedKeys.add(componentKey);
-			this.toast.show(
+			// Defer toast — this runs during template rendering where signal writes are forbidden (NG0600)
+			queueMicrotask(() => this.toast.show(
 				`Widget "${componentKey}" has no registry entry. Add it to widgets/widget-registry.ts.`,
 				'warning', 8000,
-			);
+			));
 		}
 		return cmp;
 	}
