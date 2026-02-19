@@ -3,22 +3,28 @@ using TSIC.Contracts.Dtos.JobConfig;
 namespace TSIC.Contracts.Services;
 
 /// <summary>
-/// Service for managing job configuration (SuperUser editor).
+/// Service for managing job configuration (AdminOnly — Directors + SuperUsers).
+/// Role-based field filtering applied at this layer.
 /// </summary>
 public interface IJobConfigService
 {
-    /// <summary>
-    /// Get the full job configuration for the editor.
-    /// </summary>
-    Task<JobConfigDto?> GetConfigAsync(Guid jobId, CancellationToken ct = default);
+    // Single load — returns ALL categories, role-filtered
+    Task<JobConfigFullDto> GetFullConfigAsync(Guid jobId, bool isSuperUser, CancellationToken ct = default);
 
-    /// <summary>
-    /// Get lookup data (JobTypes, Sports, BillingTypes) for the editor dropdowns.
-    /// </summary>
-    Task<JobConfigLookupsDto> GetLookupsAsync(CancellationToken ct = default);
+    // Per-category writes
+    Task UpdateGeneralAsync(Guid jobId, UpdateJobConfigGeneralRequest req, bool isSuperUser, CancellationToken ct = default);
+    Task UpdatePaymentAsync(Guid jobId, UpdateJobConfigPaymentRequest req, bool isSuperUser, CancellationToken ct = default);
+    Task UpdateCommunicationsAsync(Guid jobId, UpdateJobConfigCommunicationsRequest req, CancellationToken ct = default);
+    Task UpdatePlayerAsync(Guid jobId, UpdateJobConfigPlayerRequest req, bool isSuperUser, CancellationToken ct = default);
+    Task UpdateTeamsAsync(Guid jobId, UpdateJobConfigTeamsRequest req, bool isSuperUser, CancellationToken ct = default);
+    Task UpdateCoachesAsync(Guid jobId, UpdateJobConfigCoachesRequest req, CancellationToken ct = default);
+    Task UpdateSchedulingAsync(Guid jobId, UpdateJobConfigSchedulingRequest req, CancellationToken ct = default);
+    Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, CancellationToken ct = default);
 
-    /// <summary>
-    /// Update job configuration. Returns the updated DTO, or null if concurrency conflict.
-    /// </summary>
-    Task<JobConfigDto?> UpdateConfigAsync(Guid jobId, UpdateJobConfigRequest request, string userId, CancellationToken ct = default);
+    // Reference data
+    Task<JobConfigReferenceDataDto> GetReferenceDataAsync(CancellationToken ct = default);
+
+    // Admin charges CRUD (SuperUser only — enforced at controller level)
+    Task<JobAdminChargeDto> AddAdminChargeAsync(Guid jobId, CreateAdminChargeRequest req, CancellationToken ct = default);
+    Task DeleteAdminChargeAsync(Guid jobId, int chargeId, CancellationToken ct = default);
 }

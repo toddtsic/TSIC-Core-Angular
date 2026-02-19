@@ -1,3 +1,4 @@
+using System.Text;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -417,6 +418,185 @@ public class NavEditorService : INavEditorService
         return created;
     }
 
+    public async Task<string> ExportNavSqlAsync(CancellationToken ct = default)
+    {
+        var navs = await _navEditorRepo.GetAllPlatformDefaultsAsync(ct);
+        var sb = new StringBuilder();
+
+        sb.AppendLine("-- ============================================================================");
+        sb.AppendLine("-- Nav Platform Defaults — Export Script");
+        sb.AppendLine($"-- Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+        sb.AppendLine("-- Idempotent: creates schema/tables if needed, clears and reseeds data.");
+        sb.AppendLine("-- Target: naive production system (no prior nav schema required).");
+        sb.AppendLine("-- ============================================================================");
+        sb.AppendLine();
+        sb.AppendLine("SET NOCOUNT ON;");
+        sb.AppendLine();
+
+        // ── 1. Create schema ──
+        sb.AppendLine("-- ── 1. Create [nav] schema if not exists ──");
+        sb.AppendLine();
+        sb.AppendLine("IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'nav')");
+        sb.AppendLine("BEGIN");
+        sb.AppendLine("    EXEC('CREATE SCHEMA [nav] AUTHORIZATION [dbo]');");
+        sb.AppendLine("    PRINT 'Created [nav] schema';");
+        sb.AppendLine("END");
+        sb.AppendLine();
+
+        // ── 2. Create tables ──
+        sb.AppendLine("-- ── 2. Create tables if not exists ──");
+        sb.AppendLine();
+        sb.AppendLine("IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'nav' AND t.name = 'Nav')");
+        sb.AppendLine("BEGIN");
+        sb.AppendLine("    CREATE TABLE [nav].[Nav]");
+        sb.AppendLine("    (");
+        sb.AppendLine("        [NavId]         INT IDENTITY(1,1)       NOT NULL,");
+        sb.AppendLine("        [RoleId]        NVARCHAR(450)           NOT NULL,");
+        sb.AppendLine("        [JobId]         UNIQUEIDENTIFIER        NULL,");
+        sb.AppendLine("        [Active]        BIT                     NOT NULL    DEFAULT 1,");
+        sb.AppendLine("        [Modified]      DATETIME2               NOT NULL    DEFAULT GETDATE(),");
+        sb.AppendLine("        [ModifiedBy]    NVARCHAR(450)           NULL,");
+        sb.AppendLine();
+        sb.AppendLine("        CONSTRAINT [PK_nav_Nav] PRIMARY KEY CLUSTERED ([NavId]),");
+        sb.AppendLine("        CONSTRAINT [FK_nav_Nav_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[AspNetRoles] ([Id]),");
+        sb.AppendLine("        CONSTRAINT [FK_nav_Nav_JobId] FOREIGN KEY ([JobId]) REFERENCES [Jobs].[Jobs] ([JobId]),");
+        sb.AppendLine("        CONSTRAINT [FK_nav_Nav_ModifiedBy] FOREIGN KEY ([ModifiedBy]) REFERENCES [dbo].[AspNetUsers] ([Id])");
+        sb.AppendLine("    );");
+        sb.AppendLine();
+        sb.AppendLine("    CREATE UNIQUE INDEX [UQ_nav_Nav_Role_Job] ON [nav].[Nav] ([RoleId], [JobId]) WHERE [JobId] IS NOT NULL;");
+        sb.AppendLine("    PRINT 'Created table: nav.Nav';");
+        sb.AppendLine("END");
+        sb.AppendLine();
+        sb.AppendLine("IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'nav' AND t.name = 'NavItem')");
+        sb.AppendLine("BEGIN");
+        sb.AppendLine("    CREATE TABLE [nav].[NavItem]");
+        sb.AppendLine("    (");
+        sb.AppendLine("        [NavItemId]         INT IDENTITY(1,1)   NOT NULL,");
+        sb.AppendLine("        [NavId]             INT                 NOT NULL,");
+        sb.AppendLine("        [ParentNavItemId]   INT                 NULL,");
+        sb.AppendLine("        [Active]            BIT                 NOT NULL    DEFAULT 1,");
+        sb.AppendLine("        [SortOrder]         INT                 NOT NULL    DEFAULT 0,");
+        sb.AppendLine("        [Text]              NVARCHAR(200)       NOT NULL,");
+        sb.AppendLine("        [IconName]          NVARCHAR(100)       NULL,");
+        sb.AppendLine("        [RouterLink]        NVARCHAR(500)       NULL,");
+        sb.AppendLine("        [NavigateUrl]       NVARCHAR(500)       NULL,");
+        sb.AppendLine("        [Target]            NVARCHAR(20)        NULL,");
+        sb.AppendLine("        [Modified]          DATETIME2           NOT NULL    DEFAULT GETDATE(),");
+        sb.AppendLine("        [ModifiedBy]        NVARCHAR(450)       NULL,");
+        sb.AppendLine();
+        sb.AppendLine("        CONSTRAINT [PK_nav_NavItem] PRIMARY KEY CLUSTERED ([NavItemId]),");
+        sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_NavId] FOREIGN KEY ([NavId]) REFERENCES [nav].[Nav] ([NavId]) ON DELETE CASCADE,");
+        sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_ParentNavItemId] FOREIGN KEY ([ParentNavItemId]) REFERENCES [nav].[NavItem] ([NavItemId]),");
+        sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_ModifiedBy] FOREIGN KEY ([ModifiedBy]) REFERENCES [dbo].[AspNetUsers] ([Id])");
+        sb.AppendLine("    );");
+        sb.AppendLine("    PRINT 'Created table: nav.NavItem';");
+        sb.AppendLine("END");
+        sb.AppendLine();
+
+        // ── 3. Clear existing data ──
+        sb.AppendLine("-- ── 3. Clear existing platform default data ──");
+        sb.AppendLine();
+        sb.AppendLine("DELETE FROM [nav].[NavItem] WHERE [NavId] IN (SELECT [NavId] FROM [nav].[Nav] WHERE [JobId] IS NULL);");
+        sb.AppendLine("DELETE FROM [nav].[Nav] WHERE [JobId] IS NULL;");
+        sb.AppendLine("PRINT 'Cleared existing platform default navs and items';");
+        sb.AppendLine();
+
+        // ── 4. Insert Nav rows ──
+        if (navs.Count > 0)
+        {
+            sb.AppendLine("-- ── 4. Insert Nav rows ──");
+            sb.AppendLine();
+            sb.AppendLine("SET IDENTITY_INSERT [nav].[Nav] ON;");
+            sb.AppendLine();
+
+            foreach (var nav in navs)
+            {
+                sb.AppendLine($"INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])");
+                sb.AppendLine($"VALUES ({nav.NavId}, '{SqlEscape(nav.RoleId)}', NULL, {(nav.Active ? 1 : 0)}, GETDATE());");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("SET IDENTITY_INSERT [nav].[Nav] OFF;");
+            sb.AppendLine($"PRINT 'Inserted {navs.Count} platform default nav(s)';");
+            sb.AppendLine();
+        }
+
+        // ── 5. Insert NavItem rows (parents first, then children) ──
+        var parentItems = new List<(int NavId, NavEditorNavItemDto Item)>();
+        var childItems = new List<(int NavId, NavEditorNavItemDto Item)>();
+
+        foreach (var nav in navs)
+        {
+            foreach (var item in nav.Items)
+            {
+                parentItems.Add((nav.NavId, item));
+                foreach (var child in item.Children)
+                {
+                    childItems.Add((nav.NavId, child));
+                }
+            }
+        }
+
+        var allItems = parentItems.Concat(childItems).ToList();
+
+        if (allItems.Count > 0)
+        {
+            sb.AppendLine("-- ── 5. Insert NavItem rows (parents first, then children) ──");
+            sb.AppendLine();
+            sb.AppendLine("SET IDENTITY_INSERT [nav].[NavItem] ON;");
+            sb.AppendLine();
+
+            foreach (var (navId, item) in allItems)
+            {
+                var parentCol = item.ParentNavItemId.HasValue
+                    ? item.ParentNavItemId.Value.ToString()
+                    : "NULL";
+                var iconCol = item.IconName != null ? $"N'{SqlEscape(item.IconName)}'" : "NULL";
+                var routerCol = item.RouterLink != null ? $"N'{SqlEscape(item.RouterLink)}'" : "NULL";
+                var urlCol = item.NavigateUrl != null ? $"N'{SqlEscape(item.NavigateUrl)}'" : "NULL";
+                var targetCol = item.Target != null ? $"N'{SqlEscape(item.Target)}'" : "NULL";
+
+                sb.AppendLine($"INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])");
+                sb.AppendLine($"VALUES ({item.NavItemId}, {navId}, {parentCol}, {(item.Active ? 1 : 0)}, {item.SortOrder}, N'{SqlEscape(item.Text)}', {iconCol}, {routerCol}, {urlCol}, {targetCol}, GETDATE());");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("SET IDENTITY_INSERT [nav].[NavItem] OFF;");
+            sb.AppendLine($"PRINT 'Inserted {allItems.Count} nav item(s) ({parentItems.Count} parents, {childItems.Count} children)';");
+            sb.AppendLine();
+        }
+
+        // ── 6. Verification ──
+        sb.AppendLine("-- ── 6. Verification ──");
+        sb.AppendLine();
+        sb.AppendLine("PRINT '';");
+        sb.AppendLine("PRINT '════════════════════════════════════════════';");
+        sb.AppendLine("PRINT ' Nav Defaults Export — Complete';");
+        sb.AppendLine("PRINT '════════════════════════════════════════════';");
+        sb.AppendLine("PRINT '';");
+        sb.AppendLine();
+        sb.AppendLine("SELECT");
+        sb.AppendLine("    r.Name AS [Role],");
+        sb.AppendLine("    n.NavId,");
+        sb.AppendLine("    n.Active AS [NavActive],");
+        sb.AppendLine("    parent.Text AS [Section],");
+        sb.AppendLine("    parent.SortOrder AS [SectionOrder],");
+        sb.AppendLine("    child.Text AS [Item],");
+        sb.AppendLine("    child.SortOrder AS [ItemOrder],");
+        sb.AppendLine("    child.IconName AS [Icon],");
+        sb.AppendLine("    child.RouterLink AS [Route]");
+        sb.AppendLine("FROM [nav].[Nav] n");
+        sb.AppendLine("JOIN [dbo].[AspNetRoles] r ON n.RoleId = r.Id");
+        sb.AppendLine("LEFT JOIN [nav].[NavItem] parent ON parent.NavId = n.NavId AND parent.ParentNavItemId IS NULL");
+        sb.AppendLine("LEFT JOIN [nav].[NavItem] child  ON child.ParentNavItemId = parent.NavItemId");
+        sb.AppendLine("WHERE n.JobId IS NULL");
+        sb.AppendLine("ORDER BY r.Name, parent.SortOrder, child.SortOrder;");
+        sb.AppendLine();
+        sb.AppendLine("SET NOCOUNT OFF;");
+
+        return sb.ToString();
+    }
+
     // ─── Private helpers ────────────────────────────────────────────
 
     /// <summary>
@@ -442,4 +622,7 @@ public class NavEditorService : INavEditorService
 
         return null;
     }
+
+    /// <summary>Escape single quotes for SQL string literals.</summary>
+    private static string SqlEscape(string value) => value.Replace("'", "''");
 }

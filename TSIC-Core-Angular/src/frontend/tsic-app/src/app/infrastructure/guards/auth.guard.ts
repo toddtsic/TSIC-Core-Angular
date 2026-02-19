@@ -10,6 +10,7 @@ import { ToastService } from '@shared-ui/toast.service';
  * 
  * Route data options:
  * - requirePhase2: true - Requires Phase 2 authentication (username + regId + jobPath)
+ * - requireAdmin: true - Requires Admin privileges (SuperUser, Director, or SuperDirector)
  * - requireSuperUser: true - Requires SuperUser privileges (admin features)
  * - allowAnonymous: true - Allows unauthenticated access (for registration flows)
  * - redirectAuthenticated: true - Redirects authenticated users with selected job away (for landing/login pages)
@@ -30,6 +31,7 @@ export const authGuard: CanActivateFn = (route, state) => {
     const requirePhase2 = route.data['requirePhase2'] === true;
     const allowAnonymous = route.data['allowAnonymous'] === true;
     const redirectAuthenticated = route.data['redirectAuthenticated'] === true;
+    const requireAdmin = route.data['requireAdmin'] === true;
     const requireSuperUser = route.data['requireSuperUser'] === true;
 
     // If redirectAuthenticated flag is set, handle redirection logic
@@ -152,6 +154,19 @@ export const authGuard: CanActivateFn = (route, state) => {
     if (requirePhase2 && (!user.regId || !user.jobPath)) {
         const jobPathForRoleSelect = route.paramMap.get('jobPath') || user.jobPath || 'tsic';
         return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
+    }
+
+    // Authenticated - check if Admin is required (SuperUser, Director, or SuperDirector)
+    if (requireAdmin) {
+        if (!authService.isAdmin()) {
+            toastService.show('Access denied. Administrator privileges required.', 'danger');
+            const jobPathForRedirect = user.jobPath || route.paramMap.get('jobPath') || 'tsic';
+            return router.createUrlTree([user.jobPath ? `/${user.jobPath}/home` : `/${jobPathForRedirect}/role-selection`]);
+        }
+        if (!user.jobPath) {
+            const jobPathForRoleSelect = route.paramMap.get('jobPath') || 'tsic';
+            return router.createUrlTree([`/${jobPathForRoleSelect}/role-selection`]);
+        }
     }
 
     // Authenticated - check if SuperUser is required

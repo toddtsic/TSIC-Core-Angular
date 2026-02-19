@@ -1,9 +1,14 @@
 <div class="menu-admin-container">
     <div class="header">
         <h1>Nav Editor</h1>
-        <button class="btn btn-primary" (click)="ensureAllRoleNavs()" [disabled]="isLoading()">
-            <i class="bi bi-plus-circle"></i> Ensure All Role Navs
-        </button>
+        <div class="header-actions">
+            <button class="btn btn-outline-secondary" (click)="exportSql()" [disabled]="isLoading()">
+                <i class="bi bi-download"></i> Export SQL
+            </button>
+            <button class="btn btn-primary" (click)="ensureAllRoleNavs()" [disabled]="isLoading()">
+                <i class="bi bi-plus-circle"></i> Ensure All Role Navs
+            </button>
+        </div>
     </div>
 
     @if (isLoading()) {
@@ -161,4 +166,42 @@
     (saved)="onItemSaved($event)"
     (cancelled)="editDialogOpen.set(false)"
 />
+}
+
+<!-- Export SQL Dialog -->
+@if (exportDialogOpen()) {
+<tsic-dialog [open]="true" size="lg" (requestClose)="exportDialogOpen.set(false)">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Export Nav SQL</h5>
+            <button type="button" class="btn-close" (click)="exportDialogOpen.set(false)"></button>
+        </div>
+        <div class="modal-body">
+            @if (exportLoading()) {
+            <div class="text-center py-4">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Generating...</span>
+                </div>
+                <p class="mt-2 text-muted">Generating SQL script...</p>
+            </div>
+            } @else {
+            <div class="export-sql-container">
+                <pre class="export-sql-pre">{{ exportedSql() }}</pre>
+            </div>
+            }
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="exportDialogOpen.set(false)">Close</button>
+            <button
+                type="button"
+                class="btn btn-primary"
+                (click)="copyToClipboard()"
+                [disabled]="exportLoading() || !exportedSql()"
+            >
+                <i class="bi" [class.bi-clipboard]="!copySuccess()" [class.bi-check-lg]="copySuccess()"></i>
+                {{ copySuccess() ? 'Copied!' : 'Copy to Clipboard' }}
+            </button>
+        </div>
+    </div>
+</tsic-dialog>
 }

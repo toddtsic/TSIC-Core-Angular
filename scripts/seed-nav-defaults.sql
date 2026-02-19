@@ -100,7 +100,13 @@ BEGIN
         UPDATE nav.NavItem SET SortOrder = 2, IconName = 'tags', RouterLink = 'configure/discount-codes', Active = 1
         WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Discount Codes';
 
-    -- (Add more shared sections here as needed)
+    -- Job Configuration  (all admin roles — Director, SuperDirector, SuperUser)
+    IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Job Configuration')
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, SortOrder, Text, IconName, RouterLink, Active)
+        VALUES (@navId, @parentId, 3, 'Job Configuration', 'briefcase', 'admin/job-config', 1);
+    ELSE
+        UPDATE nav.NavItem SET SortOrder = 3, IconName = 'briefcase', RouterLink = 'admin/job-config', Active = 1
+        WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Job Configuration';
 
     FETCH NEXT FROM role_cur INTO @roleId;
 END

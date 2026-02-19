@@ -27,4 +27,3 @@
 - NEVER use absolute routerLinks (`routerLink="/admin/..."`)
 - Always use relative paths so `:jobPath` prefix is preserved
 - Use `../../` to navigate up from nested routes
-- Update `BreadcrumbService` `ROUTE_TITLE_MAP` when adding/changing routes

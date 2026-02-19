@@ -2,12 +2,13 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } 
 import { FormsModule } from '@angular/forms';
 import { NavAdminService } from '../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
 
 @Component({
     selector: 'app-menu-admin',
     standalone: true,
-    imports: [FormsModule, NavItemFormDialogComponent],
+    imports: [FormsModule, NavItemFormDialogComponent, TsicDialogComponent],
     templateUrl: './menu-admin.component.html',
     styleUrl: './menu-admin.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -19,11 +20,17 @@ export class MenuAdminComponent implements OnInit {
     selectedRoleId = signal<string | null>(null);
     expandedItems = signal<Set<number>>(new Set());
 
-    // Dialog state
+    // Edit dialog state
     editDialogOpen = signal(false);
     editNavId = signal(0);
     editParentNavItemId = signal<number | undefined>(undefined);
     editExistingItem = signal<NavEditorNavItemDto | undefined>(undefined);
+
+    // Export dialog state
+    exportDialogOpen = signal(false);
+    exportedSql = signal('');
+    exportLoading = signal(false);
+    copySuccess = signal(false);
 
     // Computed values
     navs = computed(() => this.navAdminService.navs());
@@ -172,6 +179,33 @@ export class MenuAdminComponent implements OnInit {
             orderedItemIds: siblings.map(s => s.navItemId)
         }).subscribe({
             next: () => this.loadNavs()
+        });
+    }
+
+    // ── Export SQL ──
+
+    exportSql(): void {
+        this.exportLoading.set(true);
+        this.exportedSql.set('');
+        this.copySuccess.set(false);
+        this.exportDialogOpen.set(true);
+
+        this.navAdminService.exportSql().subscribe({
+            next: (sql) => {
+                this.exportedSql.set(sql);
+                this.exportLoading.set(false);
+            },
+            error: () => {
+                this.exportedSql.set('-- Error generating SQL export');
+                this.exportLoading.set(false);
+            }
+        });
+    }
+
+    copyToClipboard(): void {
+        navigator.clipboard.writeText(this.exportedSql()).then(() => {
+            this.copySuccess.set(true);
+            setTimeout(() => this.copySuccess.set(false), 2000);
         });
     }
 }

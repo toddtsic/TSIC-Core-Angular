@@ -200,4 +200,13 @@ public class NavController : ControllerBase
         var created = await _navEditorService.EnsureAllRoleNavsAsync(userId);
         return Ok(new { created });
     }
+
+    /// <summary>Export all platform default navs as an idempotent SQL deployment script.</summary>
+    [HttpGet("editor/export-sql")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<object>> ExportNavSql()
+    {
+        var sql = await _navEditorService.ExportNavSqlAsync();
+        return Ok(new { sql });
+    }
 }

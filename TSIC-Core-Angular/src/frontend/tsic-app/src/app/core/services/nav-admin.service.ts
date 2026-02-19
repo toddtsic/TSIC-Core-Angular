@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
     NavEditorNavDto,
@@ -99,6 +99,15 @@ export class NavAdminService {
                     this.loadNavs().subscribe();
                 }
             })
+        );
+    }
+
+    /**
+     * Export all platform default navs as an idempotent SQL script.
+     */
+    exportSql(): Observable<string> {
+        return this.http.get<{ sql: string }>(`${this.apiUrl}/export-sql`).pipe(
+            map(res => res.sql)
         );
     }
 }

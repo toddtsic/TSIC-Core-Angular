@@ -95,6 +95,7 @@ builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
+builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();

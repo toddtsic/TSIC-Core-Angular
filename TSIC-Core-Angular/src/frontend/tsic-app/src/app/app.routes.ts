@@ -73,38 +73,53 @@ export const routes: Routes = [
 				path: 'brand-preview',
 				loadComponent: () => import('./views/home/job-home/brand-preview/brand-preview.component').then(m => m.BrandPreviewComponent)
 			},
-			// Admin-only routes for ANY job (SuperUser required)
+			// Admin routes — parent requires Admin (Director, SuperDirector, SuperUser)
+			// Children that are SuperUser-only get explicit requireSuperUser data
 			{
 				path: 'admin',
 				canActivate: [authGuard],
-				data: { requireSuperUser: true },
+				data: { requireAdmin: true },
 				children: [
 					{
 						path: 'profile-migration',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
 					},
 					{
 						path: 'profile-editor',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
 					},
 					{
 						path: 'theme',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/theme-editor/theme-editor.component').then(m => m.ThemeEditorComponent)
 					},
 					{
 						path: 'widget-editor',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
 					},
 					{
 						path: 'nav-editor',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/menu-admin/menu-admin.component').then(m => m.MenuAdminComponent)
 					},
 					{
 						path: 'job-clone',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/job-clone/job-clone.component').then(m => m.JobCloneComponent)
 					},
 					{
 						path: 'ddl-options',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/ddl-options/ddl-options.component').then(m => m.DdlOptionsComponent)
 					},
 					{

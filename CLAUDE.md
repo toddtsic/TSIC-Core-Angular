@@ -30,7 +30,6 @@ Controller → Service → Repository → SqlDbContext
 ## Routing
 
 - NEVER use absolute routerLinks (`routerLink="/admin/..."`) — always relative, so `:jobPath` is preserved
-- When adding/changing routes, update `BreadcrumbService` `ROUTE_TITLE_MAP`
 
 ## Build & Workflow
 

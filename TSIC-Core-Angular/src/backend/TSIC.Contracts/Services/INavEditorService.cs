@@ -43,4 +43,10 @@ public interface INavEditorService
     /// Returns the count of newly created navs.
     /// </summary>
     Task<int> EnsureAllRoleNavsAsync(string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Export all platform default navs as an idempotent SQL script
+    /// that creates schema/tables, clears data, and reseeds from current state.
+    /// </summary>
+    Task<string> ExportNavSqlAsync(CancellationToken ct = default);
 }
