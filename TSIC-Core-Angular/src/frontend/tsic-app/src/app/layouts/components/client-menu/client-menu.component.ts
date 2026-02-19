@@ -142,8 +142,9 @@ export class ClientMenuComponent {
     isRouteImplemented(item: NavItemDto): boolean {
         if (item.navigateUrl) return true;
         if (item.routerLink) {
-            if (this.knownRoutes.has(item.routerLink)) return true;
-            return this.wildcardPrefixes.some(prefix => item.routerLink!.startsWith(prefix + '/'));
+            const link = item.routerLink.replace(/^\/+/, '').toLowerCase();
+            if (this.knownRoutes.has(link)) return true;
+            return this.wildcardPrefixes.some(prefix => link.startsWith(prefix + '/'));
         }
         // Parent headers with no link are always shown
         return true;

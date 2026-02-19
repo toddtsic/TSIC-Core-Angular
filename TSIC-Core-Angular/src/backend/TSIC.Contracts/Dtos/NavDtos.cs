@@ -158,6 +158,25 @@ public record ImportLegacyMenuRequest
 }
 
 /// <summary>
+/// Cascade a route change to all matching nav items across platform default navs.
+/// Matches by text + parent text (same tree position) across all roles.
+/// </summary>
+public record CascadeRouteRequest
+{
+    /// <summary>The primary item that was just edited.</summary>
+    public required int NavItemId { get; init; }
+
+    /// <summary>New RouterLink value (null clears the route).</summary>
+    public string? RouterLink { get; init; }
+
+    /// <summary>New NavigateUrl value.</summary>
+    public string? NavigateUrl { get; init; }
+
+    /// <summary>New Target value.</summary>
+    public string? Target { get; init; }
+}
+
+/// <summary>
 /// Toggle the Active state of a nav.
 /// </summary>
 public record ToggleNavActiveRequest

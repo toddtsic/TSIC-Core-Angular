@@ -33,7 +33,7 @@
             <select id="roleSelect" class="form-select" [value]="selectedRoleId() ?? ''"
                 (change)="onRoleChange($any($event.target).value)">
                 @for (nav of navs(); track nav.navId) {
-                <option [value]="nav.roleId">
+                <option [value]="nav.roleId" [selected]="nav.roleId === selectedRoleId()">
                     {{ nav.roleName }}
                     @if (!nav.active) { <span class="text-muted">(Inactive)</span> }
                 </option>
@@ -74,7 +74,7 @@
                 @for (parentItem of nav.items; track parentItem.navItemId) {
                 <div class="menu-item-group" [class.inactive]="!parentItem.active">
                     <!-- Parent Item -->
-                    <div class="menu-item parent-item">
+                    <div class="menu-item parent-item" (dblclick)="editItem(parentItem)">
                         <div class="item-content">
                             <button class="expand-toggle" (click)="toggleItemExpanded(parentItem.navItemId)"
                                 [class.expanded]="isItemExpanded(parentItem.navItemId)">
@@ -115,7 +115,8 @@
                     {
                     <div class="child-items">
                         @for (childItem of parentItem.children; track childItem.navItemId) {
-                        <div class="menu-item child-item" [class.inactive]="!childItem.active">
+                        <div class="menu-item child-item" [class.inactive]="!childItem.active"
+                            (dblclick)="editItem(childItem)">
                             <div class="item-content">
                                 @if (childItem.iconName) {
                                 <i class="item-icon bi bi-{{ childItem.iconName }}"></i>

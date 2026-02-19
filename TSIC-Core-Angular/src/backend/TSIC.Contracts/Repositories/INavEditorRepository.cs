@@ -60,6 +60,16 @@ public interface INavEditorRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    // ─── Cascade ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Find all platform-default nav items with the same Text and same parent Text
+    /// as the given item, excluding the item itself. Returns tracked entities for update.
+    /// </summary>
+    Task<List<NavItem>> GetMatchingItemsAcrossDefaultNavsAsync(
+        int navItemId,
+        CancellationToken cancellationToken = default);
+
     // ─── Mutations ──────────────────────────────────────────────────
 
     /// <summary>Add a new nav to the context.</summary>
