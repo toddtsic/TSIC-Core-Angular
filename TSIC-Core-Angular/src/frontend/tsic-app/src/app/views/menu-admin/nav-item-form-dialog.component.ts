@@ -17,7 +17,7 @@ export interface NavItemFormResult {
     <tsic-dialog [open]="true" size="md" (requestClose)="cancel()">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">{{ isEditMode() ? 'Edit' : 'Create' }} Nav Item</h5>
+          <h5 class="modal-title">{{ isEditMode() ? 'Edit' : 'Create' }} {{ isParentItem ? 'Parent' : 'Nav' }} Item</h5>
           <button type="button" class="btn-close" (click)="cancel()"></button>
         </div>
 
@@ -64,8 +64,22 @@ export interface NavItemFormResult {
               <small class="form-text text-muted">
                 Browse icons at <a href="https://icons.getbootstrap.com/" target="_blank" rel="noopener">Bootstrap Icons</a>
               </small>
+              <div class="icon-picker">
+                @for (icon of commonIcons; track icon) {
+                  <button
+                    type="button"
+                    class="icon-pick-btn"
+                    [class.active]="form.get('iconName')?.value === icon"
+                    (click)="pickIcon(icon)"
+                    [title]="icon"
+                  >
+                    <i class="bi bi-{{ icon }}"></i>
+                  </button>
+                }
+              </div>
             </div>
 
+            @if (!isParentItem) {
             <!-- Navigation Type Selection -->
             <div class="mb-3">
               <label class="form-label">Navigation Type</label>
@@ -137,6 +151,7 @@ export interface NavItemFormResult {
                 </select>
               </div>
             }
+            }
           </form>
         </div>
 
@@ -154,6 +169,37 @@ export interface NavItemFormResult {
       </div>
     </tsic-dialog>
   `,
+    styles: [`
+        .icon-picker {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-1);
+            margin-top: var(--space-2);
+        }
+        .icon-pick-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            cursor: pointer;
+            font-size: var(--font-size-lg);
+            transition: all 0.15s ease;
+        }
+        .icon-pick-btn:hover {
+            border-color: var(--bs-primary);
+            color: var(--bs-primary);
+        }
+        .icon-pick-btn.active {
+            border-color: var(--bs-primary);
+            background: rgba(var(--bs-primary-rgb), 0.1);
+            color: var(--bs-primary);
+        }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NavItemFormDialogComponent implements OnInit {
@@ -169,11 +215,23 @@ export class NavItemFormDialogComponent implements OnInit {
     form!: FormGroup;
     navType = 'router';
     isEditMode = signal(false);
+    isParentItem = false;
+
+    readonly commonIcons = [
+        'search', 'gear', 'house', 'person', 'people', 'clipboard', 'calendar',
+        'cash-stack', 'cart', 'envelope', 'shield', 'trophy', 'bar-chart',
+        'list', 'pencil', 'folder', 'megaphone', 'journal', 'tools', 'sliders',
+        'grid', 'tags', 'receipt', 'credit-card', 'map', 'flag',
+    ];
 
     ngOnInit(): void {
         this.isEditMode.set(!!this.existingItem);
+        this.isParentItem = this.parentNavItemId == null && !this.existingItem?.parentNavItemId;
         this.initializeForm();
         this.detectNavigationType();
+        if (this.isParentItem) {
+            this.navType = 'none';
+        }
     }
 
     private initializeForm(): void {
@@ -229,6 +287,10 @@ export class NavItemFormDialogComponent implements OnInit {
                 } as CreateNavItemRequest
             });
         }
+    }
+
+    pickIcon(icon: string): void {
+        this.form.get('iconName')?.setValue(icon);
     }
 
     cancel(): void {
