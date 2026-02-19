@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
+import { Route, Router } from '@angular/router';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
 
@@ -120,13 +121,22 @@ export interface NavItemFormResult {
             @if (navType === 'router') {
               <div class="mb-3">
                 <label for="routerLink" class="form-label">Router Link</label>
-                <input
-                  type="text"
+                <select
                   id="routerLink"
-                  class="form-control"
+                  class="form-select"
                   formControlName="routerLink"
-                  placeholder="e.g., admin/job-config"
                 >
+                  <option value="">-- Select a route --</option>
+                  @for (route of knownRoutes; track route) {
+                    <option [value]="route">{{ route }}</option>
+                  }
+                </select>
+                @if (form.get('routerLink')?.value && !knownRoutes.includes(form.get('routerLink')?.value)) {
+                  <small class="text-warning mt-1 d-block">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Route "{{ form.get('routerLink')?.value }}" is not in the known routes manifest.
+                  </small>
+                }
               </div>
             }
 
@@ -204,6 +214,7 @@ export interface NavItemFormResult {
 })
 export class NavItemFormDialogComponent implements OnInit {
     private readonly fb = inject(FormBuilder);
+    private readonly router = inject(Router);
 
     @Input() navId!: number;
     @Input() parentNavItemId?: number;
@@ -223,6 +234,8 @@ export class NavItemFormDialogComponent implements OnInit {
         'list', 'pencil', 'folder', 'megaphone', 'journal', 'tools', 'sliders',
         'grid', 'tags', 'receipt', 'credit-card', 'map', 'flag',
     ];
+
+    readonly knownRoutes: string[] = this.buildKnownRoutes();
 
     ngOnInit(): void {
         this.isEditMode.set(!!this.existingItem);
@@ -295,5 +308,28 @@ export class NavItemFormDialogComponent implements OnInit {
 
     cancel(): void {
         this.cancelled.emit();
+    }
+
+    private buildKnownRoutes(): string[] {
+        const paths = new Set<string>();
+        const jobPathRoute = this.router.config.find(r => r.path === ':jobPath');
+        if (jobPathRoute?.children) {
+            this.collectPaths(jobPathRoute.children, '', paths);
+        }
+        return Array.from(paths).sort();
+    }
+
+    private collectPaths(routes: Route[], prefix: string, paths: Set<string>): void {
+        for (const route of routes) {
+            if (!route.path && route.path !== '') continue;
+            if (route.path.includes(':')) continue; // skip parameterized routes
+            const fullPath = prefix ? `${prefix}/${route.path}` : route.path;
+            if (fullPath) {
+                paths.add(fullPath);
+            }
+            if (route.children) {
+                this.collectPaths(route.children, fullPath, paths);
+            }
+        }
     }
 }

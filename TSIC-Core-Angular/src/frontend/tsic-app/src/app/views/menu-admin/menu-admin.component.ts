@@ -4,6 +4,7 @@ import { switchMap } from 'rxjs';
 import { NavAdminService } from '../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ToastService } from '@shared-ui/toast.service';
 import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
 
 @Component({
@@ -16,6 +17,7 @@ import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, Update
 })
 export class MenuAdminComponent implements OnInit {
     private readonly navAdminService = inject(NavAdminService);
+    private readonly toast = inject(ToastService);
     readonly isDevMode = isDevMode();
 
     // Component state
@@ -126,11 +128,13 @@ export class MenuAdminComponent implements OnInit {
 
         if (result.type === 'create') {
             this.navAdminService.createItem(result.data as CreateNavItemRequest).subscribe({
-                next: () => this.loadNavs()
+                next: () => { this.toast.show('Nav item created.', 'success'); this.loadNavs(); },
+                error: () => this.toast.show('Failed to create nav item.', 'danger')
             });
         } else {
             this.navAdminService.updateItem(result.navItemId!, result.data as UpdateNavItemRequest).subscribe({
-                next: () => this.loadNavs()
+                next: () => { this.toast.show('Nav item updated.', 'success'); this.loadNavs(); },
+                error: () => this.toast.show('Failed to update nav item.', 'danger')
             });
         }
     }
@@ -140,7 +144,8 @@ export class MenuAdminComponent implements OnInit {
         if (!confirmDelete) return;
 
         this.navAdminService.deleteItem(item.navItemId).subscribe({
-            next: () => this.loadNavs()
+            next: () => { this.toast.show('Nav item deleted.', 'success'); this.loadNavs(); },
+            error: () => this.toast.show('Failed to delete nav item.', 'danger')
         });
     }
 
