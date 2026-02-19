@@ -42,8 +42,9 @@
                     <div class="hero-bg" [style.background-image]="'url(' + heroBannerBgUrl() + ')'"></div>
                 }
                 <div class="hero-content">
-                    @if (heroLogoUrl()) {
-                        <img class="hero-logo" [src]="heroLogoUrl()" alt="" />
+                    @if (heroLogoUrl() && heroLogoValid()) {
+                        <img class="hero-logo" [src]="heroLogoUrl()" alt=""
+                            (load)="onHeroLogoLoad($event)" (error)="onHeroLogoError()" />
                     }
                     <div class="hero-text">
                         <h1 class="hero-job-name">{{ jobName() }}</h1>

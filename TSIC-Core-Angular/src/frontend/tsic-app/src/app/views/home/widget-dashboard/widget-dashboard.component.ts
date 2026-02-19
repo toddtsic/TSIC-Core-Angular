@@ -84,6 +84,18 @@ export class WidgetDashboardComponent {
 
 	readonly heroHasBanner = computed(() => !!this.heroBannerBgUrl());
 
+	/** Tracks whether the hero overlay logo loaded as a real image (not a tiny placeholder) */
+	readonly heroLogoValid = signal(true);
+
+	onHeroLogoLoad(event: Event) {
+		const img = event.target as HTMLImageElement;
+		this.heroLogoValid.set(img.naturalWidth >= 150 && img.naturalHeight >= 150);
+	}
+
+	onHeroLogoError() {
+		this.heroLogoValid.set(false);
+	}
+
 	readonly isPublic = computed(() => this.mode() === 'public');
 
 	/** Resolved job path — from input (public) or JWT/route (authenticated) */
