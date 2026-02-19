@@ -22,13 +22,16 @@
                     <img src="images/tsic-notext-logo.png" alt="TSIC" class="mobile-logo" />
                 </button>
 
-                <!-- Job Logo -->
+                <!-- Job Logo — click navigates to role landing page -->
                 @if (jobLogoPath()) {
-                <div class="job-logo-box logo-box d-none d-md-block">
+                <div class="job-logo-box logo-box d-none d-md-block" role="button" tabindex="0"
+                    (click)="goHome()" (keydown.enter)="goHome()" title="Go to home page"
+                    style="cursor: pointer;">
                     <img [src]="jobLogoPath()" alt="Job Logo" class="job-logo" />
                 </div>
 
-                <button type="button" class="btn btn-sm btn-outline-secondary p-2 d-md-none">
+                <button type="button" class="btn btn-sm btn-outline-secondary p-2 d-md-none"
+                    (click)="goHome()" title="Go to home page">
                     <img [src]="jobLogoPath()" alt="Job Logo" class="mobile-logo" />
                 </button>
                 }
@@ -70,6 +73,13 @@
                     aria-label="Change palette" title="Change palette">
                     <i class="bi bi-palette"></i>
                 </button>
+                @if (isAdmin()) {
+                <button type="button" class="header-action-btn"
+                    (click)="openDashboardCustomize()"
+                    aria-label="Customize dashboard" title="Customize dashboard">
+                    <i class="bi bi-sliders"></i>
+                </button>
+                }
 
                 @if (mobilePaletteOpen()) {
                 <div class="user-menu-backdrop" (click)="closeMobilePalette()"></div>
@@ -150,6 +160,14 @@
                             (click)="switchRole()">
                             <i class="bi bi-people-fill"></i>
                             <span>Switch Role</span>
+                        </button>
+                        }
+
+                        @if (isAdmin()) {
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="openDashboardCustomize()">
+                            <i class="bi bi-sliders"></i>
+                            <span>Customize Dashboard</span>
                         </button>
                         }
 
