@@ -43,7 +43,7 @@ export class TeamsTabComponent {
       this.bUseWaitlists.set(t.bUseWaitlists);
       this.bShowTeamNameOnlyInSchedules.set(t.bShowTeamNameOnlyInSchedules);
       this.bOfferTeamRegsaverInsurance.set(t.bOfferTeamRegsaverInsurance ?? null);
-    }, { allowSignalWrites: true });
+    });
   }
 
   onFieldChange(): void { this.svc.markDirty('teams'); }

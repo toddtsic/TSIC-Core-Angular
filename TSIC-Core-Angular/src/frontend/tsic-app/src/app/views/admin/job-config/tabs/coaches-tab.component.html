@@ -33,33 +33,48 @@
       <div class="row g-3">
         <div class="col-12">
           <label class="form-label">Confirmation Email</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="adultRegConfirmationEmail()"
-            (ngModelChange)="adultRegConfirmationEmail.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="adultRegConfirmationEmail()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('adultRegConfirmationEmail', $event)">
+          </ejs-richtexteditor>
         </div>
         <div class="col-12">
           <label class="form-label">Confirmation On-Screen</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="adultRegConfirmationOnScreen()"
-            (ngModelChange)="adultRegConfirmationOnScreen.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="adultRegConfirmationOnScreen()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('adultRegConfirmationOnScreen', $event)">
+          </ejs-richtexteditor>
         </div>
         <div class="col-12">
           <label class="form-label">Refund Policy</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="adultRegRefundPolicy()"
-            (ngModelChange)="adultRegRefundPolicy.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="adultRegRefundPolicy()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('adultRegRefundPolicy', $event)">
+          </ejs-richtexteditor>
         </div>
         <div class="col-12">
           <label class="form-label">Release of Liability</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="adultRegReleaseOfLiability()"
-            (ngModelChange)="adultRegReleaseOfLiability.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="adultRegReleaseOfLiability()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('adultRegReleaseOfLiability', $event)">
+          </ejs-richtexteditor>
         </div>
         <div class="col-12">
           <label class="form-label">Code of Conduct</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="adultRegCodeOfConduct()"
-            (ngModelChange)="adultRegCodeOfConduct.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="adultRegCodeOfConduct()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('adultRegCodeOfConduct', $event)">
+          </ejs-richtexteditor>
         </div>
       </div>
     </div>
@@ -69,15 +84,21 @@
       <div class="row g-3">
         <div class="col-12">
           <label class="form-label">Referee Confirmation Email</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="refereeRegConfirmationEmail()"
-            (ngModelChange)="refereeRegConfirmationEmail.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="refereeRegConfirmationEmail()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('refereeRegConfirmationEmail', $event)">
+          </ejs-richtexteditor>
         </div>
         <div class="col-12">
           <label class="form-label">Referee Confirmation On-Screen</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="refereeRegConfirmationOnScreen()"
-            (ngModelChange)="refereeRegConfirmationOnScreen.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="refereeRegConfirmationOnScreen()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('refereeRegConfirmationOnScreen', $event)">
+          </ejs-richtexteditor>
         </div>
       </div>
     </div>
@@ -87,15 +108,21 @@
       <div class="row g-3">
         <div class="col-12">
           <label class="form-label">Recruiter Confirmation Email</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="recruiterRegConfirmationEmail()"
-            (ngModelChange)="recruiterRegConfirmationEmail.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="recruiterRegConfirmationEmail()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('recruiterRegConfirmationEmail', $event)">
+          </ejs-richtexteditor>
         </div>
         <div class="col-12">
           <label class="form-label">Recruiter Confirmation On-Screen</label>
-          <textarea class="form-control" rows="3"
-            [ngModel]="recruiterRegConfirmationOnScreen()"
-            (ngModelChange)="recruiterRegConfirmationOnScreen.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="recruiterRegConfirmationOnScreen()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('recruiterRegConfirmationOnScreen', $event)">
+          </ejs-richtexteditor>
         </div>
       </div>
     </div>

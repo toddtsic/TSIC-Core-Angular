@@ -2,6 +2,7 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { environment } from '@environments/environment';
 import type {
   JobConfigFullDto,
   JobConfigReferenceDataDto,
@@ -34,7 +35,7 @@ export class JobConfigService {
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
-  private readonly baseUrl = '/api/job-config';
+  private readonly baseUrl = `${environment.apiUrl}/job-config`;
 
   // ── State ─────────────────────────────────────────────
 

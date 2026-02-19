@@ -7,6 +7,9 @@ import { BulkCodeModalComponent } from './components/bulk-code-modal.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { DiscountCodeDto, BatchUpdateStatusRequest } from '../../../core/api';
 
+type SortColumn = 'codeName' | 'discountType' | 'amount' | 'usageCount' | 'startDate' | 'endDate' | 'isActive';
+type SortDirection = 'asc' | 'desc';
+
 @Component({
   selector: 'app-discount-codes',
   standalone: true,
@@ -21,9 +24,12 @@ export class DiscountCodesComponent implements OnInit {
 
   // State signals
   codes = signal<DiscountCodeDto[]>([]);
-  selectedIds = signal<Set<number>>(new Set());
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
+
+  // Sort state
+  sortColumn = signal<SortColumn>('codeName');
+  sortDirection = signal<SortDirection>('asc');
 
   // Modal state
   showAddModal = signal(false);
@@ -33,17 +39,42 @@ export class DiscountCodesComponent implements OnInit {
   editTarget = signal<DiscountCodeDto | null>(null);
   deleteTarget = signal<DiscountCodeDto | null>(null);
 
-  // Computed properties
-  hasSelection = computed(() => this.selectedIds().size > 0);
-  selectedCount = computed(() => this.selectedIds().size);
-  hasUsedCodesSelected = computed(() => {
-    const selected = this.selectedIds();
-    return this.codes().some(code => selected.has(code.ai) && code.usageCount > 0);
-  });
-  allSelectableSelected = computed(() => {
-    const codes = this.codes();
-    const selected = this.selectedIds();
-    return codes.length > 0 && codes.every(code => selected.has(code.ai));
+  // Sorted codes
+  sortedCodes = computed(() => {
+    const list = [...this.codes()];
+    const col = this.sortColumn();
+    const dir = this.sortDirection();
+    const mult = dir === 'asc' ? 1 : -1;
+
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (col) {
+        case 'codeName':
+          cmp = a.codeName.localeCompare(b.codeName);
+          break;
+        case 'discountType':
+          cmp = a.discountType.localeCompare(b.discountType);
+          break;
+        case 'amount':
+          cmp = a.amount - b.amount;
+          break;
+        case 'usageCount':
+          cmp = a.usageCount - b.usageCount;
+          break;
+        case 'startDate':
+          cmp = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+          break;
+        case 'endDate':
+          cmp = new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+          break;
+        case 'isActive':
+          cmp = (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1;
+          break;
+      }
+      return cmp * mult;
+    });
+
+    return list;
   });
 
   ngOnInit(): void {
@@ -66,28 +97,19 @@ export class DiscountCodesComponent implements OnInit {
     });
   }
 
-  // Selection methods
-  toggleSelect(code: DiscountCodeDto): void {
-    const selected = new Set(this.selectedIds());
-    if (selected.has(code.ai)) {
-      selected.delete(code.ai);
+  // Sorting
+  toggleSort(column: SortColumn): void {
+    if (this.sortColumn() === column) {
+      this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
     } else {
-      selected.add(code.ai);
-    }
-    this.selectedIds.set(selected);
-  }
-
-  toggleSelectAll(): void {
-    if (this.allSelectableSelected()) {
-      this.selectedIds.set(new Set());
-    } else {
-      const allIds = this.codes().map(c => c.ai);
-      this.selectedIds.set(new Set(allIds));
+      this.sortColumn.set(column);
+      this.sortDirection.set('asc');
     }
   }
 
-  isSelected(code: DiscountCodeDto): boolean {
-    return this.selectedIds().has(code.ai);
+  getSortIcon(column: SortColumn): string {
+    if (this.sortColumn() !== column) return 'bi-chevron-expand';
+    return this.sortDirection() === 'asc' ? 'bi-sort-up' : 'bi-sort-down';
   }
 
   // Modal actions
@@ -138,27 +160,20 @@ export class DiscountCodesComponent implements OnInit {
     this.loadDiscountCodes();
   }
 
-  // Batch operations
-  openBatchConfirm(action: 'activate' | 'inactivate' | 'delete'): void {
-    const count = this.selectedCount();
-    const selected = Array.from(this.selectedIds());
-
-    if (action === 'delete') {
-      if (this.hasUsedCodesSelected()) {
-        this.toastService.show('Cannot delete codes that have been used', 'danger');
-        return;
-      }
-      // Show confirmation for batch delete
-      if (confirm(`Delete ${count} discount code(s)? This cannot be undone.`)) {
-        this.batchDelete(selected);
-      }
-    } else {
-      const isActive = action === 'activate';
-      this.batchUpdateStatus(selected, isActive);
-    }
+  // Bulk activate / deactivate all
+  activateAll(): void {
+    const allIds = this.codes().map(c => c.ai);
+    if (allIds.length === 0) return;
+    this.batchUpdateStatus(allIds, true);
   }
 
-  batchUpdateStatus(codeIds: number[], isActive: boolean): void {
+  deactivateAll(): void {
+    const allIds = this.codes().map(c => c.ai);
+    if (allIds.length === 0) return;
+    this.batchUpdateStatus(allIds, false);
+  }
+
+  private batchUpdateStatus(codeIds: number[], isActive: boolean): void {
     const request: BatchUpdateStatusRequest = {
       codeIds,
       isActive
@@ -167,45 +182,12 @@ export class DiscountCodesComponent implements OnInit {
     this.discountCodeService.batchUpdateStatus(request).subscribe({
       next: (result) => {
         this.toastService.show(`${result.updatedCount} code(s) ${isActive ? 'activated' : 'deactivated'}`, 'success');
-        this.selectedIds.set(new Set());
         this.loadDiscountCodes();
       },
       error: (error) => {
         this.toastService.show(error.error?.message || 'Batch update failed', 'danger');
       }
     });
-  }
-
-  batchDelete(codeIds: number[]): void {
-    let deleteCount = 0;
-    let errorCount = 0;
-
-    codeIds.forEach(codeId => {
-      this.discountCodeService.deleteDiscountCode(codeId).subscribe({
-        next: () => {
-          deleteCount++;
-          if (deleteCount + errorCount === codeIds.length) {
-            this.finishBatchDelete(deleteCount, errorCount);
-          }
-        },
-        error: () => {
-          errorCount++;
-          if (deleteCount + errorCount === codeIds.length) {
-            this.finishBatchDelete(deleteCount, errorCount);
-          }
-        }
-      });
-    });
-  }
-
-  finishBatchDelete(deleteCount: number, errorCount: number): void {
-    if (errorCount === 0) {
-      this.toastService.show(`${deleteCount} code(s) deleted`, 'success');
-    } else {
-      this.toastService.show(`${deleteCount} deleted, ${errorCount} failed`, 'warning');
-    }
-    this.selectedIds.set(new Set());
-    this.loadDiscountCodes();
   }
 
   // UI helpers
@@ -218,29 +200,28 @@ export class DiscountCodesComponent implements OnInit {
   }
 
   getUsageProgressColor(code: DiscountCodeDto): string {
-    const usageCount = code.usageCount;
-    if (usageCount === 0) return 'bg-secondary';
+    if (code.usageCount === 0) return 'bg-secondary';
     return 'bg-primary';
   }
 
   getExpirationChipClass(code: DiscountCodeDto): string {
     if (code.isExpired) return 'bg-danger-subtle text-danger-emphasis';
-    
+
     const now = new Date();
     const endDate = new Date(code.endDate);
     const daysUntilExpiration = Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysUntilExpiration < 7) return 'bg-warning-subtle text-warning-emphasis';
     return 'bg-success-subtle text-success-emphasis';
   }
 
   getExpirationText(code: DiscountCodeDto): string {
     if (code.isExpired) return 'Expired';
-    
+
     const now = new Date();
     const endDate = new Date(code.endDate);
     const daysUntilExpiration = Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysUntilExpiration < 7) return `${daysUntilExpiration}d left`;
     return 'Active';
   }

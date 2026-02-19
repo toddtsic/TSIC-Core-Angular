@@ -33,7 +33,7 @@ export class CommunicationsTabComponent {
       this.rescheduleemaillist.set(c.rescheduleemaillist);
       this.alwayscopyemaillist.set(c.alwayscopyemaillist);
       this.bDisallowCcplayerConfirmations.set(c.bDisallowCcplayerConfirmations);
-    }, { allowSignalWrites: true });
+    });
   }
 
   onFieldChange(): void { this.svc.markDirty('communications'); }

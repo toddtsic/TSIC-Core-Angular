@@ -1,18 +1,23 @@
 import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
+import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
 import type { UpdateJobConfigMobileStoreRequest } from '@core/api';
 
 @Component({
   selector: 'app-mobile-store-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RichTextEditorModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './mobile-store-tab.component.html',
 })
 export class MobileStoreTabComponent {
   protected readonly svc = inject(JobConfigService);
+
+  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   bEnableTsicteams = signal<boolean | null>(null);
   bEnableMobileRsvp = signal<boolean | null>(null);
@@ -49,10 +54,16 @@ export class MobileStoreTabComponent {
       this.storePickupDetails.set(m.storePickupDetails ?? null);
       this.storeSalesTax.set(m.storeSalesTax);
       this.storeTsicrate.set(m.storeTsicrate);
-    }, { allowSignalWrites: true });
+    });
   }
 
   onFieldChange(): void { this.svc.markDirty('mobileStore'); }
+
+  onRteChange(field: string, event: any): void {
+    const sig = (this as any)[field];
+    if (sig?.set) sig.set(event.value ?? '');
+    this.onFieldChange();
+  }
 
   save(): void {
     const req: UpdateJobConfigMobileStoreRequest = {

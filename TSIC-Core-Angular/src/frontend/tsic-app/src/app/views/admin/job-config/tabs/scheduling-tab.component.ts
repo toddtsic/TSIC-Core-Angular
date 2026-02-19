@@ -46,7 +46,7 @@ export class SchedulingTabComponent {
         this.quarterTimeMinutes.set(s.gameClock.quarterTimeMinutes);
         this.utcOffsetHours.set(s.gameClock.utcOffsetHours);
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   onFieldChange(): void { this.svc.markDirty('scheduling'); }

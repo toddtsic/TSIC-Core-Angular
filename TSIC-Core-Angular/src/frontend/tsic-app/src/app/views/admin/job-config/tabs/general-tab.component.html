@@ -47,12 +47,12 @@
         </div>
         <div class="col-12">
           <label class="form-label">Description</label>
-          <textarea
-            class="form-control"
-            rows="3"
-            [ngModel]="jobDescription()"
-            (ngModelChange)="jobDescription.set($event); onFieldChange()">
-          </textarea>
+          <ejs-richtexteditor
+            [value]="jobDescription()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('jobDescription', $event)">
+          </ejs-richtexteditor>
         </div>
         <div class="col-md-6">
           <label class="form-label">Tagline</label>

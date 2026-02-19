@@ -141,9 +141,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Load nav when jobPath changes AND user is authenticated
     jobPath$.subscribe(jobPath => {
       const user = this.auth.currentUser();
-      console.log('[NAV DEBUG] jobPath$:', jobPath, 'user:', !!user, user?.role);
       if (jobPath && jobPath !== 'tsic' && user) {
-        console.log('[NAV DEBUG] calling loadNav()');
         this.jobService.loadNav();
       } else {
         this.jobService.clearNav();

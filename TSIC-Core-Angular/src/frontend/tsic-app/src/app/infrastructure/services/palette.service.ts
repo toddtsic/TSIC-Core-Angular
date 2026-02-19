@@ -180,8 +180,42 @@ export class PaletteService {
                 : '0, 0, 0';
         };
 
-        // Colors apply in light mode only — dark mode has its own tuned accent values.
-        // Surfaces/text also light-only so dark surfaces are preserved.
+        /** Lighten a colour for dark-background readability (L → 70 %, S ≤ 50 %). */
+        const forDark = (hex: string): string => {
+            const rr = parseInt(hex.slice(1, 3), 16) / 255;
+            const gg = parseInt(hex.slice(3, 5), 16) / 255;
+            const bb = parseInt(hex.slice(5, 7), 16) / 255;
+            const mx = Math.max(rr, gg, bb), mn = Math.min(rr, gg, bb);
+            let h = 0, s = 0;
+            if (mx !== mn) {
+                const d = mx - mn;
+                const l = (mx + mn) / 2;
+                s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+                if (mx === rr) h = ((gg - bb) / d + (gg < bb ? 6 : 0)) / 6;
+                else if (mx === gg) h = ((bb - rr) / d + 2) / 6;
+                else h = ((rr - gg) / d + 4) / 6;
+            }
+            const H = h * 360, S = Math.min(s * 100, 50) / 100, L = 0.70;
+            const a = S * Math.min(L, 1 - L);
+            const f = (n: number) => {
+                const k = (n + H / 30) % 12;
+                const c = L - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                return Math.round(255 * c).toString(16).padStart(2, '0');
+            };
+            return `#${f(0)}${f(8)}${f(4)}`;
+        };
+
+        // Pre-compute dark-mode accent colours (lightened for readability)
+        const dp = forDark(palette.primary);
+        const ds = forDark(palette.success);
+        const dd = forDark(palette.danger);
+        const dw = forDark(palette.warning);
+        const di = forDark(palette.info);
+
+        // Light mode: full palette (accents + tinted surfaces)
+        // Dark mode: accent colours only (surfaces stay neutral for readability)
+        //   - Text/links use lightened accents (L 70 %) for contrast on dark bg
+        //   - .btn-primary uses original palette colour as bg (white text, ~5:1)
         const css = `:root:not([data-bs-theme='dark']) {
           --bs-primary: ${palette.primary};
           --bs-primary-rgb: ${hexToRgb(palette.primary)};
@@ -209,6 +243,41 @@ export class PaletteService {
           --bs-secondary-color: ${palette.bodyColor};
           --bs-secondary-color-rgb: ${hexToRgb(palette.bodyColor)};
           --bs-secondary-rgb: ${hexToRgb(palette.bodyColor)};
+        }
+        [data-bs-theme='dark'] {
+          --bs-primary: ${dp};
+          --bs-primary-rgb: ${hexToRgb(dp)};
+          --brand-primary: ${dp};
+          --brand-primary-dark: ${palette.primary};
+          --bs-success: ${ds};
+          --bs-success-rgb: ${hexToRgb(ds)};
+          --bs-danger: ${dd};
+          --bs-danger-rgb: ${hexToRgb(dd)};
+          --bs-warning: ${dw};
+          --bs-warning-rgb: ${hexToRgb(dw)};
+          --bs-info: ${di};
+          --bs-info-rgb: ${hexToRgb(di)};
+        }
+        [data-bs-theme='dark'] .btn-primary {
+          --bs-btn-bg: ${palette.primary};
+          --bs-btn-border-color: ${palette.primary};
+          --bs-btn-color: #ffffff;
+          --bs-btn-hover-bg: ${palette.dark};
+          --bs-btn-hover-border-color: ${palette.dark};
+          --bs-btn-hover-color: #ffffff;
+          --bs-btn-active-bg: ${palette.dark};
+          --bs-btn-active-border-color: ${palette.dark};
+          --bs-btn-active-color: #ffffff;
+        }
+        [data-bs-theme='dark'] .btn-outline-primary {
+          --bs-btn-color: ${dp};
+          --bs-btn-border-color: ${dp};
+          --bs-btn-hover-bg: ${palette.primary};
+          --bs-btn-hover-border-color: ${palette.primary};
+          --bs-btn-hover-color: #ffffff;
+          --bs-btn-active-bg: ${palette.dark};
+          --bs-btn-active-border-color: ${palette.dark};
+          --bs-btn-active-color: #ffffff;
         }`;
 
         let styleEl = document.getElementById('tsic-palette') as HTMLStyleElement | null;

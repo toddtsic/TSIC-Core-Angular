@@ -102,9 +102,12 @@
         </div>
         <div class="col-12">
           <label class="form-label">Mail-in Payment Warning</label>
-          <textarea class="form-control" rows="2"
-            [ngModel]="mailinPaymentWarning()"
-            (ngModelChange)="mailinPaymentWarning.set($event); onFieldChange()"></textarea>
+          <ejs-richtexteditor
+            [value]="mailinPaymentWarning()"
+            [toolbarSettings]="rteTools"
+            [height]="rteHeight"
+            (change)="onRteChange('mailinPaymentWarning', $event)">
+          </ejs-richtexteditor>
         </div>
       </div>
     </div>

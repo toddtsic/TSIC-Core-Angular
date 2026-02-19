@@ -98,15 +98,21 @@
           </div>
           <div class="col-12">
             <label class="form-label">Store Refund Policy</label>
-            <textarea class="form-control" rows="3"
-              [ngModel]="storeRefundPolicy()"
-              (ngModelChange)="storeRefundPolicy.set($event); onFieldChange()"></textarea>
+            <ejs-richtexteditor
+              [value]="storeRefundPolicy()"
+              [toolbarSettings]="rteTools"
+              [height]="rteHeight"
+              (change)="onRteChange('storeRefundPolicy', $event)">
+            </ejs-richtexteditor>
           </div>
           <div class="col-12">
             <label class="form-label">Store Pickup Details</label>
-            <textarea class="form-control" rows="3"
-              [ngModel]="storePickupDetails()"
-              (ngModelChange)="storePickupDetails.set($event); onFieldChange()"></textarea>
+            <ejs-richtexteditor
+              [value]="storePickupDetails()"
+              [toolbarSettings]="rteTools"
+              [height]="rteHeight"
+              (change)="onRteChange('storePickupDetails', $event)">
+            </ejs-richtexteditor>
           </div>
           <div class="col-md-4">
             <label class="form-label">Sales Tax (%)</label>

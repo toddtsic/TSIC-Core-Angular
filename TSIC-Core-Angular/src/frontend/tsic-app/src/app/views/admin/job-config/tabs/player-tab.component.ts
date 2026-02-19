@@ -1,18 +1,23 @@
 import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
+import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
 import type { UpdateJobConfigPlayerRequest } from '@core/api';
 
 @Component({
   selector: 'app-player-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RichTextEditorModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './player-tab.component.html',
 })
 export class PlayerTabComponent {
   protected readonly svc = inject(JobConfigService);
+
+  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   bRegistrationAllowPlayer = signal<boolean | null>(null);
   regformNamePlayer = signal('');
@@ -51,10 +56,16 @@ export class PlayerTabComponent {
       this.momLabel.set(p.momLabel ?? null);
       this.dadLabel.set(p.dadLabel ?? null);
       this.playerProfileMetadataJson.set(p.playerProfileMetadataJson ?? null);
-    }, { allowSignalWrites: true });
+    });
   }
 
   onFieldChange(): void { this.svc.markDirty('player'); }
+
+  onRteChange(field: string, event: any): void {
+    const sig = (this as any)[field];
+    if (sig?.set) sig.set(event.value ?? '');
+    this.onFieldChange();
+  }
 
   save(): void {
     const req: UpdateJobConfigPlayerRequest = {

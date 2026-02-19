@@ -1,18 +1,23 @@
 import { Component, inject, ChangeDetectionStrategy, OnInit, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
+import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
 import type { UpdateJobConfigGeneralRequest } from '@core/api';
 
 @Component({
   selector: 'app-general-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RichTextEditorModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './general-tab.component.html',
 })
 export class GeneralTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
+
+  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
+  readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   // ── Local form model ──────────────────────────────────
 
@@ -63,13 +68,19 @@ export class GeneralTabComponent implements OnInit {
       this.billingTypeId.set(g.billingTypeId);
       this.bSuspendPublic.set(g.bSuspendPublic ?? null);
       this.jobCode.set(g.jobCode ?? null);
-    }, { allowSignalWrites: true });
+    });
   }
 
   ngOnInit(): void {}
 
   onFieldChange(): void {
     this.svc.markDirty('general');
+  }
+
+  onRteChange(field: string, event: any): void {
+    const sig = (this as any)[field];
+    if (sig?.set) sig.set(event.value ?? '');
+    this.onFieldChange();
   }
 
   save(): void {
