@@ -8,6 +8,9 @@ import { ThemeService } from '@infrastructure/services/theme.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { MenuStateService } from '../../services/menu-state.service';
 
+/** Admin roles that can customize dashboards */
+const ADMIN_ROLES = ['Superuser', 'Director', 'SuperDirector'];
+
 @Component({
     selector: 'app-client-header-bar',
     standalone: true,
@@ -23,7 +26,12 @@ export class ClientHeaderBarComponent {
     readonly paletteService = inject(PaletteService);
     private readonly menuState = inject(MenuStateService);
 
-    // (menu/sidebar bindings removed) -- header is decoupled from menus
+    // Admin check for dashboard customization
+    readonly isAdmin = computed(() => {
+        const user = this.auth.currentUser();
+        const roles = user?.roles || (user?.role ? [user.role] : []);
+        return roles.some(r => ADMIN_ROLES.includes(r));
+    });
 
     // Job-related signals
     jobLogoPath = computed(() => {
@@ -114,5 +122,10 @@ export class ClientHeaderBarComponent {
 
     toggleTheme() {
         this.themeService.toggleTheme();
+    }
+
+    openDashboardCustomize() {
+        this.closeUserMenu();
+        this.menuState.requestCustomizeDashboard();
     }
 }

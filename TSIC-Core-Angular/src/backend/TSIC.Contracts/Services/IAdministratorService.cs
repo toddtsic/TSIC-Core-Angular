@@ -34,6 +34,12 @@ public interface IAdministratorService
     Task<List<AdministratorDto>> ToggleStatusAsync(Guid jobId, Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Set all non-superuser administrators in a job to active or inactive.
+    /// Returns refreshed list for the job.
+    /// </summary>
+    Task<List<AdministratorDto>> SetAllStatusAsync(Guid jobId, bool isActive, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Search users by username or name for typeahead.
     /// </summary>
     Task<List<UserSearchResultDto>> SearchUsersAsync(string query, CancellationToken cancellationToken = default);

@@ -152,6 +152,23 @@ public sealed class AdministratorService : IAdministratorService
         return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
     }
 
+    public async Task<List<AdministratorDto>> SetAllStatusAsync(
+        Guid jobId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        var registrations = await _adminRepo.GetNonSuperuserByJobIdAsync(jobId, cancellationToken);
+
+        foreach (var reg in registrations)
+        {
+            reg.BActive = isActive;
+            reg.Modified = DateTime.UtcNow;
+        }
+
+        await _adminRepo.SaveChangesAsync(cancellationToken);
+        return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
+    }
+
     public async Task<List<AdministratorDto>> SetPrimaryContactAsync(
         Guid jobId,
         Guid registrationId,

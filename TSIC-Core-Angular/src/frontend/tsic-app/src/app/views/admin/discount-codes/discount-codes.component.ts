@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { DiscountCodeService } from './services/discount-code.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { CodeFormModalComponent } from './components/code-form-modal.component';
-import { BulkCodeModalComponent } from './components/bulk-code-modal.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { DiscountCodeDto, BatchUpdateStatusRequest } from '../../../core/api';
 
@@ -13,7 +12,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-discount-codes',
   standalone: true,
-  imports: [CommonModule, CodeFormModalComponent, BulkCodeModalComponent, ConfirmDialogComponent],
+  imports: [CommonModule, CodeFormModalComponent, ConfirmDialogComponent],
   templateUrl: './discount-codes.component.html',
   styleUrl: './discount-codes.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -34,7 +33,6 @@ export class DiscountCodesComponent implements OnInit {
   // Modal state
   showAddModal = signal(false);
   showEditModal = signal(false);
-  showBulkModal = signal(false);
   showDeleteConfirm = signal(false);
   editTarget = signal<DiscountCodeDto | null>(null);
   deleteTarget = signal<DiscountCodeDto | null>(null);
@@ -122,10 +120,6 @@ export class DiscountCodesComponent implements OnInit {
     this.showEditModal.set(true);
   }
 
-  openBulk(): void {
-    this.showBulkModal.set(true);
-  }
-
   confirmDelete(code: DiscountCodeDto): void {
     if (code.usageCount > 0) {
       this.toastService.show(`Cannot delete code "${code.codeName}" - it has been used ${code.usageCount} time(s)`, 'danger');
@@ -155,7 +149,6 @@ export class DiscountCodesComponent implements OnInit {
   onFormSaved(): void {
     this.showAddModal.set(false);
     this.showEditModal.set(false);
-    this.showBulkModal.set(false);
     this.editTarget.set(null);
     this.loadDiscountCodes();
   }
@@ -197,11 +190,6 @@ export class DiscountCodesComponent implements OnInit {
 
   getDiscountTypeSymbol(type: string): string {
     return type === 'Percentage' ? '%' : '$';
-  }
-
-  getUsageProgressColor(code: DiscountCodeDto): string {
-    if (code.usageCount === 0) return 'bg-secondary';
-    return 'bg-primary';
   }
 
   getExpirationChipClass(code: DiscountCodeDto): string {

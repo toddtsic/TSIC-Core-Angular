@@ -8,6 +8,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { MenuStateService } from '../../../layouts/services/menu-state.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import type { AvailableWidgetDto, DashboardMetricsDto, SaveUserWidgetsRequest, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
@@ -44,6 +45,7 @@ export class WidgetDashboardComponent {
 	private readonly jobService = inject(JobService);
 	private readonly toast = inject(ToastService);
 	private readonly route = inject(ActivatedRoute);
+	private readonly menuState = inject(MenuStateService);
 
 	/** 'authenticated' = reads job/role from JWT; 'public' = anonymous, needs jobPath input */
 	readonly mode = input<'authenticated' | 'public'>('authenticated');
@@ -156,6 +158,14 @@ export class WidgetDashboardComponent {
 				this.jobService.fetchJobMetadata(jobPath).subscribe();
 				this.loadDashboard();
 				this.loadMetrics();
+			}
+		});
+
+		// Listen for customize requests from the header dropdown
+		effect(() => {
+			if (this.menuState.customizeDashboardRequested()) {
+				this.menuState.ackCustomizeDashboard();
+				this.openCustomize();
 			}
 		});
 	}

@@ -189,31 +189,10 @@
 
 .item-controls {
     display: flex;
-    gap: 0.25rem;
+    gap: var(--space-1);
+    align-items: center;
     opacity: 0;
     transition: opacity 0.2s;
-
-    .btn-icon {
-        background: none;
-        border: none;
-        padding: 0.25rem 0.5rem;
-        cursor: pointer;
-        color: var(--bs-secondary);
-        transition: color 0.2s;
-        font-size: var(--font-size-base);
-
-        &:hover {
-            color: var(--bs-primary);
-        }
-
-        &.text-danger:hover {
-            color: var(--bs-danger) !important;
-        }
-
-        i {
-            pointer-events: none;
-        }
-    }
 }
 
 .child-items {

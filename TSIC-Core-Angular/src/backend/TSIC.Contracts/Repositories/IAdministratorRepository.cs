@@ -39,6 +39,11 @@ public interface IAdministratorRepository
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get all non-superuser admin registrations for a job (tracked, for bulk mutation).
+    /// </summary>
+    Task<List<Registrations>> GetNonSuperuserByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get the current PrimaryContactRegistrationId for a job.
     /// </summary>
     Task<Guid?> GetPrimaryContactIdAsync(Guid jobId, CancellationToken cancellationToken = default);

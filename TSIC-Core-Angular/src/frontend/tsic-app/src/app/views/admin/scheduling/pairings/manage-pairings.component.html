@@ -211,7 +211,7 @@
                                                         }
                                                     </td>
                                                     <td class="col-actions">
-                                                        <button class="btn btn-sm btn-link text-danger p-0"
+                                                        <button class="icon-btn icon-btn-sm icon-btn-danger"
                                                                 (click)="deletePairing(p.ai); $event.stopPropagation()"
                                                                 title="Delete pairing">
                                                             <i class="bi bi-x-lg"></i>
@@ -294,7 +294,7 @@
                                                         }
                                                     </td>
                                                     <td class="col-actions">
-                                                        <button class="btn btn-sm btn-link text-danger p-0"
+                                                        <button class="icon-btn icon-btn-sm icon-btn-danger"
                                                                 (click)="deletePairing(p.ai); $event.stopPropagation()"
                                                                 title="Delete pairing">
                                                             <i class="bi bi-x-lg"></i>
@@ -353,8 +353,8 @@
                                                                (ngModelChange)="team.teamName = $event">
                                                     </td>
                                                     <td class="col-actions">
-                                                        <div class="d-flex gap-1">
-                                                            <button class="btn btn-sm btn-link text-success p-0"
+                                                        <div class="action-buttons">
+                                                            <button class="icon-btn icon-btn-sm icon-btn-success"
                                                                     (click)="saveTeamEdit(team); $event.stopPropagation()"
                                                                     [disabled]="isSavingTeam()"
                                                                     title="Save">
@@ -364,7 +364,7 @@
                                                                     <i class="bi bi-check-lg"></i>
                                                                 }
                                                             </button>
-                                                            <button class="btn btn-sm btn-link text-secondary p-0"
+                                                            <button class="icon-btn icon-btn-sm icon-btn-danger"
                                                                     (click)="cancelTeamEdit(); $event.stopPropagation()"
                                                                     [disabled]="isSavingTeam()"
                                                                     title="Cancel">
@@ -377,7 +377,7 @@
                                                     <td class="col-club text-secondary">{{ team.clubName }}</td>
                                                     <td class="col-teamname">{{ team.teamName }}</td>
                                                     <td class="col-actions">
-                                                        <button class="btn btn-sm btn-link text-primary p-0"
+                                                        <button class="icon-btn icon-btn-sm"
                                                                 (click)="startTeamEdit(team.teamId); $event.stopPropagation()"
                                                                 title="Edit team">
                                                             <i class="bi bi-pencil"></i>

@@ -48,10 +48,10 @@
                             <div class="fw-semibold">{{ set.key }}</div>
                             <small class="text-muted">{{ set.values.length || 0 }} options</small>
                         </div>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" (click)="editOptionSet(set)"><i
+                        <div class="action-buttons">
+                            <button class="icon-btn" (click)="editOptionSet(set)" title="Edit"><i
                                     class="bi bi-pencil"></i></button>
-                            <button class="btn btn-outline-danger" (click)="deleteOptionSet(set.key)"><i
+                            <button class="icon-btn icon-btn-danger" (click)="deleteOptionSet(set.key)" title="Delete"><i
                                     class="bi bi-trash"></i></button>
                         </div>
                     </div>
@@ -99,8 +99,8 @@
                                         <td><input type="text" class="form-control form-control-sm"
                                                 [(ngModel)]="opt.value" /></td>
                                         <td>
-                                            <button class="btn btn-outline-danger btn-sm"
-                                                (click)="removeOptionRow($index)"><i class="bi bi-x"></i></button>
+                                            <button class="icon-btn icon-btn-danger"
+                                                (click)="removeOptionRow($index)" title="Remove"><i class="bi bi-x"></i></button>
                                         </td>
                                     </tr>
                                     }
@@ -165,8 +165,8 @@
                                         <td><input type="text" class="form-control form-control-sm"
                                                 [(ngModel)]="opt.value" /></td>
                                         <td>
-                                            <button class="btn btn-outline-danger btn-sm"
-                                                (click)="removeOptionRow($index, true)"><i class="bi bi-x"></i></button>
+                                            <button class="icon-btn icon-btn-danger"
+                                                (click)="removeOptionRow($index, true)" title="Remove"><i class="bi bi-x"></i></button>
                                         </td>
                                     </tr>
                                     }

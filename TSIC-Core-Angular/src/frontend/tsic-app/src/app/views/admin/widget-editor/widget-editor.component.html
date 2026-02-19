@@ -286,14 +286,14 @@
 								{{ w.defaultConfig || '—' }}
 							</td>
 							<td>
-								<div class="btn-group btn-group-sm">
-									<button class="btn btn-outline-success" (click)="openAssignRoles(w)" title="Assign Roles">
+								<div class="action-buttons">
+									<button class="icon-btn icon-btn-success" (click)="openAssignRoles(w)" title="Assign Roles">
 										<i class="bi bi-person-check"></i>
 									</button>
-									<button class="btn btn-outline-primary" (click)="openEditWidget(w)" title="Edit">
+									<button class="icon-btn" (click)="openEditWidget(w)" title="Edit">
 										<i class="bi bi-pencil"></i>
 									</button>
-									<button class="btn btn-outline-danger" (click)="confirmDeleteWidget(w)" title="Delete">
+									<button class="icon-btn icon-btn-danger" (click)="confirmDeleteWidget(w)" title="Delete">
 										<i class="bi bi-trash"></i>
 									</button>
 								</div>

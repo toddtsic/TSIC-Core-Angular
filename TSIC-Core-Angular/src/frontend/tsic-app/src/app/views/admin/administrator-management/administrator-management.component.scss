@@ -8,7 +8,7 @@
 }
 
 .col-actions {
-    width: 170px;
+    width: 160px;
 }
 
 .row-superuser {
@@ -47,3 +47,5 @@
         color: var(--bs-primary);
     }
 }
+
+// icon-btn styles now in global _utilities.scss

@@ -12,10 +12,7 @@
         <button class="btn btn-outline-secondary btn-sm" (click)="loadDiscountCodes()" [disabled]="isLoading()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
         </button>
-        <button class="btn btn-outline-primary btn-sm" (click)="openBulk()">
-            <i class="bi bi-stars me-1"></i>Bulk Generate
-        </button>
-        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+<button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Code
         </button>
     </div>
@@ -92,18 +89,7 @@
                             </span>
                         </td>
                         <td>{{ code.amount }}{{ getDiscountTypeSymbol(code.discountType) }}</td>
-                        <td>
-                            <div class="usage-container">
-                                <span class="usage-text">{{ code.usageCount }}</span>
-                                @if (code.usageCount > 0) {
-                                    <div class="usage-bar">
-                                        <div class="usage-fill"
-                                             [ngClass]="getUsageProgressColor(code)"
-                                             [style.width.%]="100"></div>
-                                    </div>
-                                }
-                            </div>
-                        </td>
+                        <td>{{ code.usageCount }}</td>
                         <td class="text-body-secondary small">
                             {{ code.startDate | date:'shortDate' }} - {{ code.endDate | date:'shortDate' }}
                         </td>
@@ -120,16 +106,15 @@
                             }
                         </td>
                         <td>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary" (click)="openEdit(code)" title="Edit">
+                            <div class="action-buttons">
+                                <button class="icon-btn" (click)="openEdit(code)" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-outline-danger"
-                                        (click)="confirmDelete(code)"
-                                        [disabled]="code.usageCount > 0"
-                                        [title]="code.usageCount > 0 ? 'Cannot delete used code' : 'Delete'">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                @if (code.usageCount === 0) {
+                                    <button class="icon-btn icon-btn-danger" (click)="confirmDelete(code)" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
                             </div>
                         </td>
                     </tr>
@@ -156,14 +141,6 @@
         (close)="showEditModal.set(false); editTarget.set(null)"
         (saved)="onFormSaved()">
     </code-form-modal>
-}
-
-<!-- Bulk Generation Modal -->
-@if (showBulkModal()) {
-    <bulk-code-modal
-        (close)="showBulkModal.set(false)"
-        (saved)="onFormSaved()">
-    </bulk-code-modal>
 }
 
 <!-- Delete Confirmation -->

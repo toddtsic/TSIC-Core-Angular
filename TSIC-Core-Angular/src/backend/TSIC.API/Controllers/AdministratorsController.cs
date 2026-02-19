@@ -140,6 +140,30 @@ public class AdministratorsController : ControllerBase
         }
     }
 
+    [HttpPut("activate-all")]
+    public async Task<ActionResult<List<AdministratorDto>>> ActivateAll(
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var result = await _adminService.SetAllStatusAsync(jobId.Value, true, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPut("deactivate-all")]
+    public async Task<ActionResult<List<AdministratorDto>>> DeactivateAll(
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var result = await _adminService.SetAllStatusAsync(jobId.Value, false, cancellationToken);
+        return Ok(result);
+    }
+
     [HttpPut("{registrationId:guid}/primary-contact")]
     public async Task<ActionResult<List<AdministratorDto>>> SetPrimaryContact(
         Guid registrationId,

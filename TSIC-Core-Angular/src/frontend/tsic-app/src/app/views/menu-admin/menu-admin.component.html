@@ -92,19 +92,19 @@
 
                         <!-- Parent item controls -->
                         <div class="item-controls">
-                            <button class="btn-icon" (click)="editItem(parentItem)" title="Edit">
+                            <button class="icon-btn icon-btn-sm" (click)="editItem(parentItem)" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn-icon" (click)="moveItemUp(parentItem, nav.items)" title="Move Up">
+                            <button class="icon-btn icon-btn-sm" (click)="moveItemUp(parentItem, nav.items)" title="Move Up">
                                 <i class="bi bi-arrow-up"></i>
                             </button>
-                            <button class="btn-icon" (click)="moveItemDown(parentItem, nav.items)" title="Move Down">
+                            <button class="icon-btn icon-btn-sm" (click)="moveItemDown(parentItem, nav.items)" title="Move Down">
                                 <i class="bi bi-arrow-down"></i>
                             </button>
-                            <button class="btn-icon" (click)="createChildItem(parentItem)" title="Add Child">
+                            <button class="icon-btn icon-btn-sm icon-btn-success" (click)="createChildItem(parentItem)" title="Add Child">
                                 <i class="bi bi-plus-circle"></i>
                             </button>
-                            <button class="btn-icon text-danger" (click)="deleteItem(parentItem)" title="Delete">
+                            <button class="icon-btn icon-btn-sm icon-btn-danger" (click)="deleteItem(parentItem)" title="Delete">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -129,18 +129,18 @@
 
                             <!-- Child item controls -->
                             <div class="item-controls">
-                                <button class="btn-icon" (click)="editItem(childItem)" title="Edit">
+                                <button class="icon-btn icon-btn-sm" (click)="editItem(childItem)" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn-icon" (click)="moveItemUp(childItem, parentItem.children!)"
+                                <button class="icon-btn icon-btn-sm" (click)="moveItemUp(childItem, parentItem.children!)"
                                     title="Move Up">
                                     <i class="bi bi-arrow-up"></i>
                                 </button>
-                                <button class="btn-icon" (click)="moveItemDown(childItem, parentItem.children!)"
+                                <button class="icon-btn icon-btn-sm" (click)="moveItemDown(childItem, parentItem.children!)"
                                     title="Move Down">
                                     <i class="bi bi-arrow-down"></i>
                                 </button>
-                                <button class="btn-icon text-danger" (click)="deleteItem(childItem)" title="Delete">
+                                <button class="icon-btn icon-btn-sm icon-btn-danger" (click)="deleteItem(childItem)" title="Delete">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>

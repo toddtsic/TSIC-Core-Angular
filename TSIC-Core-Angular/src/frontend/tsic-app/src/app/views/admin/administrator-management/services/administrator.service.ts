@@ -34,6 +34,14 @@ export class AdministratorService {
         return this.http.put<AdministratorDto[]>(`${this.apiUrl}/${registrationId}/toggle-status`, {});
     }
 
+    activateAll(): Observable<AdministratorDto[]> {
+        return this.http.put<AdministratorDto[]>(`${this.apiUrl}/activate-all`, {});
+    }
+
+    deactivateAll(): Observable<AdministratorDto[]> {
+        return this.http.put<AdministratorDto[]>(`${this.apiUrl}/deactivate-all`, {});
+    }
+
     searchUsers(query: string): Observable<UserSearchResultDto[]> {
         return this.http.get<UserSearchResultDto[]>(`${this.apiUrl}/users/search`, {
             params: { q: query }

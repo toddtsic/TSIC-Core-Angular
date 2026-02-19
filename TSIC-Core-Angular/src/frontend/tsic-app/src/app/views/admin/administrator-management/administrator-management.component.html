@@ -2,6 +2,12 @@
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
     <h2 class="mb-0">Administrators</h2>
     <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-success btn-sm" (click)="activateAll()" [disabled]="isLoading()">
+            <i class="bi bi-check-all me-1"></i>Activate All
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" (click)="deactivateAll()" [disabled]="isLoading()">
+            <i class="bi bi-x-circle me-1"></i>Deactivate All
+        </button>
         <button class="btn btn-outline-secondary btn-sm" (click)="loadAdministrators()" [disabled]="isLoading()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
         </button>
@@ -101,26 +107,20 @@
                         <td class="text-body-secondary">{{ admin.registeredDate | date:'mediumDate' }}</td>
                         <td>
                             @if (!admin.isSuperuser) {
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-primary" (click)="openEdit(admin)" title="Edit">
+                                <div class="action-buttons">
+                                    <button class="icon-btn" (click)="openEdit(admin)" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <button class="btn btn-outline-danger" (click)="confirmDelete(admin)" title="Delete">
+                                    <button class="icon-btn icon-btn-danger" (click)="confirmDelete(admin)" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
-                                    @if (admin.isActive) {
-                                        <button class="btn btn-outline-secondary" (click)="toggleStatus(admin)" title="Inactivate">
-                                            <i class="bi bi-toggle-on"></i>
-                                        </button>
-                                    } @else {
-                                        <button class="btn btn-outline-success" (click)="toggleStatus(admin)" title="Activate">
-                                            <i class="bi bi-toggle-off"></i>
-                                        </button>
-                                    }
+                                    <button class="icon-btn" [class.icon-btn-active]="admin.isActive"
+                                        (click)="toggleStatus(admin)"
+                                        [title]="admin.isActive ? 'Deactivate' : 'Activate'">
+                                        <i class="bi" [class.bi-toggle-on]="admin.isActive" [class.bi-toggle-off]="!admin.isActive"></i>
+                                    </button>
                                     @if (admin.roleName === 'Director') {
-                                        <button class="btn"
-                                            [class.btn-warning]="admin.isPrimaryContact"
-                                            [class.btn-outline-secondary]="!admin.isPrimaryContact"
+                                        <button class="icon-btn" [class.icon-btn-star]="admin.isPrimaryContact"
                                             (click)="setPrimaryContact(admin)"
                                             [title]="admin.isPrimaryContact ? 'Remove as primary contact' : 'Set as primary contact'">
                                             <i class="bi" [class.bi-star-fill]="admin.isPrimaryContact" [class.bi-star]="!admin.isPrimaryContact"></i>

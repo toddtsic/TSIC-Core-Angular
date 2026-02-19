@@ -113,6 +113,31 @@ export class AdministratorManagementComponent {
         }
     }
 
+    // Bulk status
+    activateAll() {
+        this.adminService.activateAll().subscribe({
+            next: admins => {
+                this.administrators.set(admins);
+                this.toast.show('All administrators activated.', 'success');
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Failed to activate all.', 'danger', 4000);
+            }
+        });
+    }
+
+    deactivateAll() {
+        this.adminService.deactivateAll().subscribe({
+            next: admins => {
+                this.administrators.set(admins);
+                this.toast.show('All administrators deactivated.', 'success');
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Failed to deactivate all.', 'danger', 4000);
+            }
+        });
+    }
+
     // Status toggle
     toggleStatus(admin: AdministratorDto) {
         this.adminService.toggleStatus(admin.registrationId).subscribe({

@@ -545,6 +545,86 @@
     border: 1px solid var(--border-color) !important;
 }
 
+/* ============================================
+   Icon Action Buttons
+   ============================================ */
+
+/* Flex container for icon-only action buttons */
+.action-buttons {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+}
+
+/* Base icon button — 30×30 bordered square */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.icon-btn:hover {
+    color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.06);
+}
+
+.icon-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+/* Danger variant (delete) — red at rest, stronger on hover */
+.icon-btn.icon-btn-danger {
+    color: var(--bs-danger);
+}
+
+.icon-btn.icon-btn-danger:hover {
+    color: var(--bs-danger);
+    border-color: var(--bs-danger);
+    background: rgba(var(--bs-danger-rgb), 0.06);
+}
+
+/* Success variant (add/confirm) — green at rest, stronger on hover */
+.icon-btn.icon-btn-success {
+    color: var(--bs-success);
+}
+
+.icon-btn.icon-btn-success:hover {
+    color: var(--bs-success);
+    border-color: var(--bs-success);
+    background: rgba(var(--bs-success-rgb), 0.06);
+}
+
+/* Active toggle — filled look when active */
+.icon-btn.icon-btn-active {
+    color: var(--bs-success);
+    border-color: var(--bs-success);
+}
+
+/* Primary contact star — gold when set */
+.icon-btn.icon-btn-star {
+    color: var(--bs-warning);
+    border-color: var(--bs-warning);
+    background: rgba(var(--bs-warning-rgb), 0.1);
+}
+
+/* Compact variant for dense tables (24×24) */
+.icon-btn-sm {
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-size-xs);
+}
+
 /* Overflow Control */
 .allow-overflow {
     overflow: visible !important;

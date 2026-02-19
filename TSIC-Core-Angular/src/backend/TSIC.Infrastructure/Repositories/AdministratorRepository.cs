@@ -105,6 +105,17 @@ public class AdministratorRepository : IAdministratorRepository
         return await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<List<Registrations>> GetNonSuperuserByJobIdAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.JobId == jobId
+                && AdminRoleIds.Contains(r.RoleId!)
+                && r.RoleId != RoleConstants.Superuser)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Guid?> GetPrimaryContactIdAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
