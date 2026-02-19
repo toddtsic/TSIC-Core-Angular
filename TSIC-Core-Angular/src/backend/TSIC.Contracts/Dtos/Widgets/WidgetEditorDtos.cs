@@ -196,3 +196,20 @@ public record SaveJobOverridesRequest
     public required Guid JobId { get; init; }
     public required List<JobWidgetEntryDto> Entries { get; init; }
 }
+
+// ══════════════════════════════════════
+// Seed Script Sync
+// ══════════════════════════════════════
+
+/// <summary>
+/// Result of generating the seed-widget-dashboard.sql script from current DB state.
+/// </summary>
+public record SeedScriptSyncResult
+{
+    public required string Message { get; init; }
+    public required string FilePath { get; init; }
+    public required int CategoriesCount { get; init; }
+    public required int WidgetsCount { get; init; }
+    public required int DefaultsCount { get; init; }
+    public required int JobWidgetsCount { get; init; }
+}

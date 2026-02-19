@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, isDevMode } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { WidgetEditorService } from './services/widget-editor.service';
@@ -78,7 +78,9 @@ export class WidgetEditorComponent {
 	readonly activeTab = signal<'definitions' | 'overrides' | 'matrix'>('definitions');
 	readonly isLoading = signal(false);
 	readonly isSaving = signal(false);
+	readonly isSyncing = signal(false);
 	readonly errorMessage = signal<string | null>(null);
+	readonly isDevMode = isDevMode();
 
 	// ── Matrix state ──
 	readonly selectedJobTypeId = signal<number>(0);
@@ -579,6 +581,24 @@ export class WidgetEditorComponent {
 	/** Get the manifest icon for a component key (used by uncovered panel) */
 	getManifestIcon(key: string): string {
 		return WIDGET_MANIFEST[key]?.icon || 'bi-puzzle';
+	}
+
+	/** Dev-only: regenerate seed-widget-dashboard.sql from current DB state */
+	syncSeedScript(): void {
+		this.isSyncing.set(true);
+		this.editorService.syncSeedScript().subscribe({
+			next: (r) => {
+				this.toast.show(
+					`Seed script synced: ${r.widgetsCount} widgets, ${r.defaultsCount} defaults, ${r.jobWidgetsCount} job overrides`,
+					'success', 6000,
+				);
+				this.isSyncing.set(false);
+			},
+			error: (err) => {
+				this.toast.show(err.error?.message || 'Seed script sync failed', 'danger');
+				this.isSyncing.set(false);
+			},
+		});
 	}
 
 	closeWidgetModal(): void {

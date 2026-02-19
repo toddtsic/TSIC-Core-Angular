@@ -27,4 +27,7 @@ public interface IWidgetEditorService
     Task<List<JobRefDto>> GetJobsByJobTypeAsync(int jobTypeId, CancellationToken ct = default);
     Task<JobOverridesResponse> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default);
     Task SaveJobOverridesAsync(SaveJobOverridesRequest request, CancellationToken ct = default);
+
+    // ── Seed script sync ──
+    Task<SeedScriptSyncResult> GenerateSeedScriptAsync(string outputPath, CancellationToken ct = default);
 }

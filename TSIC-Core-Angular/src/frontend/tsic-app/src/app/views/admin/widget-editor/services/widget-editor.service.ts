@@ -88,4 +88,19 @@ export class WidgetEditorService {
 	saveJobOverrides(request: SaveJobOverridesRequest): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/job-overrides/${request.jobId}`, request);
 	}
+
+	// ── Seed script sync ──
+
+	syncSeedScript(): Observable<SeedScriptSyncResult> {
+		return this.http.post<SeedScriptSyncResult>(`${this.apiUrl}/sync-seed-script`, {});
+	}
+}
+
+export interface SeedScriptSyncResult {
+	message: string;
+	filePath: string;
+	categoriesCount: number;
+	widgetsCount: number;
+	defaultsCount: number;
+	jobWidgetsCount: number;
 }

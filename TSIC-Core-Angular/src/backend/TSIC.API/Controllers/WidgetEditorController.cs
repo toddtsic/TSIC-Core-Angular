@@ -14,10 +14,12 @@ namespace TSIC.API.Controllers;
 public class WidgetEditorController : ControllerBase
 {
     private readonly IWidgetEditorService _editorService;
+    private readonly IWebHostEnvironment _env;
 
-    public WidgetEditorController(IWidgetEditorService editorService)
+    public WidgetEditorController(IWidgetEditorService editorService, IWebHostEnvironment env)
     {
         _editorService = editorService;
+        _env = env;
     }
 
     // ── Reference data ──
@@ -225,5 +227,49 @@ public class WidgetEditorController : ControllerBase
         {
             return NotFound();
         }
+    }
+
+    // ── Seed script sync (dev only) ──
+
+    [HttpPost("sync-seed-script")]
+    public async Task<ActionResult<SeedScriptSyncResult>> SyncSeedScript(CancellationToken ct)
+    {
+        if (!_env.IsDevelopment())
+            return BadRequest(new { message = "Seed script sync is only available in development." });
+
+        var scriptPath = ResolveSeedScriptPath();
+        if (scriptPath is null)
+            return BadRequest(new { message = "Could not resolve scripts/ directory. Is the API running from the repository?" });
+
+        try
+        {
+            var result = await _editorService.GenerateSeedScriptAsync(scriptPath, ct);
+            return Ok(result);
+        }
+        catch (IOException ex)
+        {
+            return StatusCode(500, new { message = $"Failed to write seed script: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Resolve the path to scripts/seed-widget-dashboard.sql by walking up from ContentRootPath.
+    /// ContentRootPath = .../TSIC-Core-Angular/src/backend/TSIC.API
+    /// Repo root        = .../TSIC-Core-Angular  (3 levels up from src/backend/TSIC.API)
+    /// Scripts dir      = .../TSIC-Core-Angular/scripts/
+    /// </summary>
+    private string? ResolveSeedScriptPath()
+    {
+        var dir = _env.ContentRootPath;
+        for (var i = 0; i < 3; i++)
+        {
+            dir = Path.GetDirectoryName(dir);
+            if (dir is null) return null;
+        }
+
+        var scriptsDir = Path.Combine(dir, "scripts");
+        return Directory.Exists(scriptsDir)
+            ? Path.Combine(scriptsDir, "seed-widget-dashboard.sql")
+            : null;
     }
 }

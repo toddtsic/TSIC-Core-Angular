@@ -344,6 +344,26 @@ public class WidgetEditorRepository : IWidgetEditorRepository
     }
 
     // ══════════════════════════════════════
+    // Bulk export (seed script sync)
+    // ══════════════════════════════════════
+
+    public async Task<List<WidgetDefault>> GetAllDefaultsAsync(CancellationToken ct = default)
+    {
+        return await _context.WidgetDefault
+            .AsNoTracking()
+            .OrderBy(wd => wd.WidgetDefaultId)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<JobWidget>> GetAllJobWidgetsAsync(CancellationToken ct = default)
+    {
+        return await _context.JobWidget
+            .AsNoTracking()
+            .OrderBy(jw => jw.JobWidgetId)
+            .ToListAsync(ct);
+    }
+
+    // ══════════════════════════════════════
     // Config propagation
     // ══════════════════════════════════════
 

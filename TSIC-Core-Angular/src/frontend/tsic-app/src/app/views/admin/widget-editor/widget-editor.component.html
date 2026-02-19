@@ -2,6 +2,13 @@
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
 	<h2 class="mb-0">Widget Editor</h2>
 	<div class="d-flex gap-2 flex-wrap">
+		@if (isDevMode) {
+			<button class="btn btn-sm btn-outline-warning" (click)="syncSeedScript()"
+					[disabled]="isSyncing()" title="Regenerate seed-widget-dashboard.sql from current DB state">
+				<i class="bi" [class.bi-database-down]="!isSyncing()" [class.bi-hourglass-split]="isSyncing()"></i>
+				{{ isSyncing() ? 'Syncing...' : 'Sync Seed Script' }}
+			</button>
+		}
 		<button class="btn btn-outline-secondary btn-sm" (click)="refresh()" [disabled]="isLoading()">
 			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
 		</button>

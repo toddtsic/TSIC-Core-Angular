@@ -38,6 +38,10 @@ public interface IWidgetEditorRepository
     Task BulkInsertJobWidgetsAsync(Guid jobId, List<JobWidgetEntryDto> entries, CancellationToken ct = default);
     Task<int?> GetJobTypeIdForJobAsync(Guid jobId, CancellationToken ct = default);
 
+    // ── Bulk export (seed script sync) ──
+    Task<List<WidgetDefault>> GetAllDefaultsAsync(CancellationToken ct = default);
+    Task<List<JobWidget>> GetAllJobWidgetsAsync(CancellationToken ct = default);
+
     // ── Config propagation ──
     Task<int> PropagateDefaultConfigAsync(int widgetId, string? defaultConfig, CancellationToken ct = default);
 
