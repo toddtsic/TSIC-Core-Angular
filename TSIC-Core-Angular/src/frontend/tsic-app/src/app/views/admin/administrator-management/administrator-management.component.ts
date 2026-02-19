@@ -7,6 +7,9 @@ import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import type { AdministratorDto } from '@core/api';
 
+type SortColumn = 'name' | 'role' | 'username' | 'status' | 'registered';
+type SortDirection = 'asc' | 'desc';
+
 @Component({
     selector: 'app-administrator-management',
     standalone: true,
@@ -20,11 +23,55 @@ export class AdministratorManagementComponent {
     private readonly jobService = inject(JobService);
     private readonly toast = inject(ToastService);
 
-    // State
+    // Data
     readonly administrators = signal<AdministratorDto[]>([]);
-    readonly selectedIds = signal<Set<string>>(new Set());
     readonly isLoading = signal(false);
     readonly errorMessage = signal<string | null>(null);
+
+    // Sorting
+    readonly sortColumn = signal<SortColumn>('name');
+    readonly sortDirection = signal<SortDirection>('asc');
+
+    readonly sortedAdministrators = computed(() => {
+        const admins = [...this.administrators()];
+        const col = this.sortColumn();
+        const dir = this.sortDirection() === 'asc' ? 1 : -1;
+
+        return admins.sort((a, b) => {
+            let aVal: string | number;
+            let bVal: string | number;
+
+            switch (col) {
+                case 'name':
+                    aVal = a.administratorName.toLowerCase();
+                    bVal = b.administratorName.toLowerCase();
+                    break;
+                case 'role':
+                    aVal = (a.isSuperuser ? 'Superuser' : (a.roleName ?? '')).toLowerCase();
+                    bVal = (b.isSuperuser ? 'Superuser' : (b.roleName ?? '')).toLowerCase();
+                    break;
+                case 'username':
+                    aVal = a.userName.toLowerCase();
+                    bVal = b.userName.toLowerCase();
+                    break;
+                case 'status':
+                    aVal = a.isActive ? 1 : 0;
+                    bVal = b.isActive ? 1 : 0;
+                    break;
+                case 'registered':
+                    aVal = new Date(a.registeredDate).getTime();
+                    bVal = new Date(b.registeredDate).getTime();
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (typeof aVal === 'string') {
+                return dir * aVal.localeCompare(bVal as string);
+            }
+            return dir * ((aVal as number) - (bVal as number));
+        });
+    });
 
     // Modal state
     readonly showAddModal = signal(false);
@@ -32,24 +79,6 @@ export class AdministratorManagementComponent {
     readonly editTarget = signal<AdministratorDto | null>(null);
     readonly showDeleteConfirm = signal(false);
     readonly deleteTarget = signal<AdministratorDto | null>(null);
-    readonly showBatchConfirm = signal(false);
-    readonly batchAction = signal<'activate' | 'inactivate'>('activate');
-
-    // Computed
-    readonly nonSuperusers = computed(() =>
-        this.administrators().filter(a => !a.isSuperuser)
-    );
-
-    readonly selectedCount = computed(() => this.selectedIds().size);
-
-    readonly hasSelection = computed(() => this.selectedIds().size > 0);
-
-    readonly allNonSuperusersSelected = computed(() => {
-        const nonSu = this.nonSuperusers();
-        if (nonSu.length === 0) return false;
-        const sel = this.selectedIds();
-        return nonSu.every(a => sel.has(a.registrationId));
-    });
 
     // Load administrators when job context becomes available
     private readonly loadOnJobChange = effect(() => {
@@ -65,7 +94,6 @@ export class AdministratorManagementComponent {
         this.adminService.getAdministrators().subscribe({
             next: admins => {
                 this.administrators.set(admins);
-                this.selectedIds.set(new Set());
                 this.isLoading.set(false);
             },
             error: err => {
@@ -75,29 +103,32 @@ export class AdministratorManagementComponent {
         });
     }
 
-    // Selection
-    toggleSelect(admin: AdministratorDto) {
-        if (admin.isSuperuser) return;
-        const current = new Set(this.selectedIds());
-        if (current.has(admin.registrationId)) {
-            current.delete(admin.registrationId);
+    // Sorting
+    sort(column: SortColumn) {
+        if (this.sortColumn() === column) {
+            this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
         } else {
-            current.add(admin.registrationId);
-        }
-        this.selectedIds.set(current);
-    }
-
-    toggleSelectAll() {
-        const nonSu = this.nonSuperusers();
-        if (this.allNonSuperusersSelected()) {
-            this.selectedIds.set(new Set());
-        } else {
-            this.selectedIds.set(new Set(nonSu.map(a => a.registrationId)));
+            this.sortColumn.set(column);
+            this.sortDirection.set('asc');
         }
     }
 
-    isSelected(admin: AdministratorDto): boolean {
-        return this.selectedIds().has(admin.registrationId);
+    // Status toggle
+    toggleStatus(admin: AdministratorDto) {
+        this.adminService.toggleStatus(admin.registrationId).subscribe({
+            next: admins => {
+                this.administrators.set(admins);
+                this.toast.show(
+                    admin.isActive
+                        ? `${admin.administratorName} inactivated.`
+                        : `${admin.administratorName} activated.`,
+                    'success'
+                );
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Failed to update status.', 'danger', 4000);
+            }
+        });
     }
 
     // Primary Contact
@@ -173,29 +204,6 @@ export class AdministratorManagementComponent {
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to delete administrator.', 'danger', 4000);
-            }
-        });
-    }
-
-    // Batch
-    openBatchConfirm(action: 'activate' | 'inactivate') {
-        this.batchAction.set(action);
-        this.showBatchConfirm.set(true);
-    }
-
-    onBatchConfirmed() {
-        const isActive = this.batchAction() === 'activate';
-        this.showBatchConfirm.set(false);
-        this.adminService.batchUpdateStatus(isActive).subscribe({
-            next: result => {
-                this.toast.show(
-                    `${result.updated} administrator(s) ${isActive ? 'activated' : 'inactivated'}.`,
-                    'success'
-                );
-                this.loadAdministrators();
-            },
-            error: err => {
-                this.toast.show(err?.error?.message || 'Batch update failed.', 'danger', 4000);
             }
         });
     }

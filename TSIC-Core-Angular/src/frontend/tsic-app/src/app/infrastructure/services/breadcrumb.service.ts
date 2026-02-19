@@ -35,7 +35,6 @@ const ROUTE_TITLE_MAP: Record<string, string> = {
 	'admin/job-clone':                     'Job Clone',
 	'admin/ddl-options':                   'DDL Options',
 	'admin/job-config':                    'Job Configuration',
-	'menu/admin':                          'Menu Admin',
 	// Legacy routes
 	'fields/index':                        'Fields',
 	'pairings/index':                      'Pairings',

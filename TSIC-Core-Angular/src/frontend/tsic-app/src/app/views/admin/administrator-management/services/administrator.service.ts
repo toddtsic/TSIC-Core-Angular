@@ -30,8 +30,8 @@ export class AdministratorService {
         return this.http.delete<void>(`${this.apiUrl}/${registrationId}`);
     }
 
-    batchUpdateStatus(isActive: boolean): Observable<{ updated: number }> {
-        return this.http.post<{ updated: number }>(`${this.apiUrl}/batch-status`, { isActive });
+    toggleStatus(registrationId: string): Observable<AdministratorDto[]> {
+        return this.http.put<AdministratorDto[]>(`${this.apiUrl}/${registrationId}/toggle-status`, {});
     }
 
     searchUsers(query: string): Observable<UserSearchResultDto[]> {

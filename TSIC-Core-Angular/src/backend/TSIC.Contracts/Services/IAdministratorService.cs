@@ -28,9 +28,10 @@ public interface IAdministratorService
     Task DeleteAdministratorAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Batch update active status for non-Superuser administrators.
+    /// Toggle active/inactive status for a single administrator.
+    /// Returns refreshed list for the job.
     /// </summary>
-    Task<int> BatchUpdateStatusAsync(Guid jobId, bool isActive, CancellationToken cancellationToken = default);
+    Task<List<AdministratorDto>> ToggleStatusAsync(Guid jobId, Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Search users by username or name for typeahead.

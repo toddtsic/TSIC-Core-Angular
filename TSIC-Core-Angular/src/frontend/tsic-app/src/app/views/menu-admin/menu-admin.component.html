@@ -1,8 +1,8 @@
 <div class="menu-admin-container">
     <div class="header">
-        <h1>Menu Administration</h1>
-        <button class="btn btn-primary" (click)="ensureAllRoleMenus()" [disabled]="isLoading()">
-            <i class="bi bi-plus-circle"></i> Ensure All Role Menus
+        <h1>Nav Editor</h1>
+        <button class="btn btn-primary" (click)="ensureAllRoleNavs()" [disabled]="isLoading()">
+            <i class="bi bi-plus-circle"></i> Ensure All Role Navs
         </button>
     </div>
 
@@ -14,39 +14,39 @@
     </div>
     }
 
-    @if (!isLoading() && menus().length === 0) {
+    @if (!isLoading() && navs().length === 0) {
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i>
-        No menus found for this job. Click "Ensure All Role Menus" to create default menus.
+        No navs found. Click "Ensure All Role Navs" to create platform defaults.
     </div>
     }
 
-    @if (!isLoading() && menus().length > 0) {
+    @if (!isLoading() && navs().length > 0) {
     <div class="content">
         <!-- Role Selector -->
         <div class="role-selector">
             <label for="roleSelect" class="form-label">Select Role:</label>
             <select id="roleSelect" class="form-select" [value]="selectedRoleId() ?? ''"
                 (change)="onRoleChange($any($event.target).value)">
-                @for (menu of menus(); track menu.menuId) {
-                <option [value]="menu.roleId">
-                    {{ menu.roleName }}
-                    @if (!menu.active) { <span class="text-muted">(Inactive)</span> }
+                @for (nav of navs(); track nav.navId) {
+                <option [value]="nav.roleId">
+                    {{ nav.roleName }}
+                    @if (!nav.active) { <span class="text-muted">(Inactive)</span> }
                 </option>
                 }
             </select>
         </div>
 
-        <!-- Menu Preview Area -->
-        @if (selectedMenu(); as menu) {
+        <!-- Nav Preview Area -->
+        @if (selectedNav(); as nav) {
         <div class="menu-preview">
-            <!-- Menu-level controls -->
+            <!-- Nav-level controls -->
             <div class="menu-controls">
                 <div class="menu-status">
                     <label class="form-check">
-                        <input type="checkbox" class="form-check-input" [checked]="menu.active"
-                            (change)="toggleMenuActive(menu)">
-                        <span class="form-check-label">Menu Active</span>
+                        <input type="checkbox" class="form-check-input" [checked]="nav.active"
+                            (change)="toggleNavActive(nav)">
+                        <span class="form-check-label">Nav Active</span>
                     </label>
                 </div>
                 <button class="btn btn-sm btn-success" (click)="createParentItem()">
@@ -57,25 +57,25 @@
             <!-- WYSIWYG Sidebar Preview -->
             <div class="sidebar-preview">
                 <div class="sidebar-header">
-                    <span>{{ menu.roleName }} Menu Preview</span>
+                    <span>{{ nav.roleName }} Nav Preview</span>
                 </div>
 
-                @if (menu.items.length === 0) {
+                @if (nav.items.length === 0) {
                 <div class="empty-state">
                     <i class="bi bi-inbox"></i>
-                    <p>No menu items yet. Click "Add Parent Item" to get started.</p>
+                    <p>No nav items yet. Click "Add Parent Item" to get started.</p>
                 </div>
                 }
 
-                @for (parentItem of menu.items; track parentItem.menuItemId) {
+                @for (parentItem of nav.items; track parentItem.navItemId) {
                 <div class="menu-item-group" [class.inactive]="!parentItem.active">
                     <!-- Parent Item -->
                     <div class="menu-item parent-item">
                         <div class="item-content">
-                            <button class="expand-toggle" (click)="toggleItemExpanded(parentItem.menuItemId)"
-                                [class.expanded]="isItemExpanded(parentItem.menuItemId)">
-                                <i class="bi" [class.bi-chevron-right]="!isItemExpanded(parentItem.menuItemId)"
-                                    [class.bi-chevron-down]="isItemExpanded(parentItem.menuItemId)"></i>
+                            <button class="expand-toggle" (click)="toggleItemExpanded(parentItem.navItemId)"
+                                [class.expanded]="isItemExpanded(parentItem.navItemId)">
+                                <i class="bi" [class.bi-chevron-right]="!isItemExpanded(parentItem.navItemId)"
+                                    [class.bi-chevron-down]="isItemExpanded(parentItem.navItemId)"></i>
                             </button>
                             @if (parentItem.iconName) {
                             <i class="item-icon bi bi-{{ parentItem.iconName }}"></i>
@@ -91,10 +91,10 @@
                             <button class="btn-icon" (click)="editItem(parentItem)" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn-icon" (click)="moveItemUp(parentItem, menu.items)" title="Move Up">
+                            <button class="btn-icon" (click)="moveItemUp(parentItem, nav.items)" title="Move Up">
                                 <i class="bi bi-arrow-up"></i>
                             </button>
-                            <button class="btn-icon" (click)="moveItemDown(parentItem, menu.items)" title="Move Down">
+                            <button class="btn-icon" (click)="moveItemDown(parentItem, nav.items)" title="Move Down">
                                 <i class="bi bi-arrow-down"></i>
                             </button>
                             <button class="btn-icon" (click)="createChildItem(parentItem)" title="Add Child">
@@ -107,10 +107,10 @@
                     </div>
 
                     <!-- Child Items -->
-                    @if (isItemExpanded(parentItem.menuItemId) && parentItem.children && parentItem.children.length > 0)
+                    @if (isItemExpanded(parentItem.navItemId) && parentItem.children && parentItem.children.length > 0)
                     {
                     <div class="child-items">
-                        @for (childItem of parentItem.children; track childItem.menuItemId) {
+                        @for (childItem of parentItem.children; track childItem.navItemId) {
                         <div class="menu-item child-item" [class.inactive]="!childItem.active">
                             <div class="item-content">
                                 @if (childItem.iconName) {
@@ -151,3 +151,14 @@
     </div>
     }
 </div>
+
+<!-- Nav Item Form Dialog -->
+@if (editDialogOpen()) {
+<app-nav-item-form-dialog
+    [navId]="editNavId()"
+    [parentNavItemId]="editParentNavItemId()"
+    [existingItem]="editExistingItem()"
+    (saved)="onItemSaved($event)"
+    (cancelled)="editDialogOpen.set(false)"
+/>
+}

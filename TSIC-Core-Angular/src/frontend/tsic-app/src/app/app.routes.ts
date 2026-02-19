@@ -97,7 +97,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'nav-editor',
-						loadComponent: () => import('./views/admin/nav-editor/nav-editor.component').then(m => m.NavEditorComponent)
+						loadComponent: () => import('./views/menu-admin/menu-admin.component').then(m => m.MenuAdminComponent)
 					},
 					{
 						path: 'job-clone',
@@ -118,13 +118,8 @@ export const routes: Routes = [
 				path: 'reporting/:action',
 				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
 			},
-			// Legacy-compatible admin routes (match menu system controller/action URLs)
-			{
-				path: 'menu/admin',
-				canActivate: [authGuard],
-				data: { requireSuperUser: true },
-				loadComponent: () => import('./views/menu-admin/menu-admin.component').then(m => m.MenuAdminComponent)
-			},
+			// Legacy redirect: menu/admin → admin/nav-editor
+			{ path: 'menu/admin', redirectTo: 'admin/nav-editor', pathMatch: 'full' },
 			{
 				path: 'jobadministrator/admin',
 				canActivate: [authGuard],

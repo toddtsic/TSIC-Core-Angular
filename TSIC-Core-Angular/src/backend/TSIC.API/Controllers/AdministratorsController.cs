@@ -114,20 +114,30 @@ public class AdministratorsController : ControllerBase
         }
     }
 
-    [HttpPost("batch-status")]
-    public async Task<ActionResult<int>> BatchUpdateStatus(
-        [FromBody] BatchUpdateStatusRequest request,
+    [HttpPut("{registrationId:guid}/toggle-status")]
+    public async Task<ActionResult<List<AdministratorDto>>> ToggleStatus(
+        Guid registrationId,
         CancellationToken cancellationToken)
     {
-        // Extract jobId from regId claim (most secure approach)
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
         {
             return BadRequest(new { message = "Registration context required" });
         }
 
-        var count = await _adminService.BatchUpdateStatusAsync(jobId.Value, request.IsActive, cancellationToken);
-        return Ok(new { updated = count });
+        try
+        {
+            var result = await _adminService.ToggleStatusAsync(jobId.Value, registrationId, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{registrationId:guid}/primary-contact")]

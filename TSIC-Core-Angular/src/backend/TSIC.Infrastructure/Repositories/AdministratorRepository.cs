@@ -28,17 +28,6 @@ public class AdministratorRepository : IAdministratorRepository
         RoleConstants.StpAdmin
     ];
 
-    /// <summary>
-    /// The subset of admin roles eligible for batch status updates.
-    /// Matches legacy behavior: excludes Superuser, StoreAdmin, StpAdmin, RefAssignor.
-    /// </summary>
-    private static readonly string[] BatchUpdatableRoleIds =
-    [
-        RoleConstants.Director,
-        RoleConstants.SuperDirector,
-        RoleConstants.ApiAuthorized
-    ];
-
     public AdministratorRepository(SqlDbContext context)
     {
         _context = context;
@@ -99,15 +88,6 @@ public class AdministratorRepository : IAdministratorRepository
                 IsPrimaryContact = r.Job!.PrimaryContactRegistrationId == r.RegistrationId
             })
             .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public async Task<List<Registrations>> GetBatchUpdatableByJobIdAsync(
-        Guid jobId,
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Registrations
-            .Where(r => r.JobId == jobId && BatchUpdatableRoleIds.Contains(r.RoleId!))
-            .ToListAsync(cancellationToken);
     }
 
     public void Add(Registrations registration)

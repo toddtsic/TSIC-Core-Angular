@@ -24,12 +24,6 @@ public interface IAdministratorRepository
     Task<AdministratorDto?> GetAdminProjectionByIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get all non-Superuser administrator registrations for batch status updates.
-    /// Includes Director, SuperDirector, and ApiAuthorized roles only.
-    /// </summary>
-    Task<List<Registrations>> GetBatchUpdatableByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Add a new administrator registration.
     /// </summary>
     void Add(Registrations registration);

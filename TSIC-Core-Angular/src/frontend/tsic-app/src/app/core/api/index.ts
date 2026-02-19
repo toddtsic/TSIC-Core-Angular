@@ -301,6 +301,7 @@ export type { TestValidationRequest } from './models/TestValidationRequest';
 export type { TimeslotConfigurationResponse } from './models/TimeslotConfigurationResponse';
 export type { TimeslotDateDto } from './models/TimeslotDateDto';
 export type { TimeslotFieldDto } from './models/TimeslotFieldDto';
+export type { ToggleNavActiveRequest } from './models/ToggleNavActiveRequest';
 export type { UpdateAdministratorRequest } from './models/UpdateAdministratorRequest';
 export type { UpdateAgegroupRequest } from './models/UpdateAgegroupRequest';
 export type { UpdateClubNameRequest } from './models/UpdateClubNameRequest';

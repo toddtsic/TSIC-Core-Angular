@@ -1,4 +1,3 @@
-using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -176,22 +175,6 @@ public interface IJobRepository
     /// </summary>
     Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
-    // ── Job Config Editor ──
-
-    /// <summary>
-    /// Get full job configuration for the Job Config Editor.
-    /// </summary>
-    Task<JobConfigDto?> GetJobConfigAsync(Guid jobId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get lookup data (JobTypes, Sports, BillingTypes) for the editor dropdowns.
-    /// </summary>
-    Task<JobConfigLookupsDto> GetJobConfigLookupsAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Update all configurable job fields. Returns false if rowversion mismatch (concurrency conflict).
-    /// </summary>
-    Task<bool> UpdateJobConfigAsync(Guid jobId, byte[]? expectedRowVersion, Action<Jobs> applyChanges, CancellationToken cancellationToken = default);
 }
 
 public record JobAuthInfo

@@ -11,20 +11,6 @@
     </div>
 </div>
 
-<!-- Batch Toolbar (visible when rows selected) -->
-@if (hasSelection()) {
-    <div class="batch-toolbar d-flex align-items-center gap-3 mb-3 px-3 py-2 rounded-2">
-        <span class="fw-semibold">{{ selectedCount() }} selected</span>
-        <div class="vr"></div>
-        <button class="btn btn-success btn-sm" (click)="openBatchConfirm('activate')">
-            <i class="bi bi-check-circle me-1"></i>Activate
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" (click)="openBatchConfirm('inactivate')">
-            <i class="bi bi-x-circle me-1"></i>Inactivate
-        </button>
-    </div>
-}
-
 <!-- Error Alert -->
 @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center" role="alert">
@@ -60,33 +46,44 @@
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th class="col-check">
-                        <input type="checkbox" class="form-check-input"
-                            [checked]="allNonSuperusersSelected()"
-                            (change)="toggleSelectAll()"
-                            aria-label="Select all" />
+                    <th class="col-row-num">#</th>
+                    <th class="sortable" (click)="sort('name')">
+                        Name
+                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'name' && sortDirection() === 'asc'"
+                            [class.bi-caret-down-fill]="sortColumn() === 'name' && sortDirection() === 'desc'"
+                            [class.bi-chevron-expand]="sortColumn() !== 'name'"></i>
                     </th>
-                    <th>Name</th>
-                    <th>Role</th>
-                    <th>Username</th>
-                    <th>Status</th>
-                    <th>Registered</th>
+                    <th class="sortable" (click)="sort('role')">
+                        Role
+                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'role' && sortDirection() === 'asc'"
+                            [class.bi-caret-down-fill]="sortColumn() === 'role' && sortDirection() === 'desc'"
+                            [class.bi-chevron-expand]="sortColumn() !== 'role'"></i>
+                    </th>
+                    <th class="sortable" (click)="sort('username')">
+                        Username
+                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'username' && sortDirection() === 'asc'"
+                            [class.bi-caret-down-fill]="sortColumn() === 'username' && sortDirection() === 'desc'"
+                            [class.bi-chevron-expand]="sortColumn() !== 'username'"></i>
+                    </th>
+                    <th class="sortable" (click)="sort('status')">
+                        Status
+                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'status' && sortDirection() === 'asc'"
+                            [class.bi-caret-down-fill]="sortColumn() === 'status' && sortDirection() === 'desc'"
+                            [class.bi-chevron-expand]="sortColumn() !== 'status'"></i>
+                    </th>
+                    <th class="sortable" (click)="sort('registered')">
+                        Registered
+                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'registered' && sortDirection() === 'asc'"
+                            [class.bi-caret-down-fill]="sortColumn() === 'registered' && sortDirection() === 'desc'"
+                            [class.bi-chevron-expand]="sortColumn() !== 'registered'"></i>
+                    </th>
                     <th class="col-actions">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @for (admin of administrators(); track admin.registrationId) {
-                    <tr [class.table-active]="isSelected(admin)" [class.row-superuser]="admin.isSuperuser">
-                        <td>
-                            @if (admin.isSuperuser) {
-                                <i class="bi bi-lock-fill text-body-secondary" title="Superuser (protected)"></i>
-                            } @else {
-                                <input type="checkbox" class="form-check-input"
-                                    [checked]="isSelected(admin)"
-                                    (change)="toggleSelect(admin)"
-                                    [attr.aria-label]="'Select ' + admin.administratorName" />
-                            }
-                        </td>
+                @for (admin of sortedAdministrators(); track admin.registrationId; let i = $index) {
+                    <tr [class.row-superuser]="admin.isSuperuser">
+                        <td class="text-body-secondary">{{ i + 1 }}</td>
                         <td class="fw-semibold">{{ admin.administratorName }}</td>
                         <td>
                             <span class="badge rounded-pill" [ngClass]="getRoleBadgeClass(admin.roleName)">
@@ -111,6 +108,15 @@
                                     <button class="btn btn-outline-danger" (click)="confirmDelete(admin)" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                    @if (admin.isActive) {
+                                        <button class="btn btn-outline-secondary" (click)="toggleStatus(admin)" title="Inactivate">
+                                            <i class="bi bi-toggle-on"></i>
+                                        </button>
+                                    } @else {
+                                        <button class="btn btn-outline-success" (click)="toggleStatus(admin)" title="Activate">
+                                            <i class="bi bi-toggle-off"></i>
+                                        </button>
+                                    }
                                     @if (admin.roleName === 'Director') {
                                         <button class="btn"
                                             [class.btn-warning]="admin.isPrimaryContact"
@@ -158,19 +164,5 @@
         confirmVariant="danger"
         (confirmed)="onDeleteConfirmed()"
         (cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
-    </confirm-dialog>
-}
-
-<!-- Batch Confirmation -->
-@if (showBatchConfirm()) {
-    <confirm-dialog
-        [title]="batchAction() === 'activate' ? 'Activate Administrators' : 'Inactivate Administrators'"
-        [message]="batchAction() === 'activate'
-            ? 'Activate all selected administrators?'
-            : 'Inactivate all selected administrators?'"
-        [confirmLabel]="batchAction() === 'activate' ? 'Activate' : 'Inactivate'"
-        [confirmVariant]="batchAction() === 'activate' ? 'primary' : 'warning'"
-        (confirmed)="onBatchConfirmed()"
-        (cancelled)="showBatchConfirm.set(false)">
     </confirm-dialog>
 }

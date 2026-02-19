@@ -34,14 +34,6 @@ public record UpdateAdministratorRequest
 }
 
 /// <summary>
-/// Request to batch-update active status for non-Superuser administrators.
-/// </summary>
-public record BatchUpdateStatusRequest
-{
-    public required bool IsActive { get; init; }
-}
-
-/// <summary>
 /// Lightweight user result for typeahead search.
 /// </summary>
 public record UserSearchResultDto

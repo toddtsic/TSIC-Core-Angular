@@ -131,20 +131,25 @@ public sealed class AdministratorService : IAdministratorService
         await _adminRepo.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<int> BatchUpdateStatusAsync(
+    public async Task<List<AdministratorDto>> ToggleStatusAsync(
         Guid jobId,
-        bool isActive,
+        Guid registrationId,
         CancellationToken cancellationToken = default)
     {
-        var registrations = await _adminRepo.GetBatchUpdatableByJobIdAsync(jobId, cancellationToken);
+        var registration = await _adminRepo.GetByIdAsync(registrationId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Registration '{registrationId}' not found.");
 
-        foreach (var reg in registrations)
-        {
-            reg.BActive = isActive;
-        }
+        if (registration.JobId != jobId)
+            throw new InvalidOperationException("Registration does not belong to this job.");
+
+        if (registration.RoleId == RoleConstants.Superuser)
+            throw new InvalidOperationException("Cannot modify a Superuser registration.");
+
+        registration.BActive = !(registration.BActive ?? false);
+        registration.Modified = DateTime.UtcNow;
 
         await _adminRepo.SaveChangesAsync(cancellationToken);
-        return registrations.Count;
+        return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
     }
 
     public async Task<List<AdministratorDto>> SetPrimaryContactAsync(
