@@ -23,6 +23,8 @@ public partial class AspNetRoles
 
     public virtual ICollection<Menus> Menus { get; set; } = new List<Menus>();
 
+    public virtual ICollection<Nav> Nav { get; set; } = new List<Nav>();
+
     public virtual ICollection<RegForms> RegForms { get; set; } = new List<RegForms>();
 
     public virtual ICollection<Registrations> Registrations { get; set; } = new List<Registrations>();

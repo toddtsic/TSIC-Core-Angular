@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -347,5 +348,188 @@ public class JobRepository : IJobRepository
             .Where(j => j.CustomerId == customerId)
             .Select(j => j.JobId)
             .ToListAsync(cancellationToken);
+    }
+
+    // ── Job Config Editor ──
+
+    public async Task<JobConfigDto?> GetJobConfigAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobConfigDto
+            {
+                // Identity
+                JobId = j.JobId,
+                JobPath = j.JobPath,
+                UpdatedOn = j.UpdatedOn,
+                // General
+                JobName = j.JobName,
+                DisplayName = j.DisplayName,
+                JobDescription = j.JobDescription,
+                JobTagline = j.JobTagline,
+                JobCode = j.JobCode,
+                Year = j.Year,
+                Season = j.Season,
+                JobTypeId = j.JobTypeId,
+                SportId = j.SportId,
+                BillingTypeId = j.BillingTypeId,
+                ExpiryAdmin = j.ExpiryAdmin,
+                ExpiryUsers = j.ExpiryUsers,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate,
+                SearchenginKeywords = j.SearchenginKeywords,
+                SearchengineDescription = j.SearchengineDescription,
+                BBannerIsCustom = j.BBannerIsCustom,
+                BannerFile = j.BannerFile,
+                MobileJobName = j.MobileJobName,
+                JobNameQbp = j.JobNameQbp,
+                MomLabel = j.MomLabel,
+                DadLabel = j.DadLabel,
+                BSuspendPublic = j.BSuspendPublic,
+                // Registration
+                BRegistrationAllowPlayer = j.BRegistrationAllowPlayer,
+                BRegistrationAllowTeam = j.BRegistrationAllowTeam,
+                BAllowMobileRegn = j.BAllowMobileRegn,
+                BUseWaitlists = j.BUseWaitlists,
+                BRestrictPlayerTeamsToAgerange = j.BRestrictPlayerTeamsToAgerange,
+                BOfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance,
+                BOfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance,
+                PlayerRegMultiPlayerDiscountMin = j.PlayerRegMultiPlayerDiscountMin,
+                PlayerRegMultiPlayerDiscountPercent = j.PlayerRegMultiPlayerDiscountPercent,
+                CoreRegformPlayer = j.CoreRegformPlayer,
+                RegformNamePlayer = j.RegformNamePlayer,
+                RegformNameTeam = j.RegformNameTeam,
+                RegformNameCoach = j.RegformNameCoach,
+                RegformNameClubRep = j.RegformNameClubRep,
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
+                UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate,
+                // Payment
+                PaymentMethodsAllowedCode = j.PaymentMethodsAllowedCode,
+                BAddProcessingFees = j.BAddProcessingFees,
+                ProcessingFeePercent = j.ProcessingFeePercent,
+                BApplyProcessingFeesToTeamDeposit = j.BApplyProcessingFeesToTeamDeposit,
+                BTeamsFullPaymentRequired = j.BTeamsFullPaymentRequired,
+                Balancedueaspercent = j.Balancedueaspercent,
+                BAllowRefundsInPriorMonths = j.BAllowRefundsInPriorMonths,
+                BAllowCreditAll = j.BAllowCreditAll,
+                PayTo = j.PayTo,
+                MailTo = j.MailTo,
+                MailinPaymentWarning = j.MailinPaymentWarning,
+                AdnArb = j.AdnArb,
+                AdnArbbillingOccurences = j.AdnArbbillingOccurences,
+                AdnArbintervalLength = j.AdnArbintervalLength,
+                AdnArbstartDate = j.AdnArbstartDate,
+                AdnArbMinimunTotalCharge = j.AdnArbMinimunTotalCharge,
+                // Email & Templates
+                RegFormFrom = j.RegFormFrom,
+                RegFormCcs = j.RegFormCcs,
+                RegFormBccs = j.RegFormBccs,
+                Rescheduleemaillist = j.Rescheduleemaillist,
+                Alwayscopyemaillist = j.Alwayscopyemaillist,
+                BDisallowCcplayerConfirmations = j.BDisallowCcplayerConfirmations,
+                PlayerRegConfirmationEmail = j.PlayerRegConfirmationEmail,
+                PlayerRegConfirmationOnScreen = j.PlayerRegConfirmationOnScreen,
+                PlayerRegRefundPolicy = j.PlayerRegRefundPolicy,
+                PlayerRegReleaseOfLiability = j.PlayerRegReleaseOfLiability,
+                PlayerRegCodeOfConduct = j.PlayerRegCodeOfConduct,
+                PlayerRegCovid19Waiver = j.PlayerRegCovid19Waiver,
+                AdultRegConfirmationEmail = j.AdultRegConfirmationEmail,
+                AdultRegConfirmationOnScreen = j.AdultRegConfirmationOnScreen,
+                AdultRegRefundPolicy = j.AdultRegRefundPolicy,
+                AdultRegReleaseOfLiability = j.AdultRegReleaseOfLiability,
+                AdultRegCodeOfConduct = j.AdultRegCodeOfConduct,
+                RefereeRegConfirmationEmail = j.RefereeRegConfirmationEmail,
+                RefereeRegConfirmationOnScreen = j.RefereeRegConfirmationOnScreen,
+                RecruiterRegConfirmationEmail = j.RecruiterRegConfirmationEmail,
+                RecruiterRegConfirmationOnScreen = j.RecruiterRegConfirmationOnScreen,
+                // Features & Store
+                BClubRepAllowEdit = j.BClubRepAllowEdit,
+                BClubRepAllowDelete = j.BClubRepAllowDelete,
+                BClubRepAllowAdd = j.BClubRepAllowAdd,
+                BAllowMobileLogin = j.BAllowMobileLogin,
+                BAllowRosterViewAdult = j.BAllowRosterViewAdult,
+                BAllowRosterViewPlayer = j.BAllowRosterViewPlayer,
+                BShowTeamNameOnlyInSchedules = j.BShowTeamNameOnlyInSchedules,
+                BScheduleAllowPublicAccess = j.BScheduleAllowPublicAccess,
+                BTeamPushDirectors = j.BTeamPushDirectors,
+                BEnableTsicteams = j.BEnableTsicteams,
+                BEnableMobileRsvp = j.BEnableMobileRsvp,
+                BEnableMobileTeamChat = j.BEnableMobileTeamChat,
+                BenableStp = j.BenableStp,
+                BEnableStore = j.BEnableStore,
+                BSignalRschedule = j.BSignalRschedule,
+                MobileScoreHoursPastGameEligible = j.MobileScoreHoursPastGameEligible,
+                StoreSalesTax = j.StoreSalesTax,
+                StoreRefundPolicy = j.StoreRefundPolicy,
+                StorePickupDetails = j.StorePickupDetails,
+                StoreContactEmail = j.StoreContactEmail,
+                StoreTsicrate = j.StoreTsicrate,
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<JobConfigLookupsDto> GetJobConfigLookupsAsync(CancellationToken cancellationToken = default)
+    {
+        var jobTypes = await _context.JobTypes
+            .AsNoTracking()
+            .OrderBy(jt => jt.JobTypeName)
+            .Select(jt => new JobTypeLookupDto
+            {
+                JobTypeId = jt.JobTypeId,
+                JobTypeName = jt.JobTypeName
+            })
+            .ToListAsync(cancellationToken);
+
+        var sports = await _context.Sports
+            .AsNoTracking()
+            .OrderBy(s => s.SportName)
+            .Select(s => new SportLookupDto
+            {
+                SportId = s.SportId,
+                SportName = s.SportName
+            })
+            .ToListAsync(cancellationToken);
+
+        var billingTypes = await _context.BillingTypes
+            .AsNoTracking()
+            .OrderBy(bt => bt.BillingTypeName)
+            .Select(bt => new BillingTypeLookupDto
+            {
+                BillingTypeId = bt.BillingTypeId,
+                BillingTypeName = bt.BillingTypeName
+            })
+            .ToListAsync(cancellationToken);
+
+        return new JobConfigLookupsDto
+        {
+            JobTypes = jobTypes,
+            Sports = sports,
+            BillingTypes = billingTypes
+        };
+    }
+
+    public async Task<bool> UpdateJobConfigAsync(
+        Guid jobId, byte[]? expectedRowVersion,
+        Action<Jobs> applyChanges, CancellationToken cancellationToken = default)
+    {
+        var job = await _context.Jobs
+            .FirstOrDefaultAsync(j => j.JobId == jobId, cancellationToken);
+
+        if (job is null)
+            throw new KeyNotFoundException($"Job {jobId} not found.");
+
+        // Concurrency check against rowversion
+        if (expectedRowVersion is not null && job.UpdatedOn is not null
+            && !expectedRowVersion.SequenceEqual(job.UpdatedOn))
+        {
+            return false;
+        }
+
+        applyChanges(job);
+        job.Modified = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
     }
 }

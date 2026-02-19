@@ -10,5 +10,6 @@ export type AdministratorDto = {
     isActive: boolean;
     registeredDate: string;
     isSuperuser: boolean;
+    isPrimaryContact: boolean;
 };
 

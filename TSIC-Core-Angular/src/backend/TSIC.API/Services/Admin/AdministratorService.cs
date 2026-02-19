@@ -147,6 +147,28 @@ public sealed class AdministratorService : IAdministratorService
         return registrations.Count;
     }
 
+    public async Task<List<AdministratorDto>> SetPrimaryContactAsync(
+        Guid jobId,
+        Guid registrationId,
+        CancellationToken cancellationToken = default)
+    {
+        // Verify the registration exists and belongs to this job
+        var registration = await _adminRepo.GetByIdAsync(registrationId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Registration '{registrationId}' not found.");
+
+        if (registration.JobId != jobId)
+            throw new InvalidOperationException("Registration does not belong to this job.");
+
+        // Toggle: if already primary contact, clear it; otherwise set it
+        var currentPrimaryId = await _adminRepo.GetPrimaryContactIdAsync(jobId, cancellationToken);
+        var newPrimaryId = currentPrimaryId == registrationId ? null : (Guid?)registrationId;
+
+        await _adminRepo.SetPrimaryContactAsync(jobId, newPrimaryId, cancellationToken);
+
+        // Return refreshed list so UI updates in one round-trip
+        return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
+    }
+
     public async Task<List<UserSearchResultDto>> SearchUsersAsync(
         string query,
         CancellationToken cancellationToken = default)
@@ -178,7 +200,8 @@ public sealed class AdministratorService : IAdministratorService
             RoleName = isSuperuser ? null : r.Role?.Name,
             IsActive = r.BActive ?? false,
             RegisteredDate = r.RegistrationTs,
-            IsSuperuser = isSuperuser
+            IsSuperuser = isSuperuser,
+            IsPrimaryContact = false
         };
     }
 }

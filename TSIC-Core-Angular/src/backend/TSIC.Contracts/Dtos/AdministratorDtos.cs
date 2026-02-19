@@ -12,6 +12,7 @@ public record AdministratorDto
     public required bool IsActive { get; init; }
     public required DateTime RegisteredDate { get; init; }
     public required bool IsSuperuser { get; init; }
+    public required bool IsPrimaryContact { get; init; }
 }
 
 /// <summary>

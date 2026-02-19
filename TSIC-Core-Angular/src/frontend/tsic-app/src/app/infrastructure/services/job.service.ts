@@ -2,7 +2,7 @@ import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, MenuItemDto, MenuDto, JobMetadataResponse } from '@core/api';
+import type { RegistrationStatusRequest, RegistrationStatusResponse, BulletinDto, NavDto, NavItemDto, JobMetadataResponse } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class JobService {
@@ -18,9 +18,9 @@ export class JobService {
     public readonly bulletins = signal<BulletinDto[]>([]);
     public readonly bulletinsLoading = signal(false);
     public readonly bulletinsError = signal<string | null>(null);
-    public readonly menus = signal<MenuItemDto[]>([]);
-    public readonly menusLoading = signal(false);
-    public readonly menusError = signal<string | null>(null);
+    public readonly navItems = signal<NavItemDto[]>([]);
+    public readonly navLoading = signal(false);
+    public readonly navError = signal<string | null>(null);
 
     // Computed: Team registration status from job metadata
     public readonly isTeamRegistrationOpen = computed(() =>
@@ -118,38 +118,33 @@ export class JobService {
     }
 
     /**
-     * Load role-specific menus for a job.
-     * Updates menus signal on success, menusError on failure.
-     * Available for anonymous users (returns menu with roleId NULL).
-     * JWT token automatically included via HttpClient interceptor.
-     *
-     * Cancels any in-flight menu request to prevent race conditions
-     * (e.g., a stale non-bypass response overwriting a fresh bypass response).
-     *
-     * @param jobPath - The job path to load menus for
-     * @param bypassCache - Whether to bypass HTTP cache (use when auth state changes)
+     * Load nav items for the current user's role and job.
+     * Reads role/job from the JWT — no jobPath parameter needed.
+     * Requires authentication; call only when user is logged in.
      */
-    loadMenus(jobPath: string, bypassCache = false): void {
-        this.menusLoading.set(true);
-        this.menusError.set(null);
-
-        const options = bypassCache
-            ? { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } }
-            : undefined;
+    loadNav(): void {
+        this.navLoading.set(true);
+        this.navError.set(null);
 
         this.http
-            .get<MenuDto>(`${this.apiUrl}/jobs/${jobPath}/menus`, options)
+            .get<NavDto>(`${this.apiUrl}/nav/merged`)
             .subscribe({
-                next: (menu) => {
-                    this.menus.set(menu.items || []);
-                    this.menusLoading.set(false);
+                next: (nav) => {
+                    this.navItems.set(nav.items || []);
+                    this.navLoading.set(false);
                 },
                 error: (err) => {
-                    this.menusError.set(
-                        err?.error?.message || 'Unable to load menus. Please try again later.'
+                    this.navError.set(
+                        err?.error?.message || 'Unable to load navigation. Please try again later.'
                     );
-                    this.menusLoading.set(false);
+                    this.navLoading.set(false);
                 }
             });
+    }
+
+    /** Clear nav items (on logout or unauthenticated navigation). */
+    clearNav(): void {
+        this.navItems.set([]);
+        this.navError.set(null);
     }
 }

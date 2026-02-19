@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { AgegroupDistributionDto, DashboardMetricsDto, EventContactDto, RegistrationTimeSeriesDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
+import type { AgegroupDistributionDto, AvailableWidgetDto, DashboardMetricsDto, EventContactDto, RegistrationTimeSeriesDto, SaveUserWidgetsRequest, UserWidgetEntryDto, WidgetDashboardResponse, YearOverYearComparisonDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDashboardService {
@@ -47,5 +47,23 @@ export class WidgetDashboardService {
 
 	getYearOverYear(): Observable<YearOverYearComparisonDto> {
 		return this.http.get<YearOverYearComparisonDto>(`${this.apiUrl}/year-over-year`);
+	}
+
+	// ── User Widget Customization ──
+
+	getAvailableWidgets(): Observable<AvailableWidgetDto[]> {
+		return this.http.get<AvailableWidgetDto[]>(`${this.apiUrl}/available-widgets`);
+	}
+
+	getMyWidgets(): Observable<UserWidgetEntryDto[]> {
+		return this.http.get<UserWidgetEntryDto[]>(`${this.apiUrl}/my-widgets`);
+	}
+
+	saveMyWidgets(request: SaveUserWidgetsRequest): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/my-widgets`, request);
+	}
+
+	resetMyWidgets(): Observable<void> {
+		return this.http.delete<void>(`${this.apiUrl}/my-widgets`);
 	}
 }

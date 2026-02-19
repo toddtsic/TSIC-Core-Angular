@@ -48,6 +48,12 @@ public class AdministratorRepository : IAdministratorRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
+        var primaryContactId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.PrimaryContactRegistrationId)
+            .FirstOrDefaultAsync(cancellationToken);
+
         return await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId && AdminRoleIds.Contains(r.RoleId!))
@@ -61,7 +67,8 @@ public class AdministratorRepository : IAdministratorRepository
                 RoleName = r.RoleId == RoleConstants.Superuser ? null : r.Role!.Name,
                 IsActive = r.BActive ?? false,
                 RegisteredDate = r.RegistrationTs,
-                IsSuperuser = r.RoleId == RoleConstants.Superuser
+                IsSuperuser = r.RoleId == RoleConstants.Superuser,
+                IsPrimaryContact = r.RegistrationId == primaryContactId
             })
             .ToListAsync(cancellationToken);
     }
@@ -88,7 +95,8 @@ public class AdministratorRepository : IAdministratorRepository
                 RoleName = r.RoleId == RoleConstants.Superuser ? null : r.Role!.Name,
                 IsActive = r.BActive ?? false,
                 RegisteredDate = r.RegistrationTs,
-                IsSuperuser = r.RoleId == RoleConstants.Superuser
+                IsSuperuser = r.RoleId == RoleConstants.Superuser,
+                IsPrimaryContact = r.Job!.PrimaryContactRegistrationId == r.RegistrationId
             })
             .FirstOrDefaultAsync(cancellationToken);
     }
@@ -115,5 +123,28 @@ public class AdministratorRepository : IAdministratorRepository
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid?> GetPrimaryContactIdAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.PrimaryContactRegistrationId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task SetPrimaryContactAsync(
+        Guid jobId,
+        Guid? registrationId,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await _context.Jobs.FindAsync([jobId], cancellationToken)
+            ?? throw new KeyNotFoundException($"Job '{jobId}' not found.");
+
+        job.PrimaryContactRegistrationId = registrationId;
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }

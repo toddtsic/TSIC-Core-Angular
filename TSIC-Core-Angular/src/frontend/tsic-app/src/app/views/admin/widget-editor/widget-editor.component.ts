@@ -47,13 +47,8 @@ const ROLE_ABBREVIATIONS: Record<string, string> = {
 };
 
 const WORKSPACE_LABELS: Record<string, string> = {
+	'public': 'Public',
 	'dashboard': 'Dashboard',
-	'player-reg': 'Player Registration',
-	'team-reg': 'Team Registration',
-	'scheduling': 'Scheduling',
-	'job-config': 'Event Setup',
-	'fin-per-job': 'Customer Finances',
-	'fin-per-customer': 'Job Finances',
 };
 
 @Component({
@@ -98,7 +93,6 @@ export class WidgetEditorComponent {
 	readonly formCategoryId = signal(0);
 	readonly formDescription = signal('');
 	readonly formConfigIcon = signal('');
-	readonly formConfigRoute = signal('');
 	readonly formDisplayStyle = signal('');
 	/** True when user selected "Other (custom key)" in the dropdown */
 	readonly useCustomKey = signal(false);
@@ -138,14 +132,13 @@ export class WidgetEditorComponent {
 	readonly defSortDirection = signal<'asc' | 'desc'>('asc');
 
 	// ── Allowed widget types ──
-	readonly widgetTypes = ['content', 'chart-tile', 'status-tile', 'link-tile'];
+	readonly widgetTypes = ['content', 'chart-tile', 'status-tile'];
 
 	/** Valid displayStyle options per WidgetType */
 	readonly displayStyleOptions: Record<string, string[]> = {
 		'content':      ['banner', 'feed', 'block'],
 		'chart-tile':   ['standard', 'wide', 'spark'],
 		'status-tile':  ['standard', 'hero', 'compact'],
-		'link-tile':    ['standard', 'hero', 'compact'],
 	};
 
 	// ── Computed: workspace groups for matrix ──
@@ -530,7 +523,6 @@ export class WidgetEditorComponent {
 		this.formCategoryId.set(0);
 		this.formDescription.set('');
 		this.formConfigIcon.set('');
-		this.formConfigRoute.set('');
 		this.formDisplayStyle.set('');
 		this.useCustomKey.set(false);
 		this.showWidgetModal.set(true);
@@ -564,7 +556,6 @@ export class WidgetEditorComponent {
 		this.formWidgetType.set(entry.widgetType);
 		this.formDescription.set(entry.description || '');
 		this.formConfigIcon.set(entry.icon);
-		this.formConfigRoute.set(entry.route || '');
 		this.formDisplayStyle.set(entry.displayStyle || '');
 
 		// Best-effort category match by workspace
@@ -993,31 +984,26 @@ export class WidgetEditorComponent {
 	private parseConfigToFields(json: string | null | undefined): void {
 		if (!json) {
 			this.formConfigIcon.set('');
-			this.formConfigRoute.set('');
 			this.formDisplayStyle.set('');
 			return;
 		}
 		try {
 			const obj = JSON.parse(json);
 			this.formConfigIcon.set(obj.icon || '');
-			this.formConfigRoute.set(obj.route || '');
 			this.formDisplayStyle.set(obj.displayStyle || '');
 		} catch {
 			this.formConfigIcon.set('');
-			this.formConfigRoute.set('');
 			this.formDisplayStyle.set('');
 		}
 	}
 
 	private serializeConfigFromFields(): string | null {
 		const icon = this.formConfigIcon().trim();
-		const route = this.formConfigRoute().trim();
 		const displayStyle = this.formDisplayStyle().trim();
-		if (!icon && !route && !displayStyle) return null;
+		if (!icon && !displayStyle) return null;
 		const obj: Record<string, string> = {};
 		obj['label'] = this.formName().trim();
 		if (icon) obj['icon'] = icon;
-		if (route) obj['route'] = route;
 		if (displayStyle) obj['displayStyle'] = displayStyle;
 		return JSON.stringify(obj);
 	}

@@ -100,6 +100,25 @@ export class AdministratorManagementComponent {
         return this.selectedIds().has(admin.registrationId);
     }
 
+    // Primary Contact
+    setPrimaryContact(admin: AdministratorDto) {
+        this.adminService.setPrimaryContact(admin.registrationId).subscribe({
+            next: admins => {
+                const wasPrimary = admin.isPrimaryContact;
+                this.administrators.set(admins);
+                this.toast.show(
+                    wasPrimary
+                        ? `${admin.administratorName} removed as primary contact.`
+                        : `${admin.administratorName} set as primary contact.`,
+                    'success'
+                );
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Failed to update primary contact.', 'danger', 4000);
+            }
+        });
+    }
+
     // CRUD
     openAdd() {
         this.showAddModal.set(true);

@@ -111,6 +111,15 @@
                                     <button class="btn btn-outline-danger" (click)="confirmDelete(admin)" title="Delete">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                    @if (admin.roleName === 'Director') {
+                                        <button class="btn"
+                                            [class.btn-warning]="admin.isPrimaryContact"
+                                            [class.btn-outline-secondary]="!admin.isPrimaryContact"
+                                            (click)="setPrimaryContact(admin)"
+                                            [title]="admin.isPrimaryContact ? 'Remove as primary contact' : 'Set as primary contact'">
+                                            <i class="bi" [class.bi-star-fill]="admin.isPrimaryContact" [class.bi-star]="!admin.isPrimaryContact"></i>
+                                        </button>
+                                    }
                                 </div>
                             }
                         </td>

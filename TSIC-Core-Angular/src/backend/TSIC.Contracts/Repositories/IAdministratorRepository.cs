@@ -43,4 +43,15 @@ public interface IAdministratorRepository
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the current PrimaryContactRegistrationId for a job.
+    /// </summary>
+    Task<Guid?> GetPrimaryContactIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set (or clear) the PrimaryContactRegistrationId on a job.
+    /// Pass null to clear.
+    /// </summary>
+    Task SetPrimaryContactAsync(Guid jobId, Guid? registrationId, CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,4 @@
-<div class="dashboard-container" [class.dashboard-public]="isPublic()" [class.dashboard-spoke]="isSpokeMode()">
+<div class="dashboard-container" [class.dashboard-public]="isPublic()">
 
     <!-- ═══════ LOADING / ERROR ═══════ -->
     @if (isLoading()) {
@@ -31,54 +31,9 @@
             }
         }
 
-    } @else if (isSpokeMode()) {
-
-        <!-- ═══════ SPOKE MODE: Single workspace view ═══════ -->
-        <div class="spoke-header">
-            <h2 class="spoke-title">{{ activeWorkspaceLabel() }}</h2>
-        </div>
-
-        @if (activeWorkspace(); as ws) {
-            @for (category of ws.categories; track category.categoryId) {
-                <div class="category-group">
-                    <div class="category-header">
-                        @if (category.icon) {
-                            <i class="bi" [class]="category.icon"></i>
-                        }
-                        <span>{{ category.categoryName }}</span>
-                    </div>
-
-                    <div class="widget-grid">
-                        @for (widget of category.widgets; track widget.widgetId) {
-                            <a class="widget-card" [class]="'wt-' + widget.widgetType + ' ds-' + getDisplayStyle(widget)"
-                               href="#" (click)="onWidgetClick(widget, $event)">
-                                <div class="widget-icon">
-                                    <i class="bi" [class]="getIcon(widget)"></i>
-                                </div>
-                                <div class="widget-body">
-                                    <div class="widget-name">{{ getLabel(widget) }}</div>
-                                    @if (widget.description) {
-                                        <div class="widget-desc">{{ widget.description }}</div>
-                                    }
-                                </div>
-                                <div class="widget-arrow">
-                                    <i class="bi bi-chevron-right"></i>
-                                </div>
-                            </a>
-                        }
-                    </div>
-                </div>
-            }
-        } @else {
-            <div class="spoke-empty">
-                <i class="bi bi-inbox text-secondary"></i>
-                <span class="text-secondary">No widgets available for this workspace</span>
-            </div>
-        }
-
     } @else {
 
-        <!-- ═══════ HUB MODE: Dashboard overview + spoke navigation ═══════ -->
+        <!-- ═══════ HUB MODE: Dashboard overview ═══════ -->
         @if (dashboard(); as db) {
 
             <!-- ── Hero: branded strip ── -->
@@ -99,6 +54,9 @@
                             }
                         </div>
                     </div>
+                    <button class="btn-customize" (click)="openCustomize()" aria-label="Customize dashboard">
+                        <i class="bi bi-sliders"></i>
+                    </button>
                 </div>
             </div>
 
@@ -126,29 +84,93 @@
                     </div>
                 }
             }
-
-            <!-- Spoke navigation: workspace cards -->
-            @if (spokeWorkspaces().length > 0) {
-                <div class="spoke-nav-section">
-                    <div class="workspace-label">Workspaces</div>
-                    <div class="spoke-nav-grid">
-                        @for (ws of spokeWorkspaces(); track ws.workspace) {
-                            <button class="spoke-nav-card" (click)="navigateToWorkspace(ws.workspace)" type="button">
-                                <div class="spoke-nav-icon">
-                                    <i class="bi" [class]="workspaceIcon(ws.workspace)"></i>
-                                </div>
-                                <div class="spoke-nav-body">
-                                    <div class="spoke-nav-name">{{ workspaceLabel(ws.workspace) }}</div>
-                                    <div class="spoke-nav-desc">{{ workspaceDescription(ws.workspace) }}</div>
-                                </div>
-                                <div class="spoke-nav-arrow">
-                                    <i class="bi bi-chevron-right"></i>
-                                </div>
-                            </button>
-                        }
-                    </div>
-                </div>
-            }
         }
     }
 </div>
+
+<!-- ═══════ CUSTOMIZE DASHBOARD DIALOG ═══════ -->
+@if (showCustomizeDialog()) {
+    <tsic-dialog [open]="true" size="sm" (requestClose)="closeCustomize()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-sliders me-2"></i>Customize Dashboard
+                </h5>
+                <button type="button" class="btn-close" (click)="closeCustomize()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body customize-body">
+                @if (customizeLoading()) {
+                    <div class="customize-loading">
+                        <div class="spinner-border spinner-border-sm text-secondary"></div>
+                        <span class="text-secondary ms-2">Loading widgets...</span>
+                    </div>
+                } @else {
+                    <p class="text-muted customize-hint">Toggle widgets on or off. Use arrows to reorder.</p>
+                    <div class="customize-list">
+                        @for (row of customizeRows(); track row.widgetId; let i = $index; let first = $first; let last = $last) {
+                            <div class="customize-row" [class.customize-row-hidden]="!row.isVisible">
+                                <div class="customize-order-controls">
+                                    <button class="btn-order" [disabled]="first"
+                                            (click)="moveWidget(row, -1)" aria-label="Move up">
+                                        <i class="bi bi-chevron-up"></i>
+                                    </button>
+                                    <button class="btn-order" [disabled]="last"
+                                            (click)="moveWidget(row, 1)" aria-label="Move down">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
+                                </div>
+                                <div class="customize-info">
+                                    <div class="customize-name">
+                                        <i class="bi" [class]="getWidgetTypeIcon(row.widgetType)"></i>
+                                        {{ row.name }}
+                                    </div>
+                                    @if (row.description) {
+                                        <div class="customize-desc">{{ row.description }}</div>
+                                    }
+                                    <div class="customize-meta">
+                                        <span class="badge-type">{{ row.widgetType }}</span>
+                                        <span class="badge-category">{{ row.categoryName }}</span>
+                                    </div>
+                                </div>
+                                <label class="customize-toggle" [attr.for]="'widget-toggle-' + row.widgetId">
+                                    <input type="checkbox" [id]="'widget-toggle-' + row.widgetId"
+                                           [checked]="row.isVisible"
+                                           (change)="toggleWidgetVisibility(row)" />
+                                    <span class="toggle-track">
+                                        <span class="toggle-thumb"></span>
+                                    </span>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="modal-footer customize-footer">
+                <button type="button" class="btn btn-outline-danger btn-sm me-auto"
+                        (click)="confirmResetCustomizations()" [disabled]="customizeSaving()">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeCustomize()">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm"
+                        (click)="saveCustomizations()" [disabled]="customizeSaving() || customizeLoading()">
+                    @if (customizeSaving()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Save
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- ═══════ RESET CONFIRM ═══════ -->
+@if (showResetConfirm()) {
+    <confirm-dialog
+        title="Reset Dashboard"
+        message="Reset your dashboard to the default layout? Your customizations will be removed."
+        confirmLabel="Reset"
+        confirmVariant="danger"
+        (confirmed)="resetCustomizations()"
+        (cancelled)="showResetConfirm.set(false)">
+    </confirm-dialog>
+}

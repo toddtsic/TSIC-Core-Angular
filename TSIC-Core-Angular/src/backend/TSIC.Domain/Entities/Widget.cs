@@ -23,5 +23,7 @@ public partial class Widget
 
     public virtual ICollection<JobWidget> JobWidget { get; set; } = new List<JobWidget>();
 
+    public virtual ICollection<UserWidget> UserWidget { get; set; } = new List<UserWidget>();
+
     public virtual ICollection<WidgetDefault> WidgetDefault { get; set; } = new List<WidgetDefault>();
 }

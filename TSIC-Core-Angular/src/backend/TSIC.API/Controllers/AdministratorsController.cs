@@ -130,6 +130,32 @@ public class AdministratorsController : ControllerBase
         return Ok(new { updated = count });
     }
 
+    [HttpPut("{registrationId:guid}/primary-contact")]
+    public async Task<ActionResult<List<AdministratorDto>>> SetPrimaryContact(
+        Guid registrationId,
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        try
+        {
+            var result = await _adminService.SetPrimaryContactAsync(jobId.Value, registrationId, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("users/search")]
     public async Task<ActionResult<List<UserSearchResultDto>>> SearchUsers(
         [FromQuery] string q,

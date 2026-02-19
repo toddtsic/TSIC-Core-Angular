@@ -408,6 +408,31 @@ public class WidgetRepository : IWidgetRepository
 
     public async Task<EventContactDto?> GetEventContactAsync(Guid jobId, CancellationToken ct = default)
     {
+        // Prefer explicitly-set primary contact
+        var primaryContactId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.PrimaryContactRegistrationId)
+            .FirstOrDefaultAsync(ct);
+
+        if (primaryContactId != null)
+        {
+            var explicit_ = await _context.Registrations
+                .AsNoTracking()
+                .Where(r => r.RegistrationId == primaryContactId && r.BActive == true)
+                .Select(r => new EventContactDto
+                {
+                    FirstName = r.User!.FirstName ?? "",
+                    LastName = r.User.LastName ?? "",
+                    Email = r.User.Email ?? "",
+                })
+                .FirstOrDefaultAsync(ct);
+
+            if (explicit_ != null)
+                return explicit_;
+        }
+
+        // Fallback: earliest-registered active admin
         var adminRoleIds = new[]
         {
             RoleConstants.Superuser,

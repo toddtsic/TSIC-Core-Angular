@@ -13,7 +13,7 @@ import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-
 //
 // Every widget that can appear on the dashboard has an entry here.
 // Widgets with Angular components set `component`; config-only
-// doorbells (link-tile, status-tile) omit it.
+// widgets (status-tile) omit it.
 //
 // The Widget Editor imports this manifest to:
 //   1. Populate the Component Key dropdown (no typos)
@@ -32,11 +32,9 @@ export interface WidgetManifestEntry {
 	/** Bootstrap icon class (e.g. 'bi-search') */
 	icon: string;
 	/** Widget rendering shape */
-	widgetType: 'content' | 'chart-tile' | 'status-tile' | 'link-tile';
+	widgetType: 'content' | 'chart-tile' | 'status-tile';
 	/** Natural workspace this belongs in */
 	workspace: string;
-	/** Relative route from job root (for link-tiles) */
-	route?: string;
 	/** Short description */
 	description?: string;
 	/** Default displayStyle value */
@@ -110,207 +108,6 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		description: 'Registration comparison between current and prior year',
 	},
 
-	// ── Status-tile widgets (dormant — no Angular component yet) ──
-
-	'registration-status': {
-		label:       'Registration Status',
-		icon:        'bi-people-fill',
-		widgetType:  'status-tile',
-		workspace:   'dashboard',
-		route:       'admin/search',
-		description: 'Active registration count and trend indicator',
-	},
-	'financial-status': {
-		label:       'Financial Status',
-		icon:        'bi-currency-dollar',
-		widgetType:  'status-tile',
-		workspace:   'dashboard',
-		route:       'reporting/financials',
-		description: 'Revenue collected vs outstanding balance summary',
-	},
-	'scheduling-status': {
-		label:       'Scheduling Status',
-		icon:        'bi-calendar-check',
-		widgetType:  'status-tile',
-		workspace:   'dashboard',
-		route:       'admin/scheduling',
-		description: 'Schedule completion percentage and game count',
-	},
-
-	// ── Link-tile doorbells: Job Configuration ──
-
-	'ladt-editor': {
-		label:       'LADT Editor',
-		icon:        'bi-diagram-3',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'ladt/admin',
-		description: 'Configure leagues, age groups, divisions, and teams',
-	},
-	'fee-config': {
-		label:       'Fee Configuration',
-		icon:        'bi-tags',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'ladt/admin',
-		description: 'Configure registration fees and payment options',
-	},
-	'job-settings': {
-		label:       'Job Settings',
-		icon:        'bi-sliders',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'ladt/admin',
-		description: 'General event configuration and settings',
-	},
-	'widget-editor': {
-		label:       'Widget Editor',
-		icon:        'bi-gear-fill',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'admin/widget-editor',
-		description: 'Configure widget assignments and dashboard layout (SuperUser only)',
-	},
-	'administrator-management': {
-		label:       'Administrator Management',
-		icon:        'bi-person-gear',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'jobadministrator/admin',
-		description: 'Manage admin accounts and permissions for this event',
-	},
-	'ddl-options': {
-		label:       'DDL Options',
-		icon:        'bi-list-ul',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'admin/ddl-options',
-		description: 'Manage dropdown list options for job configuration',
-	},
-	'discount-codes': {
-		label:       'Discount Codes',
-		icon:        'bi-percent',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'jobdiscountcodes/admin',
-		description: 'Create and manage registration discount codes',
-	},
-	'job-clone': {
-		label:       'Job Clone',
-		icon:        'bi-copy',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'admin/job-clone',
-		description: 'Clone this event to create a new year or copy',
-	},
-	'profile-editor': {
-		label:       'Profile Editor',
-		icon:        'bi-card-list',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'admin/profile-editor',
-		description: 'Create and edit custom registration profile types',
-	},
-	'profile-migration': {
-		label:       'Profile Migration',
-		icon:        'bi-arrow-left-right',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'admin/profile-migration',
-		description: 'Batch migrate registrations between profile types',
-	},
-	'theme-editor': {
-		label:       'Theme Editor',
-		icon:        'bi-palette',
-		widgetType:  'link-tile',
-		workspace:   'job-config',
-		route:       'admin/theme',
-		description: 'Configure color palette and theme for this event',
-	},
-
-	// ── Link-tile doorbells: Player Registration ──
-
-	'search-registrations': {
-		label:       'Search Registrations',
-		icon:        'bi-search',
-		widgetType:  'link-tile',
-		workspace:   'player-reg',
-		route:       'admin/search',
-		description: 'Search and manage player registrations',
-	},
-	'roster-swapper': {
-		label:       'Roster Swapper',
-		icon:        'bi-arrow-left-right',
-		widgetType:  'link-tile',
-		workspace:   'player-reg',
-		route:       'admin/roster-swapper',
-		description: 'Move players between team rosters',
-	},
-
-	// ── Link-tile doorbells: Team Registration ──
-
-	'view-by-club': {
-		label:       'View by Club',
-		icon:        'bi-building',
-		widgetType:  'link-tile',
-		workspace:   'team-reg',
-		route:       'admin/team-search',
-		description: 'Browse registrations grouped by club',
-	},
-
-	// ── Link-tile doorbells: Scheduling ──
-
-	'scheduling-pipeline': {
-		label:       'Scheduling Pipeline',
-		icon:        'bi-kanban',
-		widgetType:  'link-tile',
-		workspace:   'scheduling',
-		route:       'admin/scheduling',
-		description: 'Step-by-step scheduling workflow',
-	},
-	'pool-assignment': {
-		label:       'Pool Assignment',
-		icon:        'bi-people-fill',
-		widgetType:  'link-tile',
-		workspace:   'scheduling',
-		route:       'admin/pool-assignment',
-		description: 'Assign teams to pools',
-	},
-	'view-schedule': {
-		label:       'View Schedule',
-		icon:        'bi-calendar-check',
-		widgetType:  'link-tile',
-		workspace:   'scheduling',
-		route:       'admin/scheduling/view-schedule',
-		description: 'View published game schedule',
-	},
-	'rescheduler': {
-		label:       'Rescheduler',
-		icon:        'bi-calendar-x',
-		widgetType:  'link-tile',
-		workspace:   'scheduling',
-		route:       'admin/scheduling/rescheduler',
-		description: 'Reschedule or swap individual games',
-	},
-
-	// ── Link-tile doorbells: Finances ──
-
-	'financial-overview': {
-		label:       'Financial Overview',
-		icon:        'bi-cash-stack',
-		widgetType:  'link-tile',
-		workspace:   'fin-per-job',
-		route:       'reporting/financials',
-		description: 'Payment status and outstanding balance reports',
-	},
-	'my-payments': {
-		label:       'My Payments',
-		icon:        'bi-wallet2',
-		widgetType:  'link-tile',
-		workspace:   'fin-per-customer',
-		route:       'reporting/financials',
-		description: 'View your payment history and outstanding balances',
-	},
 };
 
 /**

@@ -66,13 +66,8 @@ export const routes: Routes = [
 			},
 			// Legacy /dashboard → redirect to index (hub dashboard renders at /:jobPath)
 			{ path: 'dashboard', redirectTo: '', pathMatch: 'full' },
-			// Workspace spoke view (individual workspace detail page)
-			{
-				path: 'workspace/:workspaceKey',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/home/widget-dashboard/widget-dashboard.component').then(m => m.WidgetDashboardComponent)
-			},
+			// Legacy /workspace/:key → redirect to hub (spokes removed — nav menu handles navigation)
+			{ path: 'workspace/:workspaceKey', redirectTo: '', pathMatch: 'prefix' },
 			// Brand preview (design system showcase)
 			{
 				path: 'brand-preview',
@@ -101,12 +96,20 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/admin/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
 					},
 					{
+						path: 'nav-editor',
+						loadComponent: () => import('./views/admin/nav-editor/nav-editor.component').then(m => m.NavEditorComponent)
+					},
+					{
 						path: 'job-clone',
 						loadComponent: () => import('./views/admin/job-clone/job-clone.component').then(m => m.JobCloneComponent)
 					},
 					{
 						path: 'ddl-options',
 						loadComponent: () => import('./views/admin/ddl-options/ddl-options.component').then(m => m.DdlOptionsComponent)
+					},
+					{
+						path: 'job-config',
+						loadComponent: () => import('./views/admin/job-config-editor/job-config-editor.component').then(m => m.JobConfigEditorComponent)
 					}
 				]
 			},
@@ -168,28 +171,50 @@ export const routes: Routes = [
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
 			},
-			// Registration Search
+			// Nav-convention routes (match nav menu hierarchy)
+			{
+				path: 'search/players',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/registration-search/registration-search.component').then(m => m.RegistrationSearchComponent)
+			},
+			{
+				path: 'search/teams',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
+			},
+			{
+				path: 'configure/administrators',
+				canActivate: [authGuard],
+				data: { requireSuperUser: true },
+				loadComponent: () => import('./views/admin/administrator-management/administrator-management.component').then(m => m.AdministratorManagementComponent)
+			},
+			{
+				path: 'configure/discount-codes',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
+			},
+			// Legacy-compatible routes (kept for external link compatibility)
 			{
 				path: 'admin/search',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/registration-search/registration-search.component').then(m => m.RegistrationSearchComponent)
 			},
-			// Legacy-compatible route for Registration Search
 			{
 				path: 'search/index',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/registration-search/registration-search.component').then(m => m.RegistrationSearchComponent)
 			},
-			// Team Search
 			{
 				path: 'admin/team-search',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
 			},
-			// Legacy-compatible route for Team Search
 			{
 				path: 'searchteams/index',
 				canActivate: [authGuard],

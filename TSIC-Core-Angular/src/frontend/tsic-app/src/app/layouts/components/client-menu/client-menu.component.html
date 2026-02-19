@@ -8,20 +8,20 @@
         <span class="navbar-text text-danger">{{ menusError() }}</span>
         } @else {
         <ul class="navbar-nav">
-            @for (item of menus(); track item.menuItemId) {
+            @for (item of menus(); track item.navItemId) {
             <li class="nav-item" [class.dropdown]="hasChildren(item)"
-                (mouseenter)="hasChildren(item) ? expandItem(item.menuItemId) : null"
-                (mouseleave)="hasChildren(item) ? collapseItem(item.menuItemId) : null">
+                (mouseenter)="hasChildren(item) ? expandItem(item.navItemId) : null"
+                (mouseleave)="hasChildren(item) ? collapseItem(item.navItemId) : null">
                 @if (hasChildren(item)) {
                 <!-- Parent with dropdown -->
                 <a class="nav-link dropdown-toggle" href="#" role="button"
-                    (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
+                    (click)="$event.preventDefault(); toggleExpanded(item.navItemId)">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
                 </a>
                 <!-- Dropdown menu -->
-                <ul class="dropdown-menu" [class.show]="isExpanded(item.menuItemId)">
-                    @for (child of item.children; track child.menuItemId) {
+                <ul class="dropdown-menu" [class.show]="isExpanded(item.navItemId)">
+                    @for (child of item.children; track child.navItemId) {
                     <li>
                         @if (!isRouteImplemented(child)) {
                         <!-- Unimplemented route - disabled -->
@@ -31,7 +31,7 @@
                             <span class="badge bg-secondary ms-2">Coming Soon</span>
                         </span>
                         } @else if (isExternalLink(child)) {
-                        <a class="dropdown-item" [href]="getLink(child)" [target]="child.linkTarget || '_self'"
+                        <a class="dropdown-item" [href]="getLink(child)" [target]="child.target || '_self'"
                             (click)="collapseAll()">
                             <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                             {{ child.text }}
@@ -65,7 +65,7 @@
                     <span class="badge bg-secondary ms-2">Soon</span>
                 </span>
                 } @else if (isExternalLink(item)) {
-                <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'"
+                <a class="nav-link" [href]="getLink(item)" [target]="item.target || '_self'"
                     (click)="collapseAll()">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
@@ -109,23 +109,23 @@
             <p class="text-danger">{{ menusError() }}</p>
             } @else if (menus() && menus().length > 0) {
             <ul class="nav flex-column">
-                @for (item of menus(); track item.menuItemId) {
+                @for (item of menus(); track item.navItemId) {
                 <li class="nav-item">
                     @if (hasChildren(item)) {
                     <!-- Parent with collapsible children -->
                     <a class="nav-link d-flex justify-content-between align-items-center" href="#"
-                        (click)="$event.preventDefault(); toggleExpanded(item.menuItemId)">
+                        (click)="$event.preventDefault(); toggleExpanded(item.navItemId)">
                         <span>
                             <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                             {{ item.text }}
                         </span>
-                        <i class="bi" [class.bi-chevron-down]="!isExpanded(item.menuItemId)"
-                            [class.bi-chevron-up]="isExpanded(item.menuItemId)"></i>
+                        <i class="bi" [class.bi-chevron-down]="!isExpanded(item.navItemId)"
+                            [class.bi-chevron-up]="isExpanded(item.navItemId)"></i>
                     </a>
                     <!-- Collapsible children -->
-                    <div class="collapse" [class.show]="isExpanded(item.menuItemId)">
+                    <div class="collapse" [class.show]="isExpanded(item.navItemId)">
                         <ul class="nav flex-column ms-3">
-                            @for (child of item.children; track child.menuItemId) {
+                            @for (child of item.children; track child.navItemId) {
                             <li class="nav-item">
                                 @if (!isRouteImplemented(child)) {
                                 <!-- Unimplemented route - disabled -->
@@ -135,7 +135,7 @@
                                     <span class="badge bg-secondary ms-2">Coming Soon</span>
                                 </span>
                                 } @else if (isExternalLink(child)) {
-                                <a class="nav-link" [href]="getLink(child)" [target]="child.linkTarget || '_self'"
+                                <a class="nav-link" [href]="getLink(child)" [target]="child.target || '_self'"
                                     (click)="closeOffcanvas()">
                                     <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                                     {{ child.text }}
@@ -168,7 +168,7 @@
                         <span class="badge bg-secondary ms-2">Coming Soon</span>
                     </span>
                     } @else if (isExternalLink(item)) {
-                    <a class="nav-link" [href]="getLink(item)" [target]="item.linkTarget || '_self'"
+                    <a class="nav-link" [href]="getLink(item)" [target]="item.target || '_self'"
                         (click)="closeOffcanvas()">
                         <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                         {{ item.text }}

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
-import type { MenuItemDto } from '@core/api';
+import type { NavItemDto } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
 import { MenuStateService } from '../../services/menu-state.service';
 
@@ -23,10 +23,10 @@ export class ClientMenuComponent {
     private readonly knownRoutes = this.buildKnownRoutes();
     private readonly wildcardPrefixes = this.buildWildcardPrefixes();
 
-    // Access menu data from JobService
-    menus = computed(() => this.jobService.menus());
-    menusLoading = computed(() => this.jobService.menusLoading());
-    menusError = computed(() => this.jobService.menusError());
+    // Access nav data from JobService
+    menus = computed(() => this.jobService.navItems());
+    menusLoading = computed(() => this.jobService.navLoading());
+    menusError = computed(() => this.jobService.navError());
 
     // Offcanvas state from shared service
     offcanvasOpen = this.menuState.offcanvasOpen;
@@ -52,8 +52,8 @@ export class ClientMenuComponent {
      * Toggle expansion state of a parent menu item
      * Closes all other expanded items (single expansion at a time)
      */
-    toggleExpanded(menuItemId: string): void {
-        const normalizedId = menuItemId.toLowerCase();
+    toggleExpanded(menuItemId: string | number): void {
+        const normalizedId = String(menuItemId);
         const expanded = this.expandedItems();
         const isCurrentlyExpanded = expanded.has(normalizedId);
 
@@ -71,16 +71,16 @@ export class ClientMenuComponent {
     /**
      * Check if a menu item is expanded
      */
-    isExpanded(menuItemId: string): boolean {
-        const normalizedId = menuItemId.toLowerCase();
+    isExpanded(menuItemId: string | number): boolean {
+        const normalizedId = String(menuItemId);
         return this.expandedItems().has(normalizedId);
     }
 
     /**
      * Expand a menu item (desktop hover)
      */
-    expandItem(menuItemId: string): void {
-        const normalizedId = menuItemId.toLowerCase();
+    expandItem(menuItemId: string | number): void {
+        const normalizedId = String(menuItemId);
         const expanded = this.expandedItems();
         if (!expanded.has(normalizedId)) {
             // Close all others and open this one
@@ -93,8 +93,8 @@ export class ClientMenuComponent {
     /**
      * Collapse a menu item (desktop hover out)
      */
-    collapseItem(menuItemId: string): void {
-        const normalizedId = menuItemId.toLowerCase();
+    collapseItem(menuItemId: string | number): void {
+        const normalizedId = String(menuItemId);
         const expanded = this.expandedItems();
         if (expanded.has(normalizedId)) {
             const newExpanded = new Set(expanded);
@@ -106,107 +106,62 @@ export class ClientMenuComponent {
     /**
      * Check if item has children
      */
-    hasChildren(item: MenuItemDto): boolean {
+    hasChildren(item: NavItemDto): boolean {
         return !!(item.children && item.children.length > 0);
     }
 
     /**
-     * Get the link for a menu item based on precedence:
-     * 1. navigateUrl (external link)
-     * 2. routerLink (Angular route)
-     * 3. controller/action (legacy MVC - map to Angular route as {jobPath}/{controller}/{action})
-     */
-    /**
      * Legacy controller/action → Angular route translations.
-     * Maps DB-driven MVC routes to their Angular equivalents.
+     * Preserved for future use when reporting/scheduling nav items
+     * may reference legacy controller/action patterns.
      */
     private readonly legacyRouteMap = new Map<string, string>([
-        // DB stores old Scheduling controller actions; map to new Angular routes
         ['scheduling/manageleagueseasonfields', 'fields/index'],
         ['scheduling/manageleagueseasonpairings', 'pairings/index'],
         ['scheduling/manageleagueseasontimeslots', 'timeslots/index'],
-        // DB action names differ from legacy controller names
         ['scheduling/scheduledivbyagfields', 'scheduling/scheduledivision'],
         ['scheduling/getschedule', 'scheduling/schedules'],
     ]);
 
     /**
-     * Resolve a legacy controller/action to an Angular route path.
-     * Returns the translated path if a mapping exists, otherwise the raw controller/action path.
+     * Get the link for a nav item.
+     * Nav items have explicit routerLink or navigateUrl — no controller/action translation needed.
      */
-    private resolveLegacyPath(item: MenuItemDto): string | null {
-        if (!item.controller) return null;
-        // Strip query params from action — DB sometimes embeds config params (e.g. GetSchedule?use_ag_options=true&...)
-        const action = (item.action || 'index').toLowerCase().split('?')[0];
-        const raw = `${item.controller.toLowerCase()}/${action}`;
-        return this.legacyRouteMap.get(raw) ?? raw;
-    }
-
-    getLink(item: MenuItemDto): string | null {
-        // navigateUrl is for external links — skip if it's just a legacy query string
-        if (item.navigateUrl && !item.navigateUrl.startsWith('?')) {
-            return item.navigateUrl;
-        }
-
-        const jobPath = this.jobService.currentJob()?.jobPath || '';
-
-        if (item.routerLink) {
-            return item.routerLink;
-        }
-
-        const path = this.resolveLegacyPath(item);
-        return path ? `/${jobPath}/${path}` : null;
+    getLink(item: NavItemDto): string | null {
+        if (item.navigateUrl) return item.navigateUrl;
+        if (item.routerLink) return item.routerLink;
+        return null;
     }
 
     /**
-     * Check if a menu item's route is implemented in the Angular router.
-     * Items with navigateUrl (external) or routerLink are always considered implemented.
-     * Items with controller/action are checked against the router config.
+     * Check if a nav item's route is implemented in the Angular router.
+     * Items with navigateUrl (external) are always considered implemented.
+     * Items with routerLink are checked against the router config.
+     * Items with no link (parent headers) are considered implemented.
      */
-    isRouteImplemented(item: MenuItemDto): boolean {
-        if ((item.navigateUrl && !item.navigateUrl.startsWith('?')) || item.routerLink) {
-            return true;
+    isRouteImplemented(item: NavItemDto): boolean {
+        if (item.navigateUrl) return true;
+        if (item.routerLink) {
+            if (this.knownRoutes.has(item.routerLink)) return true;
+            return this.wildcardPrefixes.some(prefix => item.routerLink!.startsWith(prefix + '/'));
         }
-        const path = this.resolveLegacyPath(item);
-        if (path) {
-            if (this.knownRoutes.has(path)) return true;
-            return this.wildcardPrefixes.some(prefix => path.startsWith(prefix + '/'));
-        }
-        // Items with no link at all (parent headers) are considered implemented
+        // Parent headers with no link are always shown
         return true;
     }
 
     /**
      * Check if the link is external (navigateUrl present)
      */
-    isExternalLink(item: MenuItemDto): boolean {
-        return !!item.navigateUrl && !item.navigateUrl.startsWith('?');
+    isExternalLink(item: NavItemDto): boolean {
+        return !!item.navigateUrl;
     }
 
     /**
-     * Get icon for menu item with intelligent fallbacks
+     * Get icon for nav item — uses explicit iconName from seed data,
+     * falls back to folder/dot for items without icons.
      */
-    getMenuIcon(item: MenuItemDto): string {
-        if (item.iconName) {
-            return item.iconName;
-        }
-
-        // Smart fallbacks based on menu text content
-        const text = item.text?.toLowerCase() || '';
-
-        if (text.includes('profile') || text.includes('account')) return 'person-circle';
-        if (text.includes('dashboard') || text.includes('home')) return 'house-door';
-        if (text.includes('registration') || text.includes('register')) return 'person-plus';
-        if (text.includes('schedule') || text.includes('calendar')) return 'calendar-event';
-        if (text.includes('team') || text.includes('roster')) return 'people';
-        if (text.includes('payment') || text.includes('billing')) return 'credit-card';
-        if (text.includes('document') || text.includes('form')) return 'file-earmark-text';
-        if (text.includes('setting') || text.includes('config')) return 'gear';
-        if (text.includes('help') || text.includes('support')) return 'question-circle';
-        if (text.includes('report') || text.includes('stats')) return 'bar-chart';
-        if (text.includes('message') || text.includes('communication')) return 'chat-dots';
-
-        // Default fallback
+    getMenuIcon(item: NavItemDto): string {
+        if (item.iconName) return item.iconName;
         return this.hasChildren(item) ? 'folder' : 'dot';
     }
 

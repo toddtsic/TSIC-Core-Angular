@@ -1,4 +1,4 @@
-import { EffectOptions, EffectRef, EnvironmentInjector, effect, runInInjectionContext } from '@angular/core';
+import { EffectRef, EnvironmentInjector, effect, runInInjectionContext } from '@angular/core';
 
 /**
  * Safely create an Angular signal effect using a stored EnvironmentInjector.
@@ -13,7 +13,7 @@ import { EffectOptions, EffectRef, EnvironmentInjector, effect, runInInjectionCo
 export function effectWith(
     env: EnvironmentInjector,
     fn: Parameters<typeof effect>[0],
-    options?: EffectOptions
+    options?: Parameters<typeof effect>[1]
 ): EffectRef {
     return runInInjectionContext(env, () => effect(fn, options));
 }

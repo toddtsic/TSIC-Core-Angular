@@ -14,19 +14,22 @@ namespace TSIC.API.Controllers;
 public class WidgetDashboardController : ControllerBase
 {
     private readonly IWidgetDashboardService _dashboardService;
+    private readonly IUserWidgetService _userWidgetService;
     private readonly IJobLookupService _jobLookupService;
 
     public WidgetDashboardController(
         IWidgetDashboardService dashboardService,
+        IUserWidgetService userWidgetService,
         IJobLookupService jobLookupService)
     {
         _dashboardService = dashboardService;
+        _userWidgetService = userWidgetService;
         _jobLookupService = jobLookupService;
     }
 
     /// <summary>
     /// Get the merged widget dashboard for the current user's job and role.
-    /// Returns widgets grouped by workspace (dashboard/player-reg/scheduling/etc.) and category.
+    /// Applies three merge layers: platform defaults, job overrides, user customizations.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<WidgetDashboardResponse>> GetDashboard(CancellationToken ct)
@@ -39,7 +42,9 @@ public class WidgetDashboardController : ControllerBase
         if (string.IsNullOrEmpty(roleName))
             return Unauthorized();
 
-        var result = await _dashboardService.GetDashboardAsync(jobId.Value, roleName, ct);
+        var regId = User.GetRegistrationId();
+
+        var result = await _dashboardService.GetDashboardAsync(jobId.Value, roleName, regId, ct);
         return Ok(result);
     }
 
@@ -146,6 +151,80 @@ public class WidgetDashboardController : ControllerBase
         return Ok(result);
     }
 
+    // ── User Widget Customization Endpoints ──
+
+    /// <summary>
+    /// Get the current user's widget customization delta.
+    /// Returns an empty list if the user has no customizations.
+    /// </summary>
+    [HttpGet("my-widgets")]
+    public async Task<ActionResult<List<UserWidgetEntryDto>>> GetMyWidgets(CancellationToken ct)
+    {
+        var regId = User.GetRegistrationId();
+        if (regId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var result = await _userWidgetService.GetUserWidgetsAsync(regId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Save the current user's widget customizations (replace-all pattern).
+    /// Replaces existing delta with the provided entries.
+    /// </summary>
+    [HttpPut("my-widgets")]
+    public async Task<IActionResult> SaveMyWidgets(
+        [FromBody] SaveUserWidgetsRequest request, CancellationToken ct)
+    {
+        var regId = User.GetRegistrationId();
+        if (regId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        await _userWidgetService.SaveUserWidgetsAsync(regId.Value, request, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Reset the current user's widget customizations to platform defaults.
+    /// Deletes all UserWidget entries for the current registration.
+    /// </summary>
+    [HttpDelete("my-widgets")]
+    public async Task<IActionResult> ResetMyWidgets(CancellationToken ct)
+    {
+        var regId = User.GetRegistrationId();
+        if (regId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        await _userWidgetService.ResetUserWidgetsAsync(regId.Value, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Get all widgets available for the current user's role/jobType.
+    /// Used by the widget library browser for customization UI.
+    /// </summary>
+    [HttpGet("available-widgets")]
+    public async Task<ActionResult<List<AvailableWidgetDto>>> GetAvailableWidgets(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var roleName = User.FindFirstValue(ClaimTypes.Role);
+        if (string.IsNullOrEmpty(roleName))
+            return Unauthorized();
+
+        var regId = User.GetRegistrationId();
+        if (regId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var result = await _userWidgetService.GetAvailableWidgetsAsync(
+            jobId.Value, roleName, regId.Value, ct);
+        return Ok(result);
+    }
+
+    // ── Public (Anonymous) Endpoints ──
+
     /// <summary>
     /// Get the public widget dashboard for anonymous visitors.
     /// Returns widgets configured for the Anonymous role, grouped by workspace and category.
@@ -159,7 +238,7 @@ public class WidgetDashboardController : ControllerBase
         if (jobId == null)
             return NotFound(new { message = "Job not found" });
 
-        var result = await _dashboardService.GetDashboardAsync(jobId.Value, "Anonymous", ct);
+        var result = await _dashboardService.GetDashboardAsync(jobId.Value, "Anonymous", ct: ct);
         return Ok(result);
     }
 

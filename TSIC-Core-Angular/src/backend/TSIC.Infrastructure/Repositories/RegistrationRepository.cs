@@ -494,6 +494,34 @@ public class RegistrationRepository : IRegistrationRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
+        // Prefer explicitly-set primary contact
+        var primaryContactId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.PrimaryContactRegistrationId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (primaryContactId != null)
+        {
+            var explicitContact = await _context.Registrations
+                .AsNoTracking()
+                .Where(r => r.RegistrationId == primaryContactId && r.BActive == true)
+                .Select(r => new DirectorContactInfo
+                {
+                    Email = r.User != null ? r.User.Email : null,
+                    FirstName = r.User != null ? r.User.FirstName : null,
+                    LastName = r.User != null ? r.User.LastName : null,
+                    Cellphone = r.User != null ? r.User.Cellphone : null,
+                    OrgName = r.Job != null ? r.Job.JobName : null,
+                    PaymentPlan = r.Job != null && (r.Job.AdnArb == true)
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (explicitContact != null)
+                return explicitContact;
+        }
+
+        // Fallback: earliest-registered active Director
         return await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId

@@ -6,26 +6,24 @@ using TSIC.Domain.Constants;
 namespace TSIC.API.Services.Widgets;
 
 /// <summary>
-/// Assembles the widget dashboard by merging WidgetDefault (Role+JobType)
-/// with JobWidget (per-job overrides) and grouping into workspaces/categories.
+/// Assembles the widget dashboard by merging three layers:
+///   1. WidgetDefault (platform defaults per Role+JobType)
+///   2. JobWidget (admin per-job overrides)
+///   3. UserWidget (per-user customizations — hide, reorder, config)
+/// Groups results into workspaces/categories.
 /// </summary>
 public sealed class WidgetDashboardService : IWidgetDashboardService
 {
     private readonly IWidgetRepository _widgetRepo;
+    private readonly IUserWidgetRepository _userWidgetRepo;
     private readonly ISchedulingDashboardService _schedulingSvc;
     private readonly ILogger<WidgetDashboardService> _logger;
 
-    // Workspace ordering: public/dashboard first, then workspaces alphabetically by purpose
+    // Workspace ordering: public first, then dashboard
     private static readonly Dictionary<string, int> WorkspaceOrder = new()
     {
         ["public"] = -1,
         ["dashboard"] = 0,
-        ["job-config"] = 1,
-        ["player-reg"] = 2,
-        ["team-reg"] = 3,
-        ["scheduling"] = 4,
-        ["fin-per-job"] = 5,
-        ["fin-per-customer"] = 6
     };
 
     /// <summary>
@@ -52,16 +50,18 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
 
     public WidgetDashboardService(
         IWidgetRepository widgetRepo,
+        IUserWidgetRepository userWidgetRepo,
         ISchedulingDashboardService schedulingSvc,
         ILogger<WidgetDashboardService> logger)
     {
         _widgetRepo = widgetRepo;
+        _userWidgetRepo = userWidgetRepo;
         _schedulingSvc = schedulingSvc;
         _logger = logger;
     }
 
     public async Task<WidgetDashboardResponse> GetDashboardAsync(
-        Guid jobId, string roleName, CancellationToken ct = default)
+        Guid jobId, string roleName, Guid? registrationId = null, CancellationToken ct = default)
     {
         // 1. Resolve role name to GUID
         if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
@@ -78,14 +78,14 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
             return new WidgetDashboardResponse { Workspaces = [] };
         }
 
-        // 2. Fetch defaults and per-job overrides (sequential — DbContext is not thread-safe)
+        // 3. Fetch defaults and per-job overrides (sequential — DbContext is not thread-safe)
         var defaults = await _widgetRepo.GetDefaultsAsync(jobTypeId.Value, roleId, ct);
         var jobWidgets = await _widgetRepo.GetJobWidgetsAsync(jobId, roleId, ct);
 
-        // 3. Build lookup of per-job overrides keyed by WidgetId
+        // 4. Build lookup of per-job overrides keyed by WidgetId
         var overridesByWidgetId = jobWidgets.ToDictionary(jw => jw.WidgetId);
 
-        // 4. Merge: start with defaults, apply overrides
+        // 5. Layer 1+2 merge: start with defaults, apply job overrides
         var mergedWidgets = new List<MergedWidget>();
 
         foreach (var def in defaults)
@@ -137,7 +137,7 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
             }
         }
 
-        // 5. Add job-specific widgets that have no default (pure additions)
+        // 6. Add job-specific widgets that have no default (pure additions)
         foreach (var addition in overridesByWidgetId.Values)
         {
             if (!addition.IsEnabled)
@@ -161,7 +161,37 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
             });
         }
 
-        // 6. Group into workspaces → categories → ordered widgets
+        // 7. Layer 3: apply per-user customizations (if registrationId provided)
+        if (registrationId.HasValue)
+        {
+            var userWidgets = await _userWidgetRepo.GetByRegistrationIdAsync(registrationId.Value, ct);
+
+            if (userWidgets.Count > 0)
+            {
+                var userOverrides = userWidgets.ToDictionary(uw => uw.WidgetId);
+
+                // Remove hidden widgets and apply user display order / config
+                mergedWidgets = mergedWidgets
+                    .Where(w =>
+                    {
+                        if (!userOverrides.TryGetValue(w.WidgetId, out var uo)) return true;
+                        return !uo.IsHidden;
+                    })
+                    .Select(w =>
+                    {
+                        if (!userOverrides.TryGetValue(w.WidgetId, out var uo)) return w;
+                        return w with
+                        {
+                            DisplayOrder = uo.DisplayOrder,
+                            Config = uo.Config ?? w.Config,
+                            IsOverridden = true
+                        };
+                    })
+                    .ToList();
+            }
+        }
+
+        // 8. Group into workspaces → categories → ordered widgets
         var workspaces = mergedWidgets
             .GroupBy(w => w.Workspace)
             .OrderBy(g => WorkspaceOrder.GetValueOrDefault(g.Key, 99))
@@ -266,9 +296,10 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
     }
 
     /// <summary>
-    /// Internal struct for holding merged widget data before grouping.
+    /// Internal record for holding merged widget data before grouping.
+    /// Uses 'with' expressions for Layer 3 user overrides.
     /// </summary>
-    private sealed class MergedWidget
+    private sealed record MergedWidget
     {
         public int WidgetId { get; init; }
         public string Name { get; init; } = "";

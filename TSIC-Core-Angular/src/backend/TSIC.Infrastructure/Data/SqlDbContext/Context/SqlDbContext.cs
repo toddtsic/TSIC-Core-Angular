@@ -224,6 +224,10 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<MonthlyJobStats> MonthlyJobStats { get; set; }
 
+    public virtual DbSet<Nav> Nav { get; set; }
+
+    public virtual DbSet<NavItem> NavItem { get; set; }
+
     public virtual DbSet<NuveiBatches> NuveiBatches { get; set; }
 
     public virtual DbSet<NuveiFunding> NuveiFunding { get; set; }
@@ -347,6 +351,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<Timezones> Timezones { get; set; }
 
     public virtual DbSet<Txs> Txs { get; set; }
+
+    public virtual DbSet<UserWidget> UserWidget { get; set; }
 
     public virtual DbSet<VItemsToUpdate> VItemsToUpdate { get; set; }
 
@@ -4431,6 +4437,10 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.LebUserId)
                 .HasConstraintName("FK_Jobs.Jobs_AspNetUsers_lebUserID");
 
+            entity.HasOne(d => d.PrimaryContactRegistration).WithMany(p => p.Jobs)
+                .HasForeignKey(d => d.PrimaryContactRegistrationId)
+                .HasConstraintName("FK__Jobs__PrimaryCon__0EB07FE6");
+
             entity.HasOne(d => d.Sport).WithMany(p => p.Jobs)
                 .HasForeignKey(d => d.SportId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
@@ -4659,6 +4669,62 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.LebUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Monthly_J__lebUs__322DFAF6");
+        });
+
+        modelBuilder.Entity<Nav>(entity =>
+        {
+            entity.HasKey(e => e.NavId).HasName("PK_nav_Nav");
+
+            entity.ToTable("Nav", "nav");
+
+            entity.HasIndex(e => new { e.RoleId, e.JobId }, "UQ_nav_Nav_Role_Job")
+                .IsUnique()
+                .HasFilter("([JobId] IS NOT NULL)");
+
+            entity.Property(e => e.Active).HasDefaultValue(true);
+            entity.Property(e => e.Modified).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ModifiedBy).HasMaxLength(450);
+
+            entity.HasOne(d => d.Job).WithMany(p => p.Nav)
+                .HasForeignKey(d => d.JobId)
+                .HasConstraintName("FK_nav_Nav_JobId");
+
+            entity.HasOne(d => d.ModifiedByNavigation).WithMany(p => p.Nav)
+                .HasForeignKey(d => d.ModifiedBy)
+                .HasConstraintName("FK_nav_Nav_ModifiedBy");
+
+            entity.HasOne(d => d.Role).WithMany(p => p.Nav)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_nav_Nav_RoleId");
+        });
+
+        modelBuilder.Entity<NavItem>(entity =>
+        {
+            entity.HasKey(e => e.NavItemId).HasName("PK_nav_NavItem");
+
+            entity.ToTable("NavItem", "nav");
+
+            entity.Property(e => e.Active).HasDefaultValue(true);
+            entity.Property(e => e.IconName).HasMaxLength(100);
+            entity.Property(e => e.Modified).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ModifiedBy).HasMaxLength(450);
+            entity.Property(e => e.NavigateUrl).HasMaxLength(500);
+            entity.Property(e => e.RouterLink).HasMaxLength(500);
+            entity.Property(e => e.Target).HasMaxLength(20);
+            entity.Property(e => e.Text).HasMaxLength(200);
+
+            entity.HasOne(d => d.ModifiedByNavigation).WithMany(p => p.NavItem)
+                .HasForeignKey(d => d.ModifiedBy)
+                .HasConstraintName("FK_nav_NavItem_ModifiedBy");
+
+            entity.HasOne(d => d.Nav).WithMany(p => p.NavItem)
+                .HasForeignKey(d => d.NavId)
+                .HasConstraintName("FK_nav_NavItem_NavId");
+
+            entity.HasOne(d => d.ParentNavItem).WithMany(p => p.InverseParentNavItem)
+                .HasForeignKey(d => d.ParentNavItemId)
+                .HasConstraintName("FK_nav_NavItem_ParentNavItemId");
         });
 
         modelBuilder.Entity<NuveiBatches>(entity =>
@@ -6909,6 +6975,25 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Zip)
                 .HasMaxLength(50)
                 .HasColumnName("ZIP");
+        });
+
+        modelBuilder.Entity<UserWidget>(entity =>
+        {
+            entity.HasKey(e => e.UserWidgetId).HasName("PK_widgets_UserWidget");
+
+            entity.ToTable("UserWidget", "widgets");
+
+            entity.HasIndex(e => new { e.RegistrationId, e.WidgetId }, "UQ_widgets_UserWidget_Reg_Widget").IsUnique();
+
+            entity.HasOne(d => d.Category).WithMany(p => p.UserWidget)
+                .HasForeignKey(d => d.CategoryId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_UserWidget_Category");
+
+            entity.HasOne(d => d.Widget).WithMany(p => p.UserWidget)
+                .HasForeignKey(d => d.WidgetId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_widgets_UserWidget_Widget");
         });
 
         modelBuilder.Entity<VItemsToUpdate>(entity =>

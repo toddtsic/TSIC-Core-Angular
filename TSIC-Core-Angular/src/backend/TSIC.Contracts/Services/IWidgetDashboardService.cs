@@ -4,18 +4,20 @@ namespace TSIC.Contracts.Services;
 
 /// <summary>
 /// Service for assembling the widget dashboard.
-/// Merges WidgetDefault (Role+JobType) with JobWidget (per-job overrides)
-/// and returns a structured, section-grouped response.
+/// Merges WidgetDefault (Role+JobType) → JobWidget (per-job overrides) → UserWidget (per-user delta)
+/// and returns a structured, workspace/category-grouped response.
 /// </summary>
 public interface IWidgetDashboardService
 {
     /// <summary>
     /// Get the merged widget dashboard for a given job and role.
     /// Accepts role name (from JWT claim); resolves to role GUID internally.
+    /// When registrationId is provided, applies per-user customizations (3rd merge layer).
     /// </summary>
     Task<WidgetDashboardResponse> GetDashboardAsync(
         Guid jobId,
         string roleName,
+        Guid? registrationId = null,
         CancellationToken ct = default);
 
     /// <summary>

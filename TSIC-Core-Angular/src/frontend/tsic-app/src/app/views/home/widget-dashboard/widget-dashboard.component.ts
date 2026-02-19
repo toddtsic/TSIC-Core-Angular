@@ -1,27 +1,39 @@
 import { Component, computed, effect, inject, input, signal, isDevMode, ChangeDetectionStrategy, Type } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
-import { Router, ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
+import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
 import { WIDGET_REGISTRY } from '@widgets/widget-registry';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
-import type { DashboardMetricsDto, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
+import type { AvailableWidgetDto, DashboardMetricsDto, SaveUserWidgetsRequest, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {
-	route?: string;
 	endpoint?: string;
-	label?: string;
-	icon?: string;
-	format?: string;
 	displayStyle?: string;
+}
+
+/** Mutable row for the customization UI */
+interface CustomizeRow {
+	widgetId: number;
+	categoryId: number;
+	name: string;
+	widgetType: string;
+	componentKey: string;
+	description: string | null;
+	categoryName: string;
+	isVisible: boolean;
+	displayOrder: number;
+	_dirty: boolean;
 }
 
 @Component({
 	selector: 'app-widget-dashboard',
 	standalone: true,
-	imports: [NgComponentOutlet],
+	imports: [NgComponentOutlet, TsicDialogComponent, ConfirmDialogComponent],
 	templateUrl: './widget-dashboard.component.html',
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -31,7 +43,6 @@ export class WidgetDashboardComponent {
 	private readonly auth = inject(AuthService);
 	private readonly jobService = inject(JobService);
 	private readonly toast = inject(ToastService);
-	private readonly router = inject(Router);
 	private readonly route = inject(ActivatedRoute);
 
 	/** 'authenticated' = reads job/role from JWT; 'public' = anonymous, needs jobPath input */
@@ -44,9 +55,6 @@ export class WidgetDashboardComponent {
 	readonly metrics = signal<DashboardMetricsDto | null>(null);
 	readonly isLoading = signal(false);
 	readonly hasError = signal(false);
-
-	/** Active workspace key when in spoke mode (empty = hub mode) */
-	readonly activeWorkspaceKey = signal('');
 
 	readonly roleName = computed(() =>
 		this.mode() === 'public' ? '' : (this.auth.currentUser()?.role || ''));
@@ -81,7 +89,6 @@ export class WidgetDashboardComponent {
 		if (this.mode() === 'public') return this.publicJobPath();
 		const user = this.auth.currentUser();
 		if (user?.jobPath) return user.jobPath;
-		// Traverse route tree upward to find :jobPath (works in both hub and spoke mode)
 		let r: ActivatedRouteSnapshot | null = this.route.snapshot;
 		while (r) {
 			const jp = r.paramMap.get('jobPath');
@@ -106,19 +113,16 @@ export class WidgetDashboardComponent {
 
 	readonly isSuperuser = computed(() => this.roleName() === 'Superuser');
 
-	// ── Hub/Spoke computed signals ──
+	// ── Dashboard computed signals ──
 
-	/** True when rendering a single workspace (spoke mode) */
-	readonly isSpokeMode = computed(() => !!this.activeWorkspaceKey());
-
-	/** The 'dashboard' workspace from the API response (hub content) */
+	/** The 'dashboard' workspace from the API response */
 	readonly dashboardWorkspace = computed(() => {
 		const db = this.dashboard();
 		if (!db) return null;
 		return db.workspaces.find(ws => ws.workspace === 'dashboard') ?? null;
 	});
 
-	/** Dashboard categories for the hub, excluding bulletins for admin roles */
+	/** Dashboard categories, excluding bulletins for admin roles */
 	readonly hubCategories = computed(() => {
 		const ws = this.dashboardWorkspace();
 		if (!ws) return [];
@@ -128,29 +132,6 @@ export class WidgetDashboardComponent {
 		);
 	});
 
-	/** Non-dashboard, non-public workspaces — these become spoke navigation cards */
-	readonly spokeWorkspaces = computed(() => {
-		const db = this.dashboard();
-		if (!db) return [];
-		return db.workspaces.filter(ws =>
-			ws.workspace !== 'dashboard' && ws.workspace !== 'public'
-		);
-	});
-
-	/** The workspace to render when in spoke mode */
-	readonly activeWorkspace = computed(() => {
-		const key = this.activeWorkspaceKey();
-		const db = this.dashboard();
-		if (!key || !db) return null;
-		return db.workspaces.find(ws => ws.workspace === key) ?? null;
-	});
-
-	/** Display label for the active spoke workspace */
-	readonly activeWorkspaceLabel = computed(() => {
-		const key = this.activeWorkspaceKey();
-		return key ? this.workspaceLabel(key) : '';
-	});
-
 	private configCache = new Map<number, WidgetConfig>();
 	private warnedKeys = new Set<string>();
 
@@ -158,16 +139,11 @@ export class WidgetDashboardComponent {
 	private lastLoadedKey = '';
 
 	constructor() {
-		// Detect spoke mode from route param
-		const key = this.route.snapshot.paramMap.get('workspaceKey') || '';
-		this.activeWorkspaceKey.set(key);
-
 		// Reactive reload: fires when auth state changes (job switch, role switch)
 		effect(() => {
 			const mode = this.mode();
 			const user = this.auth.currentUser();
 			const jobPath = this.activeJobPath();
-			// regId is unique per role+job combination — changes on every role switch
 			const regId = user?.regId || '';
 			const loadKey = `${mode}:${jobPath}:${regId}`;
 
@@ -177,12 +153,9 @@ export class WidgetDashboardComponent {
 			if (mode === 'public') {
 				this.loadPublicData();
 			} else {
-				// Refresh job metadata for hero branding + header bar
 				this.jobService.fetchJobMetadata(jobPath).subscribe();
 				this.loadDashboard();
-				if (!this.activeWorkspaceKey()) {
-					this.loadMetrics();
-				}
+				this.loadMetrics();
 			}
 		});
 	}
@@ -192,7 +165,6 @@ export class WidgetDashboardComponent {
 		const cmp = WIDGET_REGISTRY[componentKey] ?? null;
 		if (!cmp && isDevMode() && !this.warnedKeys.has(componentKey)) {
 			this.warnedKeys.add(componentKey);
-			// Defer toast — this runs during template rendering where signal writes are forbidden (NG0600)
 			queueMicrotask(() => this.toast.show(
 				`Widget "${componentKey}" has no registry entry. Add it to widgets/widget-registry.ts.`,
 				'warning', 8000,
@@ -210,7 +182,6 @@ export class WidgetDashboardComponent {
 		this.hasError.set(false);
 		this.configCache.clear();
 
-		// Load job metadata (for banner) and bulletins
 		this.jobService.fetchJobMetadata(jobPath).subscribe({
 			next: (job) => {
 				this.jobService.setJob(job);
@@ -218,7 +189,6 @@ export class WidgetDashboardComponent {
 			}
 		});
 
-		// Load widget config
 		this.svc.getPublicDashboard(jobPath).subscribe({
 			next: (data) => {
 				this.dashboard.set(data);
@@ -255,11 +225,6 @@ export class WidgetDashboardComponent {
 		});
 	}
 
-	/** Returns true if a workspace renders full-width content components (banner, bulletins, charts) */
-	isContentWorkspace(workspace: string): boolean {
-		return workspace === 'public' || workspace === 'dashboard';
-	}
-
 	/** Returns true if a category contains only chart-tile type widgets (for tile grid layout) */
 	isChartCategory(category: WidgetCategoryGroupDto): boolean {
 		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'chart-tile');
@@ -268,44 +233,6 @@ export class WidgetDashboardComponent {
 	/** Returns true if a category contains only status-tile type widgets */
 	isStatusCategory(category: WidgetCategoryGroupDto): boolean {
 		return category.widgets.length > 0 && category.widgets.every(w => w.widgetType === 'status-tile');
-	}
-
-	workspaceLabel(workspace: string): string {
-		switch (workspace) {
-			case 'public': return '';
-			case 'dashboard': return '';
-			case 'job-config': return 'Event Setup';
-			case 'player-reg': return 'Player Registration';
-			case 'team-reg': return 'Team Registration';
-			case 'scheduling': return 'Scheduling';
-			case 'fin-per-job': return 'Customer Finances';
-			case 'fin-per-customer': return 'Job Finances';
-			default: return workspace;
-		}
-	}
-
-	workspaceIcon(workspace: string): string {
-		switch (workspace) {
-			case 'job-config': return 'bi-gear-fill';
-			case 'player-reg': return 'bi-person-lines-fill';
-			case 'team-reg': return 'bi-people-fill';
-			case 'scheduling': return 'bi-calendar-range';
-			case 'fin-per-job': return 'bi-cash-stack';
-			case 'fin-per-customer': return 'bi-wallet2';
-			default: return 'bi-grid';
-		}
-	}
-
-	workspaceDescription(workspace: string): string {
-		switch (workspace) {
-			case 'job-config': return 'Event setup, LADT editor, fee structures';
-			case 'player-reg': return 'Player registration search and management';
-			case 'team-reg': return 'Team and club registration management';
-			case 'scheduling': return 'Scheduling pipeline, pools, and game management';
-			case 'fin-per-job': return 'Revenue, balances, and payment summaries';
-			case 'fin-per-customer': return 'Your payment history and balances';
-			default: return '';
-		}
 	}
 
 	getConfig(widget: WidgetItemDto): WidgetConfig {
@@ -320,35 +247,135 @@ export class WidgetDashboardComponent {
 		return config;
 	}
 
-	getIcon(widget: WidgetItemDto): string {
-		return this.getConfig(widget).icon || 'bi-square';
-	}
-
-	getLabel(widget: WidgetItemDto): string {
-		return this.getConfig(widget).label || widget.name;
-	}
-
 	getDisplayStyle(widget: WidgetItemDto): string {
 		return this.getConfig(widget).displayStyle || 'standard';
 	}
 
-	onWidgetClick(widget: WidgetItemDto, event: Event): void {
-		event.preventDefault();
-		const config = this.getConfig(widget);
-		if (config.route) {
-			const wsKey = this.activeWorkspaceKey();
-			this.router.navigate(
-				['/', this.activeJobPath(), ...config.route.split('/')],
-				wsKey ? { queryParams: { from: wsKey } } : {},
-			);
+	// ── Customization Dialog ──
+
+	readonly showCustomizeDialog = signal(false);
+	readonly showResetConfirm = signal(false);
+	readonly customizeRows = signal<CustomizeRow[]>([]);
+	readonly customizeLoading = signal(false);
+	readonly customizeSaving = signal(false);
+
+	/** True when user has made changes in the dialog */
+	readonly customizeDirty = computed(() => {
+		const rows = this.customizeRows();
+		return rows.some(r => r._dirty);
+	});
+
+	openCustomize(): void {
+		this.customizeLoading.set(true);
+		this.showCustomizeDialog.set(true);
+
+		this.svc.getAvailableWidgets().subscribe({
+			next: (available) => {
+				const rows: CustomizeRow[] = available.map((w, i) => ({
+					widgetId: w.widgetId,
+					categoryId: w.categoryId,
+					name: w.name,
+					widgetType: w.widgetType,
+					componentKey: w.componentKey,
+					description: w.description,
+					categoryName: w.categoryName,
+					isVisible: w.isVisible,
+					displayOrder: i,
+					_dirty: false,
+				}));
+				this.customizeRows.set(rows);
+				this.customizeLoading.set(false);
+			},
+			error: () => {
+				this.toast.show('Failed to load available widgets', 'danger');
+				this.customizeLoading.set(false);
+				this.showCustomizeDialog.set(false);
+			}
+		});
+	}
+
+	closeCustomize(): void {
+		this.showCustomizeDialog.set(false);
+		this.customizeRows.set([]);
+	}
+
+	toggleWidgetVisibility(row: CustomizeRow): void {
+		this.customizeRows.update(rows =>
+			rows.map(r => r.widgetId === row.widgetId
+				? { ...r, isVisible: !r.isVisible, _dirty: true }
+				: r
+			)
+		);
+	}
+
+	moveWidget(row: CustomizeRow, direction: -1 | 1): void {
+		this.customizeRows.update(rows => {
+			const idx = rows.findIndex(r => r.widgetId === row.widgetId);
+			const targetIdx = idx + direction;
+			if (targetIdx < 0 || targetIdx >= rows.length) return rows;
+
+			const updated = [...rows];
+			[updated[idx], updated[targetIdx]] = [updated[targetIdx], updated[idx]];
+			return updated.map((r, i) => ({ ...r, displayOrder: i, _dirty: true }));
+		});
+	}
+
+	saveCustomizations(): void {
+		const rows = this.customizeRows();
+		const request: SaveUserWidgetsRequest = {
+			entries: rows.map(r => ({
+				widgetId: r.widgetId,
+				categoryId: r.categoryId,
+				displayOrder: r.displayOrder,
+				isHidden: !r.isVisible,
+			}))
+		};
+
+		this.customizeSaving.set(true);
+		this.svc.saveMyWidgets(request).subscribe({
+			next: () => {
+				this.customizeSaving.set(false);
+				this.closeCustomize();
+				this.toast.show('Dashboard customized', 'success');
+				this.lastLoadedKey = '';  // force reload
+				this.loadDashboard();
+			},
+			error: () => {
+				this.customizeSaving.set(false);
+				this.toast.show('Failed to save customizations', 'danger');
+			}
+		});
+	}
+
+	confirmResetCustomizations(): void {
+		this.showResetConfirm.set(true);
+	}
+
+	resetCustomizations(): void {
+		this.showResetConfirm.set(false);
+		this.customizeSaving.set(true);
+
+		this.svc.resetMyWidgets().subscribe({
+			next: () => {
+				this.customizeSaving.set(false);
+				this.closeCustomize();
+				this.toast.show('Dashboard reset to defaults', 'success');
+				this.lastLoadedKey = '';
+				this.loadDashboard();
+			},
+			error: () => {
+				this.customizeSaving.set(false);
+				this.toast.show('Failed to reset customizations', 'danger');
+			}
+		});
+	}
+
+	getWidgetTypeIcon(widgetType: string): string {
+		switch (widgetType) {
+			case 'chart-tile': return 'bi-bar-chart-line';
+			case 'status-tile': return 'bi-speedometer2';
+			case 'content': return 'bi-layout-text-window';
+			default: return 'bi-grid';
 		}
-	}
-
-	navigateToWorkspace(workspaceKey: string): void {
-		this.router.navigate(['/', this.activeJobPath(), 'workspace', workspaceKey]);
-	}
-
-	navigateToHub(): void {
-		this.router.navigate(['/', this.activeJobPath()]);
 	}
 }

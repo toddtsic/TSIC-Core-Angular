@@ -139,29 +139,36 @@ export class LayoutComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     );
 
-    // Load menus whenever jobPath changes (handles navigation between jobs and app restart)
+    // Load nav when jobPath changes AND user is authenticated
     jobPath$.subscribe(jobPath => {
-      if (jobPath && jobPath !== 'tsic') {
-        this.jobService.loadMenus(jobPath);
+      const user = this.auth.currentUser();
+      console.log('[NAV DEBUG] jobPath$:', jobPath, 'user:', !!user, user?.role);
+      if (jobPath && jobPath !== 'tsic' && user) {
+        console.log('[NAV DEBUG] calling loadNav()');
+        this.jobService.loadNav();
       } else {
-        this.jobService.menus.set([]);
+        this.jobService.clearNav();
       }
     });
 
     // Watch for authentication state changes (login/logout/role-switch)
-    // Reload menus AND job metadata to keep everything in sync
+    // Reload nav AND job metadata to keep everything in sync
     this.currentUser$
       .pipe(
         skip(1), // Skip initial emission to avoid duplicate load
         takeUntil(this.destroy$)
       )
-      .subscribe(() => {
+      .subscribe(user => {
         const jobPath = this.getActiveJobPath();
         if (jobPath && jobPath !== 'tsic') {
           // Reload job metadata so currentJob stays in sync after role/job switch
           this.jobService.loadJobMetadata(jobPath);
-          // Bypass cache to force fresh menu fetch when auth state changes
-          this.jobService.loadMenus(jobPath, true);
+          // Load nav if authenticated, clear if logged out
+          if (user) {
+            this.jobService.loadNav();
+          } else {
+            this.jobService.clearNav();
+          }
         }
       });
   }

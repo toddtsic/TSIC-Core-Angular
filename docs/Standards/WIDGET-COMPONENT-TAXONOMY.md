@@ -1,7 +1,7 @@
 # Widget Component Taxonomy & Directory Structure
 
-> **Status**: Approved (v3 — displayStyle rendering implemented)
-> **Date**: 2026-02-18
+> **Status**: Approved (v4 — link-tile removed, UserWidget layer added)
+> **Date**: 2026-02-19
 > **Applies to**: All widget components rendered by the Widget Dashboard
 
 ---
@@ -17,69 +17,76 @@ Maps to `WidgetCategory.Workspace` in the database. Determines where code lives.
 Maps to `Widget.WidgetType` in the database. Determines dashboard layout behavior.
 
 **Visual Variant** (how does it *look* within that shape?)
-Carried in `Config` JSON as `displayStyle`. Overridable per job/role.
+Carried in `Config` JSON as `displayStyle`. Overridable per job/role/user.
 
-These are independent. A registration widget could be a chart-tile or a link-tile.
+These are independent. A registration widget could be a chart-tile or a status-tile.
 A chart-tile shell could render registration data or financial data.
 
 ---
 
-## WidgetType (Locked — 4 Values)
+## WidgetType (Locked — 3 Values)
 
 | WidgetType | Shape | Description |
 |---|---|---|
 | `content` | Full-width inline block | Renders custom component inline, no tile chrome |
 | `chart-tile` | Bounded grid tile | Data visualization with click-to-expand interaction |
 | `status-tile` | Bounded grid tile | Single metric/KPI with trend indicator |
-| `link-tile` | Bounded grid tile | Click → navigate to a routed view (doorbell pattern) |
 
 ### Consolidation History
 
 | Old Value | New Value | Reason |
 |---|---|---|
-| `quick-action` | `link-tile` | Was renamed to `action-card`, then absorbed — same behavior as link |
-| `workflow-pipeline` | `link-tile` | Was renamed to `pipeline-card`, then absorbed — same behavior as link |
-| `link-group` | `link-tile` | Was renamed to `link-card`, now `link-tile` |
-| `action-card` | `link-tile` | Intermediate name, absorbed into link-tile |
-| `pipeline-card` | `link-tile` | Intermediate name, absorbed into link-tile |
+| `link-tile` | *(removed)* | Navigation now handled by nav menu system; doorbell pattern retired |
+| `quick-action` | *(removed)* | Was absorbed into link-tile, then removed with it |
+| `workflow-pipeline` | *(removed)* | Was absorbed into link-tile, then removed with it |
+| `link-group` | *(removed)* | Was absorbed into link-tile, then removed with it |
 | `status-card` | `status-tile` | Renamed for `-tile` consistency |
 | `chart` | `chart-tile` | Renamed — it IS a tile first, chart is what's inside |
 | `content` | `content` | Unchanged — genuinely NOT a tile |
 
 ---
 
+## Workspaces (Locked — 2 Values)
+
+| Workspace | Purpose |
+|---|---|
+| `public` | Anonymous-facing widgets (banners, bulletins, event contact) |
+| `dashboard` | Authenticated user dashboard (charts, KPIs, bulletins for non-admin) |
+
+Spoke workspaces (`player-reg`, `team-reg`, `financial`, `scheduling-pipeline`,
+`ladt-tools`, `stores`) were removed — navigation is now handled by the nav menu system.
+
+---
+
 ## displayStyle (Config JSON)
 
 The `displayStyle` property in Config JSON controls visual variant within each
-WidgetType. When absent, defaults to `standard`. Overridable at three levels:
-`Widget.DefaultConfig` → `WidgetDefault.Config` → `JobWidget.Config`.
+WidgetType. When absent, defaults to `standard`. Overridable at four levels:
+`Widget.DefaultConfig` → `WidgetDefault.Config` → `JobWidget.Config` → `UserWidget.Config`.
 
 ### How displayStyle is rendered
 
 The dashboard host reads `displayStyle` from Config JSON via `getDisplayStyle(widget)`
 (returns `'standard'` when absent) and binds a CSS class `ds-{style}` on each widget
-container alongside the existing `wt-{type}` class.
+container.
 
 **CSS class convention:**
 ```
-wt-{widgetType}  — tile shape (Axis 2)
 ds-{displayStyle} — visual variant
 ```
 
-Example rendered classes: `wt-link-tile ds-standard`, `wt-link-tile ds-hero`,
-`wt-chart-tile ds-wide`.
+Example rendered classes: `chart-tile-wrapper ds-wide`.
 
 **CSS-only vs component logic:**
-- **link-tile** variants (`hero`, `compact`) — pure CSS (padding, icon size, visibility)
 - **chart-tile** `wide` — pure CSS (`grid-column: span 2`)
 - **chart-tile** `spark` — will need component logic (different chart.js config, no expand)
-- **status-tile** variants — will need component logic when tiles are activated (different template elements)
+- **status-tile** variants — will need component logic when tiles are activated
 - **content** variants — already handled by `componentKey` dispatch; `displayStyle` is metadata
 
 **Implementation files:**
 - `widget-dashboard.component.ts` — `WidgetConfig.displayStyle` + `getDisplayStyle()` helper
-- `widget-dashboard.component.html` — `ds-{style}` class binding on spoke widget-cards + hub chart-tile-wrappers
-- `widget-dashboard.component.scss` — `.ds-hero`, `.ds-compact`, `.ds-wide` CSS rules
+- `widget-dashboard.component.html` — `ds-{style}` class binding on chart-tile-wrappers
+- `widget-dashboard.component.scss` — `.ds-wide` CSS rules
 - `widget-editor.component.ts` — `displayStyleOptions` map for editor UI
 
 ### content
@@ -106,14 +113,6 @@ Example rendered classes: `wt-link-tile ds-standard`, `wt-link-tile ds-hero`,
 | `hero` | Large featured metric, prominent placement | Future (tiles dormant) |
 | `compact` | Number + label only, denser grid | Future (tiles dormant) |
 
-### link-tile
-
-| displayStyle | Rendering | Implementation |
-|---|---|---|
-| `standard` | Icon + label + description (current look) | CSS (no overrides — default look) |
-| `hero` | Large CTA tile, accent gradient, bigger icon | CSS (`.ds-hero`) |
-| `compact` | Icon + label only, no description, denser grid | CSS (`.ds-compact`) |
-
 ---
 
 ## Directory Structure
@@ -122,10 +121,8 @@ Example rendered classes: `wt-link-tile ds-standard`, `wt-link-tile ds-hero`,
 src/app/widgets/
 ├── widget-registry.ts               ← Central componentKey → Component map
 │
-├── shared/                          ← Reusable rendering shells (Axis 2)
-│   ├── chart-tile/                  ← Chart visualization tile
-│   ├── status-tile/                 ← KPI metric tile
-│   └── link-tile/                   ← Navigation tile
+├── services/
+│   └── widget-dashboard.service.ts  ← Data fetching for widget components
 │
 ├── registration/                    ← Domain: player/team registration
 │   ├── player-trend-widget/         ← Uses chart-tile shell
@@ -155,9 +152,8 @@ src/app/widgets/
 
 ### What stays in `views/home/widget-dashboard/`
 
-- The **host shell** component (hub/spoke/public mode switching, grid layout,
+- The **host shell** component (hub/public mode switching, grid layout,
   dynamic `NgComponentOutlet` rendering via `WIDGET_REGISTRY`)
-- `widget-dashboard.service.ts` (data fetching for widget components)
 - Route configuration
 
 The host **imports from `@widgets/`** — it does not contain widget implementations.
@@ -167,7 +163,6 @@ The host **imports from `@widgets/`** — it does not contain widget implementat
 Platform-level chrome consistent across ALL jobs (NOT widgets):
 - `client-header-bar/` — app header with auth, palette, theme
 - `client-footer-bar/` — app footer with copyright
-- `client-menu/` — legacy menu (superseded by widget system)
 
 ---
 
@@ -177,20 +172,34 @@ Platform-level chrome consistent across ALL jobs (NOT widgets):
 DB                          Code
 ──────────────────────────  ──────────────────────────
 WidgetCategory.Workspace    → widgets/{domain}/        (directory)
-Widget.WidgetType           → tile shape / layout hint (content|chart-tile|status-tile|link-tile)
+Widget.WidgetType           → tile shape / layout hint (content|chart-tile|status-tile)
 Widget.ComponentKey         → WIDGET_REGISTRY lookup   (dispatch key)
-Widget.DefaultConfig        → JSON props to component  (icon, route, label, displayStyle)
-WidgetDefault.Config        → per-role override         (displayStyle, readOnly, etc.)
-JobWidget.Config            → per-job override          (displayStyle, custom labels, etc.)
+Widget.DefaultConfig        → JSON props to component  (displayStyle)
+WidgetDefault.Config        → per-role override         (displayStyle, etc.)
+JobWidget.Config            → per-job override          (displayStyle, etc.)
+UserWidget.Config           → per-user override         (displayStyle, etc.)
+UserWidget.IsHidden         → user hides widget from their dashboard
+UserWidget.DisplayOrder     → user reorders widgets
 ```
+
+### Three-Layer Merge
+
+The dashboard assembles widgets by merging three layers:
+
+1. **WidgetDefault** — platform defaults per Role + JobType
+2. **JobWidget** — admin per-job overrides (enable/disable, reorder, config)
+3. **UserWidget** — per-user customizations (hide, reorder, config)
+
+Each layer can override `DisplayOrder`, `Config`, and `CategoryId`.
+UserWidget adds `IsHidden` for user-level visibility control.
 
 When adding a new widget:
 
 1. **Identify its domain** → create/find directory under `widgets/`
-2. **Pick its WidgetType** → `content`, `chart-tile`, `status-tile`, or `link-tile`
+2. **Pick its WidgetType** → `content`, `chart-tile`, or `status-tile`
 3. **Pick displayStyle** → set in `DefaultConfig` JSON (defaults to `standard` if omitted)
 4. **Register in DB** → INSERT into `widgets.Widget` with ComponentKey
-5. **Add to `WIDGET_REGISTRY`** → one import + one entry in `widgets/widget-registry.ts`
+5. **Add to `WIDGET_MANIFEST`** → one import + one entry in `widgets/widget-registry.ts`
 
 **Zero changes to the dashboard component.** The registry + `NgComponentOutlet` handles dispatch.
 
@@ -208,9 +217,8 @@ When adding a new widget:
 3. **`WidgetType` is a tile shape, not an identity.** It tells the dashboard
    host how to size/layout the widget. It does NOT determine where the code lives.
 
-4. **`displayStyle` is a visual variant, not a type.** A link-tile that looks
-   like a hero CTA and one that looks compact are both `link-tile` — the visual
-   difference lives in Config JSON, not in WidgetType.
+4. **`displayStyle` is a visual variant, not a type.** Visual differences live
+   in Config JSON, not in WidgetType.
 
 5. **Domain directories mirror workspaces.** If a new workspace is added to
    `WidgetCategory`, a corresponding directory appears under `widgets/`.
@@ -220,7 +228,7 @@ When adding a new widget:
    `componentKey`. All rendering logic lives in the widget components themselves.
    Widgets must be **self-sufficient** (inject services, not receive inputs).
 
-7. **Four WidgetTypes only.** Do not add new WidgetType values without explicit
+7. **Three WidgetTypes only.** Do not add new WidgetType values without explicit
    architectural review. Visual variations belong in `displayStyle`.
 
 ---
@@ -229,8 +237,9 @@ When adding a new widget:
 
 ### Strategy
 
-Widget configuration lives in four database tables (`widgets.WidgetCategory`,
-`widgets.Widget`, `widgets.WidgetDefault`, `widgets.JobWidget`). The workflow is:
+Widget configuration lives in five database tables (`widgets.WidgetCategory`,
+`widgets.Widget`, `widgets.WidgetDefault`, `widgets.JobWidget`, `widgets.UserWidget`).
+The workflow is:
 
 1. **Configure in dev** using the Widget Editor UI (`/:jobPath/admin/widget-editor`)
 2. **Export dev config** by running `Export-WidgetConfig.ps1`
@@ -251,6 +260,7 @@ Widget configuration lives in four database tables (`widgets.WidgetCategory`,
 | `scripts/seed-widget-dashboard.sql` | Bootstraps widget tables + sample data for fresh dev DBs |
 | `scripts/Export-WidgetConfig.ps1` | Reads dev DB, generates `deploy-widget-config.sql` |
 | `scripts/deploy-widget-config.sql` | (generated) Idempotent SQL to deploy widget config to any target DB |
+| `scripts/migrate-dashboard-evolution.sql` | One-time migration: removes link-tiles/spokes, creates UserWidget table |
 
 ### Export-WidgetConfig.ps1 usage
 

@@ -39,6 +39,7 @@ using TSIC.API.Services.Shared.Bulletins;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Reporting;
+using TSIC.API.Services;
 using TSIC.API.Services.Widgets;
 using TSIC.API.Authorization;
 using Amazon.SimpleEmail;
@@ -86,13 +87,18 @@ builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IFieldRepository, FieldRepository>();
 builder.Services.AddScoped<IPairingsRepository, PairingsRepository>();
 builder.Services.AddScoped<ITimeslotRepository, TimeslotRepository>();
+builder.Services.AddScoped<IUserWidgetRepository, UserWidgetRepository>();
 builder.Services.AddScoped<IWidgetRepository, WidgetRepository>();
 builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
 builder.Services.AddScoped<IJobCloneRepository, JobCloneRepository>();
 builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 
+builder.Services.AddScoped<INavRepository, NavRepository>();
+builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
+
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
+builder.Services.AddScoped<INavEditorService, NavEditorService>();
 builder.Services.AddScoped<TSIC.Application.Services.MenuAdmin.IMenuAdminService, TSIC.Application.Services.MenuAdmin.MenuAdminService>();
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
@@ -159,10 +165,12 @@ builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Widget Dashboard
+builder.Services.AddScoped<IUserWidgetService, UserWidgetService>();
 builder.Services.AddScoped<IWidgetDashboardService, WidgetDashboardService>();
 builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
 builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
+builder.Services.AddScoped<IJobConfigService, JobConfigService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

@@ -223,6 +223,8 @@ public partial class Jobs
 
     public decimal? StoreTsicrate { get; set; }
 
+    public Guid? PrimaryContactRegistrationId { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();
@@ -274,6 +276,10 @@ public partial class Jobs
     public virtual ICollection<Menus> Menus { get; set; } = new List<Menus>();
 
     public virtual ICollection<MonthlyJobStats> MonthlyJobStats { get; set; } = new List<MonthlyJobStats>();
+
+    public virtual ICollection<Nav> Nav { get; set; } = new List<Nav>();
+
+    public virtual Registrations? PrimaryContactRegistration { get; set; }
 
     public virtual ICollection<PushNotifications> PushNotifications { get; set; } = new List<PushNotifications>();
 

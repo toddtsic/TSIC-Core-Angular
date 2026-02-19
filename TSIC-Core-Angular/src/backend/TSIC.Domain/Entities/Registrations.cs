@@ -295,6 +295,8 @@ public partial class Registrations
 
     public virtual ICollection<JobReportExportHistory> JobReportExportHistory { get; set; } = new List<JobReportExportHistory>();
 
+    public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
+
     public virtual AspNetUsers? LebUser { get; set; }
 
     public virtual ICollection<PushNotifications> PushNotificationsAuthorRegistration { get; set; } = new List<PushNotifications>();

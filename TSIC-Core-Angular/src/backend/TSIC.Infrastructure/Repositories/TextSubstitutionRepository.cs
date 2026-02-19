@@ -172,6 +172,29 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
 
     public async Task<DirectorContactData?> GetDirectorContactAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
+        // Prefer explicitly-set primary contact
+        var primaryContactId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.PrimaryContactRegistrationId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (primaryContactId != null)
+        {
+            var explicitContact = await (from r in _context.Registrations
+                          join u in _context.AspNetUsers on r.UserId equals u.Id
+                          where r.RegistrationId == primaryContactId && r.BActive == true
+                          select new DirectorContactData
+                          {
+                              Name = u.FirstName + " " + u.LastName,
+                              Email = u.Email ?? string.Empty
+                          }).FirstOrDefaultAsync(cancellationToken);
+
+            if (explicitContact != null)
+                return explicitContact;
+        }
+
+        // Fallback: earliest-registered active Director
         return await (from r in _context.Registrations
                       join roles in _context.AspNetRoles on r.RoleId equals roles.Id
                       join u in _context.AspNetUsers on r.UserId equals u.Id

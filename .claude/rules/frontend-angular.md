@@ -27,5 +27,4 @@
 - NEVER use absolute routerLinks (`routerLink="/admin/..."`)
 - Always use relative paths so `:jobPath` prefix is preserved
 - Use `../../` to navigate up from nested routes
-- Update `BreadcrumbService` `ROUTE_TITLE_MAP` / `ROUTE_WORKSPACE_MAP` when adding/changing routes
-- Set `?from=workspaceKey` on spoke-to-function navigation links
+- Update `BreadcrumbService` `ROUTE_TITLE_MAP` when adding/changing routes

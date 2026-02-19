@@ -167,6 +167,10 @@ public partial class AspNetUsers
 
     public virtual ICollection<MonthlyJobStats> MonthlyJobStats { get; set; } = new List<MonthlyJobStats>();
 
+    public virtual ICollection<Nav> Nav { get; set; } = new List<Nav>();
+
+    public virtual ICollection<NavItem> NavItem { get; set; } = new List<NavItem>();
+
     public virtual ICollection<PairingsLeagueSeason> PairingsLeagueSeason { get; set; } = new List<PairingsLeagueSeason>();
 
     public virtual PersonContacts? PersonContacts { get; set; }

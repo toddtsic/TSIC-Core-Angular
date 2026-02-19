@@ -8,5 +8,5 @@ Before submitting code, verify:
 4. **BehaviorSubject for state**: Replace with `signal<T>(initialValue)`
 5. **Editing generated models**: Check file headers for "AUTO-GENERATED" warnings
 6. **Absolute routerLinks**: Must be relative to preserve `:jobPath`
-7. **Breadcrumb sync**: `ROUTE_TITLE_MAP` / `ROUTE_WORKSPACE_MAP` must match routes
+7. **Breadcrumb sync**: `ROUTE_TITLE_MAP` must match routes
 8. **DbContext concurrency**: No `Task.WhenAll` with shared DbContext — `await` sequentially

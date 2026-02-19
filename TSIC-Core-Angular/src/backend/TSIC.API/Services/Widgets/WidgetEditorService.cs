@@ -16,7 +16,7 @@ public sealed class WidgetEditorService : IWidgetEditorService
 
     private static readonly HashSet<string> AllowedWidgetTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "content", "chart-tile", "status-tile", "link-tile"
+        "content", "chart-tile", "status-tile"
     };
 
     public WidgetEditorService(IWidgetEditorRepository repo)
@@ -356,7 +356,7 @@ public sealed class WidgetEditorService : IWidgetEditorService
         sb.AppendLine("        [DefaultConfig] NVARCHAR(MAX)     NULL,");
         sb.AppendLine("        CONSTRAINT [PK_widgets_Widget] PRIMARY KEY CLUSTERED ([WidgetId]),");
         sb.AppendLine("        CONSTRAINT [FK_widgets_Widget_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [widgets].[WidgetCategory] ([CategoryId]),");
-        sb.AppendLine("        CONSTRAINT [CK_widgets_Widget_WidgetType] CHECK ([WidgetType] IN ('content','chart-tile','status-tile','link-tile'))");
+        sb.AppendLine("        CONSTRAINT [CK_widgets_Widget_WidgetType] CHECK ([WidgetType] IN ('content','chart-tile','status-tile'))");
         sb.AppendLine("    );");
         sb.AppendLine("END");
         sb.AppendLine();
@@ -424,7 +424,7 @@ public sealed class WidgetEditorService : IWidgetEditorService
         sb.AppendLine("IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_widgets_Widget_WidgetType')");
         sb.AppendLine("    ALTER TABLE [widgets].[Widget] DROP CONSTRAINT [CK_widgets_Widget_WidgetType];");
         sb.AppendLine("ALTER TABLE [widgets].[Widget] ADD CONSTRAINT [CK_widgets_Widget_WidgetType]");
-        sb.AppendLine("    CHECK ([WidgetType] IN ('content','chart-tile','status-tile','link-tile'));");
+        sb.AppendLine("    CHECK ([WidgetType] IN ('content','chart-tile','status-tile'));");
         sb.AppendLine();
         sb.AppendLine("PRINT 'Batch 1 complete: schema + tables + migration';");
         sb.AppendLine("GO");

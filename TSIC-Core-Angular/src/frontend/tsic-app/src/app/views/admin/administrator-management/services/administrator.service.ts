@@ -39,4 +39,8 @@ export class AdministratorService {
             params: { q: query }
         });
     }
+
+    setPrimaryContact(registrationId: string): Observable<AdministratorDto[]> {
+        return this.http.put<AdministratorDto[]>(`${this.apiUrl}/${registrationId}/primary-contact`, {});
+    }
 }

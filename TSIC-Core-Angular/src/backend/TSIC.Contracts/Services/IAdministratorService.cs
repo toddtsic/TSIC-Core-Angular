@@ -36,4 +36,10 @@ public interface IAdministratorService
     /// Search users by username or name for typeahead.
     /// </summary>
     Task<List<UserSearchResultDto>> SearchUsersAsync(string query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set an administrator as the primary event contact for the job.
+    /// Pass the registrationId of the admin to designate, or toggle off if already set.
+    /// </summary>
+    Task<List<AdministratorDto>> SetPrimaryContactAsync(Guid jobId, Guid registrationId, CancellationToken cancellationToken = default);
 }
