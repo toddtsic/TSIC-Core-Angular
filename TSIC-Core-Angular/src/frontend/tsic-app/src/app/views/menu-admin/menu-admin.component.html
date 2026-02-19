@@ -2,9 +2,11 @@
     <div class="header">
         <h1>Nav Editor</h1>
         <div class="header-actions">
+            @if (isDevMode) {
             <button class="btn btn-outline-secondary" (click)="exportSql()" [disabled]="isLoading()">
                 <i class="bi bi-download"></i> Export SQL
             </button>
+            }
             <button class="btn btn-primary" (click)="ensureAllRoleNavs()" [disabled]="isLoading()">
                 <i class="bi bi-plus-circle"></i> Ensure All Role Navs
             </button>

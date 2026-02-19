@@ -229,6 +229,15 @@ public class WidgetEditorController : ControllerBase
         }
     }
 
+    // ── Export SQL ──
+
+    [HttpGet("export-sql")]
+    public async Task<ActionResult<object>> ExportSql(CancellationToken ct)
+    {
+        var sql = await _editorService.ExportWidgetSqlAsync(ct);
+        return Ok(new { sql });
+    }
+
     // ── Seed script sync (dev only) ──
 
     [HttpPost("sync-seed-script")]

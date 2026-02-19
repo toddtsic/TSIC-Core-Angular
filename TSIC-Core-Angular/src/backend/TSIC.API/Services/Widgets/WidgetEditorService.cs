@@ -283,6 +283,25 @@ public sealed class WidgetEditorService : IWidgetEditorService
         };
     }
 
+    // ── Export SQL (in-memory) ──
+
+    public async Task<string> ExportWidgetSqlAsync(CancellationToken ct = default)
+    {
+        var categories = await _repo.GetCategoriesAsync(ct);
+        var widgets = await _repo.GetWidgetDefinitionsAsync(ct);
+        var defaults = await _repo.GetAllDefaultsAsync(ct);
+        var jobWidgets = await _repo.GetAllJobWidgetsAsync(ct);
+
+        var sb = new StringBuilder(64 * 1024);
+
+        AppendHeader(sb, categories.Count, widgets.Count, defaults.Count, jobWidgets.Count);
+        AppendSchemaDdl(sb);
+        AppendDataBatch(sb, categories, widgets, defaults, jobWidgets);
+        AppendVerification(sb);
+
+        return sb.ToString();
+    }
+
     // ════════════════════════════════════════════════════
     // SQL generation helpers
     // ════════════════════════════════════════════════════

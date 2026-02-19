@@ -1,5 +1,5 @@
 import { FormsModule } from '@angular/forms';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
@@ -19,6 +19,7 @@ import { ProfileFormPreviewComponent } from '@shared-ui/components/profile-form-
 export class ProfileMigrationComponent implements OnInit {
     // Reference to satisfy strict template analyzer for standalone component usage.
     private readonly __tsicDialogComponentRef = TsicDialogComponent;
+    readonly isDevMode = isDevMode();
     // For dropdown filtering (signal-based)
     selectedProfileType = signal<string | null>(null);
     filteredProfiles = computed(() => {

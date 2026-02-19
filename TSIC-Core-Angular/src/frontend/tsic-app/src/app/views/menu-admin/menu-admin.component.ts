@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavAdminService } from '../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
@@ -15,6 +15,7 @@ import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, Update
 })
 export class MenuAdminComponent implements OnInit {
     private readonly navAdminService = inject(NavAdminService);
+    readonly isDevMode = isDevMode();
 
     // Component state
     selectedRoleId = signal<string | null>(null);

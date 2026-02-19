@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
 	JobTypeRefDto,
@@ -87,6 +87,14 @@ export class WidgetEditorService {
 
 	saveJobOverrides(request: SaveJobOverridesRequest): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/job-overrides/${request.jobId}`, request);
+	}
+
+	// ── Export SQL ──
+
+	exportSql(): Observable<string> {
+		return this.http.get<{ sql: string }>(`${this.apiUrl}/export-sql`).pipe(
+			map(res => res.sql)
+		);
 	}
 
 	// ── Seed script sync ──

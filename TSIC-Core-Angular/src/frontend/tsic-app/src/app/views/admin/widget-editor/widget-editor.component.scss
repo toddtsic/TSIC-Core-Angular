@@ -516,3 +516,23 @@
 		opacity: 0.7;
 	}
 }
+
+// ── Export SQL dialog ──
+
+.export-sql-container {
+	max-height: 60vh;
+	overflow: auto;
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--neutral-50);
+}
+
+.export-sql-pre {
+	margin: 0;
+	padding: var(--space-4);
+	font-size: var(--font-size-xs);
+	line-height: var(--line-height-normal);
+	white-space: pre;
+	overflow-x: auto;
+	color: var(--brand-text);
+}

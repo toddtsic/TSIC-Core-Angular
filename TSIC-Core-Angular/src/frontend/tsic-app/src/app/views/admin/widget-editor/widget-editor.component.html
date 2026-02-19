@@ -3,6 +3,11 @@
 	<h2 class="mb-0">Widget Editor</h2>
 	<div class="d-flex gap-2 flex-wrap">
 		@if (isDevMode) {
+			<button class="btn btn-sm btn-outline-secondary" (click)="exportSql()" [disabled]="isLoading()">
+				<i class="bi bi-download me-1"></i>Export SQL
+			</button>
+		}
+		@if (isDevMode) {
 			<button class="btn btn-sm btn-outline-warning" (click)="syncSeedScript()"
 					[disabled]="isSyncing()" title="Regenerate seed-widget-dashboard.sql from current DB state">
 				<i class="bi" [class.bi-database-down]="!isSyncing()" [class.bi-hourglass-split]="isSyncing()"></i>
@@ -664,6 +669,44 @@
 						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
 					}
 					Apply
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- Export SQL Dialog -->
+@if (exportDialogOpen()) {
+	<tsic-dialog [open]="true" size="lg" (requestClose)="exportDialogOpen.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Export Widget SQL</h5>
+				<button type="button" class="btn-close" (click)="exportDialogOpen.set(false)"></button>
+			</div>
+			<div class="modal-body">
+				@if (exportLoading()) {
+					<div class="text-center py-4">
+						<div class="spinner-border" role="status">
+							<span class="visually-hidden">Generating...</span>
+						</div>
+						<p class="mt-2 text-muted">Generating SQL script...</p>
+					</div>
+				} @else {
+					<div class="export-sql-container">
+						<pre class="export-sql-pre">{{ exportedSql() }}</pre>
+					</div>
+				}
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" (click)="exportDialogOpen.set(false)">Close</button>
+				<button
+					type="button"
+					class="btn btn-primary"
+					(click)="copyExportToClipboard()"
+					[disabled]="exportLoading() || !exportedSql()"
+				>
+					<i class="bi" [class.bi-clipboard]="!copySuccess()" [class.bi-check-lg]="copySuccess()"></i>
+					{{ copySuccess() ? 'Copied!' : 'Copy to Clipboard' }}
 				</button>
 			</div>
 		</div>

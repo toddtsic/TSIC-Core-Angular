@@ -127,6 +127,12 @@ export class WidgetEditorComponent {
 	readonly isOverrideLoading = signal(false);
 	readonly isOverrideSaving = signal(false);
 
+	// ── Export SQL dialog state ──
+	readonly exportDialogOpen = signal(false);
+	readonly exportedSql = signal('');
+	readonly exportLoading = signal(false);
+	readonly copySuccess = signal(false);
+
 	// ── Definitions sort state ──
 	readonly defSortColumn = signal<keyof WidgetDefinitionDto>('name');
 	readonly defSortDirection = signal<'asc' | 'desc'>('asc');
@@ -589,6 +595,35 @@ export class WidgetEditorComponent {
 				this.toast.show(err.error?.message || 'Seed script sync failed', 'danger');
 				this.isSyncing.set(false);
 			},
+		});
+	}
+
+	// ═══════════════════════════════════
+	// Export SQL
+	// ═══════════════════════════════════
+
+	exportSql(): void {
+		this.exportLoading.set(true);
+		this.exportedSql.set('');
+		this.copySuccess.set(false);
+		this.exportDialogOpen.set(true);
+
+		this.editorService.exportSql().subscribe({
+			next: (sql) => {
+				this.exportedSql.set(sql);
+				this.exportLoading.set(false);
+			},
+			error: () => {
+				this.exportedSql.set('-- Error generating SQL export');
+				this.exportLoading.set(false);
+			},
+		});
+	}
+
+	copyExportToClipboard(): void {
+		navigator.clipboard.writeText(this.exportedSql()).then(() => {
+			this.copySuccess.set(true);
+			setTimeout(() => this.copySuccess.set(false), 2000);
 		});
 	}
 

@@ -83,7 +83,7 @@
                                 title="Force re-migration of all profiles, even if already migrated">
                                 <i class="bi bi-arrow-repeat"></i> Re-Migrate All
                             </button>
-                            @if (allMigrated()) {
+                            @if (isDevMode && allMigrated()) {
                             <button class="btn btn-success" (click)="exportSql()"
                                 [disabled]="isLoading() || isMigrating()"
                                 title="Download SQL script to apply migrations to production database">

@@ -30,4 +30,7 @@ public interface IWidgetEditorService
 
     // ── Seed script sync ──
     Task<SeedScriptSyncResult> GenerateSeedScriptAsync(string outputPath, CancellationToken ct = default);
+
+    // ── Export SQL ──
+    Task<string> ExportWidgetSqlAsync(CancellationToken ct = default);
 }

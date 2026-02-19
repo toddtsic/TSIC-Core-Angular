@@ -134,63 +134,61 @@ ELSE
 SELECT @parentId = NavItemId FROM nav.NavItem
 WHERE NavId = @navId AND ParentNavItemId IS NULL AND Text = 'Platform';
 
--- Job Configuration
-IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Job Configuration')
-    INSERT INTO nav.NavItem (NavId, ParentNavItemId, SortOrder, Text, IconName, RouterLink, Active)
-    VALUES (@navId, @parentId, 1, 'Job Configuration', 'briefcase', 'admin/job-config', 1);
-ELSE
-    UPDATE nav.NavItem SET SortOrder = 1, IconName = 'briefcase', RouterLink = 'admin/job-config', Active = 1
-    WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Job Configuration';
-
 -- Widget Editor
 IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Widget Editor')
     INSERT INTO nav.NavItem (NavId, ParentNavItemId, SortOrder, Text, IconName, RouterLink, Active)
-    VALUES (@navId, @parentId, 2, 'Widget Editor', 'grid-1x2', 'admin/widget-editor', 1);
+    VALUES (@navId, @parentId, 1, 'Widget Editor', 'grid-1x2', 'admin/widget-editor', 1);
 ELSE
-    UPDATE nav.NavItem SET SortOrder = 2, IconName = 'grid-1x2', RouterLink = 'admin/widget-editor', Active = 1
+    UPDATE nav.NavItem SET SortOrder = 1, IconName = 'grid-1x2', RouterLink = 'admin/widget-editor', Active = 1
     WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Widget Editor';
 
 -- Nav Editor
 IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Nav Editor')
     INSERT INTO nav.NavItem (NavId, ParentNavItemId, SortOrder, Text, IconName, RouterLink, Active)
-    VALUES (@navId, @parentId, 3, 'Nav Editor', 'diagram-3', 'admin/nav-editor', 1);
+    VALUES (@navId, @parentId, 2, 'Nav Editor', 'diagram-3', 'admin/nav-editor', 1);
 ELSE
-    UPDATE nav.NavItem SET SortOrder = 3, IconName = 'diagram-3', RouterLink = 'admin/nav-editor', Active = 1
+    UPDATE nav.NavItem SET SortOrder = 2, IconName = 'diagram-3', RouterLink = 'admin/nav-editor', Active = 1
     WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Nav Editor';
 
 -- DDL Options
 IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'DDL Options')
     INSERT INTO nav.NavItem (NavId, ParentNavItemId, SortOrder, Text, IconName, RouterLink, Active)
-    VALUES (@navId, @parentId, 4, 'DDL Options', 'list-ul', 'admin/ddl-options', 1);
+    VALUES (@navId, @parentId, 3, 'DDL Options', 'list-ul', 'admin/ddl-options', 1);
 ELSE
-    UPDATE nav.NavItem SET SortOrder = 4, IconName = 'list-ul', RouterLink = 'admin/ddl-options', Active = 1
+    UPDATE nav.NavItem SET SortOrder = 3, IconName = 'list-ul', RouterLink = 'admin/ddl-options', Active = 1
     WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'DDL Options';
 
 -- Job Clone
 IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Job Clone')
     INSERT INTO nav.NavItem (NavId, ParentNavItemId, SortOrder, Text, IconName, RouterLink, Active)
-    VALUES (@navId, @parentId, 5, 'Job Clone', 'copy', 'admin/job-clone', 1);
+    VALUES (@navId, @parentId, 4, 'Job Clone', 'copy', 'admin/job-clone', 1);
 ELSE
-    UPDATE nav.NavItem SET SortOrder = 5, IconName = 'copy', RouterLink = 'admin/job-clone', Active = 1
+    UPDATE nav.NavItem SET SortOrder = 4, IconName = 'copy', RouterLink = 'admin/job-clone', Active = 1
     WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Job Clone';
 
 -- Theme Editor
 IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Theme Editor')
     INSERT INTO nav.NavItem (NavId, ParentNavItemId, SortOrder, Text, IconName, RouterLink, Active)
-    VALUES (@navId, @parentId, 6, 'Theme Editor', 'palette', 'admin/theme', 1);
+    VALUES (@navId, @parentId, 5, 'Theme Editor', 'palette', 'admin/theme', 1);
 ELSE
-    UPDATE nav.NavItem SET SortOrder = 6, IconName = 'palette', RouterLink = 'admin/theme', Active = 1
+    UPDATE nav.NavItem SET SortOrder = 5, IconName = 'palette', RouterLink = 'admin/theme', Active = 1
     WHERE NavId = @navId AND ParentNavItemId = @parentId AND Text = 'Theme Editor';
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- CLEANUP: Remove stale items from prior seed versions
 -- ════════════════════════════════════════════════════════════════════════════
 
--- Remove old 'Configure > Job' items (moved to SuperUser Platform section)
+-- Remove old 'Configure > Job' items (renamed to 'Job Configuration')
 DELETE ni FROM nav.NavItem ni
 INNER JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
 WHERE ni.Text = 'Job' AND ni.RouterLink = 'configure/job'
   AND parent.Text = 'Configure';
+
+-- Remove old 'Platform > Job Configuration' items (moved to shared Configure section)
+DELETE ni FROM nav.NavItem ni
+INNER JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
+WHERE ni.Text = 'Job Configuration' AND ni.RouterLink = 'admin/job-config'
+  AND parent.Text = 'Platform';
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- VERIFICATION
