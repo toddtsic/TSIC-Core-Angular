@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { switchMap } from 'rxjs';
 import { NavAdminService } from '../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { JobService } from '@infrastructure/services/job.service';
 import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
 
 @Component({
@@ -20,6 +20,7 @@ export class MenuAdminComponent implements OnInit {
     private readonly navAdminService = inject(NavAdminService);
     private readonly toast = inject(ToastService);
     private readonly auth = inject(AuthService);
+    private readonly jobService = inject(JobService);
     readonly isDevMode = isDevMode();
 
     // Component state
@@ -64,6 +65,8 @@ export class MenuAdminComponent implements OnInit {
                 if (navs.length > 0 && !this.selectedRoleId()) {
                     this.selectBestDefault(navs);
                 }
+                // Refresh the live menu so changes are visible immediately
+                this.jobService.loadNav();
             }
         });
     }
@@ -168,7 +171,7 @@ export class MenuAdminComponent implements OnInit {
                         `Update route to "${newData.routerLink}" for all roles?`
                     );
                     if (updateAll) {
-                        this.updateWithCascade(result.navItemId!, newData, matches);
+                        this.updateWithCascade(result.navItemId!, newData, matches.length);
                         return;
                     }
                 }
@@ -185,14 +188,15 @@ export class MenuAdminComponent implements OnInit {
     }
 
     /**
-     * Find nav items across other roles that match the given item by text and parent text.
+     * Find role names that have matching nav items (same text + parent text) across other roles.
+     * Used to build the confirm dialog — actual cascade is done server-side.
      */
-    private findMatchingItemsAcrossRoles(item: NavEditorNavItemDto): Array<{ navItemId: number; roleName: string; item: NavEditorNavItemDto }> {
+    private findMatchingItemsAcrossRoles(item: NavEditorNavItemDto): Array<{ roleName: string }> {
         const currentNav = this.selectedNav();
         if (!currentNav) return [];
 
         const parentText = this.getParentTextForItem(item, currentNav);
-        const matches: Array<{ navItemId: number; roleName: string; item: NavEditorNavItemDto }> = [];
+        const matches: Array<{ roleName: string }> = [];
 
         for (const nav of this.navs()) {
             if (nav.navId === currentNav.navId) continue;
@@ -200,7 +204,7 @@ export class MenuAdminComponent implements OnInit {
             for (const parent of nav.items) {
                 // Match top-level items
                 if (!item.parentNavItemId && parent.text === item.text) {
-                    matches.push({ navItemId: parent.navItemId, roleName: nav.roleName ?? 'Unknown', item: parent });
+                    matches.push({ roleName: nav.roleName ?? 'Unknown' });
                     continue;
                 }
 
@@ -208,7 +212,7 @@ export class MenuAdminComponent implements OnInit {
                 if (item.parentNavItemId && parent.text === parentText && parent.children) {
                     for (const child of parent.children) {
                         if (child.text === item.text) {
-                            matches.push({ navItemId: child.navItemId, roleName: nav.roleName ?? 'Unknown', item: child });
+                            matches.push({ roleName: nav.roleName ?? 'Unknown' });
                         }
                     }
                 }
@@ -230,39 +234,38 @@ export class MenuAdminComponent implements OnInit {
     }
 
     /**
-     * Update the primary item, then cascade the route change to matching items across roles.
+     * Update the primary item, then cascade the route change to matching items
+     * across all roles in a single backend transaction.
      */
     private updateWithCascade(
         primaryId: number,
         newData: UpdateNavItemRequest,
-        matches: Array<{ navItemId: number; roleName: string; item: NavEditorNavItemDto }>
+        matchCount: number
     ): void {
-        // Start with the primary item
-        let chain$ = this.navAdminService.updateItem(primaryId, newData);
-
-        // Chain each match — preserve its own text/active/icon, update only route fields
-        for (const match of matches) {
-            chain$ = chain$.pipe(
-                switchMap(() => this.navAdminService.updateItem(match.navItemId, {
-                    text: match.item.text,
-                    active: match.item.active,
-                    iconName: match.item.iconName ?? null,
+        // Update the primary item first
+        this.navAdminService.updateItem(primaryId, newData).subscribe({
+            next: () => {
+                // Cascade route to all matching items in one backend call
+                this.navAdminService.cascadeRoute({
+                    navItemId: primaryId,
                     routerLink: newData.routerLink,
                     navigateUrl: newData.navigateUrl,
                     target: newData.target
-                } as UpdateNavItemRequest))
-            );
-        }
-
-        chain$.subscribe({
-            next: () => {
-                this.toast.show(`Route updated across ${matches.length + 1} roles.`, 'success');
-                this.loadNavs();
+                }).subscribe({
+                    next: (res) => {
+                        this.toast.show(`Route updated across ${res.updated + 1} roles.`, 'success');
+                        this.loadNavs();
+                    },
+                    error: (err) => {
+                        console.error('Cascade route failed:', err);
+                        this.toast.show(`Primary updated, but cascade failed: ${err.status}`, 'danger');
+                        this.loadNavs();
+                    }
+                });
             },
             error: (err) => {
-                console.error('Cascade update failed:', err);
-                this.toast.show(`Cascade update failed: ${err.status} ${err.statusText}`, 'danger');
-                this.loadNavs();
+                console.error('Update nav item failed:', err);
+                this.toast.show(`Failed to update: ${err.status} ${err.statusText}`, 'danger');
             }
         });
     }

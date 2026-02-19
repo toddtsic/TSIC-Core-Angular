@@ -35,6 +35,12 @@ public interface INavEditorService
     /// </summary>
     Task<NavEditorNavDto> ImportLegacyMenuAsync(ImportLegacyMenuRequest request, string userId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Cascade a route change to all matching nav items across platform default navs.
+    /// Returns the count of additional items updated (excludes the primary item).
+    /// </summary>
+    Task<int> CascadeRouteAsync(CascadeRouteRequest request, string userId, CancellationToken ct = default);
+
     /// <summary>Toggle the Active state of a nav.</summary>
     Task ToggleNavActiveAsync(int navId, bool active, CancellationToken ct = default);
 

@@ -9,7 +9,8 @@ import type {
     UpdateNavItemRequest,
     ReorderNavItemsRequest,
     CreateNavRequest,
-    ToggleNavActiveRequest
+    ToggleNavActiveRequest,
+    CascadeRouteRequest
 } from '@core/api';
 
 @Injectable({
@@ -80,6 +81,14 @@ export class NavAdminService {
      */
     reorderItems(request: ReorderNavItemsRequest): Observable<void> {
         return this.http.put<void>(`${this.apiUrl}/items/reorder`, request);
+    }
+
+    /**
+     * Cascade a route change to all matching nav items across platform default navs.
+     * Returns the count of additional items updated.
+     */
+    cascadeRoute(request: CascadeRouteRequest): Observable<{ updated: number }> {
+        return this.http.post<{ updated: number }>(`${this.apiUrl}/items/cascade-route`, request);
     }
 
     /**

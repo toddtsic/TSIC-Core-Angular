@@ -68,8 +68,9 @@ export class JobConfigService {
         this.isLoading.set(false);
         this.dirtyTabs.set(new Set());
       },
-      error: () => {
-        this.toast.show('Failed to load job configuration.', 'danger');
+      error: (err) => {
+        console.error('[JOB-CONFIG] Load failed:', err.status, err.statusText, err.error);
+        this.toast.show(`Failed to load job config: ${err.status} ${err.statusText}`, 'danger');
         this.isLoading.set(false);
       },
     });

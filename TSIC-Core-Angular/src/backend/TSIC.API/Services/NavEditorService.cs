@@ -228,6 +228,24 @@ public class NavEditorService : INavEditorService
         };
     }
 
+    public async Task<int> CascadeRouteAsync(CascadeRouteRequest request, string userId, CancellationToken ct = default)
+    {
+        var matches = await _navEditorRepo.GetMatchingItemsAcrossDefaultNavsAsync(request.NavItemId, ct);
+
+        var now = DateTime.UtcNow;
+        foreach (var match in matches)
+        {
+            match.RouterLink = request.RouterLink;
+            match.NavigateUrl = request.NavigateUrl;
+            match.Target = request.Target;
+            match.Modified = now;
+            match.ModifiedBy = userId;
+        }
+
+        await _navEditorRepo.SaveChangesAsync(ct);
+        return matches.Count;
+    }
+
     public async Task DeleteNavItemAsync(int navItemId, CancellationToken ct = default)
     {
         var item = await _navEditorRepo.GetNavItemByIdAsync(navItemId, ct);

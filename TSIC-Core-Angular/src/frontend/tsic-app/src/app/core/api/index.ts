@@ -48,6 +48,7 @@ export type { CadtClubNode } from './models/CadtClubNode';
 export type { CadtDivisionNode } from './models/CadtDivisionNode';
 export type { CadtTeamNode } from './models/CadtTeamNode';
 export type { CapacityPreviewDto } from './models/CapacityPreviewDto';
+export type { CascadeRouteRequest } from './models/CascadeRouteRequest';
 export type { CcInfoDto } from './models/CcInfoDto';
 export type { ChangeJobRequest } from './models/ChangeJobRequest';
 export type { ChangeJobResponse } from './models/ChangeJobResponse';

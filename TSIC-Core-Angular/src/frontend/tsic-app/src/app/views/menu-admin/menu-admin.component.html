@@ -75,12 +75,12 @@
                 <div class="menu-item-group" [class.inactive]="!parentItem.active">
                     <!-- Parent Item -->
                     <div class="menu-item parent-item" (dblclick)="editItem(parentItem)">
-                        <div class="item-content">
-                            <button class="expand-toggle" (click)="toggleItemExpanded(parentItem.navItemId)"
+                        <div class="item-content" (click)="toggleItemExpanded(parentItem.navItemId)">
+                            <span class="expand-toggle"
                                 [class.expanded]="isItemExpanded(parentItem.navItemId)">
                                 <i class="bi" [class.bi-chevron-right]="!isItemExpanded(parentItem.navItemId)"
                                     [class.bi-chevron-down]="isItemExpanded(parentItem.navItemId)"></i>
-                            </button>
+                            </span>
                             @if (parentItem.iconName) {
                             <i class="item-icon bi bi-{{ parentItem.iconName }}"></i>
                             }

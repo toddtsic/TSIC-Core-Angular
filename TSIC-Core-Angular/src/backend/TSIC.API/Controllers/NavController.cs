@@ -144,6 +144,19 @@ public class NavController : ControllerBase
         return Ok(item);
     }
 
+    /// <summary>Cascade a route change to matching items across all platform default navs.</summary>
+    [HttpPost("editor/items/cascade-route")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<object>> CascadeRoute([FromBody] CascadeRouteRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token");
+
+        var updated = await _navEditorService.CascadeRouteAsync(request, userId);
+        return Ok(new { updated });
+    }
+
     /// <summary>Delete a nav item.</summary>
     [HttpDelete("editor/items/{navItemId:int}")]
     [Authorize(Policy = "SuperUserOnly")]

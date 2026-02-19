@@ -158,6 +158,62 @@ public class NavEditorRepository : INavEditorRepository
         return menus;
     }
 
+    // ─── Cascade ────────────────────────────────────────────────────
+
+    public async Task<List<NavItem>> GetMatchingItemsAcrossDefaultNavsAsync(
+        int navItemId, CancellationToken cancellationToken = default)
+    {
+        // Load the source item (untracked — we just need text + parent info)
+        var source = await _context.NavItem
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ni => ni.NavItemId == navItemId, cancellationToken);
+
+        if (source == null) return new List<NavItem>();
+
+        // Get the source item's parent text (null for root items)
+        string? parentText = null;
+        if (source.ParentNavItemId != null)
+        {
+            parentText = await _context.NavItem
+                .AsNoTracking()
+                .Where(ni => ni.NavItemId == source.ParentNavItemId)
+                .Select(ni => ni.Text)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        // Get all platform default nav IDs (JobId = NULL)
+        var defaultNavIds = await _context.Nav
+            .AsNoTracking()
+            .Where(n => n.JobId == null)
+            .Select(n => n.NavId)
+            .ToListAsync(cancellationToken);
+
+        // Find matching items: same text, same parent text, different item, platform defaults only
+        // Returned TRACKED for in-place update
+        if (source.ParentNavItemId == null)
+        {
+            // Root-level item: match by text at root level across default navs
+            return await _context.NavItem
+                .Where(ni => defaultNavIds.Contains(ni.NavId)
+                    && ni.NavItemId != navItemId
+                    && ni.ParentNavItemId == null
+                    && ni.Text == source.Text)
+                .ToListAsync(cancellationToken);
+        }
+        else
+        {
+            // Child item: match by text + parent text across default navs
+            return await _context.NavItem
+                .Where(ni => defaultNavIds.Contains(ni.NavId)
+                    && ni.NavItemId != navItemId
+                    && ni.ParentNavItemId != null
+                    && ni.Text == source.Text
+                    && _context.NavItem
+                        .Any(p => p.NavItemId == ni.ParentNavItemId && p.Text == parentText))
+                .ToListAsync(cancellationToken);
+        }
+    }
+
     // ─── Mutations ──────────────────────────────────────────────────
 
     public void AddNav(Nav nav) => _context.Nav.Add(nav);
