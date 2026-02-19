@@ -124,7 +124,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'job-config',
-						loadComponent: () => import('./views/admin/job-config-editor/job-config-editor.component').then(m => m.JobConfigEditorComponent)
+						loadComponent: () => import('./views/admin/job-config/job-config.component').then(m => m.JobConfigComponent)
 					}
 				]
 			},

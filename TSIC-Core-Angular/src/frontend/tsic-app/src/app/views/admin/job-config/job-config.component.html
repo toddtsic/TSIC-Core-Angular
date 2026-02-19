@@ -1,0 +1,64 @@
+@if (svc.isLoading()) {
+  <div class="d-flex justify-content-center align-items-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+} @else if (svc.config()) {
+  <div class="job-config-shell">
+    <!-- Tab bar -->
+    <nav class="tab-bar" role="tablist" (keydown)="onTabKeydown($event)">
+      @for (tab of tabs; track tab.key) {
+        <button
+          class="tab-btn"
+          [class.active]="svc.activeTab() === tab.key"
+          (click)="selectTab(tab.key)"
+          role="tab"
+          [attr.aria-selected]="svc.activeTab() === tab.key"
+          [attr.aria-controls]="'panel-' + tab.key"
+          [attr.tabindex]="svc.activeTab() === tab.key ? 0 : -1">
+          <i class="bi" [ngClass]="tab.icon"></i>
+          <span class="tab-label">{{ tab.label }}</span>
+          @if (isDirty(tab.key)) {
+            <span class="dirty-dot" title="Unsaved changes"></span>
+          }
+        </button>
+      }
+    </nav>
+
+    <!-- Tab content -->
+    <div class="tab-content">
+      @switch (svc.activeTab()) {
+        @case ('general') {
+          <app-general-tab />
+        }
+        @case ('payment') {
+          <app-payment-tab />
+        }
+        @case ('communications') {
+          <app-communications-tab />
+        }
+        @case ('player') {
+          <app-player-tab />
+        }
+        @case ('teams') {
+          <app-teams-tab />
+        }
+        @case ('coaches') {
+          <app-coaches-tab />
+        }
+        @case ('scheduling') {
+          <app-scheduling-tab />
+        }
+        @case ('mobileStore') {
+          <app-mobile-store-tab />
+        }
+      }
+    </div>
+  </div>
+} @else {
+  <div class="alert alert-warning m-4">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    Job configuration not found for this job.
+  </div>
+}

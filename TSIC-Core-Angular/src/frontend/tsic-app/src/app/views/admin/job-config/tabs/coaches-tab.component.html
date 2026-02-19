@@ -1,0 +1,112 @@
+@if (svc.coaches()) {
+  <div class="tab-panel">
+    <div class="form-section">
+      <h6 class="section-title">Coach Settings</h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Coach Form Name</label>
+          <input type="text" class="form-control"
+            [ngModel]="regformNameCoach()"
+            (ngModelChange)="regformNameCoach.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <div class="form-check mt-4">
+            <input type="checkbox" class="form-check-input" id="bRosterAdult"
+              [ngModel]="bAllowRosterViewAdult()"
+              (ngModelChange)="bAllowRosterViewAdult.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bRosterAdult">Allow Roster View (Adult)</label>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-check mt-4">
+            <input type="checkbox" class="form-check-input" id="bRosterPlayer"
+              [ngModel]="bAllowRosterViewPlayer()"
+              (ngModelChange)="bAllowRosterViewPlayer.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bRosterPlayer">Allow Roster View (Player)</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Coach Confirmation &amp; Policy</h6>
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label">Confirmation Email</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="adultRegConfirmationEmail()"
+            (ngModelChange)="adultRegConfirmationEmail.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Confirmation On-Screen</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="adultRegConfirmationOnScreen()"
+            (ngModelChange)="adultRegConfirmationOnScreen.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Refund Policy</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="adultRegRefundPolicy()"
+            (ngModelChange)="adultRegRefundPolicy.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Release of Liability</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="adultRegReleaseOfLiability()"
+            (ngModelChange)="adultRegReleaseOfLiability.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Code of Conduct</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="adultRegCodeOfConduct()"
+            (ngModelChange)="adultRegCodeOfConduct.set($event); onFieldChange()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Referee Confirmations</h6>
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label">Referee Confirmation Email</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="refereeRegConfirmationEmail()"
+            (ngModelChange)="refereeRegConfirmationEmail.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Referee Confirmation On-Screen</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="refereeRegConfirmationOnScreen()"
+            (ngModelChange)="refereeRegConfirmationOnScreen.set($event); onFieldChange()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Recruiter Confirmations</h6>
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label">Recruiter Confirmation Email</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="recruiterRegConfirmationEmail()"
+            (ngModelChange)="recruiterRegConfirmationEmail.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Recruiter Confirmation On-Screen</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="recruiterRegConfirmationOnScreen()"
+            (ngModelChange)="recruiterRegConfirmationOnScreen.set($event); onFieldChange()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Save Coaches &amp; Staff
+      </button>
+    </div>
+  </div>
+}

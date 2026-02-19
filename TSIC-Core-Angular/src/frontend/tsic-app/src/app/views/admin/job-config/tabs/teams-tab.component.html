@@ -1,0 +1,121 @@
+@if (svc.teams()) {
+  <div class="tab-panel">
+    <div class="form-section">
+      <h6 class="section-title">Team Registration</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bAllowTeam"
+              [ngModel]="bRegistrationAllowTeam()"
+              (ngModelChange)="bRegistrationAllowTeam.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bAllowTeam">Allow Team Registration</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Team Form Name</label>
+          <input type="text" class="form-control"
+            [ngModel]="regformNameTeam()"
+            (ngModelChange)="regformNameTeam.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Club Rep Form Name</label>
+          <input type="text" class="form-control"
+            [ngModel]="regformNameClubRep()"
+            (ngModelChange)="regformNameClubRep.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Club Rep Permissions</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bCrEdit"
+              [ngModel]="bClubRepAllowEdit()"
+              (ngModelChange)="bClubRepAllowEdit.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bCrEdit">Allow Edit</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bCrDelete"
+              [ngModel]="bClubRepAllowDelete()"
+              (ngModelChange)="bClubRepAllowDelete.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bCrDelete">Allow Delete</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bCrAdd"
+              [ngModel]="bClubRepAllowAdd()"
+              (ngModelChange)="bClubRepAllowAdd.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bCrAdd">Allow Add</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Team Options</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bRestrict"
+              [ngModel]="bRestrictPlayerTeamsToAgerange()"
+              (ngModelChange)="bRestrictPlayerTeamsToAgerange.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bRestrict">Restrict Players to Age Range</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bPushDir"
+              [ngModel]="bTeamPushDirectors()"
+              (ngModelChange)="bTeamPushDirectors.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bPushDir">Push Directors</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bWaitlists"
+              [ngModel]="bUseWaitlists()"
+              (ngModelChange)="bUseWaitlists.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bWaitlists">Use Waitlists</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bTeamNameOnly"
+              [ngModel]="bShowTeamNameOnlyInSchedules()"
+              (ngModelChange)="bShowTeamNameOnlyInSchedules.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bTeamNameOnly">Show Team Name Only in Schedules</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (svc.isSuperUser()) {
+      <div class="form-section">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-1"></i>
+          Team Insurance (SuperUser)
+        </h6>
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="bInsuranceTeam"
+            [ngModel]="bOfferTeamRegsaverInsurance()"
+            (ngModelChange)="bOfferTeamRegsaverInsurance.set($event); onFieldChange()" />
+          <label class="form-check-label" for="bInsuranceTeam">Offer Team RegSaver Insurance</label>
+        </div>
+      </div>
+    }
+
+    <div class="action-bar">
+      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Save Teams &amp; Club Reps
+      </button>
+    </div>
+  </div>
+}

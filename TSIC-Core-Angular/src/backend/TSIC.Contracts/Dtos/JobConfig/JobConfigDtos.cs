@@ -392,10 +392,12 @@ public record JobConfigReferenceDataDto
     public required List<ChargeTypeRefDto> ChargeTypes { get; init; }
 }
 
+// NOTE: Reuses same shape as WidgetEditorDtos.JobTypeRefDto — Swagger merges them.
+// Both use JobTypeName (not Name) to avoid Swagger property conflicts.
 public record JobTypeRefDto
 {
     public required int JobTypeId { get; init; }
-    public required string? Name { get; init; }
+    public required string JobTypeName { get; init; }
 }
 
 public record SportRefDto

@@ -1,0 +1,136 @@
+@if (svc.mobileStore()) {
+  <div class="tab-panel">
+    <div class="form-section">
+      <h6 class="section-title">Mobile Features</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bTsicteams"
+              [ngModel]="bEnableTsicteams()"
+              (ngModelChange)="bEnableTsicteams.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bTsicteams">Enable TSIC Teams</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bMobileRsvp"
+              [ngModel]="bEnableMobileRsvp()"
+              (ngModelChange)="bEnableMobileRsvp.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bMobileRsvp">Enable Mobile RSVP</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bMobileChat"
+              [ngModel]="bEnableMobileTeamChat()"
+              (ngModelChange)="bEnableMobileTeamChat.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bMobileChat">Enable Mobile Team Chat</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bMobileLogin"
+              [ngModel]="bAllowMobileLogin()"
+              (ngModelChange)="bAllowMobileLogin.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bMobileLogin">Allow Mobile Login</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bMobileRegn"
+              [ngModel]="bAllowMobileRegn()"
+              (ngModelChange)="bAllowMobileRegn.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bMobileRegn">Allow Mobile Registration</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Score Hours Past Game Eligible</label>
+          <input type="number" class="form-control"
+            [ngModel]="mobileScoreHoursPastGameEligible()"
+            (ngModelChange)="mobileScoreHoursPastGameEligible.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    @if (svc.isSuperUser()) {
+      <div class="form-section">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-1"></i>
+          Mobile Identity (SuperUser)
+        </h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Mobile Job Name</label>
+            <input type="text" class="form-control"
+              [ngModel]="mobileJobName()"
+              (ngModelChange)="mobileJobName.set($event); onFieldChange()" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-1"></i>
+          Store Settings (SuperUser)
+        </h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="bEnableStore"
+                [ngModel]="bEnableStore()"
+                (ngModelChange)="bEnableStore.set($event); onFieldChange()" />
+              <label class="form-check-label" for="bEnableStore">Enable Store</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="bStp"
+                [ngModel]="benableStp()"
+                (ngModelChange)="benableStp.set($event); onFieldChange()" />
+              <label class="form-check-label" for="bStp">Enable STP</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Store Contact Email</label>
+            <input type="email" class="form-control"
+              [ngModel]="storeContactEmail()"
+              (ngModelChange)="storeContactEmail.set($event); onFieldChange()" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Store Refund Policy</label>
+            <textarea class="form-control" rows="3"
+              [ngModel]="storeRefundPolicy()"
+              (ngModelChange)="storeRefundPolicy.set($event); onFieldChange()"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Store Pickup Details</label>
+            <textarea class="form-control" rows="3"
+              [ngModel]="storePickupDetails()"
+              (ngModelChange)="storePickupDetails.set($event); onFieldChange()"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Sales Tax (%)</label>
+            <input type="number" class="form-control" step="0.01"
+              [ngModel]="storeSalesTax()"
+              (ngModelChange)="storeSalesTax.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">TSIC Rate (%)</label>
+            <input type="number" class="form-control" step="0.01"
+              [ngModel]="storeTsicrate()"
+              (ngModelChange)="storeTsicrate.set($event); onFieldChange()" />
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="action-bar">
+      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Save Mobile &amp; Store
+      </button>
+    </div>
+  </div>
+}

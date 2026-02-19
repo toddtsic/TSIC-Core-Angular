@@ -1,0 +1,98 @@
+@if (svc.scheduling()) {
+  <div class="tab-panel">
+    <div class="form-section">
+      <h6 class="section-title">Event Dates</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Event Start Date</label>
+          <input type="date" class="form-control"
+            [ngModel]="eventStartDate()"
+            (ngModelChange)="eventStartDate.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Event End Date</label>
+          <input type="date" class="form-control"
+            [ngModel]="eventEndDate()"
+            (ngModelChange)="eventEndDate.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <div class="form-check mt-4">
+            <input type="checkbox" class="form-check-input" id="bPublicSchedule"
+              [ngModel]="bScheduleAllowPublicAccess()"
+              (ngModelChange)="bScheduleAllowPublicAccess.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bPublicSchedule">Allow Public Schedule Access</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Game Clock Parameters</h6>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Half Minutes</label>
+          <input type="number" class="form-control"
+            [ngModel]="halfMinutes()"
+            (ngModelChange)="halfMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Half Time Minutes</label>
+          <input type="number" class="form-control"
+            [ngModel]="halfTimeMinutes()"
+            (ngModelChange)="halfTimeMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Transition Minutes</label>
+          <input type="number" class="form-control"
+            [ngModel]="transitionMinutes()"
+            (ngModelChange)="transitionMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Playoff Minutes</label>
+          <input type="number" class="form-control"
+            [ngModel]="playoffMinutes()"
+            (ngModelChange)="playoffMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Playoff Half Minutes</label>
+          <input type="number" class="form-control"
+            [ngModel]="playoffHalfMinutes()"
+            (ngModelChange)="playoffHalfMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Playoff Half Time</label>
+          <input type="number" class="form-control"
+            [ngModel]="playoffHalfTimeMinutes()"
+            (ngModelChange)="playoffHalfTimeMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Quarter Minutes</label>
+          <input type="number" class="form-control"
+            [ngModel]="quarterMinutes()"
+            (ngModelChange)="quarterMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Quarter Time</label>
+          <input type="number" class="form-control"
+            [ngModel]="quarterTimeMinutes()"
+            (ngModelChange)="quarterTimeMinutes.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">UTC Offset Hours</label>
+          <input type="number" class="form-control"
+            [ngModel]="utcOffsetHours()"
+            (ngModelChange)="utcOffsetHours.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Save Scheduling
+      </button>
+    </div>
+  </div>
+}

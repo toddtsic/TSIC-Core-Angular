@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type JobTypeLookupDto = {
-    jobTypeId: number;
-    jobTypeName: string | null;
+export type CustomerRefDto = {
+    customerId: string;
+    name: string | null;
 };
 

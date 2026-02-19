@@ -54,7 +54,7 @@ public class JobConfigRepository : IJobConfigRepository
             .Select(jt => new JobTypeRefDto
             {
                 JobTypeId = jt.JobTypeId,
-                Name = jt.JobTypeName
+                JobTypeName = jt.JobTypeName
             })
             .ToListAsync(ct);
     }

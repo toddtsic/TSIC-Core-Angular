@@ -1,0 +1,68 @@
+@if (svc.communications()) {
+  <div class="tab-panel">
+    <div class="form-section">
+      <h6 class="section-title">Email Settings</h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">From Display Name</label>
+          <input type="text" class="form-control"
+            [ngModel]="displayName()"
+            (ngModelChange)="displayName.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Registration Form From Address</label>
+          <input type="email" class="form-control"
+            [ngModel]="regFormFrom()"
+            (ngModelChange)="regFormFrom.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">CC Addresses</label>
+          <input type="text" class="form-control"
+            [ngModel]="regFormCcs()"
+            (ngModelChange)="regFormCcs.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">BCC Addresses</label>
+          <input type="text" class="form-control"
+            [ngModel]="regFormBccs()"
+            (ngModelChange)="regFormBccs.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Notification Lists</h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Reschedule Email List</label>
+          <input type="text" class="form-control"
+            [ngModel]="rescheduleemaillist()"
+            (ngModelChange)="rescheduleemaillist.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Always Copy Email List</label>
+          <input type="text" class="form-control"
+            [ngModel]="alwayscopyemaillist()"
+            (ngModelChange)="alwayscopyemaillist.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <div class="form-check mt-2">
+            <input type="checkbox" class="form-check-input" id="bDisallowCc"
+              [ngModel]="bDisallowCcplayerConfirmations()"
+              (ngModelChange)="bDisallowCcplayerConfirmations.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bDisallowCc">Disallow CC Player Confirmations</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Save Communications
+      </button>
+    </div>
+  </div>
+}

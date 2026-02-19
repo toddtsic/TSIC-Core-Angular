@@ -1,0 +1,259 @@
+@if (svc.general(); as g) {
+  <div class="tab-panel">
+    <!-- Read-only identity -->
+    <div class="form-section">
+      <h6 class="section-title">Job Identity</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Job ID</label>
+          <input type="text" class="form-control" [value]="g.jobId" disabled />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Job Path</label>
+          <input type="text" class="form-control" [value]="g.jobPath" disabled />
+        </div>
+        @if (svc.isSuperUser()) {
+          <div class="col-md-4">
+            <label class="form-label">Job Code</label>
+            <input
+              type="text"
+              class="form-control"
+              [ngModel]="jobCode()"
+              (ngModelChange)="jobCode.set($event); onFieldChange()" />
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Name & Description -->
+    <div class="form-section">
+      <h6 class="section-title">Name &amp; Description</h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Job Name</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="jobName()"
+            (ngModelChange)="jobName.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Display Name</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="displayName()"
+            (ngModelChange)="displayName.set($event); onFieldChange()" />
+        </div>
+        <div class="col-12">
+          <label class="form-label">Description</label>
+          <textarea
+            class="form-control"
+            rows="3"
+            [ngModel]="jobDescription()"
+            (ngModelChange)="jobDescription.set($event); onFieldChange()">
+          </textarea>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Tagline</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="jobTagline()"
+            (ngModelChange)="jobTagline.set($event); onFieldChange()" />
+        </div>
+        @if (svc.isSuperUser()) {
+          <div class="col-md-6">
+            <label class="form-label">QBP Name</label>
+            <input
+              type="text"
+              class="form-control"
+              [ngModel]="jobNameQbp()"
+              (ngModelChange)="jobNameQbp.set($event); onFieldChange()" />
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Season & Year -->
+    <div class="form-section">
+      <h6 class="section-title">Season &amp; Year</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Season</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="season()"
+            (ngModelChange)="season.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Year</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="year()"
+            (ngModelChange)="year.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Expiry -->
+    <div class="form-section">
+      <h6 class="section-title">Expiry Dates</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">User Expiry</label>
+          <input
+            type="date"
+            class="form-control"
+            [ngModel]="expiryUsers()"
+            (ngModelChange)="expiryUsers.set($event); onFieldChange()" />
+        </div>
+        @if (svc.isSuperUser()) {
+          <div class="col-md-4">
+            <label class="form-label">Admin Expiry</label>
+            <input
+              type="date"
+              class="form-control"
+              [ngModel]="expiryAdmin()"
+              (ngModelChange)="expiryAdmin.set($event); onFieldChange()" />
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- SEO -->
+    <div class="form-section">
+      <h6 class="section-title">Search Engine</h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Keywords</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="searchenginKeywords()"
+            (ngModelChange)="searchenginKeywords.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Description</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="searchengineDescription()"
+            (ngModelChange)="searchengineDescription.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Banner -->
+    <div class="form-section">
+      <h6 class="section-title">Banner</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-check">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              id="bBannerIsCustom"
+              [ngModel]="bBannerIsCustom()"
+              (ngModelChange)="bBannerIsCustom.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bBannerIsCustom">Custom Banner</label>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Banner File</label>
+          <input
+            type="text"
+            class="form-control"
+            [ngModel]="bannerFile()"
+            (ngModelChange)="bannerFile.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- SuperUser: Classification -->
+    @if (svc.isSuperUser()) {
+      <div class="form-section">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-1"></i>
+          Classification (SuperUser)
+        </h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Job Type</label>
+            <select
+              class="form-select"
+              [ngModel]="jobTypeId()"
+              (ngModelChange)="jobTypeId.set($event); onFieldChange()">
+              <option [ngValue]="undefined">— Select —</option>
+              @for (jt of svc.referenceData()?.jobTypes ?? []; track jt.jobTypeId) {
+                <option [ngValue]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Sport</label>
+            <select
+              class="form-select"
+              [ngModel]="sportId()"
+              (ngModelChange)="sportId.set($event); onFieldChange()">
+              <option [ngValue]="null">— Select —</option>
+              @for (s of svc.referenceData()?.sports ?? []; track s.sportId) {
+                <option [ngValue]="s.sportId">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Customer</label>
+            <select
+              class="form-select"
+              [ngModel]="customerId()"
+              (ngModelChange)="customerId.set($event); onFieldChange()">
+              <option [ngValue]="null">— Select —</option>
+              @for (c of svc.referenceData()?.customers ?? []; track c.customerId) {
+                <option [ngValue]="c.customerId">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Billing Type</label>
+            <select
+              class="form-select"
+              [ngModel]="billingTypeId()"
+              (ngModelChange)="billingTypeId.set($event); onFieldChange()">
+              <option [ngValue]="undefined">— Select —</option>
+              @for (bt of svc.referenceData()?.billingTypes ?? []; track bt.billingTypeId) {
+                <option [ngValue]="bt.billingTypeId">{{ bt.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check mt-4">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                id="bSuspendPublic"
+                [ngModel]="bSuspendPublic()"
+                (ngModelChange)="bSuspendPublic.set($event); onFieldChange()" />
+              <label class="form-check-label" for="bSuspendPublic">Suspend Public Access</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Save button -->
+    <div class="action-bar">
+      <button
+        class="btn btn-primary"
+        [disabled]="svc.isSaving()"
+        (click)="save()">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Save General
+      </button>
+    </div>
+  </div>
+}

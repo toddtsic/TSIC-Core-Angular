@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type BillingTypeLookupDto = {
+export type BillingTypeRefDto = {
     billingTypeId: number;
-    billingTypeName: string | null;
+    name: string | null;
 };
 

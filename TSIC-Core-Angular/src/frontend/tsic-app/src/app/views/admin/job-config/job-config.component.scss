@@ -1,0 +1,168 @@
+:host {
+  display: block;
+}
+
+.job-config-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+// ── Tab bar ──────────────────────────────────────────────
+
+.tab-bar {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: none;
+  color: var(--brand-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  position: relative;
+
+  &:hover {
+    color: var(--brand-text);
+  }
+
+  &.active {
+    color: var(--bs-primary);
+    border-bottom-color: var(--bs-primary);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: var(--radius-sm);
+  }
+
+  .bi {
+    font-size: 1rem;
+  }
+}
+
+.dirty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--bs-warning);
+  flex-shrink: 0;
+}
+
+// ── Tab content ──────────────────────────────────────────
+
+.tab-content {
+  min-height: 300px;
+
+  // Shared styles for all tab sub-components
+  // (::ng-deep needed because children have their own encapsulation)
+  ::ng-deep {
+    .tab-panel {
+      padding: var(--space-3) 0;
+    }
+
+    .form-section {
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      padding: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: var(--font-weight-semibold);
+      color: var(--brand-text);
+      margin: 0 0 var(--space-3) 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .action-bar {
+      padding-top: var(--space-3);
+      border-top: 1px solid var(--bs-border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-2);
+    }
+  }
+}
+
+// ── Responsive ───────────────────────────────────────────
+
+@media (max-width: 1024px) {
+  .tab-btn {
+    padding: var(--space-2) var(--space-2);
+    font-size: var(--font-size-xs);
+  }
+}
+
+@media (max-width: 768px) {
+  .tab-label {
+    display: none;
+  }
+
+  .tab-btn {
+    padding: var(--space-2);
+
+    .bi {
+      font-size: 1.25rem;
+    }
+  }
+
+  .tab-content ::ng-deep {
+    .form-section {
+      padding: var(--space-3);
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-bar {
+    gap: 0;
+  }
+
+  .tab-btn {
+    padding: var(--space-1);
+    flex: 1;
+    justify-content: center;
+
+    .bi {
+      font-size: 1.1rem;
+    }
+  }
+
+  .tab-content ::ng-deep {
+    .form-section {
+      padding: var(--space-2);
+      margin-bottom: var(--space-3);
+    }
+
+    .action-bar {
+      flex-direction: column;
+
+      .btn {
+        width: 100%;
+      }
+    }
+  }
+}

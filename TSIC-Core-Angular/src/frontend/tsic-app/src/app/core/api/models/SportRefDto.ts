@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type SportLookupDto = {
+export type SportRefDto = {
     sportId: string;
-    sportName: string | null;
+    name: string | null;
 };
 

@@ -1,0 +1,135 @@
+@if (svc.player()) {
+  <div class="tab-panel">
+    <div class="form-section">
+      <h6 class="section-title">Player Registration Settings</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="bAllowPlayer"
+              [ngModel]="bRegistrationAllowPlayer()"
+              (ngModelChange)="bRegistrationAllowPlayer.set($event); onFieldChange()" />
+            <label class="form-check-label" for="bAllowPlayer">Allow Player Registration</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Registration Form Name</label>
+          <input type="text" class="form-control"
+            [ngModel]="regformNamePlayer()"
+            (ngModelChange)="regformNamePlayer.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Core Registration Form</label>
+          <input type="text" class="form-control"
+            [ngModel]="coreRegformPlayer()"
+            (ngModelChange)="coreRegformPlayer.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Multi-Player Discount</h6>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Minimum Players</label>
+          <input type="number" class="form-control"
+            [ngModel]="playerRegMultiPlayerDiscountMin()"
+            (ngModelChange)="playerRegMultiPlayerDiscountMin.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Discount Percent (%)</label>
+          <input type="number" class="form-control" step="0.01"
+            [ngModel]="playerRegMultiPlayerDiscountPercent()"
+            (ngModelChange)="playerRegMultiPlayerDiscountPercent.set($event); onFieldChange()" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h6 class="section-title">Confirmation &amp; Policy Text</h6>
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label">Confirmation Email</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="playerRegConfirmationEmail()"
+            (ngModelChange)="playerRegConfirmationEmail.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Confirmation On-Screen</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="playerRegConfirmationOnScreen()"
+            (ngModelChange)="playerRegConfirmationOnScreen.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Refund Policy</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="playerRegRefundPolicy()"
+            (ngModelChange)="playerRegRefundPolicy.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Release of Liability</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="playerRegReleaseOfLiability()"
+            (ngModelChange)="playerRegReleaseOfLiability.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Code of Conduct</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="playerRegCodeOfConduct()"
+            (ngModelChange)="playerRegCodeOfConduct.set($event); onFieldChange()"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">COVID-19 Waiver</label>
+          <textarea class="form-control" rows="3"
+            [ngModel]="playerRegCovid19Waiver()"
+            (ngModelChange)="playerRegCovid19Waiver.set($event); onFieldChange()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    @if (svc.isSuperUser()) {
+      <div class="form-section">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-1"></i>
+          Player Settings (SuperUser)
+        </h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="bInsurancePlayer"
+                [ngModel]="bOfferPlayerRegsaverInsurance()"
+                (ngModelChange)="bOfferPlayerRegsaverInsurance.set($event); onFieldChange()" />
+              <label class="form-check-label" for="bInsurancePlayer">Offer RegSaver Insurance</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Mom Label</label>
+            <input type="text" class="form-control"
+              [ngModel]="momLabel()"
+              (ngModelChange)="momLabel.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Dad Label</label>
+            <input type="text" class="form-control"
+              [ngModel]="dadLabel()"
+              (ngModelChange)="dadLabel.set($event); onFieldChange()" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Player Profile Metadata (JSON)</label>
+            <textarea class="form-control" rows="3"
+              [ngModel]="playerProfileMetadataJson()"
+              (ngModelChange)="playerProfileMetadataJson.set($event); onFieldChange()"></textarea>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="action-bar">
+      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        Save Player Registration
+      </button>
+    </div>
+  </div>
+}
