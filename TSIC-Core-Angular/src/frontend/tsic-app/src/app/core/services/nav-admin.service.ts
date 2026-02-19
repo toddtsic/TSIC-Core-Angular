@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, catchError, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
     NavEditorNavDto,
@@ -90,14 +90,20 @@ export class NavAdminService {
     }
 
     /**
-     * Ensure all standard roles have platform default navs.
+     * Ensure all standard roles have platform default navs, then load them.
+     * Sets isLoading immediately so the spinner shows during both steps.
      */
-    ensureAllRoleNavs(): Observable<{ created: number }> {
+    ensureAndLoad(): Observable<NavEditorNavDto[]> {
+        this.isLoading.set(true);
         return this.http.post<{ created: number }>(`${this.apiUrl}/defaults/ensure-all-roles`, {}).pipe(
-            tap(({ created }) => {
-                if (created > 0) {
-                    this.loadNavs().subscribe();
-                }
+            catchError(() => of({ created: 0 })),
+            switchMap(() => this.http.get<NavEditorNavDto[]>(`${this.apiUrl}/defaults`)),
+            tap({
+                next: (data) => {
+                    this.navs.set(data);
+                    this.isLoading.set(false);
+                },
+                error: () => this.isLoading.set(false)
             })
         );
     }

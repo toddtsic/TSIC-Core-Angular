@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { switchMap } from 'rxjs';
 import { NavAdminService } from '../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -44,7 +45,13 @@ export class MenuAdminComponent implements OnInit {
     });
 
     ngOnInit(): void {
-        this.loadNavs();
+        this.navAdminService.ensureAndLoad().subscribe({
+            next: (navs) => {
+                if (navs.length > 0 && !this.selectedRoleId() && navs[0].roleId) {
+                    this.selectedRoleId.set(navs[0].roleId);
+                }
+            }
+        });
     }
 
     loadNavs(): void {
@@ -80,18 +87,6 @@ export class MenuAdminComponent implements OnInit {
 
     isItemExpanded(itemId: number): boolean {
         return this.expandedItems().has(itemId);
-    }
-
-    ensureAllRoleNavs(): void {
-        this.navAdminService.ensureAllRoleNavs().subscribe({
-            next: ({ created }) => {
-                if (created > 0) {
-                    alert(`Created ${created} missing role nav(s)`);
-                } else {
-                    alert('All role navs already exist');
-                }
-            }
-        });
     }
 
     // ── Dialog operations ──

@@ -7,9 +7,6 @@
                 <i class="bi bi-download"></i> Export SQL
             </button>
             }
-            <button class="btn btn-primary" (click)="ensureAllRoleNavs()" [disabled]="isLoading()">
-                <i class="bi bi-plus-circle"></i> Ensure All Role Navs
-            </button>
         </div>
     </div>
 
@@ -24,7 +21,7 @@
     @if (!isLoading() && navs().length === 0) {
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i>
-        No navs found. Click "Ensure All Role Navs" to create platform defaults.
+        No navs found. Platform defaults are being created...
     </div>
     }
 
