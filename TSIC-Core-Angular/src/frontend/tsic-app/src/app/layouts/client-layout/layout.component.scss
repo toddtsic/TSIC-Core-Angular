@@ -1,8 +1,8 @@
-// Flexbox wrapper to push footer to bottom
+// Flexbox wrapper — fixed to viewport so <main> scrolls, not the body
 .layout-wrapper {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100dvh;
 }
 
 // Combined header + menu chrome — single sticky block
@@ -14,20 +14,18 @@
     width: 100%;
 }
 
-// Main content area - properly constrained for SPA
+// Main content area — scroll container for SPA content
 main {
     margin-top: 0;
-    padding-top: 0;
     flex: 1; // Take remaining space, pushing footer down
-    overflow: hidden; // Contain all child content strictly
+    overflow-y: auto; // Main is the scroll container (header stays above as a flex sibling)
+    overflow-x: hidden; // Prevent horizontal overflow
     position: relative; // Establish stacking context
     background-color: var(--neutral-50); // Ensure subtle off-white background in light mode
 
-    // Inner scrollable container to properly contain content
-    .container-fluid {
-        height: 100%;
-        overflow-y: auto;
+    // Top spacing lives on the scrolling content (not the scroll container)
+    // so sticky elements can sit flush at top:0 without a visible gap
+    > .row {
         padding-top: var(--space-4);
-        background-color: transparent; // Let parent background show through
     }
 }

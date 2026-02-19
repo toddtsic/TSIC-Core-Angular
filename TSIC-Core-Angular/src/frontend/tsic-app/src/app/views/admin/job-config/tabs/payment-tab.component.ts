@@ -65,6 +65,7 @@ export class PaymentTabComponent {
       this.adnArbStartDate.set(toDateOnly(p.adnArbStartDate));
       this.adnArbMinimumTotalCharge.set(p.adnArbMinimumTotalCharge);
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

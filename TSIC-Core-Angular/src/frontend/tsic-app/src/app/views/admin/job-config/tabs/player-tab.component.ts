@@ -56,6 +56,7 @@ export class PlayerTabComponent {
       this.momLabel.set(p.momLabel ?? null);
       this.dadLabel.set(p.dadLabel ?? null);
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

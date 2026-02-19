@@ -51,6 +51,7 @@ export class CoachesTabComponent {
       this.bAllowRosterViewAdult.set(c.bAllowRosterViewAdult);
       this.bAllowRosterViewPlayer.set(c.bAllowRosterViewPlayer);
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

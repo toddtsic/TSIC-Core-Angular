@@ -115,6 +115,7 @@ public class JobRepository : IJobRepository
                 AdnArbIntervalLength = jdo.Job.AdnArbintervalLength,
                 AdnArbStartDate = jdo.Job.AdnArbstartDate,
                 BRegistrationAllowTeam = jdo.Job.BRegistrationAllowTeam ?? false,
+                BBannerIsCustom = jdo.ParallaxSlideCount > 0,
                 JobTypeName = jdo.Job.JobType.JobTypeName
             })
             .SingleOrDefaultAsync(cancellationToken);

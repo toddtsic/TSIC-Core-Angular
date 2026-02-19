@@ -136,13 +136,5 @@
       </div>
     </div>
 
-    <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('coaches')" (click)="save()">
-        @if (svc.isSaving()) {
-          <span class="spinner-border spinner-border-sm me-1"></span>
-        }
-        Save Coaches &amp; Staff
-      </button>
-    </div>
   </div>
 }

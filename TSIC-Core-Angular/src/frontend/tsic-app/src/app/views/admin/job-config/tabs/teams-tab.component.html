@@ -109,13 +109,5 @@
       </div>
     }
 
-    <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('teams')" (click)="save()">
-        @if (svc.isSaving()) {
-          <span class="spinner-border spinner-border-sm me-1"></span>
-        }
-        Save Teams &amp; Club Reps
-      </button>
-    </div>
   </div>
 }

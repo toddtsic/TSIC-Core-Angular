@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, OnInit, HostListener, signal } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, OnInit, HostListener, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { JobConfigService, type TabKey } from './job-config.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -111,6 +111,14 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
 
   isDirty(key: TabKey): boolean {
     return this.svc.dirtyTabs().has(key);
+  }
+
+  // ── FAB save ──────────────────────────────────────────
+  isActiveTabDirty = computed(() => this.svc.dirtyTabs().has(this.svc.activeTab()));
+
+  onFabSave(): void {
+    const handler = this.svc.saveHandler();
+    if (handler) handler();
   }
 
   onDdlDirtyChange(dirty: boolean): void {

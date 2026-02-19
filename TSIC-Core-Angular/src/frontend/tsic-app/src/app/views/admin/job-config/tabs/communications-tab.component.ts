@@ -36,6 +36,7 @@ export class CommunicationsTabComponent {
       this.alwayscopyemaillist.set(c.alwayscopyemaillist);
       this.bDisallowCcplayerConfirmations.set(c.bDisallowCcplayerConfirmations);
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

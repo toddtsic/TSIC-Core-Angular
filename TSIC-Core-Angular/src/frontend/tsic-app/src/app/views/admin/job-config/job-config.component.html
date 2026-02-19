@@ -61,6 +61,22 @@
         }
       }
     </div>
+
+    <!-- FAB Save Button -->
+    @if (isActiveTabDirty()) {
+      <button
+        class="fab-save"
+        [disabled]="svc.isSaving()"
+        (click)="onFabSave()"
+        aria-label="Save changes">
+        @if (svc.isSaving()) {
+          <span class="spinner-border spinner-border-sm"></span>
+        } @else {
+          <i class="bi bi-check-lg"></i>
+        }
+        <span class="fab-label">Save</span>
+      </button>
+    }
   </div>
 } @else {
   <div class="alert alert-warning m-4">

@@ -82,7 +82,11 @@ export class WidgetDashboardComponent {
 		return url;
 	});
 
-	readonly heroHasBanner = computed(() => !!this.heroBannerBgUrl());
+	readonly isBannerCustom = computed(() =>
+		this.jobService.currentJob()?.bBannerIsCustom ?? false);
+
+	readonly heroHasBanner = computed(() =>
+		this.isBannerCustom() && !!this.heroBannerBgUrl());
 
 	/** Tracks whether the hero overlay logo loaded as a real image (not a tiny placeholder) */
 	readonly heroLogoValid = signal(true);

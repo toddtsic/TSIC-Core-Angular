@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -367,28 +368,24 @@ public class JobConfigService : IJobConfigService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
-        job.BBannerIsCustom = req.BBannerIsCustom;
-
-        // Upsert JobDisplayOptions for text fields
+        // Upsert JobDisplayOptions for text fields + banner toggle
         var jdo = await _repo.GetDisplayOptionsTrackedAsync(jobId, ct);
         if (jdo is null)
         {
             jdo = new JobDisplayOptions
             {
                 JobId = jobId,
-                ParallaxSlide1Text1 = req.BannerOverlayText1 is not null
-                    ? WebUtility.HtmlEncode(req.BannerOverlayText1) : null,
-                ParallaxSlide1Text2 = req.BannerOverlayText2 is not null
-                    ? WebUtility.HtmlEncode(req.BannerOverlayText2) : null,
+                ParallaxSlideCount = req.BBannerIsCustom ? 1 : 0,
+                ParallaxSlide1Text1 = NewlineToBr(req.BannerOverlayText1),
+                ParallaxSlide1Text2 = NewlineToBr(req.BannerOverlayText2),
             };
             _repo.AddDisplayOptions(jdo);
         }
         else
         {
-            jdo.ParallaxSlide1Text1 = req.BannerOverlayText1 is not null
-                ? WebUtility.HtmlEncode(req.BannerOverlayText1) : null;
-            jdo.ParallaxSlide1Text2 = req.BannerOverlayText2 is not null
-                ? WebUtility.HtmlEncode(req.BannerOverlayText2) : null;
+            jdo.ParallaxSlideCount = req.BBannerIsCustom ? 1 : 0;
+            jdo.ParallaxSlide1Text1 = NewlineToBr(req.BannerOverlayText1);
+            jdo.ParallaxSlide1Text2 = NewlineToBr(req.BannerOverlayText2);
         }
 
         job.Modified = DateTime.UtcNow;
@@ -429,15 +426,56 @@ public class JobConfigService : IJobConfigService
 
     private static JobConfigBrandingDto MapBranding(Jobs job, JobDisplayOptions? jdo) => new()
     {
-        BBannerIsCustom = job.BBannerIsCustom,
+        BBannerIsCustom = jdo?.ParallaxSlideCount > 0,
         BannerBackgroundImage = jdo?.ParallaxBackgroundImage,
         BannerOverlayImage = jdo?.ParallaxSlide1Image,
-        BannerOverlayText1 = jdo?.ParallaxSlide1Text1 is not null
-            ? WebUtility.HtmlDecode(jdo.ParallaxSlide1Text1) : null,
-        BannerOverlayText2 = jdo?.ParallaxSlide1Text2 is not null
-            ? WebUtility.HtmlDecode(jdo.ParallaxSlide1Text2) : null,
+        BannerOverlayText1 = SanitizeOverlayText(jdo?.ParallaxSlide1Text1),
+        BannerOverlayText2 = SanitizeOverlayText(jdo?.ParallaxSlide1Text2),
         LogoHeader = jdo?.LogoHeader,
     };
+
+    /// <summary>
+    /// Converts legacy HTML-encoded/rich-text overlay values to plain text.
+    /// Decodes HTML entities, converts &lt;br&gt; to newlines, strips remaining tags.
+    /// </summary>
+    private static string? SanitizeOverlayText(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        // Decode HTML entities (legacy data is HTML-encoded)
+        var text = WebUtility.HtmlDecode(raw);
+
+        // Convert <br> variants to newline
+        text = Regex.Replace(text, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
+
+        // Strip all remaining HTML tags
+        text = Regex.Replace(text, @"<[^>]+>", "");
+
+        // Collapse &nbsp; remnants
+        text = text.Replace("\u00A0", " ");
+
+        // Trim each line, remove blank-only lines at start/end
+        var lines = text.Split('\n')
+            .Select(l => l.Trim())
+            .ToList();
+
+        // Remove leading/trailing empty lines
+        while (lines.Count > 0 && lines[0].Length == 0) lines.RemoveAt(0);
+        while (lines.Count > 0 && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
+
+        var result = string.Join("\n", lines);
+        return result.Length > 0 ? result : null;
+    }
+
+    /// <summary>
+    /// Converts newlines from textarea input to &lt;br&gt; for DB storage.
+    /// Returns null for empty/whitespace-only input.
+    /// </summary>
+    private static string? NewlineToBr(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        return text.Trim().Replace("\r\n", "<br>").Replace("\n", "<br>");
+    }
 
     private static JobConfigGeneralDto MapGeneral(Jobs job, bool isSuperUser) => new()
     {

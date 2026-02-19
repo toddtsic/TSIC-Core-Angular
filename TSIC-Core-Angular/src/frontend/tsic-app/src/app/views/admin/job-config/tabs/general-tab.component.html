@@ -199,32 +199,30 @@
               }
             </select>
           </div>
-          <div class="col-md-4">
-            <div class="form-check mt-4">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                id="bSuspendPublic"
-                [ngModel]="bSuspendPublic()"
-                (ngModelChange)="bSuspendPublic.set($event); onFieldChange()" />
-              <label class="form-check-label" for="bSuspendPublic">Suspend Public Access</label>
-            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 p-3 rounded-2 mt-3"
+             [style.background]="bSuspendPublic() ? 'rgba(var(--bs-danger-rgb), 0.1)' : 'rgba(var(--bs-success-rgb), 0.1)'"
+             [style.border]="'1px solid ' + (bSuspendPublic() ? 'rgba(var(--bs-danger-rgb), 0.3)' : 'rgba(var(--bs-success-rgb), 0.3)')">
+          <div class="form-check form-switch mb-0">
+            <input type="checkbox" class="form-check-input" id="bSuspendPublic" role="switch"
+              [ngModel]="bSuspendPublic()"
+              (ngModelChange)="bSuspendPublic.set($event); onFieldChange()" />
+            <label class="form-check-label fw-semibold" for="bSuspendPublic">
+              <i class="bi me-1" [ngClass]="bSuspendPublic() ? 'bi-lock' : 'bi-globe'"></i>
+              Suspend Public Access
+            </label>
           </div>
+          <small class="text-secondary">
+            @if (bSuspendPublic()) {
+              Public registration is suspended — visitors cannot access this event.
+            } @else {
+              Public registration is open — visitors can access this event.
+            }
+          </small>
         </div>
       </div>
     }
 
-    <!-- Save button -->
-    <div class="action-bar">
-      <button
-        class="btn btn-primary"
-        [disabled]="svc.isSaving() || !svc.dirtyTabs().has('general')"
-        (click)="save()">
-        @if (svc.isSaving()) {
-          <span class="spinner-border spinner-border-sm me-1"></span>
-        }
-        Save General
-      </button>
-    </div>
   </div>
 }

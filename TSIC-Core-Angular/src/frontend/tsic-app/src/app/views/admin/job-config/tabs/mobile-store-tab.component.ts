@@ -52,6 +52,7 @@ export class MobileStoreTabComponent {
       this.storeSalesTax.set(m.storeSalesTax);
       this.storeTsicrate.set(m.storeTsicrate);
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

@@ -65,19 +65,21 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
           <div class="row g-3 mt-3">
             <div class="col-md-6">
               <label class="form-label">Overlay Headline</label>
-              <input
-                type="text"
+              <textarea
+                rows="2"
                 class="form-control"
+                placeholder="Banner headline text"
                 [ngModel]="overlayText1()"
-                (ngModelChange)="overlayText1.set($event); onFieldChange()" />
+                (ngModelChange)="overlayText1.set($event); onFieldChange()"></textarea>
             </div>
             <div class="col-md-6">
               <label class="form-label">Overlay Subheadline</label>
-              <input
-                type="text"
+              <textarea
+                rows="2"
                 class="form-control"
+                placeholder="Banner subheadline text"
                 [ngModel]="overlayText2()"
-                (ngModelChange)="overlayText2.set($event); onFieldChange()" />
+                (ngModelChange)="overlayText2.set($event); onFieldChange()"></textarea>
             </div>
           </div>
         </div>
@@ -96,18 +98,6 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
             (deleted)="onImageDeleted()" />
         </div>
 
-        <!-- Save button (text fields + toggle only) -->
-        <div class="action-bar">
-          <button
-            class="btn btn-primary"
-            [disabled]="svc.isSaving() || !svc.dirtyTabs().has('branding')"
-            (click)="save()">
-            @if (svc.isSaving()) {
-              <span class="spinner-border spinner-border-sm me-1"></span>
-            }
-            Save Branding
-          </button>
-        </div>
       </div>
     }
   `,
@@ -138,6 +128,7 @@ export class BrandingTabComponent {
       this.bannerOverlayUrl.set(buildAssetUrl(b.bannerOverlayImage));
       this.logoHeaderUrl.set(buildAssetUrl(b.logoHeader));
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

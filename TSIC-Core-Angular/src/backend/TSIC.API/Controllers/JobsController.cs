@@ -89,6 +89,7 @@ public class JobsController : ControllerBase
             AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,
             AdnArbStartDate = jobMetadata.AdnArbStartDate,
             BRegistrationAllowTeam = jobMetadata.BRegistrationAllowTeam,
+            BBannerIsCustom = jobMetadata.BBannerIsCustom,
             JobTypeName = jobMetadata.JobTypeName
         };
 

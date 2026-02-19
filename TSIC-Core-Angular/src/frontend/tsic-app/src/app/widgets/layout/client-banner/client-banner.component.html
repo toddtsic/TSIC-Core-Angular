@@ -1,6 +1,6 @@
 <div class="client-banner">
     @if (job()) {
-    @if (bannerBackgroundUrl()) {
+    @if (isBannerCustom() && bannerBackgroundUrl()) {
     <!-- Background image with optional banner overlay -->
     <div class="banner-background-only" [style.background-image]="'url(' + bannerBackgroundUrl() + ')'">
         @if (hasValidOverlayImage()) {
@@ -22,7 +22,7 @@
             }
         </div>
     </div>
-    } @else if (bannerImageUrl()) {
+    } @else if (isBannerCustom() && bannerImageUrl()) {
     <!-- Standard banner image if available -->
     <div class="banner-image-container">
         <img [src]="bannerImageUrl()" [alt]="jobName() + ' Banner'" class="banner-image" />

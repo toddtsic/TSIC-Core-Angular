@@ -2,15 +2,29 @@
   <div class="tab-panel">
     <div class="form-section">
       <h6 class="section-title">Player Registration Settings</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="bAllowPlayer"
-              [ngModel]="bRegistrationAllowPlayer()"
-              (ngModelChange)="bRegistrationAllowPlayer.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bAllowPlayer">Allow Player Registration</label>
-          </div>
+
+      <div class="d-flex align-items-center gap-3 p-3 rounded-2 mb-3"
+           [style.background]="bRegistrationAllowPlayer() ? 'rgba(var(--bs-success-rgb), 0.1)' : 'rgba(var(--bs-danger-rgb), 0.1)'"
+           [style.border]="'1px solid ' + (bRegistrationAllowPlayer() ? 'rgba(var(--bs-success-rgb), 0.3)' : 'rgba(var(--bs-danger-rgb), 0.3)')">
+        <div class="form-check form-switch mb-0">
+          <input type="checkbox" class="form-check-input" id="bAllowPlayer" role="switch"
+            [ngModel]="bRegistrationAllowPlayer()"
+            (ngModelChange)="bRegistrationAllowPlayer.set($event); onFieldChange()" />
+          <label class="form-check-label fw-semibold" for="bAllowPlayer">
+            <i class="bi me-1" [ngClass]="bRegistrationAllowPlayer() ? 'bi-person-check' : 'bi-person-x'"></i>
+            Allow Player Registration
+          </label>
         </div>
+        <small class="text-secondary">
+          @if (bRegistrationAllowPlayer()) {
+            Player registration is enabled — families can register players.
+          } @else {
+            Player registration is disabled — families cannot register players.
+          }
+        </small>
+      </div>
+
+      <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Registration Form Name</label>
           <input type="text" class="form-control"
@@ -141,13 +155,5 @@
       </div>
     }
 
-    <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('player')" (click)="save()">
-        @if (svc.isSaving()) {
-          <span class="spinner-border spinner-border-sm me-1"></span>
-        }
-        Save Player Registration
-      </button>
-    </div>
   </div>
 }

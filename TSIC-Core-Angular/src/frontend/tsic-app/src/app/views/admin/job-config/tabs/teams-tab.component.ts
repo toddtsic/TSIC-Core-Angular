@@ -46,6 +46,7 @@ export class TeamsTabComponent {
       this.bShowTeamNameOnlyInSchedules.set(t.bShowTeamNameOnlyInSchedules);
       this.bOfferTeamRegsaverInsurance.set(t.bOfferTeamRegsaverInsurance ?? null);
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

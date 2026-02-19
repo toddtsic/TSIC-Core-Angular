@@ -50,6 +50,7 @@ export class SchedulingTabComponent {
         this.utcOffsetHours.set(s.gameClock.utcOffsetHours);
       }
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

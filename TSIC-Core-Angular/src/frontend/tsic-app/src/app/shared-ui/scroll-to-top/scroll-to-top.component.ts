@@ -24,17 +24,32 @@ import { CommonModule } from '@angular/common';
 export class ScrollToTopComponent {
     showScrollTop = signal(false);
 
+    private get scrollContainer(): Element | null {
+        return document.querySelector('main');
+    }
+
     @HostListener('window:scroll', [])
     onWindowScroll() {
-        const scrollPosition = window.scrollY || document.documentElement.scrollTop;
+        // Check both window and main scroll container
+        const main = this.scrollContainer;
+        const scrollPosition = main
+            ? main.scrollTop
+            : (window.scrollY || document.documentElement.scrollTop);
         const windowHeight = window.innerHeight;
         this.showScrollTop.set(scrollPosition > windowHeight);
     }
 
+    ngAfterViewInit() {
+        // Listen to main's scroll since it's the actual scroll container
+        this.scrollContainer?.addEventListener('scroll', () => this.onWindowScroll());
+    }
+
     scrollToTop() {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
+        const main = this.scrollContainer;
+        if (main) {
+            main.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     }
 }

@@ -17,6 +17,7 @@ export class ClientBannerComponent {
 
     // Computed properties for reactive job metadata
     job = computed(() => this.jobService.currentJob());
+    isBannerCustom = computed(() => this.job()?.bBannerIsCustom ?? false);
     jobName = computed(() => this.job()?.jobName || '');
     jobPath = computed(() => this.job()?.jobPath || '');
     jobBannerPath = computed(() => this.job()?.jobBannerPath || '');
@@ -75,22 +76,34 @@ export class ClientBannerComponent {
         this.overlayImageValid.set(false);
     }
 
+    /**
+     * Sanitizes overlay text for safe [innerHTML] rendering.
+     * Handles both legacy HTML-encoded data (with inline styles/tags)
+     * and new plain-text data (with \n for line breaks).
+     */
     private decodeHtmlText(text: string): string {
         if (!text) return '';
 
-        // Use browser's built-in HTML entity decoder
+        // Step 1: Decode HTML entities (legacy data is HTML-encoded in DB)
         const textarea = document.createElement('textarea');
         textarea.innerHTML = text;
-        let decoded = textarea.value;
+        let clean = textarea.value;
 
-        // Clean up trailing <br> and &nbsp;
-        while (/<br\s*\/?>\s*$/i.test(decoded) || /&nbsp;\s*$/i.test(decoded)) {
-            decoded = decoded.replace(/<br\s*\/?>\s*$/i, '').replace(/&nbsp;\s*$/i, '');
-        }
+        // Step 2: Convert <br> tags to newlines (normalize)
+        clean = clean.replace(/<br\s*\/?>/gi, '\n');
 
-        // Clean up multiple consecutive <br> tags
-        decoded = decoded.replace(/(<br\s*\/?>\s*){2,}/gi, '<br>');
+        // Step 3: Strip all remaining HTML tags (legacy <span>, <i>, etc.)
+        clean = clean.replace(/<[^>]+>/g, '');
 
-        return decoded.trim();
+        // Step 4: Clean up &nbsp; remnants
+        clean = clean.replace(/\u00A0/g, ' ');
+
+        // Step 5: Trim lines, drop leading/trailing blanks
+        const lines = clean.split('\n').map(l => l.trim());
+        while (lines.length > 0 && lines[0] === '') lines.shift();
+        while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+
+        // Step 6: Convert newlines back to <br> for [innerHTML]
+        return lines.join('<br>');
     }
 }

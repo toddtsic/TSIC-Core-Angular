@@ -51,6 +51,9 @@ export class JobConfigService {
   readonly isSaving = signal(false);
   readonly dirtyTabs = signal<Set<TabKey>>(new Set());
 
+  /** Each tab registers its save callback here on init; FAB calls it. */
+  readonly saveHandler = signal<(() => void) | null>(null);
+
   readonly isSuperUser = computed(() => this.auth.isSuperuser());
 
   // ── Computed accessors ────────────────────────────────

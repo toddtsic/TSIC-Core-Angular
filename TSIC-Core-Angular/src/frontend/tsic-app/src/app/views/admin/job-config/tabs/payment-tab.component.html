@@ -232,13 +232,5 @@
       </div>
     }
 
-    <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('payment')" (click)="save()">
-        @if (svc.isSaving()) {
-          <span class="spinner-border spinner-border-sm me-1"></span>
-        }
-        Save Payment &amp; Billing
-      </button>
-    </div>
   </div>
 }

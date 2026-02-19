@@ -63,6 +63,7 @@ export class GeneralTabComponent implements OnInit {
       this.bSuspendPublic.set(g.bSuspendPublic ?? null);
       this.jobCode.set(g.jobCode ?? null);
       this.cleanSnapshot = JSON.stringify(this.buildPayload());
+      this.svc.saveHandler.set(() => this.save());
     });
   }
 

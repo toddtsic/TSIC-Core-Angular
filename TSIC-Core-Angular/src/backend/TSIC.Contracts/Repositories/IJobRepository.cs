@@ -52,6 +52,7 @@ public record JobMetadataDto
     public int? AdnArbIntervalLength { get; init; }
     public DateTime? AdnArbStartDate { get; init; }
     public required bool BRegistrationAllowTeam { get; init; }
+    public required bool BBannerIsCustom { get; init; }
     public string? JobTypeName { get; init; }
 }
 
