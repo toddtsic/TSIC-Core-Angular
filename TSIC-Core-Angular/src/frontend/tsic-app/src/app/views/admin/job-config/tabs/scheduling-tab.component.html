@@ -1,5 +1,29 @@
 @if (svc.scheduling()) {
   <div class="tab-panel">
+    <!-- Public access toggle — prominent placement -->
+    <div class="form-section">
+      <div class="d-flex align-items-center gap-3 p-3 rounded-2"
+           [style.background]="bScheduleAllowPublicAccess() ? 'rgba(var(--bs-success-rgb), 0.1)' : 'rgba(var(--bs-danger-rgb), 0.1)'"
+           [style.border]="'1px solid ' + (bScheduleAllowPublicAccess() ? 'rgba(var(--bs-success-rgb), 0.3)' : 'rgba(var(--bs-danger-rgb), 0.3)')">
+        <div class="form-check form-switch mb-0">
+          <input type="checkbox" class="form-check-input" id="bPublicSchedule" role="switch"
+            [ngModel]="bScheduleAllowPublicAccess()"
+            (ngModelChange)="bScheduleAllowPublicAccess.set($event); onFieldChange()" />
+          <label class="form-check-label fw-semibold" for="bPublicSchedule">
+            <i class="bi me-1" [ngClass]="bScheduleAllowPublicAccess() ? 'bi-globe' : 'bi-lock'"></i>
+            Allow Public Schedule Access
+          </label>
+        </div>
+        <small class="text-secondary">
+          @if (bScheduleAllowPublicAccess()) {
+            The game schedule is visible to the public.
+          } @else {
+            The game schedule is hidden from the public.
+          }
+        </small>
+      </div>
+    </div>
+
     <div class="form-section">
       <h6 class="section-title">Event Dates</h6>
       <div class="row g-3">
@@ -14,14 +38,6 @@
           <input type="date" class="form-control"
             [ngModel]="eventEndDate()"
             (ngModelChange)="eventEndDate.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <div class="form-check mt-4">
-            <input type="checkbox" class="form-check-input" id="bPublicSchedule"
-              [ngModel]="bScheduleAllowPublicAccess()"
-              (ngModelChange)="bScheduleAllowPublicAccess.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bPublicSchedule">Allow Public Schedule Access</label>
-          </div>
         </div>
       </div>
     </div>
@@ -87,7 +103,7 @@
     </div>
 
     <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('scheduling')" (click)="save()">
         @if (svc.isSaving()) {
           <span class="spinner-border spinner-border-sm me-1"></span>
         }

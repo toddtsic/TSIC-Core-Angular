@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, output, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { environment } from '@environments/environment';
@@ -85,6 +85,9 @@ export class DdlOptionsComponent {
 		return JSON.stringify(current) !== this.originalJson();
 	});
 
+	/** Emits true when dirty, false when clean — lets a parent track this component's dirty state. */
+	readonly dirtyChange = output<boolean>();
+
 	readonly changeCount = computed(() => {
 		const current = this.options();
 		if (!current || !this.isDirty()) return 0;
@@ -107,6 +110,11 @@ export class DdlOptionsComponent {
 
 	constructor() {
 		this.loadOptions();
+
+		// Notify parent whenever dirty state changes
+		effect(() => {
+			this.dirtyChange.emit(this.isDirty());
+		});
 	}
 
 	// ── Data access ──

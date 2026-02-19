@@ -102,12 +102,9 @@
         </div>
         <div class="col-12">
           <label class="form-label">Mail-in Payment Warning</label>
-          <ejs-richtexteditor
-            [value]="mailinPaymentWarning()"
-            [toolbarSettings]="rteTools"
-            [height]="rteHeight"
-            (change)="onRteChange('mailinPaymentWarning', $event)">
-          </ejs-richtexteditor>
+          <textarea class="form-control" rows="3"
+            [ngModel]="mailinPaymentWarning()"
+            (ngModelChange)="mailinPaymentWarning.set($event); onFieldChange()"></textarea>
         </div>
       </div>
     </div>
@@ -236,7 +233,7 @@
     }
 
     <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('payment')" (click)="save()">
         @if (svc.isSaving()) {
           <span class="spinner-border spinner-border-sm me-1"></span>
         }

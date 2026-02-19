@@ -5,6 +5,7 @@ using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
+using static TSIC.Domain.Constants.BrandingImageConventions;
 
 namespace TSIC.API.Controllers;
 
@@ -19,13 +20,16 @@ public class JobConfigController : ControllerBase
 {
     private readonly IJobConfigService _configService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IJobImageService _imageService;
 
     public JobConfigController(
         IJobConfigService configService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IJobImageService imageService)
     {
         _configService = configService;
         _jobLookupService = jobLookupService;
+        _imageService = imageService;
     }
 
     // ── Helpers ─────────────────────────────────────────────
@@ -166,6 +170,67 @@ public class JobConfigController : ControllerBase
             return NotFound(new { message = "Job not found for current user." });
 
         await _configService.UpdateMobileStoreAsync(jobId.Value, request, IsSuperUser, ct);
+        return NoContent();
+    }
+
+    // ── Branding ──────────────────────────────────────────────
+
+    /// <summary>Update Branding tab fields (toggle + overlay text).</summary>
+    [HttpPut("branding")]
+    public async Task<IActionResult> UpdateBranding(
+        [FromBody] UpdateJobConfigBrandingRequest request, CancellationToken ct)
+    {
+        var jobId = await GetJobIdAsync();
+        if (jobId is null)
+            return NotFound(new { message = "Job not found for current user." });
+
+        await _configService.UpdateBrandingAsync(jobId.Value, request, ct);
+        return NoContent();
+    }
+
+    /// <summary>Upload a branding image (banner-bg, banner-overlay, or logo).</summary>
+    [HttpPost("branding/images/{conventionName}")]
+    [RequestSizeLimit(5_242_880)]
+    public async Task<ActionResult<JobImageUploadResultDto>> UploadBrandingImage(
+        string conventionName, IFormFile file, CancellationToken ct)
+    {
+        if (!ImageSpecs.ContainsKey(conventionName))
+            return BadRequest(new { message = $"Unknown convention name: {conventionName}" });
+
+        var jobId = await GetJobIdAsync();
+        if (jobId is null)
+            return NotFound(new { message = "Job not found for current user." });
+
+        var spec = ImageSpecs[conventionName];
+
+        await using var stream = file.OpenReadStream();
+        var fileName = await _imageService.SaveJobImageAsync(
+            stream, file.FileName, jobId.Value, conventionName, spec.MaxWidth, spec.Quality, ct);
+
+        await _configService.UpdateBrandingImageFieldAsync(jobId.Value, conventionName, fileName, ct);
+
+        return Ok(new JobImageUploadResultDto
+        {
+            FileName = fileName,
+            Url = $"{TsicConstants.BaseUrlStatics}BannerFiles/{fileName}",
+        });
+    }
+
+    /// <summary>Delete a branding image.</summary>
+    [HttpDelete("branding/images/{conventionName}")]
+    public async Task<IActionResult> DeleteBrandingImage(
+        string conventionName, CancellationToken ct)
+    {
+        if (!ImageSpecs.ContainsKey(conventionName))
+            return BadRequest(new { message = $"Unknown convention name: {conventionName}" });
+
+        var jobId = await GetJobIdAsync();
+        if (jobId is null)
+            return NotFound(new { message = "Job not found for current user." });
+
+        await _imageService.DeleteJobImageAsync(jobId.Value, conventionName, ct);
+        await _configService.UpdateBrandingImageFieldAsync(jobId.Value, conventionName, null, ct);
+
         return NoContent();
     }
 

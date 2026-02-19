@@ -22,6 +22,8 @@ export class CommunicationsTabComponent {
   alwayscopyemaillist = signal<string | null>(null);
   bDisallowCcplayerConfirmations = signal<boolean | null>(null);
 
+  private cleanSnapshot = '';
+
   constructor() {
     effect(() => {
       const c = this.svc.communications();
@@ -33,13 +35,24 @@ export class CommunicationsTabComponent {
       this.rescheduleemaillist.set(c.rescheduleemaillist);
       this.alwayscopyemaillist.set(c.alwayscopyemaillist);
       this.bDisallowCcplayerConfirmations.set(c.bDisallowCcplayerConfirmations);
+      this.cleanSnapshot = JSON.stringify(this.buildPayload());
     });
   }
 
-  onFieldChange(): void { this.svc.markDirty('communications'); }
+  onFieldChange(): void {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+      this.svc.markClean('communications');
+    } else {
+      this.svc.markDirty('communications');
+    }
+  }
 
   save(): void {
-    const req: UpdateJobConfigCommunicationsRequest = {
+    this.svc.saveCommunications(this.buildPayload());
+  }
+
+  private buildPayload(): UpdateJobConfigCommunicationsRequest {
+    return {
       displayName: this.displayName(),
       regFormFrom: this.regFormFrom(),
       regFormCcs: this.regFormCcs(),
@@ -48,6 +61,5 @@ export class CommunicationsTabComponent {
       alwayscopyemaillist: this.alwayscopyemaillist(),
       bDisallowCcplayerConfirmations: this.bDisallowCcplayerConfirmations(),
     };
-    this.svc.saveCommunications(req);
   }
 }

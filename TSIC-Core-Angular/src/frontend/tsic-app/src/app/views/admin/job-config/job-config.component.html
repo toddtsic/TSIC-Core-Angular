@@ -32,6 +32,9 @@
         @case ('general') {
           <app-general-tab />
         }
+        @case ('branding') {
+          <app-branding-tab />
+        }
         @case ('payment') {
           <app-payment-tab />
         }
@@ -53,6 +56,9 @@
         @case ('mobileStore') {
           <app-mobile-store-tab />
         }
+        @case ('ddlOptions') {
+          <app-ddl-options (dirtyChange)="onDdlDirtyChange($event)" />
+        }
       }
     </div>
   </div>
@@ -61,4 +67,15 @@
     <i class="bi bi-exclamation-triangle me-2"></i>
     Job configuration not found for this job.
   </div>
+}
+
+@if (showDiscardDialog()) {
+  <confirm-dialog
+    title="Unsaved Changes"
+    message="You have unsaved changes on this tab. Discard them?"
+    confirmLabel="Discard"
+    cancelLabel="Stay"
+    confirmVariant="warning"
+    (confirmed)="onDiscardConfirmed()"
+    (cancelled)="onDiscardCancelled()" />
 }

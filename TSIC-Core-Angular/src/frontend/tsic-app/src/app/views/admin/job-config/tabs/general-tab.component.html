@@ -47,12 +47,9 @@
         </div>
         <div class="col-12">
           <label class="form-label">Description</label>
-          <ejs-richtexteditor
-            [value]="jobDescription()"
-            [toolbarSettings]="rteTools"
-            [height]="rteHeight"
-            (change)="onRteChange('jobDescription', $event)">
-          </ejs-richtexteditor>
+          <textarea class="form-control" rows="3"
+            [ngModel]="jobDescription()"
+            (ngModelChange)="jobDescription.set($event); onFieldChange()"></textarea>
         </div>
         <div class="col-md-6">
           <label class="form-label">Tagline</label>
@@ -146,32 +143,6 @@
       </div>
     </div>
 
-    <!-- Banner -->
-    <div class="form-section">
-      <h6 class="section-title">Banner</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <div class="form-check">
-            <input
-              type="checkbox"
-              class="form-check-input"
-              id="bBannerIsCustom"
-              [ngModel]="bBannerIsCustom()"
-              (ngModelChange)="bBannerIsCustom.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bBannerIsCustom">Custom Banner</label>
-          </div>
-        </div>
-        <div class="col-md-8">
-          <label class="form-label">Banner File</label>
-          <input
-            type="text"
-            class="form-control"
-            [ngModel]="bannerFile()"
-            (ngModelChange)="bannerFile.set($event); onFieldChange()" />
-        </div>
-      </div>
-    </div>
-
     <!-- SuperUser: Classification -->
     @if (svc.isSuperUser()) {
       <div class="form-section">
@@ -247,7 +218,7 @@
     <div class="action-bar">
       <button
         class="btn btn-primary"
-        [disabled]="svc.isSaving()"
+        [disabled]="svc.isSaving() || !svc.dirtyTabs().has('general')"
         (click)="save()">
         @if (svc.isSaving()) {
           <span class="spinner-border spinner-border-sm me-1"></span>

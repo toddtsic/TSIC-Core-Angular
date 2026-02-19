@@ -17,6 +17,10 @@
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 0;
   scrollbar-width: thin;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bs-body-bg);
 
   &::-webkit-scrollbar {
     height: 4px;

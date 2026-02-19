@@ -1,7 +1,7 @@
 import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
+import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
 import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
 import type { UpdateJobConfigCoachesRequest } from '@core/api';
@@ -9,7 +9,7 @@ import type { UpdateJobConfigCoachesRequest } from '@core/api';
 @Component({
   selector: 'app-coaches-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorModule],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './coaches-tab.component.html',
 })
@@ -32,6 +32,8 @@ export class CoachesTabComponent {
   bAllowRosterViewAdult = signal(false);
   bAllowRosterViewPlayer = signal(false);
 
+  private cleanSnapshot = '';
+
   constructor() {
     effect(() => {
       const c = this.svc.coaches();
@@ -48,10 +50,17 @@ export class CoachesTabComponent {
       this.recruiterRegConfirmationOnScreen.set(c.recruiterRegConfirmationOnScreen);
       this.bAllowRosterViewAdult.set(c.bAllowRosterViewAdult);
       this.bAllowRosterViewPlayer.set(c.bAllowRosterViewPlayer);
+      this.cleanSnapshot = JSON.stringify(this.buildPayload());
     });
   }
 
-  onFieldChange(): void { this.svc.markDirty('coaches'); }
+  onFieldChange(): void {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+      this.svc.markClean('coaches');
+    } else {
+      this.svc.markDirty('coaches');
+    }
+  }
 
   onRteChange(field: string, event: any): void {
     const sig = (this as any)[field];
@@ -60,7 +69,11 @@ export class CoachesTabComponent {
   }
 
   save(): void {
-    const req: UpdateJobConfigCoachesRequest = {
+    this.svc.saveCoaches(this.buildPayload());
+  }
+
+  private buildPayload(): UpdateJobConfigCoachesRequest {
+    return {
       regformNameCoach: this.regformNameCoach(),
       adultRegConfirmationEmail: this.adultRegConfirmationEmail(),
       adultRegConfirmationOnScreen: this.adultRegConfirmationOnScreen(),
@@ -74,6 +87,5 @@ export class CoachesTabComponent {
       bAllowRosterViewAdult: this.bAllowRosterViewAdult(),
       bAllowRosterViewPlayer: this.bAllowRosterViewPlayer(),
     };
-    this.svc.saveCoaches(req);
   }
 }

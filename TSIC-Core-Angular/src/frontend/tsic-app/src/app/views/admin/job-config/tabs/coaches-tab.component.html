@@ -37,6 +37,7 @@
             [value]="adultRegConfirmationEmail()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('adultRegConfirmationEmail', $event)">
           </ejs-richtexteditor>
         </div>
@@ -46,6 +47,7 @@
             [value]="adultRegConfirmationOnScreen()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('adultRegConfirmationOnScreen', $event)">
           </ejs-richtexteditor>
         </div>
@@ -55,6 +57,7 @@
             [value]="adultRegRefundPolicy()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('adultRegRefundPolicy', $event)">
           </ejs-richtexteditor>
         </div>
@@ -64,6 +67,7 @@
             [value]="adultRegReleaseOfLiability()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('adultRegReleaseOfLiability', $event)">
           </ejs-richtexteditor>
         </div>
@@ -73,6 +77,7 @@
             [value]="adultRegCodeOfConduct()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('adultRegCodeOfConduct', $event)">
           </ejs-richtexteditor>
         </div>
@@ -88,6 +93,7 @@
             [value]="refereeRegConfirmationEmail()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('refereeRegConfirmationEmail', $event)">
           </ejs-richtexteditor>
         </div>
@@ -97,6 +103,7 @@
             [value]="refereeRegConfirmationOnScreen()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('refereeRegConfirmationOnScreen', $event)">
           </ejs-richtexteditor>
         </div>
@@ -112,6 +119,7 @@
             [value]="recruiterRegConfirmationEmail()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('recruiterRegConfirmationEmail', $event)">
           </ejs-richtexteditor>
         </div>
@@ -121,6 +129,7 @@
             [value]="recruiterRegConfirmationOnScreen()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('recruiterRegConfirmationOnScreen', $event)">
           </ejs-richtexteditor>
         </div>
@@ -128,7 +137,7 @@
     </div>
 
     <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('coaches')" (click)="save()">
         @if (svc.isSaving()) {
           <span class="spinner-border spinner-border-sm me-1"></span>
         }

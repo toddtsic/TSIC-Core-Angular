@@ -14,19 +14,24 @@ import type {
   UpdateJobConfigCoachesRequest,
   UpdateJobConfigSchedulingRequest,
   UpdateJobConfigMobileStoreRequest,
+  UpdateJobConfigBrandingRequest,
   CreateAdminChargeRequest,
   JobAdminChargeDto,
+  JobImageUploadResultDto,
 } from '@core/api';
+import { Observable } from 'rxjs';
 
 export type TabKey =
   | 'general'
+  | 'branding'
   | 'payment'
   | 'communications'
   | 'player'
   | 'teams'
   | 'coaches'
   | 'scheduling'
-  | 'mobileStore';
+  | 'mobileStore'
+  | 'ddlOptions';
 
 /** Component-scoped service — provided in shell's providers array. */
 @Injectable()
@@ -57,6 +62,7 @@ export class JobConfigService {
   readonly teams = computed(() => this.config()?.teams ?? null);
   readonly coaches = computed(() => this.config()?.coaches ?? null);
   readonly scheduling = computed(() => this.config()?.scheduling ?? null);
+  readonly branding = computed(() => this.config()?.branding ?? null);
   readonly mobileStore = computed(() => this.config()?.mobileStore ?? null);
 
   // ── Load ──────────────────────────────────────────────
@@ -132,6 +138,21 @@ export class JobConfigService {
     this.saveTab('mobileStore', req);
   }
 
+  saveBranding(req: UpdateJobConfigBrandingRequest): void {
+    this.saveTab('branding', req);
+  }
+
+  uploadBrandingImage(conventionName: string, file: File): Observable<JobImageUploadResultDto> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.http.post<JobImageUploadResultDto>(
+      `${this.baseUrl}/branding/images/${conventionName}`, form);
+  }
+
+  deleteBrandingImage(conventionName: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/branding/images/${conventionName}`);
+  }
+
   // ── Admin Charges (SuperUser only) ────────────────────
 
   addAdminCharge(req: CreateAdminChargeRequest): void {
@@ -186,6 +207,7 @@ export class JobConfigService {
   private tabLabel(tab: TabKey): string {
     const labels: Record<TabKey, string> = {
       general: 'General',
+      branding: 'Branding',
       payment: 'Payment & Billing',
       communications: 'Communications',
       player: 'Player Registration',
@@ -193,6 +215,7 @@ export class JobConfigService {
       coaches: 'Coaches & Staff',
       scheduling: 'Scheduling',
       mobileStore: 'Mobile & Store',
+      ddlOptions: 'Dropdown Options',
     };
     return labels[tab];
   }

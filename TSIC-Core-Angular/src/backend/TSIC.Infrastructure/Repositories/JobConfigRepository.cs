@@ -146,6 +146,26 @@ public class JobConfigRepository : IJobConfigRepository
             .FirstOrDefaultAsync(c => c.Id == chargeId && c.JobId == jobId, ct);
     }
 
+    // ── JobDisplayOptions ──────────────────────────────
+
+    public async Task<JobDisplayOptions?> GetDisplayOptionsByJobIdAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.JobDisplayOptions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(jdo => jdo.JobId == jobId, ct);
+    }
+
+    public async Task<JobDisplayOptions?> GetDisplayOptionsTrackedAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.JobDisplayOptions
+            .FirstOrDefaultAsync(jdo => jdo.JobId == jobId, ct);
+    }
+
+    public void AddDisplayOptions(JobDisplayOptions displayOptions)
+    {
+        _context.JobDisplayOptions.Add(displayOptions);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         return await _context.SaveChangesAsync(ct);

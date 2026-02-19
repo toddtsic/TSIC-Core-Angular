@@ -2,6 +2,7 @@ import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
+import { toDateOnly } from '../shared/rte-config';
 import type { UpdateJobConfigSchedulingRequest } from '@core/api';
 
 @Component({
@@ -28,12 +29,14 @@ export class SchedulingTabComponent {
   quarterTimeMinutes = signal<number | undefined>(undefined);
   utcOffsetHours = signal<number | undefined>(undefined);
 
+  private cleanSnapshot = '';
+
   constructor() {
     effect(() => {
       const s = this.svc.scheduling();
       if (!s) return;
-      this.eventStartDate.set(s.eventStartDate);
-      this.eventEndDate.set(s.eventEndDate);
+      this.eventStartDate.set(toDateOnly(s.eventStartDate));
+      this.eventEndDate.set(toDateOnly(s.eventEndDate));
       this.bScheduleAllowPublicAccess.set(s.bScheduleAllowPublicAccess);
       if (s.gameClock) {
         this.halfMinutes.set(s.gameClock.halfMinutes);
@@ -46,13 +49,24 @@ export class SchedulingTabComponent {
         this.quarterTimeMinutes.set(s.gameClock.quarterTimeMinutes);
         this.utcOffsetHours.set(s.gameClock.utcOffsetHours);
       }
+      this.cleanSnapshot = JSON.stringify(this.buildPayload());
     });
   }
 
-  onFieldChange(): void { this.svc.markDirty('scheduling'); }
+  onFieldChange(): void {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+      this.svc.markClean('scheduling');
+    } else {
+      this.svc.markDirty('scheduling');
+    }
+  }
 
   save(): void {
-    const req: UpdateJobConfigSchedulingRequest = {
+    this.svc.saveScheduling(this.buildPayload());
+  }
+
+  private buildPayload(): UpdateJobConfigSchedulingRequest {
+    return {
       eventStartDate: this.eventStartDate(),
       eventEndDate: this.eventEndDate(),
       bScheduleAllowPublicAccess: this.bScheduleAllowPublicAccess(),
@@ -69,6 +83,5 @@ export class SchedulingTabComponent {
         utcOffsetHours: this.utcOffsetHours(),
       },
     };
-    this.svc.saveScheduling(req);
   }
 }

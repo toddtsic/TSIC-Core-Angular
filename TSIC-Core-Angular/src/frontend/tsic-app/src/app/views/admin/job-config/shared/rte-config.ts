@@ -9,3 +9,8 @@ export const JOB_CONFIG_RTE_TOOLS = {
 };
 
 export const JOB_CONFIG_RTE_HEIGHT = 200;
+
+/** Strip ISO datetime to yyyy-MM-dd for HTML date inputs. */
+export function toDateOnly(value: string | null | undefined): string | null {
+  return value ? value.substring(0, 10) : null;
+}

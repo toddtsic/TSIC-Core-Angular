@@ -14,6 +14,7 @@ public record JobConfigFullDto
     public required JobConfigCoachesDto Coaches { get; init; }
     public required JobConfigSchedulingDto Scheduling { get; init; }
     public required JobConfigMobileStoreDto MobileStore { get; init; }
+    public required JobConfigBrandingDto Branding { get; init; }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -34,8 +35,6 @@ public record JobConfigGeneralDto
     public required string? DisplayName { get; init; }
     public required string? SearchenginKeywords { get; init; }
     public required string? SearchengineDescription { get; init; }
-    public required bool BBannerIsCustom { get; init; }
-    public required string? BannerFile { get; init; }
 
     // SuperUser-only (null for non-super callers)
     public string? JobNameQbp { get; init; }
@@ -59,8 +58,6 @@ public record UpdateJobConfigGeneralRequest
     public required string? DisplayName { get; init; }
     public required string? SearchenginKeywords { get; init; }
     public required string? SearchengineDescription { get; init; }
-    public required bool BBannerIsCustom { get; init; }
-    public required string? BannerFile { get; init; }
 
     // SuperUser-only (ignored for non-super callers)
     public string? JobNameQbp { get; init; }
@@ -422,4 +419,31 @@ public record ChargeTypeRefDto
 {
     public required int Id { get; init; }
     public required string? Name { get; init; }
+}
+
+// ════════════════════════════════════════════════════════════════
+// 9. Branding (Display Properties — banner images + overlay text)
+// ════════════════════════════════════════════════════════════════
+
+public record JobConfigBrandingDto
+{
+    public required bool BBannerIsCustom { get; init; }
+    public required string? BannerBackgroundImage { get; init; }
+    public required string? BannerOverlayImage { get; init; }
+    public required string? BannerOverlayText1 { get; init; }
+    public required string? BannerOverlayText2 { get; init; }
+    public required string? LogoHeader { get; init; }
+}
+
+public record UpdateJobConfigBrandingRequest
+{
+    public required bool BBannerIsCustom { get; init; }
+    public required string? BannerOverlayText1 { get; init; }
+    public required string? BannerOverlayText2 { get; init; }
+}
+
+public record JobImageUploadResultDto
+{
+    public required string FileName { get; init; }
+    public required string Url { get; init; }
 }

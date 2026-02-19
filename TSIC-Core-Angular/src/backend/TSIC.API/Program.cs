@@ -13,7 +13,9 @@ using TSIC.Application.Validators;
 using TSIC.Application.Services.Players;
 using TSIC.Infrastructure.Services.Auth;
 using TSIC.Infrastructure.Services.Users;
+using TSIC.Infrastructure.Services;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Teams;
@@ -96,6 +98,11 @@ builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
+
+// FileStorage configuration + Image service
+builder.Services.Configure<FileStorageOptions>(
+    builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Services.AddScoped<IJobImageService, JobImageService>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();

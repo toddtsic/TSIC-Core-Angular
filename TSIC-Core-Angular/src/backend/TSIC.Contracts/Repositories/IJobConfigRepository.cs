@@ -28,5 +28,10 @@ public interface IJobConfigRepository
     void RemoveAdminCharge(JobAdminCharges charge);
     Task<JobAdminCharges?> GetAdminChargeByIdAsync(int chargeId, Guid jobId, CancellationToken ct = default);
 
+    // ── JobDisplayOptions ──────────────────────────────
+    Task<JobDisplayOptions?> GetDisplayOptionsByJobIdAsync(Guid jobId, CancellationToken ct = default);
+    Task<JobDisplayOptions?> GetDisplayOptionsTrackedAsync(Guid jobId, CancellationToken ct = default);
+    void AddDisplayOptions(JobDisplayOptions displayOptions);
+
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

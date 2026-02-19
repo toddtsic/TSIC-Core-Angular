@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { JobConfigBrandingDto } from './JobConfigBrandingDto';
 import type { JobConfigCoachesDto } from './JobConfigCoachesDto';
 import type { JobConfigCommunicationsDto } from './JobConfigCommunicationsDto';
 import type { JobConfigGeneralDto } from './JobConfigGeneralDto';
@@ -19,5 +20,6 @@ export type JobConfigFullDto = {
     coaches: JobConfigCoachesDto;
     scheduling: JobConfigSchedulingDto;
     mobileStore: JobConfigMobileStoreDto;
+    branding: JobConfigBrandingDto;
 };
 

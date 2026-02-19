@@ -98,21 +98,15 @@
           </div>
           <div class="col-12">
             <label class="form-label">Store Refund Policy</label>
-            <ejs-richtexteditor
-              [value]="storeRefundPolicy()"
-              [toolbarSettings]="rteTools"
-              [height]="rteHeight"
-              (change)="onRteChange('storeRefundPolicy', $event)">
-            </ejs-richtexteditor>
+            <textarea class="form-control" rows="4"
+              [ngModel]="storeRefundPolicy()"
+              (ngModelChange)="storeRefundPolicy.set($event); onFieldChange()"></textarea>
           </div>
           <div class="col-12">
             <label class="form-label">Store Pickup Details</label>
-            <ejs-richtexteditor
-              [value]="storePickupDetails()"
-              [toolbarSettings]="rteTools"
-              [height]="rteHeight"
-              (change)="onRteChange('storePickupDetails', $event)">
-            </ejs-richtexteditor>
+            <textarea class="form-control" rows="3"
+              [ngModel]="storePickupDetails()"
+              (ngModelChange)="storePickupDetails.set($event); onFieldChange()"></textarea>
           </div>
           <div class="col-md-4">
             <label class="form-label">Sales Tax (%)</label>
@@ -131,7 +125,7 @@
     }
 
     <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('mobileStore')" (click)="save()">
         @if (svc.isSaving()) {
           <span class="spinner-border spinner-border-sm me-1"></span>
         }

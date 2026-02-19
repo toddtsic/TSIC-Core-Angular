@@ -14,8 +14,6 @@ export type JobConfigGeneralDto = {
     displayName: string | null;
     searchenginKeywords: string | null;
     searchengineDescription: string | null;
-    bBannerIsCustom: boolean;
-    bannerFile: string | null;
     jobNameQbp?: string | null;
     expiryAdmin?: string | null;
     jobTypeId?: number;

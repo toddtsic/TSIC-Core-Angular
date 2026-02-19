@@ -20,6 +20,8 @@ public interface IJobConfigService
     Task UpdateCoachesAsync(Guid jobId, UpdateJobConfigCoachesRequest req, CancellationToken ct = default);
     Task UpdateSchedulingAsync(Guid jobId, UpdateJobConfigSchedulingRequest req, CancellationToken ct = default);
     Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, CancellationToken ct = default);
+    Task UpdateBrandingAsync(Guid jobId, UpdateJobConfigBrandingRequest req, CancellationToken ct = default);
+    Task UpdateBrandingImageFieldAsync(Guid jobId, string conventionName, string? fileName, CancellationToken ct = default);
 
     // Reference data
     Task<JobConfigReferenceDataDto> GetReferenceDataAsync(CancellationToken ct = default);

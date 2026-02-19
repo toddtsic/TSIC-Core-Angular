@@ -53,6 +53,7 @@
             [value]="playerRegConfirmationEmail()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('playerRegConfirmationEmail', $event)">
           </ejs-richtexteditor>
         </div>
@@ -62,6 +63,7 @@
             [value]="playerRegConfirmationOnScreen()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('playerRegConfirmationOnScreen', $event)">
           </ejs-richtexteditor>
         </div>
@@ -71,6 +73,7 @@
             [value]="playerRegRefundPolicy()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('playerRegRefundPolicy', $event)">
           </ejs-richtexteditor>
         </div>
@@ -80,6 +83,7 @@
             [value]="playerRegReleaseOfLiability()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('playerRegReleaseOfLiability', $event)">
           </ejs-richtexteditor>
         </div>
@@ -89,6 +93,7 @@
             [value]="playerRegCodeOfConduct()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('playerRegCodeOfConduct', $event)">
           </ejs-richtexteditor>
         </div>
@@ -98,6 +103,7 @@
             [value]="playerRegCovid19Waiver()"
             [toolbarSettings]="rteTools"
             [height]="rteHeight"
+            [enableHtmlSanitizer]="false"
             (change)="onRteChange('playerRegCovid19Waiver', $event)">
           </ejs-richtexteditor>
         </div>
@@ -131,18 +137,12 @@
               [ngModel]="dadLabel()"
               (ngModelChange)="dadLabel.set($event); onFieldChange()" />
           </div>
-          <div class="col-12">
-            <label class="form-label">Player Profile Metadata (JSON)</label>
-            <textarea class="form-control" rows="3"
-              [ngModel]="playerProfileMetadataJson()"
-              (ngModelChange)="playerProfileMetadataJson.set($event); onFieldChange()"></textarea>
-          </div>
         </div>
       </div>
     }
 
     <div class="action-bar">
-      <button class="btn btn-primary" [disabled]="svc.isSaving()" (click)="save()">
+      <button class="btn btn-primary" [disabled]="svc.isSaving() || !svc.dirtyTabs().has('player')" (click)="save()">
         @if (svc.isSaving()) {
           <span class="spinner-border spinner-border-sm me-1"></span>
         }

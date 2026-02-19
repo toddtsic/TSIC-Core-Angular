@@ -28,6 +28,8 @@ export class TeamsTabComponent {
   // SuperUser-only
   bOfferTeamRegsaverInsurance = signal<boolean | null>(null);
 
+  private cleanSnapshot = '';
+
   constructor() {
     effect(() => {
       const t = this.svc.teams();
@@ -43,12 +45,23 @@ export class TeamsTabComponent {
       this.bUseWaitlists.set(t.bUseWaitlists);
       this.bShowTeamNameOnlyInSchedules.set(t.bShowTeamNameOnlyInSchedules);
       this.bOfferTeamRegsaverInsurance.set(t.bOfferTeamRegsaverInsurance ?? null);
+      this.cleanSnapshot = JSON.stringify(this.buildPayload());
     });
   }
 
-  onFieldChange(): void { this.svc.markDirty('teams'); }
+  onFieldChange(): void {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+      this.svc.markClean('teams');
+    } else {
+      this.svc.markDirty('teams');
+    }
+  }
 
   save(): void {
+    this.svc.saveTeams(this.buildPayload());
+  }
+
+  private buildPayload(): UpdateJobConfigTeamsRequest {
     const req: UpdateJobConfigTeamsRequest = {
       bRegistrationAllowTeam: this.bRegistrationAllowTeam(),
       regformNameTeam: this.regformNameTeam(),
@@ -64,6 +77,6 @@ export class TeamsTabComponent {
     if (this.svc.isSuperUser()) {
       req.bOfferTeamRegsaverInsurance = this.bOfferTeamRegsaverInsurance();
     }
-    this.svc.saveTeams(req);
+    return req;
   }
 }

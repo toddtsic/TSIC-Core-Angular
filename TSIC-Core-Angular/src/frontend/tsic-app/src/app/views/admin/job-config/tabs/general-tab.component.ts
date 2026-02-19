@@ -1,23 +1,19 @@
 import { Component, inject, ChangeDetectionStrategy, OnInit, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
-import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
+import { toDateOnly } from '../shared/rte-config';
 import type { UpdateJobConfigGeneralRequest } from '@core/api';
 
 @Component({
   selector: 'app-general-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorModule],
+  imports: [CommonModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './general-tab.component.html',
 })
 export class GeneralTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
-
-  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
-  readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   // ── Local form model ──────────────────────────────────
 
@@ -30,8 +26,6 @@ export class GeneralTabComponent implements OnInit {
   displayName = signal<string | null>(null);
   searchenginKeywords = signal<string | null>(null);
   searchengineDescription = signal<string | null>(null);
-  bBannerIsCustom = signal(false);
-  bannerFile = signal<string | null>(null);
 
   // SuperUser-only fields
   jobNameQbp = signal<string | null>(null);
@@ -43,6 +37,8 @@ export class GeneralTabComponent implements OnInit {
   bSuspendPublic = signal<boolean | null>(null);
   jobCode = signal<string | null>(null);
 
+  private cleanSnapshot = '';
+
   constructor() {
     // Sync from service data to local form signals
     effect(() => {
@@ -53,37 +49,38 @@ export class GeneralTabComponent implements OnInit {
       this.jobTagline.set(g.jobTagline);
       this.season.set(g.season);
       this.year.set(g.year);
-      this.expiryUsers.set(g.expiryUsers);
+      this.expiryUsers.set(toDateOnly(g.expiryUsers) ?? '');
       this.displayName.set(g.displayName);
       this.searchenginKeywords.set(g.searchenginKeywords);
       this.searchengineDescription.set(g.searchengineDescription);
-      this.bBannerIsCustom.set(g.bBannerIsCustom);
-      this.bannerFile.set(g.bannerFile);
       // SuperUser-only (may be undefined for non-super)
       this.jobNameQbp.set(g.jobNameQbp ?? null);
-      this.expiryAdmin.set(g.expiryAdmin ?? null);
+      this.expiryAdmin.set(toDateOnly(g.expiryAdmin));
       this.jobTypeId.set(g.jobTypeId);
       this.sportId.set(g.sportId ?? null);
       this.customerId.set(g.customerId ?? null);
       this.billingTypeId.set(g.billingTypeId);
       this.bSuspendPublic.set(g.bSuspendPublic ?? null);
       this.jobCode.set(g.jobCode ?? null);
+      this.cleanSnapshot = JSON.stringify(this.buildPayload());
     });
   }
 
   ngOnInit(): void {}
 
   onFieldChange(): void {
-    this.svc.markDirty('general');
-  }
-
-  onRteChange(field: string, event: any): void {
-    const sig = (this as any)[field];
-    if (sig?.set) sig.set(event.value ?? '');
-    this.onFieldChange();
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+      this.svc.markClean('general');
+    } else {
+      this.svc.markDirty('general');
+    }
   }
 
   save(): void {
+    this.svc.saveGeneral(this.buildPayload());
+  }
+
+  private buildPayload(): UpdateJobConfigGeneralRequest {
     const req: UpdateJobConfigGeneralRequest = {
       jobName: this.jobName(),
       jobDescription: this.jobDescription(),
@@ -94,8 +91,6 @@ export class GeneralTabComponent implements OnInit {
       displayName: this.displayName(),
       searchenginKeywords: this.searchenginKeywords(),
       searchengineDescription: this.searchengineDescription(),
-      bBannerIsCustom: this.bBannerIsCustom(),
-      bannerFile: this.bannerFile(),
     };
 
     // Include super-only fields (service ignores them for non-super)
@@ -110,6 +105,6 @@ export class GeneralTabComponent implements OnInit {
       req.jobCode = this.jobCode();
     }
 
-    this.svc.saveGeneral(req);
+    return req;
   }
 }

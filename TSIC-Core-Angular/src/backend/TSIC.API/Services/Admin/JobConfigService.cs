@@ -1,6 +1,8 @@
+using System.Net;
 using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Admin;
@@ -29,10 +31,12 @@ public class JobConfigService : IJobConfigService
 
         var gameClock = await _repo.GetGameClockParamsAsync(jobId, ct);
         var adminCharges = isSuperUser ? await _repo.GetAdminChargesAsync(jobId, ct) : null;
+        var displayOptions = await _repo.GetDisplayOptionsByJobIdAsync(jobId, ct);
 
         return new JobConfigFullDto
         {
             General = MapGeneral(job, isSuperUser),
+            Branding = MapBranding(job, displayOptions),
             Payment = MapPayment(job, isSuperUser, adminCharges),
             Communications = MapCommunications(job),
             Player = MapPlayer(job, isSuperUser),
@@ -62,9 +66,6 @@ public class JobConfigService : IJobConfigService
         job.DisplayName = req.DisplayName;
         job.SearchenginKeywords = req.SearchenginKeywords;
         job.SearchengineDescription = req.SearchengineDescription;
-        job.BBannerIsCustom = req.BBannerIsCustom;
-        job.BannerFile = req.BannerFile;
-
         // SuperUser-only
         if (isSuperUser)
         {
@@ -361,9 +362,82 @@ public class JobConfigService : IJobConfigService
         await _repo.SaveChangesAsync(ct);
     }
 
+    public async Task UpdateBrandingAsync(Guid jobId, UpdateJobConfigBrandingRequest req, CancellationToken ct = default)
+    {
+        var job = await _repo.GetJobTrackedAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Job {jobId} not found.");
+
+        job.BBannerIsCustom = req.BBannerIsCustom;
+
+        // Upsert JobDisplayOptions for text fields
+        var jdo = await _repo.GetDisplayOptionsTrackedAsync(jobId, ct);
+        if (jdo is null)
+        {
+            jdo = new JobDisplayOptions
+            {
+                JobId = jobId,
+                ParallaxSlide1Text1 = req.BannerOverlayText1 is not null
+                    ? WebUtility.HtmlEncode(req.BannerOverlayText1) : null,
+                ParallaxSlide1Text2 = req.BannerOverlayText2 is not null
+                    ? WebUtility.HtmlEncode(req.BannerOverlayText2) : null,
+            };
+            _repo.AddDisplayOptions(jdo);
+        }
+        else
+        {
+            jdo.ParallaxSlide1Text1 = req.BannerOverlayText1 is not null
+                ? WebUtility.HtmlEncode(req.BannerOverlayText1) : null;
+            jdo.ParallaxSlide1Text2 = req.BannerOverlayText2 is not null
+                ? WebUtility.HtmlEncode(req.BannerOverlayText2) : null;
+        }
+
+        job.Modified = DateTime.UtcNow;
+        await _repo.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateBrandingImageFieldAsync(Guid jobId, string conventionName, string? fileName, CancellationToken ct = default)
+    {
+        // Upsert JobDisplayOptions — set the correct field based on convention name
+        var jdo = await _repo.GetDisplayOptionsTrackedAsync(jobId, ct);
+        if (jdo is null)
+        {
+            jdo = new JobDisplayOptions { JobId = jobId };
+            _repo.AddDisplayOptions(jdo);
+        }
+
+        switch (conventionName)
+        {
+            case BrandingImageConventions.BannerBackground:
+                jdo.ParallaxBackgroundImage = fileName;
+                break;
+            case BrandingImageConventions.BannerOverlay:
+                jdo.ParallaxSlide1Image = fileName;
+                break;
+            case BrandingImageConventions.LogoHeader:
+                jdo.LogoHeader = fileName;
+                break;
+            default:
+                throw new ArgumentException($"Unknown convention name: {conventionName}", nameof(conventionName));
+        }
+
+        await _repo.SaveChangesAsync(ct);
+    }
+
     // ══════════════════════════════════════════════════════════
     // Private Mapping Helpers
     // ══════════════════════════════════════════════════════════
+
+    private static JobConfigBrandingDto MapBranding(Jobs job, JobDisplayOptions? jdo) => new()
+    {
+        BBannerIsCustom = job.BBannerIsCustom,
+        BannerBackgroundImage = jdo?.ParallaxBackgroundImage,
+        BannerOverlayImage = jdo?.ParallaxSlide1Image,
+        BannerOverlayText1 = jdo?.ParallaxSlide1Text1 is not null
+            ? WebUtility.HtmlDecode(jdo.ParallaxSlide1Text1) : null,
+        BannerOverlayText2 = jdo?.ParallaxSlide1Text2 is not null
+            ? WebUtility.HtmlDecode(jdo.ParallaxSlide1Text2) : null,
+        LogoHeader = jdo?.LogoHeader,
+    };
 
     private static JobConfigGeneralDto MapGeneral(Jobs job, bool isSuperUser) => new()
     {
@@ -378,8 +452,6 @@ public class JobConfigService : IJobConfigService
         DisplayName = job.DisplayName,
         SearchenginKeywords = job.SearchenginKeywords,
         SearchengineDescription = job.SearchengineDescription,
-        BBannerIsCustom = job.BBannerIsCustom,
-        BannerFile = job.BannerFile,
         // SuperUser-only
         JobNameQbp = isSuperUser ? job.JobNameQbp : null,
         ExpiryAdmin = isSuperUser ? job.ExpiryAdmin : null,

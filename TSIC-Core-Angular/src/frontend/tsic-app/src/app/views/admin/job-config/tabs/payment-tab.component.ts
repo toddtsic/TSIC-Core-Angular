@@ -1,23 +1,19 @@
 import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
-import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
+import { toDateOnly } from '../shared/rte-config';
 import type { UpdateJobConfigPaymentRequest } from '@core/api';
 
 @Component({
   selector: 'app-payment-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorModule],
+  imports: [CommonModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './payment-tab.component.html',
 })
 export class PaymentTabComponent {
   protected readonly svc = inject(JobConfigService);
-
-  readonly rteTools = JOB_CONFIG_RTE_TOOLS;
-  readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   // ── Local form model ──
 
@@ -43,6 +39,8 @@ export class PaymentTabComponent {
   adnArbStartDate = signal<string | null>(null);
   adnArbMinimumTotalCharge = signal<number | undefined>(undefined);
 
+  private cleanSnapshot = '';
+
   constructor() {
     effect(() => {
       const p = this.svc.payment();
@@ -64,22 +62,25 @@ export class PaymentTabComponent {
       this.adnArb.set(p.adnArb ?? null);
       this.adnArbBillingOccurrences.set(p.adnArbBillingOccurrences);
       this.adnArbIntervalLength.set(p.adnArbIntervalLength);
-      this.adnArbStartDate.set(p.adnArbStartDate ?? null);
+      this.adnArbStartDate.set(toDateOnly(p.adnArbStartDate));
       this.adnArbMinimumTotalCharge.set(p.adnArbMinimumTotalCharge);
+      this.cleanSnapshot = JSON.stringify(this.buildPayload());
     });
   }
 
   onFieldChange(): void {
-    this.svc.markDirty('payment');
-  }
-
-  onRteChange(field: string, event: any): void {
-    const sig = (this as any)[field];
-    if (sig?.set) sig.set(event.value ?? '');
-    this.onFieldChange();
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+      this.svc.markClean('payment');
+    } else {
+      this.svc.markDirty('payment');
+    }
   }
 
   save(): void {
+    this.svc.savePayment(this.buildPayload());
+  }
+
+  private buildPayload(): UpdateJobConfigPaymentRequest {
     const req: UpdateJobConfigPaymentRequest = {
       paymentMethodsAllowedCode: this.paymentMethodsAllowedCode(),
       bAddProcessingFees: this.bAddProcessingFees(),
@@ -103,6 +104,6 @@ export class PaymentTabComponent {
       req.adnArbStartDate = this.adnArbStartDate();
       req.adnArbMinimumTotalCharge = this.adnArbMinimumTotalCharge();
     }
-    this.svc.savePayment(req);
+    return req;
   }
 }

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './infrastructure/guards/auth.guard';
+import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 
 export const routes: Routes = [
@@ -124,6 +125,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'job-config',
+						canDeactivate: [unsavedChangesGuard],
 						loadComponent: () => import('./views/admin/job-config/job-config.component').then(m => m.JobConfigComponent)
 					}
 				]

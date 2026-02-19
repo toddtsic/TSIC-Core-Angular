@@ -1,7 +1,7 @@
 import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
+import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
 import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
 import type { UpdateJobConfigPlayerRequest } from '@core/api';
@@ -9,7 +9,7 @@ import type { UpdateJobConfigPlayerRequest } from '@core/api';
 @Component({
   selector: 'app-player-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RichTextEditorModule],
+  imports: [CommonModule, FormsModule, RichTextEditorAllModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './player-tab.component.html',
 })
@@ -35,7 +35,7 @@ export class PlayerTabComponent {
   bOfferPlayerRegsaverInsurance = signal<boolean | null>(null);
   momLabel = signal<string | null>(null);
   dadLabel = signal<string | null>(null);
-  playerProfileMetadataJson = signal<string | null>(null);
+  private cleanSnapshot = '';
 
   constructor() {
     effect(() => {
@@ -55,11 +55,17 @@ export class PlayerTabComponent {
       this.bOfferPlayerRegsaverInsurance.set(p.bOfferPlayerRegsaverInsurance ?? null);
       this.momLabel.set(p.momLabel ?? null);
       this.dadLabel.set(p.dadLabel ?? null);
-      this.playerProfileMetadataJson.set(p.playerProfileMetadataJson ?? null);
+      this.cleanSnapshot = JSON.stringify(this.buildPayload());
     });
   }
 
-  onFieldChange(): void { this.svc.markDirty('player'); }
+  onFieldChange(): void {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+      this.svc.markClean('player');
+    } else {
+      this.svc.markDirty('player');
+    }
+  }
 
   onRteChange(field: string, event: any): void {
     const sig = (this as any)[field];
@@ -68,6 +74,10 @@ export class PlayerTabComponent {
   }
 
   save(): void {
+    this.svc.savePlayer(this.buildPayload());
+  }
+
+  private buildPayload(): UpdateJobConfigPlayerRequest {
     const req: UpdateJobConfigPlayerRequest = {
       bRegistrationAllowPlayer: this.bRegistrationAllowPlayer(),
       regformNamePlayer: this.regformNamePlayer(),
@@ -85,8 +95,7 @@ export class PlayerTabComponent {
       req.bOfferPlayerRegsaverInsurance = this.bOfferPlayerRegsaverInsurance();
       req.momLabel = this.momLabel();
       req.dadLabel = this.dadLabel();
-      req.playerProfileMetadataJson = this.playerProfileMetadataJson();
     }
-    this.svc.savePlayer(req);
+    return req;
   }
 }
