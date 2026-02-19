@@ -59,7 +59,7 @@ export class LandingRouterComponent {
     // Phase 1 (logged in, no role) → redirect to role selection
     private readonly roleSelectionRedirect = effect(() => {
         const path = this.jobPath();
-        if (!path || path === 'tsic') return;
+        if (!path) return;
 
         const user = this.auth.currentUser();
         if (!user) return;
