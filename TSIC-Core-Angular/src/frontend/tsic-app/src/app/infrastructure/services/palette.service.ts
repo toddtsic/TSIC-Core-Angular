@@ -205,6 +205,20 @@ export class PaletteService {
             return `#${f(0)}${f(8)}${f(4)}`;
         };
 
+        /** Darken a colour by a given fraction (0–1). */
+        const darken = (hex: string, amount: number): string => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            const f = 1 - amount;
+            const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v * f)));
+            return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`;
+        };
+
+        // Pre-compute light-mode button hover/active (darkened 15%/20%)
+        const hoverPrimary = darken(palette.primary, 0.15);
+        const activePrimary = darken(palette.primary, 0.20);
+
         // Pre-compute dark-mode accent colours (lightened for readability)
         const dp = forDark(palette.primary);
         const ds = forDark(palette.success);
@@ -235,6 +249,8 @@ export class PaletteService {
           --bs-dark-rgb: ${hexToRgb(palette.dark)};
           --bs-body-color: ${palette.bodyColor};
           --bs-body-color-rgb: ${hexToRgb(palette.bodyColor)};
+          --brand-primary: ${palette.primary};
+          --brand-primary-dark: ${palette.dark};
           --brand-surface: ${palette.cardBg};
           --brand-text: ${palette.bodyColor};
           --brand-bg: ${palette.bodyBg};
@@ -243,6 +259,27 @@ export class PaletteService {
           --bs-secondary-color: ${palette.bodyColor};
           --bs-secondary-color-rgb: ${hexToRgb(palette.bodyColor)};
           --bs-secondary-rgb: ${hexToRgb(palette.bodyColor)};
+        }
+        :root:not([data-bs-theme='dark']) .btn-primary {
+          --bs-btn-bg: ${palette.primary};
+          --bs-btn-border-color: ${palette.primary};
+          --bs-btn-color: #ffffff;
+          --bs-btn-hover-bg: ${hoverPrimary};
+          --bs-btn-hover-border-color: ${hoverPrimary};
+          --bs-btn-hover-color: #ffffff;
+          --bs-btn-active-bg: ${activePrimary};
+          --bs-btn-active-border-color: ${activePrimary};
+          --bs-btn-active-color: #ffffff;
+        }
+        :root:not([data-bs-theme='dark']) .btn-outline-primary {
+          --bs-btn-color: ${palette.primary};
+          --bs-btn-border-color: ${palette.primary};
+          --bs-btn-hover-bg: ${palette.primary};
+          --bs-btn-hover-border-color: ${palette.primary};
+          --bs-btn-hover-color: #ffffff;
+          --bs-btn-active-bg: ${activePrimary};
+          --bs-btn-active-border-color: ${activePrimary};
+          --bs-btn-active-color: #ffffff;
         }
         [data-bs-theme='dark'] {
           --bs-primary: ${dp};

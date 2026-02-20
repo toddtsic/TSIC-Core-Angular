@@ -412,7 +412,9 @@ builder.Services.AddCors(options =>
                   "http://localhost:4200",
                   "https://localhost:4200",
                   "http://cp-ng.teamsportsinfo.com",
-                  "https://cp-ng.teamsportsinfo.com")
+                  "https://cp-ng.teamsportsinfo.com",
+                  "http://dev.teamsportsinfo.com",
+                  "https://dev.teamsportsinfo.com")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials()

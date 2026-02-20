@@ -230,7 +230,7 @@
 /* Mobile Form Controls - Consolidated using selector list */
 @media (max-width: 575.98px) {
     $wizard-selectors: '.wizard-theme-player', '.wizard-theme-team', '.wizard-theme-family',
-        '.wizard-theme-login', '.wizard-theme-role-select', '.wizard-theme-landing';
+        '.wizard-theme-landing';
 
     @each $selector in $wizard-selectors {
 

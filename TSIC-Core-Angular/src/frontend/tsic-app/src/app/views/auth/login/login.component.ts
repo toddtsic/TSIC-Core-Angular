@@ -38,8 +38,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   public escapeQueryParams: Record<string, any> = {};
   public jobPathQuery: string | null = null;
 
-  // Apply per-wizard theme class for gradient and primary accents
-  @HostBinding('class.wizard-theme-login') get isLoginTheme() { return this.theme === 'login'; }
+  // Apply per-wizard theme class when embedded in wizard flows (player/family)
   @HostBinding('class.wizard-theme-player') get isPlayerTheme() { return this.theme === 'player'; }
   @HostBinding('class.wizard-theme-family') get isFamilyTheme() { return this.theme === 'family'; }
 
@@ -131,6 +130,12 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   onSubmit(event?: Event) {
     // Prevent default browser submission
     if (event) event.preventDefault();
+
+    // Force-sync autofilled values — browsers may not expose .value until user interaction
+    const u = this.usernameInput?.nativeElement.value;
+    const p = this.passwordInput?.nativeElement.value;
+    if (u) this.form.get('username')?.setValue(u);
+    if (p) this.form.get('password')?.setValue(p);
 
     this.submitted.set(true);
     if (this.form.invalid) return;

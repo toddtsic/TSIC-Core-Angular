@@ -1,5 +1,5 @@
 export const environment = {
     production: true,
-    apiUrl: 'https://cp-api.teamsportsinfo.com/api',
+    apiUrl: 'https://devapi.teamsportsinfo.com/api',
     testUsLaxNumber: null as string | null
 };
