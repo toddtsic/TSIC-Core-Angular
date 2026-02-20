@@ -247,20 +247,20 @@ export const routes: Routes = [
 			},
 			// Scheduling — Post-scheduling tools (standalone, no shell wrapper)
 			{
-				path: 'admin/scheduling/view-schedule',
+				path: 'scheduling/view-schedule',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
 			{
-				path: 'admin/scheduling/rescheduler',
+				path: 'scheduling/rescheduler',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
 			// Scheduling — Pipeline shell (dashboard + steps 1–4)
 			{
-				path: 'admin/scheduling',
+				path: 'scheduling',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/dashboard/scheduling-shell.component').then(m => m.SchedulingShellComponent),

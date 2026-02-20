@@ -5,6 +5,12 @@
 :host {
   display: block;
   background: var(--neutral-50);
+
+  // Landing page uses its own green brand, independent of app palette
+  --gradient-primary-start: #16a34a;
+  --gradient-primary-end: #059669;
+  --bs-primary: #16a34a;
+  --bs-primary-rgb: 22, 163, 74;
 }
 
 // ============================================================

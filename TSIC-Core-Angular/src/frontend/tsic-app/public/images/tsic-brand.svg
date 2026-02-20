@@ -1,43 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 90" fill="none">
   <defs>
     <linearGradient id="brand-g1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#4f46e5"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
+      <stop offset="0%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
     <linearGradient id="brand-g2" x1="0" y1="0" x2="0.5" y2="1">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#a78bfa"/>
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#10b981"/>
     </linearGradient>
   </defs>
 
-  <!-- Shield Mark — bold filled -->
+  <!-- Shield Mark with crossed lacrosse sticks -->
   <g transform="translate(2, 3)">
-    <!-- Shield body — filled gradient -->
-    <path d="M38 2L4 18v26c0 20 14 32 34 38 20-6 34-18 34-38V18L38 2z"
-          fill="url(#brand-g1)"/>
-    <!-- Shield highlight -->
-    <path d="M38 2L4 18v26c0 20 14 32 34 38 20-6 34-18 34-38V18L38 2z"
-          fill="url(#brand-g2)" opacity=".35"/>
+    <path d="M38 2L4 18v26c0 20 14 32 34 38 20-6 34-18 34-38V18L38 2z" fill="url(#brand-g1)"/>
+    <path d="M38 2L4 18v26c0 20 14 32 34 38 20-6 34-18 34-38V18L38 2z" fill="url(#brand-g2)" opacity=".35"/>
 
-    <!-- Bold T letterform inside shield -->
-    <rect x="18" y="18" width="40" height="7" rx="3" fill="#fff"/>
-    <rect x="34" y="18" width="8" height="40" rx="3" fill="#fff"/>
+    <!-- Crossed sticks -->
+    <line x1="20" y1="56" x2="50" y2="16" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="56" y1="56" x2="26" y2="16" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
 
-    <!-- Dynamic swoosh across the T — motion/connectivity -->
-    <path d="M14 44 C24 32 52 32 62 44" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+    <!-- Stick heads -->
+    <path d="M50 16 C56 10 62 14 59 22 C57 25 53 25 50 22Z" fill="#fff" opacity=".5"/>
+    <path d="M26 16 C20 10 14 14 17 22 C19 25 23 25 26 22Z" fill="#fff" opacity=".5"/>
 
-    <!-- Small star accent -->
-    <circle cx="58" cy="20" r="3" fill="#fff" opacity=".5"/>
+    <!-- Ball -->
+    <circle cx="38" cy="36" r="4.5" fill="#fff" opacity=".85"/>
   </g>
 
-  <!-- Wordmark — modern bold type -->
+  <!-- Wordmark -->
   <text x="92" y="40" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, sans-serif"
         font-size="30" font-weight="800" fill="#1e1b4b" letter-spacing="-0.5">
     Team<tspan fill="url(#brand-g1)">Sports</tspan>Info
-  </text>
-  <text x="92" y="40" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, sans-serif"
-        font-size="30" font-weight="800" letter-spacing="-0.5" fill="none">
-    <tspan fill="none">.com</tspan>
   </text>
   <text x="312" y="40" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, sans-serif"
         font-size="14" font-weight="400" fill="#9ca3af" letter-spacing="0.5">.com</text>
