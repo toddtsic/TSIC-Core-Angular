@@ -12,13 +12,18 @@
 
             <!-- Logos -->
             <div class="d-flex align-items-center gap-2">
-                <!-- TSIC Logo -->
-                <div class="tsic-brand-box logo-box logo-box-primary d-none d-md-block">
+                <!-- TSIC Logo — click logs out and goes to TSIC landing -->
+                <div class="tsic-brand-box logo-box logo-box-primary d-none d-md-block"
+                    role="button" tabindex="0"
+                    (click)="goToTsicHome()" (keydown.enter)="goToTsicHome()"
+                    [title]="tsicLogoTitle()"
+                    style="cursor: pointer;">
                     <img src="images/tsic-logo.png" alt="TSIC" class="tsic-logo" />
                 </div>
 
                 <!-- Mobile TSIC Logo -->
-                <button type="button" class="btn btn-sm btn-outline-secondary p-2 d-md-none">
+                <button type="button" class="btn btn-sm btn-outline-secondary p-2 d-md-none"
+                    (click)="goToTsicHome()" [title]="tsicLogoTitle()">
                     <img src="images/tsic-notext-logo.png" alt="TSIC" class="mobile-logo" />
                 </button>
 

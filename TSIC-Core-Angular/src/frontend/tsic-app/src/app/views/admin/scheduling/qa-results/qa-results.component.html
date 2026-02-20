@@ -1,0 +1,589 @@
+<div class="qa-container">
+    <!-- Header -->
+    <div class="qa-header">
+        <div class="header-left">
+            <h5 class="mb-0">Schedule QA Report</h5>
+            <p class="text-muted mb-0">Comprehensive quality validation of the current schedule</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-sm btn-outline-secondary" (click)="runValidation()" [disabled]="isLoading()">
+                <i class="bi bi-arrow-clockwise" [class.spin]="isLoading()"></i>
+                Re-run
+            </button>
+            <a routerLink="../" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i>
+                Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    @if (isLoading()) {
+        <div class="qa-loading">
+            <div class="spinner-border spinner-border-sm text-secondary"></div>
+            <span>Running quality checks...</span>
+        </div>
+    }
+
+    <!-- Error -->
+    @if (errorMessage()) {
+        <div class="qa-error">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>{{ errorMessage() }}</span>
+            <button class="btn btn-sm btn-outline-secondary ms-2" (click)="runValidation()">Retry</button>
+        </div>
+    }
+
+    <!-- Results -->
+    @if (qaResult(); as qa) {
+        <!-- Summary Bar -->
+        <div class="summary-bar" [class.severity-success]="overallSeverity() === 'success'"
+             [class.severity-warning]="overallSeverity() === 'warning'"
+             [class.severity-error]="overallSeverity() === 'error'">
+            <div class="summary-icon">
+                @if (overallSeverity() === 'success') {
+                    <i class="bi bi-check-circle-fill"></i>
+                } @else if (overallSeverity() === 'warning') {
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                } @else {
+                    <i class="bi bi-x-circle-fill"></i>
+                }
+            </div>
+            <div class="summary-text">
+                @if (overallSeverity() === 'success') {
+                    <strong>All checks passed</strong>
+                    <span>{{ qa.totalGames }} games validated — no issues detected</span>
+                } @else if (overallSeverity() === 'warning') {
+                    <strong>{{ totalIssues() }} warning{{ totalIssues() !== 1 ? 's' : '' }} found</strong>
+                    <span>{{ qa.totalGames }} games validated — review recommended</span>
+                } @else {
+                    <strong>{{ totalIssues() }} issue{{ totalIssues() !== 1 ? 's' : '' }} found</strong>
+                    <span>{{ qa.totalGames }} games validated — action required</span>
+                }
+            </div>
+        </div>
+
+        <!-- ═══════════════ CRITICAL CHECKS ═══════════════ -->
+        <div class="section-label">Critical Checks</div>
+        <div class="check-grid">
+
+            <!-- Field Double Bookings -->
+            <div class="check-card" [class.check-pass]="qa.fieldDoubleBookings.length === 0"
+                 [class.check-fail]="qa.fieldDoubleBookings.length > 0">
+                <button class="check-header" (click)="toggleSection('fieldDouble')"
+                        [disabled]="qa.fieldDoubleBookings.length === 0">
+                    <div class="check-status">
+                        @if (qa.fieldDoubleBookings.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-x-circle text-danger"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Field Double Bookings</div>
+                        <div class="check-subtitle">Same field scheduled for multiple games at the same time</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.fieldDoubleBookings.length === 0"
+                              [class.bg-danger]="qa.fieldDoubleBookings.length > 0">
+                            {{ qa.fieldDoubleBookings.length }}
+                        </span>
+                        @if (qa.fieldDoubleBookings.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('fieldDouble')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('fieldDouble') && qa.fieldDoubleBookings.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Field</th><th>Date/Time</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.fieldDoubleBookings; track item.label + item.gameDate) {
+                                    <tr><td>{{ item.label }}</td><td>{{ formatDateTime(item.gameDate) }}</td><td>{{ item.count }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Team Double Bookings -->
+            <div class="check-card" [class.check-pass]="qa.teamDoubleBookings.length === 0"
+                 [class.check-fail]="qa.teamDoubleBookings.length > 0">
+                <button class="check-header" (click)="toggleSection('teamDouble')"
+                        [disabled]="qa.teamDoubleBookings.length === 0">
+                    <div class="check-status">
+                        @if (qa.teamDoubleBookings.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-x-circle text-danger"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Team Double Bookings</div>
+                        <div class="check-subtitle">A team is scheduled for 2+ games at the same time</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.teamDoubleBookings.length === 0"
+                              [class.bg-danger]="qa.teamDoubleBookings.length > 0">{{ qa.teamDoubleBookings.length }}</span>
+                        @if (qa.teamDoubleBookings.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('teamDouble')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('teamDouble') && qa.teamDoubleBookings.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Team</th><th>Date/Time</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.teamDoubleBookings; track item.label + item.gameDate) {
+                                    <tr><td>{{ item.label }}</td><td>{{ formatDateTime(item.gameDate) }}</td><td>{{ item.count }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Rank Mismatches -->
+            <div class="check-card" [class.check-pass]="qa.rankMismatches.length === 0"
+                 [class.check-fail]="qa.rankMismatches.length > 0">
+                <button class="check-header" (click)="toggleSection('rankMismatch')"
+                        [disabled]="qa.rankMismatches.length === 0">
+                    <div class="check-status">
+                        @if (qa.rankMismatches.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-x-circle text-danger"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Teams Not Matching Ranks</div>
+                        <div class="check-subtitle">Schedule slot number doesn't match team's actual division rank</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.rankMismatches.length === 0"
+                              [class.bg-danger]="qa.rankMismatches.length > 0">{{ qa.rankMismatches.length }}</span>
+                        @if (qa.rankMismatches.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('rankMismatch')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('rankMismatch') && qa.rankMismatches.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Field</th><th>Game Time</th><th>Sched #</th><th>Actual Rank</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.rankMismatches; track item.teamName + item.gameDate) {
+                                    <tr>
+                                        <td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.teamName }}</td>
+                                        <td>{{ item.fieldName }}</td><td>{{ formatDateTime(item.gameDate) }}</td>
+                                        <td class="text-danger fw-semibold">{{ item.scheduleNo }}</td>
+                                        <td class="fw-semibold">{{ item.actualDivRank }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- ═══════════════ WARNING CHECKS ═══════════════ -->
+        <div class="section-label">Warnings</div>
+        <div class="check-grid">
+
+            <!-- Unscheduled Teams -->
+            <div class="check-card" [class.check-pass]="qa.unscheduledTeams.length === 0"
+                 [class.check-warn]="qa.unscheduledTeams.length > 0">
+                <button class="check-header" (click)="toggleSection('unscheduled')"
+                        [disabled]="qa.unscheduledTeams.length === 0">
+                    <div class="check-status">
+                        @if (qa.unscheduledTeams.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-exclamation-triangle text-warning"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Unscheduled Teams</div>
+                        <div class="check-subtitle">Active teams with zero games scheduled</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.unscheduledTeams.length === 0"
+                              [class.bg-warning]="qa.unscheduledTeams.length > 0">{{ qa.unscheduledTeams.length }}</span>
+                        @if (qa.unscheduledTeams.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('unscheduled')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('unscheduled') && qa.unscheduledTeams.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Rank</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.unscheduledTeams; track item.teamName) {
+                                    <tr><td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.teamName }}</td><td>{{ item.divRank }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Back-to-Back Games -->
+            <div class="check-card" [class.check-pass]="qa.backToBackGames.length === 0"
+                 [class.check-warn]="qa.backToBackGames.length > 0">
+                <button class="check-header" (click)="toggleSection('backToBack')"
+                        [disabled]="qa.backToBackGames.length === 0">
+                    <div class="check-status">
+                        @if (qa.backToBackGames.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-exclamation-triangle text-warning"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Back-to-Back Games</div>
+                        <div class="check-subtitle">Teams playing within 90 minutes of each other</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.backToBackGames.length === 0"
+                              [class.bg-warning]="qa.backToBackGames.length > 0">{{ qa.backToBackGames.length }}</span>
+                        @if (qa.backToBackGames.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('backToBack')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('backToBack') && qa.backToBackGames.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Field</th><th>Game Time</th><th>Gap</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.backToBackGames; track item.teamName + item.gameDate) {
+                                    <tr>
+                                        <td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.teamName }}</td>
+                                        <td>{{ item.fieldName }}</td><td>{{ formatDateTime(item.gameDate) }}</td><td>{{ item.minutesSincePrevious }} min</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Repeated Matchups -->
+            <div class="check-card" [class.check-pass]="qa.repeatedMatchups.length === 0"
+                 [class.check-warn]="qa.repeatedMatchups.length > 0">
+                <button class="check-header" (click)="toggleSection('repeatedMatchups')"
+                        [disabled]="qa.repeatedMatchups.length === 0">
+                    <div class="check-status">
+                        @if (qa.repeatedMatchups.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-exclamation-triangle text-warning"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Teams Playing Opponent &gt; 1x</div>
+                        <div class="check-subtitle">Same two teams facing each other more than once</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.repeatedMatchups.length === 0"
+                              [class.bg-warning]="qa.repeatedMatchups.length > 0">{{ qa.repeatedMatchups.length }}</span>
+                        @if (qa.repeatedMatchups.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('repeatedMatchups')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('repeatedMatchups') && qa.repeatedMatchups.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team 1</th><th>Team 2</th><th>Times Played</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.repeatedMatchups; track item.team1Name + item.team2Name) {
+                                    <tr>
+                                        <td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td>
+                                        <td>{{ item.team1Name }}</td><td>{{ item.team2Name }}</td>
+                                        <td class="text-warning fw-semibold">{{ item.gameCount }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Inactive Teams in Games -->
+            <div class="check-card" [class.check-pass]="qa.inactiveTeamsInGames.length === 0"
+                 [class.check-warn]="qa.inactiveTeamsInGames.length > 0">
+                <button class="check-header" (click)="toggleSection('inactiveTeams')"
+                        [disabled]="qa.inactiveTeamsInGames.length === 0">
+                    <div class="check-status">
+                        @if (qa.inactiveTeamsInGames.length === 0) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-exclamation-triangle text-warning"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Inactive Teams in Games</div>
+                        <div class="check-subtitle">Teams marked inactive but appearing in scheduled games</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge" [class.bg-success]="qa.inactiveTeamsInGames.length === 0"
+                              [class.bg-warning]="qa.inactiveTeamsInGames.length > 0">{{ qa.inactiveTeamsInGames.length }}</span>
+                        @if (qa.inactiveTeamsInGames.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('inactiveTeams')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('inactiveTeams') && qa.inactiveTeamsInGames.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Rank</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.inactiveTeamsInGames; track item.teamName) {
+                                    <tr><td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.teamName }}</td><td>{{ item.divRank }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- ═══════════════ INFORMATIONAL ═══════════════ -->
+        <div class="section-label">Schedule Overview</div>
+        <div class="check-grid">
+
+            <!-- Games Per Date -->
+            <div class="check-card check-info-card">
+                <button class="check-header" (click)="toggleSection('gamesPerDate')" [disabled]="qa.gamesPerDate.length === 0">
+                    <div class="check-status"><i class="bi bi-calendar3 text-info"></i></div>
+                    <div class="check-info">
+                        <div class="check-title">Games Per Date</div>
+                        <div class="check-subtitle">Total scheduled games per calendar date</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge bg-secondary">{{ qa.gamesPerDate.length }} days</span>
+                        @if (qa.gamesPerDate.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('gamesPerDate')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('gamesPerDate') && qa.gamesPerDate.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Date</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.gamesPerDate; track item.gameDay) {
+                                    <tr><td>{{ item.gameDay }}</td><td>{{ item.gameCount }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- RR Games Per Division -->
+            <div class="check-card check-info-card">
+                <button class="check-header" (click)="toggleSection('rrGamesPerDiv')" [disabled]="qa.rrGamesPerDivision.length === 0">
+                    <div class="check-status"><i class="bi bi-diagram-3 text-info"></i></div>
+                    <div class="check-info">
+                        <div class="check-title">RR Games Per Division</div>
+                        <div class="check-subtitle">Pool size vs game count — verify completeness</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge bg-secondary">{{ qa.rrGamesPerDivision.length }}</span>
+                        @if (qa.rrGamesPerDivision.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('rrGamesPerDiv')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('rrGamesPerDiv') && qa.rrGamesPerDivision.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Pool Size</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.rrGamesPerDivision; track item.agegroupName + item.divName) {
+                                    <tr><td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.poolSize }}</td><td>{{ item.gameCount }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Games Per Team -->
+            <div class="check-card check-info-card">
+                <button class="check-header" (click)="toggleSection('gamesPerTeam')" [disabled]="qa.gamesPerTeam.length === 0">
+                    <div class="check-status">
+                        @if (gamesPerTeamSummary()?.balanced) {
+                            <i class="bi bi-check-circle text-success"></i>
+                        } @else {
+                            <i class="bi bi-info-circle text-info"></i>
+                        }
+                    </div>
+                    <div class="check-info">
+                        <div class="check-title">Games Per Team</div>
+                        <div class="check-subtitle">
+                            @if (gamesPerTeamSummary(); as gpt) {
+                                @if (gpt.balanced) { {{ gpt.min }} each — perfectly balanced }
+                                @else { {{ gpt.min }}–{{ gpt.max }} games — some teams have different counts }
+                            } @else { No data available }
+                        </div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge bg-secondary">{{ qa.gamesPerTeam.length }}</span>
+                        @if (qa.gamesPerTeam.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('gamesPerTeam')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('gamesPerTeam') && qa.gamesPerTeam.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.gamesPerTeam; track item.teamName) {
+                                    <tr><td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.teamName }}</td><td>{{ item.gameCount }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Games Per Team Per Day -->
+            <div class="check-card check-info-card">
+                <button class="check-header" (click)="toggleSection('gamesPerTeamPerDay')" [disabled]="qa.gamesPerTeamPerDay.length === 0">
+                    <div class="check-status"><i class="bi bi-calendar-week text-info"></i></div>
+                    <div class="check-info">
+                        <div class="check-title">Games Per Team Per Day</div>
+                        <div class="check-subtitle">Daily game count breakdown by team</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge bg-secondary">{{ qa.gamesPerTeamPerDay.length }}</span>
+                        @if (qa.gamesPerTeamPerDay.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('gamesPerTeamPerDay')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('gamesPerTeamPerDay') && qa.gamesPerTeamPerDay.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Club</th><th>Team</th><th>Day</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.gamesPerTeamPerDay; track item.teamName + item.gameDay) {
+                                    <tr>
+                                        <td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.clubName }}</td>
+                                        <td>{{ item.teamName }}</td><td>{{ item.gameDay }}</td><td>{{ item.gameCount }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Games Per Field Per Day -->
+            <div class="check-card check-info-card">
+                <button class="check-header" (click)="toggleSection('gamesPerFieldPerDay')" [disabled]="qa.gamesPerFieldPerDay.length === 0">
+                    <div class="check-status"><i class="bi bi-geo-alt text-info"></i></div>
+                    <div class="check-info">
+                        <div class="check-title">Games Per Field Per Day</div>
+                        <div class="check-subtitle">Field utilization by calendar date</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge bg-secondary">{{ qa.gamesPerFieldPerDay.length }}</span>
+                        @if (qa.gamesPerFieldPerDay.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('gamesPerFieldPerDay')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('gamesPerFieldPerDay') && qa.gamesPerFieldPerDay.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Field</th><th>Day</th><th>Games</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.gamesPerFieldPerDay; track item.fieldName + item.gameDay) {
+                                    <tr><td>{{ item.fieldName }}</td><td>{{ item.gameDay }}</td><td>{{ item.gameCount }}</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Game Spread -->
+            <div class="check-card check-info-card">
+                <button class="check-header" (click)="toggleSection('gameSpread')" [disabled]="qa.gameSpreads.length === 0">
+                    <div class="check-status"><i class="bi bi-clock-history text-info"></i></div>
+                    <div class="check-info">
+                        <div class="check-title">Game Spread</div>
+                        <div class="check-subtitle">
+                            @if (gameSpreadSummary(); as gs) {
+                                Avg {{ gs.avg }} min, max {{ gs.max }} min (first-to-last game per team per day)
+                            } @else { No data available }
+                        </div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge bg-secondary">{{ qa.gameSpreads.length }}</span>
+                        @if (qa.gameSpreads.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('gameSpread')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('gameSpread') && qa.gameSpreads.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Day</th><th>Games</th><th>Spread</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.gameSpreads; track item.teamName + item.gameDay) {
+                                    <tr>
+                                        <td>{{ item.agegroupName }}</td><td>{{ item.divName }}</td><td>{{ item.teamName }}</td>
+                                        <td>{{ item.gameDay }}</td><td>{{ item.gameCount }}</td><td>{{ item.spreadMinutes }} min</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- Bracket Games -->
+            <div class="check-card check-info-card">
+                <button class="check-header" (click)="toggleSection('bracketGames')" [disabled]="qa.bracketGames.length === 0">
+                    <div class="check-status"><i class="bi bi-trophy text-info"></i></div>
+                    <div class="check-info">
+                        <div class="check-title">Bracket/Playoff Games</div>
+                        <div class="check-subtitle">Games with bracket slot references (non-team assignments)</div>
+                    </div>
+                    <div class="check-count">
+                        <span class="badge bg-secondary">{{ qa.bracketGames.length }}</span>
+                        @if (qa.bracketGames.length > 0) {
+                            <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('bracketGames')"></i>
+                        }
+                    </div>
+                </button>
+                @if (isSectionExpanded('bracketGames') && qa.bracketGames.length > 0) {
+                    <div class="check-detail">
+                        <table class="detail-table">
+                            <thead><tr><th>Age Group</th><th>Field</th><th>Game Time</th><th>Slot 1</th><th>Slot 2</th></tr></thead>
+                            <tbody>
+                                @for (item of qa.bracketGames; track item.agegroupName + item.gameDate + item.fieldName) {
+                                    <tr>
+                                        <td>{{ item.agegroupName }}</td><td>{{ item.fieldName }}</td>
+                                        <td>{{ formatDateTime(item.gameDate) }}</td>
+                                        <td>{{ item.t1Type }}{{ item.t1No }}</td><td>{{ item.t2Type }}{{ item.t2No }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>

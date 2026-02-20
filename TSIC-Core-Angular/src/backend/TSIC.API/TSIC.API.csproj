@@ -28,6 +28,8 @@
     <PackageReference Include="SonarAnalyzer.CSharp" />
     <PackageReference Include="MimeKit" />
     <PackageReference Include="AWSSDK.SimpleEmail" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.MSSqlServer" />
   </ItemGroup>
 
   <ItemGroup>

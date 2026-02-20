@@ -1,0 +1,322 @@
+<div class="log-viewer">
+	<!-- Header -->
+	<div class="log-header">
+		<h4 class="mb-0">Application Logs</h4>
+		<div class="header-actions">
+			<button class="btn btn-sm btn-outline-danger" (click)="openPurgeDialog()" title="Purge old logs">
+				<i class="bi bi-trash"></i> Purge
+			</button>
+		</div>
+	</div>
+
+	<!-- Tab bar -->
+	<div class="tab-bar">
+		<button class="tab-btn" [class.active]="activeTab() === 'dashboard'" (click)="switchTab('dashboard')">
+			<i class="bi bi-graph-up"></i> Dashboard
+		</button>
+		<button class="tab-btn" [class.active]="activeTab() === 'explorer'" (click)="switchTab('explorer')">
+			<i class="bi bi-list-ul"></i> Log Explorer
+		</button>
+	</div>
+
+	<!-- ═══ Tab 1: Log Explorer ═══ -->
+	@if (activeTab() === 'explorer') {
+		<!-- Filter bar -->
+		<div class="filter-bar">
+			<div class="filter-group">
+				<label class="form-label text-muted mb-0">Level</label>
+				<select class="form-select form-select-sm"
+						[ngModel]="filterLevel()"
+						(ngModelChange)="filterLevel.set($event)">
+					@for (lvl of levelOptions; track lvl) {
+						<option [value]="lvl">{{ lvl || 'All Levels' }}</option>
+					}
+				</select>
+			</div>
+			<div class="filter-group filter-search">
+				<label class="form-label text-muted mb-0">Search</label>
+				<input type="text" class="form-control form-control-sm"
+					   placeholder="Message, path, source..."
+					   [ngModel]="filterSearch()"
+					   (ngModelChange)="filterSearch.set($event)"
+					   (keyup.enter)="applyFilters()">
+			</div>
+			<div class="filter-group">
+				<label class="form-label text-muted mb-0">From</label>
+				<input type="datetime-local" class="form-control form-control-sm"
+					   [ngModel]="filterFrom()"
+					   (ngModelChange)="filterFrom.set($event)">
+			</div>
+			<div class="filter-group">
+				<label class="form-label text-muted mb-0">To</label>
+				<input type="datetime-local" class="form-control form-control-sm"
+					   [ngModel]="filterTo()"
+					   (ngModelChange)="filterTo.set($event)">
+			</div>
+			<div class="filter-actions">
+				<button class="btn btn-sm btn-primary" (click)="applyFilters()">
+					<i class="bi bi-funnel"></i> Filter
+				</button>
+				<button class="btn btn-sm btn-outline-secondary" (click)="clearFilters()">
+					Clear
+				</button>
+			</div>
+		</div>
+
+		<!-- Results summary -->
+		<div class="results-summary">
+			<span class="text-muted">
+				{{ totalCount().toLocaleString() }} entries
+				@if (totalPages() > 1) {
+					&mdash; Page {{ page() }} of {{ totalPages() }}
+				}
+			</span>
+		</div>
+
+		<!-- Log table -->
+		@if (isLoading()) {
+			<div class="loading-spinner">
+				<div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+				<span class="ms-2 text-muted">Loading logs...</span>
+			</div>
+		} @else {
+			<div class="table-responsive">
+				<table class="table table-sm table-hover log-table">
+					<thead>
+						<tr>
+							<th class="col-time">Time</th>
+							<th class="col-level">Level</th>
+							<th class="col-source">Source</th>
+							<th class="col-message">Message</th>
+							<th class="col-path">Path</th>
+							<th class="col-status">Status</th>
+							<th class="col-elapsed">Elapsed</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (log of logs(); track log.id) {
+							<tr class="log-row" [class.has-exception]="!!log.exception"
+								(click)="toggleRow(log.id)">
+								<td class="col-time">{{ formatTimestamp(log.timeStamp) }}</td>
+								<td class="col-level">
+									<span class="level-badge" [class]="levelBadgeClass(log.level)">
+										{{ log.level }}
+									</span>
+								</td>
+								<td class="col-source" [title]="log.sourceContext ?? ''">
+									{{ truncateSource(log.sourceContext) }}
+								</td>
+								<td class="col-message">
+									<span class="message-text">{{ log.message }}</span>
+								</td>
+								<td class="col-path">{{ log.requestPath ?? '-' }}</td>
+								<td class="col-status">
+									@if (log.statusCode) {
+										<span class="status-badge" [class]="statusBadgeClass(log.statusCode)">
+											{{ log.statusCode }}
+										</span>
+									} @else {
+										-
+									}
+								</td>
+								<td class="col-elapsed">{{ formatElapsed(log.elapsed) }}</td>
+							</tr>
+							@if (expandedId() === log.id && log.exception) {
+								<tr class="exception-row">
+									<td colspan="7">
+										<pre class="exception-detail">{{ log.exception }}</pre>
+									</td>
+								</tr>
+							}
+						}
+						@if (logs().length === 0) {
+							<tr>
+								<td colspan="7" class="text-center text-muted py-4">
+									No log entries found
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+
+			<!-- Pagination -->
+			@if (totalPages() > 1) {
+				<nav class="pagination-bar">
+					<button class="btn btn-sm btn-outline-secondary"
+							[disabled]="page() <= 1"
+							(click)="goToPage(page() - 1)">
+						<i class="bi bi-chevron-left"></i>
+					</button>
+					@for (pageNum of pageNumbers(); track pageNum) {
+						<button class="btn btn-sm"
+								[class.btn-primary]="pageNum === page()"
+								[class.btn-outline-secondary]="pageNum !== page()"
+								(click)="goToPage(pageNum)">
+							{{ pageNum }}
+						</button>
+					}
+					<button class="btn btn-sm btn-outline-secondary"
+							[disabled]="page() >= totalPages()"
+							(click)="goToPage(page() + 1)">
+						<i class="bi bi-chevron-right"></i>
+					</button>
+				</nav>
+			}
+		}
+	}
+
+	<!-- ═══ Tab 2: Dashboard ═══ -->
+	@if (activeTab() === 'dashboard') {
+		<!-- Time range selector -->
+		<div class="range-bar">
+			@for (range of timeRanges; track range.hours) {
+				<button class="btn btn-sm"
+						[class.btn-primary]="selectedRange() === range"
+						[class.btn-outline-secondary]="selectedRange() !== range"
+						(click)="selectTimeRange(range)">
+					{{ range.label }}
+				</button>
+			}
+			<button class="btn btn-sm btn-outline-primary ms-auto" (click)="loadStats()">
+				<i class="bi bi-arrow-clockwise"></i> Refresh
+			</button>
+		</div>
+
+		@if (statsLoading()) {
+			<div class="loading-spinner">
+				<div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+				<span class="ms-2 text-muted">Loading dashboard...</span>
+			</div>
+		} @else if (stats()) {
+			<!-- Stats cards -->
+			<div class="stats-cards">
+				<div class="stat-card">
+					<span class="stat-label">Total Entries</span>
+					<span class="stat-value">{{ statsTotalCount().toLocaleString() }}</span>
+				</div>
+				@for (entry of (stats()?.countsByLevel | keyvalue); track entry.key) {
+					<div class="stat-card">
+						<span class="stat-label">{{ entry.key }}</span>
+						<span class="stat-value" [style.color]="levelColor(entry.key)">
+							{{ entry.value.toLocaleString() }}
+						</span>
+					</div>
+				}
+			</div>
+
+			<!-- Primary chart row: Request volume by status -->
+			<div class="chart-panel chart-full mb-4">
+				<h6>Request Volume by Status</h6>
+				@if (statusSeries().length > 0) {
+					<ejs-chart [primaryXAxis]="statusXAxis()"
+							   [primaryYAxis]="statusYAxis()"
+							   [series]="statusSeries()"
+							   [chartArea]="{ border: { width: 0 } }"
+							   [legendSettings]="{ visible: true, position: 'Top' }"
+							   [tooltip]="{ enable: true, shared: true }"
+							   height="300px">
+					</ejs-chart>
+				} @else {
+					<div class="no-data text-muted">No request data for this time range</div>
+				}
+			</div>
+
+			<!-- Secondary charts row -->
+			<div class="charts-row">
+				<!-- Log level line chart -->
+				<div class="chart-panel chart-wide">
+					<h6>Log Volume by Level</h6>
+					@if (hourlySeries().length > 0) {
+						<ejs-chart [primaryXAxis]="hourlyXAxis()"
+								   [primaryYAxis]="hourlyYAxis()"
+								   [series]="hourlySeries()"
+								   [chartArea]="{ border: { width: 0 } }"
+								   [legendSettings]="{ visible: true, position: 'Top' }"
+								   [tooltip]="{ enable: true, shared: true }"
+								   height="260px">
+						</ejs-chart>
+					} @else {
+						<div class="no-data text-muted">No data for this time range</div>
+					}
+				</div>
+
+				<!-- Level distribution pie -->
+				<div class="chart-panel chart-narrow">
+					<h6>Level Distribution</h6>
+					@if (levelDistribution().length > 0) {
+						<ejs-accumulationchart
+								[legendSettings]="{ visible: true, position: 'Bottom' }"
+								[tooltip]="{ enable: true, format: '${point.x}: <b>${point.y}</b>' }"
+								height="260px">
+							<e-accumulation-series-collection>
+								<e-accumulation-series
+									[dataSource]="levelDistribution()"
+									xName="x" yName="y"
+									type="Pie"
+									[pointColorMapping]="'fill'"
+									innerRadius="40%"
+									[dataLabel]="{ visible: true, position: 'Outside', name: 'x' }">
+								</e-accumulation-series>
+							</e-accumulation-series-collection>
+						</ejs-accumulationchart>
+					} @else {
+						<div class="no-data text-muted">No data for this time range</div>
+					}
+				</div>
+			</div>
+
+			<!-- Top errors table -->
+			@if (topErrors().length > 0) {
+				<div class="top-errors-panel">
+					<h6>Top Errors ({{ selectedRange().label }})</h6>
+					<table class="table table-sm">
+						<thead>
+							<tr>
+								<th>Message</th>
+								<th class="text-end" style="width: 80px">Count</th>
+								<th style="width: 160px">Last Seen</th>
+							</tr>
+						</thead>
+						<tbody>
+							@for (err of topErrors(); track err.message) {
+								<tr>
+									<td class="error-message-cell">{{ err.message }}</td>
+									<td class="text-end fw-semibold">{{ err.count }}</td>
+									<td>{{ formatTimestamp(err.lastSeen) }}</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		}
+	}
+
+	<!-- Purge confirmation dialog -->
+	@if (showPurgeDialog()) {
+		<tsic-dialog [open]="true" (requestClose)="closePurgeDialog()">
+			<div class="dialog-content">
+				<h5>Purge Old Logs</h5>
+				<p class="text-muted">Delete log entries older than:</p>
+				<div class="d-flex align-items-center gap-2 mb-3">
+					<input type="number" class="form-control form-control-sm" style="width: 80px"
+						   [ngModel]="purgeDays()"
+						   (ngModelChange)="purgeDays.set($event)"
+						   min="1" max="365">
+					<span>days</span>
+				</div>
+				<div class="d-flex gap-2 justify-content-end">
+					<button class="btn btn-sm btn-outline-secondary" (click)="closePurgeDialog()">Cancel</button>
+					<button class="btn btn-sm btn-danger" (click)="confirmPurge()" [disabled]="purging()">
+						@if (purging()) {
+							<span class="spinner-border spinner-border-sm"></span> Purging...
+						} @else {
+							<i class="bi bi-trash"></i> Purge
+						}
+					</button>
+				</div>
+			</div>
+		</tsic-dialog>
+	}
+</div>

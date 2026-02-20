@@ -1,0 +1,240 @@
+<div class="auto-build-container">
+
+    <!-- ── Header ────────────────────────────────────────── -->
+    <div class="agent-header">
+        <div class="agent-header-left">
+            <a routerLink=".." class="back-link">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div class="agent-avatar">
+                <i class="bi bi-cpu"></i>
+            </div>
+            <div class="agent-title">
+                <h2>Auto-Build Schedule</h2>
+                <span class="agent-subtitle">Pattern-replay from a prior year's proven schedule</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Conversation Feed ─────────────────────────────── -->
+    <div class="conversation-feed" #scrollContainer>
+
+        <!-- Welcome state (idle) -->
+        @if (phase() === 'idle') {
+            <div class="welcome-panel">
+                <div class="welcome-icon">
+                    <i class="bi bi-lightning-charge"></i>
+                </div>
+                <h3>Build your entire schedule in seconds</h3>
+                <p>
+                    I'll analyze a prior year's proven schedule and replay that exact pattern
+                    onto this year's divisions, fields, and timeslots. Any mismatches will be
+                    flagged so you can decide how to handle them.
+                </p>
+                <button class="btn btn-primary btn-lg" (click)="start()">
+                    <i class="bi bi-play-fill"></i>
+                    Let's Go
+                </button>
+            </div>
+        }
+
+        <!-- Message bubbles -->
+        @for (msg of messages(); track msg.id) {
+            <div class="agent-message" [class]="'msg-' + msg.type"
+                 [class.msg-enter]="true">
+                <div class="msg-icon">
+                    @switch (msg.type) {
+                        @case ('thinking') { <div class="thinking-dots"><span></span><span></span><span></span></div> }
+                        @case ('info') { <i class="bi bi-cpu"></i> }
+                        @case ('success') { <i class="bi bi-check-circle"></i> }
+                        @case ('warning') { <i class="bi bi-exclamation-triangle"></i> }
+                        @case ('question') { <i class="bi bi-question-circle"></i> }
+                        @case ('error') { <i class="bi bi-x-circle"></i> }
+                        @case ('result') { <i class="bi bi-bar-chart"></i> }
+                    }
+                </div>
+                <div class="msg-body" [innerHTML]="msg.content"></div>
+            </div>
+        }
+
+        <!-- ── Inline Cards (contextual per phase) ───────── -->
+
+        <!-- Source Job Picker (Phase 1) -->
+        @if (phase() === 'source-selection' && sourceJobs().length > 0) {
+            <div class="inline-card">
+                <div class="card-label">Select Source Schedule</div>
+                <div class="source-job-list">
+                    @for (job of sourceJobs(); track job.jobId) {
+                        <button class="source-job-option"
+                                [class.selected]="selectedSourceJobId() === job.jobId"
+                                (click)="selectedSourceJobId.set(job.jobId)">
+                            <div class="job-name">{{ job.jobName }}</div>
+                            <div class="job-meta">
+                                {{ job.year ?? 'N/A' }} {{ job.season ?? '' }}
+                                &middot;
+                                {{ job.scheduledGameCount }} games
+                            </div>
+                        </button>
+                    }
+                </div>
+                <button class="btn btn-primary mt-3"
+                        [disabled]="!selectedSourceJobId()"
+                        (click)="analyze()">
+                    <i class="bi bi-search"></i>
+                    Analyze Pattern
+                </button>
+            </div>
+        }
+
+        <!-- Division Match Cards (Phase 3: Feasibility) -->
+        @if ((phase() === 'feasibility' || phase() === 'questions' || phase() === 'approval') && analysis()) {
+            <div class="inline-card">
+                <div class="card-label">Division Matches</div>
+                <div class="division-grid">
+                    @for (div of analysis()!.divisionMatches; track div.divName + div.agegroupName) {
+                        <div class="division-card" [class]="getMatchTypeClass(div.matchType)">
+                            <div class="div-header">
+                                <span class="div-name">{{ div.agegroupName }} / {{ div.divName }}</span>
+                                <span class="match-badge" [class]="getMatchTypeClass(div.matchType)">
+                                    {{ getMatchTypeLabel(div.matchType) }}
+                                </span>
+                            </div>
+                            <div class="div-details">
+                                <span>Source: {{ div.sourceTeamCount }} teams, {{ div.sourceGameCount }} games</span>
+                                @if (div.currentTeamCount != null) {
+                                    <span>Current: {{ div.currentTeamCount }} teams</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Mismatch Resolution Cards (Phase 4: Questions) -->
+        @if (phase() === 'questions' && sizeMismatches().length > 0) {
+            <div class="inline-card">
+                <div class="card-label">Resolve Mismatches</div>
+                @for (div of sizeMismatches(); track div.currentDivId) {
+                    @if (div.currentDivId) {
+                        <div class="question-card">
+                            <div class="question-header">
+                                <strong>{{ div.agegroupName }} / {{ div.divName }}</strong>
+                                <span class="team-delta">
+                                    {{ div.sourceTeamCount }} teams &rarr; {{ div.currentTeamCount }} teams
+                                </span>
+                            </div>
+                            <div class="strategy-options">
+                                <button class="strategy-btn"
+                                        [class.active]="getMismatchStrategy(div.currentDivId!) === 'use-current-pairings'"
+                                        (click)="setMismatchStrategy(div.currentDivId!, 'use-current-pairings')">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    Use current pairings
+                                </button>
+                                <button class="strategy-btn"
+                                        [class.active]="getMismatchStrategy(div.currentDivId!) === 'auto-schedule'"
+                                        (click)="setMismatchStrategy(div.currentDivId!, 'auto-schedule')">
+                                    <i class="bi bi-gear"></i>
+                                    Auto-schedule fresh
+                                </button>
+                                <button class="strategy-btn"
+                                        [class.active]="getMismatchStrategy(div.currentDivId!) === 'skip'"
+                                        (click)="setMismatchStrategy(div.currentDivId!, 'skip')">
+                                    <i class="bi bi-skip-forward"></i>
+                                    Skip this division
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+                <button class="btn btn-primary mt-3"
+                        [disabled]="!allMismatchesResolved()"
+                        (click)="proceedToApproval()">
+                    <i class="bi bi-check2-all"></i>
+                    Continue
+                </button>
+            </div>
+        }
+
+        <!-- Approval Panel (Phase 5-6) -->
+        @if (phase() === 'approval') {
+            <div class="inline-card approval-card">
+                <div class="card-label">Build Options</div>
+
+                <label class="option-toggle">
+                    <input type="checkbox"
+                           [checked]="skipAlreadyScheduled()"
+                           (change)="skipAlreadyScheduled.set(!skipAlreadyScheduled())">
+                    <span>Skip divisions that already have games scheduled</span>
+                </label>
+
+                <label class="option-toggle">
+                    <input type="checkbox"
+                           [checked]="includeBracketGames()"
+                           (change)="includeBracketGames.set(!includeBracketGames())">
+                    <span>Include bracket/playoff games in pattern replay</span>
+                </label>
+
+                <div class="approval-summary">
+                    @if (analysis(); as a) {
+                        <div class="summary-stat">
+                            <span class="stat-value">{{ a.feasibility.exactMatches + a.feasibility.sizeMismatches - skipDivisionIds().size }}</span>
+                            <span class="stat-label">Divisions to schedule</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="stat-value">{{ a.sourceTotalGames }}</span>
+                            <span class="stat-label">Pattern games</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="stat-value" [style.color]="feasibilityColor()">{{ a.feasibility.confidencePercent }}%</span>
+                            <span class="stat-label">Confidence</span>
+                        </div>
+                    }
+                </div>
+
+                <button class="btn btn-primary btn-lg build-btn"
+                        (click)="executeBuild()">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                    Build Schedule
+                </button>
+            </div>
+        }
+
+        <!-- Results Actions (Phase 8) -->
+        @if (phase() === 'results') {
+            <div class="inline-card results-actions">
+                <a routerLink="../view-schedule" class="btn btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                    View Schedule
+                </a>
+                <button class="btn btn-outline-danger"
+                        [disabled]="isUndoing()"
+                        (click)="undoBuild()">
+                    @if (isUndoing()) {
+                        <span class="spinner-border spinner-border-sm"></span>
+                        Undoing...
+                    } @else {
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        Undo All
+                    }
+                </button>
+                <button class="btn btn-outline-secondary" (click)="restart()">
+                    <i class="bi bi-arrow-repeat"></i>
+                    Start Over
+                </button>
+            </div>
+        }
+
+        <!-- Error restart -->
+        @if (phase() === 'error') {
+            <div class="inline-card">
+                <button class="btn btn-outline-primary" (click)="restart()">
+                    <i class="bi bi-arrow-repeat"></i>
+                    Try Again
+                </button>
+            </div>
+        }
+
+    </div><!-- /conversation-feed -->
+
+</div>

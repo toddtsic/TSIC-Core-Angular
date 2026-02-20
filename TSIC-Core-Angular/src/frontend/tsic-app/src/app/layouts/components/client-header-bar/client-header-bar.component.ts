@@ -47,6 +47,10 @@ export class ClientHeaderBarComponent {
     // Single computed `user` derived from AuthService; derive UI values from it.
     user = computed(() => this.auth.currentUser());
 
+    tsicLogoTitle = computed(() =>
+        this.user() ? 'Log out & return to TeamSportsInfo.com' : 'TeamSportsInfo.com home'
+    );
+
     // Desktop dropdown state
     userMenuOpen = signal(false);
     paletteExpanded = signal(false);
@@ -107,6 +111,10 @@ export class ClientHeaderBarComponent {
     goHome() {
         const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
         this.router.navigate([`/${jobPath}`]);
+    }
+
+    goToTsicHome() {
+        this.auth.logout({ redirectTo: '/tsic' });
     }
 
     login() {

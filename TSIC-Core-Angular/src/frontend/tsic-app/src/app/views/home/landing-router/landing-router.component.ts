@@ -3,30 +3,29 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { TsicLandingComponent } from '../tsic-landing/tsic-landing.component';
 import { WidgetDashboardComponent } from '../widget-dashboard/widget-dashboard.component';
 
 /**
  * Index route component that conditionally renders the appropriate landing page.
  *
- * - TSIC path → TsicLandingComponent (marketing page)
  * - Job path + authenticated (Phase 2) → WidgetDashboardComponent (hub dashboard)
  * - Job path + authenticated (Phase 1, no role) → redirect to role-selection
  * - Job path + unauthenticated → WidgetDashboardComponent (public mode)
+ *
+ * Note: The TSIC corporate landing (/tsic) has its own standalone route
+ * and does NOT pass through this component.
  */
 @Component({
     selector: 'app-landing-router',
     standalone: true,
     template: `
-		@if (isTsic()) {
-			<app-tsic-landing />
-		} @else if (isAuthenticated()) {
+		@if (isAuthenticated()) {
 			<app-widget-dashboard [mode]="'authenticated'" />
 		} @else {
 			<app-widget-dashboard [mode]="'public'" [jobPath]="currentJobPath()" />
 		}
 	`,
-    imports: [TsicLandingComponent, WidgetDashboardComponent],
+    imports: [WidgetDashboardComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LandingRouterComponent {
@@ -45,21 +44,16 @@ export class LandingRouterComponent {
     // Expose jobPath for template binding
     readonly currentJobPath = computed(() => this.jobPath());
 
-    // Check if we're in TSIC context (empty string treated as tsic during initialization)
-    readonly isTsic = computed(() => {
-        const path = this.jobPath();
-        return path === 'tsic' || path === '';
-    });
-
     // Authenticated Phase 2 user — render hub dashboard inline
-    readonly isAuthenticated = computed(() =>
-        !this.isTsic() && this.auth.hasSelectedRole()
-    );
+    readonly isAuthenticated = computed(() => {
+        const path = this.jobPath();
+        return !!path && path !== 'tsic' && this.auth.hasSelectedRole();
+    });
 
     // Phase 1 (logged in, no role) → redirect to role selection
     private readonly roleSelectionRedirect = effect(() => {
         const path = this.jobPath();
-        if (!path) return;
+        if (!path || path === 'tsic') return;
 
         const user = this.auth.currentUser();
         if (!user) return;

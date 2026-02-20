@@ -86,21 +86,21 @@ if (!(Test-Path $BackupRoot)) {
     New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
 }
 
-# Backup and clean API directory (with fallback if locked)
+# Backup and clean API directory (preserve logs/ and keys/ across deploys)
+$ApiPreservedDirs = @('logs', 'keys')
 if ((Test-Path $ApiTarget) -and (Get-ChildItem $ApiTarget -ErrorAction SilentlyContinue)) {
     Write-Host "Backing up existing API deployment..." -ForegroundColor Cyan
     $ApiBackup = Join-Path $BackupRoot "TSIC-API-CP-$Timestamp"
-    try {
-        Move-Item $ApiTarget $ApiBackup -Force -ErrorAction Stop
-        New-Item -ItemType Directory -Path $ApiTarget -Force | Out-Null
-        Write-Host "  Backed up to: $ApiBackup" -ForegroundColor Green
-    } catch {
-        Write-Host "  Move-Item failed (files may be locked). Falling back to Copy+Clear." -ForegroundColor Yellow
-        New-Item -ItemType Directory -Path $ApiBackup -Force | Out-Null
-        Copy-Item "$ApiTarget\*" $ApiBackup -Recurse -Force -ErrorAction SilentlyContinue
-        Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host "  Backed up (Copy) to: $ApiBackup and cleared target." -ForegroundColor Green
-    }
+    New-Item -ItemType Directory -Path $ApiBackup -Force | Out-Null
+    # Copy deployable files to backup (exclude persistent dirs)
+    Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notin $ApiPreservedDirs } |
+        ForEach-Object { Copy-Item $_.FullName $ApiBackup -Recurse -Force -ErrorAction SilentlyContinue }
+    # Clear deployable files from target (preserve logs/ and keys/)
+    Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notin $ApiPreservedDirs } |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "  Backed up to: $ApiBackup (preserved logs/ and keys/ in place)" -ForegroundColor Green
 }
 
 # Backup and clean Angular directory

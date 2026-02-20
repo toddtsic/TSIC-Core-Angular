@@ -1,27 +1,62 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal
+} from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { LastLocationService } from '../../../infrastructure/services/last-location.service';
-
-import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
 
 @Component({
   selector: 'app-tsic-landing',
   standalone: true,
-  imports: [WizardThemeDirective],
+  imports: [RouterLink],
   templateUrl: './tsic-landing.component.html',
   styleUrl: './tsic-landing.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TsicLandingComponent implements OnInit {
+export class TsicLandingComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly lastLocation = inject(LastLocationService);
+  private readonly elRef = inject(ElementRef);
   private static hasInitialized = false;
+  private observer: IntersectionObserver | null = null;
+  private navObserver: IntersectionObserver | null = null;
+  private statsAnimated = false;
+
+  readonly navSolid = signal(false);
+
+  readonly services = [
+    { title: 'Clubs', description: 'Registration, payments, rosters, and reporting — everything your rec or travel club needs.', image: 'images/svc-clubs.jpg' },
+    { title: 'Camps', description: 'Scheduling, roommate rostering, and skills tracking for camps of every size.', image: 'images/svc-camps.jpg' },
+    { title: 'Leagues', description: 'Standings, schedules, and championship brackets — fully automated.', image: 'images/svc-leagues.jpg' },
+    { title: 'Tournaments', description: 'Bracket management, team registration, and recruiting tools for any event.', image: 'images/svc-tournaments.jpg' }
+  ];
+
+  readonly pillars = [
+    { icon: 'bi-lightning-charge-fill', title: 'Built for Speed', description: 'Set up registration, scheduling, and reporting in minutes — not days.' },
+    { icon: 'bi-phone-fill', title: 'Mobile-First Comms', description: 'Targeted text and email blasts keep everyone connected — anytime, anywhere.' },
+    { icon: 'bi-people-fill', title: 'Real Human Support', description: 'Not a chatbot. Our team works alongside yours to grow your organization.' }
+  ];
+
+  readonly animatedStats = signal([
+    { target: 1000, suffix: '+', current: 0, label: 'Teams Managed' },
+    { target: 50, suffix: '+', current: 0, label: 'Organizations' },
+    { target: 20, suffix: '+', current: 0, label: 'Years of Service' },
+    { target: 24, suffix: '/7', current: 0, label: 'Support' }
+  ]);
+
+  constructor() {
+    afterNextRender(() => this.initScrollAnimations());
+  }
 
   ngOnInit(): void {
-    // Only redirect on first app load (not on subsequent navigations to /tsic)
     if (!TsicLandingComponent.hasInitialized) {
       TsicLandingComponent.hasInitialized = true;
-
       const lastJob = this.lastLocation.getLastJobPath();
       if (lastJob && lastJob !== 'tsic') {
         this.router.navigate([`/${lastJob}`]);
@@ -29,7 +64,75 @@ export class TsicLandingComponent implements OnInit {
     }
   }
 
-  navigateToLogin(): void {
-    this.router.navigate(['/tsic/login'], { queryParams: { force: 1 } });
+  scrollToTop(event: Event): void {
+    event.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+    this.observer = null;
+    this.navObserver?.disconnect();
+    this.navObserver = null;
+  }
+
+  private initScrollAnimations(): void {
+    // Standalone page — use viewport (null) as observation root
+    const scrollRoot = null;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      this.elRef.nativeElement.querySelectorAll('.reveal')
+        .forEach((el: Element) => el.classList.add('revealed'));
+      this.snapStats();
+      return;
+    }
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
+            if (entry.target.classList.contains('stats-trigger') && !this.statsAnimated) {
+              this.statsAnimated = true;
+              this.animateCounters();
+            }
+            this.observer?.unobserve(entry.target);
+          }
+        });
+      },
+      { root: scrollRoot, rootMargin: '0px 0px -40px 0px', threshold: 0.15 }
+    );
+
+    this.elRef.nativeElement.querySelectorAll('.reveal')
+      .forEach((el: Element) => this.observer!.observe(el));
+
+    // Nav background — solid when hero scrolls past the top 80px
+    const hero = this.elRef.nativeElement.querySelector('.hero');
+    if (hero) {
+      this.navObserver = new IntersectionObserver(
+        ([entry]) => this.navSolid.set(!entry.isIntersecting),
+        { root: null, threshold: 0, rootMargin: '-80px 0px 0px 0px' }
+      );
+      this.navObserver.observe(hero);
+    }
+  }
+
+  private animateCounters(): void {
+    const duration = 1800;
+    const fps = 30;
+    const total = Math.round(duration / (1000 / fps));
+    let frame = 0;
+
+    const id = setInterval(() => {
+      frame++;
+      const eased = 1 - Math.pow(1 - frame / total, 3);
+      this.animatedStats.update(s => s.map(x => ({ ...x, current: Math.round(x.target * eased) })));
+      if (frame >= total) { clearInterval(id); this.snapStats(); }
+    }, 1000 / fps);
+  }
+
+  private snapStats(): void {
+    this.animatedStats.update(s => s.map(x => ({ ...x, current: x.target })));
   }
 }

@@ -53,6 +53,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Sinks.MSSqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -85,6 +87,7 @@ builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
 builder.Services.AddScoped<IDivisionRepository, DivisionRepository>();
 builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
+builder.Services.AddScoped<IAutoBuildRepository, AutoBuildRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IFieldRepository, FieldRepository>();
 builder.Services.AddScoped<IPairingsRepository, PairingsRepository>();
@@ -95,6 +98,7 @@ builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
 builder.Services.AddScoped<IJobCloneRepository, JobCloneRepository>();
 builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 
+builder.Services.AddScoped<ILogRepository, LogRepository>();
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
@@ -168,6 +172,8 @@ builder.Services.AddScoped<IFieldManagementService, FieldManagementService>();
 builder.Services.AddScoped<IPairingsService, PairingsService>();
 builder.Services.AddScoped<ITimeslotService, TimeslotService>();
 builder.Services.AddScoped<IScheduleDivisionService, ScheduleDivisionService>();
+builder.Services.AddScoped<IAutoBuildScheduleService, AutoBuildScheduleService>();
+builder.Services.AddScoped<IScheduleQaService, ScheduleQaService>();
 builder.Services.AddScoped<IViewScheduleService, ViewScheduleService>();
 builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
@@ -422,6 +428,24 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ── Serilog Structured Logging ────────────────────────────────────
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.MSSqlServer(
+        connectionString: builder.Configuration.GetConnectionString("DefaultConnection"),
+        sinkOptions: new MSSqlServerSinkOptions
+        {
+            TableName = "AppLog",
+            SchemaName = "logs",
+            AutoCreateSqlTable = false
+        },
+        columnOptions: GetColumnOptions())
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
 var app = builder.Build();
 
 // Add detailed error handling in development
@@ -444,6 +468,13 @@ if (app.Urls.Any(url => url.StartsWith("https://", StringComparison.OrdinalIgnor
 
 // Ensure proper middleware order for CORS
 app.UseRouting();
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("StatusCode", httpContext.Response.StatusCode);
+    };
+});
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -455,4 +486,19 @@ app.MapControllers();
 
 await app.RunAsync();
 
+// ── Serilog column mapping ───────────────────────────────────────
+static ColumnOptions GetColumnOptions()
+{
+    var opts = new ColumnOptions();
+    opts.Store.Remove(StandardColumn.MessageTemplate);
+    opts.AdditionalColumns = new List<SqlColumn>
+    {
+        new() { ColumnName = "SourceContext",  DataType = System.Data.SqlDbType.NVarChar, DataLength = 512, AllowNull = true },
+        new() { ColumnName = "RequestPath",    DataType = System.Data.SqlDbType.NVarChar, DataLength = 512, AllowNull = true },
+        new() { ColumnName = "StatusCode",     DataType = System.Data.SqlDbType.Int,      AllowNull = true },
+        new() { ColumnName = "Elapsed",        DataType = System.Data.SqlDbType.Float,    AllowNull = true },
+    };
+    opts.TimeStamp.ConvertToUtc = false;
+    return opts;
+}
 

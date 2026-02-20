@@ -38,6 +38,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<ApiSecrets> ApiSecrets { get; set; }
 
+    public virtual DbSet<AppLog> AppLog { get; set; }
+
     public virtual DbSet<AspNetRoleClaims> AspNetRoleClaims { get; set; }
 
     public virtual DbSet<AspNetRoles> AspNetRoles { get; set; }
@@ -1271,6 +1273,20 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Value).HasMaxLength(4000);
 
             entity.HasOne(d => d.ApiResource).WithMany(p => p.ApiSecrets).HasForeignKey(d => d.ApiResourceId);
+        });
+
+        modelBuilder.Entity<AppLog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__AppLog__3214EC073B88973B");
+
+            entity.ToTable("AppLog", "logs");
+
+            entity.HasIndex(e => new { e.TimeStamp, e.Level }, "IX_AppLog_TimeStamp_Level").IsDescending(true, false);
+
+            entity.Property(e => e.Level).HasMaxLength(16);
+            entity.Property(e => e.RequestPath).HasMaxLength(512);
+            entity.Property(e => e.SourceContext).HasMaxLength(512);
+            entity.Property(e => e.TimeStamp).HasDefaultValueSql("(sysdatetimeoffset())");
         });
 
         modelBuilder.Entity<AspNetRoleClaims>(entity =>

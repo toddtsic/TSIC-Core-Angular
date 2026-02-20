@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 88" fill="none">
+  <defs>
+    <linearGradient id="ig1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="ig2" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield body -->
+  <path d="M40 2L4 20v28c0 22 16 34 36 40 20-6 36-18 36-40V20L40 2z" fill="url(#ig1)"/>
+  <path d="M40 2L4 20v28c0 22 16 34 36 40 20-6 36-18 36-40V20L40 2z" fill="url(#ig2)" opacity=".3"/>
+
+  <!-- Crossed lacrosse sticks -->
+  <line x1="24" y1="62" x2="54" y2="20" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <line x1="56" y1="62" x2="26" y2="20" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Stick heads (scoop shapes) -->
+  <path d="M54 20 C61 12 68 17 64 26 C62 29 57 29 54 25Z" fill="#fff" opacity=".55"/>
+  <path d="M26 20 C19 12 12 17 16 26 C18 29 23 29 26 25Z" fill="#fff" opacity=".55"/>
+
+  <!-- Lacrosse ball -->
+  <circle cx="40" cy="41" r="5" fill="#fff" opacity=".9"/>
+</svg>

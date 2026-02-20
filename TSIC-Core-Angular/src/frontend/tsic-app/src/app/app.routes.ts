@@ -7,13 +7,19 @@ export const routes: Routes = [
 	// Default route - redirect to last visited job or /tsic
 	{ path: '', redirectTo: '/tsic', pathMatch: 'full' },
 
+	// TSIC corporate landing — standalone marketing page (no layout chrome)
+	{
+		path: 'tsic',
+		loadComponent: () => import('./views/home/tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent)
+	},
+
 	// 404 route (must be before :jobPath to prevent matching as a jobPath)
 	{
 		path: 'not-found',
 		loadComponent: () => import('./views/errors/not-found/not-found.component').then(m => m.NotFoundComponent)
 	},
 
-	// Job-specific routes (includes 'tsic' as special case) - allows both authenticated and anonymous users
+	// Job-specific routes - allows both authenticated and anonymous users
 	{
 		path: ':jobPath',
 		component: LayoutComponent,
@@ -127,6 +133,12 @@ export const routes: Routes = [
 						path: 'job-config',
 						canDeactivate: [unsavedChangesGuard],
 						loadComponent: () => import('./views/admin/job-config/job-config.component').then(m => m.JobConfigComponent)
+					},
+					{
+						path: 'log-viewer',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/admin/log-viewer/log-viewer.component').then(m => m.LogViewerComponent)
 					}
 				]
 			},
@@ -272,6 +284,14 @@ export const routes: Routes = [
 					{
 						path: 'schedule-division',
 						loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
+					},
+					{
+						path: 'auto-build',
+						loadComponent: () => import('./views/admin/scheduling/auto-build/auto-build.component').then(m => m.AutoBuildComponent)
+					},
+					{
+						path: 'qa-results',
+						loadComponent: () => import('./views/admin/scheduling/qa-results/qa-results.component').then(m => m.QaResultsComponent)
 					}
 				]
 			},
