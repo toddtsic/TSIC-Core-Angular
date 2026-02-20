@@ -525,12 +525,10 @@ public sealed class ScheduleRepository : IScheduleRepository
 
         gameQuery = ApplyCadtFilter(gameQuery, request);
 
-        var teamIds = await gameQuery
-            .SelectMany(s => new[] { s.T1Id, s.T2Id })
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct()
-            .ToListAsync(ct);
+        // EF Core can't translate SelectMany with array initializer — use Union instead
+        var t1Ids = gameQuery.Where(s => s.T1Id.HasValue).Select(s => s.T1Id!.Value);
+        var t2Ids = gameQuery.Where(s => s.T2Id.HasValue).Select(s => s.T2Id!.Value);
+        var teamIds = await t1Ids.Union(t2Ids).Distinct().ToListAsync(ct);
 
         if (teamIds.Count == 0) return [];
 

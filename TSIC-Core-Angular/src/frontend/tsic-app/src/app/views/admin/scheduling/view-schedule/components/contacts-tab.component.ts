@@ -1,6 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import type { ContactDto } from '@core/api';
 
+/** Formats a 10-digit phone string as xxx-xxx-xxxx. */
+function formatPhone(value: string | null | undefined): string | null {
+    if (!value) return value ?? null;
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return value;
+}
+
 /** A group of contacts at the team level within the agegroup/div/club hierarchy */
 interface TeamContactGroup {
     teamName: string;
@@ -33,20 +41,36 @@ interface AgContactGroup {
             <div class="contacts-wrapper">
                 @for (ag of grouped(); track ag.agegroupName) {
                     <div class="ag-section">
-                        <button class="section-header ag-header"
-                                (click)="toggleSection('ag:' + ag.agegroupName)">
-                            <span class="chevron" [class.expanded]="isSectionOpen('ag:' + ag.agegroupName)"></span>
-                            {{ ag.agegroupName }}
-                        </button>
+                        <div class="section-row ag-header">
+                            <button class="section-header"
+                                    (click)="toggleSection('ag:' + ag.agegroupName)">
+                                <span class="chevron" [class.expanded]="isSectionOpen('ag:' + ag.agegroupName)"></span>
+                                {{ ag.agegroupName }}
+                            </button>
+                            @if (isSectionOpen('ag:' + ag.agegroupName)) {
+                                <button class="expand-btn" (click)="toggleAllInAgegroup(ag, $event)"
+                                        [title]="isAgFullyExpanded(ag) ? 'Collapse all' : 'Expand all'">
+                                    {{ isAgFullyExpanded(ag) ? '−' : '+' }} All
+                                </button>
+                            }
+                        </div>
 
                         @if (isSectionOpen('ag:' + ag.agegroupName)) {
                             @for (div of ag.divisions; track div.divName) {
                                 <div class="div-section">
-                                    <button class="section-header div-header"
-                                            (click)="toggleSection('div:' + ag.agegroupName + ':' + div.divName)">
-                                        <span class="chevron" [class.expanded]="isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)"></span>
-                                        {{ div.divName }}
-                                    </button>
+                                    <div class="section-row div-header">
+                                        <button class="section-header"
+                                                (click)="toggleSection('div:' + ag.agegroupName + ':' + div.divName)">
+                                            <span class="chevron" [class.expanded]="isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)"></span>
+                                            {{ div.divName }}
+                                        </button>
+                                        @if (isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)) {
+                                            <button class="expand-btn" (click)="toggleAllInDiv(ag.agegroupName, div, $event)"
+                                                    [title]="isDivFullyExpanded(ag.agegroupName, div) ? 'Collapse all teams' : 'Expand all teams'">
+                                                {{ isDivFullyExpanded(ag.agegroupName, div) ? '−' : '+' }} Teams
+                                            </button>
+                                        }
+                                    </div>
 
                                     @if (isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)) {
                                         @for (team of div.teams; track team.teamName) {
@@ -73,7 +97,7 @@ interface AgContactGroup {
                                                                     <td class="col-name">{{ c.firstName }} {{ c.lastName }}</td>
                                                                     <td class="col-phone">
                                                                         @if (c.cellphone) {
-                                                                            <a [href]="'tel:' + c.cellphone" class="contact-link">{{ c.cellphone }}</a>
+                                                                            <a [href]="'tel:' + c.cellphone" class="contact-link">{{ fmtPhone(c.cellphone) }}</a>
                                                                         } @else {
                                                                             <span class="no-data">&mdash;</span>
                                                                         }
@@ -122,11 +146,16 @@ interface AgContactGroup {
             gap: var(--space-2);
         }
 
+        .section-row {
+            display: flex;
+            align-items: center;
+        }
+
         .section-header {
             display: flex;
             align-items: center;
             gap: var(--space-2);
-            width: 100%;
+            flex: 1;
             border: none;
             background: none;
             cursor: pointer;
@@ -141,6 +170,21 @@ interface AgContactGroup {
             background: var(--bs-tertiary-bg);
         }
 
+        .expand-btn {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: var(--font-size-xs);
+            color: var(--bs-primary);
+            padding: var(--space-1) var(--space-2);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .expand-btn:hover {
+            text-decoration: underline;
+        }
+
         .ag-header {
             font-size: var(--font-size-base, 1rem);
             background: var(--bs-secondary-bg);
@@ -152,9 +196,23 @@ interface AgContactGroup {
             opacity: 0.85;
         }
 
+        .ag-header > .section-header {
+            padding: 0;
+            background: none;
+        }
+
+        .ag-header > .section-header:hover {
+            background: none;
+        }
+
         .div-header {
             font-size: var(--font-size-sm);
             padding-left: var(--space-5);
+            padding-right: var(--space-2);
+        }
+
+        .div-header > .section-header {
+            padding: var(--space-1) var(--space-2);
         }
 
         .team-header {
@@ -187,6 +245,7 @@ interface AgContactGroup {
         .contacts-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
             font-size: var(--font-size-sm);
             margin-left: var(--space-10);
             margin-bottom: var(--space-2);
@@ -213,17 +272,24 @@ interface AgContactGroup {
         }
 
         .col-name {
+            width: 30%;
             text-align: left;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .col-phone {
+            width: 25%;
             text-align: left;
             white-space: nowrap;
         }
 
         .col-email {
+            width: 45%;
             text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .contact-link {
@@ -319,5 +385,75 @@ export class ContactsTabComponent {
 
     isSectionOpen(key: string): boolean {
         return this.openSections().has(key);
+    }
+
+    fmtPhone(value: string | null | undefined): string | null {
+        return formatPhone(value);
+    }
+
+    /** Are all divisions + teams under this agegroup expanded? */
+    isAgFullyExpanded(ag: AgContactGroup): boolean {
+        const s = this.openSections();
+        for (const div of ag.divisions) {
+            const divKey = `div:${ag.agegroupName}:${div.divName}`;
+            if (!s.has(divKey)) return false;
+            for (const team of div.teams) {
+                if (!s.has(`team:${ag.agegroupName}:${div.divName}:${team.teamName}`)) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Are all teams under this division expanded? */
+    isDivFullyExpanded(agName: string, div: DivContactGroup): boolean {
+        const s = this.openSections();
+        for (const team of div.teams) {
+            if (!s.has(`team:${agName}:${div.divName}:${team.teamName}`)) return false;
+        }
+        return true;
+    }
+
+    /** Expand or collapse every division + team within an agegroup. */
+    toggleAllInAgegroup(ag: AgContactGroup, event: Event): void {
+        event.stopPropagation();
+        const expand = !this.isAgFullyExpanded(ag);
+        this.openSections.update(s => {
+            const next = new Set(s);
+            for (const div of ag.divisions) {
+                const divKey = `div:${ag.agegroupName}:${div.divName}`;
+                if (expand) {
+                    next.add(divKey);
+                } else {
+                    next.delete(divKey);
+                }
+                for (const team of div.teams) {
+                    const teamKey = `team:${ag.agegroupName}:${div.divName}:${team.teamName}`;
+                    if (expand) {
+                        next.add(teamKey);
+                    } else {
+                        next.delete(teamKey);
+                    }
+                }
+            }
+            return next;
+        });
+    }
+
+    /** Expand or collapse every team within a division. */
+    toggleAllInDiv(agName: string, div: DivContactGroup, event: Event): void {
+        event.stopPropagation();
+        const expand = !this.isDivFullyExpanded(agName, div);
+        this.openSections.update(s => {
+            const next = new Set(s);
+            for (const team of div.teams) {
+                const teamKey = `team:${agName}:${div.divName}:${team.teamName}`;
+                if (expand) {
+                    next.add(teamKey);
+                } else {
+                    next.delete(teamKey);
+                }
+            }
+            return next;
+        });
     }
 }
