@@ -37,9 +37,9 @@ public interface IViewScheduleService
     Task<StandingsByDivisionResponse> GetTeamRecordsAsync(Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Team results drill-down — all games for a specific team.
+    /// Team results drill-down — all games for a specific team, plus team identity for the modal title.
     /// </summary>
-    Task<List<TeamResultDto>> GetTeamResultsAsync(Guid teamId, CancellationToken ct = default);
+    Task<TeamResultsResponse> GetTeamResultsAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
     /// Brackets tab — bracket matches grouped by division (or agegroup).

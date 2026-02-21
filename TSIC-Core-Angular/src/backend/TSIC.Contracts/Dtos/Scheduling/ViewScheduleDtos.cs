@@ -187,6 +187,17 @@ public record StandingsByDivisionResponse
 // ══════════════════════════════════════════════════════════════════════
 
 /// <summary>
+/// Wrapper for the team results drill-down modal — includes team identity info for the title.
+/// </summary>
+public record TeamResultsResponse
+{
+    public required string TeamName { get; init; }
+    public required string AgegroupName { get; init; }
+    public string? ClubName { get; init; }
+    public required List<TeamResultDto> Games { get; init; }
+}
+
+/// <summary>
 /// A single game from a specific team's perspective — used for the team results drill-down modal.
 /// </summary>
 public record TeamResultDto

@@ -78,7 +78,8 @@ export const authGuard: CanActivateFn = (route, state) => {
                 return router.createUrlTree([`/${lastJob}`]);
             }
         }
-        // If authenticated with 'tsic' jobPath or no last job, allow
+        // No redirect conditions applied — allow access to the page
+        return true;
     }
 
     // Not authenticated - handle based on allowAnonymous flag

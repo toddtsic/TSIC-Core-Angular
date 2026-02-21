@@ -349,14 +349,13 @@ public sealed class ScheduleRepository : IScheduleRepository
         Guid jobId, CancellationToken ct = default)
     {
         // 1. Get all team IDs that appear in scheduled games for this job
-        var scheduledTeamIds = await _context.Schedule
+        // EF Core can't translate SelectMany with array initializer — use Union instead
+        var baseQuery = _context.Schedule
             .AsNoTracking()
-            .Where(s => s.JobId == jobId && s.GDate.HasValue)
-            .SelectMany(s => new[] { s.T1Id, s.T2Id })
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct()
-            .ToListAsync(ct);
+            .Where(s => s.JobId == jobId && s.GDate.HasValue);
+        var t1 = baseQuery.Where(s => s.T1Id.HasValue).Select(s => s.T1Id!.Value);
+        var t2 = baseQuery.Where(s => s.T2Id.HasValue).Select(s => s.T2Id!.Value);
+        var scheduledTeamIds = await t1.Union(t2).Distinct().ToListAsync(ct);
 
         if (scheduledTeamIds.Count == 0)
         {
@@ -615,6 +614,21 @@ public sealed class ScheduleRepository : IScheduleRepository
         );
     }
 
+    public async Task<HashSet<Guid>> GetChampionsByDivisionAgegroupIdsAsync(
+        IEnumerable<Guid> agegroupIds, CancellationToken ct = default)
+    {
+        var ids = agegroupIds.ToList();
+        if (ids.Count == 0) return new HashSet<Guid>();
+
+        var result = await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => ids.Contains(a.AgegroupId) && a.BChampionsByDivision == true)
+            .Select(a => a.AgegroupId)
+            .ToListAsync(ct);
+
+        return new HashSet<Guid>(result);
+    }
+
     // ── Rescheduler (009-6) ──
 
     public async Task<ScheduleGridResponse> GetReschedulerGridAsync(
@@ -732,13 +746,10 @@ public sealed class ScheduleRepository : IScheduleRepository
             gameQuery = gameQuery.Where(s => s.FieldId.HasValue && fieldIds.Contains(s.FieldId.Value));
 
         // 2. Get distinct team IDs from matched games
-        var teamIds = await gameQuery
-            .Where(s => s.T1Id != null && s.T2Id != null)
-            .SelectMany(s => new[] { s.T1Id, s.T2Id })
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct()
-            .ToListAsync(ct);
+        // EF Core can't translate SelectMany with array initializer — use Union instead
+        var emailT1 = gameQuery.Where(s => s.T1Id.HasValue).Select(s => s.T1Id!.Value);
+        var emailT2 = gameQuery.Where(s => s.T2Id.HasValue).Select(s => s.T2Id!.Value);
+        var teamIds = await emailT1.Union(emailT2).Distinct().ToListAsync(ct);
 
         if (teamIds.Count == 0) return new List<string>();
 

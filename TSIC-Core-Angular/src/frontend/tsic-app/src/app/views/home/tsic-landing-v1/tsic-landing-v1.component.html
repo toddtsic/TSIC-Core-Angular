@@ -1,0 +1,191 @@
+<div class="lp">
+
+  <!-- ══════════════════════════════════════════════════
+       NAV — floating, transparent over hero, solid on scroll
+       ══════════════════════════════════════════════════ -->
+  <nav class="lp-nav" [class.lp-nav--solid]="navSolid()">
+    <div class="container d-flex align-items-center justify-content-between">
+      <a class="lp-nav__brand" href="#top" (click)="scrollToTop($event)">
+        <img src="images/tsic-icon.svg" alt="" class="lp-nav__icon" width="28" height="31">
+        <span class="lp-nav__name">TeamSportsInfo</span>
+      </a>
+      <a class="lp-nav__login" href="/tsic/login">
+        <i class="bi bi-box-arrow-in-right"></i>
+        <span>Login</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════
+       HERO — photo background + gradient overlay
+       ══════════════════════════════════════════════════ -->
+  <section class="hero" id="top">
+    <div class="hero__overlay" aria-hidden="true"></div>
+
+    <div class="hero__content fade-up-initial">
+      <!-- Shield mark — hero centerpiece (colorful gradient, no filter) -->
+      <img src="images/tsic-icon.svg" alt="" class="hero__shield" width="140" height="154" aria-hidden="true">
+
+      <!-- Brand wordmark — styled HTML for crisp white on dark -->
+      <div class="hero__brand" aria-label="TeamSportsInfo.com">
+        <span class="hero__brand-name">
+          Team<span class="hero__brand-accent">Sports</span>Info<span class="hero__brand-tld">.com</span>
+        </span>
+        <span class="hero__brand-tagline">Connected On and Off the Field</span>
+      </div>
+
+      <h1 class="hero__title">
+        <span class="hero__title-line">Run Your Sports Org</span>
+        <span class="hero__title-accent">Like a Pro.</span>
+      </h1>
+
+      <p class="hero__sub">
+        Registration. Scheduling. Communication. Payments.<br class="d-none d-md-inline">
+        One platform — so you can focus on the game.
+      </p>
+
+      <div class="hero__actions">
+        <a href="mailto:support&#64;teamsportsinfo.com?subject=Demo%20Request"
+           class="hero__btn-primary">
+          <span>Request a Demo</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+        <a href="tel:4102803272" class="hero__btn-phone">
+          <i class="bi bi-telephone-fill"></i>
+          <span>410-280-3272</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="hero__scroll" aria-hidden="true">
+      <i class="bi bi-chevron-down"></i>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       STATS — animated counters
+       ══════════════════════════════════════════════════ -->
+  <section class="stats reveal stats-trigger">
+    <div class="container">
+      <div class="row">
+        @for (stat of animatedStats(); track stat.label; let i = $index) {
+          <div class="col-6 col-md-3">
+            <div class="stats__item">
+              <span class="stats__number">{{ stat.current }}{{ stat.suffix }}</span>
+              <span class="stats__label">{{ stat.label }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       SERVICES — photo cards
+       ══════════════════════════════════════════════════ -->
+  <section class="services">
+    <div class="container">
+      <h2 class="section-title reveal">
+        <span class="gradient-text">One Platform.</span> Every Sport.
+      </h2>
+      <p class="section-sub reveal">From neighborhood leagues to national tournaments.</p>
+
+      <div class="row g-4 mt-2">
+        @for (svc of services; track svc.title; let i = $index) {
+          <div class="col-6 col-lg-3">
+            <div class="svc-card reveal" [class]="'svc-card reveal reveal-delay-' + (i + 1)">
+              <div class="svc-card__img">
+                <img [src]="svc.image" [alt]="svc.title" loading="lazy">
+              </div>
+              <div class="svc-card__body">
+                <h3>{{ svc.title }}</h3>
+                <p>{{ svc.description }}</p>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       PILLARS
+       ══════════════════════════════════════════════════ -->
+  <section class="pillars">
+    <div class="container">
+      <h2 class="section-title reveal">
+        Why <span class="gradient-text">Organizations</span> Choose Us
+      </h2>
+
+      <div class="row g-4">
+        @for (pillar of pillars; track pillar.title; let i = $index) {
+          <div class="col-md-4">
+            <div class="pill-card reveal" [class]="'pill-card reveal reveal-delay-' + (i + 1)">
+              <div class="pill-card__icon">
+                <i class="bi" [class]="'bi ' + pillar.icon"></i>
+              </div>
+              <h3>{{ pillar.title }}</h3>
+              <p>{{ pillar.description }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       MISSION
+       ══════════════════════════════════════════════════ -->
+  <section class="mission">
+    <div class="container">
+      <div class="mission__card reveal">
+        <i class="bi bi-quote mission__quote-icon" aria-hidden="true"></i>
+        <blockquote>
+          <p>
+            We believe every athlete — youth or adult — deserves an organization
+            that runs smoothly, communicates clearly, and puts the game first.
+          </p>
+          <p>
+            That's why we built TeamSportsInfo: to give organizers the tools
+            so every participant
+            <strong>stays connected on and off the field.</strong>
+          </p>
+        </blockquote>
+        <cite>— The TeamSportsInfo Team, est. 2005</cite>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       CTA
+       ══════════════════════════════════════════════════ -->
+  <section class="cta reveal">
+    <div class="cta__overlay" aria-hidden="true"></div>
+    <div class="container cta__inner">
+      <img src="images/tsic-icon.svg" alt="" class="cta__icon" width="56" height="64" aria-hidden="true">
+      <h2>Ready to Simplify Your Season?</h2>
+      <p>See why hundreds of organizations trust us to run their programs.</p>
+      <a href="mailto:support&#64;teamsportsinfo.com?subject=Demo%20Request"
+         class="cta__btn">
+        <span>Request a Demo</span>
+        <i class="bi bi-arrow-right"></i>
+      </a>
+      <div class="cta__contact">
+        <a href="tel:4102803272">
+          <i class="bi bi-telephone-fill"></i>
+          410-280-3272
+        </a>
+        <span class="cta__sep" aria-hidden="true"></span>
+        <a href="mailto:support&#64;teamsportsinfo.com">
+          <i class="bi bi-envelope-fill"></i>
+          support&#64;teamsportsinfo.com
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="tagline">
+    <p>Empowering team sports organizations since 2005</p>
+  </footer>
+
+</div>

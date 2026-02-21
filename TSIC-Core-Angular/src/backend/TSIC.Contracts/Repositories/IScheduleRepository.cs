@@ -140,6 +140,13 @@ public interface IScheduleRepository
     /// </summary>
     Task<(bool allowPublicAccess, bool hideContacts, string sportName)> GetScheduleFlagsAsync(Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Return the subset of agegroup IDs where BChampionsByDivision = true.
+    /// Used by brackets tab to determine per-division vs per-agegroup grouping.
+    /// </summary>
+    Task<HashSet<Guid>> GetChampionsByDivisionAgegroupIdsAsync(
+        IEnumerable<Guid> agegroupIds, CancellationToken ct = default);
+
     // ── Dashboard ──
 
     /// <summary>

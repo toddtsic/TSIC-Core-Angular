@@ -11,13 +11,16 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class ViewScheduleService : IViewScheduleService
 {
     private readonly IScheduleRepository _scheduleRepo;
+    private readonly ITeamRepository _teamRepo;
     private readonly ILogger<ViewScheduleService> _logger;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
+        ITeamRepository teamRepo,
         ILogger<ViewScheduleService> logger)
     {
         _scheduleRepo = scheduleRepo;
+        _teamRepo = teamRepo;
         _logger = logger;
     }
 
@@ -82,11 +85,14 @@ public sealed class ViewScheduleService : IViewScheduleService
         return await BuildStandingsAsync(jobId, request, poolPlayOnly: false, ct);
     }
 
-    public async Task<List<TeamResultDto>> GetTeamResultsAsync(Guid teamId, CancellationToken ct = default)
+    public async Task<TeamResultsResponse> GetTeamResultsAsync(Guid teamId, CancellationToken ct = default)
     {
+        // Look up team identity (name, agegroup, club) for the modal title
+        var detail = await _teamRepo.GetTeamDetailAsync(teamId, ct);
+
         var games = await _scheduleRepo.GetTeamGamesAsync(teamId, ct);
 
-        return games.Select(g =>
+        var gameResults = games.Select(g =>
         {
             var isT1 = g.T1Id == teamId;
             var teamScore = isT1 ? g.T1Score : g.T2Score;
@@ -119,6 +125,14 @@ public sealed class ViewScheduleService : IViewScheduleService
                 GameType = gameType
             };
         }).ToList();
+
+        return new TeamResultsResponse
+        {
+            TeamName = detail?.TeamName ?? "Unknown Team",
+            AgegroupName = detail?.AgegroupName ?? "",
+            ClubName = detail?.ClubName,
+            Games = gameResults
+        };
     }
 
     public async Task<List<DivisionBracketResponse>> GetBracketsAsync(
@@ -126,9 +140,22 @@ public sealed class ViewScheduleService : IViewScheduleService
     {
         var bracketGames = await _scheduleRepo.GetBracketGamesAsync(jobId, request, ct);
 
-        // Group by agegroup + division
+        // Agegroups with BChampionsByDivision = true get per-division brackets;
+        // all others (false / null) get per-agegroup brackets (the common case).
+        var distinctAgIds = bracketGames
+            .Where(g => g.AgegroupId.HasValue)
+            .Select(g => g.AgegroupId!.Value)
+            .Distinct();
+        var byDivAgIds = await _scheduleRepo.GetChampionsByDivisionAgegroupIdsAsync(distinctAgIds, ct);
+
         var grouped = bracketGames
-            .GroupBy(g => new { AgName = g.AgegroupName ?? "", DivName = g.DivName ?? "" })
+            .GroupBy(g => new
+            {
+                AgName = g.AgegroupName ?? "",
+                DivName = g.AgegroupId.HasValue && byDivAgIds.Contains(g.AgegroupId.Value)
+                    ? (g.DivName ?? "")
+                    : ""
+            })
             .OrderBy(grp => grp.Key.AgName)
             .ThenBy(grp => grp.Key.DivName);
 

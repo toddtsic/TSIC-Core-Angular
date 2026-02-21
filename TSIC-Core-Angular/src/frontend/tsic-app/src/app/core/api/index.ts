@@ -332,6 +332,7 @@ export type { TeamPaymentAllocation } from './models/TeamPaymentAllocation';
 export type { TeamPaymentRequestDto } from './models/TeamPaymentRequestDto';
 export type { TeamPaymentResponseDto } from './models/TeamPaymentResponseDto';
 export type { TeamResultDto } from './models/TeamResultDto';
+export type { TeamResultsResponse } from './models/TeamResultsResponse';
 export type { TeamSearchDetailDto } from './models/TeamSearchDetailDto';
 export type { TeamSearchRequest } from './models/TeamSearchRequest';
 export type { TeamSearchResponse } from './models/TeamSearchResponse';

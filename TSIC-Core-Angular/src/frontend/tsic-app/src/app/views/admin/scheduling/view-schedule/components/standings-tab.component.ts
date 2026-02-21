@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, EventEmitter, input, Output } from '@angular/core';
-import type { StandingsByDivisionResponse, DivisionStandingsDto, StandingsDto } from '@core/api';
+import { ChangeDetectionStrategy, Component, computed, EventEmitter, input, Output, signal } from '@angular/core';
+import type { StandingsByDivisionResponse } from '@core/api';
+
+type StandingsMode = 'all' | 'rr';
 
 @Component({
     selector: 'app-standings-tab',
@@ -11,63 +13,83 @@ import type { StandingsByDivisionResponse, DivisionStandingsDto, StandingsDto } 
                 <span class="spinner-border spinner-border-sm" role="status"></span>
                 Loading standings...
             </div>
-        } @else if (!standings() || standings()!.divisions.length === 0) {
-            <div class="empty-state">No standings data available.</div>
         } @else {
             <div class="standings-wrapper">
-                @for (div of standings()!.divisions; track div.divId) {
-                    <div class="division-block">
-                        <div class="division-header">
-                            {{ div.agegroupName }} {{ div.divName }} &mdash; Pool Play Standings
-                        </div>
+                <!-- Mode toggle -->
+                <div class="mode-toggle-row">
+                    <div class="btn-group" role="group" aria-label="Standings mode">
+                        <button class="btn btn-sm"
+                                [class.btn-primary]="standingsMode() === 'all'"
+                                [class.btn-outline-secondary]="standingsMode() !== 'all'"
+                                (click)="standingsMode.set('all')">
+                            All Games
+                        </button>
+                        <button class="btn btn-sm"
+                                [class.btn-primary]="standingsMode() === 'rr'"
+                                [class.btn-outline-secondary]="standingsMode() !== 'rr'"
+                                (click)="standingsMode.set('rr')">
+                            RR Games Only
+                        </button>
+                    </div>
+                </div>
 
-                        <table class="standings-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-rank">#</th>
-                                    <th class="col-team">Team</th>
-                                    <th class="col-num">GP</th>
-                                    <th class="col-num">W</th>
-                                    <th class="col-num">L</th>
-                                    <th class="col-num">T</th>
-                                    @if (!isLacrosse()) {
-                                        <th class="col-num">Pts</th>
-                                    }
-                                    <th class="col-num">GF</th>
-                                    <th class="col-num">GA</th>
-                                    <th class="col-num">GD</th>
-                                    @if (!isLacrosse()) {
-                                        <th class="col-num">PPG</th>
-                                    }
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (team of div.teams; track team.teamId; let i = $index) {
-                                    <tr [class.top-rank]="team.rankOrder === 1">
-                                        <td class="col-rank">{{ team.rankOrder ?? (i + 1) }}</td>
-                                        <td class="col-team">
-                                            <span class="team-link" (click)="viewTeamResults.emit(team.teamId)">
-                                                {{ team.teamName }}
-                                            </span>
-                                        </td>
-                                        <td class="col-num">{{ team.games }}</td>
-                                        <td class="col-num">{{ team.wins }}</td>
-                                        <td class="col-num">{{ team.losses }}</td>
-                                        <td class="col-num">{{ team.ties }}</td>
-                                        @if (!isLacrosse()) {
-                                            <td class="col-num">{{ team.points }}</td>
+                @if (!activeData() || activeData()!.divisions.length === 0) {
+                    <div class="empty-state">No standings data available.</div>
+                } @else {
+                    @for (div of activeData()!.divisions; track div.divId) {
+                        <div class="division-block">
+                            <div class="division-header">
+                                {{ div.agegroupName }} {{ div.divName }} &mdash; {{ headerSuffix() }}
+                            </div>
+
+                            <table class="standings-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-rank">#</th>
+                                        <th class="col-team">Team</th>
+                                        <th class="col-num">GP</th>
+                                        <th class="col-num">W</th>
+                                        <th class="col-num">L</th>
+                                        <th class="col-num">T</th>
+                                        @if (!hidePointsCols()) {
+                                            <th class="col-num">Pts</th>
                                         }
-                                        <td class="col-num">{{ team.goalsFor }}</td>
-                                        <td class="col-num">{{ team.goalsAgainst }}</td>
-                                        <td class="col-num">{{ formatGoalDiff(team.goalDiffMax9) }}</td>
-                                        @if (!isLacrosse()) {
-                                            <td class="col-num">{{ team.pointsPerGame.toFixed(2) }}</td>
+                                        <th class="col-num">GF</th>
+                                        <th class="col-num">GA</th>
+                                        <th class="col-num">GD</th>
+                                        @if (!hidePointsCols()) {
+                                            <th class="col-num">PPG</th>
                                         }
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    @for (team of div.teams; track team.teamId; let i = $index) {
+                                        <tr [class.top-rank]="team.rankOrder === 1">
+                                            <td class="col-rank">{{ team.rankOrder ?? (i + 1) }}</td>
+                                            <td class="col-team">
+                                                <span class="team-link" (click)="viewTeamResults.emit(team.teamId)">
+                                                    {{ team.teamName }}
+                                                </span>
+                                            </td>
+                                            <td class="col-num">{{ team.games }}</td>
+                                            <td class="col-num">{{ team.wins }}</td>
+                                            <td class="col-num">{{ team.losses }}</td>
+                                            <td class="col-num">{{ team.ties }}</td>
+                                            @if (!hidePointsCols()) {
+                                                <td class="col-num">{{ team.points }}</td>
+                                            }
+                                            <td class="col-num">{{ team.goalsFor }}</td>
+                                            <td class="col-num">{{ team.goalsAgainst }}</td>
+                                            <td class="col-num">{{ formatGoalDiff(team.goalDiffMax9) }}</td>
+                                            @if (!hidePointsCols()) {
+                                                <td class="col-num">{{ team.pointsPerGame.toFixed(2) }}</td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
                 }
             </div>
         }
@@ -91,6 +113,11 @@ import type { StandingsByDivisionResponse, DivisionStandingsDto, StandingsDto } 
             display: flex;
             flex-direction: column;
             gap: var(--space-4);
+        }
+
+        .mode-toggle-row {
+            display: flex;
+            justify-content: flex-end;
         }
 
         .division-block {
@@ -161,14 +188,29 @@ import type { StandingsByDivisionResponse, DivisionStandingsDto, StandingsDto } 
 })
 export class StandingsTabComponent {
     standings = input<StandingsByDivisionResponse | null>(null);
+    records = input<StandingsByDivisionResponse | null>(null);
     isLoading = input<boolean>(false);
 
     @Output() viewTeamResults = new EventEmitter<string>();
 
-    readonly isLacrosse = computed(() => {
-        const sport = this.standings()?.sportName ?? '';
+    readonly standingsMode = signal<StandingsMode>('all');
+
+    readonly activeData = computed(() =>
+        this.standingsMode() === 'rr' ? this.standings() : this.records()
+    );
+
+    readonly headerSuffix = computed(() =>
+        this.standingsMode() === 'rr' ? 'Pool Play Standings' : 'Full Season Records'
+    );
+
+    private readonly isLacrosse = computed(() => {
+        const sport = this.activeData()?.sportName ?? '';
         return sport.toLowerCase().includes('lacrosse');
     });
+
+    readonly hidePointsCols = computed(() =>
+        this.standingsMode() === 'rr' && this.isLacrosse()
+    );
 
     formatGoalDiff(gd: number): string {
         if (gd > 0) return `+${gd}`;

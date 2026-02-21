@@ -154,7 +154,7 @@ public class ViewScheduleController : ControllerBase
     /// <summary>GET /api/view-schedule/team-results/{teamId}?jobPath= — Team game history drill-down.</summary>
     [AllowAnonymous]
     [HttpGet("team-results/{teamId:guid}")]
-    public async Task<ActionResult<List<TeamResultDto>>> GetTeamResults(
+    public async Task<ActionResult<TeamResultsResponse>> GetTeamResults(
         Guid teamId, [FromQuery] string? jobPath, CancellationToken ct)
     {
         // Validate context (needed for public access check)

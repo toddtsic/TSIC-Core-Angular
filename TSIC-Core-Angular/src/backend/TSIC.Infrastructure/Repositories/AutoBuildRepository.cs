@@ -340,12 +340,13 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
         Guid jobId, CancellationToken ct)
     {
         // Active teams that don't appear in any scheduled game
-        var scheduledTeamIds = await _context.Schedule
+        var scheduled = _context.Schedule
             .AsNoTracking()
-            .Where(s => s.JobId == jobId && s.GDate != null)
-            .SelectMany(s => new[] { s.T1Id, s.T2Id })
-            .Where(id => id != null)
-            .Select(id => id!.Value)
+            .Where(s => s.JobId == jobId && s.GDate != null);
+
+        var scheduledTeamIds = await scheduled
+            .Where(s => s.T1Id != null).Select(s => s.T1Id!.Value)
+            .Union(scheduled.Where(s => s.T2Id != null).Select(s => s.T2Id!.Value))
             .Distinct()
             .ToListAsync(ct);
 
@@ -357,7 +358,10 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && t.Active == true
                         && t.DivId != null
                         && t.Div != null
-                        && t.Agegroup != null)
+                        && t.Agegroup != null
+                        && t.Div!.DivName != "Unassigned"
+                        && !t.Agegroup!.AgegroupName!.Contains("WAITLIST")
+                        && !t.Agegroup!.AgegroupName!.Contains("DROPPED"))
             .Select(t => new
             {
                 t.TeamId,
@@ -719,13 +723,14 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     private async Task<List<QaInactiveTeamInGame>> GetInactiveTeamsInGamesAsync(
         Guid jobId, CancellationToken ct)
     {
-        var scheduledTeamIds = await _context.Schedule
+        var rrGames = _context.Schedule
             .AsNoTracking()
             .Where(s => s.JobId == jobId && s.GDate != null
-                        && s.T1Type == "T" && s.T2Type == "T")
-            .SelectMany(s => new[] { s.T1Id, s.T2Id })
-            .Where(id => id != null)
-            .Select(id => id!.Value)
+                        && s.T1Type == "T" && s.T2Type == "T");
+
+        var scheduledTeamIds = await rrGames
+            .Where(s => s.T1Id != null).Select(s => s.T1Id!.Value)
+            .Union(rrGames.Where(s => s.T2Id != null).Select(s => s.T2Id!.Value))
             .Distinct()
             .ToListAsync(ct);
 

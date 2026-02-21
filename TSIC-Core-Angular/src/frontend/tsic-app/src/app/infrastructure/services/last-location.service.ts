@@ -21,8 +21,8 @@ export class LastLocationService {
                     return;
                 }
 
-                // Only persist when it's a valid job path (not 'tsic', not error routes)
-                if (first && first !== 'tsic' && this.isSafeJobPath(first)) {
+                // Only persist when it's a valid job path (not 'tsic' or 'tsic-v*', not error routes)
+                if (first && !first.startsWith('tsic') && this.isSafeJobPath(first)) {
                     localStorage.setItem(LocalStorageKey.LastJobPath, first);
                 }
             });
@@ -30,7 +30,7 @@ export class LastLocationService {
 
     getLastJobPath(): string | null {
         const v = localStorage.getItem(LocalStorageKey.LastJobPath);
-        return v && this.isSafeJobPath(v) ? v : null;
+        return v && !v.startsWith('tsic') && this.isSafeJobPath(v) ? v : null;
     }
 
     private isSafeJobPath(s: string): boolean {

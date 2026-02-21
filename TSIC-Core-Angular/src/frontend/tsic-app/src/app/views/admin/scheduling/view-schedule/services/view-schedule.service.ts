@@ -8,7 +8,7 @@ import type {
     ScheduleCapabilitiesDto,
     ViewGameDto,
     StandingsByDivisionResponse,
-    TeamResultDto,
+    TeamResultsResponse,
     DivisionBracketResponse,
     ContactDto,
     FieldDisplayDto,
@@ -31,6 +31,7 @@ export type {
     StandingsDto,
     DivisionStandingsDto,
     TeamResultDto,
+    TeamResultsResponse,
     DivisionBracketResponse,
     BracketMatchDto,
     ContactDto,
@@ -96,11 +97,11 @@ export class ViewScheduleService {
 
     // ── Drill-down & Details ──
 
-    getTeamResults(teamId: string, jobPath?: string): Observable<TeamResultDto[]> {
+    getTeamResults(teamId: string, jobPath?: string): Observable<TeamResultsResponse> {
         if (jobPath) {
-            return this.http.get<TeamResultDto[]>(`${this.apiUrl}/team-results/${teamId}`, { params: { jobPath } });
+            return this.http.get<TeamResultsResponse>(`${this.apiUrl}/team-results/${teamId}`, { params: { jobPath } });
         }
-        return this.http.get<TeamResultDto[]>(`${this.apiUrl}/team-results/${teamId}`);
+        return this.http.get<TeamResultsResponse>(`${this.apiUrl}/team-results/${teamId}`);
     }
 
     getFieldInfo(fieldId: string): Observable<FieldDisplayDto> {
