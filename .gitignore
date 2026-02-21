@@ -46,3 +46,9 @@ docs/Security/iis-env-secrets-setup.local.ps1
 
 # Temp swagger exports
 *temp-swagger*
+
+# SSL certs — machine-specific, generated locally with mkcert
+TSIC-Core-Angular/src/frontend/tsic-app/ssl/*.pem
+TSIC-Core-Angular/src/frontend/tsic-app/ssl/*.key
+TSIC-Core-Angular/src/frontend/tsic-app/ssl/*.crt
+TSIC-Core-Angular/src/frontend/tsic-app/ssl/*.pfx
