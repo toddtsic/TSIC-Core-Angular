@@ -27,6 +27,7 @@ import { BracketsTabComponent } from './components/brackets-tab.component';
 import { ContactsTabComponent } from './components/contacts-tab.component';
 import { TeamResultsModalComponent } from './components/team-results-modal.component';
 import { EditGameModalComponent } from './components/edit-game-modal.component';
+import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 type TabId = 'games' | 'standings' | 'brackets' | 'contacts';
 
@@ -48,7 +49,8 @@ interface FilterChip {
         BracketsTabComponent,
         ContactsTabComponent,
         TeamResultsModalComponent,
-        EditGameModalComponent
+        EditGameModalComponent,
+        TsicDialogComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -177,7 +179,9 @@ interface FilterChip {
                             [brackets]="brackets()"
                             [canScore]="capabilities()?.canScore ?? false"
                             [isLoading]="tabLoading()"
-                            (editBracketScore)="onBracketScoreEdit($event)" />
+                            (editBracketScore)="onBracketScoreEdit($event)"
+                            (viewTeamResults)="onViewTeamResults($event)"
+                            (viewFieldInfo)="onViewFieldInfo($event)" />
                     }
                     @case ('contacts') {
                         <app-contacts-tab
@@ -202,6 +206,39 @@ interface FilterChip {
             [visible]="editGameVisible()"
             (close)="editGameVisible.set(false)"
             (save)="onEditGameSave($event)" />
+
+        <!-- Field Info Modal -->
+        @if (fieldInfoVisible()) {
+            <tsic-dialog size="sm" (requestClose)="fieldInfoVisible.set(false)">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ fieldInfo()?.fName }}</h5>
+                        <button class="btn-close" (click)="fieldInfoVisible.set(false)"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (fieldInfo()?.address) {
+                            <p class="mb-1">{{ fieldInfo()!.address }}</p>
+                        }
+                        @if (fieldInfo()?.city) {
+                            <p class="mb-1">{{ fieldInfo()!.city }}</p>
+                        }
+                        @if (fieldInfo()?.state || fieldInfo()?.zip) {
+                            <p class="mb-1">{{ fieldInfo()!.state ?? '' }} {{ fieldInfo()!.zip ?? '' }}</p>
+                        }
+                        @if (fieldInfo()?.directions) {
+                            <p class="mb-0 text-muted" style="white-space:pre-wrap;">{{ fieldInfo()!.directions }}</p>
+                        }
+                        @if (fieldInfo()?.latitude && fieldInfo()?.longitude) {
+                            <a href="https://www.google.com/maps?q={{ fieldInfo()!.latitude }},{{ fieldInfo()!.longitude }}"
+                               target="_blank" rel="noopener"
+                               class="btn btn-sm btn-outline-primary mt-2">
+                                <i class="bi bi-geo-alt"></i> View Map
+                            </a>
+                        }
+                    </div>
+                </div>
+            </tsic-dialog>
+        }
     `,
     styles: [`
         .view-schedule-page {
@@ -513,6 +550,9 @@ export class ViewScheduleComponent implements OnInit {
     readonly editingGame = signal<ViewGameDto | null>(null);
     readonly editGameVisible = signal(false);
 
+    readonly fieldInfo = signal<FieldDisplayDto | null>(null);
+    readonly fieldInfoVisible = signal(false);
+
     // ── Computed helpers ──
 
     readonly hasCadtData = computed(() => (this.filterOptions()?.clubs?.length ?? 0) > 0);
@@ -751,11 +791,8 @@ export class ViewScheduleComponent implements OnInit {
     onViewFieldInfo(fieldId: string): void {
         this.svc.getFieldInfo(fieldId).subscribe(info => {
             if (info) {
-                const parts = [info.fName];
-                if (info.address) parts.push(info.address);
-                if (info.city) parts.push(info.city);
-                if (info.directions) parts.push(`\nDirections: ${info.directions}`);
-                alert(parts.join('\n'));
+                this.fieldInfo.set(info);
+                this.fieldInfoVisible.set(true);
             }
         });
     }

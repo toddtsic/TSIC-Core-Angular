@@ -132,6 +132,10 @@ public record ViewGameDto
     public int? Rnd { get; init; }
     public int? GStatusCode { get; init; }
     public string? Color { get; init; }
+    /// <summary>Team 1 overall record "W-L-T" (pool-play teams only).</summary>
+    public string? T1Record { get; init; }
+    /// <summary>Team 2 overall record "W-L-T" (pool-play teams only).</summary>
+    public string? T2Record { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -227,6 +231,8 @@ public record BracketMatchDto
     public required int Gid { get; init; }
     public required string T1Name { get; init; }
     public required string T2Name { get; init; }
+    public Guid? T1Id { get; init; }
+    public Guid? T2Id { get; init; }
     public int? T1Score { get; init; }
     public int? T2Score { get; init; }
     /// <summary>"winner", "loser", or "pending" — determines CSS styling.</summary>
@@ -234,6 +240,8 @@ public record BracketMatchDto
     /// <summary>"winner", "loser", or "pending" — determines CSS styling.</summary>
     public required string T2Css { get; init; }
     public string? LocationTime { get; init; }
+    /// <summary>Field ID for linking to field directions.</summary>
+    public Guid? FieldId { get; init; }
     /// <summary>Round type: Z, Y, X, Q, S, F.</summary>
     public required string RoundType { get; init; }
     /// <summary>Parent game ID (the game this feeds into). Null for the final.</summary>

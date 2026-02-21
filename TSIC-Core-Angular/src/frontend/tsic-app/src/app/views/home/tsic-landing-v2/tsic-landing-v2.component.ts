@@ -11,76 +11,58 @@ import { RouterLink } from '@angular/router';
 import { PaletteService } from '../../../infrastructure/services/palette.service';
 
 @Component({
-  selector: 'app-tsic-landing',
+  selector: 'app-tsic-landing-v2',
   standalone: true,
   imports: [RouterLink],
-  templateUrl: './tsic-landing.component.html',
-  styleUrl: './tsic-landing.component.scss',
+  templateUrl: './tsic-landing-v2.component.html',
+  styleUrl: './tsic-landing-v2.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TsicLandingComponent implements OnDestroy {
+export class TsicLandingV2Component implements OnDestroy {
   private readonly elRef = inject(ElementRef);
   readonly paletteService = inject(PaletteService);
   private observer: IntersectionObserver | null = null;
   private navObserver: IntersectionObserver | null = null;
-  private testimonialInterval: ReturnType<typeof setInterval> | null = null;
   private statsAnimated = false;
 
   readonly navSolid = signal(false);
-  readonly activeTestimonial = signal(0);
+  readonly activeFeature = signal(0);
   readonly currentYear = new Date().getFullYear();
 
-  readonly capabilities = [
+  readonly aiFeatures = [
     {
       icon: 'bi-calendar2-check-fill',
       title: 'Smart Scheduling',
-      description: 'Resolve field conflicts and balance team schedules automatically. Our AI engine handles round-robin, pool play, and bracket generation \u2014 what used to take days now takes seconds.',
-      size: 'hero' as const
+      description: 'Resolve field conflicts and balance team schedules automatically. Our AI engine handles round-robin, pool play, and bracket generation \u2014 what used to take days now takes seconds.'
     },
     {
       icon: 'bi-people-fill',
       title: 'Intelligent Rostering',
-      description: 'AI-assisted player placement based on age, skill, and availability. Balance teams and manage waitlists without spreadsheets.',
-      size: 'standard' as const
+      description: 'AI-assisted player placement based on age, skill, and availability. Automatically balance teams, flag registration issues, and manage waitlists without spreadsheets.'
     },
     {
       icon: 'bi-send-fill',
-      title: 'Automated Comms',
-      description: 'Targeted text and email blasts triggered by events \u2014 not manual effort. The right message, to the right people, at the right time.',
-      size: 'standard' as const
+      title: 'Automated Communications',
+      description: 'Targeted text and email blasts triggered by events \u2014 not manual effort. Schedule reminders, weather alerts, and payment notices that reach the right people at the right time.'
     },
     {
       icon: 'bi-graph-up-arrow',
       title: 'Predictive Analytics',
-      description: 'Enrollment trends, revenue forecasts, and participation insights at a glance. Data-driven decisions before the season starts.',
-      size: 'standard' as const
+      description: 'Enrollment trends, revenue forecasts, and participation insights at a glance. See where your organization is headed and make data-driven decisions before the season starts.'
     }
   ];
 
-  readonly serviceRows = [
-    {
-      image: 'images/svc-clubs.jpg',
-      imageAlt: 'Youth lacrosse club in action',
-      items: [
-        { icon: 'bi-shield-fill', title: 'Clubs', description: 'Registration, payments, rosters, and reporting \u2014 everything your rec or travel club needs.' },
-        { icon: 'bi-sun-fill', title: 'Camps', description: 'Scheduling, roommate rostering, and skills tracking for camps of every size.' }
-      ]
-    },
-    {
-      image: 'images/svc-tournaments.jpg',
-      imageAlt: 'Tournament lacrosse game',
-      reverse: true,
-      items: [
-        { icon: 'bi-trophy-fill', title: 'Leagues', description: 'Standings, schedules, and championship brackets \u2014 fully automated.' },
-        { icon: 'bi-flag-fill', title: 'Tournaments', description: 'Bracket management, team registration, and recruiting tools for any event.' }
-      ]
-    }
+  readonly services = [
+    { icon: 'bi-shield-fill', title: 'Clubs', description: 'Registration, payments, rosters, and reporting \u2014 everything your rec or travel club needs.', image: 'images/svc-clubs.jpg' },
+    { icon: 'bi-sun-fill', title: 'Camps', description: 'Scheduling, roommate rostering, and skills tracking for camps of every size.', image: 'images/svc-camps.jpg' },
+    { icon: 'bi-trophy-fill', title: 'Leagues', description: 'Standings, schedules, and championship brackets \u2014 fully automated.', image: 'images/svc-leagues.jpg' },
+    { icon: 'bi-flag-fill', title: 'Tournaments', description: 'Bracket management, team registration, and recruiting tools for any event.', image: 'images/svc-tournaments.jpg' }
   ];
 
   readonly howItWorks = [
-    { title: 'Sign Up', description: 'Tell us about your organization and your season goals.' },
-    { title: 'Configure', description: 'We set up your season together \u2014 registration, fields, divisions, and fees.' },
-    { title: 'Launch', description: 'Go live and start registering. We\'re with you every step of the way.' }
+    { icon: 'bi-person-plus-fill', title: 'Sign Up', description: 'Tell us about your organization and your season goals.' },
+    { icon: 'bi-gear-fill', title: 'Configure', description: 'We set up your season together \u2014 registration, fields, divisions, and fees.' },
+    { icon: 'bi-rocket-takeoff-fill', title: 'Launch', description: 'Go live and start registering. We\'re with you every step of the way.' }
   ];
 
   readonly testimonials = [
@@ -112,10 +94,7 @@ export class TsicLandingComponent implements OnDestroy {
   ]);
 
   constructor() {
-    afterNextRender(() => {
-      this.initScrollAnimations();
-      this.startTestimonialRotation();
-    });
+    afterNextRender(() => this.initScrollAnimations());
   }
 
   scrollToTop(event: Event): void {
@@ -129,9 +108,8 @@ export class TsicLandingComponent implements OnDestroy {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  selectTestimonial(index: number): void {
-    this.activeTestimonial.set(index);
-    this.restartTestimonialRotation();
+  selectFeature(index: number): void {
+    this.activeFeature.set(index);
   }
 
   ngOnDestroy(): void {
@@ -139,26 +117,6 @@ export class TsicLandingComponent implements OnDestroy {
     this.observer = null;
     this.navObserver?.disconnect();
     this.navObserver = null;
-    if (this.testimonialInterval) {
-      clearInterval(this.testimonialInterval);
-      this.testimonialInterval = null;
-    }
-  }
-
-  private startTestimonialRotation(): void {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    this.testimonialInterval = setInterval(() => {
-      const next = (this.activeTestimonial() + 1) % this.testimonials.length;
-      this.activeTestimonial.set(next);
-    }, 6000);
-  }
-
-  private restartTestimonialRotation(): void {
-    if (this.testimonialInterval) {
-      clearInterval(this.testimonialInterval);
-      this.testimonialInterval = null;
-    }
-    this.startTestimonialRotation();
   }
 
   private initScrollAnimations(): void {

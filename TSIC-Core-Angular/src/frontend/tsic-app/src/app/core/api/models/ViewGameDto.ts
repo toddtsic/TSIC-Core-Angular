@@ -23,5 +23,7 @@ export type ViewGameDto = {
     rnd?: number;
     gStatusCode?: number;
     color?: string | null;
+    t1Record?: string | null;
+    t2Record?: string | null;
 };
 

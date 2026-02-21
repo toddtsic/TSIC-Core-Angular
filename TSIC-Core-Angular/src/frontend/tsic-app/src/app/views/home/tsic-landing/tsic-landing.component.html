@@ -6,13 +6,23 @@
   <nav class="lp-nav" [class.lp-nav--solid]="navSolid()">
     <div class="lp-nav__inner">
       <a class="lp-nav__brand" href="#top" (click)="scrollToTop($event)">
-        <img src="images/tsic-logo-color.webp" alt="TeamSportsInfo" class="lp-nav__logo" height="36">
+        <!-- TSI monogram with lacrosse ball on I -->
+        <svg class="lp-nav__icon" viewBox="0 0 48 46" fill="none" aria-hidden="true">
+          <circle cx="41" cy="9" r="5" fill="#F4D03F" stroke="#D4B020" stroke-width="0.4"/>
+          <path d="M 37 7 Q 41 5 45 7" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+          <path d="M 37 11 Q 41 13 45 11" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+          <path d="M 0 14 H 16 V 20 H 11 V 44 H 5 V 20 H 0 Z" fill="#292524"/>
+          <path d="M 30 20 C 30 13 20 13 20 20 C 20 27 30 29 30 36 C 30 43 20 43 20 36"
+                stroke="#292524" stroke-width="6" fill="none" stroke-linecap="square"/>
+          <rect x="38" y="14" width="6" height="30" fill="#292524"/>
+        </svg>
+        <span class="lp-nav__wordmark">Team<span class="lp-nav__wordmark-accent">Sports</span>Info.com</span>
       </a>
 
       <div class="lp-nav__links">
-        <a href="#features" (click)="scrollTo($event, '#features')">Features</a>
+        <a href="#features" (click)="scrollTo($event, '#features')">Platform</a>
         <a href="#services" (click)="scrollTo($event, '#services')">Services</a>
-        <a href="#book-demo" (click)="scrollTo($event, '#book-demo')">Book Demo</a>
+        <a href="#about" (click)="scrollTo($event, '#about')">About</a>
       </div>
 
       <div class="lp-nav__right">
@@ -29,84 +39,96 @@
             </button>
           }
         </div>
-        <a class="lp-nav__login" [routerLink]="['/tsic', 'login']">
-          <i class="bi bi-box-arrow-in-right"></i>
-          <span>Login</span>
+        <a class="lp-nav__cta" [routerLink]="['/tsic', 'login']">
+          <span>Get Started</span>
+          <i class="bi bi-arrow-right"></i>
         </a>
       </div>
     </div>
   </nav>
 
   <!-- ══════════════════════════════════════════════════
-       HERO — split-screen: copy left, image mosaic right
+       HERO — full-bleed image with gradient veil
        ══════════════════════════════════════════════════ -->
   <section class="hero" id="top">
-    <div class="hero__left">
-      <div class="hero__badge">
-        <i class="bi bi-stars"></i>
-        <span>AI-Powered Platform</span>
-      </div>
+    <div class="hero__bg" aria-hidden="true">
+      <img src="images/hero-sports.jpg" alt="" loading="eager">
+    </div>
+    <div class="hero__veil" aria-hidden="true"></div>
 
-      <h1 class="hero__title">
-        Sports Management,<br>
-        Made <span class="hero__highlight">Smarter.</span>
+    <div class="hero__content">
+      <div class="hero__brand-name">Team<span class="hero__brand-accent">Sports</span>Info.com</div>
+
+      <span class="hero__eyebrow">
+        <i class="bi bi-cpu-fill"></i>
+        AI-Powered Sports Management
+      </span>
+
+      <h1 class="hero__headline">
+        Your Season,<br>
+        <span class="hero__headline-em">Intelligently Simplified.</span>
       </h1>
 
       <p class="hero__sub">
-        Registration. Scheduling. Communication. Payments.
-        All intelligently automated — so you can focus on the game.
+        Registration, scheduling, communication, and payments &mdash;
+        intelligently automated for clubs, leagues, camps, and tournaments.
       </p>
 
       <div class="hero__actions">
-        <a href="#book-demo" (click)="scrollTo($event, '#book-demo')" class="btn-cta">
+        <a href="#book-demo" (click)="scrollTo($event, '#book-demo')" class="hero__btn-primary">
           <span>Book a Demo</span>
           <i class="bi bi-arrow-right"></i>
         </a>
-        <a href="tel:4102803272" class="btn-secondary">
+        <a href="tel:4102803272" class="hero__btn-ghost">
           <i class="bi bi-telephone-fill"></i>
           <span>410-280-3272</span>
         </a>
       </div>
-
-      <div class="hero__stats stats-trigger reveal">
-        @for (stat of animatedStats(); track stat.label) {
-          <div class="hero__stat">
-            <span class="hero__stat-number">{{ stat.current }}{{ stat.suffix }}</span>
-            <span class="hero__stat-label">{{ stat.label }}</span>
-          </div>
-        }
-      </div>
     </div>
 
-    <div class="hero__right">
-      <div class="hero__mosaic">
-        <img src="images/svc-leagues.jpg" alt="League game" class="hero__mosaic-img hero__mosaic-img--1" loading="eager">
-        <img src="images/svc-clubs.jpg" alt="Club practice" class="hero__mosaic-img hero__mosaic-img--2" loading="eager">
-        <img src="images/svc-camps.jpg" alt="Summer camp" class="hero__mosaic-img hero__mosaic-img--3" loading="lazy">
-        <img src="images/svc-tournaments.jpg" alt="Tournament play" class="hero__mosaic-img hero__mosaic-img--4" loading="lazy">
-      </div>
+    <div class="hero__scroll" aria-hidden="true">
+      <div class="hero__scroll-line"></div>
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════
-       FEATURES — AI capabilities, 2x2 card grid
+       TRUST BAR — animated stat counters on dark strip
        ══════════════════════════════════════════════════ -->
-  <section class="features" id="features">
+  <section class="trust-bar stats-trigger reveal">
+    <div class="trust-bar__inner">
+      @for (stat of animatedStats(); track stat.label) {
+        <div class="trust-bar__stat">
+          <span class="trust-bar__num">{{ stat.current }}{{ stat.suffix }}</span>
+          <span class="trust-bar__label">{{ stat.label }}</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       CAPABILITIES — bento grid (1 hero + 3 standard)
+       ══════════════════════════════════════════════════ -->
+  <section class="capabilities" id="features">
     <div class="container">
-      <div class="features__header reveal">
-        <span class="section-badge">Intelligent by Design</span>
-        <h2>Intelligence Built Into <span class="gradient-text">Every Feature</span></h2>
-        <p>Our AI engine powers every aspect of your season — from first registration to final standings.</p>
+      <div class="capabilities__header reveal">
+        <span class="section-eyebrow">The Platform</span>
+        <h2 class="section-heading">
+          Intelligence Built Into<br>
+          <span class="gradient-text">Every Feature</span>
+        </h2>
+        <p class="section-sub">Our AI engine powers every aspect of your season &mdash; from first registration to final standings.</p>
       </div>
 
-      <div class="features__grid">
-        @for (feat of aiFeatures; track feat.title; let i = $index) {
-          <div class="feat-card reveal" [class]="'feat-card reveal reveal-delay-' + (i + 1)">
-            <div class="feat-card__icon">
-              <i class="bi" [class]="'bi ' + feat.icon"></i>
+      <div class="capabilities__bento">
+        @for (cap of capabilities; track cap.title; let i = $index) {
+          <div class="bento-card reveal"
+               [class.bento-card--hero]="cap.size === 'hero'"
+               [class]="'bento-card reveal reveal-delay-' + (i + 1)">
+            <div class="bento-card__icon">
+              <i class="bi" [class]="'bi ' + cap.icon"></i>
             </div>
-            <h3>{{ feat.title }}</h3>
-            <p>{{ feat.description }}</p>
+            <h3 class="bento-card__title">{{ cap.title }}</h3>
+            <p class="bento-card__desc">{{ cap.description }}</p>
           </div>
         }
       </div>
@@ -114,82 +136,90 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════
-       SERVICES — photo cards with gradient overlay
+       SERVICES — alternating image-text split rows
        ══════════════════════════════════════════════════ -->
   <section class="services" id="services">
     <div class="container">
       <div class="services__header reveal">
-        <span class="section-badge">One Platform, Every Sport</span>
-        <h2>From Neighborhood Leagues to <span class="gradient-text">National Tournaments</span></h2>
+        <span class="section-eyebrow">Who We Serve</span>
+        <h2 class="section-heading">
+          From Neighborhood Leagues to<br>
+          <span class="gradient-text">National Tournaments</span>
+        </h2>
       </div>
 
-      <div class="services__grid">
-        @for (svc of services; track svc.title; let i = $index) {
-          <div class="svc-card reveal" [class]="'svc-card reveal reveal-delay-' + (i + 1)">
-            <img [src]="svc.image" [alt]="svc.title" loading="lazy">
-            <div class="svc-card__overlay">
-              <i class="bi" [class]="'bi ' + svc.icon"></i>
-              <h3>{{ svc.title }}</h3>
-              <p>{{ svc.description }}</p>
+      @for (row of serviceRows; track row.image; let i = $index) {
+        <div class="services__row reveal" [class.services__row--reverse]="row.reverse">
+          <div class="services__image">
+            <img [src]="row.image" [alt]="row.imageAlt" loading="lazy">
+          </div>
+          <div class="services__text">
+            <div class="services__pair">
+              @for (item of row.items; track item.title) {
+                <div class="services__item">
+                  <i class="bi" [class]="'bi ' + item.icon"></i>
+                  <div>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                  </div>
+                </div>
+              }
             </div>
           </div>
-        }
-      </div>
+        </div>
+      }
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════
-       HOW IT WORKS — 3-step numbered process
+       PROCESS — 3-step horizontal timeline
        ══════════════════════════════════════════════════ -->
-  <section class="how-it-works">
+  <section class="process">
     <div class="container">
-      <div class="how-it-works__header reveal">
-        <span class="section-badge">Get Started</span>
-        <h2>Up and Running in <span class="gradient-text">Days, Not Months</span></h2>
+      <div class="process__header reveal">
+        <span class="section-eyebrow">How It Works</span>
+        <h2 class="section-heading">
+          Up and Running in<br>
+          <span class="gradient-text">Days, Not Months</span>
+        </h2>
       </div>
 
-      <div class="steps reveal">
-        @for (step of howItWorks; track step.title; let i = $index; let last = $last) {
-          <div class="steps__item">
-            <div class="steps__num">{{ i + 1 }}</div>
+      <div class="process__timeline reveal">
+        <div class="process__track" aria-hidden="true"></div>
+        @for (step of howItWorks; track step.title; let i = $index) {
+          <div class="process__step">
+            <div class="process__marker">{{ i + 1 }}</div>
             <h3>{{ step.title }}</h3>
             <p>{{ step.description }}</p>
           </div>
-          @if (!last) {
-            <div class="steps__arrow" aria-hidden="true">
-              <i class="bi bi-arrow-right"></i>
-            </div>
-          }
         }
       </div>
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════
-       TESTIMONIALS — social proof cards
+       PROOF — single rotating testimonial on dark bg
        ══════════════════════════════════════════════════ -->
-  <section class="testimonials">
+  <section class="proof">
     <div class="container">
-      <div class="testimonials__header reveal">
-        <span class="section-badge">Social Proof</span>
-        <h2>Trusted by Organizations <span class="gradient-text">Nationwide</span></h2>
-      </div>
-
-      <div class="testimonials__grid">
-        @for (t of testimonials; track t.name; let i = $index) {
-          <div class="testimonial-card reveal" [class]="'testimonial-card reveal reveal-delay-' + (i + 1)">
-            <div class="testimonial-card__stars" aria-label="5 out of 5 stars">
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-              <i class="bi bi-star-fill"></i>
-            </div>
-            <p class="testimonial-card__quote">&ldquo;{{ t.quote }}&rdquo;</p>
-            <div class="testimonial-card__author">
-              <strong>{{ t.name }}</strong>
-              <span>{{ t.title }}, {{ t.org }}</span>
-            </div>
+      <div class="proof__content reveal">
+        <i class="bi bi-quote proof__mark" aria-hidden="true"></i>
+        <blockquote class="proof__quote">
+          &ldquo;{{ testimonials[activeTestimonial()].quote }}&rdquo;
+        </blockquote>
+        <div class="proof__attribution">
+          <strong>{{ testimonials[activeTestimonial()].name }}</strong>
+          <span>{{ testimonials[activeTestimonial()].title }}, {{ testimonials[activeTestimonial()].org }}</span>
+        </div>
+        @if (testimonials.length > 1) {
+          <div class="proof__dots">
+            @for (t of testimonials; track t.name; let i = $index) {
+              <button class="proof__dot"
+                      [class.proof__dot--active]="activeTestimonial() === i"
+                      (click)="selectTestimonial(i)"
+                      [attr.aria-label]="'Testimonial from ' + t.name">
+              </button>
+            }
           </div>
         }
       </div>
@@ -197,32 +227,51 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════
-       CTA — Book a Demo (split: copy + calendar placeholder)
+       MISSION — large centered typography
+       ══════════════════════════════════════════════════ -->
+  <section class="mission" id="about">
+    <div class="container">
+      <div class="mission__content reveal">
+        <span class="section-eyebrow">Since 2005</span>
+        <h2 class="mission__headline">
+          20+ Years of Keeping<br>
+          Teams <span class="gradient-text">Connected</span>
+        </h2>
+        <p class="mission__body">
+          We believe every athlete &mdash; youth or adult &mdash; deserves an organization
+          that runs smoothly, communicates clearly, and puts the game first.
+          Real people. Real support. No ticket queues.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       CTA — book a demo (centered with calendar placeholder)
        ══════════════════════════════════════════════════ -->
   <section class="cta" id="book-demo">
     <div class="container">
-      <div class="cta__layout">
-        <div class="cta__text reveal">
-          <h2>Ready to See It <span class="gradient-text">in Action?</span></h2>
-          <p>Book a live demo — pick a time that works for you, and we'll walk you through the platform.</p>
-          <div class="cta__contact">
-            <a href="tel:4102803272">
-              <i class="bi bi-telephone-fill"></i>
-              410-280-3272
-            </a>
-            <a href="mailto:support&#64;teamsportsinfo.com">
-              <i class="bi bi-envelope-fill"></i>
-              support&#64;teamsportsinfo.com
-            </a>
-          </div>
-        </div>
-        <div class="cta__calendar reveal">
+      <div class="cta__content reveal">
+        <h2>Ready to See It <span class="gradient-text">in Action?</span></h2>
+        <p>Book a live demo and we'll walk you through the platform.</p>
+
+        <div class="cta__calendar">
           <!-- TODO: Replace with Google Calendar Appointment Scheduling embed URL -->
           <div class="cta__calendar-placeholder">
             <i class="bi bi-calendar2-week"></i>
             <span>Google Calendar Scheduling</span>
             <small>Embed coming soon</small>
           </div>
+        </div>
+
+        <div class="cta__contact">
+          <a href="tel:4102803272">
+            <i class="bi bi-telephone-fill"></i> 410-280-3272
+          </a>
+          <span class="cta__sep" aria-hidden="true">|</span>
+          <a href="mailto:support&#64;teamsportsinfo.com">
+            <i class="bi bi-envelope-fill"></i> support&#64;teamsportsinfo.com
+          </a>
         </div>
       </div>
     </div>
@@ -235,9 +284,22 @@
     <div class="container">
       <div class="site-footer__grid">
         <div class="site-footer__brand">
-          <img src="images/tsic-logo-dark.webp" alt="TeamSportsInfo" height="28">
-          <p>Connected On and Off the Field</p>
-          <small>&copy; {{ currentYear }} TeamSportsInfo.com</small>
+          <div class="footer-logo">
+            <svg class="footer-logo__icon" viewBox="0 0 48 46" fill="none" aria-hidden="true">
+              <circle cx="41" cy="9" r="5" fill="#F4D03F" stroke="#D4B020" stroke-width="0.4"/>
+              <path d="M 37 7 Q 41 5 45 7" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+              <path d="M 37 11 Q 41 13 45 11" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+              <path d="M 0 14 H 16 V 20 H 11 V 44 H 5 V 20 H 0 Z" fill="#292524"/>
+              <path d="M 30 20 C 30 13 20 13 20 20 C 20 27 30 29 30 36 C 30 43 20 43 20 36"
+                    stroke="#292524" stroke-width="6" fill="none" stroke-linecap="square"/>
+              <rect x="38" y="14" width="6" height="30" fill="#292524"/>
+            </svg>
+            <div class="footer-logo__text">
+              <span class="footer-logo__name">Team<span class="footer-logo__accent">Sports</span>Info.com</span>
+              <span class="footer-logo__tagline">AI-Powered &middot; Stay Connected On and Off the Field</span>
+            </div>
+          </div>
+          <small>&copy; {{ currentYear }} TeamSportsInfo.com &mdash; AI-Powered Sports Management</small>
         </div>
         <div class="site-footer__col">
           <h4>Contact</h4>

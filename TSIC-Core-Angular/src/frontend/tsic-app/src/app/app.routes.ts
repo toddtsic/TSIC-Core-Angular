@@ -8,8 +8,11 @@ export const routes: Routes = [
 	{ path: '', redirectTo: '/tsic', pathMatch: 'full' },
 
 	// TSIC corporate landing — standalone marketing page (no layout chrome)
+	// Guard redirects authenticated users to their job, anonymous users with a lastJobPath to that job
 	{
 		path: 'tsic',
+		canActivate: [authGuard],
+		data: { redirectAuthenticated: true },
 		loadComponent: () => import('./views/home/tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent)
 	},
 
@@ -17,6 +20,12 @@ export const routes: Routes = [
 	{
 		path: 'tsic-v1',
 		loadComponent: () => import('./views/home/tsic-landing-v1/tsic-landing-v1.component').then(m => m.TsicLandingV1Component)
+	},
+
+	// V2 snapshot for A/B comparison
+	{
+		path: 'tsic-v2',
+		loadComponent: () => import('./views/home/tsic-landing-v2/tsic-landing-v2.component').then(m => m.TsicLandingV2Component)
 	},
 
 	// 404 route (must be before :jobPath to prevent matching as a jobPath)

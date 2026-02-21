@@ -286,6 +286,9 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    // Ensure JWT claim types ("role", "sub") are remapped to ClaimTypes URIs.
+    // Without this, User.IsInRole() and User.FindFirst(ClaimTypes.Role) fail on .NET 10.
+    options.MapInboundClaims = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,

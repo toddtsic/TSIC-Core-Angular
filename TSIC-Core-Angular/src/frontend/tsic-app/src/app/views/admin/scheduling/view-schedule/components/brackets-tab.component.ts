@@ -1,46 +1,33 @@
-import { ChangeDetectionStrategy, Component, computed, EventEmitter, input, Output, signal } from '@angular/core';
-import type { DivisionBracketResponse, BracketMatchDto } from '@core/api';
+import {
+    ChangeDetectionStrategy, Component, computed, effect,
+    ElementRef, EventEmitter, input, OnDestroy, Output,
+    signal, ViewChild
+} from '@angular/core';
+import type { DivisionBracketResponse } from '@core/api';
+import {
+    Diagram, DiagramTools, SnapConstraints,
+    HierarchicalTree, DataBinding
+} from '@syncfusion/ej2-diagrams';
+import { DataManager } from '@syncfusion/ej2-data';
 
-/** Canonical round ordering for single-elimination brackets (left to right). */
-const ROUND_ORDER: string[] = ['Z', 'Y', 'X', 'Q', 'S', 'F'];
+// Register Syncfusion modules for imperative Diagram creation
+Diagram.Inject(HierarchicalTree, DataBinding);
 
-/** Human-readable labels per round code. */
-const ROUND_LABELS: Record<string, string> = {
-    Z: 'Round of 64',
-    Y: 'Round of 32',
-    X: 'Round of 16',
-    Q: 'Quarterfinals',
-    S: 'Semifinals',
-    F: 'Finals'
-};
-
-interface GridMatch {
-    match: BracketMatchDto;
-    gridRow: string;
-    gridCol: number;
-    isFinal: boolean;
-}
-
-interface GridConnector {
-    gridRow: string;
-    gridCol: number;
-}
-
-interface RoundLabel {
-    label: string;
-    gridCol: number;
-}
-
-interface ParsedBracket {
-    agegroupName: string;
-    divName: string;
-    headerLabel: string;
-    champion: string | null;
-    matches: GridMatch[];
-    connectors: GridConnector[];
-    labels: RoundLabel[];
-    gridCols: string;
-    gridRows: string;
+interface BracketNode {
+    gid: number;
+    parentGid: number | null;
+    t1Name: string;
+    t2Name: string;
+    t1Id: string | null;
+    t2Id: string | null;
+    t1Score: number | null;
+    t2Score: number | null;
+    t1Css: string;
+    t2Css: string;
+    locationTime: string | null;
+    fieldId: string | null;
+    roundType: string;
+    isPlaceholder?: boolean;
 }
 
 @Component({
@@ -53,99 +40,23 @@ interface ParsedBracket {
                 <span class="spinner-border spinner-border-sm" role="status"></span>
                 Loading brackets...
             </div>
-        } @else if (parsed().length === 0) {
+        } @else if (brackets().length === 0) {
             <div class="empty-state">No bracket data available.</div>
         } @else {
-            <!-- Single shared viewport for all brackets -->
-            <div class="brackets-viewport"
-                 (wheel)="onWheel($event)"
-                 (pointerdown)="onPanStart($event)"
-                 (pointermove)="onPanMove($event)"
-                 (pointerup)="onPanEnd()"
-                 (pointerleave)="onPanEnd()"
-                 [style.cursor]="isPanning() ? 'grabbing' : 'grab'">
-
-                <div class="zoom-controls">
-                    <button class="zoom-btn" (click)="zoomIn()" title="Zoom in"
-                            (pointerdown)="$event.stopPropagation()">
-                        <i class="bi bi-plus-lg"></i>
+            <!-- Tab bar -->
+            <div class="ag-tabs">
+                @for (tab of tabItems(); track tab.index) {
+                    <button class="ag-tab"
+                            [class.active]="activeTabIndex() === tab.index"
+                            (click)="selectTab(tab.index)">
+                        {{ tab.label }}
                     </button>
-                    <button class="zoom-btn" (click)="zoomOut()" title="Zoom out"
-                            (pointerdown)="$event.stopPropagation()">
-                        <i class="bi bi-dash-lg"></i>
-                    </button>
-                    <button class="zoom-btn" (click)="resetZoom()" title="Reset zoom"
-                            (pointerdown)="$event.stopPropagation()">
-                        <i class="bi bi-arrows-angle-contract"></i>
-                    </button>
-                    <span class="zoom-label">{{ Math.round(scale() * 100) }}%</span>
-                </div>
+                }
+            </div>
 
-                <div class="brackets-layout"
-                     [style.transform]="'scale(' + scale() + ') translate(' + translateX() + 'px, ' + translateY() + 'px)'">
-
-                    @for (bracket of parsed(); track bracket.agegroupName + ':' + bracket.divName) {
-                        <div class="bracket-section">
-                            <div class="section-header">
-                                <span class="section-title">{{ bracket.headerLabel }}</span>
-                                @if (bracket.champion) {
-                                    <span class="champion-badge">
-                                        <i class="bi bi-trophy-fill"></i>
-                                        {{ bracket.champion }}
-                                    </span>
-                                }
-                            </div>
-
-                            <!-- Round labels -->
-                            <div class="label-row" [style.grid-template-columns]="bracket.gridCols">
-                                @for (lbl of bracket.labels; track lbl.gridCol) {
-                                    <div class="round-label" [style.grid-column]="lbl.gridCol">{{ lbl.label }}</div>
-                                }
-                            </div>
-
-                            <!-- Bracket grid -->
-                            <div class="bracket-grid"
-                                 [style.grid-template-columns]="bracket.gridCols"
-                                 [style.grid-template-rows]="bracket.gridRows">
-
-                                @for (m of bracket.matches; track m.match.gid) {
-                                    <div class="grid-match"
-                                         [class.is-final]="m.isFinal"
-                                         [style.grid-row]="m.gridRow"
-                                         [style.grid-column]="m.gridCol">
-                                        <div class="bracket-match"
-                                             [class.clickable]="canScore()"
-                                             (click)="onMatchClick(m.match)"
-                                             (pointerdown)="canScore() && $event.stopPropagation()">
-                                            <div class="match-team"
-                                                 [class.winner]="m.match.t1Css === 'winner'"
-                                                 [class.loser]="m.match.t1Css === 'loser'">
-                                                <span class="team-name">{{ m.match.t1Name }}</span>
-                                                <span class="team-score">{{ m.match.t1Score ?? '' }}</span>
-                                            </div>
-                                            <div class="match-divider"></div>
-                                            <div class="match-team"
-                                                 [class.winner]="m.match.t2Css === 'winner'"
-                                                 [class.loser]="m.match.t2Css === 'loser'">
-                                                <span class="team-name">{{ m.match.t2Name }}</span>
-                                                <span class="team-score">{{ m.match.t2Score ?? '' }}</span>
-                                            </div>
-                                            @if (m.match.locationTime) {
-                                                <div class="match-info">{{ m.match.locationTime }}</div>
-                                            }
-                                        </div>
-                                    </div>
-                                }
-
-                                @for (c of bracket.connectors; track $index) {
-                                    <div class="grid-connector"
-                                         [style.grid-row]="c.gridRow"
-                                         [style.grid-column]="c.gridCol"></div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
+            <!-- Diagram rendered imperatively -->
+            <div class="diagram-container">
+                <div #diagramHost></div>
             </div>
         }
     `,
@@ -166,258 +77,56 @@ interface ParsedBracket {
             text-align: center;
         }
 
-        /* ── Shared viewport (pan & zoom container for ALL brackets) ── */
+        /* ── Tab bar ── */
 
-        .brackets-viewport {
-            position: relative;
-            overflow: hidden;
-            background: var(--bs-body-bg);
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--bs-border-radius);
-            min-height: 400px;
-            user-select: none;
-            touch-action: none;
-        }
-
-        .zoom-controls {
-            position: sticky;
-            top: var(--space-2);
-            float: right;
-            margin-right: var(--space-2);
-            margin-top: var(--space-2);
-            z-index: 10;
+        .ag-tabs {
             display: flex;
-            align-items: center;
             gap: var(--space-1);
-            background: var(--bs-body-bg);
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--bs-border-radius);
-            padding: var(--space-1);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .zoom-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--bs-border-radius);
-            background: var(--bs-body-bg);
-            color: var(--bs-body-color);
-            cursor: pointer;
-            font-size: var(--font-size-sm);
-            transition: background-color 0.15s;
-        }
-
-        .zoom-btn:hover {
-            background: var(--bs-secondary-bg);
-        }
-
-        .zoom-label {
-            font-size: var(--font-size-xs);
-            color: var(--bs-secondary-color);
-            min-width: 36px;
-            text-align: center;
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* ── Transformed layout container ── */
-
-        .brackets-layout {
-            padding: var(--space-6);
-            transform-origin: 0 0;
-            will-change: transform;
-        }
-
-        /* ── Per-bracket section ── */
-
-        .bracket-section {
-            margin-bottom: var(--space-8);
-        }
-
-        .bracket-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
             padding: var(--space-2) var(--space-3);
-            background: var(--bs-secondary-bg);
-            border-radius: var(--bs-border-radius);
-            margin-bottom: var(--space-3);
+            border-bottom: 1px solid var(--bs-border-color);
+            overflow-x: auto;
+            scrollbar-width: thin;
         }
 
-        .section-title {
-            font-weight: 600;
-            color: var(--bs-body-color);
-        }
-
-        .champion-badge {
+        .ag-tab {
             display: inline-flex;
             align-items: center;
             gap: var(--space-1);
-            padding: var(--space-1) var(--space-2);
-            background: rgba(var(--bs-warning-rgb), 0.15);
-            color: var(--bs-warning);
-            border-radius: var(--bs-border-radius);
-            font-size: var(--font-size-xs);
-            font-weight: 600;
-        }
-
-        .champion-badge i {
-            font-size: var(--font-size-sm);
-        }
-
-        /* ── Round labels row ── */
-
-        .label-row {
-            display: grid;
-            margin-bottom: var(--space-3);
-        }
-
-        .round-label {
-            font-size: var(--font-size-xs);
-            font-weight: 600;
-            color: var(--bs-secondary-color);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            white-space: nowrap;
-            text-align: center;
-        }
-
-        /* ── Bracket grid ── */
-
-        .bracket-grid {
-            display: grid;
-        }
-
-        /* ── Match cell ── */
-
-        .grid-match {
-            display: flex;
-            align-items: center;
-            padding: var(--space-2) var(--space-1);
-        }
-
-        /* ── Match card ── */
-
-        .bracket-match {
-            width: 100%;
-            background: var(--bs-body-bg);
+            padding: var(--space-1) var(--space-3);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-sm);
-            overflow: hidden;
-            transition: box-shadow 0.15s, border-color 0.15s;
-        }
-
-        .bracket-match.clickable {
-            cursor: pointer !important;
-        }
-
-        .bracket-match.clickable:hover {
-            border-color: var(--bs-primary);
-            box-shadow: var(--shadow-md);
-        }
-
-        .match-team {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: var(--space-1) var(--space-2);
-            color: var(--bs-body-color);
-            transition: background-color 0.15s;
-        }
-
-        .match-team.winner {
-            font-weight: 700;
-            color: var(--bs-success);
-        }
-
-        .match-team.loser {
-            color: var(--bs-danger);
-            opacity: 0.7;
-        }
-
-        .match-divider {
-            height: 1px;
-            background: var(--bs-border-color);
-        }
-
-        .team-name {
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-size: var(--font-size-sm);
-        }
-
-        .team-score {
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            font-size: var(--font-size-sm);
-            min-width: 1.5rem;
-            text-align: right;
-            margin-left: var(--space-2);
-        }
-
-        .match-info {
-            font-size: 10px;
+            background: var(--bs-body-bg);
             color: var(--bs-secondary-color);
-            font-style: italic;
-            padding: 2px var(--space-2);
-            border-top: 1px solid var(--bs-border-color);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
             white-space: nowrap;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .ag-tab:hover {
+            background: var(--bs-secondary-bg);
+            color: var(--bs-body-color);
+        }
+
+        .ag-tab.active {
+            background: var(--bs-primary);
+            color: white;
+            border-color: var(--bs-primary);
+        }
+
+        /* ── Diagram container ── */
+
+        .diagram-container {
+            border: 1px solid var(--bs-border-color);
+            border-top: none;
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
             overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* ── Connector: bracket lines between rounds ── */
-        /*
-         * Each connector cell spans 2 match slots from the preceding round.
-         * The ::before draws the bracket shape:  ─┐
-         *                                         │
-         *                                        ─┘
-         * The ::after draws the merge line:       ├───
-         * Together they produce:  ─┐
-         *                          ├───
-         *                         ─┘
-         */
-
-        .grid-connector {
-            position: relative;
-        }
-
-        .grid-connector::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 25%;
-            bottom: 25%;
-            width: 50%;
-            border-top: 2px solid var(--bs-border-color);
-            border-right: 2px solid var(--bs-border-color);
-            border-bottom: 2px solid var(--bs-border-color);
-            border-top-right-radius: 4px;
-            border-bottom-right-radius: 4px;
-        }
-
-        .grid-connector::after {
-            content: '';
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            right: 0;
-            height: 2px;
-            background: var(--bs-border-color);
-            transform: translateY(-50%);
+            background: var(--bs-body-bg);
         }
     `]
 })
-export class BracketsTabComponent {
+export class BracketsTabComponent implements OnDestroy {
     brackets = input<DivisionBracketResponse[]>([]);
     canScore = input<boolean>(false);
     isLoading = input<boolean>(false);
@@ -430,175 +139,292 @@ export class BracketsTabComponent {
         t2Score: number | null;
     }>();
 
-    readonly Math = Math;
+    @Output() viewTeamResults = new EventEmitter<string>();
+    @Output() viewFieldInfo = new EventEmitter<string>();
 
-    // ── Shared zoom & pan state (applies to ALL bracket displays) ──
-    readonly scale = signal(1);
-    readonly translateX = signal(0);
-    readonly translateY = signal(0);
-    readonly isPanning = signal(false);
+    @ViewChild('diagramHost', { static: false }) diagramHost!: ElementRef<HTMLDivElement>;
 
-    private panStartX = 0;
-    private panStartY = 0;
-    private panOriginX = 0;
-    private panOriginY = 0;
+    // ── Tab state ──
+    readonly activeTabIndex = signal(0);
+    private diagramInstance: Diagram | null = null;
+    private clickListener: ((e: MouseEvent) => void) | null = null;
 
-    // ── Parsed bracket structure ──
-    readonly parsed = computed<ParsedBracket[]>(() => {
+    readonly tabItems = computed(() => {
         const data = this.brackets();
-        if (!data?.length) return [];
+        return data.map((b, i) => ({
+            index: i,
+            label: b.divName ? `${b.agegroupName} — ${b.divName}` : b.agegroupName,
+            champion: b.champion ?? null
+        }));
+    });
 
-        return data.map(div => {
-            // Group matches by roundType
-            const roundMap = new Map<string, BracketMatchDto[]>();
-            for (const m of div.matches) {
-                const rt = m.roundType?.toUpperCase() ?? '';
-                if (!roundMap.has(rt)) roundMap.set(rt, []);
-                roundMap.get(rt)!.push(m);
+    readonly activeBracket = computed(() => {
+        const data = this.brackets();
+        const idx = this.activeTabIndex();
+        return data[idx] ?? null;
+    });
+
+    constructor() {
+        // Reset tab + rebuild diagram when brackets data changes
+        effect(() => {
+            this.brackets(); // track
+            this.activeTabIndex.set(0);
+        });
+
+        // Rebuild diagram when active bracket or canScore changes
+        effect(() => {
+            const bracket = this.activeBracket();
+            this.canScore(); // track — rebuild when capabilities resolve
+            // Use setTimeout to ensure ViewChild is available after template renders
+            setTimeout(() => this.buildDiagram(bracket), 0);
+        });
+    }
+
+    ngOnDestroy(): void {
+        this.destroyDiagram();
+    }
+
+    selectTab(index: number): void {
+        this.activeTabIndex.set(index);
+    }
+
+    private destroyDiagram(): void {
+        if (this.clickListener && this.diagramHost?.nativeElement) {
+            this.diagramHost.nativeElement.removeEventListener('click', this.clickListener);
+            this.clickListener = null;
+        }
+        if (this.diagramInstance) {
+            this.diagramInstance.destroy();
+            this.diagramInstance = null;
+        }
+    }
+
+    private buildDiagram(bracket: DivisionBracketResponse | null): void {
+        this.destroyDiagram();
+
+        if (!bracket || bracket.matches.length === 0 || !this.diagramHost) return;
+
+        const host = this.diagramHost.nativeElement;
+        // Clear any previous content and create a fresh div
+        host.innerHTML = '<div id="bracket-diagram"></div>';
+        const container = host.querySelector('#bracket-diagram') as HTMLElement;
+
+        // Normalize parentGid: 0 → null (legacy: Pgid == 0 ? null : Pgid)
+        const games: BracketNode[] = bracket.matches.map(m => ({
+            gid: m.gid,
+            parentGid: (m.parentGid && m.parentGid !== 0) ? m.parentGid : null,
+            t1Name: m.t1Name,
+            t2Name: m.t2Name,
+            t1Id: m.t1Id ?? null,
+            t2Id: m.t2Id ?? null,
+            t1Score: m.t1Score ?? null,
+            t2Score: m.t2Score ?? null,
+            t1Css: m.t1Css,
+            t2Css: m.t2Css,
+            locationTime: m.locationTime ?? null,
+            fieldId: m.fieldId ?? null,
+            roundType: m.roundType,
+            isPlaceholder: false
+        }));
+
+        // ── Inject placeholder nodes for balanced tree layout (legacy algorithm) ──
+        // For each parent with only 1 child, unshift a blank sibling to the front
+        // so it renders ABOVE the real game in the tree (exactly like legacy)
+        const gamesClone = [...games];
+        for (const g of gamesClone) {
+            if (g.parentGid == null) continue;
+            const siblings = games.filter(s => s.parentGid === g.parentGid);
+            if (siblings.length === 1) {
+                games.unshift({
+                    gid: -g.parentGid,
+                    parentGid: g.parentGid,
+                    t1Name: '', t2Name: '',
+                    t1Id: null, t2Id: null,
+                    t1Score: null, t2Score: null,
+                    t1Css: 'pending', t2Css: 'pending',
+                    locationTime: null, fieldId: null, roundType: '',
+                    isPlaceholder: true
+                });
             }
+        }
 
-            // Build ordered rounds (only rounds that have matches)
-            const rounds: { code: string; label: string; matches: BracketMatchDto[] }[] = [];
-            for (const code of ROUND_ORDER) {
-                const matches = roundMap.get(code);
-                if (matches?.length)
-                    rounds.push({ code, label: ROUND_LABELS[code] ?? code, matches: [...matches].sort((a, b) => a.gid - b.gid) });
-            }
-            for (const [code, matches] of roundMap) {
-                if (!ROUND_ORDER.includes(code) && matches.length)
-                    rounds.push({ code, label: code, matches: [...matches].sort((a, b) => a.gid - b.gid) });
-            }
+        // ── Compute dynamic height from leaf count (including placeholders) ──
+        const nodeHeight = 80;
+        const verticalSpacing = 16;
+        const parentGids = new Set(games.map(g => g.parentGid).filter(Boolean));
+        const leafCount = games.filter(g => !parentGids.has(g.gid)).length;
+        const diagramHeight = Math.max(300, leafCount * (nodeHeight + verticalSpacing) + 60);
 
-            // Header: show "Agegroup — Division" when per-division, just "Agegroup" otherwise
-            const headerLabel = div.divName
-                ? `${div.agegroupName} — ${div.divName}`
-                : div.agegroupName;
+        // ── Resolve palette colors for SVG connectors ──
+        const connectorColor = getComputedStyle(document.documentElement)
+            .getPropertyValue('--bs-secondary-color').trim() || '#78716c';
 
-            if (!rounds.length) {
-                return { agegroupName: div.agegroupName, divName: div.divName, headerLabel,
-                    champion: div.champion ?? null, matches: [], connectors: [], labels: [],
-                    gridCols: '', gridRows: '' };
-            }
+        // ── DOM delegation for all click interactions ──
+        // Syncfusion strips inline onclick from HTML node content,
+        // but data-* attributes survive. DOM delegation on the host works.
+        const matchesRef = bracket.matches;
+        this.clickListener = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
 
-            // Compute total grid rows needed (handles malformed data)
-            let totalRows = 0;
-            for (let ri = 0; ri < rounds.length; ri++) {
-                const needed = rounds[ri].matches.length * Math.pow(2, ri);
-                if (needed > totalRows) totalRows = needed;
-            }
-
-            // Build grid items
-            const gridMatches: GridMatch[] = [];
-            const gridConnectors: GridConnector[] = [];
-            const labels: RoundLabel[] = [];
-
-            for (let ri = 0; ri < rounds.length; ri++) {
-                const round = rounds[ri];
-                const matchCol = ri * 2 + 1;      // odd columns: 1, 3, 5, ...
-                const connCol = ri * 2 + 2;       // even columns: 2, 4, 6, ...
-                const span = Math.pow(2, ri);      // 1, 2, 4, 8, ...
-                const isLast = ri === rounds.length - 1;
-
-                labels.push({ label: round.label, gridCol: matchCol });
-
-                for (let mi = 0; mi < round.matches.length; mi++) {
-                    gridMatches.push({
-                        match: round.matches[mi],
-                        gridRow: `${mi * span + 1} / span ${span}`,
-                        gridCol: matchCol,
-                        isFinal: isLast
-                    });
+            // Field name click → Field Directions
+            const fieldEl = target.closest('[data-field-id]') as HTMLElement | null;
+            if (fieldEl) {
+                const fieldId = fieldEl.getAttribute('data-field-id');
+                if (fieldId) {
+                    this.viewFieldInfo.emit(fieldId);
                 }
+                return;
+            }
 
-                // Connectors: one per pair of matches (not for last round)
-                if (!isLast) {
-                    const connSpan = span * 2;
-                    const pairCount = Math.floor(round.matches.length / 2);
-                    for (let pi = 0; pi < pairCount; pi++) {
-                        gridConnectors.push({
-                            gridRow: `${pi * connSpan + 1} / span ${connSpan}`,
-                            gridCol: connCol
+            // Team name click → Game History modal
+            const teamEl = target.closest('[data-team-id]') as HTMLElement | null;
+            if (teamEl) {
+                const teamId = teamEl.getAttribute('data-team-id');
+                if (teamId) {
+                    this.viewTeamResults.emit(teamId);
+                }
+                return;
+            }
+
+            // Pencil icon click → Score Edit modal
+            const scoreEl = target.closest('[data-score-gid]') as HTMLElement | null;
+            if (scoreEl) {
+                const gid = parseInt(scoreEl.getAttribute('data-score-gid')!, 10);
+                if (gid > 0) {
+                    const match = matchesRef.find(m => m.gid === gid);
+                    if (match) {
+                        this.editBracketScore.emit({
+                            gid: match.gid,
+                            t1Name: match.t1Name,
+                            t2Name: match.t2Name,
+                            t1Score: match.t1Score ?? null,
+                            t2Score: match.t2Score ?? null
                         });
                     }
                 }
             }
+        };
+        host.addEventListener('click', this.clickListener);
 
-            // Grid template strings
-            const colParts: string[] = [];
-            for (let r = 0; r < rounds.length; r++) {
-                colParts.push('260px');
-                if (r < rounds.length - 1) colParts.push('40px');
+        // Create diagram using vanilla Syncfusion JS API
+        const diagram = new Diagram({
+            width: '100%',
+            height: diagramHeight,
+            snapSettings: { constraints: SnapConstraints.None },
+
+            dataSourceSettings: {
+                id: 'gid',
+                parentId: 'parentGid',
+                dataSource: new DataManager(games as any)
+            },
+
+            tool: DiagramTools.ZoomPan,
+
+            layout: {
+                type: 'HierarchicalTree',
+                orientation: 'RightToLeft',
+                horizontalSpacing: 40,
+                verticalSpacing: verticalSpacing,
+                enableAnimation: true
+            },
+
+            getNodeDefaults: (obj: any) => {
+                obj.shape = { type: 'HTML' };
+                obj.width = 260;
+                obj.height = nodeHeight;
+                return obj;
+            },
+
+            setNodeTemplate: (node: any) => {
+                const data = node.data as BracketNode | undefined;
+                if (!data) return;
+
+                // Placeholder: empty card that reserves layout space (like legacy)
+                if (data.isPlaceholder) {
+                    node.shape = {
+                        type: 'HTML',
+                        content: `<div style="background:var(--bs-body-bg);border:1px dashed var(--bs-border-color);border-radius:6px;width:100%;height:100%;box-sizing:border-box;opacity:0.4;"></div>`
+                    };
+                    return;
+                }
+
+                const t1Score = data.t1Score != null ? data.t1Score : '';
+                const t2Score = data.t2Score != null ? data.t2Score : '';
+                const loc = data.locationTime ? this.escapeHtml(data.locationTime) : '';
+
+                // Team name spans — clickable via DOM delegation when team ID exists
+                const t1NameHtml = data.t1Id
+                    ? `<span data-team-id="${data.t1Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;">${this.escapeHtml(data.t1Name)}</span>`
+                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${this.escapeHtml(data.t1Name)}</span>`;
+
+                const t2NameHtml = data.t2Id
+                    ? `<span data-team-id="${data.t2Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;">${this.escapeHtml(data.t2Name)}</span>`
+                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${this.escapeHtml(data.t2Name)}</span>`;
+
+                // Location line — clickable link to field directions when fieldId exists
+                const locHtml = data.fieldId && loc
+                    ? `<span data-field-id="${data.fieldId}" style="text-decoration:underline;cursor:pointer;">${loc}</span>`
+                    : loc;
+
+                // Pencil icon — top-right corner, only for authenticated admins
+                const canClick = this.canScore();
+                const pencilSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.707-6.793zm-11.354 5.96-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>`;
+                const pencilHtml = canClick
+                    ? `<span data-score-gid="${data.gid}" style="position:absolute;top:4px;right:4px;cursor:pointer;color:var(--bs-secondary-color);opacity:0.6;line-height:1;" title="Edit Score">${pencilSvg}</span>`
+                    : '';
+
+                node.shape = {
+                    type: 'HTML',
+                    content: `
+                        <div style="position:relative;background:var(--bs-body-bg);border:1px solid var(--bs-border-color);border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px;">
+                            ${pencilHtml}
+                            <div style="text-align:center;font-size:10px;color:var(--bs-secondary-color);margin-bottom:3px;line-height:1.2;">${locHtml}</div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${this.teamStyle(data.t1Css)}">
+                                ${t1NameHtml}
+                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;">${t1Score}</span>
+                            </div>
+                            <div style="height:1px;background:var(--bs-border-color);margin:2px 0;"></div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${this.teamStyle(data.t2Css)}">
+                                ${t2NameHtml}
+                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;">${t2Score}</span>
+                            </div>
+                        </div>
+                    `
+                };
+            },
+
+            getConnectorDefaults: (obj: any) => {
+                obj.targetDecorator = { shape: 'None' };
+                obj.type = 'Orthogonal';
+                obj.constraints = 0;
+                obj.cornerRadius = 5;
+                obj.style = { strokeColor: connectorColor, strokeWidth: 1.5 };
+                return obj;
             }
-
-            return {
-                agegroupName: div.agegroupName,
-                divName: div.divName,
-                headerLabel,
-                champion: div.champion ?? null,
-                matches: gridMatches,
-                connectors: gridConnectors,
-                labels,
-                gridCols: colParts.join(' '),
-                gridRows: `repeat(${totalRows}, 80px)`
-            };
         });
-    });
 
-    // ── Match click ──
-
-    onMatchClick(match: BracketMatchDto): void {
-        if (!this.canScore()) return;
-        this.editBracketScore.emit({
-            gid: match.gid,
-            t1Name: match.t1Name,
-            t2Name: match.t2Name,
-            t1Score: match.t1Score ?? null,
-            t2Score: match.t2Score ?? null
-        });
+        diagram.appendTo(container);
+        this.diagramInstance = diagram;
     }
 
-    // ── Zoom (shared across all brackets) ──
+    // ── Helpers ──
 
-    zoomIn(): void {
-        this.scale.update(s => Math.min(2.0, s + 0.15));
+    private teamStyle(css: string): string {
+        switch (css) {
+            case 'winner':
+                return 'font-weight:700;color:var(--bs-success);';
+            case 'loser':
+                return 'color:var(--bs-danger);opacity:0.7;';
+            default:
+                return 'color:var(--bs-body-color);';
+        }
     }
 
-    zoomOut(): void {
-        this.scale.update(s => Math.max(0.3, s - 0.15));
-    }
-
-    resetZoom(): void {
-        this.scale.set(1);
-        this.translateX.set(0);
-        this.translateY.set(0);
-    }
-
-    onWheel(event: WheelEvent): void {
-        event.preventDefault();
-        const delta = event.deltaY > 0 ? -0.08 : 0.08;
-        this.scale.update(s => Math.min(2.0, Math.max(0.3, s + delta)));
-    }
-
-    // ── Pan (shared across all brackets, using pointer events for touch + mouse) ──
-
-    onPanStart(event: PointerEvent): void {
-        if (event.button !== 0) return;
-        this.isPanning.set(true);
-        this.panStartX = event.clientX;
-        this.panStartY = event.clientY;
-        this.panOriginX = this.translateX();
-        this.panOriginY = this.translateY();
-        (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
-    }
-
-    onPanMove(event: PointerEvent): void {
-        if (!this.isPanning()) return;
-        const s = this.scale();
-        this.translateX.set(this.panOriginX + (event.clientX - this.panStartX) / s);
-        this.translateY.set(this.panOriginY + (event.clientY - this.panStartY) / s);
-    }
-
-    onPanEnd(): void {
-        this.isPanning.set(false);
+    private escapeHtml(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 }

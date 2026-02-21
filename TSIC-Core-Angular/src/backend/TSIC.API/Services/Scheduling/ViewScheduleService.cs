@@ -47,29 +47,40 @@ public sealed class ViewScheduleService : IViewScheduleService
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {
         var games = await _scheduleRepo.GetFilteredGamesAsync(jobId, request, ct);
+        var recordLookup = await BuildTeamRecordLookupAsync(jobId, ct);
 
-        return games.Select(g => new ViewGameDto
+        return games.Select(g =>
         {
-            Gid = g.Gid,
-            GDate = g.GDate!.Value,
-            FName = g.Field?.FName ?? g.FName ?? "",
-            FieldId = g.FieldId ?? Guid.Empty,
-            Latitude = g.Field?.Latitude,
-            Longitude = g.Field?.Longitude,
-            AgDiv = $"{g.AgegroupName}:{g.DivName}",
-            T1Name = g.T1Name ?? "",
-            T2Name = g.T2Name ?? "",
-            T1Id = g.T1Id,
-            T2Id = g.T2Id,
-            T1Score = g.T1Score,
-            T2Score = g.T2Score,
-            T1Type = g.T1Type ?? "T",
-            T2Type = g.T2Type ?? "T",
-            T1Ann = g.T1Ann,
-            T2Ann = g.T2Ann,
-            Rnd = g.Rnd,
-            GStatusCode = g.GStatusCode,
-            Color = g.Agegroup?.Color
+            var t1Type = g.T1Type ?? "T";
+            var t2Type = g.T2Type ?? "T";
+
+            return new ViewGameDto
+            {
+                Gid = g.Gid,
+                GDate = g.GDate!.Value,
+                FName = g.Field?.FName ?? g.FName ?? "",
+                FieldId = g.FieldId ?? Guid.Empty,
+                Latitude = g.Field?.Latitude,
+                Longitude = g.Field?.Longitude,
+                AgDiv = $"{g.AgegroupName}:{g.DivName}",
+                T1Name = g.T1Name ?? "",
+                T2Name = g.T2Name ?? "",
+                T1Id = g.T1Id,
+                T2Id = g.T2Id,
+                T1Score = g.T1Score,
+                T2Score = g.T2Score,
+                T1Type = t1Type,
+                T2Type = t2Type,
+                T1Ann = g.T1Ann,
+                T2Ann = g.T2Ann,
+                Rnd = g.Rnd,
+                GStatusCode = g.GStatusCode,
+                Color = g.Agegroup?.Color,
+                T1Record = t1Type == "T" && g.T1Id.HasValue
+                    ? recordLookup.GetValueOrDefault(g.T1Id.Value) : null,
+                T2Record = t2Type == "T" && g.T2Id.HasValue
+                    ? recordLookup.GetValueOrDefault(g.T2Id.Value) : null
+            };
         }).ToList();
     }
 
@@ -163,7 +174,14 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         foreach (var group in grouped)
         {
-            var matches = group.Select(g =>
+            var gameList = group.ToList();
+
+            // Compute ParentGid using legacy's proven algorithm:
+            // For each game, find the game in the SAME division, NEXT round (Rnd+1),
+            // where T1_No or T2_No matches this game's T1_No (seed position).
+            // This builds the bracket tree: child → parent (upward).
+
+            var matches = gameList.Select(g =>
             {
                 var t1Css = GetTeamCss(g.T1Score, g.T2Score);
                 var t2Css = GetTeamCss(g.T2Score, g.T1Score);
@@ -179,18 +197,39 @@ public sealed class ViewScheduleService : IViewScheduleService
                 var roundType = g.T1Type ?? g.T2Type ?? "F";
                 if (roundType == "T") roundType = "F"; // fallback
 
+                // Legacy Pgid algorithm: find parent game in next round
+                int? parentGid = null;
+                if (g.Rnd.HasValue)
+                {
+                    var t1Rank = g.T1No ?? 0;
+                    var nextRnd = (byte)(g.Rnd.Value + 1);
+
+                    parentGid = gameList
+                        .Where(p => p.DivId == g.DivId
+                                    && p.Rnd == nextRnd
+                                    && ((p.T1No ?? 0) == t1Rank || (p.T2No ?? 0) == t1Rank))
+                        .Select(p => (int?)p.Gid)
+                        .SingleOrDefault();
+
+                    // Legacy: Pgid == 0 means no parent → null
+                    if (parentGid == 0) parentGid = null;
+                }
+
                 return new BracketMatchDto
                 {
                     Gid = g.Gid,
-                    T1Name = g.T1Name ?? $"#{g.T1No}",
-                    T2Name = g.T2Name ?? $"#{g.T2No}",
+                    T1Name = g.T1Name ?? $"({g.T1Type}{g.T1No})",
+                    T2Name = g.T2Name ?? $"({g.T2Type}{g.T2No})",
+                    T1Id = g.T1Id,
+                    T2Id = g.T2Id,
                     T1Score = g.T1Score,
                     T2Score = g.T2Score,
                     T1Css = t1Css,
                     T2Css = t2Css,
                     LocationTime = locationTime,
+                    FieldId = g.FieldId,
                     RoundType = roundType,
-                    ParentGid = g.T1GnoRef // Parent game reference for tree structure
+                    ParentGid = parentGid
                 };
             })
             .OrderBy(m => GetRoundOrder(m.RoundType))
@@ -268,6 +307,35 @@ public sealed class ViewScheduleService : IViewScheduleService
     }
 
     // ── Private Helpers ──
+
+    /// <summary>
+    /// Builds a lookup of teamId → "W-L-T" from all scored pool-play games in the job.
+    /// </summary>
+    private async Task<Dictionary<Guid, string>> BuildTeamRecordLookupAsync(
+        Guid jobId, CancellationToken ct)
+    {
+        var allGames = await _scheduleRepo.GetFilteredGamesAsync(jobId, new ScheduleFilterRequest(), ct);
+
+        var scoredPoolPlay = allGames
+            .Where(g => g.T1Type == "T" && g.T2Type == "T"
+                && g.T1Score.HasValue && g.T2Score.HasValue
+                && g.T1Id.HasValue && g.T2Id.HasValue)
+            .ToList();
+
+        var teamStats = new Dictionary<Guid, TeamStatsAccumulator>();
+
+        foreach (var g in scoredPoolPlay)
+        {
+            AccumulateStats(teamStats, g.T1Id!.Value, g.T1Name ?? "", g.AgegroupName ?? "",
+                g.DivName ?? "", g.DivId ?? Guid.Empty, g.T1Score!.Value, g.T2Score!.Value);
+            AccumulateStats(teamStats, g.T2Id!.Value, g.T2Name ?? "", g.AgegroupName ?? "",
+                g.DivName ?? "", g.DivId ?? Guid.Empty, g.T2Score!.Value, g.T1Score!.Value);
+        }
+
+        return teamStats.ToDictionary(
+            kvp => kvp.Key,
+            kvp => $"{kvp.Value.Wins}-{kvp.Value.Losses}-{kvp.Value.Ties}");
+    }
 
     private async Task<StandingsByDivisionResponse> BuildStandingsAsync(
         Guid jobId, ScheduleFilterRequest request, bool poolPlayOnly, CancellationToken ct)

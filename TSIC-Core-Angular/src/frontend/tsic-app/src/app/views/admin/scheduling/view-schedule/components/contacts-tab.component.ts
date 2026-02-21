@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, signal } from '@angular/core';
 import type { ContactDto } from '@core/api';
 
 /** Formats a 10-digit phone string as xxx-xxx-xxxx. */
@@ -39,88 +39,91 @@ interface AgContactGroup {
             <div class="empty-state">No contacts available.</div>
         } @else {
             <div class="contacts-wrapper">
-                @for (ag of grouped(); track ag.agegroupName) {
-                    <div class="ag-section">
-                        <div class="section-row ag-header">
-                            <button class="section-header"
-                                    (click)="toggleSection('ag:' + ag.agegroupName)">
-                                <span class="chevron" [class.expanded]="isSectionOpen('ag:' + ag.agegroupName)"></span>
-                                {{ ag.agegroupName }}
+                <!-- Age group tab bar + expand all -->
+                <div class="ag-tabs-row">
+                    <div class="ag-tabs">
+                        @for (tab of ageGroupTabs(); track tab; let i = $index) {
+                            <button class="ag-tab"
+                                    [class.active]="activeAgTabIndex() === i"
+                                    (click)="activeAgTabIndex.set(i)">
+                                {{ tab }}
                             </button>
-                            @if (isSectionOpen('ag:' + ag.agegroupName)) {
-                                <button class="expand-btn" (click)="toggleAllInAgegroup(ag, $event)"
-                                        [title]="isAgFullyExpanded(ag) ? 'Collapse all' : 'Expand all'">
-                                    {{ isAgFullyExpanded(ag) ? '−' : '+' }} All
-                                </button>
-                            }
-                        </div>
-
-                        @if (isSectionOpen('ag:' + ag.agegroupName)) {
-                            @for (div of ag.divisions; track div.divName) {
-                                <div class="div-section">
-                                    <div class="section-row div-header">
-                                        <button class="section-header"
-                                                (click)="toggleSection('div:' + ag.agegroupName + ':' + div.divName)">
-                                            <span class="chevron" [class.expanded]="isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)"></span>
-                                            {{ div.divName }}
-                                        </button>
-                                        @if (isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)) {
-                                            <button class="expand-btn" (click)="toggleAllInDiv(ag.agegroupName, div, $event)"
-                                                    [title]="isDivFullyExpanded(ag.agegroupName, div) ? 'Collapse all teams' : 'Expand all teams'">
-                                                {{ isDivFullyExpanded(ag.agegroupName, div) ? '−' : '+' }} Teams
-                                            </button>
-                                        }
-                                    </div>
-
-                                    @if (isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)) {
-                                        @for (team of div.teams; track team.teamName) {
-                                            <div class="team-section">
-                                                <button class="section-header team-header"
-                                                        (click)="toggleSection('team:' + ag.agegroupName + ':' + div.divName + ':' + team.teamName)">
-                                                    <span class="chevron" [class.expanded]="isSectionOpen('team:' + ag.agegroupName + ':' + div.divName + ':' + team.teamName)"></span>
-                                                    {{ team.teamName }}
-                                                    <span class="contact-count">({{ team.contacts.length }})</span>
-                                                </button>
-
-                                                @if (isSectionOpen('team:' + ag.agegroupName + ':' + div.divName + ':' + team.teamName)) {
-                                                    <table class="contacts-table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th class="col-name">Name</th>
-                                                                <th class="col-phone">Phone</th>
-                                                                <th class="col-email">Email</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @for (c of team.contacts; track c.firstName + c.lastName + c.email) {
-                                                                <tr>
-                                                                    <td class="col-name">{{ c.firstName }} {{ c.lastName }}</td>
-                                                                    <td class="col-phone">
-                                                                        @if (c.cellphone) {
-                                                                            <a [href]="'tel:' + c.cellphone" class="contact-link">{{ fmtPhone(c.cellphone) }}</a>
-                                                                        } @else {
-                                                                            <span class="no-data">&mdash;</span>
-                                                                        }
-                                                                    </td>
-                                                                    <td class="col-email">
-                                                                        @if (c.email) {
-                                                                            <a [href]="'mailto:' + c.email" class="contact-link">{{ c.email }}</a>
-                                                                        } @else {
-                                                                            <span class="no-data">&mdash;</span>
-                                                                        }
-                                                                    </td>
-                                                                </tr>
-                                                            }
-                                                        </tbody>
-                                                    </table>
-                                                }
-                                            </div>
-                                        }
-                                    }
-                                </div>
-                            }
                         }
                     </div>
+                    @if (activeAgeGroup()) {
+                        <button class="expand-btn"
+                                (click)="toggleAllInActiveAg($event)"
+                                [title]="isActiveAgFullyExpanded() ? 'Collapse all' : 'Expand all'">
+                            {{ isActiveAgFullyExpanded() ? '−' : '+' }} All
+                        </button>
+                    }
+                </div>
+
+                <!-- Divisions + Teams (2-level accordion within active age group) -->
+                @if (activeAgeGroup(); as ag) {
+                    @for (div of ag.divisions; track div.divName) {
+                        <div class="div-section">
+                            <div class="section-row div-header">
+                                <button class="section-header"
+                                        (click)="toggleSection('div:' + ag.agegroupName + ':' + div.divName)">
+                                    <span class="chevron" [class.expanded]="isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)"></span>
+                                    {{ div.divName }}
+                                </button>
+                                @if (isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)) {
+                                    <button class="expand-btn" (click)="toggleAllInDiv(ag.agegroupName, div, $event)"
+                                            [title]="isDivFullyExpanded(ag.agegroupName, div) ? 'Collapse all teams' : 'Expand all teams'">
+                                        {{ isDivFullyExpanded(ag.agegroupName, div) ? '−' : '+' }} Teams
+                                    </button>
+                                }
+                            </div>
+
+                            @if (isSectionOpen('div:' + ag.agegroupName + ':' + div.divName)) {
+                                @for (team of div.teams; track team.teamName) {
+                                    <div class="team-section">
+                                        <button class="section-header team-header"
+                                                (click)="toggleSection('team:' + ag.agegroupName + ':' + div.divName + ':' + team.teamName)">
+                                            <span class="chevron" [class.expanded]="isSectionOpen('team:' + ag.agegroupName + ':' + div.divName + ':' + team.teamName)"></span>
+                                            {{ team.teamName }}
+                                            <span class="contact-count">({{ team.contacts.length }})</span>
+                                        </button>
+
+                                        @if (isSectionOpen('team:' + ag.agegroupName + ':' + div.divName + ':' + team.teamName)) {
+                                            <table class="contacts-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="col-name">Name</th>
+                                                        <th class="col-phone">Phone</th>
+                                                        <th class="col-email">Email</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @for (c of team.contacts; track c.firstName + c.lastName + c.email) {
+                                                        <tr>
+                                                            <td class="col-name">{{ c.firstName }} {{ c.lastName }}</td>
+                                                            <td class="col-phone">
+                                                                @if (c.cellphone) {
+                                                                    <a [href]="'tel:' + c.cellphone" class="contact-link">{{ fmtPhone(c.cellphone) }}</a>
+                                                                } @else {
+                                                                    <span class="no-data">&mdash;</span>
+                                                                }
+                                                            </td>
+                                                            <td class="col-email">
+                                                                @if (c.email) {
+                                                                    <a [href]="'mailto:' + c.email" class="contact-link">{{ c.email }}</a>
+                                                                } @else {
+                                                                    <span class="no-data">&mdash;</span>
+                                                                }
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
                 }
             </div>
         }
@@ -145,6 +148,54 @@ interface AgContactGroup {
             flex-direction: column;
             gap: var(--space-2);
         }
+
+        /* ── Age Group Tabs ── */
+
+        .ag-tabs-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding-bottom: var(--space-2);
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+
+        .ag-tabs {
+            display: flex;
+            gap: var(--space-1);
+            overflow-x: auto;
+            scrollbar-width: thin;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ag-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-3);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .ag-tab:hover {
+            background: var(--bs-secondary-bg);
+            color: var(--bs-body-color);
+        }
+
+        .ag-tab.active {
+            background: var(--bs-primary);
+            color: white;
+            border-color: var(--bs-primary);
+        }
+
+        /* ── Accordion sections ── */
 
         .section-row {
             display: flex;
@@ -185,39 +236,24 @@ interface AgContactGroup {
             text-decoration: underline;
         }
 
-        .ag-header {
-            font-size: var(--font-size-base, 1rem);
+        .div-header {
+            font-size: var(--font-size-sm);
             background: var(--bs-secondary-bg);
             padding: var(--space-2) var(--space-3);
         }
 
-        .ag-header:hover {
-            background: var(--bs-secondary-bg);
-            opacity: 0.85;
-        }
-
-        .ag-header > .section-header {
+        .div-header > .section-header {
             padding: 0;
             background: none;
         }
 
-        .ag-header > .section-header:hover {
+        .div-header > .section-header:hover {
             background: none;
-        }
-
-        .div-header {
-            font-size: var(--font-size-sm);
-            padding-left: var(--space-5);
-            padding-right: var(--space-2);
-        }
-
-        .div-header > .section-header {
-            padding: var(--space-1) var(--space-2);
         }
 
         .team-header {
             font-size: var(--font-size-sm);
-            padding-left: var(--space-8);
+            padding-left: var(--space-5);
             font-weight: 500;
         }
 
@@ -242,14 +278,16 @@ interface AgContactGroup {
             transform: rotate(90deg);
         }
 
+        /* ── Contact Tables ── */
+
         .contacts-table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
             font-size: var(--font-size-sm);
-            margin-left: var(--space-10);
+            margin-left: var(--space-8);
             margin-bottom: var(--space-2);
-            max-width: calc(100% - var(--space-10));
+            max-width: calc(100% - var(--space-8));
         }
 
         .contacts-table thead th {
@@ -305,14 +343,10 @@ interface AgContactGroup {
             color: var(--bs-secondary-color);
         }
 
-        .ag-section {
+        .div-section {
             border: 1px solid var(--bs-border-color);
             border-radius: var(--bs-border-radius);
             overflow: hidden;
-        }
-
-        .div-section {
-            border-top: 1px solid var(--bs-border-color);
         }
 
         .team-section {
@@ -325,6 +359,7 @@ export class ContactsTabComponent {
     isLoading = input<boolean>(false);
 
     private readonly openSections = signal<Set<string>>(new Set());
+    readonly activeAgTabIndex = signal(0);
 
     /** Group flat contacts by AgegroupName -> DivName -> ClubName+TeamName */
     readonly grouped = computed<AgContactGroup[]>(() => {
@@ -371,6 +406,30 @@ export class ContactsTabComponent {
         return result;
     });
 
+    readonly ageGroupTabs = computed<string[]>(() =>
+        this.grouped().map(ag => ag.agegroupName)
+    );
+
+    readonly activeAgeGroup = computed<AgContactGroup | null>(() => {
+        const groups = this.grouped();
+        const idx = this.activeAgTabIndex();
+        return groups[idx] ?? null;
+    });
+
+    readonly isActiveAgFullyExpanded = computed(() => {
+        const ag = this.activeAgeGroup();
+        if (!ag) return false;
+        return this.isAgFullyExpanded(ag);
+    });
+
+    constructor() {
+        // Reset tab index when data changes
+        effect(() => {
+            this.grouped(); // track
+            this.activeAgTabIndex.set(0);
+        });
+    }
+
     toggleSection(key: string): void {
         this.openSections.update(s => {
             const next = new Set(s);
@@ -411,6 +470,14 @@ export class ContactsTabComponent {
             if (!s.has(`team:${agName}:${div.divName}:${team.teamName}`)) return false;
         }
         return true;
+    }
+
+    /** Expand or collapse all divisions + teams in the active age group tab. */
+    toggleAllInActiveAg(event: Event): void {
+        event.stopPropagation();
+        const ag = this.activeAgeGroup();
+        if (!ag) return;
+        this.toggleAllInAgegroup(ag, event);
     }
 
     /** Expand or collapse every division + team within an agegroup. */

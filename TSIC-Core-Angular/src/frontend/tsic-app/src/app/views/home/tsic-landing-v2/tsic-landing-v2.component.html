@@ -1,0 +1,260 @@
+<div class="lp">
+
+  <!-- ══════════════════════════════════════════════════
+       NAV — floating, transparent over hero, solid on scroll
+       ══════════════════════════════════════════════════ -->
+  <nav class="lp-nav" [class.lp-nav--solid]="navSolid()">
+    <div class="lp-nav__inner">
+      <a class="lp-nav__brand" href="#top" (click)="scrollToTop($event)">
+        <img src="images/tsic-logo-color.webp" alt="TeamSportsInfo" class="lp-nav__logo" height="36">
+      </a>
+
+      <div class="lp-nav__links">
+        <a href="#features" (click)="scrollTo($event, '#features')">Features</a>
+        <a href="#services" (click)="scrollTo($event, '#services')">Services</a>
+        <a href="#book-demo" (click)="scrollTo($event, '#book-demo')">Book Demo</a>
+      </div>
+
+      <div class="lp-nav__right">
+        <div class="lp-nav__palette">
+          @for (palette of paletteService.palettes; track $index) {
+            <button class="palette-swatch"
+              [style.background]="palette.primary"
+              [class.active]="paletteService.selectedIndex() === $index && $index !== 0"
+              [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
+              (click)="paletteService.togglePalette($index)">
+              @if (paletteService.selectedIndex() === $index && $index !== 0) {
+                <i class="bi bi-check2"></i>
+              }
+            </button>
+          }
+        </div>
+        <a class="lp-nav__login" [routerLink]="['/tsic', 'login']">
+          <i class="bi bi-box-arrow-in-right"></i>
+          <span>Login</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════
+       HERO — split-screen: copy left, image mosaic right
+       ══════════════════════════════════════════════════ -->
+  <section class="hero" id="top">
+    <div class="hero__left">
+      <div class="hero__badge">
+        <i class="bi bi-stars"></i>
+        <span>AI-Powered Platform</span>
+      </div>
+
+      <h1 class="hero__title">
+        Sports Management,<br>
+        Made <span class="hero__highlight">Smarter.</span>
+      </h1>
+
+      <p class="hero__sub">
+        Registration. Scheduling. Communication. Payments.
+        All intelligently automated — so you can focus on the game.
+      </p>
+
+      <div class="hero__actions">
+        <a href="#book-demo" (click)="scrollTo($event, '#book-demo')" class="btn-cta">
+          <span>Book a Demo</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+        <a href="tel:4102803272" class="btn-secondary">
+          <i class="bi bi-telephone-fill"></i>
+          <span>410-280-3272</span>
+        </a>
+      </div>
+
+      <div class="hero__stats stats-trigger reveal">
+        @for (stat of animatedStats(); track stat.label) {
+          <div class="hero__stat">
+            <span class="hero__stat-number">{{ stat.current }}{{ stat.suffix }}</span>
+            <span class="hero__stat-label">{{ stat.label }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="hero__right">
+      <div class="hero__mosaic">
+        <img src="images/svc-leagues.jpg" alt="League game" class="hero__mosaic-img hero__mosaic-img--1" loading="eager">
+        <img src="images/svc-clubs.jpg" alt="Club practice" class="hero__mosaic-img hero__mosaic-img--2" loading="eager">
+        <img src="images/svc-camps.jpg" alt="Summer camp" class="hero__mosaic-img hero__mosaic-img--3" loading="lazy">
+        <img src="images/svc-tournaments.jpg" alt="Tournament play" class="hero__mosaic-img hero__mosaic-img--4" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       FEATURES — AI capabilities, 2x2 card grid
+       ══════════════════════════════════════════════════ -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="features__header reveal">
+        <span class="section-badge">Intelligent by Design</span>
+        <h2>Intelligence Built Into <span class="gradient-text">Every Feature</span></h2>
+        <p>Our AI engine powers every aspect of your season — from first registration to final standings.</p>
+      </div>
+
+      <div class="features__grid">
+        @for (feat of aiFeatures; track feat.title; let i = $index) {
+          <div class="feat-card reveal" [class]="'feat-card reveal reveal-delay-' + (i + 1)">
+            <div class="feat-card__icon">
+              <i class="bi" [class]="'bi ' + feat.icon"></i>
+            </div>
+            <h3>{{ feat.title }}</h3>
+            <p>{{ feat.description }}</p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       SERVICES — photo cards with gradient overlay
+       ══════════════════════════════════════════════════ -->
+  <section class="services" id="services">
+    <div class="container">
+      <div class="services__header reveal">
+        <span class="section-badge">One Platform, Every Sport</span>
+        <h2>From Neighborhood Leagues to <span class="gradient-text">National Tournaments</span></h2>
+      </div>
+
+      <div class="services__grid">
+        @for (svc of services; track svc.title; let i = $index) {
+          <div class="svc-card reveal" [class]="'svc-card reveal reveal-delay-' + (i + 1)">
+            <img [src]="svc.image" [alt]="svc.title" loading="lazy">
+            <div class="svc-card__overlay">
+              <i class="bi" [class]="'bi ' + svc.icon"></i>
+              <h3>{{ svc.title }}</h3>
+              <p>{{ svc.description }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       HOW IT WORKS — 3-step numbered process
+       ══════════════════════════════════════════════════ -->
+  <section class="how-it-works">
+    <div class="container">
+      <div class="how-it-works__header reveal">
+        <span class="section-badge">Get Started</span>
+        <h2>Up and Running in <span class="gradient-text">Days, Not Months</span></h2>
+      </div>
+
+      <div class="steps reveal">
+        @for (step of howItWorks; track step.title; let i = $index; let last = $last) {
+          <div class="steps__item">
+            <div class="steps__num">{{ i + 1 }}</div>
+            <h3>{{ step.title }}</h3>
+            <p>{{ step.description }}</p>
+          </div>
+          @if (!last) {
+            <div class="steps__arrow" aria-hidden="true">
+              <i class="bi bi-arrow-right"></i>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       TESTIMONIALS — social proof cards
+       ══════════════════════════════════════════════════ -->
+  <section class="testimonials">
+    <div class="container">
+      <div class="testimonials__header reveal">
+        <span class="section-badge">Social Proof</span>
+        <h2>Trusted by Organizations <span class="gradient-text">Nationwide</span></h2>
+      </div>
+
+      <div class="testimonials__grid">
+        @for (t of testimonials; track t.name; let i = $index) {
+          <div class="testimonial-card reveal" [class]="'testimonial-card reveal reveal-delay-' + (i + 1)">
+            <div class="testimonial-card__stars" aria-label="5 out of 5 stars">
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+            </div>
+            <p class="testimonial-card__quote">&ldquo;{{ t.quote }}&rdquo;</p>
+            <div class="testimonial-card__author">
+              <strong>{{ t.name }}</strong>
+              <span>{{ t.title }}, {{ t.org }}</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       CTA — Book a Demo (split: copy + calendar placeholder)
+       ══════════════════════════════════════════════════ -->
+  <section class="cta" id="book-demo">
+    <div class="container">
+      <div class="cta__layout">
+        <div class="cta__text reveal">
+          <h2>Ready to See It <span class="gradient-text">in Action?</span></h2>
+          <p>Book a live demo — pick a time that works for you, and we'll walk you through the platform.</p>
+          <div class="cta__contact">
+            <a href="tel:4102803272">
+              <i class="bi bi-telephone-fill"></i>
+              410-280-3272
+            </a>
+            <a href="mailto:support&#64;teamsportsinfo.com">
+              <i class="bi bi-envelope-fill"></i>
+              support&#64;teamsportsinfo.com
+            </a>
+          </div>
+        </div>
+        <div class="cta__calendar reveal">
+          <!-- TODO: Replace with Google Calendar Appointment Scheduling embed URL -->
+          <div class="cta__calendar-placeholder">
+            <i class="bi bi-calendar2-week"></i>
+            <span>Google Calendar Scheduling</span>
+            <small>Embed coming soon</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════
+       FOOTER
+       ══════════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="site-footer__grid">
+        <div class="site-footer__brand">
+          <img src="images/tsic-logo-dark.webp" alt="TeamSportsInfo" height="28">
+          <p>Connected On and Off the Field</p>
+          <small>&copy; {{ currentYear }} TeamSportsInfo.com</small>
+        </div>
+        <div class="site-footer__col">
+          <h4>Contact</h4>
+          <a href="tel:4102803272">
+            <i class="bi bi-telephone-fill"></i> 410-280-3272
+          </a>
+          <a href="mailto:support&#64;teamsportsinfo.com">
+            <i class="bi bi-envelope-fill"></i> support&#64;teamsportsinfo.com
+          </a>
+        </div>
+        <div class="site-footer__col">
+          <h4>Legal</h4>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</div>

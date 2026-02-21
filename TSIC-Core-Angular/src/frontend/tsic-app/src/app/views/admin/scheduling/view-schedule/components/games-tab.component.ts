@@ -74,6 +74,9 @@ import type { ViewGameDto } from '@core/api';
                                     } @else {
                                         {{ game.t1Name }}
                                     }
+                                    @if (game.t1Record) {
+                                        <div class="record">({{ game.t1Record }})</div>
+                                    }
                                     @if (game.t1Ann) {
                                         <div class="annotation">{{ game.t1Ann }}</div>
                                     }
@@ -87,6 +90,9 @@ import type { ViewGameDto } from '@core/api';
                                         </span>
                                     } @else {
                                         {{ game.t2Name }}
+                                    }
+                                    @if (game.t2Record) {
+                                        <div class="record">({{ game.t2Record }})</div>
                                     }
                                     @if (game.t2Ann) {
                                         <div class="annotation">{{ game.t2Ann }}</div>
@@ -228,6 +234,13 @@ import type { ViewGameDto } from '@core/api';
         .cell-field .clickable:hover,
         .cell-team .clickable:hover {
             text-decoration: underline;
+        }
+
+        .record {
+            font-size: var(--font-size-xs, 0.75rem);
+            color: var(--bs-secondary-color);
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
         }
 
         .annotation {

@@ -49,8 +49,11 @@ public class ViewScheduleController : ControllerBase
                 return (null, null, false, BadRequest(new { message = "Schedule context required" }));
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isAdmin = User.IsInRole("SuperUser") || User.IsInRole("Director")
-                || User.IsInRole("SuperDirector") || User.IsInRole("Scorer");
+            // Check role using both mapped (ClaimTypes.Role) and unmapped ("role") claim types.
+            // .NET 10's JsonWebTokenHandler may not remap "role" → ClaimTypes.Role.
+            var roleName = User.FindFirstValue(ClaimTypes.Role)
+                ?? User.FindFirstValue("role");
+            var isAdmin = roleName is "SuperUser" or "Director" or "SuperDirector" or "Scorer";
 
             return (jobId, userId, isAdmin, null);
         }
