@@ -427,6 +427,18 @@
             </e-column>
 
             <!-- Scrollable columns -->
+            <e-column field="emailOptOut" headerText="OptOut" width="80" textAlign="Center">
+              <ng-template #template let-data>
+                <span class="badge"
+                      [class.bg-warning]="data.emailOptOut"
+                      [class.text-dark]="data.emailOptOut"
+                      [class.bg-light]="!data.emailOptOut"
+                      style="cursor: pointer"
+                      (click)="toggleEmailOptOut(data)">
+                  {{ data.emailOptOut ? 'Yes' : 'No' }}
+                </span>
+              </ng-template>
+            </e-column>
             <e-column field="registrationTs" headerText="RegDate" width="100" type="date" format="M/d/yyyy"></e-column>
             <e-column field="roleName" headerText="Role" width="100"></e-column>
             <e-column field="phone" headerText="CellPhone" width="120"></e-column>

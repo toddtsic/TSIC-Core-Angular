@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "SuperUserOnly")]
 public class AdministratorsController : ControllerBase
 {
-    private readonly ILogger<AdministratorsController> _logger;
     private readonly IAdministratorService _adminService;
     private readonly IJobLookupService _jobLookupService;
 
     public AdministratorsController(
-        ILogger<AdministratorsController> logger,
         IAdministratorService adminService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _adminService = adminService;
         _jobLookupService = jobLookupService;
     }

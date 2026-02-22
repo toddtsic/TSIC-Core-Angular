@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class FieldController : ControllerBase
 {
-    private readonly ILogger<FieldController> _logger;
     private readonly IFieldManagementService _fieldService;
     private readonly IJobLookupService _jobLookupService;
 
     public FieldController(
-        ILogger<FieldController> logger,
         IFieldManagementService fieldService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _fieldService = fieldService;
         _jobLookupService = jobLookupService;
     }

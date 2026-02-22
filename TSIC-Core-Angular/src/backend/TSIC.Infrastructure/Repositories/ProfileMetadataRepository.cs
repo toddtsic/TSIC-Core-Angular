@@ -28,7 +28,7 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
     public async Task<List<Jobs>> GetJobsByProfileTypeAsync(string profileType)
     {
         return await _context.Jobs
-            .Where(j => j.CoreRegformPlayer.StartsWith(profileType) || j.CoreRegformPlayer == profileType)
+            .Where(j => j.CoreRegformPlayer != null && (j.CoreRegformPlayer.StartsWith(profileType) || j.CoreRegformPlayer == profileType))
             .ToListAsync();
     }
 
@@ -40,10 +40,10 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .Select(j => new JobBasicInfo
             {
                 JobName = j.JobName,
-                CustomerName = null,
-                CoreRegformPlayer = j.RegformNamePlayer,
-                PlayerProfileMetadataJson = null,
-                AdultProfileMetadataJson = null
+                CustomerName = string.Empty,
+                CoreRegformPlayer = j.RegformNamePlayer ?? string.Empty,
+                PlayerProfileMetadataJson = string.Empty,
+                AdultProfileMetadataJson = string.Empty
             })
             .SingleOrDefaultAsync();
     }
@@ -56,8 +56,8 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .Select(j => new JobWithJsonOptions
             {
                 JobId = j.JobId,
-                JobName = j.JobName,
-                CustomerName = null,
+                JobName = j.JobName ?? string.Empty,
+                CustomerName = string.Empty,
                 JsonOptions = null
             })
             .SingleOrDefaultAsync();
@@ -72,8 +72,8 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             {
                 JobId = j.JobId,
                 JobName = j.JobName,
-                CoreRegformPlayer = j.CoreRegformPlayer,
-                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson
+                CoreRegformPlayer = j.CoreRegformPlayer ?? string.Empty,
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson ?? string.Empty
             })
             .ToListAsync();
     }
@@ -97,7 +97,7 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
     {
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => (j.CoreRegformPlayer.StartsWith(profileType) || j.CoreRegformPlayer == profileType)
+            .Where(j => j.CoreRegformPlayer != null && (j.CoreRegformPlayer.StartsWith(profileType) || j.CoreRegformPlayer == profileType)
                 && j.CoreRegformPlayer != CoreRegformExcludeMarker
                 && !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
             .Select(j => new JobWithPlayerMetadata
@@ -112,7 +112,7 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
-            .Select(j => j.PlayerProfileMetadataJson)
+            .Select(j => j.PlayerProfileMetadataJson!)
             .ToListAsync();
     }
 
@@ -129,7 +129,7 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
         return await _context.Jobs
             .AsNoTracking()
             .Where(j => !string.IsNullOrEmpty(j.CoreRegformPlayer) && j.CoreRegformPlayer != "0" && j.CoreRegformPlayer != "1")
-            .Select(j => j.CoreRegformPlayer)
+            .Select(j => j.CoreRegformPlayer!)
             .ToListAsync();
     }
 

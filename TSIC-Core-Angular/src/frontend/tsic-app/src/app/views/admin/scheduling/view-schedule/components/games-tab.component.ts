@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     input,
     signal,
+    computed,
     Output,
     EventEmitter
 } from '@angular/core';
@@ -28,26 +29,24 @@ import type { ViewGameDto } from '@core/api';
                 <i class="bi bi-calendar-x me-2"></i>No games match the current filters.
             </div>
         } @else {
+            <!-- Summary line -->
+            <div class="games-summary">
+                {{ games().length }} {{ games().length === 1 ? 'game' : 'games' }}
+                @if (scoredCount() < games().length) {
+                    <span class="summary-sep">&middot;</span>
+                    {{ scoredCount() }} scored
+                }
+            </div>
+
+            <!-- Flat games table -->
             <div class="games-table-wrap">
                 <table class="games-table">
-                    <thead>
-                        <tr>
-                            <th class="col-date">Date</th>
-                            <th class="col-time">Time</th>
-                            <th class="col-team col-team-home">Home</th>
-                            <th class="col-score">Score</th>
-                            <th class="col-team">Away</th>
-                            @if (canScore()) {
-                                <th class="col-actions"></th>
-                            }
-                        </tr>
-                    </thead>
                     @for (game of games(); track game.gid; let i = $index) {
                         <tbody class="game-group" [class.game-even]="i % 2 === 1">
-                            <!-- Row 1: main data -->
+                            <!-- Row 1: date, time, teams + score -->
                             <tr class="game-row-main">
-                                <td class="cell-date">{{ formatDate(game.gDate) }}</td>
-                                <td class="cell-time">{{ formatTime(game.gDate) }}</td>
+                                <td class="cell-date" rowspan="2">{{ formatDate(game.gDate) }}</td>
+                                <td class="cell-time" rowspan="2">{{ formatTime(game.gDate) }}</td>
                                 <td class="cell-team cell-team-home">
                                     @if (game.t1Id) {
                                         <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
@@ -108,20 +107,17 @@ import type { ViewGameDto } from '@core/api';
                                     </td>
                                 }
                             </tr>
-                            <!-- Row 2: field, division, records -->
+                            <!-- Row 2: field, badge, records -->
                             <tr class="game-row-sub">
-                                <td class="cell-meta" colspan="2">
-                                    <span class="meta-date-mobile">{{ formatDate(game.gDate) }} &middot; </span>
-                                    <span class="meta-time-mobile">{{ formatTime(game.gDate) }} &middot; </span>
-                                    <span class="clickable" (click)="viewFieldInfo.emit(game.fieldId)">{{ game.fName }}</span>
+                                <!-- date+time cells spanned from row 1 -->
+                                <td class="cell-team cell-team-home cell-sub">
+                                    <span class="clickable meta-field" (click)="viewFieldInfo.emit(game.fieldId)">{{ game.fName }}</span>
                                     <span class="meta-sep">&middot;</span>
                                     <span class="ag-badge"
                                           [style.background-color]="game.color"
                                           [style.color]="contrastColor(game.color)">{{ game.agDiv }}</span>
-                                </td>
-                                <td class="cell-team cell-team-home cell-sub">
                                     @if (game.t1Record) {
-                                        <span class="record">({{ game.t1Record }})</span>
+                                        <span class="record ms-1">({{ game.t1Record }})</span>
                                     }
                                     @if (game.t1Ann) {
                                         <span class="annotation">{{ game.t1Ann }}</span>
@@ -158,6 +154,20 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-sm);
         }
 
+        /* ── Summary line ── */
+        .games-summary {
+            padding: var(--space-2) var(--space-3);
+            font-size: var(--font-size-sm);
+            color: var(--bs-secondary-color);
+            font-weight: 500;
+        }
+
+        .summary-sep {
+            margin: 0 var(--space-1);
+            opacity: 0.5;
+        }
+
+        /* ── Table ── */
         .games-table-wrap {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
@@ -169,43 +179,36 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-sm);
         }
 
-        /* ── Header ── */
-        thead th {
-            background: var(--bs-tertiary-bg);
-            color: var(--bs-body-color);
-            font-weight: 600;
-            font-size: var(--font-size-xs, 0.75rem);
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            padding: var(--space-1) var(--space-2);
+        /* ── Date / Time columns ── */
+        .cell-date,
+        .cell-time {
             white-space: nowrap;
-            border-bottom: 2px solid var(--bs-border-color);
-            text-align: left;
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-xs);
+            vertical-align: top;
+            padding-top: var(--space-1);
+            padding-bottom: var(--space-1);
         }
 
-        .col-score {
-            text-align: center;
-            border-left: 1px solid var(--bs-border-color);
-            border-right: 1px solid var(--bs-border-color);
-        }
-
-        .col-actions {
-            text-align: center;
-        }
-
-        .col-team-home {
-            text-align: right;
+        .cell-date {
+            font-weight: 600;
+            color: var(--bs-body-color);
         }
 
         /* ── Game group (tbody per game) ── */
+        .game-group {
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+
+        .game-group:first-child {
+            border-top: 1px solid var(--bs-border-color);
+        }
+
         .game-group td {
             padding: 0 var(--space-2);
             color: var(--bs-body-color);
         }
 
-        /* Only force nowrap on fixed-width data cells */
-        .cell-date,
-        .cell-time,
         .cell-score,
         .cell-actions {
             white-space: nowrap;
@@ -218,15 +221,14 @@ import type { ViewGameDto } from '@core/api';
             vertical-align: bottom;
         }
 
-        /* Row 2: bottom border, tight top padding */
+        /* Row 2 */
         .game-row-sub td {
             padding-top: 0;
             padding-bottom: var(--space-1);
-            border-bottom: 1px solid var(--bs-border-color);
             vertical-align: top;
         }
 
-        /* Rowspan cells: top-aligned with team names */
+        /* Rowspan cells */
         .game-row-main td[rowspan] {
             vertical-align: top;
             padding-top: var(--space-1);
@@ -242,32 +244,21 @@ import type { ViewGameDto } from '@core/api';
             background: var(--bs-secondary-bg);
         }
 
-        /* ── Column-specific styles ── */
-        .cell-date,
-        .cell-time {
-            font-variant-numeric: tabular-nums;
-        }
-
+        /* ── Column styles ── */
         .cell-team-home {
             text-align: right;
         }
 
         .cell-team .clickable,
-        .cell-meta .clickable {
+        .meta-field {
             color: var(--bs-primary);
             cursor: pointer;
             text-decoration: none;
         }
 
         .cell-team .clickable:hover,
-        .cell-meta .clickable:hover {
+        .meta-field:hover {
             text-decoration: underline;
-        }
-
-        /* ── Row 2 metadata: field · division ── */
-        .cell-meta {
-            font-size: var(--font-size-xs, 0.75rem);
-            color: var(--bs-secondary-color);
         }
 
         .meta-sep {
@@ -275,7 +266,7 @@ import type { ViewGameDto } from '@core/api';
             opacity: 0.5;
         }
 
-        /* ── Row 2 sub cells: records & annotations ── */
+        /* ── Row 2 sub cells ── */
         .cell-sub {
             font-size: var(--font-size-xs, 0.75rem);
         }
@@ -296,8 +287,8 @@ import type { ViewGameDto } from '@core/api';
             text-align: center;
             font-variant-numeric: tabular-nums;
             font-family: var(--bs-font-monospace);
-            border: 1px solid var(--bs-border-color);
-            border-top: none;
+            border-left: 1px solid var(--bs-border-color);
+            border-right: 1px solid var(--bs-border-color);
             padding-left: var(--space-3);
             padding-right: var(--space-3);
         }
@@ -358,7 +349,6 @@ import type { ViewGameDto } from '@core/api';
             box-shadow: 0 0 0 2px var(--bs-primary-bg-subtle);
         }
 
-        /* Hide number input spinners */
         .score-input::-webkit-inner-spin-button,
         .score-input::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -404,31 +394,81 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        /* ── Mobile date/time (hidden on desktop) ── */
-        .meta-date-mobile,
-        .meta-time-mobile {
-            display: none;
+        .ms-1 {
+            margin-left: var(--space-1);
         }
 
         /* ── Responsive: tablet ── */
         @media (max-width: 767px) {
-            .col-date, .cell-date { display: none; }
-            .meta-date-mobile { display: inline; }
-
             .games-table { font-size: var(--font-size-xs, 0.75rem); }
             .game-group td { padding: 0 var(--space-1); }
             .cell-score { padding-left: var(--space-2); padding-right: var(--space-2); }
             .score-val { font-size: var(--font-size-lg); }
         }
 
-        /* ── Responsive: phone ── */
+        /* ── Responsive: phone (card-like rows) ── */
         @media (max-width: 575px) {
-            .col-time, .cell-time { display: none; }
-            .meta-time-mobile { display: inline; }
+            .games-table { display: block; }
+            .games-table > tbody { display: block; }
+
+            .game-group {
+                display: block;
+                border-bottom: 1px solid var(--bs-border-color);
+                padding: var(--space-1) 0;
+            }
+
+            .game-row-main {
+                display: flex;
+                align-items: center;
+            }
+
+            .game-row-main .cell-date,
+            .game-row-main .cell-time {
+                display: none;
+            }
+
+            .game-row-main .cell-team {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: var(--space-1);
+                font-size: var(--font-size-xs);
+            }
+
+            .game-row-main .cell-team-home { text-align: right; }
+
+            .game-row-main .cell-score {
+                flex-shrink: 0;
+                border: none;
+                padding: var(--space-1);
+            }
+
+            .game-row-main .cell-actions {
+                flex-shrink: 0;
+                padding: 0 var(--space-1);
+            }
 
             .score-val { font-size: var(--font-size-base); }
             .score-dash { margin: 0 2px; }
-            .cell-score { padding-left: var(--space-1); padding-right: var(--space-1); }
+
+            .game-row-sub {
+                display: flex;
+                padding: 0 var(--space-1);
+            }
+
+            .game-row-sub td { border-bottom: none; }
+
+            .game-row-sub .cell-sub {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .game-row-sub .cell-team-home { text-align: left; }
         }
     `]
 })
@@ -448,6 +488,12 @@ export class GamesTabComponent {
     readonly editingGid = signal<number | null>(null);
     readonly editT1Score = signal<number>(0);
     readonly editT2Score = signal<number>(0);
+
+    // ── Derived computeds ──
+
+    readonly scoredCount = computed(() =>
+        this.games().filter(g => g.t1Score != null && g.t2Score != null).length
+    );
 
     // ── Date / time formatting ──
 

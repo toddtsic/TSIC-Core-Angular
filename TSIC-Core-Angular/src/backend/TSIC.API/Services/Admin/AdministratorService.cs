@@ -208,22 +208,4 @@ public sealed class AdministratorService : IAdministratorService
         }).ToList();
     }
 
-    private static AdministratorDto MapToDto(Registrations r)
-    {
-        var isSuperuser = r.RoleId == RoleConstants.Superuser;
-        var lastName = r.User?.LastName ?? "";
-        var firstName = r.User?.FirstName ?? "";
-
-        return new AdministratorDto
-        {
-            RegistrationId = r.RegistrationId,
-            AdministratorName = $"{lastName}, {firstName}".Trim(' ', ','),
-            UserName = r.User?.UserName ?? "",
-            RoleName = isSuperuser ? null : r.Role?.Name,
-            IsActive = r.BActive ?? false,
-            RegisteredDate = r.RegistrationTs,
-            IsSuperuser = isSuperuser,
-            IsPrimaryContact = false
-        };
-    }
 }

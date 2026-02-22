@@ -17,7 +17,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITimeslotRepository _timeslotRepo;
     private readonly IPairingsRepository _pairingsRepo;
-    private readonly IFieldRepository _fieldRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IDivisionRepository _divisionRepo;
     private readonly ISchedulingContextResolver _contextResolver;
@@ -30,7 +29,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         IScheduleRepository scheduleRepo,
         ITimeslotRepository timeslotRepo,
         IPairingsRepository pairingsRepo,
-        IFieldRepository fieldRepo,
         IAgeGroupRepository agegroupRepo,
         IDivisionRepository divisionRepo,
         ISchedulingContextResolver contextResolver,
@@ -42,7 +40,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         _scheduleRepo = scheduleRepo;
         _timeslotRepo = timeslotRepo;
         _pairingsRepo = pairingsRepo;
-        _fieldRepo = fieldRepo;
         _agegroupRepo = agegroupRepo;
         _divisionRepo = divisionRepo;
         _contextResolver = contextResolver;

@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class RegistrationSearchController : ControllerBase
 {
-    private readonly ILogger<RegistrationSearchController> _logger;
     private readonly IRegistrationSearchService _searchService;
     private readonly IJobLookupService _jobLookupService;
 
     public RegistrationSearchController(
-        ILogger<RegistrationSearchController> logger,
         IRegistrationSearchService searchService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _searchService = searchService;
         _jobLookupService = jobLookupService;
     }
@@ -275,6 +272,28 @@ public class RegistrationSearchController : ControllerBase
         try
         {
             await _searchService.CancelSubscriptionAsync(jobId!.Value, userId!, registrationId, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{registrationId:guid}/email-opt-out")]
+    public async Task<ActionResult> SetEmailOptOut(
+        Guid registrationId, [FromBody] SetEmailOptOutRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            await _searchService.SetEmailOptOutAsync(jobId!.Value, registrationId, request.OptOut, ct);
             return NoContent();
         }
         catch (KeyNotFoundException)

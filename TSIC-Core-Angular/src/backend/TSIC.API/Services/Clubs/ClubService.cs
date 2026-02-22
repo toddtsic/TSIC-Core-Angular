@@ -118,7 +118,7 @@ public sealed class ClubService : IClubService
         else
         {
             // Use existing validated user
-            user = existingUser;
+            user = existingUser!;
         }
 
         // Create Clubs record

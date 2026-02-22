@@ -1,0 +1,150 @@
+<!-- Page Header -->
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="mb-0">US Lax Validation Test</h2>
+</div>
+
+<div class="test-card card shadow-sm">
+    <div class="card-body">
+        <!-- Job Valid Through Context -->
+        <div class="context-row mb-4">
+            <span class="context-label">Job Valid Through Date:</span>
+            <span class="context-value fw-medium">{{ jobValidThroughDisplay() }}</span>
+        </div>
+
+        <!-- Input Row -->
+        <div class="input-row mb-4">
+            <div class="input-group">
+                <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Enter membership number"
+                    [ngModel]="membershipNumber()"
+                    (ngModelChange)="membershipNumber.set($event)"
+                    (keydown)="onKeydown($event)"
+                    [disabled]="isLoading()"
+                    aria-label="USA Lacrosse membership number" />
+                <button
+                    class="btn btn-primary"
+                    (click)="verify()"
+                    [disabled]="isLoading() || !membershipNumber().trim()">
+                    @if (isLoading()) {
+                        <span class="spinner-border spinner-border-sm me-1" role="status">
+                            <span class="visually-hidden">Verifying...</span>
+                        </span>
+                        Verifying
+                    } @else {
+                        <i class="bi bi-search me-1"></i>
+                        Verify
+                    }
+                </button>
+            </div>
+            @if (hasSearched()) {
+                <button class="btn btn-outline-secondary btn-sm mt-2" (click)="clear()">
+                    <i class="bi bi-x-lg me-1"></i>Clear
+                </button>
+            }
+        </div>
+
+        <!-- Error -->
+        @if (errorMessage()) {
+            <div class="alert alert-danger d-flex align-items-center" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                {{ errorMessage() }}
+            </div>
+        }
+
+        <!-- Result -->
+        @if (result(); as member) {
+            <div class="result-panel">
+                <!-- Status Header -->
+                <div class="result-header" [class.result-active]="isActive()" [class.result-inactive]="!isActive()">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi" [class.bi-check-circle-fill]="isActive()" [class.bi-x-circle-fill]="!isActive()"></i>
+                            <span class="fw-semibold">{{ member.mem_status || 'Unknown' }}</span>
+                        </div>
+                        <span class="expiry-text">
+                            Expires: {{ member.exp_date || 'N/A' }}
+                            @if (isExpiredForJob()) {
+                                <span class="badge bg-warning text-dark ms-1">Before job date</span>
+                            }
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Member Details -->
+                <div class="result-body">
+                    <div class="detail-grid">
+                        <div class="detail-row">
+                            <span class="detail-key">Member ID</span>
+                            <span class="detail-val">{{ member.membership_id }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key">Name</span>
+                            <span class="detail-val">{{ member.firstname }} {{ member.lastname }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key">Date of Birth</span>
+                            <span class="detail-val">{{ member.birthdate || 'N/A' }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key">Gender</span>
+                            <span class="detail-val">{{ member.gender || 'N/A' }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key">Email</span>
+                            <span class="detail-val">{{ member.email || 'N/A' }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key">Location</span>
+                            <span class="detail-val">{{ member.state || '' }} {{ member.postalcode || '' }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key">Age Verified</span>
+                            <span class="detail-val">{{ member.age_verified === 'true' ? 'Yes' : 'No' }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key">Involvement</span>
+                            <span class="detail-val">
+                                @if (member.involvement && member.involvement.length) {
+                                    @for (role of member.involvement; track role) {
+                                        <span class="badge bg-primary-subtle text-primary-emphasis me-1">{{ role }}</span>
+                                    }
+                                } @else {
+                                    N/A
+                                }
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Help Links -->
+        <div class="help-section mt-4">
+            <p class="text-body-secondary mb-2">
+                The membership must be valid through the event dates.
+                Last name and date of birth must match what USA Lacrosse has on file.
+            </p>
+            <ul class="help-links list-unstyled mb-0">
+                <li>
+                    <i class="bi bi-box-arrow-up-right me-1"></i>
+                    <a href="https://account.usalacrosse.com/login/lookup" target="_blank" rel="noopener">
+                        Look up your number at USA Lacrosse
+                    </a>
+                </li>
+                <li>
+                    <i class="bi bi-box-arrow-up-right me-1"></i>
+                    <a href="https://www.usalacrosse.com/membership" target="_blank" rel="noopener">
+                        Get a membership at USA Lacrosse
+                    </a>
+                </li>
+                <li>
+                    <i class="bi bi-envelope me-1"></i>
+                    <a href="mailto:membership@usalacrosse.com">membership&#64;usalacrosse.com</a>
+                    &nbsp;or call 410-235-6882
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

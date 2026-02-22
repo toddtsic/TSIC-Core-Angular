@@ -4,7 +4,14 @@
       "Bash(curl:*)",
       "Bash(git stash:*)",
       "WebFetch(domain:ej2.syncfusion.com)",
-      "Bash(sqlcmd:*)"
+      "Bash(sqlcmd:*)",
+      "Bash(ls:*)",
+      "Bash(done)",
+      "Read(//c/Users/Administrator/source/**)",
+      "Read(//c/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-source-TSIC-Core-Angular/tasks/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin"
     ]
   }
 }

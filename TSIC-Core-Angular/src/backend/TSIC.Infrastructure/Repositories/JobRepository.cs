@@ -224,7 +224,7 @@ public class JobRepository : IJobRepository
         var result = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobPath, j.JobDisplayOptions.LogoHeader })
+            .Select(j => new { j.JobId, j.JobPath, LogoHeader = j.JobDisplayOptions != null ? j.JobDisplayOptions.LogoHeader : null })
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null

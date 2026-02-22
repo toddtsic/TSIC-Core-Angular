@@ -120,6 +120,8 @@ export type { EditTeamRequest } from './models/EditTeamRequest';
 export type { EditTimeslotDateRequest } from './models/EditTimeslotDateRequest';
 export type { EditTimeslotFieldRequest } from './models/EditTimeslotFieldRequest';
 export type { EmailHealthStatus } from './models/EmailHealthStatus';
+export type { EmailLogDetailDto } from './models/EmailLogDetailDto';
+export type { EmailLogSummaryDto } from './models/EmailLogSummaryDto';
 export type { EmailParticipantsRequest } from './models/EmailParticipantsRequest';
 export type { EmailParticipantsResponse } from './models/EmailParticipantsResponse';
 export type { EmailPreviewRequest } from './models/EmailPreviewRequest';
@@ -309,6 +311,7 @@ export type { SchedulingDashboardStatusDto } from './models/SchedulingDashboardS
 export type { SchedulingMetrics } from './models/SchedulingMetrics';
 export type { SeedScriptSyncResult } from './models/SeedScriptSyncResult';
 export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
+export type { SetEmailOptOutRequest } from './models/SetEmailOptOutRequest';
 export type { SetWizardContextRequest } from './models/SetWizardContextRequest';
 export type { SizeMismatchResolution } from './models/SizeMismatchResolution';
 export type { SportOptionDto } from './models/SportOptionDto';

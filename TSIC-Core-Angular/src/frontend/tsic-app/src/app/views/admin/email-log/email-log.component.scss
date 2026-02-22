@@ -1,0 +1,150 @@
+:host {
+    display: block;
+    padding: var(--space-4);
+}
+
+// ── Table styling (matches admin pattern) ──
+
+.col-row-num {
+    width: 40px;
+}
+
+.col-count {
+    width: 100px;
+    text-align: center;
+}
+
+.sender-col {
+    max-width: 200px;
+}
+
+.subject-col {
+    max-width: 300px;
+}
+
+.table {
+    th {
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--bs-secondary-color);
+        border-bottom-width: 2px;
+
+        &.sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+
+            &:hover {
+                color: var(--bs-body-color);
+            }
+        }
+    }
+
+    tbody tr {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+
+    tbody tr:nth-child(even) > td {
+        background: var(--bs-secondary-bg);
+    }
+}
+
+.sort-icon {
+    font-size: 0.65em;
+    margin-left: var(--space-1);
+    opacity: 0.5;
+
+    &.bi-caret-up-fill,
+    &.bi-caret-down-fill {
+        opacity: 1;
+        color: var(--bs-primary);
+    }
+}
+
+.row-selected {
+    background-color: rgba(var(--bs-primary-rgb), 0.08) !important;
+    border-left: 3px solid var(--bs-primary);
+}
+
+// ── Master/Detail layout ──
+
+.email-layout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+@media (min-width: 992px) {
+    .email-layout {
+        flex-direction: row;
+    }
+
+    .email-table-panel {
+        flex: 3;
+        min-width: 0;
+    }
+
+    .email-detail-panel {
+        flex: 2;
+        min-width: 0;
+    }
+}
+
+// ── Detail panel ──
+
+.detail-card {
+    position: sticky;
+    top: var(--space-4);
+}
+
+.detail-section {
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border-color);
+}
+
+.detail-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color);
+    margin-bottom: var(--space-2);
+}
+
+.recipient-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.recipient-badge {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+}
+
+.message-body {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+
+    // Ensure email HTML doesn't break layout
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    table {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+}

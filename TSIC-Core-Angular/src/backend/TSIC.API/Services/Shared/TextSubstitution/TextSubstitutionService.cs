@@ -248,6 +248,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         tokens["!APPLIEDTOCATEGORY"] = f.RegistrationCategory ?? string.Empty;
         tokens["!YEAR"] = f.UslaxNumberValidThroughDate?.Year.ToString() ?? DateTime.UtcNow.Year.ToString();
         tokens["!USLAXVALIDTHROUGHDATE"] = f.UslaxNumberValidThroughDate?.ToString("d") ?? string.Empty;
+        tokens["!UNSUBSCRIBE"] = $"<a href=\"https://www.teamsportsinfo.com/api/email/unsubscribe?regId={f.RegistrationId:D}\">Unsubscribe</a>";
     }
 
     private async Task AddComplexTokensAsync(

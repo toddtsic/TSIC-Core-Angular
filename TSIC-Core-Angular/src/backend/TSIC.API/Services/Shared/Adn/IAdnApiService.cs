@@ -81,7 +81,7 @@ public interface IAdnApiService
 
     ARBUpdateSubscriptionResponse ADN_UpdateSubscription(AdnArbUpdateRequest request);
 
-    ARBGetSubscriptionListResponse ARBGetSubscriptionListRequest(
+    ARBGetSubscriptionListResponse? ARBGetSubscriptionListRequest(
         AuthorizeNet.Environment env,
         string adnLoginId,
         string adnTransactionKey,

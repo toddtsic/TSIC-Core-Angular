@@ -14,16 +14,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class TeamSearchController : ControllerBase
 {
-    private readonly ILogger<TeamSearchController> _logger;
     private readonly ITeamSearchService _teamSearchService;
     private readonly IJobLookupService _jobLookupService;
 
     public TeamSearchController(
-        ILogger<TeamSearchController> logger,
         ITeamSearchService teamSearchService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _teamSearchService = teamSearchService;
         _jobLookupService = jobLookupService;
     }

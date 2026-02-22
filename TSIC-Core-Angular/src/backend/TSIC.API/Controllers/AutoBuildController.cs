@@ -16,16 +16,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class AutoBuildController : ControllerBase
 {
-    private readonly ILogger<AutoBuildController> _logger;
     private readonly IAutoBuildScheduleService _service;
     private readonly IJobLookupService _jobLookupService;
 
     public AutoBuildController(
-        ILogger<AutoBuildController> logger,
         IAutoBuildScheduleService service,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _service = service;
         _jobLookupService = jobLookupService;
     }

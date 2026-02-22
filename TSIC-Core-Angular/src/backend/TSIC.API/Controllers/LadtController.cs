@@ -29,7 +29,7 @@ public class LadtController : ControllerBase
     [HttpGet("tree")]
     public async Task<ActionResult<LadtTreeRootDto>> GetTree(CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         var tree = await _ladtService.GetLadtTreeAsync(jobId!.Value, cancellationToken);
@@ -54,7 +54,7 @@ public class LadtController : ControllerBase
     [HttpGet("leagues/{leagueId:guid}")]
     public async Task<ActionResult<LeagueDetailDto>> GetLeague(Guid leagueId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -89,7 +89,7 @@ public class LadtController : ControllerBase
     [HttpGet("agegroups/{agegroupId:guid}")]
     public async Task<ActionResult<AgegroupDetailDto>> GetAgegroup(Guid agegroupId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -136,7 +136,7 @@ public class LadtController : ControllerBase
     [HttpDelete("agegroups/{agegroupId:guid}")]
     public async Task<IActionResult> DeleteAgegroup(Guid agegroupId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -169,7 +169,7 @@ public class LadtController : ControllerBase
     [HttpGet("divisions/{divId:guid}")]
     public async Task<ActionResult<DivisionDetailDto>> GetDivision(Guid divId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -216,7 +216,7 @@ public class LadtController : ControllerBase
     [HttpDelete("divisions/{divId:guid}")]
     public async Task<IActionResult> DeleteDivision(Guid divId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -249,7 +249,7 @@ public class LadtController : ControllerBase
     [HttpGet("teams/{teamId:guid}")]
     public async Task<ActionResult<TeamDetailDto>> GetTeam(Guid teamId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -296,7 +296,7 @@ public class LadtController : ControllerBase
     [HttpDelete("teams/{teamId:guid}")]
     public async Task<ActionResult<DeleteTeamResultDto>> DeleteTeam(Guid teamId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -355,7 +355,7 @@ public class LadtController : ControllerBase
     [HttpGet("clubs-for-job")]
     public async Task<ActionResult<List<ClubRegistrationDto>>> GetClubRegistrationsForJob(CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         var clubs = await _ladtService.GetClubRegistrationsForJobAsync(jobId!.Value, cancellationToken);
@@ -385,7 +385,7 @@ public class LadtController : ControllerBase
     [HttpGet("leagues/siblings")]
     public async Task<ActionResult<List<LeagueDetailDto>>> GetLeagueSiblings(CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         var list = await _ladtService.GetLeagueSiblingsAsync(jobId!.Value, cancellationToken);
@@ -395,7 +395,7 @@ public class LadtController : ControllerBase
     [HttpGet("agegroups/by-league/{leagueId:guid}")]
     public async Task<ActionResult<List<AgegroupDetailDto>>> GetAgegroupsByLeague(Guid leagueId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -409,7 +409,7 @@ public class LadtController : ControllerBase
     [HttpGet("divisions/by-agegroup/{agegroupId:guid}")]
     public async Task<ActionResult<List<DivisionDetailDto>>> GetDivisionsByAgegroup(Guid agegroupId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -423,7 +423,7 @@ public class LadtController : ControllerBase
     [HttpGet("teams/by-division/{divId:guid}")]
     public async Task<ActionResult<List<TeamDetailDto>>> GetTeamsByDivision(Guid divId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -451,7 +451,7 @@ public class LadtController : ControllerBase
     [HttpPost("batch/update-fees/{agegroupId:guid}")]
     public async Task<ActionResult<int>> UpdatePlayerFeesToAgegroupFees(Guid agegroupId, CancellationToken cancellationToken)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try

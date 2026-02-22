@@ -6,6 +6,7 @@ export type BatchEmailResponse = {
     totalRecipients: number;
     sent: number;
     failed: number;
+    optedOut: number;
     failedAddresses: Array<string>;
 };
 

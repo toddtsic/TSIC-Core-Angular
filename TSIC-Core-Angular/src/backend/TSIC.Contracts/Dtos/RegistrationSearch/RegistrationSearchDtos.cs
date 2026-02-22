@@ -72,6 +72,9 @@ public record RegistrationSearchResultDto
     // Dates
     public required DateTime RegistrationTs { get; init; }
     public DateTime? Modified { get; init; }
+
+    // Email opt-out
+    public required bool EmailOptOut { get; init; }
 }
 
 /// <summary>

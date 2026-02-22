@@ -356,7 +356,7 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
             {
                 UserId = r.UserId,
                 JobId = r.JobId,
-                SpecialRequests = r.SpecialRequests
+                SpecialRequests = r.SpecialRequests ?? string.Empty
             }).SingleOrDefaultAsync(cancellationToken);
     }
 

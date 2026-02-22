@@ -24,19 +24,19 @@ export class PaletteService {
 
     readonly palettes: ColorPalette[] = [
         {
-            name: 'TSIC Green',
-            description: 'TeamSportsInfo brand green — default',
-            primary: '#16a34a',
-            secondary: '#57534e',
+            name: 'Default',
+            description: 'Base theme — no palette override',
+            primary: '#0ea5e9',
+            secondary: '#64748b',
             success: '#22c55e',
-            danger: '#dc2626',
-            warning: '#ca8a04',
-            info: '#0891b2',
-            light: '#f0fdf4',
-            dark: '#14532d',
-            bodyBg: '#f7fee7',
-            bodyColor: '#365314',
-            cardBg: '#f0fdf4'
+            danger: '#ef4444',
+            warning: '#f59e0b',
+            info: '#0ea5e9',
+            light: '#f8fafc',
+            dark: '#1e293b',
+            bodyBg: '#ffffff',
+            bodyColor: '#1e293b',
+            cardBg: '#ffffff'
         },
         {
             name: 'Friendly Sky',
@@ -178,6 +178,15 @@ export class PaletteService {
 
     private applyPalette(index: number): void {
         this.selectedIndex.set(index);
+
+        // Index 0 = no override — remove dynamic styles and use base CSS tokens
+        if (index === 0) {
+            const existing = document.getElementById('tsic-palette');
+            if (existing) {
+                existing.textContent = '';
+            }
+            return;
+        }
 
         const palette = this.palettes[index];
 

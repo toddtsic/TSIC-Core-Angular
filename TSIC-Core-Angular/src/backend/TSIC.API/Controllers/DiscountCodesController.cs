@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class DiscountCodesController : ControllerBase
 {
-    private readonly ILogger<DiscountCodesController> _logger;
     private readonly IDiscountCodeService _discountCodeService;
     private readonly IJobLookupService _jobLookupService;
 
     public DiscountCodesController(
-        ILogger<DiscountCodesController> logger,
         IDiscountCodeService discountCodeService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _discountCodeService = discountCodeService;
         _jobLookupService = jobLookupService;
     }

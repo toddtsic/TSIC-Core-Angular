@@ -1007,7 +1007,8 @@ public class RegistrationRepository : IRegistrationRepository
             PaidTotal = r.PaidTotal,
             OwedTotal = r.OwedTotal,
             RegistrationTs = r.RegistrationTs,
-            Modified = r.Modified
+            Modified = r.Modified,
+            EmailOptOut = r.BemailOptOut
         });
 
         // Default sort (sorting done client-side)
@@ -1605,5 +1606,16 @@ public class RegistrationRepository : IRegistrationRepository
                 && t.TeamName!.Contains(gradYear))
             .Select(t => (Guid?)t.TeamId)
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task SetEmailOptOutAsync(Guid registrationId, bool optOut, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .FirstOrDefaultAsync(r => r.RegistrationId == registrationId, ct);
+
+        if (reg == null) return;
+
+        reg.BemailOptOut = optOut;
+        await _context.SaveChangesAsync(ct);
     }
 }

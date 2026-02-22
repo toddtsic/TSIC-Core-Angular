@@ -434,7 +434,7 @@ public class AdnApiService : IAdnApiService
         return controller.GetApiResponse();
     }
 
-    public ARBGetSubscriptionListResponse ARBGetSubscriptionListRequest(
+    public ARBGetSubscriptionListResponse? ARBGetSubscriptionListRequest(
         AuthorizeNet.Environment env,
         string adnLoginId,
         string adnTransactionKey,

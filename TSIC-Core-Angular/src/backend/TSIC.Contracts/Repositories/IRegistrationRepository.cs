@@ -391,6 +391,11 @@ public interface IRegistrationRepository
     /// Used to prevent duplicate staff assignments. AsNoTracking.
     /// </summary>
     Task<Registrations?> GetExistingStaffAssignmentAsync(string userId, Guid teamId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Set the BemailOptOut flag on a registration. Used by both admin toggle and public unsubscribe endpoint.
+    /// </summary>
+    Task SetEmailOptOutAsync(Guid registrationId, bool optOut, CancellationToken ct = default);
 }
 
 public record RegistrationWithInvoiceData

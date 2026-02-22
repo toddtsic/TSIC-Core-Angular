@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class TimeslotController : ControllerBase
 {
-    private readonly ILogger<TimeslotController> _logger;
     private readonly ITimeslotService _timeslotService;
     private readonly IJobLookupService _jobLookupService;
 
     public TimeslotController(
-        ILogger<TimeslotController> logger,
         ITimeslotService timeslotService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _timeslotService = timeslotService;
         _jobLookupService = jobLookupService;
     }
