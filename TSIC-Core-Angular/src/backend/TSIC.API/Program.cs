@@ -53,14 +53,25 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.ResponseCompression;
 using Serilog;
-using Serilog.Sinks.MSSqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache(); // Add memory cache for refresh tokens
+
+// Response compression (gzip + brotli for JSON API responses)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes;
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+    options.Level = System.IO.Compression.CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = System.IO.Compression.CompressionLevel.SmallestSize);
 
 // Infrastructure Repositories
 builder.Services.AddScoped<IRegistrationRepository, RegistrationRepository>();
@@ -98,7 +109,6 @@ builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
 builder.Services.AddScoped<IJobCloneRepository, JobCloneRepository>();
 builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 
-builder.Services.AddScoped<ILogRepository, LogRepository>();
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
@@ -436,15 +446,7 @@ Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.MSSqlServer(
-        connectionString: builder.Configuration.GetConnectionString("DefaultConnection"),
-        sinkOptions: new MSSqlServerSinkOptions
-        {
-            TableName = "AppLog",
-            SchemaName = "logs",
-            AutoCreateSqlTable = false
-        },
-        columnOptions: GetColumnOptions())
+    .WriteTo.Seq(builder.Configuration["Seq:ServerUrl"] ?? "http://localhost:5341")
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -469,6 +471,9 @@ if (app.Urls.Any(url => url.StartsWith("https://", StringComparison.OrdinalIgnor
     app.UseHttpsRedirection();
 }
 
+// Response compression (before routing so all responses are compressed)
+app.UseResponseCompression();
+
 // Ensure proper middleware order for CORS
 app.UseRouting();
 app.UseSerilogRequestLogging(options =>
@@ -489,19 +494,4 @@ app.MapControllers();
 
 await app.RunAsync();
 
-// ── Serilog column mapping ───────────────────────────────────────
-static ColumnOptions GetColumnOptions()
-{
-    var opts = new ColumnOptions();
-    opts.Store.Remove(StandardColumn.MessageTemplate);
-    opts.AdditionalColumns = new List<SqlColumn>
-    {
-        new() { ColumnName = "SourceContext",  DataType = System.Data.SqlDbType.NVarChar, DataLength = 512, AllowNull = true },
-        new() { ColumnName = "RequestPath",    DataType = System.Data.SqlDbType.NVarChar, DataLength = 512, AllowNull = true },
-        new() { ColumnName = "StatusCode",     DataType = System.Data.SqlDbType.Int,      AllowNull = true },
-        new() { ColumnName = "Elapsed",        DataType = System.Data.SqlDbType.Float,    AllowNull = true },
-    };
-    opts.TimeStamp.ConvertToUtc = false;
-    return opts;
-}
 

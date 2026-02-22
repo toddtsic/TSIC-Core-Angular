@@ -154,12 +154,6 @@ export const routes: Routes = [
 						path: 'job-config',
 						canDeactivate: [unsavedChangesGuard],
 						loadComponent: () => import('./views/admin/job-config/job-config.component').then(m => m.JobConfigComponent)
-					},
-					{
-						path: 'log-viewer',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/log-viewer/log-viewer.component').then(m => m.LogViewerComponent)
 					}
 				]
 			},

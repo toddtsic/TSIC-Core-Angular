@@ -25,11 +25,11 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Serilog.Sinks.Seq" />
     <PackageReference Include="SonarAnalyzer.CSharp" />
     <PackageReference Include="MimeKit" />
     <PackageReference Include="AWSSDK.SimpleEmail" />
     <PackageReference Include="Serilog.AspNetCore" />
-    <PackageReference Include="Serilog.Sinks.MSSqlServer" />
   </ItemGroup>
 
   <ItemGroup>

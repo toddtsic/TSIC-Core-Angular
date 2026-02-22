@@ -32,6 +32,7 @@
     <!-- NetTopologySuite -->
     <PackageVersion Include="NetTopologySuite" Version="2.6.0" />
     <!-- Image processing (branding image resize) -->
+    <PackageVersion Include="Serilog.Sinks.Seq" Version="9.0.0" />
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
     <!-- Testing -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />

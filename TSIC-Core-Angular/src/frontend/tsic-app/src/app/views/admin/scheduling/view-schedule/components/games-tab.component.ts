@@ -37,8 +37,8 @@ import type { ViewGameDto } from '@core/api';
                             <th class="col-field">Field</th>
                             <th class="col-div">Division</th>
                             <th class="col-team">Home</th>
-                            <th class="col-team">Away</th>
                             <th class="col-score">Score</th>
+                            <th class="col-team">Away</th>
                             @if (canScore()) {
                                 <th class="col-actions"></th>
                             }
@@ -66,7 +66,7 @@ import type { ViewGameDto } from '@core/api';
                                 <td class="cell-div">{{ game.agDiv }}</td>
 
                                 <!-- Home -->
-                                <td class="cell-team">
+                                <td class="cell-team cell-team-home">
                                     @if (game.t1Id) {
                                         <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">
                                             {{ game.t1Name }}
@@ -82,24 +82,7 @@ import type { ViewGameDto } from '@core/api';
                                     }
                                 </td>
 
-                                <!-- Away -->
-                                <td class="cell-team">
-                                    @if (game.t2Id) {
-                                        <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">
-                                            {{ game.t2Name }}
-                                        </span>
-                                    } @else {
-                                        {{ game.t2Name }}
-                                    }
-                                    @if (game.t2Record) {
-                                        <div class="record">({{ game.t2Record }})</div>
-                                    }
-                                    @if (game.t2Ann) {
-                                        <div class="annotation">{{ game.t2Ann }}</div>
-                                    }
-                                </td>
-
-                                <!-- Score -->
+                                <!-- Score (between teams) -->
                                 <td class="cell-score"
                                     [class.editable]="canScore()"
                                     (click)="onScoreCellClick(game)">
@@ -124,14 +107,37 @@ import type { ViewGameDto } from '@core/api';
                                                    (keydown.enter)="saveScore(game.gid)"
                                                    (keydown.escape)="cancelEdit()">
                                         </div>
+                                    } @else if (hasScore(game)) {
+                                        <span [class.winner]="isT1Winner(game)">{{ game.t1Score }}</span>
+                                        <span class="score-dash">&ndash;</span>
+                                        <span [class.winner]="isT2Winner(game)">{{ game.t2Score }}</span>
+                                    } @else if (game.t1Score != null) {
+                                        <span>{{ game.t1Score }}</span>
+                                        <span class="score-dash">&ndash;</span>
+                                        <span class="no-score">&middot;</span>
+                                    } @else if (game.t2Score != null) {
+                                        <span class="no-score">&middot;</span>
+                                        <span class="score-dash">&ndash;</span>
+                                        <span>{{ game.t2Score }}</span>
                                     } @else {
-                                        @if (hasScore(game)) {
-                                            <span [class.winner]="isT1Winner(game)">{{ game.t1Score }}</span>
-                                            <span class="score-dash">&ndash;</span>
-                                            <span [class.winner]="isT2Winner(game)">{{ game.t2Score }}</span>
-                                        } @else {
-                                            <span class="no-score">&mdash;</span>
-                                        }
+                                        <span class="no-score">vs</span>
+                                    }
+                                </td>
+
+                                <!-- Away -->
+                                <td class="cell-team">
+                                    @if (game.t2Id) {
+                                        <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">
+                                            {{ game.t2Name }}
+                                        </span>
+                                    } @else {
+                                        {{ game.t2Name }}
+                                    }
+                                    @if (game.t2Record) {
+                                        <div class="record">({{ game.t2Record }})</div>
+                                    }
+                                    @if (game.t2Ann) {
+                                        <div class="annotation">{{ game.t2Ann }}</div>
                                     }
                                 </td>
 
@@ -196,6 +202,10 @@ import type { ViewGameDto } from '@core/api';
             text-align: center;
         }
 
+        th.col-team:first-of-type {
+            text-align: right;
+        }
+
         /* ── Rows ── */
         .game-row {
             border-left: 3px solid transparent;
@@ -222,6 +232,10 @@ import type { ViewGameDto } from '@core/api';
         .cell-date,
         .cell-time {
             font-variant-numeric: tabular-nums;
+        }
+
+        .cell-team-home {
+            text-align: right;
         }
 
         .cell-field .clickable,

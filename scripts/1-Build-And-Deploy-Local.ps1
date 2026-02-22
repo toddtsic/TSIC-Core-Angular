@@ -169,6 +169,19 @@ if (Get-Module WebAdministration) {
 }
 Write-Host ""
 
+# ── Step 6: Warmup request ────────────────────────────────────────────
+Write-Host "Step 6: Warming up API (triggers JIT compilation)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3  # Give IIS a moment to spin up the worker process
+try {
+    # -SkipCertificateCheck handles self-signed/dev certs
+    $null = Invoke-WebRequest -Uri "https://devapi.teamsportsinfo.com/swagger/v1/swagger.json" -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
+    Write-Host "  API warmed up!" -ForegroundColor Green
+} catch {
+    Write-Host "  Warmup request failed (app may still be starting): $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  First manual request will be slow while JIT compiles." -ForegroundColor Yellow
+}
+Write-Host ""
+
 # ── Done ─────────────────────────────────────────────────────────────
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "SUCCESS! Deployed to local IIS." -ForegroundColor Green

@@ -13,11 +13,10 @@
         </files>
       </defaultDocument>
 
-      <!-- Static content configuration with caching -->
-      <!-- MIME types handled by IIS defaults -->
-
-      <!-- Request filtering and limits -->
-      <!-- Using IIS defaults -->
+      <!-- Static content: aggressive caching (Angular uses content-hashed filenames) -->
+      <staticContent>
+        <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="365.00:00:00" />
+      </staticContent>
 
       <!-- URL Rewrite for Angular routing -->
       <rewrite>
