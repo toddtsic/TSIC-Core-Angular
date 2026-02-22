@@ -159,6 +159,14 @@ export const routes: Routes = [
 						path: 'job-config',
 						canDeactivate: [unsavedChangesGuard],
 						loadComponent: () => import('./views/admin/job-config/job-config.component').then(m => m.JobConfigComponent)
+					},
+					{
+						path: 'uslax-test',
+						loadComponent: () => import('./views/admin/uslax-test/uslax-test.component').then(m => m.UsLaxTestComponent)
+					},
+					{
+						path: 'email-log',
+						loadComponent: () => import('./views/admin/email-log/email-log.component').then(m => m.EmailLogComponent)
 					}
 				]
 			},
@@ -239,6 +247,13 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
+			},
+			// Legacy-compatible: JobEmails/Index
+			{
+				path: 'jobemails/index',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/email-log/email-log.component').then(m => m.EmailLogComponent)
 			},
 			// Legacy-compatible routes (kept for external link compatibility)
 			{
@@ -352,6 +367,8 @@ export const routes: Routes = [
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
+			// Legacy-compatible: ValidationRemoteTest/Index
+			{ path: 'validationremotetest/index', redirectTo: 'admin/uslax-test', pathMatch: 'full' },
 			// Public schedule view (anonymous access)
 			{
 				path: 'schedule',

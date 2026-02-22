@@ -1,0 +1,112 @@
+:host {
+    display: block;
+    padding: var(--space-4);
+}
+
+.test-card {
+    max-width: 640px;
+}
+
+// ── Context row ──
+
+.context-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+}
+
+.context-label {
+    color: var(--bs-secondary-color);
+}
+
+// ── Result panel ──
+
+.result-panel {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.result-header {
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-size-sm);
+
+    &.result-active {
+        background: rgba(var(--bs-success-rgb), 0.1);
+        color: var(--bs-success);
+        border-bottom: 2px solid var(--bs-success);
+    }
+
+    &.result-inactive {
+        background: rgba(var(--bs-danger-rgb), 0.1);
+        color: var(--bs-danger);
+        border-bottom: 2px solid var(--bs-danger);
+    }
+}
+
+.expiry-text {
+    font-size: var(--font-size-sm);
+}
+
+.result-body {
+    padding: var(--space-3) var(--space-4);
+}
+
+// ── Detail grid ──
+
+.detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.detail-row {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--border-color);
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.detail-key {
+    flex: 0 0 120px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+}
+
+.detail-val {
+    flex: 1;
+    font-size: var(--font-size-sm);
+}
+
+// ── Help links ──
+
+.help-section {
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--space-3);
+}
+
+.help-links {
+    li {
+        padding: var(--space-1) 0;
+        font-size: var(--font-size-sm);
+        color: var(--bs-secondary-color);
+    }
+
+    a {
+        color: var(--bs-primary);
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}

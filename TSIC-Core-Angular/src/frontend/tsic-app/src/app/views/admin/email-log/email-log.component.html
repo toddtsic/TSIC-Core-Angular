@@ -1,0 +1,157 @@
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+    <h2 class="mb-0">Email Log</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadEmails()" [disabled]="isLoading()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Error Alert -->
+@if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+    </div>
+}
+
+<!-- Loading State -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-body-secondary">Loading email log...</p>
+    </div>
+}
+
+<!-- Empty State -->
+@if (!isLoading() && !errorMessage() && emails().length === 0) {
+    <div class="text-center py-5">
+        <i class="bi bi-envelope fs-1 text-body-secondary"></i>
+        <p class="mt-2 text-body-secondary">No emails have been sent from this job.</p>
+    </div>
+}
+
+<!-- Master / Detail Layout -->
+@if (!isLoading() && emails().length > 0) {
+    <div class="email-layout">
+        <!-- Email Table -->
+        <div class="email-table-panel">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="col-row-num">#</th>
+                            <th class="sortable" (click)="sort('sendTs')">
+                                Sent
+                                <i class="bi sort-icon"
+                                    [class.bi-caret-up-fill]="sortColumn() === 'sendTs' && sortDirection() === 'asc'"
+                                    [class.bi-caret-down-fill]="sortColumn() === 'sendTs' && sortDirection() === 'desc'"
+                                    [class.bi-chevron-expand]="sortColumn() !== 'sendTs'"></i>
+                            </th>
+                            <th class="sortable" (click)="sort('sendFrom')">
+                                Sender
+                                <i class="bi sort-icon"
+                                    [class.bi-caret-up-fill]="sortColumn() === 'sendFrom' && sortDirection() === 'asc'"
+                                    [class.bi-caret-down-fill]="sortColumn() === 'sendFrom' && sortDirection() === 'desc'"
+                                    [class.bi-chevron-expand]="sortColumn() !== 'sendFrom'"></i>
+                            </th>
+                            <th class="sortable col-count" (click)="sort('count')">
+                                Recipients
+                                <i class="bi sort-icon"
+                                    [class.bi-caret-up-fill]="sortColumn() === 'count' && sortDirection() === 'asc'"
+                                    [class.bi-caret-down-fill]="sortColumn() === 'count' && sortDirection() === 'desc'"
+                                    [class.bi-chevron-expand]="sortColumn() !== 'count'"></i>
+                            </th>
+                            <th class="sortable" (click)="sort('subject')">
+                                Subject
+                                <i class="bi sort-icon"
+                                    [class.bi-caret-up-fill]="sortColumn() === 'subject' && sortDirection() === 'asc'"
+                                    [class.bi-caret-down-fill]="sortColumn() === 'subject' && sortDirection() === 'desc'"
+                                    [class.bi-chevron-expand]="sortColumn() !== 'subject'"></i>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (email of sortedEmails(); track email.emailId; let i = $index) {
+                            <tr [class.row-selected]="selectedEmailId() === email.emailId"
+                                (click)="selectEmail(email)"
+                                role="button">
+                                <td class="text-body-secondary">{{ i + 1 }}</td>
+                                <td class="text-nowrap">{{ email.sendTs | date:'M/d/yy h:mm a' }}</td>
+                                <td class="text-truncate sender-col">{{ email.sendFrom }}</td>
+                                <td class="text-center">
+                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">
+                                        {{ (email.count ?? 0) | number }}
+                                    </span>
+                                </td>
+                                <td class="text-truncate subject-col">{{ email.subject }}</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Detail Panel -->
+        @if (selectedEmailId()) {
+            <div class="email-detail-panel">
+                <div class="detail-card card shadow-sm">
+                    <div class="card-header bg-surface border-0 d-flex align-items-center justify-content-between py-2">
+                        <h6 class="mb-0">
+                            <i class="bi bi-envelope-open me-1"></i>
+                            Email Detail
+                        </h6>
+                        <button class="icon-btn" (click)="closeDetail()" title="Close">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    @if (isDetailLoading()) {
+                        <div class="card-body text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+
+                    @if (!isDetailLoading() && selectedDetail()) {
+                        <div class="card-body p-0">
+                            <!-- Recipients -->
+                            <div class="detail-section">
+                                <h6 class="detail-label">
+                                    <i class="bi bi-people me-1"></i>
+                                    Sent To
+                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis ms-1">
+                                        {{ recipients().length | number }}
+                                    </span>
+                                </h6>
+                                <div class="recipient-list">
+                                    @for (recipient of recipients(); track recipient) {
+                                        <span class="badge bg-primary-subtle text-primary-emphasis recipient-badge">
+                                            {{ recipient }}
+                                        </span>
+                                    }
+                                    @if (recipients().length === 0) {
+                                        <span class="text-body-secondary fst-italic">No recipients</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Message Body -->
+                            <div class="detail-section">
+                                <h6 class="detail-label">
+                                    <i class="bi bi-body-text me-1"></i>
+                                    Message
+                                </h6>
+                                <div class="message-body" [innerHTML]="selectedDetail()?.msg"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}

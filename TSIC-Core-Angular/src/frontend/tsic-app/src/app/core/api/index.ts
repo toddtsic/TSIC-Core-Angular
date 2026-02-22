@@ -120,6 +120,8 @@ export type { EditTeamRequest } from './models/EditTeamRequest';
 export type { EditTimeslotDateRequest } from './models/EditTimeslotDateRequest';
 export type { EditTimeslotFieldRequest } from './models/EditTimeslotFieldRequest';
 export type { EmailHealthStatus } from './models/EmailHealthStatus';
+export type { EmailLogDetailDto } from './models/EmailLogDetailDto';
+export type { EmailLogSummaryDto } from './models/EmailLogSummaryDto';
 export type { EmailParticipantsRequest } from './models/EmailParticipantsRequest';
 export type { EmailParticipantsResponse } from './models/EmailParticipantsResponse';
 export type { EmailPreviewRequest } from './models/EmailPreviewRequest';
