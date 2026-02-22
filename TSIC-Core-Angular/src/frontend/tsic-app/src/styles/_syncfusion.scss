@@ -545,3 +545,16 @@
     color: var(--bs-secondary-color) !important;
   }
 }
+
+/* Mobile: cap dropdown popup height so it doesn't fill the screen */
+@media (max-width: 575.98px) {
+  .e-popup.e-ddl,
+  .e-popup.e-dropdown-popup {
+    max-height: 200px !important;
+
+    .e-content,
+    .e-ul {
+      max-height: 160px !important;
+    }
+  }
+}

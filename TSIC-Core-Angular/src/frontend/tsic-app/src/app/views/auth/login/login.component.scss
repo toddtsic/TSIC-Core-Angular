@@ -14,31 +14,35 @@
 .login-card {
     width: 100%;
     max-width: 420px;
-    border: none;
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    background: var(--brand-surface);
 }
 
-// ─── Header (matches role-selection) ──────────────
-.login-header {
-    background: var(--brand-primary);
-    color: var(--neutral-0);
-    padding: var(--space-8) var(--space-6);
-    border-top-left-radius: var(--radius-xl);
-    border-top-right-radius: var(--radius-xl);
-
-    h2, p {
-        color: inherit !important;
-    }
+// ─── Hero area (icon + title + subtitle) ─────────
+.login-hero {
+    margin-bottom: var(--space-6);
 }
 
-// ─── Dark mode ────────────────────────────────────
-:host-context([data-bs-theme='dark']) {
-    .login-header {
-        background: var(--bg-elevated);
-        color: var(--bs-body-color);
-        border-bottom: 1px solid var(--border-color);
-    }
+.login-favicon {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: var(--space-3);
+}
+
+.login-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text);
+    margin-bottom: var(--space-1);
+}
+
+.login-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+    margin-bottom: 0;
 }
 
 // ─── Form fields ──────────────────────────────────
@@ -62,6 +66,11 @@
             box-shadow: var(--shadow-focus);
         }
     }
+}
+
+// ─── Submit button ──────────────────────────────
+.login-submit {
+    border-radius: var(--radius-sm);
 }
 
 // ─── Password toggle ─────────────────────────────

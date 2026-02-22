@@ -1,17 +1,19 @@
 <main aria-labelledby="login-title" [attr.aria-busy]="auth.loginLoading()">
   <div class="login-wrapper">
-    <div class="card card-rounded login-card">
-      <div class="login-header text-center border-0">
-        <h2 id="login-title" class="mb-0 fw-bold">{{ headerText }}</h2>
-        <p class="mb-0 mt-2 small">{{ subHeaderText }}</p>
-      </div>
+    <div class="card login-card">
 
       <div class="card-body">
+        <div class="text-center login-hero">
+          <img src="favicon.svg" alt="" aria-hidden="true" class="login-favicon" />
+          <h2 id="login-title" class="login-title">{{ headerText }}</h2>
+          <p class="login-subtitle">{{ subHeaderText }}</p>
+        </div>
+
         <form [formGroup]="form" (ngSubmit)="onSubmit($event)" autocomplete="on" name="login" id="login-form"
           method="post" action="/" novalidate>
 
           <div class="login-field">
-            <label for="username" class="form-label fw-semibold">Username</label>
+            <label for="username" class="form-label fw-medium">Username</label>
             <input #usernameInput id="username" name="username" type="text" class="form-control form-control-lg"
               formControlName="username" placeholder="Enter your username" autocomplete="username" aria-label="Username"
               [class.is-invalid]="submitted() && form.get('username')?.invalid">
@@ -23,7 +25,7 @@
           </div>
 
           <div class="login-field">
-            <label for="password" class="form-label fw-semibold">Password</label>
+            <label for="password" class="form-label fw-medium">Password</label>
             <div class="position-relative">
               <input #passwordInput id="password" name="password" [type]="showPassword() ? 'text' : 'password'"
                 class="form-control form-control-lg pe-5" formControlName="password"
@@ -49,7 +51,7 @@
           </div>
           }
 
-          <button type="submit" class="btn btn-lg w-100 fw-semibold btn-primary"
+          <button type="submit" class="btn btn-lg w-100 fw-semibold btn-primary login-submit"
             [disabled]="auth.loginLoading()">
             @if (!auth.loginLoading()) {
             <span>Sign In</span>

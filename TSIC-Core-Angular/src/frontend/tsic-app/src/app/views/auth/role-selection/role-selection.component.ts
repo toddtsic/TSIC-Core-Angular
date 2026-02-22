@@ -45,6 +45,8 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
 
   private tryOpenFirstDropdown(): void {
     if (this._openedOnce) return;
+    // Skip auto-open on mobile — Syncfusion opens a full-screen overlay on touch devices
+    if (window.innerWidth < 768) return;
     const first = this.dropdowns?.first;
     if (first) {
       this._openedOnce = true;
